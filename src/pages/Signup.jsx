@@ -4,17 +4,22 @@ import { useAuth } from '../context/AuthContext'
 
 const Signup = () => {
   const navigate = useNavigate()
-  const { signup, user } = useAuth()
+  const { signup, user, profile, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard')
+    if (loading) return
+    if (user && profile) {
+      if (profile.myLanguages?.length) {
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate('/select-language', { replace: true })
+      }
     }
-  }, [navigate, user])
+  }, [loading, navigate, profile, user])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -22,7 +27,6 @@ const Signup = () => {
     setError('')
     try {
       await signup(email, password)
-      navigate('/dashboard')
     } catch (err) {
       setError(err.message || 'Failed to create account')
     } finally {

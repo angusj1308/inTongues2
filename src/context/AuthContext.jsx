@@ -22,6 +22,8 @@ const defaultProfile = (user) => ({
   createdAt: serverTimestamp(),
   knownWords: [],
   targetLanguages: [],
+  myLanguages: [],
+  lastUsedLanguage: '',
   stories: [],
   displayName: user.displayName || '',
 })
@@ -80,6 +82,41 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => signOut(auth), [])
 
+  const updateProfile = useCallback(
+    async (updates) => {
+      if (!user) return null
+      const userRef = doc(db, 'users', user.uid)
+      await setDoc(userRef, updates, { merge: true })
+      const snapshot = await getDoc(userRef)
+      setProfile(snapshot.data())
+      return snapshot.data()
+    },
+    [user]
+  )
+
+  const addLanguage = useCallback(
+    async (language) => {
+      if (!language) return null
+      const currentLanguages = profile?.myLanguages || []
+      if (currentLanguages.includes(language)) {
+        return updateProfile({ lastUsedLanguage: language })
+      }
+      return updateProfile({
+        myLanguages: [...currentLanguages, language],
+        lastUsedLanguage: language,
+      })
+    },
+    [profile?.myLanguages, updateProfile]
+  )
+
+  const setLastUsedLanguage = useCallback(
+    async (language) => {
+      if (!language) return null
+      return updateProfile({ lastUsedLanguage: language })
+    },
+    [updateProfile]
+  )
+
   const value = useMemo(
     () => ({
       user,
@@ -88,8 +125,11 @@ export const AuthProvider = ({ children }) => {
       signup,
       login,
       logout,
+      addLanguage,
+      setLastUsedLanguage,
+      updateProfile,
     }),
-    [loading, login, logout, profile, signup, user]
+    [addLanguage, loading, login, logout, profile, setLastUsedLanguage, signup, updateProfile, user]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -8,6 +8,8 @@ import Login from './pages/Login'
 import MyLanguages from './pages/MyLanguages'
 import SelectLanguagePage from './pages/SelectLanguagePage'
 import Signup from './pages/Signup'
+import Library from './pages/Library'
+import Reader from './pages/Reader'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -87,6 +89,22 @@ const App = () => {
         element={
           <ProtectedRoute>
             <GenerateContent />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/library"
+        element={
+          <ProtectedRoute>
+            <Library />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reader/:id"
+        element={
+          <ProtectedRoute>
+            <Reader />
           </ProtectedRoute>
         }
       />

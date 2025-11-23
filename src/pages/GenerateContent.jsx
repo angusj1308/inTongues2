@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
+import { db } from '../firebase'
+import { generateStory } from '../services/generator'
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
@@ -29,13 +32,14 @@ const GENRES = [
 const GenerateContent = () => {
   const navigate = useNavigate()
   const { language: languageParam } = useParams()
-  const { profile, setLastUsedLanguage } = useAuth()
+  const { profile, setLastUsedLanguage, user } = useAuth()
 
   const [levelIndex, setLevelIndex] = useState(2)
   const [length, setLength] = useState(3)
   const [genre, setGenre] = useState(GENRES[0])
   const [description, setDescription] = useState('')
-  const [preview, setPreview] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const availableLanguages = profile?.myLanguages || []
 
@@ -65,17 +69,37 @@ const GenerateContent = () => {
     navigate(`/generate/${encodeURIComponent(newLanguage)}`)
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!activeLanguage) return
+    if (!activeLanguage || !user) return
 
-    setPreview({
-      language: activeLanguage,
+    setError('')
+    setIsSubmitting(true)
+
+    const params = {
       level: CEFR_LEVELS[levelIndex],
-      length,
       genre,
+      length,
       description: description.trim(),
-    })
+      language: activeLanguage,
+    }
+
+    try {
+      const content = await generateStory(params)
+      const libraryRef = collection(db, 'users', user.uid, 'library')
+
+      await addDoc(libraryRef, {
+        ...params,
+        content,
+        createdAt: serverTimestamp(),
+      })
+
+      navigate('/library')
+    } catch (submissionError) {
+      setError(submissionError?.message || 'Unable to generate story.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -174,31 +198,13 @@ const GenerateContent = () => {
             <button className="button ghost" type="button" onClick={() => navigate('/dashboard')}>
               Cancel
             </button>
-            <button className="button" type="submit" disabled={!activeLanguage}>
-              Generate
+            <button className="button" type="submit" disabled={!activeLanguage || isSubmitting}>
+              {isSubmitting ? 'Generating...' : 'Generate'}
             </button>
           </div>
         </form>
 
-        {preview && (
-          <div className="preview-card">
-            <div className="section-header">
-              <h3>Request summary</h3>
-              <p className="muted small">We will send this configuration to the generator next.</p>
-            </div>
-            <div className="pill-row">
-              <span className="pill primary">in{preview.language}</span>
-              <span className="pill">Level {preview.level}</span>
-              <span className="pill">{preview.length} page{preview.length === 1 ? '' : 's'}</span>
-              <span className="pill">{preview.genre}</span>
-            </div>
-            {preview.description ? (
-              <p className="muted">Description: {preview.description}</p>
-            ) : (
-              <p className="muted">No additional description provided.</p>
-            )}
-          </div>
-        )}
+        {error && <p className="error">{error}</p>}
       </div>
     </div>
   )

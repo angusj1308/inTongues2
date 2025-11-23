@@ -100,8 +100,8 @@ const Dashboard = () => {
                 <p className="muted small">
                   Browse curated stories and articles tailored for {activeLanguage || 'your language'}.
                 </p>
-                <button className="button ghost" disabled>
-                  Coming soon
+                <button className="button ghost" onClick={() => navigate('/library')}>
+                  View library
                 </button>
               </div>
               <div className="read-card">

@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "apphosting": {
     "backendId": "backend",
     "rootDir": "dist",

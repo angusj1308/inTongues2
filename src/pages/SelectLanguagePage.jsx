@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -57,17 +57,10 @@ const ALL_LANGUAGES = [
 
 const SelectLanguagePage = () => {
   const navigate = useNavigate()
-  const { addLanguage, profile, loading } = useAuth()
+  const { addLanguage, profile } = useAuth()
   const [query, setQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const hasLanguages = Boolean(profile?.myLanguages?.length)
-
-  useEffect(() => {
-    if (!loading && hasLanguages) {
-      navigate('/dashboard', { replace: true })
-    }
-  }, [hasLanguages, loading, navigate])
 
   const filteredLanguages = useMemo(() => {
     if (!query.trim()) {

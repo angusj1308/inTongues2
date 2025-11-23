@@ -1,0 +1,98 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { auth, db } from '../firebase'
+
+const AuthContext = createContext()
+
+const defaultProfile = (user) => ({
+  email: user.email || '',
+  createdAt: serverTimestamp(),
+  knownWords: [],
+  targetLanguages: [],
+  stories: [],
+  displayName: user.displayName || '',
+})
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const buildProfile = useCallback(async (authUser) => {
+    const userRef = doc(db, 'users', authUser.uid)
+    await setDoc(userRef, defaultProfile(authUser), { merge: true })
+    const snapshot = await getDoc(userRef)
+    setProfile(snapshot.data())
+    return snapshot.data()
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+      setUser(authUser)
+      if (authUser) {
+        const userRef = doc(db, 'users', authUser.uid)
+        const snapshot = await getDoc(userRef)
+        if (snapshot.exists()) {
+          setProfile(snapshot.data())
+        } else {
+          await buildProfile(authUser)
+        }
+      } else {
+        setProfile(null)
+      }
+      setLoading(false)
+    })
+
+    return unsubscribe
+  }, [buildProfile])
+
+  const signup = useCallback(
+    async (email, password) => {
+      const credential = await createUserWithEmailAndPassword(auth, email, password)
+      const userProfile = await buildProfile(credential.user)
+      return { user: credential.user, profile: userProfile }
+    },
+    [buildProfile]
+  )
+
+  const login = useCallback(async (email, password) => {
+    const credential = await signInWithEmailAndPassword(auth, email, password)
+    const userRef = doc(db, 'users', credential.user.uid)
+    const snapshot = await getDoc(userRef)
+    if (snapshot.exists()) {
+      setProfile(snapshot.data())
+    }
+    return credential.user
+  }, [])
+
+  const logout = useCallback(() => signOut(auth), [])
+
+  const value = useMemo(
+    () => ({
+      user,
+      profile,
+      loading,
+      signup,
+      login,
+      logout,
+    }),
+    [loading, login, logout, profile, signup, user]
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export const useAuth = () => useContext(AuthContext)

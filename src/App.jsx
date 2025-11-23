@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
+import GenerateContent from './pages/GenerateContent'
 import Login from './pages/Login'
 import MyLanguages from './pages/MyLanguages'
 import SelectLanguagePage from './pages/SelectLanguagePage'
@@ -70,6 +71,22 @@ const App = () => {
         element={
           <ProtectedRoute>
             <MyLanguages />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/generate"
+        element={
+          <ProtectedRoute>
+            <GenerateContent />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/generate/:language"
+        element={
+          <ProtectedRoute>
+            <GenerateContent />
           </ProtectedRoute>
         }
       />

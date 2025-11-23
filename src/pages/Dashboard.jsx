@@ -12,6 +12,12 @@ const Dashboard = () => {
     }
   }, [navigate, user])
 
+  useEffect(() => {
+    if (user && profile && !profile?.myLanguages?.length) {
+      navigate('/select-language')
+    }
+  }, [navigate, profile, user])
+
   const handleLogout = async () => {
     await logout()
     navigate('/login')
@@ -31,6 +37,23 @@ const Dashboard = () => {
         </div>
         <div className="profile-preview">
           <h3>Your profile</h3>
+          {profile?.lastUsedLanguage && (
+            <p className="muted">Last used language: {profile.lastUsedLanguage}</p>
+          )}
+          {profile?.myLanguages?.length ? (
+            <div className="pill-row">
+              {profile.myLanguages.map((language) => (
+                <span
+                  key={language}
+                  className={`pill ${language === profile.lastUsedLanguage ? 'primary' : ''}`}
+                >
+                  {language}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No languages saved yet.</p>
+          )}
           <pre>{JSON.stringify(profile || {}, null, 2)}</pre>
         </div>
       </div>

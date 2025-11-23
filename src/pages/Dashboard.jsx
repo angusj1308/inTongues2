@@ -39,6 +39,11 @@ const Dashboard = () => {
     navigate('/login')
   }
 
+  const handleGenerateClick = () => {
+    if (!activeLanguage) return
+    navigate(`/generate/${encodeURIComponent(activeLanguage)}`)
+  }
+
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -109,8 +114,12 @@ const Dashboard = () => {
               <div className="read-card">
                 <h3>Generate</h3>
                 <p className="muted small">Create new passages on topics you love.</p>
-                <button className="button ghost" disabled>
-                  Coming soon
+                <button
+                  className="button ghost"
+                  onClick={handleGenerateClick}
+                  disabled={!activeLanguage}
+                >
+                  Generate for {activeLanguage || 'language'}
                 </button>
               </div>
             </div>

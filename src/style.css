@@ -77,9 +77,29 @@ input {
   background-color: #f8fafc;
 }
 
+select,
+textarea {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 1rem;
+  background-color: #f8fafc;
+}
+
 input:focus {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
+}
+
+select:focus,
+textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+textarea {
+  min-height: 140px;
+  resize: vertical;
 }
 
 .button {
@@ -127,6 +147,13 @@ input:focus {
 
 .dashboard-card {
   width: min(840px, 100%);
+}
+
+.language-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .language-hero {
@@ -346,6 +373,21 @@ input:focus {
   gap: 0.35rem;
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.preview-card {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(145deg, #f8fafc, #f1f5f9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .button.ghost {

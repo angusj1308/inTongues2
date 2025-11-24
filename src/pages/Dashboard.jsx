@@ -100,7 +100,11 @@ const Dashboard = () => {
                 <p className="muted small">
                   Browse curated stories and articles tailored for {activeLanguage || 'your language'}.
                 </p>
-                <button className="button ghost" onClick={() => navigate('/library')}>
+                <button
+                  className="button ghost"
+                  onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                  disabled={!activeLanguage}
+                >
                   View library
                 </button>
               </div>

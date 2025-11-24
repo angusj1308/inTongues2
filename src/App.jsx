@@ -101,6 +101,22 @@ const App = () => {
         }
       />
       <Route
+        path="/library/:language"
+        element={
+          <ProtectedRoute>
+            <Library />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reader/:language/:id"
+        element={
+          <ProtectedRoute>
+            <Reader />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/reader/:id"
         element={
           <ProtectedRoute>

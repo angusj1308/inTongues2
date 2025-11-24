@@ -8,7 +8,7 @@ const corsHandler = cors({ origin: true })
 app.use(express.json())
 app.use((req, res, next) => corsHandler(req, res, next))
 
-app.post('/api/generate', async (req, res) => {
+const handleGenerate = async (req, res) => {
   const { level, genre, length, description, language } = req.body || {}
 
   if (!req.body) {
@@ -32,9 +32,17 @@ app.post('/api/generate', async (req, res) => {
     (summaryParts.length ? `Details -> ${summaryParts.join(' | ')}.` : '')
 
   return res.status(200).json({ content })
-})
+}
+
+app.post('/api/generate', handleGenerate)
+app.post('/', handleGenerate)
 
 app.all('/api/generate', (req, res) => {
+  res.set('Allow', 'POST')
+  return res.status(405).json({ error: 'Method Not Allowed' })
+})
+
+app.all('/', (req, res) => {
   res.set('Allow', 'POST')
   return res.status(405).json({ error: 'Method Not Allowed' })
 })

@@ -42,15 +42,21 @@ const GenerateContent = () => {
   const [error, setError] = useState('')
 
   const availableLanguages = profile?.myLanguages || []
+  const languageLocked = Boolean(languageParam)
 
   const activeLanguage = useMemo(() => {
-    if (languageParam && availableLanguages.includes(languageParam)) {
-      return languageParam
+    if (languageParam) {
+      return availableLanguages.includes(languageParam) ? languageParam : ''
     }
     if (profile?.lastUsedLanguage) return profile.lastUsedLanguage
     if (availableLanguages.length) return availableLanguages[0]
     return ''
   }, [availableLanguages, languageParam, profile?.lastUsedLanguage])
+
+  const lockedLanguageUnavailable = languageLocked && !activeLanguage
+  const languageError = lockedLanguageUnavailable
+    ? 'The selected language is not available in your account.'
+    : ''
 
   useEffect(() => {
     if (profile && !availableLanguages.length) {
@@ -65,13 +71,16 @@ const GenerateContent = () => {
   }, [activeLanguage, setLastUsedLanguage])
 
   const handleLanguageChange = (newLanguage) => {
-    if (!newLanguage) return
+    if (!newLanguage || languageLocked) return
     navigate(`/generate/${encodeURIComponent(newLanguage)}`)
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (!activeLanguage || !user) return
+    if (!activeLanguage || !user) {
+      setError('Select a valid language before generating a story.')
+      return
+    }
 
     setError('')
     setIsSubmitting(true)
@@ -86,7 +95,7 @@ const GenerateContent = () => {
 
     try {
       const content = await generateStory(params)
-      const libraryRef = collection(db, 'users', user.uid, 'library')
+      const libraryRef = collection(db, 'users', user.uid, 'library', activeLanguage, 'stories')
 
       await addDoc(libraryRef, {
         ...params,
@@ -94,7 +103,7 @@ const GenerateContent = () => {
         createdAt: serverTimestamp(),
       })
 
-      navigate('/library')
+      navigate(`/library/${encodeURIComponent(activeLanguage)}`)
     } catch (submissionError) {
       setError(submissionError?.message || 'Unable to generate story.')
     } finally {
@@ -123,20 +132,27 @@ const GenerateContent = () => {
             <p className="muted small">We will tailor the output for this language.</p>
           </div>
           {availableLanguages.length ? (
-            <div className="language-switcher">
-              <span className="pill primary">in{activeLanguage || '...'}</span>
-              <select
-                className="language-select"
-                value={activeLanguage}
-                onChange={(event) => handleLanguageChange(event.target.value)}
-              >
-                {availableLanguages.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="language-switcher">
+                <span className="pill primary">in{activeLanguage || '...'}</span>
+                <select
+                  className="language-select"
+                  value={activeLanguage}
+                  onChange={(event) => handleLanguageChange(event.target.value)}
+                  disabled={languageLocked}
+                >
+                  {availableLanguages.map((language) => (
+                    <option key={language} value={language}>
+                      {language}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {languageLocked && (
+                <p className="muted small">Language is locked to your current dashboard selection.</p>
+              )}
+              {languageError && <p className="error small">{languageError}</p>}
+            </>
           ) : (
             <p className="muted">Add a language to begin generating content.</p>
           )}

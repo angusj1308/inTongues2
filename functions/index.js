@@ -4,6 +4,8 @@ import * as functions from 'firebase-functions'
 import { onRequest } from 'firebase-functions/v2/https'
 import OpenAI from 'openai'
 
+console.log('OpenAI config:', functions.config().openai)
+
 const app = express()
 const corsHandler = cors({ origin: true })
 

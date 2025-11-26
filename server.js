@@ -6,7 +6,8 @@ const app = express()
 app.use(express.json())
 
 app.post('/api/generate', (req, res) => {
-  res.json({ ok: true })
+  console.log('Request body:', req.body)
+  res.json({ ok: true, received: req.body })
 })
 
 app.listen(4000, () => {

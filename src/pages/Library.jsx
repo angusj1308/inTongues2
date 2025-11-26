@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 
@@ -48,8 +48,12 @@ const Library = () => {
     setError('')
     setLoading(true)
 
-    const languageLibraryRef = collection(db, 'users', user.uid, 'library', activeLanguage, 'stories')
-    const languageLibraryQuery = query(languageLibraryRef, orderBy('createdAt', 'desc'))
+    const storiesRef = collection(db, 'users', user.uid, 'stories')
+    const languageLibraryQuery = query(
+      storiesRef,
+      where('language', '==', activeLanguage),
+      orderBy('createdAt', 'desc'),
+    )
 
     const unsubscribe = onSnapshot(
       languageLibraryQuery,
@@ -133,17 +137,15 @@ const Library = () => {
                     <span className="pill primary">in{item.language}</span>
                     {item.level && <span className="pill">Level {item.level}</span>}
                     {item.genre && <span className="pill">{item.genre}</span>}
-                    {item.length && (
-                      <span className="pill">{item.length} page{item.length === 1 ? '' : 's'}</span>
+                    {(item.pageCount || item.length) && (
+                      <span className="pill">
+                        {item.pageCount || item.length} page{(item.pageCount || item.length) === 1 ? '' : 's'}
+                      </span>
                     )}
                   </div>
                   <button
                     className="button ghost"
-                    onClick={() =>
-                      navigate(`/reader/${encodeURIComponent(activeLanguage)}/${item.id}`, {
-                        state: { content: item.content },
-                      })
-                    }
+                    onClick={() => navigate(`/reader/${encodeURIComponent(activeLanguage)}/${item.id}`)}
                   >
                     Read
                   </button>

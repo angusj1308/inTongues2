@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { generateStory } from '../services/generator'
@@ -89,19 +89,29 @@ const GenerateContent = () => {
       level: CEFR_LEVELS[levelIndex],
       genre,
       length,
+      pageCount: length,
       description: description.trim(),
       language: activeLanguage,
     }
 
     try {
-      const content = await generateStory(params)
-      const libraryRef = collection(db, 'users', user.uid, 'library', activeLanguage, 'stories')
+      const pages = await generateStory(params)
+      const storiesRef = collection(db, 'users', user.uid, 'stories')
 
-      await addDoc(libraryRef, {
+      const storyRef = await addDoc(storiesRef, {
         ...params,
-        content,
         createdAt: serverTimestamp(),
       })
+
+      const pagesRef = collection(storyRef, 'pages')
+      const pageWrites = pages.map((text, index) =>
+        setDoc(doc(pagesRef, index.toString()), {
+          index,
+          text,
+        }),
+      )
+
+      await Promise.all(pageWrites)
 
       navigate(`/library/${encodeURIComponent(activeLanguage)}`)
     } catch (submissionError) {

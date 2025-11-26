@@ -18,11 +18,11 @@ export const generateStory = async (params) => {
     }
 
     const data = await response.json()
-    if (!data?.content) {
-      throw new Error('No story content was returned.')
+    if (!Array.isArray(data?.pages) || !data.pages.length) {
+      throw new Error('No story pages were returned.')
     }
 
-    return data.content
+    return data.pages
   } catch (error) {
     throw new Error(error?.message || 'Unable to generate story. Please try again.')
   }

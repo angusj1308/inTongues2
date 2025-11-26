@@ -65,7 +65,8 @@ const Library = () => {
         setItems(nextItems)
         setLoading(false)
       },
-      () => {
+      (err) => {
+        console.error('Library load error:', err)
         setError('Unable to load your library right now.')
         setLoading(false)
       },

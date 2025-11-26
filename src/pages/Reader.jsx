@@ -12,6 +12,7 @@ const Reader = () => {
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentIndex, setCurrentIndex] = useState(0)
 
   useEffect(() => {
     if (!user || !id) {
@@ -31,6 +32,7 @@ const Reader = () => {
           ...doc.data(),
         }))
         setPages(nextPages)
+        setCurrentIndex(0)
         setError('')
       } catch (loadError) {
         console.error(loadError)
@@ -43,6 +45,14 @@ const Reader = () => {
     loadPages()
     return undefined
   }, [id, language, user])
+
+  useEffect(() => {
+    setCurrentIndex(0)
+  }, [pages.length])
+
+  const hasPrevious = currentIndex > 0
+  const hasNext = currentIndex + 2 < pages.length
+  const visiblePages = pages.slice(currentIndex, currentIndex + 2)
 
   return (
     <div className="page">
@@ -69,14 +79,46 @@ const Reader = () => {
             <div className="section-header">
               <div className="pill-row">{language && <span className="pill primary">in{language}</span>}</div>
             </div>
-            {pages.map((page) => (
-              <div key={page.id || page.index} className="section">
-                <div className="section-header">
-                  <span className="pill">Page {(page.index ?? pages.indexOf(page)) + 1}</span>
+            <div
+              className="section"
+              style={{
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'space-between',
+              }}
+            >
+              {visiblePages.map((page) => (
+                <div
+                  key={page.id || page.index}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <div className="section-header">
+                    <span className="pill">Page {(page.index ?? pages.indexOf(page)) + 1}</span>
+                  </div>
+                  <p>{page.text}</p>
                 </div>
-                <p>{page.text}</p>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="section" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <button
+                className="button ghost"
+                disabled={!hasPrevious}
+                onClick={() => setCurrentIndex((prev) => Math.max(prev - 2, 0))}
+              >
+                Previous pages
+              </button>
+              <button
+                className="button ghost"
+                disabled={!hasNext}
+                onClick={() => setCurrentIndex((prev) => Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2)))}
+              >
+                Next pages
+              </button>
+            </div>
           </div>
         ) : (
           <p className="muted">Story {id} is ready to read soon.</p>

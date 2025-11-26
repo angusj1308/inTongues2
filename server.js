@@ -1,5 +1,8 @@
 import express from 'express'
 import dotenv from 'dotenv'
+import OpenAI from 'openai'
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 dotenv.config()
 
 const app = express()
@@ -15,9 +18,21 @@ app.use((req, res, next) => {
   next()
 })
 
-app.post('/api/generate', (req, res) => {
-  console.log('Request body:', req.body)
-  res.json({ ok: true, received: req.body })
+app.post('/api/generate', async (req, res) => {
+  try {
+    const { level, genre, length, description, language } = req.body
+
+    const response = await client.responses.create({
+      model: "gpt-4.1",
+      input: `Write a ${length}-sentence ${genre} story in ${language} at ${level} level. Description: ${description}`
+    })
+
+    const content = response.output_text
+    res.json({ content })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "OpenAI generation failed" })
+  }
 })
 
 app.listen(4000, () => {

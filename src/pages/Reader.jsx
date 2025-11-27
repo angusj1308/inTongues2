@@ -7,7 +7,7 @@ import { db } from '../firebase'
 const Reader = () => {
   const navigate = useNavigate()
   const { id, language } = useParams()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
@@ -46,7 +46,7 @@ const Reader = () => {
           body: JSON.stringify({
             phrase,
             sourceLang: language || 'es', // TODO: replace with real source language
-            targetLang: 'en',
+            targetLang: profile?.nativeLanguage || 'English',
           }),
         })
 
@@ -153,7 +153,7 @@ const Reader = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             languageCode: language || 'es', // TODO: replace with real language code
-            targetLang: 'en',
+            targetLang: profile?.nativeLanguage || 'English',
             words,
           }),
           signal: controller.signal,
@@ -178,7 +178,7 @@ const Reader = () => {
     return () => {
       controller.abort()
     }
-  }, [language, pageText])
+  }, [language, pageText, profile?.nativeLanguage])
 
   useEffect(() => {
     function handleGlobalClick(event) {

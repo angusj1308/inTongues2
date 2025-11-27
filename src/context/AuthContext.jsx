@@ -24,6 +24,7 @@ const defaultProfile = (user) => ({
   targetLanguages: [],
   myLanguages: [],
   lastUsedLanguage: '',
+  nativeLanguage: '',
   stories: [],
   displayName: user.displayName || '',
 })

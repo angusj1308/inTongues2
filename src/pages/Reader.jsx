@@ -17,7 +17,7 @@ const Reader = () => {
   const [popup, setPopup] = useState(null)
   // popup: { x, y, word, translation } | null
 
-  function handleWordClick(e) {
+  async function handleWordClick(e) {
     e.stopPropagation()
 
     const selection = window.getSelection()?.toString().trim()
@@ -29,10 +29,33 @@ const Reader = () => {
     // Multiple words → treat as phrase
     if (parts.length > 1) {
       const phrase = selection
-      const translation = pageTranslations[phrase] || 'No translation found'
 
+      // Position popup under selection
       const range = window.getSelection().getRangeAt(0)
       const rect = range.getBoundingClientRect()
+
+      let translation = 'No translation found'
+
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase,
+            sourceLang: language || 'es', // TODO: replace with real source language
+            targetLang: 'en',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || translation
+        } else {
+          console.error('Phrase translation failed:', await response.text())
+        }
+      } catch (err) {
+        console.error('Error translating phrase:', err)
+      }
 
       setPopup({
         x: rect.left + window.scrollX,

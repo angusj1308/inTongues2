@@ -15,6 +15,29 @@ const Reader = () => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [pageTranslations, setPageTranslations] = useState({})
 
+  function handleWordClick() {
+    const selection = window.getSelection()?.toString().trim()
+
+    if (!selection) return
+
+    const parts = selection.split(/\s+/).filter(Boolean)
+
+    // Multiple words → treat as phrase
+    if (parts.length > 1) {
+      const phrase = selection
+      const translation = pageTranslations[phrase] || 'No translation found'
+      alert(`${phrase} → ${translation}`)
+      return
+    }
+
+    // Single word
+    const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
+    if (!clean) return
+
+    const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
+    alert(`${clean} → ${translation}`)
+  }
+
   useEffect(() => {
     if (!user || !id) {
       setPages([])
@@ -60,6 +83,7 @@ const Reader = () => {
       new Set(
         pageText
           .replace(/[^\p{L}\p{N}]+/gu, ' ')
+          .toLowerCase()
           .split(/\s+/)
           .filter(Boolean)
       )
@@ -152,7 +176,13 @@ const Reader = () => {
                   <div className="section-header">
                     <span className="pill">Page {(page.index ?? pages.indexOf(page)) + 1}</span>
                   </div>
-                  <p>{page.text}</p>
+                  <div
+                    className="page-text"
+                    onClick={handleWordClick}
+                    style={{ cursor: 'pointer', userSelect: 'text' }}
+                  >
+                    {page.text}
+                  </div>
                 </div>
               ))}
             </div>

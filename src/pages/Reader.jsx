@@ -97,7 +97,8 @@ const Reader = () => {
     setCurrentIndex(0)
   }, [pages.length])
 
-  const pageText = pages[currentIndex]?.text
+  const visiblePages = pages.slice(currentIndex, currentIndex + 2)
+  const pageText = visiblePages.map((p) => p?.text || '').join(' ')
 
   useEffect(() => {
     if (!pageText || typeof pageText !== 'string') return
@@ -163,7 +164,7 @@ const Reader = () => {
 
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex + 2 < pages.length
-  const visiblePages = pages.slice(currentIndex, currentIndex + 2)
+  // visiblePages is already defined above
 
   return (
     <div className="page">

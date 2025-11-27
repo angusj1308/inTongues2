@@ -13,6 +13,7 @@ const Reader = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [pageTranslations, setPageTranslations] = useState({})
 
   useEffect(() => {
     if (!user || !id) {
@@ -49,6 +50,58 @@ const Reader = () => {
   useEffect(() => {
     setCurrentIndex(0)
   }, [pages.length])
+
+  const pageText = pages[currentIndex]?.text
+
+  useEffect(() => {
+    if (!pageText || typeof pageText !== 'string') return
+
+    const words = Array.from(
+      new Set(
+        pageText
+          .replace(/[^\p{L}\p{N}]+/gu, ' ')
+          .split(/\s+/)
+          .filter(Boolean)
+      )
+    )
+
+    if (words.length === 0) return
+
+    const controller = new AbortController()
+
+    async function prefetch() {
+      try {
+        const response = await fetch('http://localhost:4000/api/prefetchTranslations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            languageCode: language || 'es', // TODO: replace with real language code
+            targetLang: 'en',
+            words,
+          }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          console.error('Failed to prefetch translations', await response.text())
+          return
+        }
+
+        const data = await response.json()
+        setPageTranslations(data.translations || {})
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error prefetching translations', error)
+        }
+      }
+    }
+
+    prefetch()
+
+    return () => {
+      controller.abort()
+    }
+  }, [language, pageText])
 
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex + 2 < pages.length

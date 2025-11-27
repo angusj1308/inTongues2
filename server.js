@@ -74,6 +74,28 @@ app.post('/api/prefetchTranslations', async (req, res) => {
   }
 })
 
+app.post('/api/translatePhrase', async (req, res) => {
+  try {
+    const { phrase, sourceLang, targetLang } = req.body || {}
+
+    if (!phrase || typeof phrase !== 'string') {
+      return res.status(400).json({ error: 'phrase is required' })
+    }
+
+    if (!targetLang) {
+      return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    // TODO: replace this dummy translation with a real translation provider (Google/DeepL/etc.)
+    const translation = `DUMMY_${phrase}`
+
+    return res.json({ phrase, translation })
+  } catch (error) {
+    console.error('Error translating phrase:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

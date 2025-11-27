@@ -181,7 +181,15 @@ const Reader = () => {
   }, [language, pageText])
 
   useEffect(() => {
-    function handleGlobalClick() {
+    function handleGlobalClick(event) {
+      // If clicking inside the text area or inside the popup, do NOT close
+      if (
+        event.target.closest('.page-text') ||
+        event.target.closest('.translate-popup')
+      ) {
+        return
+      }
+
       setPopup(null)
     }
 

@@ -14,8 +14,12 @@ const Reader = () => {
   const [error, setError] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [pageTranslations, setPageTranslations] = useState({})
+  const [popup, setPopup] = useState(null)
+  // popup: { x, y, word, translation } | null
 
-  function handleWordClick() {
+  function handleWordClick(e) {
+    e.stopPropagation()
+
     const selection = window.getSelection()?.toString().trim()
 
     if (!selection) return
@@ -26,7 +30,17 @@ const Reader = () => {
     if (parts.length > 1) {
       const phrase = selection
       const translation = pageTranslations[phrase] || 'No translation found'
-      alert(`${phrase} → ${translation}`)
+
+      const range = window.getSelection().getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+
+      setPopup({
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY + 8,
+        word: phrase,
+        translation,
+      })
+
       return
     }
 
@@ -35,7 +49,16 @@ const Reader = () => {
     if (!clean) return
 
     const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
-    alert(`${clean} → ${translation}`)
+
+    const range = window.getSelection().getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+
+    setPopup({
+      x: rect.left + window.scrollX,
+      y: rect.bottom + window.scrollY + 8,
+      word: clean,
+      translation,
+    })
   }
 
   useEffect(() => {
@@ -127,6 +150,17 @@ const Reader = () => {
     }
   }, [language, pageText])
 
+  useEffect(() => {
+    function handleGlobalClick() {
+      setPopup(null)
+    }
+
+    window.addEventListener('click', handleGlobalClick)
+    return () => {
+      window.removeEventListener('click', handleGlobalClick)
+    }
+  }, [])
+
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex + 2 < pages.length
   const visiblePages = pages.slice(currentIndex, currentIndex + 2)
@@ -207,6 +241,26 @@ const Reader = () => {
           <p className="muted">Story {id} is ready to read soon.</p>
         )}
       </div>
+      {popup && (
+        <div
+          className="translate-popup"
+          style={{
+            position: 'absolute',
+            top: popup.y,
+            left: popup.x,
+            background: 'white',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            maxWidth: '260px',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <strong>{popup.word}</strong>
+          <div style={{ marginTop: '4px' }}>{popup.translation}</div>
+        </div>
+      )}
     </div>
   )
 }

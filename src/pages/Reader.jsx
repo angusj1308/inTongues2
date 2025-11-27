@@ -31,7 +31,10 @@ const Reader = () => {
       const phrase = selection
 
       // Position popup under selection
-      const range = window.getSelection().getRangeAt(0)
+      const selectionObj = window.getSelection()
+      if (!selectionObj || selectionObj.rangeCount === 0) return
+
+      const range = selectionObj.getRangeAt(0)
       const rect = range.getBoundingClientRect()
 
       let translation = 'No translation found'
@@ -73,7 +76,10 @@ const Reader = () => {
 
     const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
 
-    const range = window.getSelection().getRangeAt(0)
+    const selectionObj = window.getSelection()
+    if (!selectionObj || selectionObj.rangeCount === 0) return
+
+    const range = selectionObj.getRangeAt(0)
     const rect = range.getBoundingClientRect()
 
     setPopup({
@@ -236,7 +242,7 @@ const Reader = () => {
                   </div>
                   <div
                     className="page-text"
-                    onClick={handleWordClick}
+                    onMouseUp={handleWordClick}
                     style={{ cursor: 'pointer', userSelect: 'text' }}
                   >
                     {page.text}

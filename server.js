@@ -18,6 +18,16 @@ app.use((req, res, next) => {
   next()
 })
 
+async function translateWords(words, sourceLang, targetLang) {
+  const translations = {}
+
+  for (const word of words) {
+    translations[word] = `DUMMY_${word}`
+  }
+
+  return translations
+}
+
 app.post('/api/generate', async (req, res) => {
   try {
     const { level, genre, length, description, language, pageCount } = req.body
@@ -40,6 +50,27 @@ app.post('/api/generate', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: "OpenAI generation failed" })
+  }
+})
+
+app.post('/api/prefetchTranslations', async (req, res) => {
+  try {
+    const { languageCode, targetLang, words } = req.body || {}
+
+    if (!Array.isArray(words) || words.length === 0 || !words.every(word => typeof word === 'string')) {
+      return res.status(400).json({ error: 'Invalid words array' })
+    }
+
+    if (!targetLang) {
+      return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    const translations = await translateWords(words, languageCode, targetLang)
+
+    res.json({ languageCode, translations })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 

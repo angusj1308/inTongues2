@@ -3,6 +3,47 @@ import dotenv from 'dotenv'
 dotenv.config()
 import OpenAI from 'openai'
 
+const LANGUAGE_NAME_TO_CODE = {
+  English: 'en',
+  Spanish: 'es',
+  Mandarin: 'zh',
+  French: 'fr',
+  German: 'de',
+  Japanese: 'ja',
+  Korean: 'ko',
+  Italian: 'it',
+  Portuguese: 'pt',
+  Russian: 'ru',
+  Arabic: 'ar',
+  Hindi: 'hi',
+  Turkish: 'tr',
+  Dutch: 'nl',
+  Swedish: 'sv',
+  Norwegian: 'no',
+  Danish: 'da',
+  Finnish: 'fi',
+  Polish: 'pl',
+  Greek: 'el',
+  Hebrew: 'he',
+  Thai: 'th',
+  Vietnamese: 'vi',
+  Indonesian: 'id',
+  Czech: 'cs',
+  Hungarian: 'hu',
+  Romanian: 'ro',
+  Ukrainian: 'uk',
+  Swahili: 'sw',
+  Zulu: 'zu',
+  Malay: 'ms',
+  Filipino: 'fil',
+}
+
+function resolveTargetCode(targetLang) {
+  if (!targetLang) return 'en'
+  if (LANGUAGE_NAME_TO_CODE[targetLang]) return LANGUAGE_NAME_TO_CODE[targetLang]
+  return targetLang // assume it's already a code
+}
+
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const app = express()
@@ -20,12 +61,43 @@ app.use((req, res, next) => {
 
 async function translateWords(words, sourceLang, targetLang) {
   const translations = {}
+  if (!Array.isArray(words) || words.length === 0) return translations
 
-  for (const word of words) {
-    translations[word] = `DUMMY_${word}`
+  const uniqueWords = Array.from(new Set(words))
+  const sourceLabel = sourceLang || 'auto-detected'
+  const targetLabel = targetLang || 'English'
+
+  const prompt = `
+Translate each of the following words from ${sourceLabel} to ${targetLabel}.
+Return exactly one translated word per line, in the same order, with no extra text, no numbering, no explanations.
+
+${uniqueWords.join('\n')}
+`.trim()
+
+  try {
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    const text = response.output_text?.trim() || ''
+    const lines = text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+    uniqueWords.forEach((word, index) => {
+      translations[word] = lines[index] || word
+    })
+
+    return translations
+  } catch (err) {
+    console.error('Error translating words with OpenAI:', err)
+    uniqueWords.forEach((w) => {
+      translations[w] = w
+    })
+    return translations
   }
-
-  return translations
 }
 
 app.post('/api/generate', async (req, res) => {
@@ -86,8 +158,27 @@ app.post('/api/translatePhrase', async (req, res) => {
       return res.status(400).json({ error: 'targetLang is required' })
     }
 
-    // TODO: replace this dummy translation with a real translation provider (Google/DeepL/etc.)
-    const translation = `DUMMY_${phrase}`
+    const sourceLabel = sourceLang || 'auto-detected'
+    const targetLabel = targetLang || 'English'
+
+    const prompt = `
+Translate the following phrase from ${sourceLabel} to ${targetLabel}.
+Return only the translated phrase, with no extra commentary.
+
+${phrase}
+`.trim()
+
+    let translation = phrase
+
+    try {
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: prompt,
+      })
+      translation = response.output_text?.trim() || translation
+    } catch (innerErr) {
+      console.error('Error translating phrase with OpenAI:', innerErr)
+    }
 
     return res.json({ phrase, translation })
   } catch (error) {

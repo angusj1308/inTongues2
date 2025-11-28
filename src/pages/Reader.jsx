@@ -17,6 +17,9 @@ const Reader = () => {
   const [pageTranslations, setPageTranslations] = useState({})
   const [popup, setPopup] = useState(null)
   const [vocabEntries, setVocabEntries] = useState({})
+  const [hasSeenAutoKnownInfo, setHasSeenAutoKnownInfo] = useState(
+    () => localStorage.getItem('seenAutoKnownInfo') === 'true'
+  )
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -187,6 +190,111 @@ const Reader = () => {
 
   const visiblePages = pages.slice(currentIndex, currentIndex + 2)
   const pageText = visiblePages.map((p) => p?.text || '').join(' ')
+
+  const getNewWordsOnCurrentPages = () => {
+    const combinedText = visiblePages.map((p) => p?.text || '').join(' ')
+
+    if (!combinedText) return []
+
+    const rawWords = Array.from(
+      new Set(
+        combinedText
+          .replace(/[^\p{L}\p{N}]+/gu, ' ')
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean)
+      )
+    )
+
+    const newWords = rawWords.filter((word) => {
+      const key = normaliseExpression(word)
+      return !vocabEntries[key]
+    })
+
+    return newWords
+  }
+
+  const handleNextPages = async () => {
+    if (!hasNext) return
+
+    // First-time info popup
+    if (!hasSeenAutoKnownInfo) {
+      window.alert(
+        'When you move to the next page, all new words you have not tagged will automatically be marked as Known.'
+      )
+      localStorage.setItem('seenAutoKnownInfo', 'true')
+      setHasSeenAutoKnownInfo(true)
+    }
+
+    // If we don't have user/language, just advance
+    if (!user || !language) {
+      setCurrentIndex((prev) =>
+        Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2))
+      )
+      return
+    }
+
+    const newWords = getNewWordsOnCurrentPages()
+
+    if (newWords.length > 0) {
+      const confirmed = window.confirm(
+        'By going to the next page, all new words you have not tagged will be marked as Known. Continue?'
+      )
+
+      if (!confirmed) {
+        // User cancelled: do not advance
+        return
+      }
+
+      try {
+        // Persist each new word as known
+        await Promise.all(
+          newWords.map((word) => {
+            const key = normaliseExpression(word)
+            const translation =
+              pageTranslations[key] ||
+              pageTranslations[word] ||
+              'No translation found'
+
+            return upsertVocabEntry(
+              user.uid,
+              language,
+              word,
+              translation,
+              'known'
+            )
+          })
+        )
+
+        // Update local vocabEntries so they render as known
+        setVocabEntries((prev) => {
+          const next = { ...prev }
+          newWords.forEach((word) => {
+            const key = normaliseExpression(word)
+            const translation =
+              pageTranslations[key] ||
+              pageTranslations[word] ||
+              'No translation found'
+
+            next[key] = {
+              ...(next[key] || { text: word, language }),
+              status: 'known',
+              translation,
+            }
+          })
+          return next
+        })
+      } catch (error) {
+        console.error('Failed to auto-mark new words as known:', error)
+        // Even if this fails, still allow the user to move on
+      }
+    }
+
+    // Finally, advance to next pages
+    setCurrentIndex((prev) =>
+      Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2))
+    )
+  }
 
   const isWordChar = (ch) => {
     if (!ch) return false
@@ -456,7 +564,7 @@ const Reader = () => {
               <button
                 className="button ghost"
                 disabled={!hasNext}
-                onClick={() => setCurrentIndex((prev) => Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2)))}
+                onClick={handleNextPages}
               >
                 Next pages
               </button>

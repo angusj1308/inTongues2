@@ -128,8 +128,26 @@ textarea {
   transform: translateY(1px);
 }
 
-.unknown-word {
-  color: #2563eb;
+.word-new {
+  color: #0b3d0b;
+  font-weight: 600;
+}
+
+.word-unknown {
+  color: #001f3f;
+  font-weight: 600;
+}
+
+.word-recognised {
+  color: #800000;
+}
+
+.word-familiar {
+  color: #4B0082;
+}
+
+.word-known {
+  color: inherit;
 }
 
 .error {

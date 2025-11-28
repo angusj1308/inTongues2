@@ -188,45 +188,132 @@ const Reader = () => {
   const visiblePages = pages.slice(currentIndex, currentIndex + 2)
   const pageText = visiblePages.map((p) => p?.text || '').join(' ')
 
+  const isWordChar = (ch) => {
+    if (!ch) return false
+    return /\p{L}|\p{N}/u.test(ch)
+  }
+
+  const segmentTextByExpressions = (text, expressions) => {
+    if (!text) return []
+
+    const segments = []
+    let index = 0
+    const lowerText = text.toLowerCase()
+
+    while (index < text.length) {
+      let matchedExpression = null
+
+      for (const expression of expressions) {
+        if (!expression) continue
+        const candidate = lowerText.slice(index, index + expression.length)
+        if (candidate === expression) {
+          const beforeChar = index === 0 ? '' : lowerText[index - 1]
+          const afterChar =
+            index + expression.length >= lowerText.length
+              ? ''
+              : lowerText[index + expression.length]
+
+          if (!isWordChar(beforeChar) && !isWordChar(afterChar)) {
+            matchedExpression = expression
+            break
+          }
+        }
+      }
+
+      if (matchedExpression) {
+        const phraseText = text.slice(index, index + matchedExpression.length)
+        const status = vocabEntries[matchedExpression]?.status || 'new'
+
+        segments.push({ type: 'phrase', text: phraseText, status })
+        index += matchedExpression.length
+        continue
+      }
+
+      let nextIndex = text.length
+      for (const expression of expressions) {
+        const foundIndex = lowerText.indexOf(expression, index)
+        if (foundIndex !== -1 && foundIndex < nextIndex) {
+          nextIndex = foundIndex
+        }
+      }
+
+      if (nextIndex === text.length) {
+        segments.push({ type: 'text', text: text.slice(index) })
+        break
+      }
+
+      segments.push({ type: 'text', text: text.slice(index, nextIndex) })
+      index = nextIndex
+    }
+
+    return segments
+  }
+
   const renderHighlightedText = (text) => {
-    const tokens = (text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+    const expressions = Object.keys(vocabEntries)
+      .filter((key) => key.includes(' '))
+      .map((key) => normaliseExpression(key))
+      .sort((a, b) => b.length - a.length)
 
-    return tokens.map((token, index) => {
-      if (!token) return null
+    const segments = segmentTextByExpressions(text || '', expressions)
 
-      const isWord = /[\p{L}\p{N}]/u.test(token)
+    const elements = []
 
-      if (!isWord) {
-        return (
-          <span key={`separator-${index}`}>
+    segments.forEach((segment, segmentIndex) => {
+      if (segment.type === 'phrase') {
+        elements.push(
+          <span
+            key={`phrase-${segmentIndex}`}
+            className={`phrase-${segment.status || 'new'}`}
+          >
+            {segment.text}
+          </span>
+        )
+        return
+      }
+
+      const tokens = (segment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+
+      tokens.forEach((token, index) => {
+        if (!token) return
+
+        const isWord = /[\p{L}\p{N}]/u.test(token)
+
+        if (!isWord) {
+          elements.push(
+            <span key={`separator-${segmentIndex}-${index}`}>
+              {token}
+            </span>
+          )
+          return
+        }
+
+        const normalised = normaliseExpression(token)
+        const entry = vocabEntries[normalised]
+        const status = entry?.status
+
+        let className
+        if (!status) {
+          className = 'word-new'
+        } else if (status === 'unknown') {
+          className = 'word-unknown'
+        } else if (status === 'recognised') {
+          className = 'word-recognised'
+        } else if (status === 'familiar') {
+          className = 'word-familiar'
+        } else {
+          className = 'word-known'
+        }
+
+        elements.push(
+          <span key={`word-${segmentIndex}-${index}`} className={className}>
             {token}
           </span>
         )
-      }
-
-      const normalised = normaliseExpression(token)
-      const entry = vocabEntries[normalised]
-      const status = entry?.status
-
-      let className
-      if (!status) {
-        className = 'word-new'
-      } else if (status === 'unknown') {
-        className = 'word-unknown'
-      } else if (status === 'recognised') {
-        className = 'word-recognised'
-      } else if (status === 'familiar') {
-        className = 'word-familiar'
-      } else {
-        className = 'word-known'
-      }
-
-      return (
-        <span key={`word-${index}`} className={className}>
-          {token}
-        </span>
-      )
+      })
     })
+
+    return elements
   }
 
   useEffect(() => {

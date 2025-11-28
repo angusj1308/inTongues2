@@ -150,6 +150,30 @@ textarea {
   color: inherit;
 }
 
+.phrase-new {
+  color: #0b3d0b;
+  font-weight: 600;
+}
+
+.phrase-unknown {
+  color: #001f3f;
+  font-weight: 600;
+}
+
+.phrase-recognised {
+  color: #800000;
+  font-weight: 600;
+}
+
+.phrase-familiar {
+  color: #4B0082;
+  font-weight: 600;
+}
+
+.phrase-known {
+  color: inherit;
+}
+
 .error {
   color: #b91c1c;
   background: #fee2e2;

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
-import { VOCAB_STATUSES, loadUserVocab, normaliseExpression } from '../services/vocab'
+import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 
 const Reader = () => {
   const navigate = useNavigate()
@@ -92,6 +92,27 @@ const Reader = () => {
     })
   }
 
+  const handleSetWordStatus = async (status) => {
+    if (!user || !language || !popup?.word) return
+    if (!VOCAB_STATUSES.includes(status)) return
+
+    try {
+      await upsertVocabEntry(user.uid, language, popup.word, status)
+
+      const key = normaliseExpression(popup.word)
+
+      setVocabEntries((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || { text: popup.word, language }),
+          status,
+        },
+      }))
+    } catch (err) {
+      console.error('Failed to update vocab status', err)
+    }
+  }
+
   useEffect(() => {
     if (!user || !id) {
       setPages([])
@@ -177,9 +198,21 @@ const Reader = () => {
       }
 
       const normalised = normaliseExpression(token)
-      const status = vocabEntries[normalised]?.status
-      const isTracked = status && VOCAB_STATUSES.includes(status)
-      const className = isTracked ? undefined : 'unknown-word'
+      const entry = vocabEntries[normalised]
+      const status = entry?.status
+
+      let className
+      if (!status) {
+        className = 'word-new'
+      } else if (status === 'unknown') {
+        className = 'word-unknown'
+      } else if (status === 'recognised') {
+        className = 'word-recognised'
+      } else if (status === 'familiar') {
+        className = 'word-familiar'
+      } else {
+        className = 'word-known'
+      }
 
       return (
         <span key={`word-${index}`} className={className}>
@@ -357,6 +390,76 @@ const Reader = () => {
         >
           <strong>{popup.word}</strong>
           <div style={{ marginTop: '4px' }}>{popup.translation}</div>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              marginTop: '8px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => handleSetWordStatus('unknown')}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: '#001f3f', // navy
+                color: 'white',
+                fontSize: '0.75rem',
+              }}
+            >
+              Unknown
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetWordStatus('recognised')}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: '#800000', // maroon
+                color: 'white',
+                fontSize: '0.75rem',
+              }}
+            >
+              Recognised
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetWordStatus('familiar')}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: '#0b3d0b', // dark forest green
+                color: 'white',
+                fontSize: '0.75rem',
+              }}
+            >
+              Familiar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetWordStatus('known')}
+              style={{
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: '#000000', // black
+                color: 'white',
+                fontSize: '0.75rem',
+              }}
+            >
+              Known
+            </button>
+          </div>
         </div>
       )}
     </div>

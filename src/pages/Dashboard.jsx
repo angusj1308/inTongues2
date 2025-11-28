@@ -44,6 +44,14 @@ const Dashboard = () => {
     navigate(`/generate/${encodeURIComponent(activeLanguage)}`)
   }
 
+  const handleTabClick = (tab) => {
+    if (tab === 'review') {
+      navigate('/review')
+      return
+    }
+    setActiveTab(tab)
+  }
+
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -85,7 +93,7 @@ const Dashboard = () => {
             <button
               key={tab}
               className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
             >
               {tab}
             </button>

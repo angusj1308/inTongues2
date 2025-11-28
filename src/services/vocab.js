@@ -31,7 +31,13 @@ export const loadUserVocab = async (userId, language) => {
   return vocabEntries
 }
 
-export const upsertVocabEntry = async (userId, language, text, status) => {
+export const upsertVocabEntry = async (
+  userId,
+  language,
+  text,
+  translation,
+  status
+) => {
   if (!VOCAB_STATUSES.includes(status)) {
     throw new Error(`Invalid vocab status: ${status}`)
   }
@@ -39,7 +45,13 @@ export const upsertVocabEntry = async (userId, language, text, status) => {
   const ref = getVocabDocRef(userId, language, text)
   await setDoc(
     ref,
-    { text, language, status, updatedAt: serverTimestamp() },
+    {
+      text,
+      translation,
+      language,
+      status,
+      updatedAt: serverTimestamp(),
+    },
     { merge: true }
   )
 }

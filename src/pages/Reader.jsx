@@ -97,7 +97,13 @@ const Reader = () => {
     if (!VOCAB_STATUSES.includes(status)) return
 
     try {
-      await upsertVocabEntry(user.uid, language, popup.word, status)
+      await upsertVocabEntry(
+        user.uid,
+        language,
+        popup.word,
+        popup.translation,
+        status
+      )
 
       const key = normaliseExpression(popup.word)
 
@@ -106,6 +112,7 @@ const Reader = () => {
         [key]: {
           ...(prev[key] || { text: popup.word, language }),
           status,
+          translation: popup.translation,
         },
       }))
     } catch (err) {

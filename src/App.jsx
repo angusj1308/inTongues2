@@ -10,6 +10,7 @@ import SelectLanguagePage from './pages/SelectLanguagePage'
 import Signup from './pages/Signup'
 import Library from './pages/Library'
 import Reader from './pages/Reader'
+import Review from './pages/Review'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -121,6 +122,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Reader />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/review"
+        element={
+          <ProtectedRoute>
+            <Review />
           </ProtectedRoute>
         }
       />

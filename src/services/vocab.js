@@ -1,4 +1,14 @@
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  where,
+} from 'firebase/firestore'
 import { db } from '../firebase'
 
 export const VOCAB_STATUSES = ['unknown', 'recognised', 'familiar', 'known']
@@ -43,6 +53,33 @@ export const upsertVocabEntry = async (
   }
 
   const ref = getVocabDocRef(userId, language, text)
+  const existingDoc = await getDoc(ref)
+
+  const initialSRS = {}
+
+  if (!existingDoc.exists()) {
+    const now = new Date()
+
+    const statusIntervals = {
+      unknown: 0,
+      recognised: 1,
+      familiar: 3,
+      known: 7,
+    }
+
+    const intervalDays = statusIntervals[status] ?? 0
+
+    const nextReviewDate =
+      intervalDays === 0
+        ? serverTimestamp()
+        : Timestamp.fromDate(new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000))
+
+    initialSRS.createdAt = serverTimestamp()
+    initialSRS.intervalDays = intervalDays
+    initialSRS.correctStreak = 0
+    initialSRS.nextReviewAt = nextReviewDate
+  }
+
   await setDoc(
     ref,
     {
@@ -50,6 +87,64 @@ export const upsertVocabEntry = async (
       translation,
       language,
       status,
+      ...initialSRS,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  )
+}
+
+const promoteStatus = (status) => {
+  const statusOrder = ['unknown', 'recognised', 'familiar', 'known']
+  const currentIndex = statusOrder.indexOf(status)
+  if (currentIndex === -1) return 'unknown'
+  return statusOrder[Math.min(currentIndex + 1, statusOrder.length - 1)]
+}
+
+export const updateVocabSRS = async (userId, language, text, quality) => {
+  const ref = getVocabDocRef(userId, language, text)
+  const docSnap = await getDoc(ref)
+
+  if (!docSnap.exists()) {
+    throw new Error('Vocab entry not found for review')
+  }
+
+  const data = docSnap.data() || {}
+
+  let status = data.status || 'unknown'
+  let intervalDays = Number.isFinite(data.intervalDays) ? data.intervalDays : 0
+  let correctStreak = Number.isFinite(data.correctStreak) ? data.correctStreak : 0
+
+  const now = new Date()
+  let nextReviewAt = Timestamp.fromDate(now)
+
+  if (quality === 'again') {
+    status = 'unknown'
+    correctStreak = 0
+    intervalDays = 0.25
+    nextReviewAt = Timestamp.fromDate(new Date(now.getTime() + 6 * 60 * 60 * 1000))
+  } else if (quality === 'good') {
+    status = promoteStatus(status)
+    intervalDays = intervalDays <= 0 ? 1 : Math.round(intervalDays * 2)
+    correctStreak += 1
+    nextReviewAt = Timestamp.fromDate(new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000))
+  } else if (quality === 'easy') {
+    status = 'known'
+    intervalDays = intervalDays < 3 ? 3 : Math.round(intervalDays * 2.5)
+    if (intervalDays > 60) {
+      intervalDays = 60
+    }
+    correctStreak += 1
+    nextReviewAt = Timestamp.fromDate(new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000))
+  }
+
+  await setDoc(
+    ref,
+    {
+      status,
+      intervalDays,
+      correctStreak,
+      nextReviewAt,
       updatedAt: serverTimestamp(),
     },
     { merge: true }

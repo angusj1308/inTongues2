@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
+import { VOCAB_STATUSES, loadUserVocab, normaliseExpression } from '../services/vocab'
 
 const Reader = () => {
   const navigate = useNavigate()
@@ -15,6 +16,7 @@ const Reader = () => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [pageTranslations, setPageTranslations] = useState({})
   const [popup, setPopup] = useState(null)
+  const [vocabEntries, setVocabEntries] = useState({})
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -126,8 +128,66 @@ const Reader = () => {
     setCurrentIndex(0)
   }, [pages.length])
 
+  useEffect(() => {
+    if (!user || !language) {
+      setVocabEntries({})
+      return undefined
+    }
+
+    let isActive = true
+
+    const fetchVocab = async () => {
+      try {
+        const entries = await loadUserVocab(user.uid, language)
+        if (isActive) {
+          setVocabEntries(entries)
+        }
+      } catch (err) {
+        console.error('Failed to load vocabulary entries', err)
+        if (isActive) {
+          setVocabEntries({})
+        }
+      }
+    }
+
+    fetchVocab()
+
+    return () => {
+      isActive = false
+    }
+  }, [language, user])
+
   const visiblePages = pages.slice(currentIndex, currentIndex + 2)
   const pageText = visiblePages.map((p) => p?.text || '').join(' ')
+
+  const renderHighlightedText = (text) => {
+    const tokens = (text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+
+    return tokens.map((token, index) => {
+      if (!token) return null
+
+      const isWord = /[\p{L}\p{N}]/u.test(token)
+
+      if (!isWord) {
+        return (
+          <span key={`separator-${index}`}>
+            {token}
+          </span>
+        )
+      }
+
+      const normalised = normaliseExpression(token)
+      const status = vocabEntries[normalised]?.status
+      const isTracked = status && VOCAB_STATUSES.includes(status)
+      const className = isTracked ? undefined : 'unknown-word'
+
+      return (
+        <span key={`word-${index}`} className={className}>
+          {token}
+        </span>
+      )
+    })
+  }
 
   useEffect(() => {
     if (!pageText || typeof pageText !== 'string') return
@@ -253,7 +313,7 @@ const Reader = () => {
                     onMouseUp={handleWordClick}
                     style={{ cursor: 'pointer', userSelect: 'text' }}
                   >
-                    {page.text}
+                    {renderHighlightedText(page.text)}
                   </div>
                 </div>
               ))}

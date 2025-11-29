@@ -16,7 +16,7 @@ const ImportTextPage = () => {
   const [isPublicDomain, setIsPublicDomain] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitting(true)
 
@@ -26,20 +26,39 @@ const ImportTextPage = () => {
       return
     }
 
-    console.log({
-      fileName: file?.name,
-      originalLanguage,
-      outputLanguage: language,
-      translationMode,
-      level: translationMode === 'graded' ? level : null,
-      author,
-      title,
-      isPublicDomain,
-      userId: user?.uid,
-    })
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('originalLanguage', originalLanguage)
+      formData.append('outputLanguage', language || '')
+      formData.append('translationMode', translationMode)
+      if (translationMode === 'graded') {
+        formData.append('level', level)
+      }
+      formData.append('author', author)
+      formData.append('title', title)
+      formData.append('isPublicDomain', isPublicDomain ? 'true' : 'false')
+      formData.append('userId', user?.uid || '')
 
-    alert('Import request captured (backend to be implemented).')
-    setSubmitting(false)
+      const response = await fetch('http://localhost:4000/api/import-upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const message = await response.text()
+        alert('Upload failed: ' + message)
+        return
+      }
+
+      await response.json()
+      alert('Import started successfully.')
+    } catch (error) {
+      console.error('Failed to submit import request', error)
+      alert('Upload failed. Please try again later.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const isSubmitDisabled =

@@ -210,6 +210,51 @@ ${phrase}
   }
 })
 
+function detectFileType(originalName = '') {
+  const lower = originalName.toLowerCase()
+  if (lower.endsWith('.txt')) return 'txt'
+  if (lower.endsWith('.pdf')) return 'pdf'
+  if (lower.endsWith('.epub')) return 'epub'
+  return 'unknown'
+}
+
+async function extractTxtStub(filePath) {
+  // TODO: implement real TXT extraction
+  return [`[STUB] TXT extraction not implemented yet for: ${filePath}`]
+}
+
+async function extractPdfStub(filePath) {
+  // TODO: implement real PDF extraction
+  return [`[STUB] PDF extraction not implemented yet for: ${filePath}`]
+}
+
+async function extractEpubStub(filePath) {
+  // TODO: implement real EPUB extraction
+  return [`[STUB] EPUB extraction not implemented yet for: ${filePath}`]
+}
+
+async function extractPagesForFile(file) {
+  if (!file || !file.path) {
+    return []
+  }
+
+  const fileType = detectFileType(file.originalname)
+  console.log('Detected import file type:', fileType, 'for', file.originalname)
+
+  if (fileType === 'txt') {
+    return extractTxtStub(file.path)
+  }
+  if (fileType === 'pdf') {
+    return extractPdfStub(file.path)
+  }
+  if (fileType === 'epub') {
+    return extractEpubStub(file.path)
+  }
+
+  // Unknown type for now
+  return [`[STUB] Unknown file type for: ${file.originalname}`]
+}
+
 app.post('/api/import-upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -240,12 +285,16 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
     console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
 
+    const pages = await extractPagesForFile(req.file)
+    console.log('Stub extracted pages count:', pages.length)
+
     return res.json({
       success: true,
       message: 'Import upload received',
       fileName: req.file.originalname,
       tempPath: req.file.path,
       metadata,
+      pages,
     })
   } catch (error) {
     console.error('Error handling import upload:', error)

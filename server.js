@@ -2,6 +2,9 @@ import express from 'express'
 import dotenv from 'dotenv'
 import multer from 'multer'
 import os from 'os'
+import fs from 'fs/promises'
+import pdfParse from 'pdf-parse'
+import EPub from 'epub2'
 dotenv.config()
 import OpenAI from 'openai'
 
@@ -218,19 +221,100 @@ function detectFileType(originalName = '') {
   return 'unknown'
 }
 
-async function extractTxtStub(filePath) {
-  // TODO: implement real TXT extraction
-  return [`[STUB] TXT extraction not implemented yet for: ${filePath}`]
+async function extractTxt(filePath) {
+  const raw = await fs.readFile(filePath, 'utf8')
+  const words = raw.split(/\s+/)
+  const pages = []
+  let buffer = []
+
+  for (const word of words) {
+    buffer.push(word)
+    if (buffer.join(' ').length > 1200) {
+      pages.push(buffer.join(' '))
+      buffer = []
+    }
+  }
+
+  if (buffer.length > 0) pages.push(buffer.join(' '))
+  return pages
 }
 
-async function extractPdfStub(filePath) {
-  // TODO: implement real PDF extraction
-  return [`[STUB] PDF extraction not implemented yet for: ${filePath}`]
+async function extractPdf(filePath) {
+  const data = await fs.readFile(filePath)
+  const pdf = await pdfParse(data)
+  const fullText = pdf.text || ''
+  const words = fullText.split(/\s+/)
+
+  const pages = []
+  let buffer = []
+
+  for (const word of words) {
+    buffer.push(word)
+    if (buffer.join(' ').length > 1200) {
+      pages.push(buffer.join(' '))
+      buffer = []
+    }
+  }
+
+  if (buffer.length > 0) pages.push(buffer.join(' '))
+  return pages
 }
 
-async function extractEpubStub(filePath) {
-  // TODO: implement real EPUB extraction
-  return [`[STUB] EPUB extraction not implemented yet for: ${filePath}`]
+function parseEpub(filePath) {
+  return new Promise((resolve, reject) => {
+    const epub = new EPub(filePath)
+
+    epub.on('error', (err) => {
+      console.error('EPUB parse error:', err)
+      reject(err)
+    })
+
+    epub.on('end', () => {
+      resolve(epub)
+    })
+
+    epub.parse()
+  })
+}
+
+function getChapterAsync(epub, id) {
+  return new Promise((resolve, reject) => {
+    epub.getChapter(id, (err, text) => {
+      if (err) {
+        console.error('EPUB getChapter error:', err)
+        reject(err)
+      } else {
+        resolve(text || '')
+      }
+    })
+  })
+}
+
+async function extractEpub(filePath) {
+  const epub = await parseEpub(filePath)
+
+  let fullText = ''
+
+  // epub.flow is an array describing the reading order
+  for (const item of epub.flow) {
+    const content = await getChapterAsync(epub, item.id)
+    fullText += content.replace(/<[^>]+>/g, ' ') + ' '
+  }
+
+  const words = fullText.split(/\s+/)
+  const pages = []
+  let buffer = []
+
+  for (const word of words) {
+    buffer.push(word)
+    if (buffer.join(' ').length > 1200) {
+      pages.push(buffer.join(' '))
+      buffer = []
+    }
+  }
+
+  if (buffer.length > 0) pages.push(buffer.join(' '))
+  return pages
 }
 
 async function extractPagesForFile(file) {
@@ -241,15 +325,9 @@ async function extractPagesForFile(file) {
   const fileType = detectFileType(file.originalname)
   console.log('Detected import file type:', fileType, 'for', file.originalname)
 
-  if (fileType === 'txt') {
-    return extractTxtStub(file.path)
-  }
-  if (fileType === 'pdf') {
-    return extractPdfStub(file.path)
-  }
-  if (fileType === 'epub') {
-    return extractEpubStub(file.path)
-  }
+  if (fileType === 'txt') return extractTxt(file.path)
+  if (fileType === 'pdf') return extractPdf(file.path)
+  if (fileType === 'epub') return extractEpub(file.path)
 
   // Unknown type for now
   return [`[STUB] Unknown file type for: ${file.originalname}`]

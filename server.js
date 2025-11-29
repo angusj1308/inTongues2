@@ -71,7 +71,6 @@ async function translateWords(words, sourceLang, targetLang) {
     const response = await client.responses.create({
       model: 'gpt-4o-mini',
       input: `Translate each word from ${sourceLabel} to ${targetLabel}. Return a JSON object where each key is the exact source word and each value is a concise translation of that word. Do not include any extra fields. Source words: ${JSON.stringify(uniqueWords)}`,
-      text: { format: 'json' },
     })
 
     const jsonContent = response?.output?.[0]?.content?.[0]?.json

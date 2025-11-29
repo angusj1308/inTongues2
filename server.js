@@ -70,7 +70,7 @@ async function translateWords(words, sourceLang, targetLang) {
   try {
     const response = await client.responses.create({
       model: 'gpt-4o-mini',
-      input: `Translate each word from ${sourceLabel} to ${targetLabel}. Return a JSON object where each key is the exact source word and each value is a concise translation of that word. Do not include any extra fields. Source words: ${JSON.stringify(uniqueWords)}`,
+      input: `Translate each word from ${sourceLabel} to ${targetLabel}. Return a JSON object where each key is the exact source word and each value is a concise translation of that word. Do not include any extra fields. Source words: ${JSON.stringify(uniqueWords)} Do NOT use markdown code fences or any extra text. Return only raw JSON.`,
     })
 
     const jsonContent = response?.output?.[0]?.content?.[0]?.json
@@ -80,8 +80,16 @@ async function translateWords(words, sourceLang, targetLang) {
       parsed = jsonContent
     } else {
       const outputText = response.output_text?.trim() || ''
+      const lines = outputText.trim().split('\n')
+      if (lines[0]?.startsWith('```')) {
+        lines.shift()
+      }
+      if (lines[lines.length - 1]?.startsWith('```')) {
+        lines.pop()
+      }
+      const cleanedText = lines.join('\n')
       try {
-        parsed = JSON.parse(outputText)
+        parsed = JSON.parse(cleanedText)
       } catch (parseErr) {
         console.error('Error parsing translation JSON:', parseErr)
       }

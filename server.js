@@ -74,16 +74,18 @@ async function translateWords(words, sourceLang, targetLang) {
       response_format: { type: 'json_object' },
     })
 
-    const text =
-      response?.output?.[0]?.content?.[0]?.text?.trim() ||
-      response.output_text?.trim() ||
-      ''
+    const jsonContent = response?.output?.[0]?.content?.[0]?.json
     let parsed = {}
 
-    try {
-      parsed = JSON.parse(text)
-    } catch (parseErr) {
-      console.error('Error parsing translation JSON:', parseErr)
+    if (jsonContent && typeof jsonContent === 'object') {
+      parsed = jsonContent
+    } else {
+      const outputText = response.output_text?.trim() || ''
+      try {
+        parsed = JSON.parse(outputText)
+      } catch (parseErr) {
+        console.error('Error parsing translation JSON:', parseErr)
+      }
     }
 
     uniqueWords.forEach((word) => {

@@ -5,8 +5,17 @@ import os from 'os'
 import fs from 'fs/promises'
 import pdfParse from 'pdf-parse'
 import EPub from 'epub2'
+import admin from 'firebase-admin'
 dotenv.config()
 import OpenAI from 'openai'
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(),
+  })
+}
+
+const firestore = admin.firestore()
 
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
@@ -333,6 +342,53 @@ async function extractPagesForFile(file) {
   return [`[STUB] Unknown file type for: ${file.originalname}`]
 }
 
+async function saveImportedBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  pages,
+}) {
+  const booksRef = firestore.collection('books')
+  const bookDoc = booksRef.doc()
+
+  await bookDoc.set({
+    userId,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    totalPages: pages.length,
+    adaptedPages: 0,
+    status: 'pending',
+  })
+
+  const batch = firestore.batch()
+  const pagesRef = bookDoc.collection('pages')
+
+  pages.forEach((text, index) => {
+    const pageDoc = pagesRef.doc(String(index))
+    batch.set(pageDoc, {
+      index,
+      originalText: text,
+      adaptedText: null,
+      status: 'pending',
+    })
+  })
+
+  await batch.commit()
+
+  return bookDoc.id
+}
+
 app.post('/api/import-upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -364,15 +420,24 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
 
     const pages = await extractPagesForFile(req.file)
+    const bookId = await saveImportedBookToFirestore({
+      userId,
+      title,
+      author,
+      originalLanguage,
+      outputLanguage,
+      translationMode,
+      level,
+      isPublicDomain,
+      pages,
+    })
     console.log('Stub extracted pages count:', pages.length)
 
     return res.json({
       success: true,
-      message: 'Import upload received',
-      fileName: req.file.originalname,
-      tempPath: req.file.path,
-      metadata,
-      pages,
+      message: 'Import processed successfully',
+      bookId,
+      pageCount: pages.length,
     })
   } catch (error) {
     console.error('Error handling import upload:', error)

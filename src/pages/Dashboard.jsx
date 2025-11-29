@@ -119,8 +119,12 @@ const Dashboard = () => {
               <div className="read-card">
                 <h3>Import</h3>
                 <p className="muted small">Bring in your own texts to practice reading comprehension.</p>
-                <button className="button ghost" disabled>
-                  Coming soon
+                <button
+                  className="button ghost"
+                  onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
+                  disabled={!activeLanguage}
+                >
+                  Import for {activeLanguage || 'language'}
                 </button>
               </div>
               <div className="read-card">

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import GenerateContent from './pages/GenerateContent'
 import Login from './pages/Login'
 import MyLanguages from './pages/MyLanguages'
+import ImportTextPage from './pages/ImportTextPage'
 import SelectLanguagePage from './pages/SelectLanguagePage'
 import Signup from './pages/Signup'
 import Library from './pages/Library'
@@ -122,6 +123,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Reader />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/import/:language"
+        element={
+          <ProtectedRoute>
+            <ImportTextPage />
           </ProtectedRoute>
         }
       />

@@ -389,6 +389,126 @@ async function saveImportedBookToFirestore({
   return bookDoc.id
 }
 
+async function adaptPageText({
+  originalText,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+}) {
+  const sourceLabel = originalLanguage || 'auto-detected'
+  const targetLabel = outputLanguage || 'target language'
+
+  const modeInstruction =
+    translationMode === 'graded'
+      ? `Rewrite this text as a simplified graded reader in ${targetLabel} at CEFR level ${level}. Preserve all key information and narrative events, but use simpler vocabulary and shorter sentences.`
+      : `Translate this text from ${sourceLabel} to ${targetLabel} as literally as possible while keeping natural grammar. Do not simplify or summarize.`
+
+  const prompt = `
+You are adapting a book for language learners.
+
+${modeInstruction}
+
+Return only the adapted text, with no headings, no commentary, and no explanations.
+
+--- BEGIN TEXT ---
+${originalText}
+--- END TEXT ---
+  `.trim()
+
+  const response = await client.responses.create({
+    model: 'gpt-4o-mini',
+    input: prompt,
+  })
+
+  const adapted = response.output_text?.trim() || ''
+  return adapted
+}
+
+async function runAdaptationForBook(bookId) {
+  const bookRef = firestore.collection('books').doc(bookId)
+  const bookSnap = await bookRef.get()
+
+  if (!bookSnap.exists) {
+    throw new Error(`Book not found: ${bookId}`)
+  }
+
+  const bookData = bookSnap.data() || {}
+  const {
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level,
+    totalPages,
+  } = bookData
+
+  console.log('Starting adaptation for book:', bookId, {
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level,
+    totalPages,
+  })
+
+  // Mark book as adapting
+  await bookRef.update({
+    status: 'adapting',
+  })
+
+  const pagesRef = bookRef.collection('pages')
+  const pendingSnap = await pagesRef.where('status', '==', 'pending').orderBy('index').get()
+
+  let adaptedCount = bookData.adaptedPages || 0
+
+  for (const doc of pendingSnap.docs) {
+    const pageData = doc.data()
+    const { originalText, index } = pageData
+
+    if (!originalText || typeof originalText !== 'string' || !originalText.trim()) {
+      console.warn(`Skipping empty page ${index} for book ${bookId}`)
+      await doc.ref.update({ status: 'skipped' })
+      continue
+    }
+
+    console.log(`Adapting page ${index} of book ${bookId}`)
+
+    try {
+      const adaptedText = await adaptPageText({
+        originalText,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+      })
+
+      await doc.ref.update({
+        adaptedText,
+        status: 'done',
+      })
+
+      adaptedCount += 1
+      await bookRef.update({
+        adaptedPages: adaptedCount,
+      })
+    } catch (err) {
+      console.error(`Failed to adapt page ${index} of book ${bookId}:`, err)
+      await doc.ref.update({
+        status: 'error',
+        errorMessage: err.message || 'Adaptation failed',
+      })
+    }
+  }
+
+  // If every page is done/skipped, mark book as ready
+  if (adaptedCount >= (totalPages || adaptedCount)) {
+    await bookRef.update({
+      status: 'ready',
+    })
+  }
+
+  console.log('Finished adaptation for book:', bookId, 'adaptedPages:', adaptedCount)
+}
+
 app.post('/api/import-upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {

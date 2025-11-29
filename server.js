@@ -67,27 +67,28 @@ async function translateWords(words, sourceLang, targetLang) {
   const sourceLabel = sourceLang || 'auto-detected'
   const targetLabel = targetLang || 'English'
 
-  const prompt = `
-Translate each of the following words from ${sourceLabel} to ${targetLabel}.
-Return exactly one translated word per line, in the same order, with no extra text, no numbering, no explanations.
-
-${uniqueWords.join('\n')}
-`.trim()
-
   try {
     const response = await client.responses.create({
       model: 'gpt-4o-mini',
-      input: prompt,
+      input: `Translate each word from ${sourceLabel} to ${targetLabel}. Return a JSON object where each key is the exact source word and each value is a concise translation of that word. Do not include any extra fields. Source words: ${JSON.stringify(uniqueWords)}`,
+      response_format: { type: 'json_object' },
     })
 
-    const text = response.output_text?.trim() || ''
-    const lines = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
+    const text =
+      response?.output?.[0]?.content?.[0]?.text?.trim() ||
+      response.output_text?.trim() ||
+      ''
+    let parsed = {}
 
-    uniqueWords.forEach((word, index) => {
-      translations[word] = lines[index] || word
+    try {
+      parsed = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Error parsing translation JSON:', parseErr)
+    }
+
+    uniqueWords.forEach((word) => {
+      const translated = parsed?.[word]
+      translations[word] = typeof translated === 'string' && translated.trim() ? translated.trim() : word
     })
 
     return translations

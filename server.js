@@ -1,5 +1,7 @@
 import express from 'express'
 import dotenv from 'dotenv'
+import multer from 'multer'
+import os from 'os'
 dotenv.config()
 import OpenAI from 'openai'
 
@@ -48,6 +50,17 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const app = express()
 app.use(express.json())
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, os.tmpdir())
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`)
+  },
+})
+
+const upload = multer({ storage })
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
@@ -194,6 +207,49 @@ ${phrase}
   } catch (error) {
     console.error('Error translating phrase:', error)
     return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+app.post('/api/import-upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'File is required' })
+    }
+
+    const {
+      originalLanguage,
+      outputLanguage,
+      translationMode,
+      level,
+      author,
+      title,
+      isPublicDomain,
+      userId,
+    } = req.body || {}
+
+    const metadata = {
+      originalLanguage,
+      outputLanguage,
+      translationMode,
+      level,
+      author,
+      title,
+      isPublicDomain,
+      userId,
+    }
+
+    console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
+
+    return res.json({
+      success: true,
+      message: 'Import upload received',
+      fileName: req.file.originalname,
+      tempPath: req.file.path,
+      metadata,
+    })
+  } catch (error) {
+    console.error('Error handling import upload:', error)
+    return res.status(500).json({ error: 'Failed to handle import upload' })
   }
 })
 

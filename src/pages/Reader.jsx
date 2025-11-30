@@ -159,6 +159,9 @@ const Reader = () => {
     setCurrentIndex(0)
   }, [pages.length])
 
+  const getDisplayText = (page) =>
+    page?.adaptedText || page?.originalText || page?.text || ''
+
   useEffect(() => {
     if (!user || !language) {
       setVocabEntries({})
@@ -189,10 +192,10 @@ const Reader = () => {
   }, [language, user])
 
   const visiblePages = pages.slice(currentIndex, currentIndex + 2)
-  const pageText = visiblePages.map((p) => p?.text || '').join(' ')
+  const pageText = visiblePages.map((p) => getDisplayText(p)).join(' ')
 
   const getNewWordsOnCurrentPages = () => {
-    const combinedText = visiblePages.map((p) => p?.text || '').join(' ')
+    const combinedText = visiblePages.map((p) => getDisplayText(p)).join(' ')
 
     if (!combinedText) return []
 
@@ -544,12 +547,12 @@ const Reader = () => {
                     <span className="pill">Page {(page.index ?? pages.indexOf(page)) + 1}</span>
                   </div>
                   <div
-                    className="page-text"
-                    onMouseUp={handleWordClick}
-                    style={{ cursor: 'pointer', userSelect: 'text' }}
-                  >
-                    {renderHighlightedText(page.text)}
-                  </div>
+                  className="page-text"
+                  onMouseUp={handleWordClick}
+                  style={{ cursor: 'pointer', userSelect: 'text' }}
+                >
+                  {renderHighlightedText(getDisplayText(page))}
+                </div>
                 </div>
               ))}
             </div>

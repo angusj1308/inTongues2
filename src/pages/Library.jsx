@@ -80,6 +80,14 @@ const Library = () => {
     navigate(`/library/${encodeURIComponent(language)}`)
   }
 
+  const getDisplayText = (page) =>
+    page?.adaptedText || page?.originalText || page?.text || ''
+
+  const getPreviewSnippet = (item) => {
+    const previewPage = item.previewPage || item.pagePreview || item.firstPage || item.pages?.[0]
+    return getDisplayText(previewPage) || item.description || 'No description provided.'
+  }
+
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -151,7 +159,7 @@ const Library = () => {
                     Read
                   </button>
                 </div>
-                <p className="muted small">{item.description || 'No description provided.'}</p>
+                <p className="muted small">{getPreviewSnippet(item)}</p>
               </div>
             ))}
           </div>

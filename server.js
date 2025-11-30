@@ -4,10 +4,10 @@ import multer from 'multer'
 import os from 'os'
 import fs from 'fs/promises'
 import pdfParse from 'pdf-parse'
-import EPub from 'epub2'
 import admin from 'firebase-admin'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
+const EPub = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'

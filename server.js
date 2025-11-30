@@ -565,6 +565,35 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
   }
 })
 
+app.post('/api/start-adaptation/:bookId', async (req, res) => {
+  const { bookId } = req.params || {}
+
+  if (!bookId) {
+    return res.status(400).json({ error: 'bookId is required' })
+  }
+
+  try {
+    console.log('Received request to start adaptation for book:', bookId)
+
+    // Fire and forget for now; we don't await full completion before responding
+    runAdaptationForBook(bookId)
+      .then(() => {
+        console.log('Adaptation completed for book:', bookId)
+      })
+      .catch((err) => {
+        console.error('Adaptation worker failed for book:', bookId, err)
+      })
+
+    return res.json({
+      success: true,
+      message: `Adaptation started for book ${bookId}`,
+    })
+  } catch (error) {
+    console.error('Error starting adaptation for book:', bookId, error)
+    return res.status(500).json({ error: 'Failed to start adaptation' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

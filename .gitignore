@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.runtimeconfig.json
+acess token.pages
+.firebaserc

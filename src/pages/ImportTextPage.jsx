@@ -46,6 +46,24 @@ const ImportTextPage = () => {
       })
 
       if (!response.ok) {
+        try {
+          const data = await response.json()
+          if (data?.error === 'SCANNED_PDF_NOT_SUPPORTED') {
+            const message =
+              data?.message ||
+              'This file appears to be a scanned PDF with no real text inside. Scanned PDFs contain images instead of words, and we cannot ensure accurate or high-quality adaptations from them. To guarantee reliability, inTongues only accepts pure/text PDFs, EPUB, or TXT files. Please upload a clean digital version of the book.'
+
+            alert(`Scanned PDFs Are Not Supported\n\n${message}`)
+            return
+          }
+          if (data?.message) {
+            alert('Upload failed: ' + data.message)
+            return
+          }
+        } catch (parseError) {
+          // Fallback to text parsing below
+        }
+
         const message = await response.text()
         alert('Upload failed: ' + message)
         return

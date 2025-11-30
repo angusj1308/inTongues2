@@ -357,11 +357,19 @@ async function saveImportedBookToFirestore({
   isPublicDomain,
   pages,
 }) {
-  const booksRef = firestore.collection('books')
-  const bookDoc = booksRef.doc()
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
 
-  await bookDoc.set({
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
     userId,
+    language: outputLanguage,
     title,
     author,
     originalLanguage,
@@ -370,18 +378,20 @@ async function saveImportedBookToFirestore({
     level: translationMode === 'graded' ? level : null,
     isPublicDomain: isPublicDomain === 'true',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    totalPages: pages.length,
+    pageCount: pages.length,
     adaptedPages: 0,
     status: 'pending',
+    description: `Imported: ${title || 'Untitled book'}`,
   })
 
   const batch = firestore.batch()
-  const pagesRef = bookDoc.collection('pages')
+  const pagesRef = storyRef.collection('pages')
 
   pages.forEach((text, index) => {
     const pageDoc = pagesRef.doc(String(index))
     batch.set(pageDoc, {
       index,
+      text: text,
       originalText: text,
       adaptedText: null,
       status: 'pending',
@@ -390,7 +400,7 @@ async function saveImportedBookToFirestore({
 
   await batch.commit()
 
-  return bookDoc.id
+  return storyRef.id
 }
 
 async function adaptPageText({

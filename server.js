@@ -6,12 +6,14 @@ import fs from 'fs/promises'
 import pdfParse from 'pdf-parse'
 import EPub from 'epub2'
 import admin from 'firebase-admin'
+import serviceAccount from './serviceAccountKey.json' assert { type: 'json' }
 dotenv.config()
 import OpenAI from 'openai'
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential: admin.credential.cert(serviceAccount),
+    projectId: 'intongues2',
   })
 }
 

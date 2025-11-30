@@ -278,6 +278,13 @@ async function extractPdf(filePath) {
   const data = await fs.readFile(filePath)
   const pdf = await pdfParse(data)
   const fullText = pdf.text || ''
+  const trimmed = fullText.trim()
+
+  if (trimmed.length < 100) {
+    const err = new Error('SCANNED_PDF_NOT_SUPPORTED')
+    err.code = 'SCANNED_PDF_NOT_SUPPORTED'
+    throw err
+  }
   const words = fullText.split(/\s+/)
 
   const pages = []
@@ -611,6 +618,13 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     })
   } catch (error) {
     console.error('Error handling import upload:', error)
+    if (error.code === 'SCANNED_PDF_NOT_SUPPORTED' || error.message === 'SCANNED_PDF_NOT_SUPPORTED') {
+      return res.status(400).json({
+        error: 'SCANNED_PDF_NOT_SUPPORTED',
+        message:
+          'This file appears to be a scanned PDF with no real text inside. Scanned PDFs contain images instead of words, and we cannot ensure accurate or high-quality adaptations from them. To guarantee reliability, inTongues only accepts pure/text PDFs, EPUB, or TXT files. Please upload a clean digital version of the book.',
+      })
+    }
     return res.status(500).json({ error: 'Failed to handle import upload' })
   }
 })

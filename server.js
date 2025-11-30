@@ -589,6 +589,20 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     })
     console.log('Stub extracted pages count:', pages.length)
 
+    // Fire-and-forget adaptation trigger
+    const adaptPayload = {
+      uid: userId,
+      storyId: bookId,
+      targetLanguage: outputLanguage,
+      level,
+    }
+
+    fetch('http://localhost:4000/api/adapt-imported-book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(adaptPayload),
+    }).catch((err) => console.error('Auto-adapt trigger failed:', err))
+
     return res.json({
       success: true,
       message: 'Import processed successfully',

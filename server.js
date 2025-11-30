@@ -7,8 +7,7 @@ import pdfParse from 'pdf-parse'
 import admin from 'firebase-admin'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
-const EPub = require('epub2')
-console.log('EPub export:', EPub)
+const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'

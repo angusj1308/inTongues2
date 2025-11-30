@@ -692,8 +692,11 @@ app.post('/api/adapt-imported-book', async (req, res) => {
       try {
         const response = await client.responses.create({
           model: "gpt-4.1",
-          system: ADAPTATION_SYSTEM_PROMPT,
           input: [
+            {
+              role: "system",
+              content: ADAPTATION_SYSTEM_PROMPT
+            },
             {
               role: "user",
               content: `Adapt the following text to level ${level} in ${resolvedTargetLanguage}:\n\n${sourceText}`

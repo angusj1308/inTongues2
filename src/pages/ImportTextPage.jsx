@@ -48,25 +48,29 @@ const ImportTextPage = () => {
       if (!response.ok) {
         try {
           const data = await response.json()
-          if (data?.error === 'SCANNED_PDF_NOT_SUPPORTED') {
-            const message =
-              data?.message ||
-              'This file appears to be a scanned PDF with no real text inside. Scanned PDFs contain images instead of words, and we cannot ensure accurate or high-quality adaptations from them. To guarantee reliability, inTongues only accepts pure/text PDFs, EPUB, or TXT files. Please upload a clean digital version of the book.'
 
-            alert(`Scanned PDFs Are Not Supported\n\n${message}`)
+          // Specific handling for scanned PDFs
+          if (data?.error === 'SCANNED_PDF_NOT_SUPPORTED') {
+            alert(data.message)
             return
           }
+
+          // Generic JSON error message fallback
           if (data?.message) {
             alert('Upload failed: ' + data.message)
             return
           }
-        } catch (parseError) {
-          // Fallback to text parsing below
-        }
 
-        const message = await response.text()
-        alert('Upload failed: ' + message)
-        return
+          // If JSON has no useful message, fall back to text
+          const fallbackText = await response.text()
+          alert('Upload failed: ' + fallbackText)
+          return
+        } catch (e) {
+          // If JSON parsing fails, fall back to original behaviour
+          const fallbackText = await response.text()
+          alert('Upload failed: ' + fallbackText)
+          return
+        }
       }
 
       await response.json()

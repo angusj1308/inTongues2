@@ -64,6 +64,28 @@ function resolveTargetCode(targetLang) {
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+const ADAPTATION_SYSTEM_PROMPT = `
+You are an expert language educator adapting reading materials for learners.
+Always preserve all key events, factual details, character actions, and tone from the source. Do not omit plot points, merge scenes, or summarize; deliver a full, faithful retelling in the requested level and language.
+
+Language output
+- Write only in the requested target language.
+- Keep proper nouns (people, places, brands) exactly as in the source.
+- Use full sentences with natural punctuation. Do not use lists, headings, or bullet points.
+- Return only the adapted narrative text—no explanations, notes, or markup.
+
+CEFR adaptation rules
+- A1: Extremely simple, short sentences. Split any long sentence into multiple simple ones. Use high-frequency words and very simple verb phrases.
+- A2: Simple, direct sentences. Prefer present or simple past. Avoid multi-clause sentences; split long or complex sentences.
+- B1: Clear, straightforward prose with some detail. Moderate sentence length. Lightly simplify complex grammar.
+- B2: Natural, fluent prose. Keep most descriptive detail. Moderate to longer sentences are acceptable.
+- C1/C2: Preserve the original stylistic richness and complexity while remaining readable.
+
+Meaning fidelity
+- Include every important action and piece of information. Do not shorten by removing events.
+- You may simplify grammar or vocabulary to match the level, but keep the narrative complete.
+`
+
 const app = express()
 app.use(express.json())
 
@@ -636,25 +658,52 @@ app.post('/api/adapt-imported-book', async (req, res) => {
 
     console.log('Found pages for adaptation:', pagesSnap.size)
 
-    // TODO: insert OpenAI adaptation call here (Giuliana will define instructions).
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
 
-    const batch = firestore.batch()
     let processedCount = 0
 
-    pagesSnap.forEach((doc) => {
+    for (const doc of pagesSnap.docs) {
       const data = doc.data() || {}
       const sourceText = data.originalText || data.text || ''
-      const adaptedPlaceholder = `ADAPTED_PLACEHOLDER: ${sourceText.slice(0, 200)}`
+      const pageIndex = data.index ?? doc.id
 
-      batch.update(doc.ref, {
-        adaptedText: adaptedPlaceholder,
-        status: 'done',
-      })
+      if (!sourceText || !sourceText.trim()) {
+        console.warn(`Skipping empty page ${pageIndex} for story ${storyId}`)
+        await doc.ref.update({ status: 'error', errorMessage: 'Empty page content' })
+        continue
+      }
 
-      processedCount += 1
-    })
+      console.log(`Adapting page ${pageIndex} for story ${storyId}`)
 
-    await batch.commit()
+      try {
+        const response = await client.responses.create({
+          model: "gpt-4.1",
+          system: ADAPTATION_SYSTEM_PROMPT,
+          input: [
+            {
+              role: "user",
+              content: `Adapt the following text to level ${level} in ${resolvedTargetLanguage}:\n\n${sourceText}`
+            }
+          ]
+        })
+
+        const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+        await doc.ref.update({
+          adaptedText,
+          status: 'done',
+        })
+
+        processedCount += 1
+        console.log(`Finished adapting page ${pageIndex} for story ${storyId}`)
+      } catch (adaptError) {
+        console.error(`Error adapting page ${pageIndex} for story ${storyId}:`, adaptError)
+        await doc.ref.update({
+          status: 'error',
+          errorMessage: adaptError.message || 'Adaptation failed',
+        })
+      }
+    }
 
     await storyRef.update({
       status: 'ready',

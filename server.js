@@ -608,6 +608,68 @@ app.post('/api/start-adaptation/:bookId', async (req, res) => {
   }
 })
 
+app.post('/api/adapt-imported-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    console.log('Received adapt-imported-book request:', { uid, storyId, targetLanguage, level })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const pagesRef = storyRef.collection('pages')
+    const pagesSnap = await pagesRef.orderBy('index').get()
+
+    if (pagesSnap.empty) {
+      return res.status(404).json({ error: 'No pages found for this story' })
+    }
+
+    await storyRef.update({ status: 'adapting' })
+
+    console.log('Found pages for adaptation:', pagesSnap.size)
+
+    // TODO: insert OpenAI adaptation call here (Giuliana will define instructions).
+
+    const batch = firestore.batch()
+    let processedCount = 0
+
+    pagesSnap.forEach((doc) => {
+      const data = doc.data() || {}
+      const sourceText = data.originalText || data.text || ''
+      const adaptedPlaceholder = `ADAPTED_PLACEHOLDER: ${sourceText.slice(0, 200)}`
+
+      batch.update(doc.ref, {
+        adaptedText: adaptedPlaceholder,
+        status: 'done',
+      })
+
+      processedCount += 1
+    })
+
+    await batch.commit()
+
+    await storyRef.update({
+      status: 'ready',
+      adaptedPages: processedCount,
+    })
+
+    console.log('Adaptation completed for story:', storyId, 'pages processed:', processedCount)
+
+    return res.json({ success: true, storyId, pageCount: processedCount })
+  } catch (error) {
+    console.error('Error adapting imported book:', error)
+    return res.status(500).json({ error: 'Failed to adapt imported book' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

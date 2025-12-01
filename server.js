@@ -2,15 +2,23 @@ import express from 'express'
 import dotenv from 'dotenv'
 import multer from 'multer'
 import os from 'os'
+import path from 'path'
 import fs from 'fs/promises'
 import pdfParse from 'pdf-parse'
 import admin from 'firebase-admin'
+import { Readable } from 'stream'
+import ffmpeg from 'fluent-ffmpeg'
+import ffmpegStatic from 'ffmpeg-static'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'
+
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic)
+}
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -774,6 +782,77 @@ async function saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer) {
   return file.publicUrl()
 }
 
+async function saveFullAudioForStory(uid, storyId, audioBuffer) {
+  const filePath = `audio/full/${uid}/${storyId}.mp3`
+  const file = bucket.file(filePath)
+
+  await file.save(audioBuffer, { contentType: 'audio/mpeg' })
+  await file.makePublic()
+
+  return file.publicUrl()
+}
+
+function bufferToStream(buffer) {
+  return Readable.from(buffer)
+}
+
+async function transcodeBufferToFormat(inputBuffer, configureCommand) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    const baseCommand = inputBuffer ? ffmpeg(bufferToStream(inputBuffer)) : ffmpeg()
+    const command = configureCommand(baseCommand)
+
+    const outputStream = command.on('error', reject).pipe()
+
+    outputStream.on('data', (chunk) => chunks.push(chunk))
+    outputStream.on('end', () => resolve(Buffer.concat(chunks)))
+    outputStream.on('error', reject)
+  })
+}
+
+async function downloadPageAudioAsWav(bucketPath) {
+  const [mp3Buffer] = await bucket.file(bucketPath).download()
+
+  return transcodeBufferToFormat(mp3Buffer, (command) =>
+    command.inputFormat('mp3').audioChannels(2).audioFrequency(24000).format('wav')
+  )
+}
+
+async function mergeWavBuffers(wavBuffers) {
+  if (!Array.isArray(wavBuffers) || wavBuffers.length === 0) return null
+
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audiomerge-'))
+  const wavPaths = []
+
+  try {
+    for (let i = 0; i < wavBuffers.length; i += 1) {
+      const wavPath = path.join(tmpDir, `part-${i}.wav`)
+      await fs.writeFile(wavPath, wavBuffers[i])
+      wavPaths.push(wavPath)
+    }
+
+    const listFilePath = path.join(tmpDir, 'inputs.txt')
+    const listFileContents = wavPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n')
+    await fs.writeFile(listFilePath, listFileContents, 'utf8')
+
+    return await transcodeBufferToFormat(null, (command) =>
+      command
+        .input(listFilePath)
+        .inputOptions(['-f', 'concat', '-safe', '0'])
+        .outputOptions(['-acodec', 'pcm_s16le'])
+        .format('wav')
+    )
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  }
+}
+
+async function encodeMergedWavToMp3(wavBuffer) {
+  return transcodeBufferToFormat(wavBuffer, (command) =>
+    command.inputFormat('wav').audioChannels(2).audioFrequency(24000).format('mp3')
+  )
+}
+
 async function generateAudioForPage(bookId, pageIndex, text) {
   if (!text || !text.trim()) return null
 
@@ -874,19 +953,71 @@ app.post('/api/generate-audio-book', async (req, res) => {
     }
 
     const finalStatus = pagesSucceeded === pagesSnap.size ? 'ready' : 'error'
+    if (finalStatus !== 'ready') {
+      await storyRef.update({
+        hasFullAudio: false,
+        audioStatus: finalStatus,
+        fullAudioUrl: null,
+      })
 
-    await storyRef.update({
-      hasFullAudio: false,
-      audioStatus: finalStatus,
-      fullAudioUrl: null,
-    })
+      return res.json({
+        success: true,
+        audioStatus: finalStatus,
+        pagesProcessed,
+        pagesSucceeded,
+      })
+    }
 
-    return res.json({
-      success: true,
-      audioStatus: finalStatus,
-      pagesProcessed,
-      pagesSucceeded,
-    })
+    try {
+      await storyRef.update({
+        hasFullAudio: false,
+        audioStatus: 'processing',
+        fullAudioUrl: null,
+      })
+
+      const wavBuffers = []
+
+      for (const doc of pagesSnap.docs) {
+        const data = doc.data() || {}
+        const pageIndex = data.index ?? Number(doc.id) ?? 0
+        const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
+        const wavBuffer = await downloadPageAudioAsWav(bucketPath)
+        wavBuffers.push(wavBuffer)
+      }
+
+      const mergedWavBuffer = await mergeWavBuffers(wavBuffers)
+
+      if (!mergedWavBuffer) {
+        throw new Error('No audio buffers available to merge')
+      }
+
+      const fullAudioBuffer = await encodeMergedWavToMp3(mergedWavBuffer)
+      const fullAudioUrl = await saveFullAudioForStory(uid, storyId, fullAudioBuffer)
+
+      await storyRef.update({
+        hasFullAudio: true,
+        audioStatus: 'ready',
+        fullAudioUrl,
+      })
+
+      return res.json({
+        success: true,
+        audioStatus: 'ready',
+        pagesProcessed,
+        pagesSucceeded,
+        fullAudioUrl,
+      })
+    } catch (mergeError) {
+      console.error('Error merging full audiobook:', mergeError)
+
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
+
+      return res.status(500).json({ error: 'Failed to merge full audiobook' })
+    }
   } catch (error) {
     console.error('Error generating full audiobook:', error)
     if (storyRef) {

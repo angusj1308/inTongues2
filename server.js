@@ -429,6 +429,8 @@ async function saveImportedBookToFirestore({
       originalText: text,
       adaptedText: null,
       status: 'pending',
+      audioUrl: null,
+      audioStatus: 'pending',
     })
   })
 
@@ -763,6 +765,36 @@ app.post('/api/adapt-imported-book', async (req, res) => {
   }
 })
 
+async function saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer) {
+  const filePath = `guidebooks/${bookId}/page_${pageIndex}.mp3`
+  const file = bucket.file(filePath)
+
+  await file.save(audioBuffer, { contentType: 'audio/mpeg' })
+  await file.makePublic()
+
+  return file.publicUrl()
+}
+
+async function generateAudioForPage(bookId, pageIndex, text) {
+  if (!text || !text.trim()) return null
+
+  const MAX_CHARS = 6000
+  const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
+
+  const audioResponse = await client.audio.speech.create({
+    model: 'gpt-4o-mini-tts',
+    voice: 'alloy',
+    input: safeText,
+    format: 'mp3',
+  })
+
+  const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+
+  const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+
+  return audioUrl
+}
+
 app.post('/api/generate-audio-book', async (req, res) => {
   let storyRef
 
@@ -798,56 +830,64 @@ app.post('/api/generate-audio-book', async (req, res) => {
       return res.status(404).json({ error: 'No pages found for this story' })
     }
 
-    const combinedText = pagesSnap.docs
-      .map((doc) => {
-        const data = doc.data() || {}
-        return data.adaptedText || data.originalText || data.text || ''
-      })
-      .filter(Boolean)
-      .join('\n\n')
+    let pagesProcessed = 0
+    let pagesSucceeded = 0
 
-    if (!combinedText.trim()) {
-      await storyRef.update({
-        audioStatus: 'error',
-        hasFullAudio: false,
-        fullAudioUrl: null,
-      })
-      return res.status(400).json({ error: 'Story pages have no text content' })
+    for (const doc of pagesSnap.docs) {
+      const data = doc.data() || {}
+      const pageIndex = data.index ?? Number(doc.id) ?? 0
+      const readyAudio = data.audioStatus === 'ready' && data.audioUrl
+      const pageText =
+        (data.adaptedText && data.adaptedText.trim()) ||
+        (data.originalText && data.originalText.trim()) ||
+        (data.text && data.text.trim()) ||
+        ''
+
+      if (readyAudio) {
+        pagesSucceeded += 1
+        continue
+      }
+
+      if (!pageText) {
+        await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+        pagesProcessed += 1
+        continue
+      }
+
+      pagesProcessed += 1
+
+      try {
+        const audioUrl = await generateAudioForPage(storyId, pageIndex, pageText)
+        if (audioUrl) {
+          await doc.ref.update({ audioUrl, audioStatus: 'ready' })
+          pagesSucceeded += 1
+        } else {
+          await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+        }
+      } catch (pageError) {
+        console.error(`Error generating audio for page ${pageIndex} in story ${storyId}:`, pageError)
+        await doc.ref.update({
+          audioStatus: 'error',
+          audioUrl: null,
+          audioError: pageError?.message || 'Audio generation failed',
+        })
+      }
     }
 
-    if (combinedText.length > 60000) {
-      await storyRef.update({
-        audioStatus: 'error',
-        hasFullAudio: false,
-        fullAudioUrl: null,
-      })
-      return res.status(400).json({ error: 'TEXT_TOO_LONG_FOR_TTS' })
-    }
-
-    const audioResponse = await client.audio.speech.create({
-      model: 'gpt-4o-mini-tts',
-      voice: 'alloy',
-      input: combinedText,
-      format: 'mp3',
-    })
-
-    const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
-
-    const filePath = `audio/full/${uid}/${storyId}.mp3`
-    const file = bucket.file(filePath)
-
-    await file.save(audioBuffer, { contentType: 'audio/mpeg' })
-    await file.makePublic()
-
-    const publicUrl = file.publicUrl()
+    const finalStatus = pagesSucceeded === pagesSnap.size ? 'ready' : 'error'
 
     await storyRef.update({
-      hasFullAudio: true,
-      audioStatus: 'ready',
-      fullAudioUrl: publicUrl,
+      hasFullAudio: false,
+      audioStatus: finalStatus,
+      fullAudioUrl: null,
     })
 
-    return res.json({ success: true, audioStatus: 'ready', fullAudioUrl: publicUrl })
+    return res.json({
+      success: true,
+      audioStatus: finalStatus,
+      pagesProcessed,
+      pagesSucceeded,
+    })
   } catch (error) {
     console.error('Error generating full audiobook:', error)
     if (storyRef) {

@@ -860,6 +860,66 @@ app.post('/api/generate-audio-book', async (req, res) => {
   }
 })
 
+app.post('/api/delete-story', async (req, res) => {
+  let storyRef
+
+  try {
+    const { uid, storyId } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists()) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    // Delete all pages in batches of <= 500
+    const pagesRef = storyRef.collection('pages')
+    const pagesSnap = await pagesRef.get()
+
+    let batch = firestore.batch()
+    let counter = 0
+
+    for (const docSnap of pagesSnap.docs) {
+      batch.delete(docSnap.ref)
+      counter++
+
+      // Firestore only allows 500 operations per batch
+      if (counter === 500) {
+        await batch.commit()
+        batch = firestore.batch()
+        counter = 0
+      }
+    }
+
+    // Commit any remaining deletes
+    if (counter > 0) {
+      await batch.commit()
+    }
+
+    // Delete audio file (ignore if missing)
+    const audioFilePath = `audio/full/${uid}/${storyId}.mp3`
+    const audioFile = bucket.file(audioFilePath)
+    try {
+      await audioFile.delete({ ignoreNotFound: true })
+    } catch (audioErr) {
+      console.error('Error deleting audio file (ignored):', audioErr)
+    }
+
+    // Delete the story doc itself
+    await storyRef.delete()
+
+    return res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting story:', error)
+    return res.status(500).json({ error: 'Failed to delete story' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

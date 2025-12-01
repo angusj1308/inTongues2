@@ -754,6 +754,70 @@ app.post('/api/adapt-imported-book', async (req, res) => {
   }
 })
 
+app.post('/api/generate-audio-book', async (req, res) => {
+  try {
+    const { uid, storyId } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const pagesRef = storyRef.collection('pages')
+    const pagesSnap = await pagesRef.orderBy('index').get()
+
+    if (pagesSnap.empty) {
+      return res.status(404).json({ error: 'No pages found for this story' })
+    }
+
+    const combinedText = pagesSnap.docs
+      .map((doc) => {
+        const data = doc.data() || {}
+        return data.adaptedText || data.originalText || data.text || ''
+      })
+      .filter(Boolean)
+      .join('\n\n')
+
+    if (!combinedText.trim()) {
+      return res.status(400).json({ error: 'Story pages have no text content' })
+    }
+
+    const audioResponse = await client.audio.speech.create({
+      model: 'gpt-4o-mini-tts',
+      voice: 'alloy',
+      input: combinedText,
+      format: 'mp3',
+    })
+
+    const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+
+    const filePath = `audio/full/${uid}/${storyId}.mp3`
+    const file = bucket.file(filePath)
+
+    await file.save(audioBuffer, { contentType: 'audio/mpeg' })
+    await file.makePublic()
+
+    const publicUrl = file.publicUrl()
+
+    await storyRef.update({
+      hasFullAudio: true,
+      audioStatus: 'ready',
+      fullAudioUrl: publicUrl,
+    })
+
+    return res.json({ success: true, audioStatus: 'ready', fullAudioUrl: publicUrl })
+  } catch (error) {
+    console.error('Error generating full audiobook:', error)
+    return res.status(500).json({ error: 'Failed to generate audiobook' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

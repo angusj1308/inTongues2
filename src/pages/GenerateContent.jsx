@@ -101,6 +101,9 @@ const GenerateContent = () => {
       const storyRef = await addDoc(storiesRef, {
         ...params,
         createdAt: serverTimestamp(),
+        hasFullAudio: false,
+        audioStatus: 'none',
+        fullAudioUrl: null,
       })
 
       const pagesRef = collection(storyRef, 'pages')

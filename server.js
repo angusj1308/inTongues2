@@ -15,7 +15,6 @@ import OpenAI from 'openai'
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: 'intongues2',
     storageBucket: 'intongues2.firebasestorage.app',
   })
 }

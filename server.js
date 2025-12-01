@@ -874,7 +874,7 @@ app.post('/api/delete-story', async (req, res) => {
     storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
     const storySnap = await storyRef.get()
 
-    if (!storySnap.exists()) {
+    if (!storySnap.exists) {
       return res.status(404).json({ error: 'Story not found' })
     }
 

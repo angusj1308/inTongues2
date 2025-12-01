@@ -763,6 +763,8 @@ app.post('/api/adapt-imported-book', async (req, res) => {
 })
 
 app.post('/api/generate-audio-book', async (req, res) => {
+  let storyRef
+
   try {
     const { uid, storyId } = req.body || {}
 
@@ -770,17 +772,28 @@ app.post('/api/generate-audio-book', async (req, res) => {
       return res.status(400).json({ error: 'uid and storyId are required' })
     }
 
-    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
     const storySnap = await storyRef.get()
 
     if (!storySnap.exists) {
       return res.status(404).json({ error: 'Story not found' })
     }
 
+    await storyRef.update({
+      audioStatus: 'processing',
+      hasFullAudio: false,
+      fullAudioUrl: null,
+    })
+
     const pagesRef = storyRef.collection('pages')
     const pagesSnap = await pagesRef.orderBy('index').get()
 
     if (pagesSnap.empty) {
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
       return res.status(404).json({ error: 'No pages found for this story' })
     }
 
@@ -793,7 +806,21 @@ app.post('/api/generate-audio-book', async (req, res) => {
       .join('\n\n')
 
     if (!combinedText.trim()) {
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
       return res.status(400).json({ error: 'Story pages have no text content' })
+    }
+
+    if (combinedText.length > 60000) {
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
+      return res.status(400).json({ error: 'TEXT_TOO_LONG_FOR_TTS' })
     }
 
     const audioResponse = await client.audio.speech.create({
@@ -822,6 +849,13 @@ app.post('/api/generate-audio-book', async (req, res) => {
     return res.json({ success: true, audioStatus: 'ready', fullAudioUrl: publicUrl })
   } catch (error) {
     console.error('Error generating full audiobook:', error)
+    if (storyRef) {
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
+    }
     return res.status(500).json({ error: 'Failed to generate audiobook' })
   }
 })

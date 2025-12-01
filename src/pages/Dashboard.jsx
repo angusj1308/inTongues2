@@ -49,6 +49,10 @@ const Dashboard = () => {
       navigate('/review')
       return
     }
+    if (tab === 'listen') {
+      navigate('/listening')
+      return
+    }
     setActiveTab(tab)
   }
 

@@ -16,6 +16,7 @@ if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId: 'intongues2',
+    storageBucket: 'intongues2.appspot.com',
   })
 }
 
@@ -907,7 +908,11 @@ app.post('/api/delete-story', async (req, res) => {
     try {
       await audioFile.delete({ ignoreNotFound: true })
     } catch (audioErr) {
-      console.error('Error deleting audio file (ignored):', audioErr)
+      console.error('Error deleting audio file (ignored):', {
+        message: audioErr?.message,
+        code: audioErr?.code,
+        stack: audioErr?.stack,
+      })
     }
 
     // Delete the story doc itself
@@ -915,8 +920,16 @@ app.post('/api/delete-story', async (req, res) => {
 
     return res.json({ success: true })
   } catch (error) {
-    console.error('Error deleting story:', error)
-    return res.status(500).json({ error: 'Failed to delete story' })
+    console.error('Error deleting story:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    })
+
+    return res.status(500).json({
+      error: error?.message || 'Failed to delete story',
+      code: error?.code || null,
+    })
   }
 })
 

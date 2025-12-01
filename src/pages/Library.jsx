@@ -13,6 +13,31 @@ const Library = () => {
   const [error, setError] = useState('')
   const [openAudioId, setOpenAudioId] = useState('')
 
+  const handleDeleteStory = async (storyId) => {
+    if (!user || !storyId) return
+
+    const confirmed = window.confirm('Delete this story and its audio permanently?')
+    if (!confirmed) return
+
+    try {
+      const response = await fetch('http://localhost:4000/api/delete-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, storyId }),
+      })
+
+      if (!response.ok) {
+        console.error('Delete story failed:', await response.text())
+        window.alert('Unable to delete this story right now.')
+      }
+
+      // No manual state update needed: onSnapshot will refresh list.
+    } catch (err) {
+      console.error('Error deleting story:', err)
+      window.alert('Unable to delete this story right now.')
+    }
+  }
+
   const availableLanguages = profile?.myLanguages || []
   const invalidLanguageParam = languageParam && !availableLanguages.includes(languageParam)
 
@@ -153,12 +178,21 @@ const Library = () => {
                       </span>
                     )}
                   </div>
-                  <button
-                    className="button ghost"
-                    onClick={() => navigate(`/reader/${encodeURIComponent(activeLanguage)}/${item.id}`)}
-                  >
-                    Read
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="button ghost"
+                      onClick={() => navigate(`/reader/${encodeURIComponent(activeLanguage)}/${item.id}`)}
+                    >
+                      Read
+                    </button>
+                    <button
+                      className="button ghost"
+                      style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
+                      onClick={() => handleDeleteStory(item.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
                 <p className="muted small">{getPreviewSnippet(item)}</p>
                 <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>

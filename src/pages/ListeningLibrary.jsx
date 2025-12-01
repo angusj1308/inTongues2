@@ -11,6 +11,29 @@ const ListeningLibrary = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const handleDeleteStory = async (storyId) => {
+    if (!user || !storyId) return
+
+    const confirmed = window.confirm('Delete this audiobook and its pages permanently?')
+    if (!confirmed) return
+
+    try {
+      const response = await fetch('http://localhost:4000/api/delete-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, storyId }),
+      })
+
+      if (!response.ok) {
+        console.error('Delete story failed:', await response.text())
+        window.alert('Unable to delete this audiobook right now.')
+      }
+    } catch (err) {
+      console.error('Error deleting story:', err)
+      window.alert('Unable to delete this audiobook right now.')
+    }
+  }
+
   useEffect(() => {
     if (!user) {
       setItems([])
@@ -73,9 +96,18 @@ const ListeningLibrary = () => {
               <div className="preview-card" key={item.id}>
                 <div className="section-header">
                   <h3>{item.title || 'Untitled story'}</h3>
-                  <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
-                    Audio Ready
-                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
+                      Audio Ready
+                    </span>
+                    <button
+                      className="button ghost"
+                      style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
+                      onClick={() => handleDeleteStory(item.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
                 <div className="pill-row">
                   {item.language && <span className="pill primary">in{item.language}</span>}

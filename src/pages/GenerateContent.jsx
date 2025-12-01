@@ -116,6 +116,7 @@ const GenerateContent = () => {
 
       await Promise.all(pageWrites)
 
+      // Trigger full audio book generation after all pages are saved.
       try {
         await fetch('http://localhost:4000/api/generate-audio-book', {
           method: 'POST',

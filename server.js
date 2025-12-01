@@ -19,6 +19,7 @@ if (!admin.apps.length) {
   })
 }
 
+export const bucket = admin.storage().bucket()
 const firestore = admin.firestore()
 
 const LANGUAGE_NAME_TO_CODE = {
@@ -410,6 +411,9 @@ async function saveImportedBookToFirestore({
     pageCount: pages.length,
     adaptedPages: 0,
     status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
     description: `Imported: ${title || 'Untitled book'}`,
   })
 

@@ -81,6 +81,9 @@ const Dashboard = () => {
               <button className="button ghost" onClick={() => navigate('/my-languages')}>
                 My languages
               </button>
+              <button className="button ghost" onClick={() => navigate('/listening')}>
+                Listen
+              </button>
               <button className="button" onClick={handleLogout}>
                 Log out
               </button>

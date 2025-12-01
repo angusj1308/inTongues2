@@ -745,6 +745,14 @@ app.post('/api/adapt-imported-book', async (req, res) => {
       adaptedPages: processedCount,
     })
 
+    fetch('http://localhost:4000/api/generate-audio-book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, storyId }),
+    }).catch((err) => {
+      console.error('Auto audio generation trigger failed:', err)
+    })
+
     console.log('Adaptation completed for story:', storyId, 'pages processed:', processedCount)
 
     return res.json({ success: true, storyId, pageCount: processedCount })

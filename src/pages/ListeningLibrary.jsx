@@ -1,0 +1,98 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { useAuth } from '../context/AuthContext'
+import { db } from '../firebase'
+
+const ListeningLibrary = () => {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!user) {
+      setItems([])
+      setLoading(false)
+      return undefined
+    }
+
+    setError('')
+    setLoading(true)
+
+    const storiesRef = collection(db, 'users', user.uid, 'stories')
+    const listeningQuery = query(
+      storiesRef,
+      where('hasFullAudio', '==', true),
+      orderBy('createdAt', 'desc'),
+    )
+
+    const unsubscribe = onSnapshot(
+      listeningQuery,
+      (snapshot) => {
+        const nextItems = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        setItems(nextItems)
+        setLoading(false)
+      },
+      (err) => {
+        console.error('Listening library load error:', err)
+        setError('Unable to load your audiobooks right now.')
+        setLoading(false)
+      },
+    )
+
+    return unsubscribe
+  }, [user])
+
+  return (
+    <div className="page">
+      <div className="card dashboard-card">
+        <div className="page-header">
+          <div>
+            <h1>Listening Library</h1>
+            <p className="muted small">All audiobooks ready for listening.</p>
+          </div>
+          <button className="button ghost" onClick={() => navigate('/dashboard')}>
+            Back to dashboard
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="muted">Loading…</p>
+        ) : error ? (
+          <p className="error">{error}</p>
+        ) : items.length === 0 ? (
+          <p className="muted">No audiobooks available</p>
+        ) : (
+          <div className="library-list">
+            {items.map((item) => (
+              <div className="preview-card" key={item.id}>
+                <div className="section-header">
+                  <h3>{item.title || 'Untitled story'}</h3>
+                  <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
+                    Audio Ready
+                  </span>
+                </div>
+                <div className="pill-row">
+                  {item.language && <span className="pill primary">in{item.language}</span>}
+                  {item.level && <span className="pill">Level {item.level}</span>}
+                </div>
+                {item.fullAudioUrl ? (
+                  <audio controls src={item.fullAudioUrl} style={{ width: '100%', marginTop: '0.75rem' }} />
+                ) : (
+                  <p className="muted small">No audio available.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default ListeningLibrary

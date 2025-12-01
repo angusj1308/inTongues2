@@ -12,6 +12,7 @@ import Signup from './pages/Signup'
 import Library from './pages/Library'
 import Reader from './pages/Reader'
 import Review from './pages/Review'
+import ListeningLibrary from './pages/ListeningLibrary'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -123,6 +124,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Reader />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/listening"
+        element={
+          <ProtectedRoute>
+            <ListeningLibrary />
           </ProtectedRoute>
         }
       />

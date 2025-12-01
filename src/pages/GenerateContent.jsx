@@ -116,6 +116,19 @@ const GenerateContent = () => {
 
       await Promise.all(pageWrites)
 
+      try {
+        await fetch('http://localhost:4000/api/generate-audio-book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: user.uid,
+            storyId: storyRef.id,
+          }),
+        })
+      } catch (err) {
+        console.error('Failed to trigger audio book generation:', err)
+      }
+
       navigate(`/library/${encodeURIComponent(activeLanguage)}`)
     } catch (submissionError) {
       setError(submissionError?.message || 'Unable to generate story.')

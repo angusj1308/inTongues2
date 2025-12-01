@@ -11,6 +11,7 @@ const Library = () => {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [openAudioId, setOpenAudioId] = useState('')
 
   const availableLanguages = profile?.myLanguages || []
   const invalidLanguageParam = languageParam && !availableLanguages.includes(languageParam)
@@ -160,6 +161,48 @@ const Library = () => {
                   </button>
                 </div>
                 <p className="muted small">{getPreviewSnippet(item)}</p>
+                <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span
+                    className="pill"
+                    style={{
+                      background:
+                        item.audioStatus === 'ready'
+                          ? '#dcfce7'
+                          : item.audioStatus === 'processing'
+                            ? '#fef9c3'
+                            : '#e2e8f0',
+                      color:
+                        item.audioStatus === 'ready'
+                          ? '#166534'
+                          : item.audioStatus === 'processing'
+                            ? '#854d0e'
+                            : '#0f172a',
+                    }}
+                  >
+                    {item.audioStatus === 'ready'
+                      ? 'Audio Ready'
+                      : item.audioStatus === 'processing'
+                        ? 'Audio Processing…'
+                        : 'No Audio'}
+                  </span>
+                  {item.audioStatus === 'ready' && item.fullAudioUrl && (
+                    <button
+                      className="button ghost"
+                      onClick={() =>
+                        setOpenAudioId((current) => (current === item.id ? '' : item.id))
+                      }
+                    >
+                      ► Listen
+                    </button>
+                  )}
+                </div>
+                {openAudioId === item.id && item.audioStatus === 'ready' && item.fullAudioUrl && (
+                  <audio
+                    controls
+                    style={{ width: '100%', marginTop: '0.75rem' }}
+                    src={item.fullAudioUrl}
+                  />
+                )}
               </div>
             ))}
           </div>

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { collection, getDocs, orderBy, query } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+} from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -20,6 +27,9 @@ const Reader = () => {
   const [hasSeenAutoKnownInfo, setHasSeenAutoKnownInfo] = useState(
     () => localStorage.getItem('seenAutoKnownInfo') === 'true'
   )
+  const [audioStatus, setAudioStatus] = useState('')
+  const [fullAudioUrl, setFullAudioUrl] = useState('')
+  const [hasFullAudio, setHasFullAudio] = useState(false)
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -154,6 +164,41 @@ const Reader = () => {
     loadPages()
     return undefined
   }, [id, language, user])
+
+  useEffect(() => {
+    if (!user || !id) {
+      setAudioStatus('')
+      setFullAudioUrl('')
+      setHasFullAudio(false)
+      return
+    }
+
+    const loadStoryMeta = async () => {
+      try {
+        const storyRef = doc(db, 'users', user.uid, 'stories', id)
+        const storySnap = await getDoc(storyRef)
+
+        if (!storySnap.exists()) {
+          setAudioStatus('')
+          setFullAudioUrl('')
+          setHasFullAudio(false)
+          return
+        }
+
+        const data = storySnap.data() || {}
+        setAudioStatus(data.audioStatus || '')
+        setFullAudioUrl(data.fullAudioUrl || '')
+        setHasFullAudio(Boolean(data.hasFullAudio))
+      } catch (err) {
+        console.error('Failed to load story audio metadata', err)
+        setAudioStatus('')
+        setFullAudioUrl('')
+        setHasFullAudio(false)
+      }
+    }
+
+    loadStoryMeta()
+  }, [user, id])
 
   useEffect(() => {
     setCurrentIndex(0)
@@ -512,10 +557,53 @@ const Reader = () => {
           <button
             className="button ghost"
             onClick={() => navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')}
-          >
+        >
             Back to library
           </button>
         </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '0.75rem',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            className="pill"
+            style={{
+              background:
+                audioStatus === 'ready'
+                  ? '#dcfce7'
+                  : audioStatus === 'processing'
+                    ? '#fef9c3'
+                    : '#e2e8f0',
+              color:
+                audioStatus === 'ready'
+                  ? '#166534'
+                  : audioStatus === 'processing'
+                    ? '#854d0e'
+                    : '#0f172a',
+            }}
+          >
+            {audioStatus === 'ready'
+              ? 'Audio Ready'
+              : audioStatus === 'processing'
+                ? 'Audio Processing…'
+                : 'No Audio'}
+          </span>
+        </div>
+
+        {audioStatus === 'ready' && fullAudioUrl && (
+          <audio
+            controls
+            src={fullAudioUrl}
+            style={{ width: '100%', marginBottom: '1rem' }}
+          />
+        )}
 
         {loading ? (
           <p className="muted">Loading pages...</p>

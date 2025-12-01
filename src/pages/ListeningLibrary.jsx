@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
-import { useAuth } from '../context/AuthContext'
-import { db } from '../firebase'
+import useAuth from '../context/AuthContext'
+import db from '../firebase'
 
 const ListeningLibrary = () => {
   const { user } = useAuth()

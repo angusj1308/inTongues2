@@ -129,7 +129,13 @@ app.post('/api/youtube/transcript', async (req, res) => {
   }
 
   const languageCode = (language || 'auto').toLowerCase()
-  const tempFilePath = path.join(os.tmpdir(), `${videoId}-${Date.now()}.m4a`)
+  const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
+  const outputTemplate = `${tempBase}.%(ext)s`
+  const downloadDir = path.dirname(tempBase)
+  const baseName = path.basename(tempBase)
+  let actualAudioPath
+  let actualAudioStat
+  let matchedFiles = []
 
   try {
     const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
@@ -151,7 +157,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
           '-f',
           'bestaudio',
           '-o',
-          tempFilePath,
+          outputTemplate,
           `https://www.youtube.com/watch?v=${videoId}`,
         ])
 
@@ -163,7 +169,29 @@ app.post('/api/youtube/transcript', async (req, res) => {
           }
 
           try {
-            await fs.access(tempFilePath)
+            const entries = await fs.readdir(downloadDir)
+            matchedFiles = entries.filter((name) => name.startsWith(`${baseName}.`))
+
+            if (matchedFiles.length === 0) {
+              return reject(new Error('No audio file found for yt-dlp output template'))
+            }
+
+            if (matchedFiles.length > 1) {
+              console.warn('Multiple audio files found for yt-dlp template, using first', matchedFiles)
+            }
+
+            actualAudioPath = path.join(downloadDir, matchedFiles[0])
+            actualAudioStat = await fs.stat(actualAudioPath)
+
+            console.log('yt-dlp downloaded audio file', {
+              file: actualAudioPath,
+              size: actualAudioStat.size,
+            })
+
+            if (!actualAudioStat.size) {
+              return reject(new Error('Downloaded audio file is empty'))
+            }
+
             return resolve()
           } catch (fileError) {
             return reject(fileError)
@@ -176,7 +204,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
     }
 
     const transcription = await client.audio.transcriptions.create({
-      file: createReadStream(tempFilePath),
+      file: createReadStream(actualAudioPath),
       model: 'gpt-4o-transcribe',
       response_format: 'verbose_json',
       language: languageCode === 'auto' ? undefined : languageCode,
@@ -199,16 +227,28 @@ app.post('/api/youtube/transcript', async (req, res) => {
 
     return res.json({ segments })
   } catch (error) {
+    if (actualAudioPath && actualAudioStat) {
+      console.error('Transcription error for audio file', {
+        file: actualAudioPath,
+        size: actualAudioStat.size,
+      })
+    }
     console.error('Failed to transcribe YouTube audio', error)
     return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })
   } finally {
-    try {
-      await fs.unlink(tempFilePath)
-    } catch (cleanupError) {
-      if (cleanupError?.code !== 'ENOENT') {
-        console.error('Failed to clean up temporary audio file', cleanupError)
-      }
-    }
+    const filesToDelete = actualAudioPath ? [actualAudioPath, ...matchedFiles.slice(1).map((name) => path.join(downloadDir, name))] : []
+
+    await Promise.all(
+      filesToDelete.map(async (filePath) => {
+        try {
+          await fs.unlink(filePath)
+        } catch (cleanupError) {
+          if (cleanupError?.code !== 'ENOENT') {
+            console.error('Failed to clean up temporary audio file', cleanupError)
+          }
+        }
+      })
+    )
   }
 })
 

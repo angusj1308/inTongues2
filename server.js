@@ -4,13 +4,13 @@ import multer from 'multer'
 import os from 'os'
 import path from 'path'
 import fs from 'fs/promises'
-import { createReadStream, createWriteStream } from 'fs'
+import { createReadStream } from 'fs'
 import pdfParse from 'pdf-parse'
 import admin from 'firebase-admin'
 import { Readable } from 'stream'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
-import ytdl from 'ytdl-core'
+import { spawn } from 'child_process'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
@@ -145,18 +145,36 @@ app.post('/api/youtube/transcript', async (req, res) => {
       return res.json({ segments: data.segments || [] })
     }
 
-    await new Promise((resolve, reject) => {
-      const writeStream = createWriteStream(tempFilePath)
-      ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
-        filter: 'audioonly',
-        quality: 'highestaudio',
-      })
-        .on('error', reject)
-        .pipe(writeStream)
+    try {
+      await new Promise((resolve, reject) => {
+        const ytProcess = spawn('yt-dlp', [
+          '-x',
+          '--audio-format',
+          'mp3',
+          '-o',
+          tempFilePath,
+          `https://www.youtube.com/watch?v=${videoId}`,
+        ])
 
-      writeStream.on('finish', resolve)
-      writeStream.on('error', reject)
-    })
+        ytProcess.on('error', reject)
+
+        ytProcess.on('close', async (code) => {
+          if (code !== 0) {
+            return reject(new Error(`yt-dlp exited with code ${code}`))
+          }
+
+          try {
+            await fs.access(tempFilePath)
+            return resolve()
+          } catch (fileError) {
+            return reject(fileError)
+          }
+        })
+      })
+    } catch (downloadError) {
+      console.error('Failed to download YouTube audio with yt-dlp', downloadError)
+      return res.status(500).json({ error: 'Failed to download YouTube audio' })
+    }
 
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(tempFilePath),

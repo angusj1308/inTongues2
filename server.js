@@ -219,7 +219,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(actualAudioPath),
       model: 'gpt-4o-transcribe',
-      response_format: 'verbose_json',
+      response_format: 'json',
       ...(iso ? { language: iso } : {}),
     })
 

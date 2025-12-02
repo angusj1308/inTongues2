@@ -129,7 +129,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
   }
 
   const languageCode = (language || 'auto').toLowerCase()
-  const tempFilePath = path.join(os.tmpdir(), `${videoId}-${Date.now()}.mp3`)
+  const tempFilePath = path.join(os.tmpdir(), `${videoId}-${Date.now()}.m4a`)
 
   try {
     const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
@@ -148,9 +148,8 @@ app.post('/api/youtube/transcript', async (req, res) => {
     try {
       await new Promise((resolve, reject) => {
         const ytProcess = spawn('yt-dlp', [
-          '-x',
-          '--audio-format',
-          'mp3',
+          '-f',
+          'bestaudio',
           '-o',
           tempFilePath,
           `https://www.youtube.com/watch?v=${videoId}`,

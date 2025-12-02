@@ -25,6 +25,8 @@ const extractVideoId = (video) => {
   return ''
 }
 
+const MAX_DRIFT_SECONDS = 0.05
+
 const IntonguesCinema = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -40,8 +42,11 @@ const IntonguesCinema = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
   const [popup, setPopup] = useState(null)
+  const [audioUrl, setAudioUrl] = useState('')
+  const [audioLoadError, setAudioLoadError] = useState('')
 
   const playerRef = useRef(null)
+  const audioRef = useRef(null)
 
   useEffect(() => {
     if (!user || !id) {
@@ -81,6 +86,8 @@ const IntonguesCinema = () => {
     [profile?.lastUsedLanguage, video?.language]
   )
 
+  const isAudioMaster = useMemo(() => Boolean(audioUrl) && !audioLoadError, [audioLoadError, audioUrl])
+
   useEffect(() => {
     if (!videoId || !user || !id) return
 
@@ -92,6 +99,8 @@ const IntonguesCinema = () => {
       setTranscriptError('')
       setTranscript([])
       setTranslations({})
+      setAudioUrl('')
+      setAudioLoadError('')
 
       try {
         const transcriptRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', transcriptDocId)
@@ -100,6 +109,7 @@ const IntonguesCinema = () => {
         if (!isCancelled && cached.exists()) {
           const data = cached.data()
           setTranscript(data?.segments || [])
+          setAudioUrl(data?.audioUrl || '')
           return
         }
 
@@ -123,10 +133,13 @@ const IntonguesCinema = () => {
 
         if (!isCancelled) {
           setTranscript(data?.segments || [])
+          setAudioUrl(data?.audioUrl || '')
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
-            setTranscript(latest.data()?.segments || data?.segments || [])
+            const latestData = latest.data()
+            setTranscript(latestData?.segments || data?.segments || [])
+            setAudioUrl(latestData?.audioUrl || data?.audioUrl || '')
           }
         }
       } catch (err) {
@@ -221,6 +234,182 @@ const IntonguesCinema = () => {
 
     return () => controller.abort()
   }, [profile?.nativeLanguage, transcript, transcriptLanguage])
+
+  useEffect(() => {
+    if (!videoId || !transcriptLanguage) return
+
+    if (!audioUrl) {
+      console.warn('No downloaded audio URL available, using YouTube audio', { videoId, transcriptLanguage })
+    }
+  }, [audioUrl, transcriptLanguage, videoId])
+
+  useEffect(() => {
+    if (!isAudioMaster) return undefined
+
+    const audioEl = audioRef.current
+    if (!audioEl) return undefined
+
+    const updateStatusFromAudio = () => {
+      setPlaybackStatus((prev) => ({
+        currentTime: audioEl.currentTime || 0,
+        duration: Number.isFinite(audioEl.duration) ? audioEl.duration : prev.duration,
+        isPlaying: !audioEl.paused && !audioEl.ended,
+      }))
+    }
+
+    const handleRateChange = () => {
+      const rate = audioEl.playbackRate || 1
+      playerRef.current?.setPlaybackRate?.(rate)
+    }
+
+    updateStatusFromAudio()
+
+    audioEl.addEventListener('timeupdate', updateStatusFromAudio)
+    audioEl.addEventListener('loadedmetadata', updateStatusFromAudio)
+    audioEl.addEventListener('play', updateStatusFromAudio)
+    audioEl.addEventListener('pause', updateStatusFromAudio)
+    audioEl.addEventListener('ratechange', handleRateChange)
+
+    return () => {
+      audioEl.removeEventListener('timeupdate', updateStatusFromAudio)
+      audioEl.removeEventListener('loadedmetadata', updateStatusFromAudio)
+      audioEl.removeEventListener('play', updateStatusFromAudio)
+      audioEl.removeEventListener('pause', updateStatusFromAudio)
+      audioEl.removeEventListener('ratechange', handleRateChange)
+    }
+  }, [isAudioMaster])
+
+  const handleVideoStatus = (status) => {
+    if (isAudioMaster) return
+    setPlaybackStatus(status)
+  }
+
+  const handlePlayerReady = () => {
+    if (isAudioMaster) {
+      playerRef.current?.mute?.()
+    }
+  }
+
+  const handlePlayerStateChange = (_, playerInstance) => {
+    if (!isAudioMaster || !playerInstance || !audioRef.current) return
+
+    const videoTime = playerInstance.getCurrentTime?.()
+    if (typeof videoTime === 'number' && !Number.isNaN(videoTime)) {
+      audioRef.current.currentTime = videoTime
+      setPlaybackStatus((prev) => ({ ...prev, currentTime: videoTime }))
+    }
+  }
+
+  const handlePlay = async () => {
+    const player = playerRef.current
+
+    if (isAudioMaster && audioRef.current) {
+      player?.mute?.()
+      const syncTime = audioRef.current.currentTime || 0
+      player?.seekTo?.(syncTime, true)
+
+      try {
+        await audioRef.current.play()
+      } catch (err) {
+        console.error('Failed to start downloaded audio playback, falling back to YouTube audio', err)
+        setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
+        player?.unMute?.()
+        player?.playVideo?.()
+        return
+      }
+
+      player?.playVideo?.()
+      return
+    }
+
+    player?.playVideo?.()
+  }
+
+  const handlePause = () => {
+    const player = playerRef.current
+
+    if (isAudioMaster && audioRef.current) {
+      audioRef.current.pause()
+    }
+
+    player?.pauseVideo?.()
+  }
+
+  const handleSeek = (newTime) => {
+    const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
+    const player = playerRef.current
+
+    if (isAudioMaster && audioRef.current) {
+      audioRef.current.currentTime = target
+      player?.seekTo?.(target, true)
+      setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
+      return
+    }
+
+    player?.seekTo?.(target, true)
+    setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
+  }
+
+  useEffect(() => {
+    const player = playerRef.current
+    if (!player) return undefined
+
+    if (isAudioMaster) {
+      player.mute?.()
+    } else {
+      player.unMute?.()
+    }
+
+    return undefined
+  }, [isAudioMaster])
+
+  useEffect(() => {
+    if (!isAudioMaster) return undefined
+
+    let rafId = null
+    const audioEl = audioRef.current
+
+    const syncVideoToAudio = () => {
+      if (!audioEl || !playerRef.current) return
+      if (audioEl.paused) return
+
+      const audioTime = audioEl.currentTime || 0
+      const videoTime = playerRef.current.getCurrentTime?.() ?? 0
+      const delta = videoTime - audioTime
+
+      if (Math.abs(delta) > MAX_DRIFT_SECONDS) {
+        playerRef.current.seekTo?.(audioTime, true)
+      }
+
+      rafId = window.requestAnimationFrame(syncVideoToAudio)
+    }
+
+    const startSync = () => {
+      if (rafId) window.cancelAnimationFrame(rafId)
+      rafId = window.requestAnimationFrame(syncVideoToAudio)
+    }
+
+    const stopSync = () => {
+      if (rafId) window.cancelAnimationFrame(rafId)
+      rafId = null
+    }
+
+    if (audioEl) {
+      audioEl.addEventListener('play', startSync)
+      audioEl.addEventListener('pause', stopSync)
+      audioEl.addEventListener('ended', stopSync)
+    }
+
+    return () => {
+      stopSync()
+
+      if (audioEl) {
+        audioEl.removeEventListener('play', startSync)
+        audioEl.removeEventListener('pause', stopSync)
+        audioEl.removeEventListener('ended', stopSync)
+      }
+    }
+  }, [isAudioMaster])
 
   const isWordChar = (ch) => {
     if (!ch) return false
@@ -440,11 +629,15 @@ const IntonguesCinema = () => {
   }
 
   const formatTime = (seconds) => {
-    if (!seconds || Number.isNaN(seconds)) return '0:00'
+    if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = Math.floor(seconds % 60)
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
   }
+
+  const safeCurrentTime = Number.isFinite(playbackStatus.currentTime) ? playbackStatus.currentTime : 0
+  const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0
+  const sliderMax = safeDuration > 0 ? safeDuration : Math.max(safeCurrentTime, 0.1)
 
   return (
     <div className="page">
@@ -485,9 +678,25 @@ const IntonguesCinema = () => {
                   <YouTubePlayer
                     ref={playerRef}
                     videoId={videoId}
-                    onStatus={(status) => setPlaybackStatus(status)}
+                    onStatus={handleVideoStatus}
+                    onPlayerReady={handlePlayerReady}
+                    onPlayerStateChange={handlePlayerStateChange}
                   />
                 </div>
+                <audio
+                  ref={audioRef}
+                  src={audioUrl || ''}
+                  preload="auto"
+                  controls={false}
+                  onError={() => {
+                    console.warn('Failed to load downloaded audio for playback, using YouTube audio instead', {
+                      videoId,
+                      transcriptLanguage,
+                    })
+                    setAudioLoadError('Downloaded audio failed to load. Using YouTube audio instead.')
+                  }}
+                  style={{ display: 'none' }}
+                />
               </div>
             ) : (
               <p className="error">This video cannot be embedded.</p>
@@ -498,23 +707,43 @@ const IntonguesCinema = () => {
               style={{
                 marginTop: '1rem',
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: 'column',
                 gap: '0.75rem',
-                justifyContent: 'space-between',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button className="button" onClick={() => playerRef.current?.playVideo?.()}>
+                <button className="button" onClick={handlePlay}>
                   Play
                 </button>
-                <button className="button ghost" onClick={() => playerRef.current?.pauseVideo?.()}>
+                <button className="button ghost" onClick={handlePause}>
                   Pause
                 </button>
               </div>
-              <p className="muted small" style={{ margin: 0 }}>
-                {formatTime(playbackStatus.currentTime)} / {formatTime(playbackStatus.duration)}
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max={sliderMax}
+                  step="0.01"
+                  value={Math.min(safeCurrentTime, sliderMax)}
+                  onChange={(e) => handleSeek(Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <p className="muted small" style={{ margin: 0, whiteSpace: 'nowrap' }}>
+                  {formatTime(safeCurrentTime)} / {formatTime(safeDuration)}
+                </p>
+              </div>
             </div>
+            {!isAudioMaster && (
+              <p className="muted small" style={{ marginTop: '0.25rem' }}>
+                Using YouTube audio because the downloaded track is unavailable.
+              </p>
+            )}
+            {audioLoadError && (
+              <p className="muted small" style={{ marginTop: '0.25rem' }}>
+                {audioLoadError}
+              </p>
+            )}
             {transcriptLoading && (
               <p className="muted small" style={{ marginTop: '1rem' }}>
                 Preparing subtitles for this video…
@@ -529,13 +758,13 @@ const IntonguesCinema = () => {
 
             <CinemaSubtitles
               transcript={transcript}
-              currentTime={playbackStatus.currentTime}
+              currentTime={safeCurrentTime}
               renderHighlightedText={renderHighlightedText}
               onWordSelect={handleSubtitleWordClick}
             />
 
             <p className="muted small">
-              Current time: {playbackStatus.currentTime.toFixed(1)}s / {playbackStatus.duration.toFixed(1)}s —{' '}
+              Current time: {safeCurrentTime.toFixed(1)}s / {safeDuration.toFixed(1)}s —{' '}
               {playbackStatus.isPlaying ? 'Playing' : 'Paused'}
             </p>
           </div>

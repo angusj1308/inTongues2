@@ -30,7 +30,7 @@ const loadYouTubeApi = () => {
   return youtubeApiPromise
 }
 
-const YouTubePlayer = forwardRef(({ videoId, onStatus }, ref) => {
+const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerStateChange }, ref) => {
   const containerRef = useRef(null)
   const playerRef = useRef(null)
   const statusIntervalRef = useRef(null)
@@ -61,8 +61,14 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus }, ref) => {
             rel: 0,
           },
           events: {
-            onReady: sendStatusUpdate,
-            onStateChange: sendStatusUpdate,
+            onReady: (event) => {
+              sendStatusUpdate()
+              onPlayerReady?.(playerRef.current, event)
+            },
+            onStateChange: (event) => {
+              sendStatusUpdate()
+              onPlayerStateChange?.(event, playerRef.current)
+            },
           },
         })
 
@@ -98,6 +104,11 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus }, ref) => {
       getCurrentTime: () => playerRef.current?.getCurrentTime?.() ?? 0,
       getDuration: () => playerRef.current?.getDuration?.() ?? 0,
       seekTo: (seconds) => playerRef.current?.seekTo?.(seconds, true),
+      mute: () => playerRef.current?.mute?.(),
+      unMute: () => playerRef.current?.unMute?.(),
+      setPlaybackRate: (rate) => playerRef.current?.setPlaybackRate?.(rate),
+      getPlaybackRate: () => playerRef.current?.getPlaybackRate?.() ?? 1,
+      getPlayer: () => playerRef.current,
     }),
     []
   )

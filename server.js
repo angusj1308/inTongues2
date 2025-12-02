@@ -76,6 +76,43 @@ function resolveTargetCode(targetLang) {
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+const AUDIO_CONTENT_TYPES = {
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  webm: 'audio/webm',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  opus: 'audio/ogg',
+  flac: 'audio/flac',
+}
+
+function getAudioContentType(extension) {
+  if (!extension) return null
+  const cleanExt = extension.replace(/^\./, '').toLowerCase()
+  return AUDIO_CONTENT_TYPES[cleanExt] || null
+}
+
+async function persistAudioFile(localFilePath, storagePath, contentType) {
+  const file = bucket.file(storagePath)
+  const [exists] = await file.exists()
+
+  if (!exists) {
+    const uploadOptions = {
+      destination: storagePath,
+      resumable: false,
+    }
+
+    if (contentType) {
+      uploadOptions.metadata = { contentType }
+    }
+
+    await bucket.upload(localFilePath, uploadOptions)
+  }
+
+  await file.makePublic()
+  return file.publicUrl()
+}
+
 const ADAPTATION_SYSTEM_PROMPT = `
 You are an expert language educator adapting reading materials for learners.
 Always preserve all key events, factual details, character actions, and tone from the source. Do not omit plot points, merge scenes, or summarize; deliver a full, faithful retelling in the requested level and language.
@@ -139,6 +176,10 @@ app.post('/api/youtube/transcript', async (req, res) => {
   let matchedFiles = []
   let selectedFormatId = null
   let selectedLanguage = null
+  let audioStoragePath = null
+  let persistedAudioUrl = null
+  let existingTranscriptData = null
+  let finalSegments = null
 
   try {
     const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
@@ -150,8 +191,15 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const transcriptRef = videoRef.collection('transcripts').doc(languageCode)
     const existing = await transcriptRef.get()
     if (existing.exists) {
-      const data = existing.data() || {}
-      return res.json({ segments: data.segments || [] })
+      existingTranscriptData = existing.data() || {}
+
+      if (existingTranscriptData.audioUrl) {
+        return res.json({ segments: existingTranscriptData.segments || [], audioUrl: existingTranscriptData.audioUrl })
+      }
+
+      if (Array.isArray(existingTranscriptData.segments) && existingTranscriptData.segments.length > 0) {
+        finalSegments = existingTranscriptData.segments
+      }
     }
 
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
@@ -290,74 +338,94 @@ app.post('/api/youtube/transcript', async (req, res) => {
       return res.status(500).json({ error: 'Failed to download YouTube audio' })
     }
 
-    const ISO_LANG_MAP = {
-      spanish: 'es',
-      english: 'en',
-      french: 'fr',
-      german: 'de',
-      italian: 'it',
-      japanese: 'ja',
-      korean: 'ko',
-      mandarin: 'zh',
-    }
-
-    const iso = ISO_LANG_MAP[(language || '').toLowerCase()]
-
-    const transcription = await client.audio.transcriptions.create({
-      file: createReadStream(actualAudioPath),
-      model: 'gpt-4o-transcribe',
-      response_format: 'json',
-      ...(iso ? { language: iso } : {}),
-    })
+    const extension = path.extname(actualAudioPath) || ''
+    const contentType = getAudioContentType(extension) || undefined
+    const normalizedExt = extension.replace(/^\./, '') || 'mp3'
+    audioStoragePath = `audio/youtube/${uid}/${videoId}/${languageCode}.${normalizedExt}`
 
     try {
-      console.log('RAW TRANSCRIPTION FROM OPENAI')
-      console.log(inspect(transcription, { depth: null, colors: true }))
-    } catch (logError) {
-      console.warn('RAW TRANSCRIPTION FROM OPENAI (unserializable)', logError)
+      persistedAudioUrl = await persistAudioFile(actualAudioPath, audioStoragePath, contentType)
+    } catch (uploadError) {
+      console.error('Failed to persist YouTube audio to storage', { uploadError, audioStoragePath })
     }
 
-    const parsedTranscription =
-      transcription?.segments && Array.isArray(transcription.segments)
-        ? transcription
-        : transcription?.json && typeof transcription.json === 'object'
-          ? transcription.json
-          : transcription
+    const shouldTranscribe = !finalSegments || finalSegments.length === 0
 
-    const segments = (parsedTranscription?.segments || [])
-      .map((segment) => ({
-        startMs: Math.max(0, Math.round((segment.start || 0) * 1000)),
-        endMs: Math.max(0, Math.round((segment.end || segment.start || 0) * 1000)),
-        text: (segment.text || '').trim(),
-      }))
-      .filter((segment) => segment.text)
+    if (shouldTranscribe) {
+      const ISO_LANG_MAP = {
+        spanish: 'es',
+        english: 'en',
+        french: 'fr',
+        german: 'de',
+        italian: 'it',
+        japanese: 'ja',
+        korean: 'ko',
+        mandarin: 'zh',
+      }
 
-    let finalSegments = segments
+      const iso = ISO_LANG_MAP[(language || '').toLowerCase()]
 
-    if (
-      (!finalSegments || finalSegments.length === 0) &&
-      typeof parsedTranscription?.text === 'string' &&
-      parsedTranscription.text.trim().length > 0
-    ) {
-      finalSegments = [
-        {
-          startMs: 0,
-          endMs: 60 * 60 * 1000, // placeholder 1-hour window
-          text: parsedTranscription.text.trim(),
-        },
-      ]
+      const transcription = await client.audio.transcriptions.create({
+        file: createReadStream(actualAudioPath),
+        model: 'gpt-4o-transcribe',
+        response_format: 'json',
+        ...(iso ? { language: iso } : {}),
+      })
+
+      try {
+        console.log('RAW TRANSCRIPTION FROM OPENAI')
+        console.log(inspect(transcription, { depth: null, colors: true }))
+      } catch (logError) {
+        console.warn('RAW TRANSCRIPTION FROM OPENAI (unserializable)', logError)
+      }
+
+      const parsedTranscription =
+        transcription?.segments && Array.isArray(transcription.segments)
+          ? transcription
+          : transcription?.json && typeof transcription.json === 'object'
+            ? transcription.json
+            : transcription
+
+      const segments = (parsedTranscription?.segments || [])
+        .map((segment) => ({
+          startMs: Math.max(0, Math.round((segment.start || 0) * 1000)),
+          endMs: Math.max(0, Math.round((segment.end || segment.start || 0) * 1000)),
+          text: (segment.text || '').trim(),
+        }))
+        .filter((segment) => segment.text)
+
+      finalSegments = segments
+
+      if (
+        (!finalSegments || finalSegments.length === 0) &&
+        typeof parsedTranscription?.text === 'string' &&
+        parsedTranscription.text.trim().length > 0
+      ) {
+        finalSegments = [
+          {
+            startMs: 0,
+            endMs: 60 * 60 * 1000, // placeholder 1-hour window
+            text: parsedTranscription.text.trim(),
+          },
+        ]
+      }
+
+      console.log('SUBTITLE SEGMENTS COUNT', { count: finalSegments.length })
     }
 
-    console.log('SUBTITLE SEGMENTS COUNT', { count: finalSegments.length })
-
-    await transcriptRef.set({
+    const transcriptPayload = {
       videoId,
       language: languageCode,
-      segments: finalSegments,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    })
+      segments: finalSegments || [],
+      audioUrl: persistedAudioUrl || existingTranscriptData?.audioUrl || null,
+      audioPath: audioStoragePath,
+      audioLanguage: selectedLanguage,
+      createdAt: existingTranscriptData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+    }
 
-    return res.json({ segments: finalSegments })
+    await transcriptRef.set(transcriptPayload, { merge: true })
+
+    return res.json({ segments: finalSegments || [], audioUrl: persistedAudioUrl })
   } catch (error) {
     if (actualAudioPath && actualAudioStat) {
       console.error('Transcription error for audio file', {

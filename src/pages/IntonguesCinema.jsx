@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
+import YouTubePlayer from '../components/YouTubePlayer'
 
-const buildEmbedUrl = (video) => {
+const extractVideoId = (video) => {
   if (!video) return ''
-  if (video.videoId) return `https://www.youtube.com/embed/${video.videoId}?rel=0`
+  if (video.videoId) return video.videoId
 
   if (video.youtubeUrl) {
     try {
       const parsed = new URL(video.youtubeUrl)
       if (parsed.searchParams.get('v')) {
-        return `https://www.youtube.com/embed/${parsed.searchParams.get('v')}?rel=0`
+        return parsed.searchParams.get('v')
       }
     } catch (err) {
       return ''
@@ -30,6 +31,9 @@ const IntonguesCinema = () => {
   const [video, setVideo] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [playbackStatus, setPlaybackStatus] = useState({ currentTime: 0, duration: 0, isPlaying: false })
+
+  const playerRef = useRef(null)
 
   useEffect(() => {
     if (!user || !id) {
@@ -63,7 +67,7 @@ const IntonguesCinema = () => {
     loadVideo()
   }, [id, user])
 
-  const embedUrl = useMemo(() => buildEmbedUrl(video), [video])
+  const videoId = useMemo(() => extractVideoId(video), [video])
 
   return (
     <div className="page">
@@ -98,15 +102,15 @@ const IntonguesCinema = () => {
               )}
             </div>
 
-            {embedUrl ? (
+            {videoId ? (
               <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <iframe
-                  src={embedUrl}
-                  title={video.title || 'YouTube video player'}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                />
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+                  <YouTubePlayer
+                    ref={playerRef}
+                    videoId={videoId}
+                    onStatus={(status) => setPlaybackStatus(status)}
+                  />
+                </div>
               </div>
             ) : (
               <p className="error">This video cannot be embedded.</p>
@@ -116,6 +120,10 @@ const IntonguesCinema = () => {
               <h4>Subtitles</h4>
               <p className="muted small">
                 Subtitles will appear here once they are available for this YouTube video.
+              </p>
+              <p className="muted small">
+                Current time: {playbackStatus.currentTime.toFixed(1)}s / {playbackStatus.duration.toFixed(1)}s —{' '}
+                {playbackStatus.isPlaying ? 'Playing' : 'Paused'}
               </p>
             </div>
           </div>

@@ -206,11 +206,25 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(actualAudioPath),
       model: 'gpt-4o-transcribe',
-      response_format: 'verbose_json',
+      response_format: 'json',
       language: languageCode === 'auto' ? undefined : languageCode,
     })
 
-    const segments = (transcription.segments || [])
+    let parsedTranscription = transcription
+
+    if (!parsedTranscription?.segments) {
+      if (typeof transcription?.text === 'string') {
+        try {
+          parsedTranscription = JSON.parse(transcription.text)
+        } catch (parseError) {
+          console.error('Failed to parse transcription text JSON', parseError)
+        }
+      } else if (transcription?.json && typeof transcription.json === 'object') {
+        parsedTranscription = transcription.json
+      }
+    }
+
+    const segments = (parsedTranscription?.segments || [])
       .map((segment) => ({
         startMs: Math.max(0, Math.round((segment.start || 0) * 1000)),
         endMs: Math.max(0, Math.round((segment.end || segment.start || 0) * 1000)),

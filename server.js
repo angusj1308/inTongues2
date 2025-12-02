@@ -246,16 +246,32 @@ app.post('/api/youtube/transcript', async (req, res) => {
       }))
       .filter((segment) => segment.text)
 
-    console.log('SUBTITLE SEGMENTS COUNT', { count: segments.length })
+    let finalSegments = segments
+
+    if (
+      (!finalSegments || finalSegments.length === 0) &&
+      typeof parsedTranscription?.text === 'string' &&
+      parsedTranscription.text.trim().length > 0
+    ) {
+      finalSegments = [
+        {
+          startMs: 0,
+          endMs: 60 * 60 * 1000, // placeholder 1-hour window
+          text: parsedTranscription.text.trim(),
+        },
+      ]
+    }
+
+    console.log('SUBTITLE SEGMENTS COUNT', { count: finalSegments.length })
 
     await transcriptRef.set({
       videoId,
       language: languageCode,
-      segments,
+      segments: finalSegments,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     })
 
-    return res.json({ segments })
+    return res.json({ segments: finalSegments })
   } catch (error) {
     if (actualAudioPath && actualAudioStat) {
       console.error('Transcription error for audio file', {

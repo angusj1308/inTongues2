@@ -13,6 +13,7 @@ import Library from './pages/Library'
 import Reader from './pages/Reader'
 import Review from './pages/Review'
 import ListeningLibrary from './pages/ListeningLibrary'
+import AudioPlayer from './pages/AudioPlayer'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -132,6 +133,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <ListeningLibrary />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/audio/:id"
+        element={
+          <ProtectedRoute>
+            <AudioPlayer />
           </ProtectedRoute>
         }
       />

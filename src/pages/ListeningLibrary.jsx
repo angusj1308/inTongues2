@@ -93,7 +93,12 @@ const ListeningLibrary = () => {
         ) : (
           <div className="library-list">
             {items.map((item) => (
-              <div className="preview-card" key={item.id}>
+              <div
+                className="preview-card"
+                key={item.id}
+                onClick={() => navigate(`/audio/${item.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="section-header">
                   <h3>{item.title || 'Untitled story'}</h3>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -103,21 +108,24 @@ const ListeningLibrary = () => {
                     <button
                       className="button ghost"
                       style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
-                      onClick={() => handleDeleteStory(item.id)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleDeleteStory(item.id)
+                      }}
                     >
                       Delete
                     </button>
                   </div>
                 </div>
-                <div className="pill-row">
-                  {item.language && <span className="pill primary">in{item.language}</span>}
-                  {item.level && <span className="pill">Level {item.level}</span>}
+                <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {item.language && <span className="pill primary">in{item.language}</span>}
+                    {item.level && <span className="pill">Level {item.level}</span>}
+                  </div>
+                  <span className="button ghost" style={{ padding: '0.25rem 0.75rem' }}>
+                    Open audio player →
+                  </span>
                 </div>
-                {item.fullAudioUrl ? (
-                  <audio controls src={item.fullAudioUrl} style={{ width: '100%', marginTop: '0.75rem' }} />
-                ) : (
-                  <p className="muted small">No audio available.</p>
-                )}
               </div>
             ))}
           </div>

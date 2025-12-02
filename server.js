@@ -345,6 +345,15 @@ app.post('/api/youtube/transcript', async (req, res) => {
 
     try {
       persistedAudioUrl = await persistAudioFile(actualAudioPath, audioStoragePath, contentType)
+
+      console.log('Persisted YouTube audio', { audioStoragePath, persistedAudioUrl })
+
+      if (!persistedAudioUrl) {
+        console.error('persistAudioFile returned a falsy URL', {
+          audioStoragePath,
+          persistedAudioUrl,
+        })
+      }
     } catch (uploadError) {
       console.error('Failed to persist YouTube audio to storage', { uploadError, audioStoragePath })
     }

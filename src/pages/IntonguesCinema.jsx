@@ -47,6 +47,7 @@ const IntonguesCinema = () => {
 
   const playerRef = useRef(null)
   const audioRef = useRef(null)
+  const pendingAudioStartRef = useRef(false)
 
   useEffect(() => {
     if (!user || !id) {
@@ -290,13 +291,54 @@ const IntonguesCinema = () => {
     }
   }
 
-  const handlePlayerStateChange = (_, playerInstance) => {
-    if (!isAudioMaster || !playerInstance || !audioRef.current) return
+  const handlePlayerStateChange = (event, playerInstance) => {
+    if (!playerInstance) return
 
-    const videoTime = playerInstance.getCurrentTime?.()
-    if (typeof videoTime === 'number' && !Number.isNaN(videoTime)) {
-      audioRef.current.currentTime = videoTime
-      setPlaybackStatus((prev) => ({ ...prev, currentTime: videoTime }))
+    if (!isAudioMaster || !audioRef.current) return
+
+    const playerState = event?.data
+    const ytState = window.YT?.PlayerState
+    const audioEl = audioRef.current
+
+    if (playerState === ytState?.PLAYING) {
+      const videoTime = playerInstance.getCurrentTime?.()
+      const isValidTime = typeof videoTime === 'number' && !Number.isNaN(videoTime)
+
+      const attemptPlayAudio = async () => {
+        try {
+          if (isValidTime) {
+            audioEl.currentTime = videoTime
+          }
+
+          await audioEl.play()
+          pendingAudioStartRef.current = false
+        } catch (err) {
+          console.error('Failed to start downloaded audio playback, falling back to YouTube audio', err)
+          setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
+          pendingAudioStartRef.current = false
+          playerInstance?.unMute?.()
+        }
+      }
+
+      if (pendingAudioStartRef.current) {
+        attemptPlayAudio()
+      } else if (audioEl.paused) {
+        attemptPlayAudio()
+      }
+
+      if (isValidTime) {
+        audioEl.currentTime = videoTime
+        setPlaybackStatus((prev) => ({ ...prev, currentTime: videoTime }))
+      }
+    } else if (playerState === ytState?.PAUSED) {
+      if (!audioEl.paused) {
+        audioEl.pause()
+      }
+    } else if (playerState === ytState?.BUFFERING) {
+      if (!audioEl.paused) {
+        audioEl.pause()
+      }
+      pendingAudioStartRef.current = true
     }
   }
 
@@ -304,21 +346,20 @@ const IntonguesCinema = () => {
     const player = playerRef.current
 
     if (isAudioMaster && audioRef.current) {
+      pendingAudioStartRef.current = true
       player?.mute?.()
-      const syncTime = audioRef.current.currentTime || 0
-      player?.seekTo?.(syncTime, true)
 
       try {
-        await audioRef.current.play()
+        player?.playVideo?.()
       } catch (err) {
-        console.error('Failed to start downloaded audio playback, falling back to YouTube audio', err)
+        console.error('Failed to start YouTube playback, falling back to YouTube audio', err)
+        pendingAudioStartRef.current = false
         setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
         player?.unMute?.()
         player?.playVideo?.()
         return
       }
 
-      player?.playVideo?.()
       return
     }
 
@@ -327,6 +368,8 @@ const IntonguesCinema = () => {
 
   const handlePause = () => {
     const player = playerRef.current
+
+    pendingAudioStartRef.current = false
 
     if (isAudioMaster && audioRef.current) {
       audioRef.current.pause()
@@ -369,24 +412,24 @@ const IntonguesCinema = () => {
     let rafId = null
     const audioEl = audioRef.current
 
-    const syncVideoToAudio = () => {
+    const syncAudioToVideo = () => {
       if (!audioEl || !playerRef.current) return
       if (audioEl.paused) return
 
-      const audioTime = audioEl.currentTime || 0
       const videoTime = playerRef.current.getCurrentTime?.() ?? 0
-      const delta = videoTime - audioTime
+      const audioTime = audioEl.currentTime || 0
+      const delta = audioTime - videoTime
 
       if (Math.abs(delta) > MAX_DRIFT_SECONDS) {
-        playerRef.current.seekTo?.(audioTime, true)
+        audioEl.currentTime = videoTime
       }
 
-      rafId = window.requestAnimationFrame(syncVideoToAudio)
+      rafId = window.requestAnimationFrame(syncAudioToVideo)
     }
 
     const startSync = () => {
       if (rafId) window.cancelAnimationFrame(rafId)
-      rafId = window.requestAnimationFrame(syncVideoToAudio)
+      rafId = window.requestAnimationFrame(syncAudioToVideo)
     }
 
     const stopSync = () => {
@@ -683,6 +726,25 @@ const IntonguesCinema = () => {
                     onPlayerStateChange={handlePlayerStateChange}
                   />
                 </div>
+                <div
+                  onClick={() => {
+                    if (playbackStatus.isPlaying) {
+                      handlePause()
+                    } else {
+                      handlePlay()
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    zIndex: 2,
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                />
                 <audio
                   ref={audioRef}
                   src={audioUrl || ''}

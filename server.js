@@ -137,6 +137,8 @@ app.post('/api/youtube/transcript', async (req, res) => {
   let actualAudioPath
   let actualAudioStat
   let matchedFiles = []
+  let selectedFormatId = null
+  let selectedLanguage = null
 
   try {
     const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
@@ -152,14 +154,98 @@ app.post('/api/youtube/transcript', async (req, res) => {
       return res.json({ segments: data.segments || [] })
     }
 
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+
+    const normalizeLanguage = (lang) => (typeof lang === 'string' ? lang.trim().toLowerCase() : '')
+
+    const sortAudioFormats = (a, b) => {
+      const bitrateDiff = (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0)
+      if (bitrateDiff !== 0) return bitrateDiff
+
+      const filesizeDiff = (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
+      if (filesizeDiff !== 0) return filesizeDiff
+
+      return (b.source_preference || 0) - (a.source_preference || 0)
+    }
+
+    try {
+      const infoJson = await new Promise((resolve, reject) => {
+        const infoProcess = spawn('yt-dlp', ['-J', videoUrl])
+        let stdout = ''
+        let stderr = ''
+
+        infoProcess.stdout.on('data', (data) => {
+          stdout += data.toString()
+        })
+
+        infoProcess.stderr.on('data', (data) => {
+          stderr += data.toString()
+        })
+
+        infoProcess.on('error', reject)
+
+        infoProcess.on('close', (code) => {
+          if (code !== 0) {
+            return reject(new Error(`yt-dlp info exited with code ${code}: ${stderr}`))
+          }
+
+          try {
+            return resolve(JSON.parse(stdout))
+          } catch (parseError) {
+            return reject(parseError)
+          }
+        })
+      })
+
+      const audioFormats = (infoJson?.formats || []).filter((fmt) => fmt.vcodec === 'none')
+      const languageCandidates = [
+        infoJson?.original_audio_language,
+        infoJson?.original_language,
+        infoJson?.language,
+        ...(Array.isArray(infoJson?.languages) ? infoJson.languages : []),
+      ]
+        .map(normalizeLanguage)
+        .filter(Boolean)
+
+      const originalLanguage = languageCandidates[0] || null
+
+      const preferOriginal = audioFormats
+        .filter((fmt) => {
+          const fmtLang = normalizeLanguage(fmt.language)
+          if (originalLanguage) {
+            return fmtLang === originalLanguage
+          }
+          return !fmtLang
+        })
+        .sort(sortAudioFormats)
+
+      const fallbackFormats = audioFormats.slice().sort(sortAudioFormats)
+      const selected = preferOriginal[0] || fallbackFormats[0]
+
+      if (selected) {
+        selectedFormatId = selected.format_id
+        selectedLanguage = normalizeLanguage(selected.language) || originalLanguage || null
+
+        console.log('Selected original audio format for transcript', {
+          videoId,
+          formatId: selectedFormatId,
+          language: selectedLanguage || 'unknown',
+        })
+      } else {
+        console.warn('No audio-only formats found, will fall back to bestaudio', { videoId })
+      }
+    } catch (infoError) {
+      console.warn('Failed to inspect YouTube formats with yt-dlp, falling back to bestaudio', infoError)
+    }
+
     try {
       await new Promise((resolve, reject) => {
         const ytProcess = spawn('yt-dlp', [
           '-f',
-          'bestaudio',
+          selectedFormatId || 'bestaudio',
           '-o',
           outputTemplate,
-          `https://www.youtube.com/watch?v=${videoId}`,
+          videoUrl,
         ])
 
         ytProcess.on('error', reject)

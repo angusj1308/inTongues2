@@ -12,7 +12,7 @@ const CinemaSubtitles = ({ transcript, currentTime, renderHighlightedText, onWor
           typeof segment.startMs === 'number' &&
           typeof segment.endMs === 'number' &&
           currentMs >= segment.startMs &&
-          currentMs <= segment.endMs
+          currentMs < segment.endMs
       ) || null
     )
   }, [currentTime, transcript])

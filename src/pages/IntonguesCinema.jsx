@@ -69,6 +69,13 @@ const IntonguesCinema = () => {
 
   const videoId = useMemo(() => extractVideoId(video), [video])
 
+  const formatTime = (seconds) => {
+    if (!seconds || Number.isNaN(seconds)) return '0:00'
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = Math.floor(seconds % 60)
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -115,6 +122,29 @@ const IntonguesCinema = () => {
             ) : (
               <p className="error">This video cannot be embedded.</p>
             )}
+
+            <div
+              className="card"
+              style={{
+                marginTop: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button className="button" onClick={() => playerRef.current?.playVideo?.()}>
+                  Play
+                </button>
+                <button className="button ghost" onClick={() => playerRef.current?.pauseVideo?.()}>
+                  Pause
+                </button>
+              </div>
+              <p className="muted small" style={{ margin: 0 }}>
+                {formatTime(playbackStatus.currentTime)} / {formatTime(playbackStatus.duration)}
+              </p>
+            </div>
 
             <div className="card" style={{ marginTop: '1rem' }}>
               <h4>Subtitles</h4>

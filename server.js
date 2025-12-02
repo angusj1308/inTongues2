@@ -203,11 +203,24 @@ app.post('/api/youtube/transcript', async (req, res) => {
       return res.status(500).json({ error: 'Failed to download YouTube audio' })
     }
 
+    const ISO_LANG_MAP = {
+      spanish: 'es',
+      english: 'en',
+      french: 'fr',
+      german: 'de',
+      italian: 'it',
+      japanese: 'ja',
+      korean: 'ko',
+      mandarin: 'zh',
+    }
+
+    const iso = ISO_LANG_MAP[(language || '').toLowerCase()]
+
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(actualAudioPath),
       model: 'gpt-4o-transcribe',
       response_format: 'json',
-      language: languageCode === 'auto' ? undefined : languageCode,
+      ...(iso ? { language: iso } : {}),
     })
 
     let parsedTranscription = transcription

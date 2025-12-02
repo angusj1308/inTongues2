@@ -4,11 +4,13 @@ import multer from 'multer'
 import os from 'os'
 import path from 'path'
 import fs from 'fs/promises'
+import { createReadStream, createWriteStream } from 'fs'
 import pdfParse from 'pdf-parse'
 import admin from 'firebase-admin'
 import { Readable } from 'stream'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
+import ytdl from 'ytdl-core'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
@@ -117,6 +119,75 @@ app.use((req, res, next) => {
     return res.sendStatus(200)
   }
   next()
+})
+
+app.post('/api/youtube/transcript', async (req, res) => {
+  const { videoId, language } = req.body || {}
+
+  if (!videoId) {
+    return res.status(400).json({ error: 'videoId is required' })
+  }
+
+  const languageCode = (language || 'auto').toLowerCase()
+  const transcriptId = `${videoId}_${languageCode}`
+  const tempFilePath = path.join(os.tmpdir(), `${videoId}-${Date.now()}.mp3`)
+
+  try {
+    const transcriptRef = firestore.collection('videoTranscripts').doc(transcriptId)
+    const existing = await transcriptRef.get()
+    if (existing.exists) {
+      const data = existing.data() || {}
+      return res.json({ segments: data.segments || [] })
+    }
+
+    await new Promise((resolve, reject) => {
+      const writeStream = createWriteStream(tempFilePath)
+      ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
+        filter: 'audioonly',
+        quality: 'highestaudio',
+      })
+        .on('error', reject)
+        .pipe(writeStream)
+
+      writeStream.on('finish', resolve)
+      writeStream.on('error', reject)
+    })
+
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(tempFilePath),
+      model: 'gpt-4o-transcribe',
+      response_format: 'verbose_json',
+      language: languageCode === 'auto' ? undefined : languageCode,
+    })
+
+    const segments = (transcription.segments || [])
+      .map((segment) => ({
+        startMs: Math.max(0, Math.round((segment.start || 0) * 1000)),
+        endMs: Math.max(0, Math.round((segment.end || segment.start || 0) * 1000)),
+        text: (segment.text || '').trim(),
+      }))
+      .filter((segment) => segment.text)
+
+    await transcriptRef.set({
+      videoId,
+      language: languageCode,
+      segments,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    return res.json({ segments })
+  } catch (error) {
+    console.error('Failed to transcribe YouTube audio', error)
+    return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })
+  } finally {
+    try {
+      await fs.unlink(tempFilePath)
+    } catch (cleanupError) {
+      if (cleanupError?.code !== 'ENOENT') {
+        console.error('Failed to clean up temporary audio file', cleanupError)
+      }
+    }
+  }
 })
 
 async function translateWords(words, sourceLang, targetLang) {

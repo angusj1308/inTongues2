@@ -5,6 +5,7 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs/promises'
 import { createReadStream } from 'fs'
+import { inspect } from 'util'
 import pdfParse from 'pdf-parse'
 import admin from 'firebase-admin'
 import { Readable } from 'stream'
@@ -223,6 +224,13 @@ app.post('/api/youtube/transcript', async (req, res) => {
       ...(iso ? { language: iso } : {}),
     })
 
+    try {
+      console.log('RAW TRANSCRIPTION FROM OPENAI')
+      console.log(inspect(transcription, { depth: null, colors: true }))
+    } catch (logError) {
+      console.warn('RAW TRANSCRIPTION FROM OPENAI (unserializable)', logError)
+    }
+
     const parsedTranscription =
       transcription?.segments && Array.isArray(transcription.segments)
         ? transcription
@@ -237,6 +245,8 @@ app.post('/api/youtube/transcript', async (req, res) => {
         text: (segment.text || '').trim(),
       }))
       .filter((segment) => segment.text)
+
+    console.log('SUBTITLE SEGMENTS COUNT', { count: segments.length })
 
     await transcriptRef.set({
       videoId,

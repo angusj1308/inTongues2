@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  writeBatch,
+} from 'firebase/firestore'
 import useAuth from '../context/AuthContext'
 import db from '../firebase'
 
@@ -16,7 +26,7 @@ const ListeningLibrary = () => {
   const handleDeleteStory = async (storyId) => {
     if (!user || !storyId) return
 
-    const confirmed = window.confirm('Delete this audiobook and its pages permanently?')
+    const confirmed = window.confirm('Delete this story and its audio permanently?')
     if (!confirmed) return
 
     try {
@@ -28,11 +38,37 @@ const ListeningLibrary = () => {
 
       if (!response.ok) {
         console.error('Delete story failed:', await response.text())
-        window.alert('Unable to delete this audiobook right now.')
+        window.alert('Unable to delete this story right now.')
       }
+
+      // No manual state update needed: onSnapshot will refresh list.
     } catch (err) {
       console.error('Error deleting story:', err)
-      window.alert('Unable to delete this audiobook right now.')
+      window.alert('Unable to delete this story right now.')
+    }
+  }
+
+  const handleDeleteVideo = async (videoId) => {
+    if (!user || !videoId) return
+
+    const confirmed = window.confirm('Delete this YouTube import and its transcripts permanently?')
+    if (!confirmed) return
+
+    try {
+      const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', videoId)
+      const transcriptsRef = collection(videoRef, 'transcripts')
+      const transcriptSnap = await getDocs(transcriptsRef)
+
+      if (!transcriptSnap.empty) {
+        const batch = writeBatch(db)
+        transcriptSnap.forEach((docSnap) => batch.delete(docSnap.ref))
+        await batch.commit()
+      }
+
+      await deleteDoc(videoRef)
+    } catch (err) {
+      console.error('Error deleting YouTube video:', err)
+      window.alert('Unable to delete this YouTube video right now.')
     }
   }
 
@@ -198,6 +234,16 @@ const ListeningLibrary = () => {
                     <span className="pill" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
                       YouTube
                     </span>
+                    <button
+                      className="button ghost"
+                      style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleDeleteVideo(video.id)
+                      }}
+                    >
+                      Delete
+                    </button>
                   </div>
                   <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>

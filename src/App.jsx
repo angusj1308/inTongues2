@@ -14,6 +14,8 @@ import Reader from './pages/Reader'
 import Review from './pages/Review'
 import ListeningLibrary from './pages/ListeningLibrary'
 import AudioPlayer from './pages/AudioPlayer'
+import ImportAudioVideo from './pages/ImportAudioVideo'
+import IntonguesCinema from './pages/IntonguesCinema'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -141,6 +143,22 @@ const App = () => {
         element={
           <ProtectedRoute>
             <AudioPlayer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/importaudio/video"
+        element={
+          <ProtectedRoute>
+            <ImportAudioVideo />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cinema/:id"
+        element={
+          <ProtectedRoute>
+            <IntonguesCinema />
           </ProtectedRoute>
         }
       />

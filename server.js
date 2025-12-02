@@ -122,18 +122,23 @@ app.use((req, res, next) => {
 })
 
 app.post('/api/youtube/transcript', async (req, res) => {
-  const { videoId, language } = req.body || {}
+  const { videoId, language, uid, videoDocId } = req.body || {}
 
-  if (!videoId) {
-    return res.status(400).json({ error: 'videoId is required' })
+  if (!videoId || !uid || !videoDocId) {
+    return res.status(400).json({ error: 'videoId, uid, and videoDocId are required' })
   }
 
   const languageCode = (language || 'auto').toLowerCase()
-  const transcriptId = `${videoId}_${languageCode}`
   const tempFilePath = path.join(os.tmpdir(), `${videoId}-${Date.now()}.mp3`)
 
   try {
-    const transcriptRef = firestore.collection('videoTranscripts').doc(transcriptId)
+    const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
+    const videoDoc = await videoRef.get()
+    if (!videoDoc.exists) {
+      return res.status(404).json({ error: 'YouTube video not found for this user' })
+    }
+
+    const transcriptRef = videoRef.collection('transcripts').doc(languageCode)
     const existing = await transcriptRef.get()
     if (existing.exists) {
       const data = existing.data() || {}

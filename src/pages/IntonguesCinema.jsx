@@ -82,10 +82,10 @@ const IntonguesCinema = () => {
   )
 
   useEffect(() => {
-    if (!videoId) return
+    if (!videoId || !user || !id) return
 
     let isCancelled = false
-    const transcriptId = `${videoId}_${transcriptLanguage || 'auto'}`
+    const transcriptDocId = transcriptLanguage || 'auto'
 
     const loadTranscript = async () => {
       setTranscriptLoading(true)
@@ -94,7 +94,7 @@ const IntonguesCinema = () => {
       setTranslations({})
 
       try {
-        const transcriptRef = doc(db, 'videoTranscripts', transcriptId)
+        const transcriptRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', transcriptDocId)
         const cached = await getDoc(transcriptRef)
 
         if (!isCancelled && cached.exists()) {
@@ -106,7 +106,12 @@ const IntonguesCinema = () => {
         const response = await fetch('http://localhost:4000/api/youtube/transcript', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId, language: transcriptLanguage || 'auto' }),
+          body: JSON.stringify({
+            videoId,
+            language: transcriptLanguage || 'auto',
+            uid: user.uid,
+            videoDocId: id,
+          }),
         })
 
         if (!response.ok) {
@@ -141,7 +146,7 @@ const IntonguesCinema = () => {
     return () => {
       isCancelled = true
     }
-  }, [db, transcriptLanguage, videoId])
+  }, [id, transcriptLanguage, user?.uid, videoId])
 
   useEffect(() => {
     if (!user || !transcriptLanguage) return

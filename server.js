@@ -177,7 +177,6 @@ app.post('/api/youtube/transcript', async (req, res) => {
   let selectedFormatId = null
   let selectedLanguage = null
   let audioStoragePath = null
-  let persistedAudioUrl = null
   let existingTranscriptData = null
   let finalSegments = null
 
@@ -192,9 +191,10 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const existing = await transcriptRef.get()
     if (existing.exists) {
       existingTranscriptData = existing.data() || {}
+      audioStoragePath = existingTranscriptData.audioPath || null
 
-      if (existingTranscriptData.audioUrl) {
-        return res.json({ segments: existingTranscriptData.segments || [], audioUrl: existingTranscriptData.audioUrl })
+      if (existingTranscriptData.audioPath && Array.isArray(existingTranscriptData.segments) && existingTranscriptData.segments.length > 0) {
+        return res.json({ segments: existingTranscriptData.segments || [], audioPath: existingTranscriptData.audioPath })
       }
 
       if (Array.isArray(existingTranscriptData.segments) && existingTranscriptData.segments.length > 0) {
@@ -344,7 +344,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
     audioStoragePath = `audio/youtube/${uid}/${videoId}/${languageCode}.${normalizedExt}`
 
     try {
-      persistedAudioUrl = await persistAudioFile(actualAudioPath, audioStoragePath, contentType)
+      const persistedAudioUrl = await persistAudioFile(actualAudioPath, audioStoragePath, contentType)
 
       console.log('Persisted YouTube audio', { audioStoragePath, persistedAudioUrl })
 
@@ -426,15 +426,15 @@ app.post('/api/youtube/transcript', async (req, res) => {
       videoId,
       language: languageCode,
       segments: finalSegments || [],
-      audioUrl: persistedAudioUrl || existingTranscriptData?.audioUrl || null,
       audioPath: audioStoragePath,
       audioLanguage: selectedLanguage,
       createdAt: existingTranscriptData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+      audioUrl: admin.firestore.FieldValue.delete(),
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })
 
-    return res.json({ segments: finalSegments || [], audioUrl: persistedAudioUrl })
+    return res.json({ segments: finalSegments || [], audioPath: audioStoragePath })
   } catch (error) {
     if (actualAudioPath && actualAudioStat) {
       console.error('Transcription error for audio file', {
@@ -458,6 +458,33 @@ app.post('/api/youtube/transcript', async (req, res) => {
         }
       })
     )
+  }
+})
+
+app.post('/api/audio-url', async (req, res) => {
+  const { audioPath } = req.body || {}
+
+  if (!audioPath || typeof audioPath !== 'string') {
+    return res.status(400).json({ error: 'audioPath is required' })
+  }
+
+  try {
+    const file = bucket.file(audioPath)
+    const [exists] = await file.exists()
+
+    if (!exists) {
+      return res.status(404).json({ error: 'Audio file not found' })
+    }
+
+    const [signedUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000,
+    })
+
+    return res.json({ signedUrl })
+  } catch (error) {
+    console.error('Failed to generate signed audio URL', { audioPath, error })
+    return res.status(500).json({ error: 'Failed to generate signed audio URL' })
   }
 })
 

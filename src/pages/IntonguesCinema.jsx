@@ -752,7 +752,9 @@ const IntonguesCinema = () => {
 
             {videoId ? (
               <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+                <div
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                >
                   <YouTubePlayer
                     ref={playerRef}
                     videoId={videoId}
@@ -763,6 +765,7 @@ const IntonguesCinema = () => {
                 </div>
                 <div
                   onClick={() => {
+                    console.log('OVERLAY CLICKED!')
                     console.log('Overlay clicked — play/pause toggled')
                     const audioEl = audioRef.current
                     console.log('Audio unlock attempt starting…')
@@ -792,6 +795,7 @@ const IntonguesCinema = () => {
                     zIndex: 2,
                     backgroundColor: 'transparent',
                     cursor: 'pointer',
+                    pointerEvents: 'auto',
                   }}
                 />
                 {console.log('audioUrl:', audioUrl)}

@@ -48,6 +48,7 @@ const IntonguesCinema = () => {
   const playerRef = useRef(null)
   const audioRef = useRef(null)
   const pendingAudioStartRef = useRef(false)
+  const audioUnlockedRef = useRef(false)
 
   useEffect(() => {
     if (!user || !id) {
@@ -261,6 +262,17 @@ const IntonguesCinema = () => {
     const handleLoadedMetadata = () => {
       console.log('AUDIO EVENT: loadedmetadata')
       updateStatusFromAudio()
+
+      if (audioUnlockedRef.current) return
+
+      try {
+        audioEl.play()
+        audioEl.pause()
+        audioUnlockedRef.current = true
+        console.log('Audio unlocked on metadata')
+      } catch (err) {
+        console.error('Audio unlock on metadata failed:', err)
+      }
     }
 
     const handlePlay = () => {
@@ -767,19 +779,6 @@ const IntonguesCinema = () => {
                   onClick={() => {
                     console.log('OVERLAY CLICKED!')
                     console.log('Overlay clicked — play/pause toggled')
-                    const audioEl = audioRef.current
-                    console.log('Audio unlock attempt starting…')
-
-                    if (isAudioMaster && audioEl) {
-                      try {
-                        audioEl.play()
-                        audioEl.pause()
-                      } catch (err) {
-                        console.error('Audio unlock failed:', err)
-                      }
-                    }
-
-                    console.log('Audio unlock attempt complete.')
                     if (playbackStatus.isPlaying) {
                       handlePause()
                     } else {

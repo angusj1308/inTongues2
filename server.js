@@ -238,6 +238,57 @@ async function downloadYoutubeAudio(videoId) {
   return actualAudioPath
 }
 
+function buildSentenceSegments(whisperSegments = []) {
+  const MIN_SENTENCE_LENGTH = 20
+  const SENTENCE_END_REGEX = /[.!?…][)"'\]]*$/
+
+  const sentences = []
+  const segments = Array.isArray(whisperSegments) ? whisperSegments : []
+
+  let bufferText = ''
+  let sentenceStart = null
+  let sentenceEnd = null
+
+  segments.forEach((segment) => {
+    const text = (segment.text || '').trim()
+    if (!text) return
+
+    const start = Math.max(0, Number(segment.start) || 0)
+    const end = Math.max(start, Number(segment.end) || start)
+
+    if (bufferText.length === 0) {
+      sentenceStart = start
+    }
+
+    bufferText = bufferText ? `${bufferText} ${text}` : text
+    sentenceEnd = end
+
+    const trimmedBuffer = bufferText.trim()
+    if (trimmedBuffer.length >= MIN_SENTENCE_LENGTH && SENTENCE_END_REGEX.test(trimmedBuffer)) {
+      sentences.push({
+        start: sentenceStart ?? start,
+        end: sentenceEnd ?? end,
+        text: trimmedBuffer,
+      })
+
+      bufferText = ''
+      sentenceStart = null
+      sentenceEnd = null
+    }
+  })
+
+  const trailingText = bufferText.trim()
+  if (trailingText) {
+    sentences.push({
+      start: sentenceStart ?? 0,
+      end: sentenceEnd ?? sentenceStart ?? 0,
+      text: trailingText,
+    })
+  }
+
+  return sentences
+}
+
 async function transcribeWithWhisper(videoId, languageCode) {
   let audioPath = null
 
@@ -260,18 +311,11 @@ async function transcribeWithWhisper(videoId, languageCode) {
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(audioPath),
       model: 'gpt-4o-transcribe',
-      response_format: 'json',
+      response_format: 'verbose_json',
       ...(iso ? { language: iso } : {}),
     })
 
-    const parsedTranscription =
-      transcription?.segments && Array.isArray(transcription.segments)
-        ? transcription
-        : transcription?.json && typeof transcription.json === 'object'
-          ? transcription.json
-          : transcription
-
-    const segments = (parsedTranscription?.segments || [])
+    const segments = (transcription?.segments || [])
       .map((segment) => ({
         start: Math.max(0, Number(segment.start || 0)),
         end: Math.max(0, Number(segment.end || segment.start || 0)),
@@ -279,21 +323,12 @@ async function transcribeWithWhisper(videoId, languageCode) {
       }))
       .filter((segment) => segment.text)
 
-    if (segments.length > 0) {
-      return segments
+    if (segments.length === 0) {
+      console.error('Whisper transcription missing segments', transcription)
+      return []
     }
 
-    if (typeof parsedTranscription?.text === 'string' && parsedTranscription.text.trim()) {
-      return [
-        {
-          start: 0,
-          end: 60 * 60,
-          text: parsedTranscription.text.trim(),
-        },
-      ]
-    }
-
-    return []
+    return segments
   } finally {
     if (audioPath) {
       try {
@@ -328,9 +363,15 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const existingData = existing.exists ? existing.data() || {} : {}
     if (existing.exists) {
       const cachedSegments = normaliseTranscriptSegments(existingData.segments)
+      const cachedSentenceSegments = normaliseTranscriptSegments(existingData.sentenceSegments)
 
-      if (cachedSegments.length > 0) {
-        return res.json({ segments: cachedSegments })
+      if (cachedSegments.length > 0 || cachedSentenceSegments.length > 0) {
+        const resolvedSentenceSegments =
+          cachedSentenceSegments.length > 0
+            ? cachedSentenceSegments
+            : buildSentenceSegments(cachedSegments)
+
+        return res.json({ segments: cachedSegments, sentenceSegments: resolvedSentenceSegments })
       }
     }
     let finalSegments = []
@@ -350,16 +391,20 @@ app.post('/api/youtube/transcript', async (req, res) => {
       }
     }
 
+    const normalisedSegments = normaliseTranscriptSegments(finalSegments)
+    const sentenceSegments = buildSentenceSegments(normalisedSegments)
+
     const transcriptPayload = {
       videoId,
       language: languageCode,
-      segments: normaliseTranscriptSegments(finalSegments),
+      segments: normalisedSegments,
+      sentenceSegments,
       createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })
 
-    return res.json({ segments: transcriptPayload.segments })
+    return res.json({ segments: transcriptPayload.segments, sentenceSegments: transcriptPayload.sentenceSegments })
   } catch (error) {
     console.error('Failed to transcribe YouTube audio', error)
     return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })

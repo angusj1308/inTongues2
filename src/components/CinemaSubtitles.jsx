@@ -19,7 +19,14 @@ const normaliseSegments = (segments = []) =>
     .filter((segment) => segment.text)
 
 const CinemaSubtitles = ({ transcript, currentTime, renderHighlightedText, onWordSelect }) => {
-  const normalisedTranscript = useMemo(() => normaliseSegments(transcript), [transcript])
+  const normalisedTranscript = useMemo(() => {
+    const sourceSegments =
+      transcript?.sentenceSegments?.length
+        ? transcript.sentenceSegments
+        : transcript?.segments || transcript
+
+    return normaliseSegments(sourceSegments)
+  }, [transcript])
 
   const activeSegment = useMemo(() => {
     if (!normalisedTranscript.length) return null

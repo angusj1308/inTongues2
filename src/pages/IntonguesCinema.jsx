@@ -34,7 +34,7 @@ const IntonguesCinema = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [playbackStatus, setPlaybackStatus] = useState({ currentTime: 0, duration: 0, isPlaying: false })
-  const [transcript, setTranscript] = useState([])
+  const [transcript, setTranscript] = useState({ segments: [], sentenceSegments: [] })
   const [transcriptError, setTranscriptError] = useState('')
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [vocabEntries, setVocabEntries] = useState({})
@@ -60,6 +60,12 @@ const IntonguesCinema = () => {
         }
       })
       .filter((segment) => segment.text)
+
+  const displaySegments = useMemo(() => {
+    const sentenceSegments = normaliseSegments(transcript?.sentenceSegments)
+    if (sentenceSegments.length) return sentenceSegments
+    return normaliseSegments(transcript?.segments)
+  }, [transcript])
 
   useEffect(() => {
     if (!user || !id) {
@@ -108,7 +114,7 @@ const IntonguesCinema = () => {
     const loadTranscript = async () => {
       setTranscriptLoading(true)
       setTranscriptError('')
-      setTranscript([])
+      setTranscript({ segments: [], sentenceSegments: [] })
       setTranslations({})
       try {
         const transcriptRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', transcriptDocId)
@@ -117,8 +123,9 @@ const IntonguesCinema = () => {
         if (!isCancelled && cached.exists()) {
           const data = cached.data()
           const segments = normaliseSegments(data?.segments)
-          setTranscript(segments)
-          if (segments.length > 0) return
+          const sentenceSegments = normaliseSegments(data?.sentenceSegments)
+          setTranscript({ segments, sentenceSegments })
+          if (sentenceSegments.length > 0 || segments.length > 0) return
         }
 
         const response = await fetch('http://localhost:4000/api/youtube/transcript', {
@@ -140,13 +147,17 @@ const IntonguesCinema = () => {
         const data = await response.json()
 
         if (!isCancelled) {
-          const normalised = normaliseSegments(data?.segments)
-          setTranscript(normalised)
+          const segments = normaliseSegments(data?.segments)
+          const sentenceSegments = normaliseSegments(data?.sentenceSegments)
+          setTranscript({ segments, sentenceSegments })
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
             const latestData = latest.data()
-            setTranscript(normaliseSegments(latestData?.segments || data?.segments))
+            setTranscript({
+              segments: normaliseSegments(latestData?.segments || data?.segments),
+              sentenceSegments: normaliseSegments(latestData?.sentenceSegments || data?.sentenceSegments),
+            })
           }
         }
       } catch (err) {
@@ -192,11 +203,11 @@ const IntonguesCinema = () => {
   }, [transcriptLanguage, user])
 
   useEffect(() => {
-    if (!transcript?.length) return
+    if (!displaySegments.length) return
 
     const words = Array.from(
       new Set(
-        transcript
+        displaySegments
           .map((segment) => segment.text || '')
           .join(' ')
           .replace(/[^\p{L}\p{N}]+/gu, ' ')
@@ -240,7 +251,7 @@ const IntonguesCinema = () => {
     prefetch()
 
     return () => controller.abort()
-  }, [profile?.nativeLanguage, transcript, transcriptLanguage])
+  }, [displaySegments, profile?.nativeLanguage, transcriptLanguage])
 
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)

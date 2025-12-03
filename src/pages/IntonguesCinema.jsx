@@ -764,6 +764,19 @@ const IntonguesCinema = () => {
                 <div
                   onClick={() => {
                     console.log('Overlay clicked — play/pause toggled')
+                    const audioEl = audioRef.current
+                    console.log('Audio unlock attempt starting…')
+
+                    if (isAudioMaster && audioEl) {
+                      try {
+                        audioEl.play()
+                        audioEl.pause()
+                      } catch (err) {
+                        console.error('Audio unlock failed:', err)
+                      }
+                    }
+
+                    console.log('Audio unlock attempt complete.')
                     if (playbackStatus.isPlaying) {
                       handlePause()
                     } else {

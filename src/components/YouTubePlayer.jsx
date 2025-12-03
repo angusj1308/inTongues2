@@ -57,8 +57,9 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
         playerRef.current = new YT.Player(containerRef.current, {
           videoId,
           playerVars: {
-            controls: 0,
+            controls: 1,
             rel: 0,
+            cc_load_policy: 0,
           },
           events: {
             onReady: (event) => {

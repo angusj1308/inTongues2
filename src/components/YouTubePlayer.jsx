@@ -60,6 +60,8 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
             controls: 1,
             rel: 0,
             cc_load_policy: 0,
+            modestbranding: 1,
+            playsinline: 1,
           },
           events: {
             onReady: (event) => {

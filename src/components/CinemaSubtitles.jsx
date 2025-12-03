@@ -1,46 +1,48 @@
 import { useMemo } from 'react'
 
+const normaliseSegments = (segments = []) =>
+  (Array.isArray(segments) ? segments : [])
+    .map((segment) => {
+      const start = Number.isFinite(segment.start)
+        ? Number(segment.start)
+        : Number(segment.startMs) / 1000 || 0
+      const end = Number.isFinite(segment.end)
+        ? Number(segment.end)
+        : Number(segment.endMs) / 1000 || start
+
+      return {
+        start,
+        end: end > start ? end : start,
+        text: segment.text || '',
+      }
+    })
+    .filter((segment) => segment.text)
+
 const CinemaSubtitles = ({ transcript, currentTime, renderHighlightedText, onWordSelect }) => {
+  const normalisedTranscript = useMemo(() => normaliseSegments(transcript), [transcript])
+
   const activeSegment = useMemo(() => {
-    if (!Array.isArray(transcript) || transcript.length === 0) return null
+    if (!normalisedTranscript.length) return null
 
-    const currentMs = Math.max(0, Math.round((currentTime || 0) * 1000))
+    const currentSeconds = Math.max(0, Number(currentTime) || 0)
 
-    return (
-      transcript.find(
-        (segment) =>
-          typeof segment.startMs === 'number' &&
-          typeof segment.endMs === 'number' &&
-          currentMs >= segment.startMs &&
-          currentMs < segment.endMs
-      ) || null
+    const index = normalisedTranscript.findIndex(
+      (segment) => currentSeconds >= segment.start && currentSeconds < segment.end
     )
-  }, [currentTime, transcript])
+
+    return index >= 0 ? normalisedTranscript[index] : null
+  }, [currentTime, normalisedTranscript])
+
+  if (!normalisedTranscript.length) {
+    return <span className="muted small">Subtitles will appear here once available.</span>
+  }
 
   return (
-    <div className="card" style={{ marginTop: '1rem' }}>
-      <h4>Subtitles</h4>
-      {!transcript?.length ? (
-        <p className="muted small">
-          Subtitles will appear here once they are available for this YouTube video.
-        </p>
+    <div className="page-text" onMouseUp={onWordSelect} style={{ cursor: 'pointer', userSelect: 'text' }}>
+      {activeSegment ? (
+        renderHighlightedText(activeSegment.text || '')
       ) : (
-        <>
-          <p className="muted small">Auto-synced to your playback time.</p>
-          <div className="page-text" onMouseUp={onWordSelect} style={{ cursor: 'pointer', userSelect: 'text' }}>
-            {activeSegment ? (
-              renderHighlightedText(activeSegment.text || '')
-            ) : (
-              <span className="muted small">Move the playhead to see the matching subtitle line.</span>
-            )}
-          </div>
-          {activeSegment && (
-            <p className="muted small" style={{ marginTop: '0.5rem' }}>
-              Showing subtitle for {(activeSegment.startMs / 1000).toFixed(1)}s–
-              {(activeSegment.endMs / 1000).toFixed(1)}s
-            </p>
-          )}
-        </>
+        <span className="muted small">Move the playhead to see the matching subtitle line.</span>
       )}
     </div>
   )

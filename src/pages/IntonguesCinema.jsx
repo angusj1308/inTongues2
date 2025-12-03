@@ -43,6 +43,24 @@ const IntonguesCinema = () => {
 
   const playerRef = useRef(null)
 
+  const normaliseSegments = (segments = []) =>
+    (Array.isArray(segments) ? segments : [])
+      .map((segment) => {
+        const start = Number.isFinite(segment.start)
+          ? Number(segment.start)
+          : Number(segment.startMs) / 1000 || 0
+        const end = Number.isFinite(segment.end)
+          ? Number(segment.end)
+          : Number(segment.endMs) / 1000 || start
+
+        return {
+          start,
+          end: end > start ? end : start,
+          text: segment.text || '',
+        }
+      })
+      .filter((segment) => segment.text)
+
   useEffect(() => {
     if (!user || !id) {
       setError('Unable to load this video right now.')
@@ -98,8 +116,9 @@ const IntonguesCinema = () => {
 
         if (!isCancelled && cached.exists()) {
           const data = cached.data()
-          setTranscript(data?.segments || [])
-          return
+          const segments = normaliseSegments(data?.segments)
+          setTranscript(segments)
+          if (segments.length > 0) return
         }
 
         const response = await fetch('http://localhost:4000/api/youtube/transcript', {
@@ -121,12 +140,13 @@ const IntonguesCinema = () => {
         const data = await response.json()
 
         if (!isCancelled) {
-          setTranscript(data?.segments || [])
+          const normalised = normaliseSegments(data?.segments)
+          setTranscript(normalised)
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
             const latestData = latest.data()
-            setTranscript(latestData?.segments || data?.segments || [])
+            setTranscript(normaliseSegments(latestData?.segments || data?.segments))
           }
         }
       } catch (err) {
@@ -534,13 +554,24 @@ const IntonguesCinema = () => {
             {videoId ? (
               <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
-                  <YouTubePlayer
-                    ref={playerRef}
-                    videoId={videoId}
-                    onStatus={handleVideoStatus}
-                    onPlayerReady={handlePlayerReady}
-                    onPlayerStateChange={handlePlayerStateChange}
-                  />
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <YouTubePlayer
+                      ref={playerRef}
+                      videoId={videoId}
+                      onStatus={handleVideoStatus}
+                      onPlayerReady={handlePlayerReady}
+                      onPlayerStateChange={handlePlayerStateChange}
+                    />
+
+                    <div className="subtitle-overlay">
+                      <CinemaSubtitles
+                        transcript={transcript}
+                        currentTime={safeCurrentTime}
+                        renderHighlightedText={renderHighlightedText}
+                        onWordSelect={handleSubtitleWordClick}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -592,15 +623,8 @@ const IntonguesCinema = () => {
             )}
 
             <p className="muted small" style={{ marginTop: '0.25rem' }}>
-              For best experience, leave YouTube CC off and use the subtitles below.
+              For best experience, leave YouTube CC off and use the subtitles displayed here.
             </p>
-
-            <CinemaSubtitles
-              transcript={transcript}
-              currentTime={safeCurrentTime}
-              renderHighlightedText={renderHighlightedText}
-              onWordSelect={handleSubtitleWordClick}
-            />
 
             <p className="muted small">
               Current time: {safeCurrentTime.toFixed(1)}s / {safeDuration.toFixed(1)}s —{' '}

@@ -56,6 +56,27 @@ const IntonguesCinema = () => {
   const pendingAudioStartRef = useRef(false)
   const audioUnlockedRef = useRef(false)
 
+  const unlockAudio = () => {
+    const audioEl = audioRef.current
+    if (!audioEl) return
+
+    audioEl.muted = false
+    audioEl.volume = 1
+
+    audioEl.play().catch(() => {})
+    audioEl.pause()
+
+    audioUnlockedRef.current = true
+    console.log('Audio unlocked by user gesture')
+
+    window.removeEventListener('click', unlockAudio)
+  }
+
+  useEffect(() => {
+    window.addEventListener('click', unlockAudio)
+    return () => window.removeEventListener('click', unlockAudio)
+  }, [])
+
   useEffect(() => {
     if (!user || !id) {
       setError('Unable to load this video right now.')
@@ -310,17 +331,6 @@ const IntonguesCinema = () => {
     const handleLoadedMetadata = () => {
       console.log('AUDIO EVENT: loadedmetadata')
       updateStatusFromAudio()
-
-      if (audioUnlockedRef.current) return
-
-      try {
-        audioEl.play()
-        audioEl.pause()
-        audioUnlockedRef.current = true
-        console.log('Audio unlocked on metadata')
-      } catch (err) {
-        console.error('Audio unlock on metadata failed:', err)
-      }
     }
 
     const handlePlay = () => {
@@ -427,6 +437,11 @@ const IntonguesCinema = () => {
   }
 
   const handlePlay = async () => {
+    if (!audioUnlockedRef.current) {
+      console.log('Waiting for audio unlock before playing')
+      return
+    }
+
     if (!audioReady) {
       console.log('Audio not ready yet; waiting before starting playback')
       return

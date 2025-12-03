@@ -239,54 +239,67 @@ async function downloadYoutubeAudio(videoId) {
 }
 
 function buildSentenceSegments(whisperSegments = []) {
-  const MIN_SENTENCE_LENGTH = 20
-  const SENTENCE_END_REGEX = /[.!?…][)"'\]]*$/
-
-  const sentences = []
+  const sentenceSegments = []
   const segments = Array.isArray(whisperSegments) ? whisperSegments : []
 
-  let bufferText = ''
-  let sentenceStart = null
-  let sentenceEnd = null
+  segments.forEach((seg) => {
+    const rawStart = Number(seg?.start)
+    const rawEnd = Number(seg?.end)
+    const start = Number.isFinite(rawStart) ? rawStart : 0
+    const end = Number.isFinite(rawEnd) ? rawEnd : start
+    const segmentStart = Math.max(0, start)
+    const segmentEnd = Math.max(segmentStart, end)
+    const duration = Math.max(0, segmentEnd - segmentStart)
 
-  segments.forEach((segment) => {
-    const text = (segment.text || '').trim()
+    const text = (seg?.text || '').trim()
     if (!text) return
 
-    const start = Math.max(0, Number(segment.start) || 0)
-    const end = Math.max(start, Number(segment.end) || start)
+    const rawSentences = text
+      .split(/(?<=[.!?¡¿…])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean)
 
-    if (bufferText.length === 0) {
-      sentenceStart = start
-    }
+    const sentences = rawSentences.length ? rawSentences : [text]
+    const totalChars = sentences.reduce((sum, sentence) => sum + sentence.length, 0)
+    const timedSentences = []
 
-    bufferText = bufferText ? `${bufferText} ${text}` : text
-    sentenceEnd = end
+    let cursor = segmentStart
+    sentences.forEach((sentence, index) => {
+      const weight = totalChars > 0 ? sentence.length / totalChars : 1 / sentences.length
+      const sentenceDuration = duration * (Number.isFinite(weight) && weight > 0 ? weight : 1 / sentences.length)
+      const sentenceEnd =
+        index === sentences.length - 1
+          ? segmentEnd
+          : Math.max(cursor, cursor + sentenceDuration)
 
-    const trimmedBuffer = bufferText.trim()
-    if (trimmedBuffer.length >= MIN_SENTENCE_LENGTH && SENTENCE_END_REGEX.test(trimmedBuffer)) {
-      sentences.push({
-        start: sentenceStart ?? start,
-        end: sentenceEnd ?? end,
-        text: trimmedBuffer,
+      timedSentences.push({
+        start: cursor,
+        end: sentenceEnd,
+        text: sentence,
       })
 
-      bufferText = ''
-      sentenceStart = null
-      sentenceEnd = null
+      cursor = sentenceEnd
+    })
+
+    for (let i = 0; i < timedSentences.length; i += 2) {
+      const group = timedSentences.slice(i, i + 2)
+      const groupText = group
+        .map((sentence) => sentence.text)
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+
+      if (!groupText) continue
+
+      sentenceSegments.push({
+        start: group[0].start,
+        end: group[group.length - 1].end,
+        text: groupText,
+      })
     }
   })
 
-  const trailingText = bufferText.trim()
-  if (trailingText) {
-    sentences.push({
-      start: sentenceStart ?? 0,
-      end: sentenceEnd ?? sentenceStart ?? 0,
-      text: trailingText,
-    })
-  }
-
-  return sentences
+  return sentenceSegments
 }
 
 async function transcribeWithWhisper(videoId, languageCode) {

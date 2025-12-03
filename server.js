@@ -5,7 +5,6 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs/promises'
 import { createReadStream } from 'fs'
-import { inspect } from 'util'
 import pdfParse from 'pdf-parse'
 import admin from 'firebase-admin'
 import { Readable } from 'stream'
@@ -13,6 +12,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import { spawn } from 'child_process'
 import { createRequire } from 'module'
+import ytdl from 'ytdl-core'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
@@ -76,43 +76,6 @@ function resolveTargetCode(targetLang) {
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const AUDIO_CONTENT_TYPES = {
-  mp3: 'audio/mpeg',
-  m4a: 'audio/mp4',
-  webm: 'audio/webm',
-  wav: 'audio/wav',
-  ogg: 'audio/ogg',
-  opus: 'audio/ogg',
-  flac: 'audio/flac',
-}
-
-function getAudioContentType(extension) {
-  if (!extension) return null
-  const cleanExt = extension.replace(/^\./, '').toLowerCase()
-  return AUDIO_CONTENT_TYPES[cleanExt] || null
-}
-
-async function persistAudioFile(localFilePath, storagePath, contentType) {
-  const file = bucket.file(storagePath)
-  const [exists] = await file.exists()
-
-  if (!exists) {
-    const uploadOptions = {
-      destination: storagePath,
-      resumable: false,
-    }
-
-    if (contentType) {
-      uploadOptions.metadata = { contentType }
-    }
-
-    await bucket.upload(localFilePath, uploadOptions)
-  }
-
-  await file.makePublic()
-  return file.publicUrl()
-}
-
 const ADAPTATION_SYSTEM_PROMPT = `
 You are an expert language educator adapting reading materials for learners.
 Always preserve all key events, factual details, character actions, and tone from the source. Do not omit plot points, merge scenes, or summarize; deliver a full, faithful retelling in the requested level and language.
@@ -159,6 +122,189 @@ app.use((req, res, next) => {
   next()
 })
 
+const normaliseTranscriptSegments = (segments = []) =>
+  (Array.isArray(segments) ? segments : [])
+    .map((segment) => {
+      const start = Number.isFinite(segment.start)
+        ? Number(segment.start)
+        : Number(segment.startMs) / 1000 || 0
+      const end = Number.isFinite(segment.end)
+        ? Number(segment.end)
+        : Number(segment.endMs) / 1000 || start
+
+      return {
+        start,
+        end: end > start ? end : start,
+        text: (segment.text || '').trim(),
+      }
+    })
+    .filter((segment) => segment.text)
+
+async function fetchYoutubeCaptionSegments(videoId, languageCode) {
+  const info = await ytdl.getInfo(videoId)
+  const tracks =
+    info?.player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || []
+
+  if (!tracks.length) return []
+
+  const normalisedLang = (languageCode || 'auto').toLowerCase()
+
+  const matchByLangCode = tracks.find((track) => track.languageCode?.toLowerCase() === normalisedLang)
+  const autoTrack = tracks.find((track) => track.kind === 'asr')
+  const fallbackTrack = tracks[0]
+
+  const selectedTrack = matchByLangCode || autoTrack || fallbackTrack
+
+  if (!selectedTrack?.baseUrl) return []
+
+  const trackUrl = `${selectedTrack.baseUrl}&fmt=json3`
+  const response = await fetch(trackUrl)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch caption track: ${response.status} ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  const events = Array.isArray(data?.events) ? data.events : []
+
+  const segments = events
+    .map((event) => {
+      const start = Number(event.tStartMs || event.startMs || 0) / 1000
+      const durationMs =
+        Number(event.dDurationMs ?? event.dur ?? event.segs?.[0]?.tDurMs ?? 0)
+      const end = start + durationMs / 1000
+      const text = (event.segs || [])
+        .map((seg) => (seg.utf8 || '').replace('\n', ' '))
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      if (!text) return null
+
+      return {
+        start,
+        end: end > start ? end : start,
+        text,
+      }
+    })
+    .filter(Boolean)
+
+  return segments
+}
+
+async function downloadYoutubeAudio(videoId) {
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+  const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
+  const outputTemplate = `${tempBase}.%(ext)s`
+  const downloadDir = path.dirname(tempBase)
+  const baseName = path.basename(tempBase)
+
+  let actualAudioPath = null
+
+  await new Promise((resolve, reject) => {
+    const ytProcess = spawn('yt-dlp', ['-f', 'bestaudio', '-o', outputTemplate, videoUrl])
+
+    ytProcess.on('error', reject)
+
+    ytProcess.on('close', async (code) => {
+      if (code !== 0) {
+        return reject(new Error(`yt-dlp exited with code ${code}`))
+      }
+
+      try {
+        const entries = await fs.readdir(downloadDir)
+        const matchedFiles = entries.filter((name) => name.startsWith(`${baseName}.`))
+
+        if (matchedFiles.length === 0) {
+          return reject(new Error('No audio file found for yt-dlp output template'))
+        }
+
+        actualAudioPath = path.join(downloadDir, matchedFiles[0])
+        const stat = await fs.stat(actualAudioPath)
+
+        if (!stat.size) {
+          return reject(new Error('Downloaded audio file is empty'))
+        }
+
+        return resolve()
+      } catch (fileError) {
+        return reject(fileError)
+      }
+    })
+  })
+
+  return actualAudioPath
+}
+
+async function transcribeWithWhisper(videoId, languageCode) {
+  let audioPath = null
+
+  try {
+    audioPath = await downloadYoutubeAudio(videoId)
+
+    const ISO_LANG_MAP = {
+      spanish: 'es',
+      english: 'en',
+      french: 'fr',
+      german: 'de',
+      italian: 'it',
+      japanese: 'ja',
+      korean: 'ko',
+      mandarin: 'zh',
+    }
+
+    const iso = ISO_LANG_MAP[(languageCode || '').toLowerCase()]
+
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(audioPath),
+      model: 'gpt-4o-transcribe',
+      response_format: 'json',
+      ...(iso ? { language: iso } : {}),
+    })
+
+    const parsedTranscription =
+      transcription?.segments && Array.isArray(transcription.segments)
+        ? transcription
+        : transcription?.json && typeof transcription.json === 'object'
+          ? transcription.json
+          : transcription
+
+    const segments = (parsedTranscription?.segments || [])
+      .map((segment) => ({
+        start: Math.max(0, Number(segment.start || 0)),
+        end: Math.max(0, Number(segment.end || segment.start || 0)),
+        text: (segment.text || '').trim(),
+      }))
+      .filter((segment) => segment.text)
+
+    if (segments.length > 0) {
+      return segments
+    }
+
+    if (typeof parsedTranscription?.text === 'string' && parsedTranscription.text.trim()) {
+      return [
+        {
+          start: 0,
+          end: 60 * 60,
+          text: parsedTranscription.text.trim(),
+        },
+      ]
+    }
+
+    return []
+  } finally {
+    if (audioPath) {
+      try {
+        await fs.unlink(audioPath)
+      } catch (cleanupError) {
+        if (cleanupError?.code !== 'ENOENT') {
+          console.error('Failed to clean up temporary audio file', cleanupError)
+        }
+      }
+    }
+  }
+}
+
 app.post('/api/youtube/transcript', async (req, res) => {
   const { videoId, language, uid, videoDocId } = req.body || {}
 
@@ -167,18 +313,6 @@ app.post('/api/youtube/transcript', async (req, res) => {
   }
 
   const languageCode = (language || 'auto').toLowerCase()
-  const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
-  const outputTemplate = `${tempBase}.%(ext)s`
-  const downloadDir = path.dirname(tempBase)
-  const baseName = path.basename(tempBase)
-  let actualAudioPath
-  let actualAudioStat
-  let matchedFiles = []
-  let selectedFormatId = null
-  let selectedLanguage = null
-  let audioStoragePath = null
-  let existingTranscriptData = null
-  let finalSegments = null
 
   try {
     const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
@@ -189,275 +323,44 @@ app.post('/api/youtube/transcript', async (req, res) => {
 
     const transcriptRef = videoRef.collection('transcripts').doc(languageCode)
     const existing = await transcriptRef.get()
+    const existingData = existing.exists ? existing.data() || {} : {}
     if (existing.exists) {
-      existingTranscriptData = existing.data() || {}
-      audioStoragePath = existingTranscriptData.audioPath || null
+      const cachedSegments = normaliseTranscriptSegments(existingData.segments)
 
-      if (existingTranscriptData.audioPath && Array.isArray(existingTranscriptData.segments) && existingTranscriptData.segments.length > 0) {
-        return res.json({ segments: existingTranscriptData.segments || [], audioPath: existingTranscriptData.audioPath })
-      }
-
-      if (Array.isArray(existingTranscriptData.segments) && existingTranscriptData.segments.length > 0) {
-        finalSegments = existingTranscriptData.segments
+      if (cachedSegments.length > 0) {
+        return res.json({ segments: cachedSegments })
       }
     }
-
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
-
-    const normalizeLanguage = (lang) => (typeof lang === 'string' ? lang.trim().toLowerCase() : '')
-
-    const sortAudioFormats = (a, b) => {
-      const bitrateDiff = (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0)
-      if (bitrateDiff !== 0) return bitrateDiff
-
-      const filesizeDiff = (b.filesize || b.filesize_approx || 0) - (a.filesize || a.filesize_approx || 0)
-      if (filesizeDiff !== 0) return filesizeDiff
-
-      return (b.source_preference || 0) - (a.source_preference || 0)
-    }
+    let finalSegments = []
 
     try {
-      const infoJson = await new Promise((resolve, reject) => {
-        const infoProcess = spawn('yt-dlp', ['-J', videoUrl])
-        let stdout = ''
-        let stderr = ''
-
-        infoProcess.stdout.on('data', (data) => {
-          stdout += data.toString()
-        })
-
-        infoProcess.stderr.on('data', (data) => {
-          stderr += data.toString()
-        })
-
-        infoProcess.on('error', reject)
-
-        infoProcess.on('close', (code) => {
-          if (code !== 0) {
-            return reject(new Error(`yt-dlp info exited with code ${code}: ${stderr}`))
-          }
-
-          try {
-            return resolve(JSON.parse(stdout))
-          } catch (parseError) {
-            return reject(parseError)
-          }
-        })
-      })
-
-      const audioFormats = (infoJson?.formats || []).filter((fmt) => fmt.vcodec === 'none')
-      const languageCandidates = [
-        infoJson?.original_audio_language,
-        infoJson?.original_language,
-        infoJson?.language,
-        ...(Array.isArray(infoJson?.languages) ? infoJson.languages : []),
-      ]
-        .map(normalizeLanguage)
-        .filter(Boolean)
-
-      const originalLanguage = languageCandidates[0] || null
-
-      const preferOriginal = audioFormats
-        .filter((fmt) => {
-          const fmtLang = normalizeLanguage(fmt.language)
-          if (originalLanguage) {
-            return fmtLang === originalLanguage
-          }
-          return !fmtLang
-        })
-        .sort(sortAudioFormats)
-
-      const fallbackFormats = audioFormats.slice().sort(sortAudioFormats)
-      const selected = preferOriginal[0] || fallbackFormats[0]
-
-      if (selected) {
-        selectedFormatId = selected.format_id
-        selectedLanguage = normalizeLanguage(selected.language) || originalLanguage || null
-
-        console.log('Selected original audio format for transcript', {
-          videoId,
-          formatId: selectedFormatId,
-          language: selectedLanguage || 'unknown',
-        })
-      } else {
-        console.warn('No audio-only formats found, will fall back to bestaudio', { videoId })
-      }
-    } catch (infoError) {
-      console.warn('Failed to inspect YouTube formats with yt-dlp, falling back to bestaudio', infoError)
+      finalSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback', captionError)
     }
 
-    try {
-      await new Promise((resolve, reject) => {
-        const ytProcess = spawn('yt-dlp', [
-          '-f',
-          selectedFormatId || 'bestaudio',
-          '-o',
-          outputTemplate,
-          videoUrl,
-        ])
-
-        ytProcess.on('error', reject)
-
-        ytProcess.on('close', async (code) => {
-          if (code !== 0) {
-            return reject(new Error(`yt-dlp exited with code ${code}`))
-          }
-
-          try {
-            const entries = await fs.readdir(downloadDir)
-            matchedFiles = entries.filter((name) => name.startsWith(`${baseName}.`))
-
-            if (matchedFiles.length === 0) {
-              return reject(new Error('No audio file found for yt-dlp output template'))
-            }
-
-            if (matchedFiles.length > 1) {
-              console.warn('Multiple audio files found for yt-dlp template, using first', matchedFiles)
-            }
-
-            actualAudioPath = path.join(downloadDir, matchedFiles[0])
-            actualAudioStat = await fs.stat(actualAudioPath)
-
-            console.log('yt-dlp downloaded audio file', {
-              file: actualAudioPath,
-              size: actualAudioStat.size,
-            })
-
-            if (!actualAudioStat.size) {
-              return reject(new Error('Downloaded audio file is empty'))
-            }
-
-            return resolve()
-          } catch (fileError) {
-            return reject(fileError)
-          }
-        })
-      })
-    } catch (downloadError) {
-      console.error('Failed to download YouTube audio with yt-dlp', downloadError)
-      return res.status(500).json({ error: 'Failed to download YouTube audio' })
-    }
-
-    const extension = path.extname(actualAudioPath) || ''
-    const contentType = getAudioContentType(extension) || undefined
-    const normalizedExt = extension.replace(/^\./, '') || 'mp3'
-    audioStoragePath = `audio/youtube/${uid}/${videoId}/${languageCode}.${normalizedExt}`
-
-    try {
-      const persistedAudioUrl = await persistAudioFile(actualAudioPath, audioStoragePath, contentType)
-
-      console.log('Persisted YouTube audio', { audioStoragePath, persistedAudioUrl })
-
-      if (!persistedAudioUrl) {
-        console.error('persistAudioFile returned a falsy URL', {
-          audioStoragePath,
-          persistedAudioUrl,
-        })
-      }
-    } catch (uploadError) {
-      console.error('Failed to persist YouTube audio to storage', { uploadError, audioStoragePath })
-    }
-
-    const shouldTranscribe = !finalSegments || finalSegments.length === 0
-
-    if (shouldTranscribe) {
-      const ISO_LANG_MAP = {
-        spanish: 'es',
-        english: 'en',
-        french: 'fr',
-        german: 'de',
-        italian: 'it',
-        japanese: 'ja',
-        korean: 'ko',
-        mandarin: 'zh',
-      }
-
-      const iso = ISO_LANG_MAP[(language || '').toLowerCase()]
-
-      const transcription = await client.audio.transcriptions.create({
-        file: createReadStream(actualAudioPath),
-        model: 'gpt-4o-transcribe',
-        response_format: 'json',
-        ...(iso ? { language: iso } : {}),
-      })
-
+    if (!finalSegments || finalSegments.length === 0) {
       try {
-        console.log('RAW TRANSCRIPTION FROM OPENAI')
-        console.log(inspect(transcription, { depth: null, colors: true }))
-      } catch (logError) {
-        console.warn('RAW TRANSCRIPTION FROM OPENAI (unserializable)', logError)
+        finalSegments = await transcribeWithWhisper(videoId, languageCode)
+      } catch (transcriptionError) {
+        console.error('Failed to transcribe audio with Whisper', transcriptionError)
+        return res.status(500).json({ error: 'Failed to generate subtitles' })
       }
-
-      const parsedTranscription =
-        transcription?.segments && Array.isArray(transcription.segments)
-          ? transcription
-          : transcription?.json && typeof transcription.json === 'object'
-            ? transcription.json
-            : transcription
-
-      const segments = (parsedTranscription?.segments || [])
-        .map((segment) => ({
-          startMs: Math.max(0, Math.round((segment.start || 0) * 1000)),
-          endMs: Math.max(0, Math.round((segment.end || segment.start || 0) * 1000)),
-          text: (segment.text || '').trim(),
-        }))
-        .filter((segment) => segment.text)
-
-      finalSegments = segments
-
-      if (
-        (!finalSegments || finalSegments.length === 0) &&
-        typeof parsedTranscription?.text === 'string' &&
-        parsedTranscription.text.trim().length > 0
-      ) {
-        finalSegments = [
-          {
-            startMs: 0,
-            endMs: 60 * 60 * 1000, // placeholder 1-hour window
-            text: parsedTranscription.text.trim(),
-          },
-        ]
-      }
-
-      console.log('SUBTITLE SEGMENTS COUNT', { count: finalSegments.length })
     }
 
     const transcriptPayload = {
       videoId,
       language: languageCode,
-      segments: finalSegments || [],
-      audioPath: audioStoragePath,
-      audioLanguage: selectedLanguage,
-      createdAt: existingTranscriptData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
-      audioUrl: admin.firestore.FieldValue.delete(),
+      segments: normaliseTranscriptSegments(finalSegments),
+      createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })
 
-    return res.json({ segments: finalSegments || [], audioPath: audioStoragePath })
+    return res.json({ segments: transcriptPayload.segments })
   } catch (error) {
-    if (actualAudioPath && actualAudioStat) {
-      console.error('Transcription error for audio file', {
-        file: actualAudioPath,
-        size: actualAudioStat.size,
-      })
-    }
     console.error('Failed to transcribe YouTube audio', error)
     return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })
-  } finally {
-    const filesToDelete = actualAudioPath ? [actualAudioPath, ...matchedFiles.slice(1).map((name) => path.join(downloadDir, name))] : []
-
-    await Promise.all(
-      filesToDelete.map(async (filePath) => {
-        try {
-          await fs.unlink(filePath)
-        } catch (cleanupError) {
-          if (cleanupError?.code !== 'ENOENT') {
-            console.error('Failed to clean up temporary audio file', cleanupError)
-          }
-        }
-      })
-    )
   }
 })
 

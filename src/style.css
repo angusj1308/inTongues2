@@ -398,6 +398,22 @@ textarea {
   cursor: not-allowed;
 }
 
+.subtitle-overlay {
+  position: absolute;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  color: white;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6px 12px;
+  border-radius: 6px;
+  max-width: 80%;
+  text-align: center;
+  font-size: 1.2rem;
+  pointer-events: auto;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;

@@ -25,8 +25,6 @@ const extractVideoId = (video) => {
   return ''
 }
 
-const MAX_DRIFT_SECONDS = 0.05
-
 const IntonguesCinema = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -42,40 +40,8 @@ const IntonguesCinema = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
   const [popup, setPopup] = useState(null)
-  const [audioPath, setAudioPath] = useState('')
-  const [signedAudioUrl, setSignedAudioUrl] = useState('')
-  const [audioLoadError, setAudioLoadError] = useState('')
-
-  const audioReady = useMemo(
-    () => Boolean(audioPath) && Boolean(signedAudioUrl) && !audioLoadError,
-    [audioLoadError, audioPath, signedAudioUrl]
-  )
 
   const playerRef = useRef(null)
-  const audioRef = useRef(null)
-  const pendingAudioStartRef = useRef(false)
-  const audioUnlockedRef = useRef(false)
-
-  const unlockAudio = () => {
-    const audioEl = audioRef.current
-    if (!audioEl) return
-
-    audioEl.muted = false
-    audioEl.volume = 1
-
-    audioEl.play().catch(() => {})
-    audioEl.pause()
-
-    audioUnlockedRef.current = true
-    console.log('Audio unlocked by user gesture')
-
-    window.removeEventListener('click', unlockAudio)
-  }
-
-  useEffect(() => {
-    window.addEventListener('click', unlockAudio)
-    return () => window.removeEventListener('click', unlockAudio)
-  }, [])
 
   useEffect(() => {
     if (!user || !id) {
@@ -126,10 +92,6 @@ const IntonguesCinema = () => {
       setTranscriptError('')
       setTranscript([])
       setTranslations({})
-      setSignedAudioUrl('')
-      setAudioPath('')
-      setAudioLoadError('')
-
       try {
         const transcriptRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', transcriptDocId)
         const cached = await getDoc(transcriptRef)
@@ -137,7 +99,6 @@ const IntonguesCinema = () => {
         if (!isCancelled && cached.exists()) {
           const data = cached.data()
           setTranscript(data?.segments || [])
-          setAudioPath(data?.audioPath || '')
           return
         }
 
@@ -161,13 +122,11 @@ const IntonguesCinema = () => {
 
         if (!isCancelled) {
           setTranscript(data?.segments || [])
-          setAudioPath(data?.audioPath || '')
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
             const latestData = latest.data()
             setTranscript(latestData?.segments || data?.segments || [])
-            setAudioPath(latestData?.audioPath || data?.audioPath || '')
           }
         }
       } catch (err) {
@@ -188,49 +147,6 @@ const IntonguesCinema = () => {
       isCancelled = true
     }
   }, [id, transcriptLanguage, user?.uid, videoId])
-
-  useEffect(() => {
-    if (!audioPath) {
-      setSignedAudioUrl('')
-      return undefined
-    }
-
-    let isCancelled = false
-
-    const fetchSignedAudioUrl = async () => {
-      try {
-        const response = await fetch('http://localhost:4000/api/audio-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audioPath }),
-        })
-
-        if (!response.ok) {
-          const message = await response.text()
-          throw new Error(message || 'Failed to fetch audio URL')
-        }
-
-        const data = await response.json()
-
-        if (!isCancelled) {
-          setSignedAudioUrl(data?.signedUrl || '')
-          setAudioLoadError('')
-        }
-      } catch (err) {
-        console.error('Failed to generate signed audio URL', err)
-        if (!isCancelled) {
-          setSignedAudioUrl('')
-          setAudioLoadError('Downloaded audio is unavailable. Cannot play this video.')
-        }
-      }
-    }
-
-    fetchSignedAudioUrl()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [audioPath])
 
   useEffect(() => {
     if (!user || !transcriptLanguage) return
@@ -306,163 +222,36 @@ const IntonguesCinema = () => {
     return () => controller.abort()
   }, [profile?.nativeLanguage, transcript, transcriptLanguage])
 
-  useEffect(() => {
-    if (!videoId || !transcriptLanguage) return
-
-    if (audioPath && !signedAudioUrl && !audioLoadError) {
-      console.log('Waiting for signed audio URL…', { videoId, transcriptLanguage, audioPath })
-    }
-  }, [audioLoadError, audioPath, signedAudioUrl, transcriptLanguage, videoId])
-
-  useEffect(() => {
-    if (!audioReady) return undefined
-
-    const audioEl = audioRef.current
-    if (!audioEl) return undefined
-
-    const updateStatusFromAudio = () => {
-      setPlaybackStatus((prev) => ({
-        currentTime: audioEl.currentTime || 0,
-        duration: Number.isFinite(audioEl.duration) ? audioEl.duration : prev.duration,
-        isPlaying: !audioEl.paused && !audioEl.ended,
-      }))
-    }
-
-    const handleLoadedMetadata = () => {
-      console.log('AUDIO EVENT: loadedmetadata')
-      updateStatusFromAudio()
-    }
-
-    const handlePlay = () => {
-      console.log('AUDIO EVENT: play')
-      updateStatusFromAudio()
-    }
-
-    const handlePause = () => {
-      console.log('AUDIO EVENT: pause')
-      updateStatusFromAudio()
-    }
-
-    const handleError = () => {
-      console.log('AUDIO EVENT: error', audioEl.error)
-    }
-
-    const handleRateChange = () => {
-      const rate = audioEl.playbackRate || 1
-      playerRef.current?.setPlaybackRate?.(rate)
-    }
-
-    updateStatusFromAudio()
-
-    audioEl.addEventListener('timeupdate', updateStatusFromAudio)
-    audioEl.addEventListener('loadedmetadata', handleLoadedMetadata)
-    audioEl.addEventListener('play', handlePlay)
-    audioEl.addEventListener('pause', handlePause)
-    audioEl.addEventListener('error', handleError)
-    audioEl.addEventListener('ratechange', handleRateChange)
-
-    return () => {
-      audioEl.removeEventListener('timeupdate', updateStatusFromAudio)
-      audioEl.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      audioEl.removeEventListener('play', handlePlay)
-      audioEl.removeEventListener('pause', handlePause)
-      audioEl.removeEventListener('error', handleError)
-      audioEl.removeEventListener('ratechange', handleRateChange)
-    }
-  }, [audioReady])
-
   const handleVideoStatus = (status) => {
-    if (audioReady) return
     setPlaybackStatus(status)
   }
 
   const handlePlayerReady = () => {
-    playerRef.current?.mute?.()
+    const player = playerRef.current
+    setPlaybackStatus({
+      currentTime: player?.getCurrentTime?.() ?? 0,
+      duration: player?.getDuration?.() ?? 0,
+      isPlaying: false,
+    })
   }
 
   const handlePlayerStateChange = (event, playerInstance) => {
-    console.log('YT state:', event?.data, 'pending:', pendingAudioStartRef.current)
     if (!playerInstance) return
-
-    if (!audioReady || !audioRef.current) return
 
     const playerState = event?.data
     const ytState = window.YT?.PlayerState
-    const audioEl = audioRef.current
+    const currentTime = playerInstance.getCurrentTime?.() ?? 0
+    const duration = playerInstance.getDuration?.() ?? playbackStatus.duration
 
     if (playerState === ytState?.PLAYING) {
-      const videoTime = playerInstance.getCurrentTime?.()
-      const isValidTime = typeof videoTime === 'number' && !Number.isNaN(videoTime)
-
-      const attemptPlayAudio = async () => {
-        try {
-          if (isValidTime) {
-            audioEl.currentTime = videoTime
-          }
-
-          console.log('Attempting to start audio…')
-          await audioEl.play()
-          console.log('Audio started successfully at', audioEl.currentTime)
-          pendingAudioStartRef.current = false
-        } catch (err) {
-          console.log('Audio play failed:', err)
-          console.error('Failed to start downloaded audio playback', err)
-          setAudioLoadError('Downloaded audio failed to start. Cannot play this video.')
-          pendingAudioStartRef.current = false
-          audioEl.pause()
-          playerInstance?.pauseVideo?.()
-        }
-      }
-
-      if (pendingAudioStartRef.current) {
-        attemptPlayAudio()
-      } else if (audioEl.paused) {
-        attemptPlayAudio()
-      }
-
-      if (isValidTime) {
-        audioEl.currentTime = videoTime
-        setPlaybackStatus((prev) => ({ ...prev, currentTime: videoTime }))
-      }
-    } else if (playerState === ytState?.PAUSED) {
-      if (!audioEl.paused) {
-        audioEl.pause()
-      }
-    } else if (playerState === ytState?.BUFFERING) {
-      if (!audioEl.paused) {
-        audioEl.pause()
-      }
-      pendingAudioStartRef.current = true
+      setPlaybackStatus({ currentTime, duration, isPlaying: true })
+    } else if (playerState === ytState?.PAUSED || playerState === ytState?.ENDED) {
+      setPlaybackStatus({ currentTime, duration, isPlaying: false })
     }
   }
 
-  const handlePlay = async () => {
-    if (!audioUnlockedRef.current) {
-      console.log('Waiting for audio unlock before playing')
-      return
-    }
-
-    if (!audioReady) {
-      console.log('Audio not ready yet; waiting before starting playback')
-      return
-    }
-
+  const handlePlay = () => {
     const player = playerRef.current
-
-    if (audioRef.current) {
-      pendingAudioStartRef.current = true
-      player?.mute?.()
-
-      try {
-        player?.playVideo?.()
-      } catch (err) {
-        console.error('Failed to start YouTube playback', err)
-        pendingAudioStartRef.current = false
-        return
-      }
-
-      return
-    }
 
     player?.playVideo?.()
   }
@@ -470,98 +259,16 @@ const IntonguesCinema = () => {
   const handlePause = () => {
     const player = playerRef.current
 
-    pendingAudioStartRef.current = false
-
-    if (audioReady && audioRef.current) {
-      audioRef.current.pause()
-    }
-
     player?.pauseVideo?.()
   }
 
   const handleSeek = (newTime) => {
-    if (!audioReady) {
-      console.log('Seek ignored — audio not ready yet')
-      return
-    }
     const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
-    console.log('SEEK to', target, 'audioReady:', audioReady)
     const player = playerRef.current
-
-    if (audioReady && audioRef.current) {
-      audioRef.current.currentTime = target
-      player?.seekTo?.(target, true)
-      setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
-      return
-    }
 
     player?.seekTo?.(target, true)
     setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
   }
-
-  useEffect(() => {
-    const player = playerRef.current
-    if (!player) return undefined
-
-    player.mute?.()
-
-    return undefined
-  }, [audioReady])
-
-  useEffect(() => {
-    if (!audioReady) return undefined
-
-    let rafId = null
-    const audioEl = audioRef.current
-
-    let syncLogFrame = 0
-
-    const syncAudioToVideo = () => {
-      if (!audioEl || !playerRef.current) return
-      if (audioEl.paused) return
-
-      const videoTime = playerRef.current.getCurrentTime?.() ?? 0
-      const audioTime = audioEl.currentTime || 0
-      const delta = audioTime - videoTime
-
-      if (syncLogFrame % 10 === 0) {
-        console.log('Sync: videoTime =', videoTime, 'audioTime =', audioTime, 'delta =', delta)
-      }
-      syncLogFrame += 1
-
-      if (Math.abs(delta) > MAX_DRIFT_SECONDS) {
-        audioEl.currentTime = videoTime
-      }
-
-      rafId = window.requestAnimationFrame(syncAudioToVideo)
-    }
-
-    const startSync = () => {
-      if (rafId) window.cancelAnimationFrame(rafId)
-      rafId = window.requestAnimationFrame(syncAudioToVideo)
-    }
-
-    const stopSync = () => {
-      if (rafId) window.cancelAnimationFrame(rafId)
-      rafId = null
-    }
-
-    if (audioEl) {
-      audioEl.addEventListener('play', startSync)
-      audioEl.addEventListener('pause', stopSync)
-      audioEl.addEventListener('ended', stopSync)
-    }
-
-    return () => {
-      stopSync()
-
-      if (audioEl) {
-        audioEl.removeEventListener('play', startSync)
-        audioEl.removeEventListener('pause', stopSync)
-        audioEl.removeEventListener('ended', stopSync)
-      }
-    }
-  }, [audioReady])
 
   const isWordChar = (ch) => {
     if (!ch) return false
@@ -826,9 +533,7 @@ const IntonguesCinema = () => {
 
             {videoId ? (
               <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <div
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-                >
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
                   <YouTubePlayer
                     ref={playerRef}
                     videoId={videoId}
@@ -837,42 +542,6 @@ const IntonguesCinema = () => {
                     onPlayerStateChange={handlePlayerStateChange}
                   />
                 </div>
-                <div
-                  onClick={() => {
-                    if (playbackStatus.isPlaying) {
-                      handlePause()
-                    } else {
-                      handlePlay()
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    zIndex: 2,
-                    backgroundColor: 'transparent',
-                    cursor: 'pointer',
-                    pointerEvents: 'auto',
-                  }}
-                />
-                {signedAudioUrl && (
-                  <audio
-                    key={signedAudioUrl}
-                    ref={audioRef}
-                    src={signedAudioUrl || ''}
-                    preload="auto"
-                    controls={false}
-                    onError={() => {
-                      if (!signedAudioUrl) return
-
-                      console.error('Downloaded audio failed to load. Cannot play this video.', audioRef.current?.error)
-                      setAudioLoadError('Downloaded audio failed to load. Cannot play this video.')
-                    }}
-                    style={{ display: 'none' }}
-                  />
-                )}
               </div>
             ) : (
               <p className="error">This video cannot be embedded.</p>
@@ -888,7 +557,7 @@ const IntonguesCinema = () => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button className="button" onClick={handlePlay} disabled={!audioReady}>
+                <button className="button" onClick={handlePlay}>
                   Play
                 </button>
                 <button className="button ghost" onClick={handlePause}>
@@ -910,16 +579,6 @@ const IntonguesCinema = () => {
                 </p>
               </div>
             </div>
-            {!audioReady && !audioLoadError && (
-              <p className="muted small" style={{ marginTop: '0.25rem' }}>
-                Preparing downloaded audio…
-              </p>
-            )}
-            {audioLoadError && (
-              <p className="error" style={{ marginTop: '0.25rem' }}>
-                {audioLoadError}
-              </p>
-            )}
             {transcriptLoading && (
               <p className="muted small" style={{ marginTop: '1rem' }}>
                 Preparing subtitles for this video…
@@ -931,6 +590,10 @@ const IntonguesCinema = () => {
                 {transcriptError}
               </p>
             )}
+
+            <p className="muted small" style={{ marginTop: '0.25rem' }}>
+              For best experience, leave YouTube CC off and use the subtitles below.
+            </p>
 
             <CinemaSubtitles
               transcript={transcript}

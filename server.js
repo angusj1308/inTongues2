@@ -145,6 +145,8 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
   const tracks =
     info?.player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || []
 
+  console.log('CAPTION TRACKS:', JSON.stringify(tracks, null, 2))
+
   if (!tracks.length) return []
 
   const normalisedLang = (languageCode || 'auto').toLowerCase()

@@ -46,6 +46,11 @@ const IntonguesCinema = () => {
   const [signedAudioUrl, setSignedAudioUrl] = useState('')
   const [audioLoadError, setAudioLoadError] = useState('')
 
+  const audioReady = useMemo(
+    () => Boolean(audioPath) && Boolean(signedAudioUrl) && !audioLoadError,
+    [audioLoadError, audioPath, signedAudioUrl]
+  )
+
   const playerRef = useRef(null)
   const audioRef = useRef(null)
   const pendingAudioStartRef = useRef(false)
@@ -88,8 +93,6 @@ const IntonguesCinema = () => {
     () => (video?.language || profile?.lastUsedLanguage || 'auto').toLowerCase(),
     [profile?.lastUsedLanguage, video?.language]
   )
-
-  const isAudioMaster = useMemo(() => Boolean(signedAudioUrl) && !audioLoadError, [audioLoadError, signedAudioUrl])
 
   useEffect(() => {
     if (!videoId || !user || !id) return
@@ -196,7 +199,7 @@ const IntonguesCinema = () => {
         console.error('Failed to generate signed audio URL', err)
         if (!isCancelled) {
           setSignedAudioUrl('')
-          setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
+          setAudioLoadError('Downloaded audio is unavailable. Cannot play this video.')
         }
       }
     }
@@ -285,15 +288,13 @@ const IntonguesCinema = () => {
   useEffect(() => {
     if (!videoId || !transcriptLanguage) return
 
-    if (audioPath && !signedAudioUrl) {
-      console.warn('No signed audio URL available, using YouTube audio', { videoId, transcriptLanguage, audioPath })
-    } else if (!audioPath) {
-      console.warn('No downloaded audio path available, using YouTube audio', { videoId, transcriptLanguage })
+    if (audioPath && !signedAudioUrl && !audioLoadError) {
+      console.log('Waiting for signed audio URL…', { videoId, transcriptLanguage, audioPath })
     }
-  }, [audioPath, signedAudioUrl, transcriptLanguage, videoId])
+  }, [audioLoadError, audioPath, signedAudioUrl, transcriptLanguage, videoId])
 
   useEffect(() => {
-    if (!isAudioMaster) return undefined
+    if (!audioReady) return undefined
 
     const audioEl = audioRef.current
     if (!audioEl) return undefined
@@ -358,24 +359,22 @@ const IntonguesCinema = () => {
       audioEl.removeEventListener('error', handleError)
       audioEl.removeEventListener('ratechange', handleRateChange)
     }
-  }, [isAudioMaster])
+  }, [audioReady])
 
   const handleVideoStatus = (status) => {
-    if (isAudioMaster) return
+    if (audioReady) return
     setPlaybackStatus(status)
   }
 
   const handlePlayerReady = () => {
-    if (isAudioMaster) {
-      playerRef.current?.mute?.()
-    }
+    playerRef.current?.mute?.()
   }
 
   const handlePlayerStateChange = (event, playerInstance) => {
     console.log('YT state:', event?.data, 'pending:', pendingAudioStartRef.current)
     if (!playerInstance) return
 
-    if (!isAudioMaster || !audioRef.current) return
+    if (!audioReady || !audioRef.current) return
 
     const playerState = event?.data
     const ytState = window.YT?.PlayerState
@@ -397,10 +396,11 @@ const IntonguesCinema = () => {
           pendingAudioStartRef.current = false
         } catch (err) {
           console.log('Audio play failed:', err)
-          console.error('Failed to start downloaded audio playback, falling back to YouTube audio', err)
-          setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
+          console.error('Failed to start downloaded audio playback', err)
+          setAudioLoadError('Downloaded audio failed to start. Cannot play this video.')
           pendingAudioStartRef.current = false
-          playerInstance?.unMute?.()
+          audioEl.pause()
+          playerInstance?.pauseVideo?.()
         }
       }
 
@@ -427,20 +427,22 @@ const IntonguesCinema = () => {
   }
 
   const handlePlay = async () => {
+    if (!audioReady) {
+      console.log('Audio not ready yet; waiting before starting playback')
+      return
+    }
+
     const player = playerRef.current
 
-    if (isAudioMaster && audioRef.current) {
+    if (audioRef.current) {
       pendingAudioStartRef.current = true
       player?.mute?.()
 
       try {
         player?.playVideo?.()
       } catch (err) {
-        console.error('Failed to start YouTube playback, falling back to YouTube audio', err)
+        console.error('Failed to start YouTube playback', err)
         pendingAudioStartRef.current = false
-        setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
-        player?.unMute?.()
-        player?.playVideo?.()
         return
       }
 
@@ -455,7 +457,7 @@ const IntonguesCinema = () => {
 
     pendingAudioStartRef.current = false
 
-    if (isAudioMaster && audioRef.current) {
+    if (audioReady && audioRef.current) {
       audioRef.current.pause()
     }
 
@@ -463,11 +465,15 @@ const IntonguesCinema = () => {
   }
 
   const handleSeek = (newTime) => {
+    if (!audioReady) {
+      console.log('Seek ignored — audio not ready yet')
+      return
+    }
     const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
-    console.log('SEEK to', target, 'isAudioMaster:', isAudioMaster)
+    console.log('SEEK to', target, 'audioReady:', audioReady)
     const player = playerRef.current
 
-    if (isAudioMaster && audioRef.current) {
+    if (audioReady && audioRef.current) {
       audioRef.current.currentTime = target
       player?.seekTo?.(target, true)
       setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
@@ -482,17 +488,13 @@ const IntonguesCinema = () => {
     const player = playerRef.current
     if (!player) return undefined
 
-    if (isAudioMaster) {
-      player.mute?.()
-    } else {
-      player.unMute?.()
-    }
+    player.mute?.()
 
     return undefined
-  }, [isAudioMaster])
+  }, [audioReady])
 
   useEffect(() => {
-    if (!isAudioMaster) return undefined
+    if (!audioReady) return undefined
 
     let rafId = null
     const audioEl = audioRef.current
@@ -544,7 +546,7 @@ const IntonguesCinema = () => {
         audioEl.removeEventListener('ended', stopSync)
       }
     }
-  }, [isAudioMaster])
+  }, [audioReady])
 
   const isWordChar = (ch) => {
     if (!ch) return false
@@ -774,8 +776,6 @@ const IntonguesCinema = () => {
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0
   const sliderMax = safeDuration > 0 ? safeDuration : Math.max(safeCurrentTime, 0.1)
 
-  console.log('isAudioMaster:', isAudioMaster)
-
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -824,8 +824,6 @@ const IntonguesCinema = () => {
                 </div>
                 <div
                   onClick={() => {
-                    console.log('OVERLAY CLICKED!')
-                    console.log('Overlay clicked — play/pause toggled')
                     if (playbackStatus.isPlaying) {
                       handlePause()
                     } else {
@@ -844,7 +842,6 @@ const IntonguesCinema = () => {
                     pointerEvents: 'auto',
                   }}
                 />
-                {console.log('audioPath:', audioPath, 'signedAudioUrl:', signedAudioUrl)}
                 {signedAudioUrl && (
                   <audio
                     key={signedAudioUrl}
@@ -855,11 +852,8 @@ const IntonguesCinema = () => {
                     onError={() => {
                       if (!signedAudioUrl) return
 
-                      console.warn('Failed to load downloaded audio for playback, using YouTube audio instead', {
-                        videoId,
-                        transcriptLanguage,
-                      })
-                      setAudioLoadError('Downloaded audio failed to load. Using YouTube audio instead.')
+                      console.error('Downloaded audio failed to load. Cannot play this video.', audioRef.current?.error)
+                      setAudioLoadError('Downloaded audio failed to load. Cannot play this video.')
                     }}
                     style={{ display: 'none' }}
                   />
@@ -879,7 +873,7 @@ const IntonguesCinema = () => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button className="button" onClick={handlePlay}>
+                <button className="button" onClick={handlePlay} disabled={!audioReady}>
                   Play
                 </button>
                 <button className="button ghost" onClick={handlePause}>
@@ -901,13 +895,13 @@ const IntonguesCinema = () => {
                 </p>
               </div>
             </div>
-            {!isAudioMaster && (
+            {!audioReady && !audioLoadError && (
               <p className="muted small" style={{ marginTop: '0.25rem' }}>
-                Using YouTube audio because the downloaded track is unavailable.
+                Preparing downloaded audio…
               </p>
             )}
             {audioLoadError && (
-              <p className="muted small" style={{ marginTop: '0.25rem' }}>
+              <p className="error" style={{ marginTop: '0.25rem' }}>
                 {audioLoadError}
               </p>
             )}

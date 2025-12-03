@@ -310,8 +310,8 @@ async function transcribeWithWhisper(videoId, languageCode) {
 
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(audioPath),
-      model: 'gpt-4o-transcribe',
-      response_format: 'verbose_json',
+      model: 'gpt-4o-transcribe-api-ev3',
+      response_format: 'json',
       ...(iso ? { language: iso } : {}),
     })
 

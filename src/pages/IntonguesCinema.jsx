@@ -258,6 +258,25 @@ const IntonguesCinema = () => {
       }))
     }
 
+    const handleLoadedMetadata = () => {
+      console.log('AUDIO EVENT: loadedmetadata')
+      updateStatusFromAudio()
+    }
+
+    const handlePlay = () => {
+      console.log('AUDIO EVENT: play')
+      updateStatusFromAudio()
+    }
+
+    const handlePause = () => {
+      console.log('AUDIO EVENT: pause')
+      updateStatusFromAudio()
+    }
+
+    const handleError = () => {
+      console.log('AUDIO EVENT: error', audioEl.error)
+    }
+
     const handleRateChange = () => {
       const rate = audioEl.playbackRate || 1
       playerRef.current?.setPlaybackRate?.(rate)
@@ -266,16 +285,18 @@ const IntonguesCinema = () => {
     updateStatusFromAudio()
 
     audioEl.addEventListener('timeupdate', updateStatusFromAudio)
-    audioEl.addEventListener('loadedmetadata', updateStatusFromAudio)
-    audioEl.addEventListener('play', updateStatusFromAudio)
-    audioEl.addEventListener('pause', updateStatusFromAudio)
+    audioEl.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audioEl.addEventListener('play', handlePlay)
+    audioEl.addEventListener('pause', handlePause)
+    audioEl.addEventListener('error', handleError)
     audioEl.addEventListener('ratechange', handleRateChange)
 
     return () => {
       audioEl.removeEventListener('timeupdate', updateStatusFromAudio)
-      audioEl.removeEventListener('loadedmetadata', updateStatusFromAudio)
-      audioEl.removeEventListener('play', updateStatusFromAudio)
-      audioEl.removeEventListener('pause', updateStatusFromAudio)
+      audioEl.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audioEl.removeEventListener('play', handlePlay)
+      audioEl.removeEventListener('pause', handlePause)
+      audioEl.removeEventListener('error', handleError)
       audioEl.removeEventListener('ratechange', handleRateChange)
     }
   }, [isAudioMaster])
@@ -292,6 +313,7 @@ const IntonguesCinema = () => {
   }
 
   const handlePlayerStateChange = (event, playerInstance) => {
+    console.log('YT state:', event?.data, 'pending:', pendingAudioStartRef.current)
     if (!playerInstance) return
 
     if (!isAudioMaster || !audioRef.current) return
@@ -310,9 +332,12 @@ const IntonguesCinema = () => {
             audioEl.currentTime = videoTime
           }
 
+          console.log('Attempting to start audio…')
           await audioEl.play()
+          console.log('Audio started successfully at', audioEl.currentTime)
           pendingAudioStartRef.current = false
         } catch (err) {
+          console.log('Audio play failed:', err)
           console.error('Failed to start downloaded audio playback, falling back to YouTube audio', err)
           setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
           pendingAudioStartRef.current = false
@@ -380,6 +405,7 @@ const IntonguesCinema = () => {
 
   const handleSeek = (newTime) => {
     const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
+    console.log('SEEK to', target, 'isAudioMaster:', isAudioMaster)
     const player = playerRef.current
 
     if (isAudioMaster && audioRef.current) {
@@ -412,6 +438,8 @@ const IntonguesCinema = () => {
     let rafId = null
     const audioEl = audioRef.current
 
+    let syncLogFrame = 0
+
     const syncAudioToVideo = () => {
       if (!audioEl || !playerRef.current) return
       if (audioEl.paused) return
@@ -419,6 +447,11 @@ const IntonguesCinema = () => {
       const videoTime = playerRef.current.getCurrentTime?.() ?? 0
       const audioTime = audioEl.currentTime || 0
       const delta = audioTime - videoTime
+
+      if (syncLogFrame % 10 === 0) {
+        console.log('Sync: videoTime =', videoTime, 'audioTime =', audioTime, 'delta =', delta)
+      }
+      syncLogFrame += 1
 
       if (Math.abs(delta) > MAX_DRIFT_SECONDS) {
         audioEl.currentTime = videoTime
@@ -682,6 +715,8 @@ const IntonguesCinema = () => {
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0
   const sliderMax = safeDuration > 0 ? safeDuration : Math.max(safeCurrentTime, 0.1)
 
+  console.log('isAudioMaster:', isAudioMaster)
+
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -728,6 +763,7 @@ const IntonguesCinema = () => {
                 </div>
                 <div
                   onClick={() => {
+                    console.log('Overlay clicked — play/pause toggled')
                     if (playbackStatus.isPlaying) {
                       handlePause()
                     } else {
@@ -745,6 +781,7 @@ const IntonguesCinema = () => {
                     cursor: 'pointer',
                   }}
                 />
+                {console.log('audioUrl:', audioUrl)}
                 <audio
                   ref={audioRef}
                   src={audioUrl || ''}

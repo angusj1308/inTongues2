@@ -308,12 +308,16 @@ async function transcribeWithWhisper(videoId, languageCode) {
 
     const iso = ISO_LANG_MAP[(languageCode || '').toLowerCase()]
 
+    // NOTE: whisper-1 + verbose_json gives us timestamped segments for tightly synced subtitles.
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(audioPath),
-      model: 'gpt-4o-transcribe-api-ev3',
-      response_format: 'json',
+      model: 'whisper-1',
+      response_format: 'verbose_json',
       ...(iso ? { language: iso } : {}),
     })
+
+    console.log('Whisper verbose_json response keys:', Object.keys(transcription || {}))
+    console.log('First segment sample:', transcription?.segments?.[0])
 
     const segments = (transcription?.segments || [])
       .map((segment) => ({
@@ -323,12 +327,11 @@ async function transcribeWithWhisper(videoId, languageCode) {
       }))
       .filter((segment) => segment.text)
 
-    if (segments.length === 0) {
-      console.error('Whisper transcription missing segments', transcription)
-      return []
+    if (!segments.length) {
+      console.warn('Whisper verbose_json has no segments, falling back to text-only')
     }
 
-    return segments
+    return { text: transcription?.text || '', segments }
   } finally {
     if (audioPath) {
       try {
@@ -371,40 +374,55 @@ app.post('/api/youtube/transcript', async (req, res) => {
             ? cachedSentenceSegments
             : buildSentenceSegments(cachedSegments)
 
-        return res.json({ segments: cachedSegments, sentenceSegments: resolvedSentenceSegments })
+        return res.json({
+          text: existingData.text || cachedSegments.map((segment) => segment.text).join(' '),
+          segments: cachedSegments,
+          sentenceSegments: resolvedSentenceSegments,
+        })
       }
     }
-    let finalSegments = []
+    let transcriptResult = { text: '', segments: [] }
 
     try {
-      finalSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+      transcriptResult = { text: captionSegments.map((seg) => seg.text).join(' '), segments: captionSegments }
     } catch (captionError) {
       console.error('Failed to fetch YouTube captions, will attempt Whisper fallback', captionError)
     }
 
-    if (!finalSegments || finalSegments.length === 0) {
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
       try {
-        finalSegments = await transcribeWithWhisper(videoId, languageCode)
+        const whisperResult = await transcribeWithWhisper(videoId, languageCode)
+        transcriptResult = {
+          text: whisperResult?.text || '',
+          segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        }
       } catch (transcriptionError) {
         console.error('Failed to transcribe audio with Whisper', transcriptionError)
         return res.status(500).json({ error: 'Failed to generate subtitles' })
       }
     }
 
-    const normalisedSegments = normaliseTranscriptSegments(finalSegments)
+    const normalisedSegments = normaliseTranscriptSegments(transcriptResult.segments)
     const sentenceSegments = buildSentenceSegments(normalisedSegments)
+    const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
     const transcriptPayload = {
       videoId,
       language: languageCode,
       segments: normalisedSegments,
+      text: transcriptText,
       sentenceSegments,
       createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })
 
-    return res.json({ segments: transcriptPayload.segments, sentenceSegments: transcriptPayload.sentenceSegments })
+    return res.json({
+      text: transcriptPayload.text,
+      segments: transcriptPayload.segments,
+      sentenceSegments: transcriptPayload.sentenceSegments,
+    })
   } catch (error) {
     console.error('Failed to transcribe YouTube audio', error)
     return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })

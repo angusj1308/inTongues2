@@ -34,7 +34,7 @@ const IntonguesCinema = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [playbackStatus, setPlaybackStatus] = useState({ currentTime: 0, duration: 0, isPlaying: false })
-  const [transcript, setTranscript] = useState({ segments: [], sentenceSegments: [] })
+  const [transcript, setTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
   const [transcriptError, setTranscriptError] = useState('')
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [vocabEntries, setVocabEntries] = useState({})
@@ -114,7 +114,7 @@ const IntonguesCinema = () => {
     const loadTranscript = async () => {
       setTranscriptLoading(true)
       setTranscriptError('')
-      setTranscript({ segments: [], sentenceSegments: [] })
+      setTranscript({ text: '', segments: [], sentenceSegments: [] })
       setTranslations({})
       try {
         const transcriptRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', transcriptDocId)
@@ -124,7 +124,7 @@ const IntonguesCinema = () => {
           const data = cached.data()
           const segments = normaliseSegments(data?.segments)
           const sentenceSegments = normaliseSegments(data?.sentenceSegments)
-          setTranscript({ segments, sentenceSegments })
+          setTranscript({ text: data?.text || '', segments, sentenceSegments })
           if (sentenceSegments.length > 0 || segments.length > 0) return
         }
 
@@ -149,12 +149,13 @@ const IntonguesCinema = () => {
         if (!isCancelled) {
           const segments = normaliseSegments(data?.segments)
           const sentenceSegments = normaliseSegments(data?.sentenceSegments)
-          setTranscript({ segments, sentenceSegments })
+          setTranscript({ text: data?.text || '', segments, sentenceSegments })
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
             const latestData = latest.data()
             setTranscript({
+              text: latestData?.text || data?.text || '',
               segments: normaliseSegments(latestData?.segments || data?.segments),
               sentenceSegments: normaliseSegments(latestData?.sentenceSegments || data?.sentenceSegments),
             })

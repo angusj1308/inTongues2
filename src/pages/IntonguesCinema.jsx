@@ -845,20 +845,25 @@ const IntonguesCinema = () => {
                   }}
                 />
                 {console.log('audioPath:', audioPath, 'signedAudioUrl:', signedAudioUrl)}
-                <audio
-                  ref={audioRef}
-                  src={signedAudioUrl || ''}
-                  preload="auto"
-                  controls={false}
-                  onError={() => {
-                    console.warn('Failed to load downloaded audio for playback, using YouTube audio instead', {
-                      videoId,
-                      transcriptLanguage,
-                    })
-                    setAudioLoadError('Downloaded audio failed to load. Using YouTube audio instead.')
-                  }}
-                  style={{ display: 'none' }}
-                />
+                {signedAudioUrl && (
+                  <audio
+                    key={signedAudioUrl}
+                    ref={audioRef}
+                    src={signedAudioUrl || ''}
+                    preload="auto"
+                    controls={false}
+                    onError={() => {
+                      if (!signedAudioUrl) return
+
+                      console.warn('Failed to load downloaded audio for playback, using YouTube audio instead', {
+                        videoId,
+                        transcriptLanguage,
+                      })
+                      setAudioLoadError('Downloaded audio failed to load. Using YouTube audio instead.')
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                )}
               </div>
             ) : (
               <p className="error">This video cannot be embedded.</p>

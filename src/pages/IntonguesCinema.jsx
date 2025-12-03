@@ -42,7 +42,8 @@ const IntonguesCinema = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
   const [popup, setPopup] = useState(null)
-  const [audioUrl, setAudioUrl] = useState('')
+  const [audioPath, setAudioPath] = useState('')
+  const [signedAudioUrl, setSignedAudioUrl] = useState('')
   const [audioLoadError, setAudioLoadError] = useState('')
 
   const playerRef = useRef(null)
@@ -88,7 +89,7 @@ const IntonguesCinema = () => {
     [profile?.lastUsedLanguage, video?.language]
   )
 
-  const isAudioMaster = useMemo(() => Boolean(audioUrl) && !audioLoadError, [audioLoadError, audioUrl])
+  const isAudioMaster = useMemo(() => Boolean(signedAudioUrl) && !audioLoadError, [audioLoadError, signedAudioUrl])
 
   useEffect(() => {
     if (!videoId || !user || !id) return
@@ -101,7 +102,8 @@ const IntonguesCinema = () => {
       setTranscriptError('')
       setTranscript([])
       setTranslations({})
-      setAudioUrl('')
+      setSignedAudioUrl('')
+      setAudioPath('')
       setAudioLoadError('')
 
       try {
@@ -111,7 +113,7 @@ const IntonguesCinema = () => {
         if (!isCancelled && cached.exists()) {
           const data = cached.data()
           setTranscript(data?.segments || [])
-          setAudioUrl(data?.audioUrl || '')
+          setAudioPath(data?.audioPath || '')
           return
         }
 
@@ -135,13 +137,13 @@ const IntonguesCinema = () => {
 
         if (!isCancelled) {
           setTranscript(data?.segments || [])
-          setAudioUrl(data?.audioUrl || '')
+          setAudioPath(data?.audioPath || '')
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
             const latestData = latest.data()
             setTranscript(latestData?.segments || data?.segments || [])
-            setAudioUrl(latestData?.audioUrl || data?.audioUrl || '')
+            setAudioPath(latestData?.audioPath || data?.audioPath || '')
           }
         }
       } catch (err) {
@@ -162,6 +164,49 @@ const IntonguesCinema = () => {
       isCancelled = true
     }
   }, [id, transcriptLanguage, user?.uid, videoId])
+
+  useEffect(() => {
+    if (!audioPath) {
+      setSignedAudioUrl('')
+      return undefined
+    }
+
+    let isCancelled = false
+
+    const fetchSignedAudioUrl = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/audio-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audioPath }),
+        })
+
+        if (!response.ok) {
+          const message = await response.text()
+          throw new Error(message || 'Failed to fetch audio URL')
+        }
+
+        const data = await response.json()
+
+        if (!isCancelled) {
+          setSignedAudioUrl(data?.signedUrl || '')
+          setAudioLoadError('')
+        }
+      } catch (err) {
+        console.error('Failed to generate signed audio URL', err)
+        if (!isCancelled) {
+          setSignedAudioUrl('')
+          setAudioLoadError('Downloaded audio is unavailable. Using YouTube audio instead.')
+        }
+      }
+    }
+
+    fetchSignedAudioUrl()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [audioPath])
 
   useEffect(() => {
     if (!user || !transcriptLanguage) return
@@ -240,10 +285,12 @@ const IntonguesCinema = () => {
   useEffect(() => {
     if (!videoId || !transcriptLanguage) return
 
-    if (!audioUrl) {
-      console.warn('No downloaded audio URL available, using YouTube audio', { videoId, transcriptLanguage })
+    if (audioPath && !signedAudioUrl) {
+      console.warn('No signed audio URL available, using YouTube audio', { videoId, transcriptLanguage, audioPath })
+    } else if (!audioPath) {
+      console.warn('No downloaded audio path available, using YouTube audio', { videoId, transcriptLanguage })
     }
-  }, [audioUrl, transcriptLanguage, videoId])
+  }, [audioPath, signedAudioUrl, transcriptLanguage, videoId])
 
   useEffect(() => {
     if (!isAudioMaster) return undefined
@@ -797,10 +844,10 @@ const IntonguesCinema = () => {
                     pointerEvents: 'auto',
                   }}
                 />
-                {console.log('audioUrl:', audioUrl)}
+                {console.log('audioPath:', audioPath, 'signedAudioUrl:', signedAudioUrl)}
                 <audio
                   ref={audioRef}
-                  src={audioUrl || ''}
+                  src={signedAudioUrl || ''}
                   preload="auto"
                   controls={false}
                   onError={() => {

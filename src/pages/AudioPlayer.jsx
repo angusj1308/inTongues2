@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -11,7 +11,12 @@ const AudioPlayer = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const location = useLocation()
   const audioRef = useRef(null)
+
+  const searchParams = new URLSearchParams(location.search)
+  const source = searchParams.get('source')
+  const isSpotify = source === 'spotify'
 
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,7 +30,32 @@ const AudioPlayer = () => {
     language: '',
     audioStatus: '',
     fullAudioUrl: '',
+    spotifyUri: '',
+    type: '',
+    mediaType: 'audio',
   })
+  const [spotifyPlayer, setSpotifyPlayer] = useState(null)
+  const [spotifyToken, setSpotifyToken] = useState('')
+  const [spotifyDeviceId, setSpotifyDeviceId] = useState('')
+  const [spotifyPlayerState, setSpotifyPlayerState] = useState(null)
+
+  const fetchSpotifyToken = async () => {
+    if (!user) return ''
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/spotify/playerToken?uid=${encodeURIComponent(user.uid)}`,
+      )
+      if (!response.ok) throw new Error(await response.text())
+      const data = await response.json()
+      const accessToken = data?.accessToken || ''
+      setSpotifyToken(accessToken)
+      return accessToken
+    } catch (err) {
+      console.error('Failed to fetch Spotify token', err)
+      setError('Unable to start Spotify playback right now.')
+      return ''
+    }
+  }
 
   const transcriptText = useMemo(() => pages.map((page) => getDisplayText(page)).join(' '), [pages])
 
@@ -39,21 +69,48 @@ const AudioPlayer = () => {
 
     const loadStoryMeta = async () => {
       try {
-        const storyRef = doc(db, 'users', user.uid, 'stories', id)
-        const storySnap = await getDoc(storyRef)
+        const baseDoc = isSpotify
+          ? doc(db, 'users', user.uid, 'spotifyItems', id)
+          : doc(db, 'users', user.uid, 'stories', id)
+        const storySnap = await getDoc(baseDoc)
 
         if (!storySnap.exists()) {
-          setError('Audiobook not found.')
-          setStoryMeta({ title: '', language: '', audioStatus: '', fullAudioUrl: '' })
+          setError(isSpotify ? 'Spotify item not found.' : 'Audiobook not found.')
+          setStoryMeta({
+            title: '',
+            language: '',
+            audioStatus: '',
+            fullAudioUrl: '',
+            spotifyUri: '',
+            type: '',
+            mediaType: 'audio',
+          })
           return
         }
 
         const data = storySnap.data() || {}
+
+        if (isSpotify) {
+          setStoryMeta({
+            title: data.title || 'Spotify item',
+            language: data.language || data.transcriptLanguage || '',
+            audioStatus: 'ready',
+            fullAudioUrl: null,
+            spotifyUri: data.spotifyUri || '',
+            type: data.type || '',
+            mediaType: data.mediaType || 'audio',
+          })
+          return
+        }
+
         setStoryMeta({
           title: data.title || 'Untitled story',
           language: data.language || '',
           audioStatus: data.audioStatus || '',
           fullAudioUrl: data.fullAudioUrl || '',
+          spotifyUri: '',
+          type: data.type || '',
+          mediaType: 'audio',
         })
       } catch (err) {
         console.error('Failed to load audiobook metadata', err)
@@ -62,7 +119,122 @@ const AudioPlayer = () => {
     }
 
     loadStoryMeta()
-  }, [id, user])
+  }, [id, isSpotify, user])
+
+  useEffect(() => {
+    if (!isSpotify || !user) return undefined
+
+    fetchSpotifyToken()
+
+    return undefined
+  }, [isSpotify, user])
+
+  useEffect(() => {
+    if (!isSpotify || !spotifyToken || spotifyPlayer) return undefined
+
+    let isCancelled = false
+    let playerInstance = null
+
+    const loadSdk = () =>
+      new Promise((resolve, reject) => {
+        if (window.Spotify) {
+          resolve(window.Spotify)
+          return
+        }
+
+        const existingScript = document.getElementById('spotify-web-playback-sdk')
+        if (existingScript) {
+          existingScript.onload = () => resolve(window.Spotify)
+          existingScript.onerror = reject
+          return
+        }
+
+        const script = document.createElement('script')
+        script.id = 'spotify-web-playback-sdk'
+        script.src = 'https://sdk.scdn.co/spotify-player.js'
+        script.async = true
+        script.onload = () => resolve(window.Spotify)
+        script.onerror = reject
+        document.body.appendChild(script)
+      })
+
+    const initPlayer = async () => {
+      try {
+        const Spotify = await loadSdk()
+        if (isCancelled || !Spotify) return
+
+        playerInstance = new Spotify.Player({
+          name: 'inTongues Web Player',
+          getOAuthToken: async (cb) => {
+            const token = (await fetchSpotifyToken()) || spotifyToken
+            if (token) cb(token)
+          },
+          volume: 0.5,
+        })
+
+        playerInstance.addListener('ready', ({ device_id: deviceId }) => {
+          setSpotifyDeviceId(deviceId)
+        })
+
+        playerInstance.addListener('not_ready', ({ device_id: deviceId }) => {
+          if (spotifyDeviceId === deviceId) setSpotifyDeviceId('')
+        })
+
+        playerInstance.addListener('player_state_changed', (state) => {
+          setSpotifyPlayerState(state)
+          setIsPlaying(state ? !state.paused : false)
+        })
+
+        await playerInstance.connect()
+        setSpotifyPlayer(playerInstance)
+      } catch (err) {
+        console.error('Failed to initialize Spotify player', err)
+        setError('Unable to start Spotify playback right now.')
+      }
+    }
+
+    initPlayer()
+
+    return () => {
+      isCancelled = true
+      if (playerInstance) {
+        playerInstance.disconnect()
+      }
+    }
+  }, [isSpotify, spotifyDeviceId, spotifyPlayer, spotifyToken])
+
+  useEffect(() => {
+    if (!isSpotify || !spotifyDeviceId || !storyMeta.spotifyUri || !spotifyToken || !user) return undefined
+
+    const activateAndPlay = async () => {
+      try {
+        await fetch('http://localhost:4000/api/spotify/player/activate', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: spotifyDeviceId, uid: user.uid }),
+        })
+
+        await fetch(
+          `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(spotifyDeviceId)}`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${spotifyToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ uris: [storyMeta.spotifyUri] }),
+          },
+        )
+      } catch (err) {
+        console.error('Unable to start Spotify playback', err)
+        setError('Unable to start Spotify playback right now.')
+      }
+    }
+
+    activateAndPlay()
+
+    return undefined
+  }, [isSpotify, spotifyDeviceId, spotifyToken, storyMeta.spotifyUri, user])
 
   useEffect(() => {
     if (!user || !id) {
@@ -74,8 +246,10 @@ const AudioPlayer = () => {
     const loadPages = async () => {
       setLoading(true)
       try {
-        const pagesRef = collection(db, 'users', user.uid, 'stories', id, 'pages')
-        const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
+        const baseCollection = isSpotify
+          ? collection(db, 'users', user.uid, 'spotifyItems', id, 'pages')
+          : collection(db, 'users', user.uid, 'stories', id, 'pages')
+        const pagesQuery = query(baseCollection, orderBy('index', 'asc'))
         const snapshot = await getDocs(pagesQuery)
         const nextPages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
         setPages(nextPages)
@@ -89,7 +263,7 @@ const AudioPlayer = () => {
     }
 
     loadPages()
-  }, [id, user])
+  }, [id, isSpotify, user])
 
   useEffect(() => {
     if (!user || !storyMeta.language) {
@@ -401,6 +575,8 @@ const AudioPlayer = () => {
   }, [])
 
   useEffect(() => {
+    if (isSpotify) return undefined
+
     const audio = audioRef.current
     if (!audio) return undefined
 
@@ -416,9 +592,14 @@ const AudioPlayer = () => {
       audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('ended', handlePause)
     }
-  }, [storyMeta.fullAudioUrl])
+  }, [isSpotify, storyMeta.fullAudioUrl])
 
   const togglePlay = () => {
+    if (isSpotify) {
+      spotifyPlayer?.togglePlay()
+      return
+    }
+
     const audio = audioRef.current
     if (!audio) return
 
@@ -430,11 +611,32 @@ const AudioPlayer = () => {
   }
 
   const handleRewind = (seconds = 10) => {
+    if (isSpotify) {
+      const positionMs = spotifyPlayerState?.position || 0
+      const nextPosition = Math.max(0, positionMs - seconds * 1000)
+      if (spotifyPlayer) {
+        spotifyPlayer.seek(nextPosition)
+      }
+      return
+    }
+
     const audio = audioRef.current
     if (!audio) return
 
     audio.currentTime = Math.max(0, (audio.currentTime || 0) - seconds)
   }
+
+  const showPlaybackControls = isSpotify
+    ? Boolean(storyMeta.spotifyUri)
+    : storyMeta.audioStatus === 'ready' && storyMeta.fullAudioUrl
+
+  const playbackPositionSeconds = isSpotify
+    ? (spotifyPlayerState?.position || 0) / 1000
+    : audioRef.current?.currentTime || 0
+
+  const playbackDurationSeconds = isSpotify
+    ? (spotifyPlayerState?.duration || 0) / 1000
+    : audioRef.current?.duration || 0
 
   return (
     <div className="page">
@@ -461,33 +663,39 @@ const AudioPlayer = () => {
         >
           <div className="pill-row" style={{ gap: '0.5rem', alignItems: 'center' }}>
             {storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}
-            <span
-              className="pill"
-              style={{
-                background:
-                  storyMeta.audioStatus === 'ready'
-                    ? '#dcfce7'
-                    : storyMeta.audioStatus === 'processing'
-                      ? '#fef9c3'
-                      : '#e2e8f0',
-                color:
-                  storyMeta.audioStatus === 'ready'
-                    ? '#166534'
-                    : storyMeta.audioStatus === 'processing'
-                      ? '#854d0e'
-                      : '#0f172a',
-              }}
-            >
-              {storyMeta.audioStatus === 'ready'
-                ? 'Audio Ready'
-                : storyMeta.audioStatus === 'processing'
-                  ? 'Audio Processing…'
-                  : 'No Audio'}
-            </span>
+            {isSpotify ? (
+              <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
+                Spotify playback
+              </span>
+            ) : (
+              <span
+                className="pill"
+                style={{
+                  background:
+                    storyMeta.audioStatus === 'ready'
+                      ? '#dcfce7'
+                      : storyMeta.audioStatus === 'processing'
+                        ? '#fef9c3'
+                        : '#e2e8f0',
+                  color:
+                    storyMeta.audioStatus === 'ready'
+                      ? '#166534'
+                      : storyMeta.audioStatus === 'processing'
+                        ? '#854d0e'
+                        : '#0f172a',
+                }}
+              >
+                {storyMeta.audioStatus === 'ready'
+                  ? 'Audio Ready'
+                  : storyMeta.audioStatus === 'processing'
+                    ? 'Audio Processing…'
+                    : 'No Audio'}
+              </span>
+            )}
           </div>
         </div>
 
-        {storyMeta.audioStatus === 'ready' && storyMeta.fullAudioUrl && (
+        {showPlaybackControls && (
           <div className="section" style={{ position: 'sticky', bottom: 0, background: '#f8fafc', zIndex: 2 }}>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
               <button className="button ghost" onClick={() => handleRewind()}>
@@ -497,12 +705,19 @@ const AudioPlayer = () => {
                 {isPlaying ? 'Pause' : 'Play'}
               </button>
             </div>
-            <audio
-              ref={audioRef}
-              src={storyMeta.fullAudioUrl}
-              style={{ width: '100%', marginTop: '0.5rem' }}
-              controls
-            />
+            {isSpotify ? (
+              <p className="muted small" style={{ textAlign: 'center' }}>
+                Playing from Spotify — {playbackPositionSeconds.toFixed(1)}s /{' '}
+                {playbackDurationSeconds.toFixed(1)}s
+              </p>
+            ) : (
+              <audio
+                ref={audioRef}
+                src={storyMeta.fullAudioUrl}
+                style={{ width: '100%', marginTop: '0.5rem' }}
+                controls
+              />
+            )}
           </div>
         )}
 

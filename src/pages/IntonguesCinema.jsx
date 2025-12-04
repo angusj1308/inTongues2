@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { doc, getDoc } from 'firebase/firestore'
-import { useNavigate, useParams } from 'react-router-dom'
+import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import YouTubePlayer from '../components/YouTubePlayer'
@@ -29,6 +29,11 @@ const IntonguesCinema = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const location = useLocation()
+
+  const searchParams = new URLSearchParams(location.search)
+  const source = searchParams.get('source')
+  const isSpotify = source === 'spotify'
 
   const [video, setVideo] = useState(null)
   const [error, setError] = useState('')
@@ -42,12 +47,34 @@ const IntonguesCinema = () => {
   const [popup, setPopup] = useState(null)
 
   const playerRef = useRef(null)
+  const [spotifyToken, setSpotifyToken] = useState('')
+  const [spotifyPlayer, setSpotifyPlayer] = useState(null)
+  const [spotifyDeviceId, setSpotifyDeviceId] = useState('')
+  const [spotifyState, setSpotifyState] = useState(null)
 
-  const normaliseSegments = (segments = []) =>
-    (Array.isArray(segments) ? segments : [])
-      .map((segment) => {
-        const start = Number.isFinite(segment.start)
-          ? Number(segment.start)
+  const fetchSpotifyToken = async () => {
+    if (!user) return ''
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/spotify/playerToken?uid=${encodeURIComponent(user.uid)}`,
+      )
+      if (!response.ok) throw new Error(await response.text())
+      const data = await response.json()
+      const accessToken = data?.accessToken || ''
+      setSpotifyToken(accessToken)
+      return accessToken
+    } catch (err) {
+      console.error('Failed to fetch Spotify token', err)
+      setError('Unable to start Spotify playback right now.')
+      return ''
+    }
+  }
+
+const normaliseSegments = (segments = []) =>
+  (Array.isArray(segments) ? segments : [])
+    .map((segment) => {
+      const start = Number.isFinite(segment.start)
+        ? Number(segment.start)
           : Number(segment.startMs) / 1000 || 0
         const end = Number.isFinite(segment.end)
           ? Number(segment.end)
@@ -57,9 +84,31 @@ const IntonguesCinema = () => {
           start,
           end: end > start ? end : start,
           text: segment.text || '',
-        }
-      })
-      .filter((segment) => segment.text)
+      }
+    })
+    .filter((segment) => segment.text)
+
+const normalisePagesToSegments = (pages = []) =>
+  (Array.isArray(pages) ? pages : [])
+    .map((page, index) => {
+      const startMs =
+        Number(page.startMs ?? page.start_ms ?? 0) ||
+        Number(page.start ?? page.startSeconds ?? page.startTime ?? 0) * 1000
+      const endMs =
+        Number(page.endMs ?? page.end_ms ?? 0) ||
+        Number(page.end ?? page.endSeconds ?? page.endTime ?? 0) * 1000
+
+      const start = startMs / 1000
+      const end = endMs ? endMs / 1000 : start + 5
+
+      return {
+        start,
+        end: end > start ? end : start + 5,
+        text: page.text || page.originalText || page.adaptedText || page.content || '',
+        index,
+      }
+    })
+    .filter((segment) => segment.text)
 
   const displaySegments = useMemo(() => {
     const sentenceSegments = normaliseSegments(transcript?.sentenceSegments)
@@ -77,11 +126,13 @@ const IntonguesCinema = () => {
     const loadVideo = async () => {
       setLoading(true)
       try {
-        const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
+        const videoRef = isSpotify
+          ? doc(db, 'users', user.uid, 'spotifyItems', id)
+          : doc(db, 'users', user.uid, 'youtubeVideos', id)
         const videoSnap = await getDoc(videoRef)
 
         if (!videoSnap.exists()) {
-          setError('This YouTube video was not found in your library.')
+          setError(isSpotify ? 'This Spotify item was not found in your library.' : 'This YouTube video was not found in your library.')
           setVideo(null)
           return
         }
@@ -97,7 +148,7 @@ const IntonguesCinema = () => {
     }
 
     loadVideo()
-  }, [id, user])
+  }, [id, isSpotify, user])
 
   const videoId = useMemo(() => extractVideoId(video), [video])
   const transcriptLanguage = useMemo(
@@ -106,6 +157,7 @@ const IntonguesCinema = () => {
   )
 
   useEffect(() => {
+    if (isSpotify) return
     if (!videoId || !user || !id) return
 
     let isCancelled = false
@@ -178,7 +230,149 @@ const IntonguesCinema = () => {
     return () => {
       isCancelled = true
     }
-  }, [id, transcriptLanguage, user?.uid, videoId])
+  }, [id, isSpotify, transcriptLanguage, user?.uid, videoId])
+
+  useEffect(() => {
+    if (!isSpotify || !user || !id) return undefined
+
+    let cancelled = false
+
+    const loadPages = async () => {
+      setTranscriptLoading(true)
+      setTranscriptError('')
+      try {
+        const pagesRef = collection(db, 'users', user.uid, 'spotifyItems', id, 'pages')
+        const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
+        const snapshot = await getDocs(pagesQuery)
+        if (cancelled) return
+        const segments = normalisePagesToSegments(snapshot.docs.map((docSnap) => docSnap.data()))
+        setTranscript({ text: segments.map((seg) => seg.text).join(' '), segments, sentenceSegments: [] })
+      } catch (err) {
+        console.error('Failed to load Spotify transcript', err)
+        if (!cancelled) setTranscriptError('Unable to load subtitles right now.')
+      } finally {
+        if (!cancelled) setTranscriptLoading(false)
+      }
+    }
+
+    loadPages()
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, isSpotify, user])
+
+  useEffect(() => {
+    if (!isSpotify || !user) return undefined
+
+    fetchSpotifyToken()
+
+    return undefined
+  }, [isSpotify, user])
+
+  useEffect(() => {
+    if (!isSpotify || !spotifyToken || spotifyPlayer) return undefined
+
+    let cancelled = false
+    let playerInstance = null
+
+    const loadSdk = () =>
+      new Promise((resolve, reject) => {
+        if (window.Spotify) {
+          resolve(window.Spotify)
+          return
+        }
+
+        const existingScript = document.getElementById('spotify-web-playback-sdk')
+        if (existingScript) {
+          existingScript.onload = () => resolve(window.Spotify)
+          existingScript.onerror = reject
+          return
+        }
+
+        const script = document.createElement('script')
+        script.id = 'spotify-web-playback-sdk'
+        script.src = 'https://sdk.scdn.co/spotify-player.js'
+        script.async = true
+        script.onload = () => resolve(window.Spotify)
+        script.onerror = reject
+        document.body.appendChild(script)
+      })
+
+    const initPlayer = async () => {
+      try {
+        const Spotify = await loadSdk()
+        if (cancelled || !Spotify) return
+
+        playerInstance = new Spotify.Player({
+          name: 'inTongues Cinema',
+          getOAuthToken: async (cb) => {
+            const token = (await fetchSpotifyToken()) || spotifyToken
+            if (token) cb(token)
+          },
+          volume: 0.5,
+        })
+
+        playerInstance.addListener('ready', ({ device_id: deviceId }) => {
+          setSpotifyDeviceId(deviceId)
+        })
+
+        playerInstance.addListener('not_ready', ({ device_id: deviceId }) => {
+          if (spotifyDeviceId === deviceId) setSpotifyDeviceId('')
+        })
+
+        playerInstance.addListener('player_state_changed', (state) => {
+          setSpotifyState(state)
+        })
+
+        await playerInstance.connect()
+        setSpotifyPlayer(playerInstance)
+      } catch (err) {
+        console.error('Failed to initialize Spotify player', err)
+        setError('Unable to start Spotify playback right now.')
+      }
+    }
+
+    initPlayer()
+
+    return () => {
+      cancelled = true
+      if (playerInstance) playerInstance.disconnect()
+    }
+  }, [isSpotify, spotifyDeviceId, spotifyPlayer, spotifyToken])
+
+  useEffect(() => {
+    if (!isSpotify || !spotifyDeviceId || !video?.spotifyUri || !spotifyToken || !user) return undefined
+
+    const activateAndPlay = async () => {
+      try {
+        await fetch('http://localhost:4000/api/spotify/player/activate', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: spotifyDeviceId, uid: user.uid }),
+        })
+
+        await fetch(
+          `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(spotifyDeviceId)}`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${spotifyToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ uris: [video.spotifyUri] }),
+          },
+        )
+      } catch (err) {
+        console.error('Unable to start Spotify playback', err)
+        setError('Unable to start Spotify playback right now.')
+      }
+    }
+
+    activateAndPlay()
+
+    return undefined
+  }, [isSpotify, spotifyDeviceId, spotifyToken, user, video?.spotifyUri])
 
   useEffect(() => {
     if (!user || !transcriptLanguage) return
@@ -254,11 +448,25 @@ const IntonguesCinema = () => {
     return () => controller.abort()
   }, [displaySegments, profile?.nativeLanguage, transcriptLanguage])
 
+  useEffect(() => {
+    if (!isSpotify) return undefined
+
+    setPlaybackStatus({
+      currentTime: (spotifyState?.position || 0) / 1000,
+      duration: (spotifyState?.duration || 0) / 1000,
+      isPlaying: spotifyState ? !spotifyState.paused : false,
+    })
+
+    return undefined
+  }, [isSpotify, spotifyState])
+
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)
   }
 
   const handlePlayerReady = () => {
+    if (isSpotify) return
+
     const player = playerRef.current
     setPlaybackStatus({
       currentTime: player?.getCurrentTime?.() ?? 0,
@@ -268,7 +476,7 @@ const IntonguesCinema = () => {
   }
 
   const handlePlayerStateChange = (event, playerInstance) => {
-    if (!playerInstance) return
+    if (isSpotify || !playerInstance) return
 
     const playerState = event?.data
     const ytState = window.YT?.PlayerState
@@ -283,12 +491,24 @@ const IntonguesCinema = () => {
   }
 
   const handlePlay = () => {
+    if (isSpotify) {
+      spotifyPlayer?.togglePlay()
+      return
+    }
+
     const player = playerRef.current
 
     player?.playVideo?.()
   }
 
   const handlePause = () => {
+    if (isSpotify) {
+      if (spotifyPlayer && spotifyState && !spotifyState.paused) {
+        spotifyPlayer.togglePlay()
+      }
+      return
+    }
+
     const player = playerRef.current
 
     player?.pauseVideo?.()
@@ -296,6 +516,12 @@ const IntonguesCinema = () => {
 
   const handleSeek = (newTime) => {
     const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
+    if (isSpotify) {
+      spotifyPlayer?.seek(target * 1000)
+      setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
+      return
+    }
+
     const player = playerRef.current
 
     player?.seekTo?.(target, true)
@@ -536,7 +762,11 @@ const IntonguesCinema = () => {
         <div className="page-header">
           <div>
             <h1>inTongues Cinema</h1>
-            <p className="muted small">Watch your imported YouTube videos with subtitles.</p>
+            <p className="muted small">
+              {isSpotify
+                ? 'Watch your Spotify podcasts with subtitles and vocabulary support.'
+                : 'Watch your imported YouTube videos with subtitles.'}
+            </p>
           </div>
           <button className="button ghost" onClick={() => navigate('/listening')}>
             Back to listening library
@@ -554,16 +784,48 @@ const IntonguesCinema = () => {
             <div className="section-header">
               <div>
                 <h3>{video.title || 'Untitled video'}</h3>
-                <p className="muted small">Sourced from YouTube</p>
+                <p className="muted small">{isSpotify ? 'Sourced from Spotify' : 'Sourced from YouTube'}</p>
               </div>
-              {video.youtubeUrl && (
+              {video.youtubeUrl && !isSpotify && (
                 <a className="button ghost" href={video.youtubeUrl} target="_blank" rel="noreferrer">
                   Open on YouTube
                 </a>
               )}
             </div>
 
-            {videoId ? (
+            {isSpotify ? (
+              <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    background: '#0f172a',
+                    color: '#e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '1rem',
+                  }}
+                >
+                  <div>
+                    <p style={{ marginBottom: '0.25rem' }}>Spotify playback active</p>
+                    <p className="muted small">Use the controls below to manage playback.</p>
+                  </div>
+                </div>
+                <div className="subtitle-overlay">
+                  <CinemaSubtitles
+                    transcript={transcript}
+                    currentTime={safeCurrentTime}
+                    renderHighlightedText={renderHighlightedText}
+                    onWordSelect={handleSubtitleWordClick}
+                  />
+                </div>
+              </div>
+            ) : videoId ? (
               <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
                   <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -635,7 +897,9 @@ const IntonguesCinema = () => {
             )}
 
             <p className="muted small" style={{ marginTop: '0.25rem' }}>
-              For best experience, leave YouTube CC off and use the subtitles displayed here.
+              {isSpotify
+                ? 'Spotify playback uses the Web Playback SDK with subtitles displayed here.'
+                : 'For best experience, leave YouTube CC off and use the subtitles displayed here.'}
             </p>
 
             <p className="muted small">

@@ -139,7 +139,7 @@ const App = () => {
         }
       />
       <Route
-        path="/audio/:id"
+        path="/listen/:id"
         element={
           <ProtectedRoute>
             <AudioPlayer />

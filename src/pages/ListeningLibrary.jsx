@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import useAuth from '../context/AuthContext'
 import db from '../firebase'
+import { signOutFromSpotify } from '../services/spotifyAuth'
 
 const ListeningLibrary = () => {
   const { user } = useAuth()
@@ -39,6 +40,18 @@ const ListeningLibrary = () => {
   const [audioLoading, setAudioLoading] = useState(true)
   const [videoLoading, setVideoLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const resetSpotifyState = () => {
+    setSpotifyConnected(false)
+    setSpotifyError('')
+    setSpotifyLibrary([])
+    setSpotifyLibraryLoading(false)
+    setSpotifySearchLoading(false)
+    setSpotifySearchError('')
+    setSearchResults({ tracks: [], playlists: [], shows: [], artists: [], albums: [] })
+    setEpisodePanel({ show: null, episodes: [], loading: false, error: '' })
+    setSearchQuery('')
+  }
 
   const navigateToSpotifyItem = (item) => {
     if (!item) return
@@ -108,6 +121,19 @@ const ListeningLibrary = () => {
     } catch (err) {
       console.error('Spotify login error', err)
       setSpotifyError('Unable to connect to Spotify right now.')
+    }
+  }
+
+  const handleSignOutSpotify = async () => {
+    if (!user) return
+
+    resetSpotifyState()
+
+    try {
+      await signOutFromSpotify(handleConnectSpotify)
+    } catch (err) {
+      console.error('Spotify sign out error', err)
+      handleConnectSpotify()
     }
   }
 
@@ -442,11 +468,18 @@ const ListeningLibrary = () => {
         </div>
 
         <div className="section">
-          <div className="section-header">
-            <h3>Spotify Search</h3>
-            <p className="muted small">
-              Search tracks, playlists, artists, albums, and podcast shows to add them to your inTongues library.
-            </p>
+          <div className="section-header" style={{ alignItems: 'flex-start' }}>
+            <div>
+              <h3>Spotify Search</h3>
+              <p className="muted small">
+                Search tracks, playlists, artists, albums, and podcast shows to add them to your inTongues library.
+              </p>
+            </div>
+            {spotifyConnected && !spotifyLoading && (
+              <button className="button ghost" onClick={handleSignOutSpotify}>
+                Sign out of Spotify
+              </button>
+            )}
           </div>
 
           {spotifyError && <p className="error">{spotifyError}</p>}

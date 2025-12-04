@@ -365,6 +365,73 @@ app.get('/api/spotify/playerToken', async (req, res) => {
   }
 })
 
+app.post('/api/spotify/transfer-playback', async (req, res) => {
+  const { uid, deviceId, play } = req.body || {}
+
+  if (!uid || !deviceId) {
+    return res.status(400).json({ error: 'uid and deviceId are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(uid)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ device_ids: [deviceId], play: Boolean(play) }),
+    })
+
+    if (!response.ok) {
+      console.error('Spotify transfer playback error', response.status, await response.text())
+      return res.status(response.status).json({ error: 'Unable to transfer playback' })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify transfer playback failure', err)
+    res.status(500).json({ error: 'Unable to transfer playback' })
+  }
+})
+
+app.post('/api/spotify/start-playback', async (req, res) => {
+  const { uid, deviceId, spotifyUri } = req.body || {}
+
+  if (!uid || !deviceId || !spotifyUri) {
+    return res.status(400).json({ error: 'uid, deviceId, and spotifyUri are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(uid)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uris: [spotifyUri] }),
+      },
+    )
+
+    if (!response.ok) {
+      console.error('Spotify start playback error', response.status, await response.text())
+      return res.status(response.status).json({ error: 'Unable to start playback' })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify start playback failure', err)
+    res.status(500).json({ error: 'Unable to start playback' })
+  }
+})
+
 app.put('/api/spotify/player/activate', async (req, res) => {
   const { deviceId, uid } = req.body || {}
 

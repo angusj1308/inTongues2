@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
+import {
+  getDeviceId,
+  initSpotifyPlayer,
+  pause as pauseSpotify,
+  resume as resumeSpotify,
+  seek as seekSpotify,
+  subscribeToStateChanges,
+} from '../services/spotifyPlayer'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -34,28 +42,23 @@ const AudioPlayer = () => {
     type: '',
     mediaType: 'audio',
   })
-  const [spotifyPlayer, setSpotifyPlayer] = useState(null)
-  const [spotifyToken, setSpotifyToken] = useState('')
   const [spotifyDeviceId, setSpotifyDeviceId] = useState('')
   const [spotifyPlayerState, setSpotifyPlayerState] = useState(null)
 
-  const fetchSpotifyToken = async () => {
-    if (!user) return ''
-    try {
-      const response = await fetch(
-        `http://localhost:4000/api/spotify/playerToken?uid=${encodeURIComponent(user.uid)}`,
-      )
-      if (!response.ok) throw new Error(await response.text())
-      const data = await response.json()
-      const accessToken = data?.accessToken || ''
-      setSpotifyToken(accessToken)
-      return accessToken
-    } catch (err) {
-      console.error('Failed to fetch Spotify token', err)
-      setError('Unable to start Spotify playback right now.')
-      return ''
+  const fetchSpotifyAccessToken = useCallback(async () => {
+    if (!user) throw new Error('User not authenticated')
+
+    const response = await fetch(
+      `http://localhost:4000/api/spotify/access-token?uid=${encodeURIComponent(user.uid)}`,
+    )
+
+    if (!response.ok) {
+      throw new Error(await response.text())
     }
-  }
+
+    const data = await response.json()
+    return data?.accessToken
+  }, [user])
 
   const transcriptText = useMemo(() => pages.map((page) => getDisplayText(page)).join(' '), [pages])
 
@@ -124,117 +127,49 @@ const AudioPlayer = () => {
   useEffect(() => {
     if (!isSpotify || !user) return undefined
 
-    fetchSpotifyToken()
-
-    return undefined
-  }, [isSpotify, user])
-
-  useEffect(() => {
-    if (!isSpotify || !spotifyToken || spotifyPlayer) return undefined
-
+    let unsubscribe = null
     let isCancelled = false
-    let playerInstance = null
 
-    const loadSdk = () =>
-      new Promise((resolve, reject) => {
-        if (window.Spotify) {
-          resolve(window.Spotify)
-          return
-        }
-
-        const existingScript = document.getElementById('spotify-web-playback-sdk')
-        if (existingScript) {
-          existingScript.onload = () => resolve(window.Spotify)
-          existingScript.onerror = reject
-          return
-        }
-
-        const script = document.createElement('script')
-        script.id = 'spotify-web-playback-sdk'
-        script.src = 'https://sdk.scdn.co/spotify-player.js'
-        script.async = true
-        script.onload = () => resolve(window.Spotify)
-        script.onerror = reject
-        document.body.appendChild(script)
-      })
-
-    const initPlayer = async () => {
+    const setupSpotifyPlayback = async () => {
       try {
-        const Spotify = await loadSdk()
-        if (isCancelled || !Spotify) return
+        await initSpotifyPlayer(fetchSpotifyAccessToken)
 
-        playerInstance = new Spotify.Player({
-          name: 'inTongues Web Player',
-          getOAuthToken: async (cb) => {
-            const token = (await fetchSpotifyToken()) || spotifyToken
-            if (token) cb(token)
-          },
-          volume: 0.5,
-        })
+        if (isCancelled) return
 
-        playerInstance.addListener('ready', ({ device_id: deviceId }) => {
-          setSpotifyDeviceId(deviceId)
-        })
+        const nextDeviceId = getDeviceId()
+        setSpotifyDeviceId(nextDeviceId || '')
 
-        playerInstance.addListener('not_ready', ({ device_id: deviceId }) => {
-          if (spotifyDeviceId === deviceId) setSpotifyDeviceId('')
-        })
+        if (nextDeviceId) {
+          const response = await fetch('http://localhost:4000/api/spotify/transfer-playback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: user.uid, deviceId: nextDeviceId, play: false }),
+          })
 
-        playerInstance.addListener('player_state_changed', (state) => {
+          if (!response.ok) {
+            console.error('Unable to transfer Spotify playback', await response.text())
+            setError('Unable to start Spotify playback right now.')
+            return
+          }
+        }
+
+        unsubscribe = subscribeToStateChanges((state) => {
           setSpotifyPlayerState(state)
           setIsPlaying(state ? !state.paused : false)
         })
-
-        await playerInstance.connect()
-        setSpotifyPlayer(playerInstance)
       } catch (err) {
-        console.error('Failed to initialize Spotify player', err)
+        console.error('Failed to initialise Spotify playback', err)
         setError('Unable to start Spotify playback right now.')
       }
     }
 
-    initPlayer()
+    setupSpotifyPlayback()
 
     return () => {
       isCancelled = true
-      if (playerInstance) {
-        playerInstance.disconnect()
-      }
+      if (unsubscribe) unsubscribe()
     }
-  }, [isSpotify, spotifyDeviceId, spotifyPlayer, spotifyToken])
-
-  useEffect(() => {
-    if (!isSpotify || !spotifyDeviceId || !storyMeta.spotifyUri || !spotifyToken || !user) return undefined
-
-    const activateAndPlay = async () => {
-      try {
-        await fetch('http://localhost:4000/api/spotify/player/activate', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId: spotifyDeviceId, uid: user.uid }),
-        })
-
-        await fetch(
-          `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(spotifyDeviceId)}`,
-          {
-            method: 'PUT',
-            headers: {
-              Authorization: `Bearer ${spotifyToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ uris: [storyMeta.spotifyUri] }),
-          },
-        )
-      } catch (err) {
-        console.error('Unable to start Spotify playback', err)
-        setError('Unable to start Spotify playback right now.')
-      }
-    }
-
-    activateAndPlay()
-
-    return undefined
-  }, [isSpotify, spotifyDeviceId, spotifyToken, storyMeta.spotifyUri, user])
+  }, [fetchSpotifyAccessToken, isSpotify, user])
 
   useEffect(() => {
     if (!user || !id) {
@@ -594,9 +529,36 @@ const AudioPlayer = () => {
     }
   }, [isSpotify, storyMeta.fullAudioUrl])
 
-  const togglePlay = () => {
+  const startSpotifyPlayback = async () => {
+    if (!user || !spotifyDeviceId || !storyMeta.spotifyUri) return
+
+    try {
+      const response = await fetch('http://localhost:4000/api/spotify/start-playback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, deviceId: spotifyDeviceId, spotifyUri: storyMeta.spotifyUri }),
+      })
+
+      if (!response.ok) {
+        console.error('Unable to start Spotify playback', await response.text())
+        setError('Unable to start Spotify playback right now.')
+        return
+      }
+
+      await resumeSpotify()
+    } catch (err) {
+      console.error('Unable to start Spotify playback', err)
+      setError('Unable to start Spotify playback right now.')
+    }
+  }
+
+  const togglePlay = async () => {
     if (isSpotify) {
-      spotifyPlayer?.togglePlay()
+      if (isPlaying) {
+        await pauseSpotify()
+      } else {
+        await startSpotifyPlayback()
+      }
       return
     }
 
@@ -614,9 +576,7 @@ const AudioPlayer = () => {
     if (isSpotify) {
       const positionMs = spotifyPlayerState?.position || 0
       const nextPosition = Math.max(0, positionMs - seconds * 1000)
-      if (spotifyPlayer) {
-        spotifyPlayer.seek(nextPosition)
-      }
+      seekSpotify(nextPosition)
       return
     }
 

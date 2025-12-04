@@ -42,12 +42,6 @@ const ListeningLibrary = () => {
 
   const navigateToSpotifyItem = (item) => {
     if (!item) return
-
-    if (item.type === 'episode' && item.hasVideo === true) {
-      navigate(`/cinema/${item.id}?source=spotify`)
-      return
-    }
-
     navigate(`/listen/${item.id}?source=spotify`)
   }
 

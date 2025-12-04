@@ -1,3 +1,8 @@
+// Environment configuration: set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and SPOTIFY_REDIRECT_URI
+// in your .env file before running the server. Example for local dev:
+// SPOTIFY_CLIENT_ID=your_client_id
+// SPOTIFY_CLIENT_SECRET=your_client_secret
+// SPOTIFY_REDIRECT_URI=http://localhost:4000/api/spotify/callback
 import express from 'express'
 import dotenv from 'dotenv'
 import multer from 'multer'
@@ -32,6 +37,22 @@ if (!admin.apps.length) {
 
 export const bucket = admin.storage().bucket()
 const firestore = admin.firestore()
+
+const SPOTIFY_SCOPES = [
+  'user-read-email',
+  'user-read-private',
+  'user-library-read',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+  'user-read-playback-state',
+  'user-modify-playback-state',
+  'streaming',
+].join(' ')
+
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173'
 
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
@@ -122,6 +143,115 @@ app.use((req, res, next) => {
   next()
 })
 
+const getSpotifyTokenRef = (userId) => firestore.collection('spotifyTokens').doc(userId)
+
+const decodeState = (state) => {
+  try {
+    const payload = Buffer.from(state || '', 'base64url').toString('utf8')
+    return JSON.parse(payload)
+  } catch (err) {
+    console.error('Failed to decode Spotify state', err)
+    return null
+  }
+}
+
+const encodeState = (payload) => Buffer.from(JSON.stringify(payload)).toString('base64url')
+
+const getSpotifyImage = (images = []) => {
+  if (!Array.isArray(images)) return null
+  return images[images.length - 1]?.url || images[0]?.url || null
+}
+
+async function refreshSpotifyAccessToken(userId) {
+  const doc = await getSpotifyTokenRef(userId).get()
+  if (!doc.exists) return null
+
+  const data = doc.data() || {}
+  const bufferMs = 60_000
+  const now = Date.now()
+
+  if (data.accessToken && data.expiresAt && data.expiresAt.toMillis) {
+    const expiresAtMs = data.expiresAt.toMillis()
+    if (expiresAtMs - bufferMs > now) {
+      return data.accessToken
+    }
+  }
+
+  if (!data.refreshToken) return null
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: data.refreshToken,
+  })
+
+  const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+
+  if (!response.ok) {
+    console.error('Spotify token refresh failed', response.status, await response.text())
+    return null
+  }
+
+  const json = await response.json()
+  const expiresAt = admin.firestore.Timestamp.fromMillis(now + (json.expires_in || 3600) * 1000)
+
+  await getSpotifyTokenRef(userId).set(
+    {
+      accessToken: json.access_token,
+      refreshToken: json.refresh_token || data.refreshToken,
+      expiresAt,
+      scopes: data.scopes || SPOTIFY_SCOPES,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  )
+
+  return json.access_token
+}
+
+async function ensureSpotifyAccessToken(userId) {
+  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !SPOTIFY_REDIRECT_URI) {
+    throw new Error('Spotify environment variables are not configured')
+  }
+
+  return refreshSpotifyAccessToken(userId)
+}
+
+const mapTrackItem = (item) => ({
+  spotifyId: item?.track?.id,
+  spotifyUri: item?.track?.uri,
+  type: 'track',
+  title: item?.track?.name,
+  subtitle: (item?.track?.artists || []).map((a) => a.name).join(', '),
+  imageUrl: getSpotifyImage(item?.track?.album?.images),
+  durationMs: item?.track?.duration_ms,
+})
+
+const mapPlaylistItem = (item) => ({
+  spotifyId: item?.id,
+  spotifyUri: item?.uri,
+  type: 'playlist',
+  title: item?.name,
+  subtitle: item?.owner?.display_name || `${item?.tracks?.total || 0} tracks`,
+  imageUrl: getSpotifyImage(item?.images),
+})
+
+const mapShowItem = (item) => ({
+  spotifyId: item?.show?.id,
+  spotifyUri: item?.show?.uri,
+  type: 'show',
+  title: item?.show?.name,
+  subtitle: item?.show?.publisher,
+  imageUrl: getSpotifyImage(item?.show?.images),
+})
+
 const normaliseTranscriptSegments = (segments = []) =>
   (Array.isArray(segments) ? segments : [])
     .map((segment) => {
@@ -137,8 +267,285 @@ const normaliseTranscriptSegments = (segments = []) =>
         end: end > start ? end : start,
         text: (segment.text || '').trim(),
       }
+  })
+  .filter((segment) => segment.text)
+
+app.get('/api/spotify/status', async (req, res) => {
+  const userId = req.query.uid
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const tokenDoc = await getSpotifyTokenRef(userId).get()
+    const connected = tokenDoc.exists
+    res.json({ connected })
+  } catch (err) {
+    console.error('Spotify status error', err)
+    res.status(500).json({ error: 'Unable to check Spotify connection' })
+  }
+})
+
+app.get('/api/spotify/login', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_REDIRECT_URI) {
+    return res.status(500).json({ error: 'Spotify is not configured on the server' })
+  }
+
+  const state = encodeState({ uid: userId })
+
+  const params = new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: SPOTIFY_REDIRECT_URI,
+    scope: SPOTIFY_SCOPES,
+    state,
+  })
+
+  const url = `https://accounts.spotify.com/authorize?${params.toString()}`
+  res.json({ url })
+})
+
+app.get('/api/spotify/callback', async (req, res) => {
+  const { code, state } = req.query
+  const decoded = decodeState(state)
+  const userId = decoded?.uid
+
+  if (!code || !userId) {
+    return res.status(400).send('Missing code or state')
+  }
+
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: SPOTIFY_REDIRECT_URI,
+      client_id: SPOTIFY_CLIENT_ID,
+      client_secret: SPOTIFY_CLIENT_SECRET,
     })
-    .filter((segment) => segment.text)
+
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    })
+
+    if (!response.ok) {
+      console.error('Spotify callback token error', response.status, await response.text())
+      return res.status(500).send('Unable to complete Spotify authentication')
+    }
+
+    const json = await response.json()
+    const expiresAt = admin.firestore.Timestamp.fromMillis(
+      Date.now() + (json.expires_in || 3600) * 1000,
+    )
+
+    await getSpotifyTokenRef(userId).set(
+      {
+        accessToken: json.access_token,
+        refreshToken: json.refresh_token,
+        expiresAt,
+        scopes: SPOTIFY_SCOPES,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+    return res.redirect(`${FRONTEND_BASE_URL}/listening-library?spotify=connected`)
+  } catch (err) {
+    console.error('Spotify callback error', err)
+    return res.status(500).send('Spotify authentication failed')
+  }
+})
+
+app.get('/api/spotify/access-token', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    res.json({ accessToken: token })
+  } catch (err) {
+    console.error('Spotify access token error', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify access token' })
+  }
+})
+
+app.get('/api/spotify/me/tracks', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify tracks error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch Spotify tracks' })
+    }
+
+    const json = await response.json()
+    const items = (json.items || []).map(mapTrackItem).filter((item) => item.spotifyId)
+    res.json({ items })
+  } catch (err) {
+    console.error('Spotify tracks failure', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify tracks' })
+  }
+})
+
+app.get('/api/spotify/me/playlists', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify playlists error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch Spotify playlists' })
+    }
+
+    const json = await response.json()
+    const items = (json.items || []).map(mapPlaylistItem).filter((item) => item.spotifyId)
+    res.json({ items })
+  } catch (err) {
+    console.error('Spotify playlists failure', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify playlists' })
+  }
+})
+
+app.get('/api/spotify/me/shows', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/shows?limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify shows error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch Spotify shows' })
+    }
+
+    const json = await response.json()
+    const items = (json.items || []).map(mapShowItem).filter((item) => item.spotifyId)
+    res.json({ items })
+  } catch (err) {
+    console.error('Spotify shows failure', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify shows' })
+  }
+})
+
+app.post('/api/spotify/library/add', async (req, res) => {
+  const { uid, spotifyId, spotifyUri, type, title, subtitle, imageUrl } = req.body || {}
+
+  if (!uid || !spotifyId) {
+    return res.status(400).json({ error: 'uid and spotifyId are required' })
+  }
+
+  try {
+    const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
+    await itemRef.set(
+      {
+        spotifyId,
+        spotifyUri: spotifyUri || '',
+        type: type || 'track',
+        title: title || 'Untitled',
+        subtitle: subtitle || '',
+        imageUrl: imageUrl || '',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+        source: 'spotify',
+        transcriptStatus: 'pending',
+        transcriptLanguage: null,
+        transcriptSegments: null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify library add error', err)
+    res.status(500).json({ error: 'Unable to save Spotify item' })
+  }
+})
+
+app.get('/api/spotify/transcript/:spotifyId', async (req, res) => {
+  const userId = req.query.uid
+  const { spotifyId } = req.params
+
+  if (!userId || !spotifyId) {
+    return res.status(400).json({ error: 'uid and spotifyId are required' })
+  }
+
+  try {
+    const doc = await firestore
+      .collection('users')
+      .doc(userId)
+      .collection('spotifyItems')
+      .doc(spotifyId)
+      .get()
+
+    if (!doc.exists) return res.status(404).json({ error: 'Spotify item not found' })
+
+    const data = doc.data()
+    res.json({
+      transcriptStatus: data.transcriptStatus || 'none',
+      transcriptSegments: normaliseTranscriptSegments(data.transcriptSegments || []),
+      errorMessage: data.errorMessage || null,
+    })
+  } catch (err) {
+    console.error('Spotify transcript fetch error', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify transcript' })
+  }
+})
+
+app.post('/api/spotify/transcript/generate', async (req, res) => {
+  const { uid, spotifyId } = req.body || {}
+  if (!uid || !spotifyId) {
+    return res.status(400).json({ error: 'uid and spotifyId are required' })
+  }
+
+  try {
+    const placeholderSegments = [
+      { start: 0, end: 5, text: 'Placeholder transcript line 1.' },
+      { start: 5, end: 10, text: 'Placeholder transcript line 2.' },
+    ]
+
+    const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
+
+    await itemRef.set(
+      {
+        transcriptSegments: placeholderSegments,
+        transcriptStatus: 'whisperReady',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify transcript generate error', err)
+    res.status(500).json({ error: 'Unable to generate transcript' })
+  }
+})
 
 async function fetchYoutubeCaptionSegments(videoId, languageCode) {
   const info = await ytdl.getInfo(videoId)

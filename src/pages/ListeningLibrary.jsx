@@ -22,11 +22,20 @@ const ListeningLibrary = () => {
   const [spotifyConnected, setSpotifyConnected] = useState(false)
   const [spotifyLoading, setSpotifyLoading] = useState(false)
   const [spotifyError, setSpotifyError] = useState('')
-  const [spotifyTracks, setSpotifyTracks] = useState([])
-  const [spotifyPlaylists, setSpotifyPlaylists] = useState([])
-  const [spotifyShows, setSpotifyShows] = useState([])
   const [spotifyLibrary, setSpotifyLibrary] = useState([])
   const [spotifyLibraryLoading, setSpotifyLibraryLoading] = useState(true)
+  const [spotifySearchLoading, setSpotifySearchLoading] = useState(false)
+  const [spotifySearchError, setSpotifySearchError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchType, setSearchType] = useState('track')
+  const [searchResults, setSearchResults] = useState({
+    tracks: [],
+    playlists: [],
+    shows: [],
+    artists: [],
+    albums: [],
+  })
+  const [episodePanel, setEpisodePanel] = useState({ show: null, episodes: [], loading: false, error: '' })
   const [audioLoading, setAudioLoading] = useState(true)
   const [videoLoading, setVideoLoading] = useState(true)
   const [error, setError] = useState('')
@@ -114,33 +123,67 @@ const ListeningLibrary = () => {
     }
   }
 
-  const loadSpotifyLists = async (uid) => {
-    setSpotifyLoading(true)
-    setSpotifyError('')
+  const handleSpotifySearch = async (event) => {
+    event?.preventDefault()
+    if (!user) return
 
-    const fetchList = async (path) => {
-      const response = await fetch(`http://localhost:4000${path}?uid=${encodeURIComponent(uid)}`)
-      if (!response.ok) throw new Error(await response.text())
-      const data = await response.json()
-      return data.items || []
+    const trimmedQuery = searchQuery.trim()
+    if (!trimmedQuery) {
+      setSpotifySearchError('Enter a search query to continue.')
+      return
     }
+
+    setSpotifySearchLoading(true)
+    setSpotifySearchError('')
 
     try {
-      const [tracks, playlists, shows] = await Promise.all([
-        fetchList('/api/spotify/me/tracks'),
-        fetchList('/api/spotify/me/playlists'),
-        fetchList('/api/spotify/me/shows'),
-      ])
+      const params = new URLSearchParams({
+        q: trimmedQuery,
+        type: searchType,
+        uid: user.uid,
+      })
 
-      setSpotifyTracks(tracks)
-      setSpotifyPlaylists(playlists)
-      setSpotifyShows(shows)
+      const response = await fetch(`http://localhost:4000/api/spotify/search?${params.toString()}`)
+      if (!response.ok) throw new Error(await response.text())
+
+      const data = await response.json()
+      setSearchResults({
+        tracks: data?.results?.tracks || [],
+        playlists: data?.results?.playlists || [],
+        shows: data?.results?.shows || [],
+        artists: data?.results?.artists || [],
+        albums: data?.results?.albums || [],
+      })
     } catch (err) {
-      console.error('Spotify fetch error', err)
-      setSpotifyError('Unable to load Spotify data right now.')
+      console.error('Spotify search error', err)
+      setSpotifySearchError('Unable to search Spotify right now.')
     } finally {
-      setSpotifyLoading(false)
+      setSpotifySearchLoading(false)
     }
+  }
+
+  const handleViewEpisodes = async (show) => {
+    if (!user || !show?.spotifyId) return
+
+    setEpisodePanel({ show, episodes: [], loading: true, error: '' })
+
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/spotify/show/${encodeURIComponent(show.spotifyId)}/episodes?uid=${encodeURIComponent(user.uid)}`,
+      )
+
+      if (!response.ok) throw new Error(await response.text())
+
+      const data = await response.json()
+      setEpisodePanel({ show, episodes: data?.episodes || [], loading: false, error: '' })
+    } catch (err) {
+      console.error('Spotify episodes error', err)
+      setEpisodePanel({ show, episodes: [], loading: false, error: 'Unable to load episodes right now.' })
+    }
+  }
+
+  const handleCloseEpisodes = () => {
+    setEpisodePanel({ show: null, episodes: [], loading: false, error: '' })
   }
 
   useEffect(() => {
@@ -212,13 +255,15 @@ const ListeningLibrary = () => {
   useEffect(() => {
     if (!user) {
       setSpotifyConnected(false)
-      setSpotifyTracks([])
-      setSpotifyPlaylists([])
-      setSpotifyShows([])
+      setSearchResults({ tracks: [], playlists: [], shows: [], artists: [], albums: [] })
+      setSpotifyLoading(false)
       return undefined
     }
 
     let cancelled = false
+
+    setSpotifyLoading(true)
+    setSpotifyError('')
 
     const loadStatus = async () => {
       try {
@@ -229,12 +274,11 @@ const ListeningLibrary = () => {
         const data = await response.json()
         if (cancelled) return
         setSpotifyConnected(Boolean(data.connected))
-        if (data.connected) {
-          loadSpotifyLists(user.uid)
-        }
       } catch (err) {
         console.error('Spotify status load error', err)
         if (!cancelled) setSpotifyError('Unable to check Spotify connection right now.')
+      } finally {
+        if (!cancelled) setSpotifyLoading(false)
       }
     }
 
@@ -394,157 +438,166 @@ const ListeningLibrary = () => {
 
         <div className="section">
           <div className="section-header">
-            <h3>Spotify</h3>
-            <p className="muted small">Connect your Spotify account to pull in music and podcasts.</p>
+            <h3>Spotify Search</h3>
+            <p className="muted small">
+              Search tracks, playlists, artists, albums, and podcast shows to add them to your inTongues library.
+            </p>
           </div>
 
           {spotifyError && <p className="error">{spotifyError}</p>}
 
           {!spotifyConnected ? (
             <div>
-              <p className="muted">Connect Spotify to see your liked songs, playlists, and shows.</p>
+              <p className="muted">Connect Spotify to search the full catalogue.</p>
               <button className="button primary" onClick={handleConnectSpotify} disabled={!user}>
                 Connect Spotify
               </button>
             </div>
           ) : spotifyLoading ? (
-            <p className="muted">Loading your Spotify content…</p>
+            <p className="muted">Checking your Spotify connection…</p>
           ) : (
-            <div className="library-list">
-              <div className="preview-card">
-                <div className="section-header">
-                  <h3>Liked Songs</h3>
-                  <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
-                    {spotifyTracks.length} tracks
-                  </span>
-                </div>
-                {spotifyTracks.length === 0 ? (
-                  <p className="muted">No liked songs found.</p>
-                ) : (
-                  <div className="pill-column">
-                    {spotifyTracks.slice(0, 6).map((track) => (
-                      <div
-                        key={track.spotifyId}
-                        className="pill-row"
-                        style={{ justifyContent: 'space-between', alignItems: 'center' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {track.imageUrl && (
-                            <img
-                              src={track.imageUrl}
-                              alt="Album art"
-                              style={{ width: 48, height: 48, borderRadius: '0.25rem' }}
-                            />
-                          )}
-                          <div>
-                            <div className="small" style={{ fontWeight: 600 }}>
-                              {track.title}
-                            </div>
-                            <div className="muted small">{track.subtitle}</div>
-                          </div>
-                        </div>
-                        <button
-                          className="button ghost"
-                          onClick={() => handleAddSpotifyItem(track)}
-                          style={{ whiteSpace: 'nowrap' }}
-                        >
-                          Add to Library
-                        </button>
+            <div className="preview-card">
+              <form className="pill-row" style={{ gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }} onSubmit={handleSpotifySearch}>
+                <input
+                  type="text"
+                  placeholder="Search Spotify"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ flex: 1, minWidth: '16rem' }}
+                />
+                <select value={searchType} onChange={(e) => setSearchType(e.target.value)} style={{ minWidth: '10rem' }}>
+                  <option value="track">Tracks</option>
+                  <option value="playlist">Playlists</option>
+                  <option value="artist">Artists</option>
+                  <option value="album">Albums</option>
+                  <option value="show">Podcast Shows</option>
+                </select>
+                <button className="button primary" type="submit" disabled={spotifySearchLoading}>
+                  {spotifySearchLoading ? 'Searching…' : 'Search Spotify'}
+                </button>
+              </form>
+
+              {spotifySearchError && <p className="error">{spotifySearchError}</p>}
+
+              <div className="pill-column" style={{ marginTop: '1rem', gap: '1rem' }}>
+                {['tracks', 'playlists', 'artists', 'albums', 'shows'].map((key) => {
+                  const itemsForType = searchResults[key] || []
+                  if (!itemsForType.length) return null
+
+                  const labels = {
+                    tracks: 'Tracks',
+                    playlists: 'Playlists',
+                    artists: 'Artists',
+                    albums: 'Albums',
+                    shows: 'Podcast Shows',
+                  }
+
+                  return (
+                    <div key={key} className="preview-card">
+                      <div className="section-header">
+                        <h3>{labels[key]}</h3>
+                        <span className="pill">{itemsForType.length} results</span>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="pill-column">
+                        {itemsForType.map((item) => (
+                          <div
+                            key={item.spotifyId}
+                            className="pill-row"
+                            style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              {item.imageUrl && (
+                                <img
+                                  src={item.imageUrl}
+                                  alt="Cover art"
+                                  style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
+                                />
+                              )}
+                              <div>
+                                <div className="small" style={{ fontWeight: 600 }}>
+                                  {item.title}
+                                </div>
+                                <div className="muted small">{item.subtitle}</div>
+                                <div className="muted small" style={{ textTransform: 'capitalize' }}>
+                                  {item.type}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              {item.type === 'show' && (
+                                <button className="button ghost" onClick={() => handleViewEpisodes(item)}>
+                                  View Episodes →
+                                </button>
+                              )}
+                              <button className="button ghost" onClick={() => handleAddSpotifyItem(item)}>
+                                Add to Library
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {!spotifySearchLoading &&
+                  Object.values(searchResults).every((list) => (list || []).length === 0) && (
+                    <p className="muted" style={{ marginTop: '0.5rem' }}>
+                      Start a search to see results from Spotify.
+                    </p>
+                  )}
               </div>
 
-              <div className="preview-card">
-                <div className="section-header">
-                  <h3>Playlists</h3>
-                  <span className="pill" style={{ background: '#e0f2fe', color: '#1d4ed8' }}>
-                    {spotifyPlaylists.length} playlists
-                  </span>
-                </div>
-                {spotifyPlaylists.length === 0 ? (
-                  <p className="muted">No playlists found.</p>
-                ) : (
-                  <div className="pill-column">
-                    {spotifyPlaylists.slice(0, 6).map((playlist) => (
-                      <div
-                        key={playlist.spotifyId}
-                        className="pill-row"
-                        style={{ justifyContent: 'space-between', alignItems: 'center' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {playlist.imageUrl && (
-                            <img
-                              src={playlist.imageUrl}
-                              alt="Playlist art"
-                              style={{ width: 48, height: 48, borderRadius: '0.25rem' }}
-                            />
-                          )}
-                          <div>
-                            <div className="small" style={{ fontWeight: 600 }}>
-                              {playlist.title}
-                            </div>
-                            <div className="muted small">{playlist.subtitle}</div>
-                          </div>
-                        </div>
-                        <button
-                          className="button ghost"
-                          onClick={() => handleAddSpotifyItem(playlist)}
-                          style={{ whiteSpace: 'nowrap' }}
-                        >
-                          Add to Library
-                        </button>
-                      </div>
-                    ))}
+              {episodePanel.show && (
+                <div className="preview-card" style={{ marginTop: '1rem' }}>
+                  <div className="section-header">
+                    <div>
+                      <h3>Episodes — {episodePanel.show.title}</h3>
+                      <p className="muted small">Browse episodes and add them individually to your library.</p>
+                    </div>
+                    <button className="button ghost" onClick={handleCloseEpisodes}>
+                      Close
+                    </button>
                   </div>
-                )}
-              </div>
 
-              <div className="preview-card">
-                <div className="section-header">
-                  <h3>Podcasts & Shows</h3>
-                  <span className="pill" style={{ background: '#fef9c3', color: '#92400e' }}>
-                    {spotifyShows.length} saved shows
-                  </span>
-                </div>
-                {spotifyShows.length === 0 ? (
-                  <p className="muted">No saved shows found.</p>
-                ) : (
-                  <div className="pill-column">
-                    {spotifyShows.slice(0, 6).map((show) => (
-                      <div
-                        key={show.spotifyId}
-                        className="pill-row"
-                        style={{ justifyContent: 'space-between', alignItems: 'center' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {show.imageUrl && (
-                            <img
-                              src={show.imageUrl}
-                              alt="Show art"
-                              style={{ width: 48, height: 48, borderRadius: '0.25rem' }}
-                            />
-                          )}
-                          <div>
-                            <div className="small" style={{ fontWeight: 600 }}>
-                              {show.title}
-                            </div>
-                            <div className="muted small">{show.subtitle}</div>
-                          </div>
-                        </div>
-                        <button
-                          className="button ghost"
-                          onClick={() => handleAddSpotifyItem(show)}
-                          style={{ whiteSpace: 'nowrap' }}
+                  {episodePanel.loading ? (
+                    <p className="muted">Loading episodes…</p>
+                  ) : episodePanel.error ? (
+                    <p className="error">{episodePanel.error}</p>
+                  ) : episodePanel.episodes.length === 0 ? (
+                    <p className="muted">No episodes found for this show.</p>
+                  ) : (
+                    <div className="pill-column">
+                      {episodePanel.episodes.map((episode) => (
+                        <div
+                          key={episode.spotifyId}
+                          className="pill-row"
+                          style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
                         >
-                          Add to Library
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            {episode.imageUrl && (
+                              <img
+                                src={episode.imageUrl}
+                                alt="Episode art"
+                                style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
+                              />
+                            )}
+                            <div>
+                              <div className="small" style={{ fontWeight: 600 }}>
+                                {episode.title}
+                              </div>
+                              <div className="muted small">{episode.subtitle}</div>
+                            </div>
+                          </div>
+                          <button className="button ghost" onClick={() => handleAddSpotifyItem(episode)}>
+                            Add to Library
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -562,7 +615,12 @@ const ListeningLibrary = () => {
           ) : (
             <div className="library-list">
               {spotifyLibrary.map((item) => (
-                <div className="preview-card" key={item.id}>
+                <div
+                  className="preview-card"
+                  key={item.id}
+                  onClick={() => navigate(`/spotify/${item.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="section-header">
                     <h3>{item.title || 'Untitled Spotify item'}</h3>
                     <span className="pill">{item.type || 'spotify'}</span>
@@ -586,14 +644,13 @@ const ListeningLibrary = () => {
                     </div>
                     <button
                       className="button ghost"
-                      onClick={() =>
-                        window.alert(
-                          'Spotify playback UI coming soon. Item stored with transcript placeholder.',
-                        )
-                      }
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        navigate(`/spotify/${item.id}`)
+                      }}
                       style={{ whiteSpace: 'nowrap' }}
                     >
-                      Open player →
+                      Open listening view →
                     </button>
                   </div>
                 </div>

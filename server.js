@@ -252,6 +252,68 @@ const mapShowItem = (item) => ({
   imageUrl: getSpotifyImage(item?.show?.images),
 })
 
+const mapSearchTrack = (track) => ({
+  spotifyId: track?.id,
+  spotifyUri: track?.uri,
+  type: 'track',
+  title: track?.name,
+  subtitle: (track?.artists || []).map((a) => a.name).join(', '),
+  imageUrl: getSpotifyImage(track?.album?.images),
+  durationMs: track?.duration_ms,
+})
+
+const mapSearchPlaylist = (playlist) => ({
+  spotifyId: playlist?.id,
+  spotifyUri: playlist?.uri,
+  type: 'playlist',
+  title: playlist?.name,
+  subtitle: playlist?.owner?.display_name || `${playlist?.tracks?.total || 0} tracks`,
+  imageUrl: getSpotifyImage(playlist?.images),
+})
+
+const mapSearchShow = (show) => ({
+  spotifyId: show?.id,
+  spotifyUri: show?.uri,
+  type: 'show',
+  title: show?.name,
+  subtitle: show?.publisher,
+  imageUrl: getSpotifyImage(show?.images),
+})
+
+const mapSearchArtist = (artist) => ({
+  spotifyId: artist?.id,
+  spotifyUri: artist?.uri,
+  type: 'artist',
+  title: artist?.name,
+  subtitle: `${artist?.followers?.total?.toLocaleString?.() || '0'} followers`,
+  imageUrl: getSpotifyImage(artist?.images),
+})
+
+const mapSearchAlbum = (album) => ({
+  spotifyId: album?.id,
+  spotifyUri: album?.uri,
+  type: 'album',
+  title: album?.name,
+  subtitle: (album?.artists || []).map((a) => a.name).join(', '),
+  imageUrl: getSpotifyImage(album?.images),
+})
+
+const mapEpisodeItem = (episode) => {
+  const minutes = episode?.duration_ms ? Math.round(episode.duration_ms / 60000) : null
+  const durationLabel = minutes ? `${minutes} min` : null
+  const releaseLabel = episode?.release_date || ''
+  const subtitle = [releaseLabel, durationLabel].filter(Boolean).join(' · ')
+
+  return {
+    spotifyId: episode?.id,
+    spotifyUri: episode?.uri,
+    type: 'episode',
+    title: episode?.name,
+    subtitle,
+    imageUrl: getSpotifyImage(episode?.images),
+  }
+}
+
 const normaliseTranscriptSegments = (segments = []) =>
   (Array.isArray(segments) ? segments : [])
     .map((segment) => {
@@ -450,6 +512,116 @@ app.get('/api/spotify/me/shows', async (req, res) => {
   } catch (err) {
     console.error('Spotify shows failure', err)
     res.status(500).json({ error: 'Unable to fetch Spotify shows' })
+  }
+})
+
+app.get('/api/spotify/search', async (req, res) => {
+  const userId = req.query.uid
+  const queryText = req.query.q || ''
+  const typeParam = req.query.type || 'track'
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+  if (!queryText) return res.status(400).json({ error: 'q is required' })
+
+  const allowedTypes = new Set(['track', 'artist', 'album', 'playlist', 'show'])
+  const types = String(typeParam)
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => allowedTypes.has(t))
+
+  if (!types.length) {
+    return res.status(400).json({ error: 'type must include at least one supported category' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const params = new URLSearchParams({
+      q: queryText,
+      type: types.join(','),
+      limit: '20',
+    })
+
+    const response = await fetch(`https://api.spotify.com/v1/search?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify search error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to perform Spotify search' })
+    }
+
+    const json = await response.json()
+    const results = {}
+
+    if (types.includes('track')) {
+      results.tracks = (json?.tracks?.items || [])
+        .map(mapSearchTrack)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('playlist')) {
+      results.playlists = (json?.playlists?.items || [])
+        .map(mapSearchPlaylist)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('show')) {
+      results.shows = (json?.shows?.items || [])
+        .map(mapSearchShow)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('artist')) {
+      results.artists = (json?.artists?.items || [])
+        .map(mapSearchArtist)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('album')) {
+      results.albums = (json?.albums?.items || [])
+        .map(mapSearchAlbum)
+        .filter((item) => item.spotifyId)
+    }
+
+    res.json({ results })
+  } catch (err) {
+    console.error('Spotify search failure', err)
+    res.status(500).json({ error: 'Unable to perform Spotify search' })
+  }
+})
+
+app.get('/api/spotify/show/:id/episodes', async (req, res) => {
+  const userId = req.query.uid
+  const showId = req.params.id
+
+  if (!userId || !showId) {
+    return res.status(400).json({ error: 'uid and show id are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/shows/${encodeURIComponent(showId)}/episodes?limit=50`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+
+    if (!response.ok) {
+      console.error('Spotify episodes error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch show episodes' })
+    }
+
+    const json = await response.json()
+    const episodes = (json?.items || []).map(mapEpisodeItem).filter((item) => item.spotifyId)
+    res.json({ episodes })
+  } catch (err) {
+    console.error('Spotify episodes failure', err)
+    res.status(500).json({ error: 'Unable to fetch show episodes' })
   }
 })
 

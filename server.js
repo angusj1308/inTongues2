@@ -135,7 +135,7 @@ const upload = multer({ storage })
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200)
@@ -311,6 +311,8 @@ const mapEpisodeItem = (episode) => {
     title: episode?.name,
     subtitle,
     imageUrl: getSpotifyImage(episode?.images),
+    media_type: episode?.media_type,
+    hasVideo: episode?.media_type === 'video',
   }
 }
 
@@ -344,6 +346,54 @@ app.get('/api/spotify/status', async (req, res) => {
   } catch (err) {
     console.error('Spotify status error', err)
     res.status(500).json({ error: 'Unable to check Spotify connection' })
+  }
+})
+
+app.get('/api/spotify/playerToken', async (req, res) => {
+  const userId = req.query.uid
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    res.json({ accessToken: token })
+  } catch (err) {
+    console.error('Spotify player token error', err)
+    res.status(500).json({ error: 'Unable to generate player token' })
+  }
+})
+
+app.put('/api/spotify/player/activate', async (req, res) => {
+  const { deviceId, uid } = req.body || {}
+
+  if (!deviceId || !uid) {
+    return res.status(400).json({ error: 'deviceId and uid are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(uid)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ device_ids: [deviceId], play: false }),
+    })
+
+    if (!response.ok) {
+      console.error('Spotify activate device error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to activate playback device' })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify activate failure', err)
+    res.status(500).json({ error: 'Unable to activate playback device' })
   }
 })
 
@@ -626,13 +676,14 @@ app.get('/api/spotify/show/:id/episodes', async (req, res) => {
 })
 
 app.post('/api/spotify/library/add', async (req, res) => {
-  const { uid, spotifyId, spotifyUri, type, title, subtitle, imageUrl } = req.body || {}
+  const { uid, spotifyId, spotifyUri, type, title, subtitle, imageUrl, media_type: mediaTypeRaw } = req.body || {}
 
   if (!uid || !spotifyId) {
     return res.status(400).json({ error: 'uid and spotifyId are required' })
   }
 
   try {
+    const mediaType = mediaTypeRaw || 'audio'
     const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
     await itemRef.set(
       {
@@ -642,6 +693,8 @@ app.post('/api/spotify/library/add', async (req, res) => {
         title: title || 'Untitled',
         subtitle: subtitle || '',
         imageUrl: imageUrl || '',
+        mediaType,
+        hasVideo: mediaType === 'video',
         addedAt: admin.firestore.FieldValue.serverTimestamp(),
         source: 'spotify',
         transcriptStatus: 'pending',

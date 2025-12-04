@@ -40,6 +40,17 @@ const ListeningLibrary = () => {
   const [videoLoading, setVideoLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const navigateToSpotifyItem = (item) => {
+    if (!item) return
+
+    if (item.type === 'episode' && item.hasVideo === true) {
+      navigate(`/cinema/${item.id}?source=spotify`)
+      return
+    }
+
+    navigate(`/listen/${item.id}?source=spotify`)
+  }
+
   const handleDeleteStory = async (storyId) => {
     if (!user || !storyId) return
 
@@ -351,7 +362,7 @@ const ListeningLibrary = () => {
                 <div
                   className="preview-card"
                   key={item.id}
-                  onClick={() => navigate(`/audio/${item.id}`)}
+                  onClick={() => navigate(`/listen/${item.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="section-header">
@@ -618,7 +629,7 @@ const ListeningLibrary = () => {
                 <div
                   className="preview-card"
                   key={item.id}
-                  onClick={() => navigate(`/spotify/${item.id}`)}
+                  onClick={() => navigateToSpotifyItem(item)}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="section-header">
@@ -646,7 +657,7 @@ const ListeningLibrary = () => {
                       className="button ghost"
                       onClick={(event) => {
                         event.stopPropagation()
-                        navigate(`/spotify/${item.id}`)
+                        navigateToSpotifyItem(item)
                       }}
                       style={{ whiteSpace: 'nowrap' }}
                     >

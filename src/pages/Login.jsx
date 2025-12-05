@@ -35,40 +35,41 @@ const Login = () => {
   }
 
   return (
-    <div className="page">
-      <div className="card">
-        <h1>Welcome back</h1>
-        <p className="muted">Log in with your email and password.</p>
-        <form onSubmit={handleSubmit} className="form">
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </label>
-          {error && <p className="error">{error}</p>}
-          <button type="submit" className="button" disabled={submitting}>
-            {submitting ? 'Signing in...' : 'Log in'}
-          </button>
-        </form>
-        <p className="muted">
-          Need an account? <Link to="/signup">Create one</Link>
-        </p>
-      </div>
+    <div className="login-container">
+      <div className="login-brand">inTongues</div>
+      <h1 className="login-title">Welcome back</h1>
+      <p className="login-subtitle">Log in with your email and password.</p>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>
+          Email
+          <input
+            className="login-input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </label>
+        <label>
+          Password
+          <input
+            className="login-input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit" className="login-button" disabled={submitting}>
+          {submitting ? 'Signing in...' : 'Log in'}
+        </button>
+      </form>
+      <p className="login-footer">
+        Need an account? <Link to="/signup">Create one</Link>
+      </p>
     </div>
   )
 }

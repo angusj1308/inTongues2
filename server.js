@@ -53,6 +53,7 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173'
+const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY
 
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
@@ -313,6 +314,111 @@ const mapEpisodeItem = (episode) => {
     imageUrl: getSpotifyImage(episode?.images),
     media_type: episode?.media_type,
     hasVideo: episode?.media_type === 'video',
+  }
+}
+
+const MUSIXMATCH_BASE_URL = 'https://api.musixmatch.com/ws/1.1'
+
+const cleanMusixmatchLyrics = (text = '') => {
+  if (!text) return ''
+  const withoutDisclaimer = text.split('\n\n*******')[0] || text
+  return withoutDisclaimer.trim()
+}
+
+const chunkLyricsToPages = (lyrics = '', maxLength = 900) => {
+  if (!lyrics) return []
+
+  const lines = lyrics
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const pages = []
+  let buffer = []
+
+  lines.forEach((line) => {
+    const next = [...buffer, line].join('\n')
+    if (next.length > maxLength && buffer.length) {
+      pages.push(buffer.join('\n'))
+      buffer = [line]
+    } else {
+      buffer = [...buffer, line]
+    }
+  })
+
+  if (buffer.length) {
+    pages.push(buffer.join('\n'))
+  }
+
+  return pages
+}
+
+async function searchMusixmatchTrackId(trackTitle, artistName) {
+  if (!MUSIXMATCH_API_KEY) return null
+  const params = new URLSearchParams({
+    q_track: trackTitle || '',
+    q_artist: artistName || '',
+    f_has_lyrics: '1',
+    page_size: '1',
+    page: '1',
+    apikey: MUSIXMATCH_API_KEY,
+  })
+
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.search?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.search failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const trackList = data?.message?.body?.track_list || []
+  const firstTrack = trackList[0]?.track
+
+  if (!firstTrack?.track_id) return null
+  return firstTrack.track_id
+}
+
+async function fetchMusixmatchLyrics(trackId) {
+  if (!MUSIXMATCH_API_KEY || !trackId) return null
+
+  const params = new URLSearchParams({ track_id: String(trackId), apikey: MUSIXMATCH_API_KEY })
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.lyrics.get?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.lyrics.get failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const lyricsBody = data?.message?.body?.lyrics?.lyrics_body
+  const language = data?.message?.body?.lyrics?.lyrics_language || null
+
+  if (!lyricsBody) return null
+
+  const cleaned = cleanMusixmatchLyrics(lyricsBody)
+  return { lyrics: cleaned, language }
+}
+
+async function getSpotifyTrackLyrics(title, subtitle) {
+  if (!MUSIXMATCH_API_KEY) {
+    console.warn('MUSIXMATCH_API_KEY not configured; skipping lyrics fetch')
+    return null
+  }
+
+  const primaryArtist = subtitle?.split(',')?.[0]?.trim() || ''
+  const trackId = await searchMusixmatchTrackId(title, primaryArtist)
+  if (!trackId) return null
+
+  const result = await fetchMusixmatchLyrics(trackId)
+  if (!result?.lyrics) return null
+
+  const pages = chunkLyricsToPages(result.lyrics)
+  return {
+    lyrics: result.lyrics,
+    pages,
+    language: resolveTargetCode(result.language || 'en'),
+    provider: 'musixmatch',
   }
 }
 
@@ -752,27 +858,63 @@ app.post('/api/spotify/library/add', async (req, res) => {
   try {
     const mediaType = mediaTypeRaw || 'audio'
     const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
-    await itemRef.set(
-      {
-        spotifyId,
-        spotifyUri: spotifyUri || '',
-        type: type || 'track',
-        title: title || 'Untitled',
-        subtitle: subtitle || '',
-        imageUrl: imageUrl || '',
-        mediaType,
-        hasVideo: mediaType === 'video',
-        addedAt: admin.firestore.FieldValue.serverTimestamp(),
-        source: 'spotify',
-        transcriptStatus: 'pending',
-        transcriptLanguage: null,
-        transcriptSegments: null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    )
+    const basePayload = {
+      spotifyId,
+      spotifyUri: spotifyUri || '',
+      type: type || 'track',
+      title: title || 'Untitled',
+      subtitle: subtitle || '',
+      imageUrl: imageUrl || '',
+      mediaType,
+      hasVideo: mediaType === 'video',
+      addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      source: 'spotify',
+      transcriptStatus: 'pending',
+      transcriptLanguage: null,
+      transcriptSegments: null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
 
-    res.json({ ok: true })
+    let lyricsPages = []
+
+    if ((type || 'track') === 'track') {
+      try {
+        const lyrics = await getSpotifyTrackLyrics(title, subtitle)
+        if (lyrics?.pages?.length) {
+          lyricsPages = lyrics.pages
+          basePayload.transcriptStatus = 'ready'
+          basePayload.transcriptLanguage = lyrics.language || null
+          basePayload.lyricsProvider = lyrics.provider
+          basePayload.language = lyrics.language || null
+        }
+      } catch (lyricsErr) {
+        console.error('Failed to fetch Musixmatch lyrics for Spotify track', lyricsErr)
+      }
+    }
+
+    await itemRef.set(basePayload, { merge: true })
+
+    if (lyricsPages.length) {
+      const pagesRef = itemRef.collection('pages')
+      const batch = firestore.batch()
+
+      lyricsPages.forEach((text, index) => {
+        const pageDoc = pagesRef.doc(String(index))
+        batch.set(pageDoc, {
+          index,
+          text,
+          originalText: text,
+          adaptedText: null,
+          status: 'ready',
+          audioUrl: null,
+          audioStatus: 'none',
+        })
+      })
+
+      await batch.commit()
+    }
+
+    res.json({ ok: true, lyricsFetched: lyricsPages.length > 0 })
   } catch (err) {
     console.error('Spotify library add error', err)
     res.status(500).json({ error: 'Unable to save Spotify item' })

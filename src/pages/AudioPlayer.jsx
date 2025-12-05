@@ -686,11 +686,15 @@ const AudioPlayer = () => {
         ) : error ? (
           <p className="error">{error}</p>
         ) : pages.length ? (
-          <div className="preview-card">
-            <div className="section-header">
-              <div className="pill-row">{storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}</div>
-            </div>
-            <div className="page-text" onMouseUp={handleWordClick} style={{ cursor: 'pointer', userSelect: 'text' }}>
+            <div className="preview-card">
+              <div className="section-header">
+                <div className="pill-row">{storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}</div>
+              </div>
+            <div
+              className="page-text"
+              onMouseUp={handleWordClick}
+              style={{ cursor: 'pointer', userSelect: 'text', whiteSpace: 'pre-wrap' }}
+            >
               {renderHighlightedText(transcriptText)}
             </div>
           </div>

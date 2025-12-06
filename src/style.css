@@ -16,7 +16,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #fcfaf5;
+  background: #ffffff;
 }
 
 .login-container {
@@ -28,16 +28,17 @@ body {
   justify-content: center;
   gap: 1.75rem;
   padding: 3rem 1.5rem;
-  background-color: #fcfaf5;
+  background-color: #ffffff;
   text-align: center;
   font-family: 'Garamond', serif;
 }
 
 .login-brand {
-  font-size: 32px;
+  font-size: 48px;
   letter-spacing: 0.08em;
   color: #000;
   font-weight: 700;
+  text-align: center;
 }
 
 .login-title {

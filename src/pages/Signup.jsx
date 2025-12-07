@@ -43,14 +43,17 @@ const Signup = () => {
     [filterLanguages, targetQuery]
   )
 
-  const handleNativeSelect = (language) => {
-    setNativeLanguage(language)
-    setNativeQuery('')
-  }
-
-  const handleTargetSelect = (language) => {
-    setTargetLanguage(language)
-    setTargetQuery('')
+  const handleLanguageInputChange = (value, setLanguage, setQuery) => {
+    setQuery(value)
+    const match = LANGUAGES.find(
+      (language) => language.toLowerCase() === value.trim().toLowerCase()
+    )
+    if (match) {
+      setLanguage(match)
+      setQuery(match)
+    } else {
+      setLanguage('')
+    }
   }
 
   const handleSubmit = async (event) => {
@@ -108,68 +111,44 @@ const Signup = () => {
             autoComplete="new-password"
           />
         </label>
-        <div className="language-select-group">
-          <div className="language-select-header">
-            <div>
-              <p className="language-select-title">Native language</p>
-              <p className="language-select-subtitle">We'll translate everything into this language.</p>
-            </div>
-            {nativeLanguage && <span className="pill">{nativeLanguage}</span>}
-          </div>
-          <div className="search-select">
-            <input
-              className="login-input"
-              type="search"
-              placeholder="Search your native language"
-              value={nativeQuery}
-              onChange={(e) => setNativeQuery(e.target.value)}
-            />
-            <div className="search-select-suggestions">
-              {nativeSuggestions.map((language) => (
-                <button
-                  type="button"
-                  key={language}
-                  className={`suggestion ${nativeLanguage === language ? 'selected' : ''}`}
-                  onClick={() => handleNativeSelect(language)}
-                >
-                  {language}
-                </button>
-              ))}
-              {!nativeSuggestions.length && <p className="muted small">No results found.</p>}
-            </div>
-          </div>
-        </div>
-        <div className="language-select-group">
-          <div className="language-select-header">
-            <div>
-              <p className="language-select-title">First target language</p>
-              <p className="language-select-subtitle">Pick the language you want to learn first.</p>
-            </div>
-            {targetLanguage && <span className="pill">{targetLanguage}</span>}
-          </div>
-          <div className="search-select">
-            <input
-              className="login-input"
-              type="search"
-              placeholder="Search your first target language"
-              value={targetQuery}
-              onChange={(e) => setTargetQuery(e.target.value)}
-            />
-            <div className="search-select-suggestions">
-              {targetSuggestions.map((language) => (
-                <button
-                  type="button"
-                  key={language}
-                  className={`suggestion ${targetLanguage === language ? 'selected' : ''}`}
-                  onClick={() => handleTargetSelect(language)}
-                >
-                  {language}
-                </button>
-              ))}
-              {!targetSuggestions.length && <p className="muted small">No results found.</p>}
-            </div>
-          </div>
-        </div>
+        <label>
+          Native language
+          <span className="input-helper">We'll translate everything into this language.</span>
+          <input
+            className="login-input"
+            type="text"
+            list="native-language-options"
+            placeholder="Select your native language"
+            value={nativeQuery}
+            onChange={(e) =>
+              handleLanguageInputChange(e.target.value, setNativeLanguage, setNativeQuery)
+            }
+          />
+          <datalist id="native-language-options">
+            {nativeSuggestions.map((language) => (
+              <option key={language} value={language} />
+            ))}
+          </datalist>
+        </label>
+        <label>
+          First target language
+          <span className="input-helper">Pick the language you want to learn first.</span>
+          <input
+            className="login-input"
+            type="text"
+            list="target-language-options"
+            placeholder="Select your first target language"
+            value={targetQuery}
+            onChange={(e) =>
+              handleLanguageInputChange(e.target.value, setTargetLanguage, setTargetQuery)
+            }
+          />
+          <datalist id="target-language-options">
+            {targetSuggestions.map((language) => (
+              <option key={language} value={language} />
+            ))}
+          </datalist>
+        </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" className="login-button" disabled={submitting}>
           {submitting ? 'Creating account...' : 'Sign up'}

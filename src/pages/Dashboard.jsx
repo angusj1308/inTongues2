@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review']
+const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review']
 
 const LANGUAGE_NATIVE_NAMES = {
   Arabic: 'العربية',
@@ -41,7 +41,7 @@ const LANGUAGE_NATIVE_NAMES = {
 const Dashboard = () => {
   const { user, profile, logout, addLanguage, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('read')
+  const [activeTab, setActiveTab] = useState('home')
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [languageSearch, setLanguageSearch] = useState('')
@@ -122,14 +122,6 @@ const Dashboard = () => {
   }
 
   const handleTabClick = (tab) => {
-    if (tab === 'review') {
-      navigate('/review')
-      return
-    }
-    if (tab === 'listen') {
-      navigate('/listening')
-      return
-    }
     setActiveTab(tab)
   }
 
@@ -151,10 +143,13 @@ const Dashboard = () => {
     <div className="page dashboard-page">
       <header className="dashboard-header">
         <div className="dashboard-brand-band">
-          <div className="dashboard-brand">
-            {`in${brandLanguage}`}
-            <span className="brand-dot">.</span>
-          </div>
+          <button className="dashboard-brand-button" onClick={() => setActiveTab('home')}>
+            <div className="dashboard-brand">
+              {`in${brandLanguage}`}
+              <span className="brand-dot">.</span>
+            </div>
+            <span className="brand-home-hint">Home</span>
+          </button>
           <div className="dashboard-controls">
             <div className="dashboard-dropdown" ref={languageMenuRef}>
               <button
@@ -280,7 +275,32 @@ const Dashboard = () => {
       <div className="dashboard-wrapper">
         <div className="card dashboard-card">
           <div className="tab-panel">
-            {activeTab === 'read' ? (
+            {activeTab === 'home' && (
+              <div className="home-grid">
+                <div className="stat-card">
+                  <div className="stat-label">Daily streak</div>
+                  <div className="stat-value">— days</div>
+                  <p className="muted small">Keep showing up each day to grow your streak.</p>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Minutes today</div>
+                  <div className="stat-value">00:00</div>
+                  <p className="muted small">Track how much time you spend practicing.</p>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Words reviewed</div>
+                  <div className="stat-value">0</div>
+                  <p className="muted small">Your spaced repetition stats will appear here.</p>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Sessions this week</div>
+                  <div className="stat-value">0</div>
+                  <p className="muted small">See your weekly rhythm at a glance.</p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'read' && (
               <div className="read-grid">
                 <div className="read-card">
                   <h3>Library</h3>
@@ -314,9 +334,69 @@ const Dashboard = () => {
                   </button>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {activeTab === 'listen' && (
+              <div className="read-grid">
+                <div className="read-card">
+                  <h3>Listening library</h3>
+                  <p className="muted small">Play stories and dialogues in {activeLanguage || 'your language'}.</p>
+                  <button className="button ghost" onClick={() => navigate('/listening')} disabled={!activeLanguage}>
+                    Open listening
+                  </button>
+                </div>
+                <div className="read-card">
+                  <h3>Import audio & video</h3>
+                  <p className="muted small">Upload your own clips to create listening practice.</p>
+                  <button className="button ghost" onClick={() => navigate('/importaudio/video')}>
+                    Import media
+                  </button>
+                </div>
+                <div className="read-card">
+                  <h3>Intongues cinema</h3>
+                  <p className="muted small">Watch curated clips with subtitles and translations.</p>
+                  <button className="button ghost" onClick={() => navigate('/cinema/library')}>
+                    Browse cinema
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'speak' && (
               <div className="coming-soon">
-                <p className="muted">{activeTab} — feature coming soon.</p>
+                <p className="muted">Speaking workouts will land here soon.</p>
+              </div>
+            )}
+
+            {activeTab === 'write' && (
+              <div className="coming-soon">
+                <p className="muted">Writing prompts and feedback are on the way.</p>
+              </div>
+            )}
+
+            {activeTab === 'review' && (
+              <div className="read-grid">
+                <div className="read-card">
+                  <h3>Flashcard review</h3>
+                  <p className="muted small">Keep vocabulary fresh with spaced repetition.</p>
+                  <button className="button ghost" onClick={() => navigate('/review')} disabled={!activeLanguage}>
+                    Start reviewing
+                  </button>
+                </div>
+                <div className="read-card">
+                  <h3>Recent words</h3>
+                  <p className="muted small">Quick access to the latest terms you saved.</p>
+                  <button className="button ghost" onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}>
+                    View words
+                  </button>
+                </div>
+                <div className="read-card">
+                  <h3>Progress</h3>
+                  <p className="muted small">Review streaks and accuracy coming soon.</p>
+                  <button className="button ghost" disabled>
+                    Tracking soon
+                  </button>
+                </div>
               </div>
             )}
           </div>

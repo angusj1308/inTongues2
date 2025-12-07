@@ -85,8 +85,9 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = useCallback(
     async (updates) => {
-      if (!user) return null
-      const userRef = doc(db, 'users', user.uid)
+      const activeUser = user || auth.currentUser
+      if (!activeUser) return null
+      const userRef = doc(db, 'users', activeUser.uid)
       await setDoc(userRef, updates, { merge: true })
       const snapshot = await getDoc(userRef)
       setProfile(snapshot.data())

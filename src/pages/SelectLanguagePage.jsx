@@ -1,59 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { POPULAR_LANGUAGES, LANGUAGES } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
-
-const POPULAR_LANGUAGES = [
-  'English',
-  'Spanish',
-  'Mandarin',
-  'French',
-  'German',
-  'Japanese',
-  'Korean',
-  'Italian',
-  'Portuguese',
-  'Russian',
-  'Arabic',
-  'Hindi',
-  'Turkish',
-  'Dutch',
-  'Swedish',
-]
-
-const ALL_LANGUAGES = [
-  'English',
-  'Spanish',
-  'Mandarin',
-  'French',
-  'German',
-  'Japanese',
-  'Korean',
-  'Italian',
-  'Portuguese',
-  'Russian',
-  'Arabic',
-  'Hindi',
-  'Turkish',
-  'Dutch',
-  'Swedish',
-  'Norwegian',
-  'Danish',
-  'Finnish',
-  'Polish',
-  'Greek',
-  'Hebrew',
-  'Thai',
-  'Vietnamese',
-  'Indonesian',
-  'Czech',
-  'Hungarian',
-  'Romanian',
-  'Ukrainian',
-  'Swahili',
-  'Zulu',
-  'Malay',
-  'Filipino',
-]
 
 const SelectLanguagePage = () => {
   const navigate = useNavigate()
@@ -69,9 +17,9 @@ const SelectLanguagePage = () => {
 
   const filteredLanguages = useMemo(() => {
     if (!query.trim()) {
-      return ALL_LANGUAGES
+      return LANGUAGES
     }
-    return ALL_LANGUAGES.filter((language) =>
+    return LANGUAGES.filter((language) =>
       language.toLowerCase().includes(query.trim().toLowerCase())
     )
   }, [query])
@@ -125,7 +73,7 @@ const SelectLanguagePage = () => {
             onChange={(event) => setNativeLanguage(event.target.value)}
           >
             <option value="">Select your native language</option>
-            {ALL_LANGUAGES.map((language) => (
+            {LANGUAGES.map((language) => (
               <option key={language} value={language}>
                 {language}
               </option>

@@ -226,14 +226,16 @@ const Dashboard = () => {
         </div>
 
         <div className="dashboard-nav">
-          {DASHBOARD_TABS.map((tab) => (
-            <button
-              key={tab}
-              className={`dashboard-nav-button ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => handleTabClick(tab)}
-            >
-              {tab}
-            </button>
+          {DASHBOARD_TABS.map((tab, index) => (
+            <div key={tab} className="dashboard-nav-item">
+              <button
+                className={`dashboard-nav-button ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => handleTabClick(tab)}
+              >
+                {tab}
+              </button>
+              {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
+            </div>
           ))}
         </div>
 

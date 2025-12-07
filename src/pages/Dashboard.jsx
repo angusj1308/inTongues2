@@ -35,6 +35,11 @@ const Dashboard = () => {
     return ''
   }, [profile?.lastUsedLanguage, profile?.myLanguages])
 
+  const brandLanguage = useMemo(() => {
+    if (!activeLanguage) return '...'
+    return activeLanguage.replace(/\s+/g, '')
+  }, [activeLanguage])
+
   const nativeLanguage = profile?.nativeLanguage || ''
   const languages = profile?.myLanguages || []
 
@@ -112,7 +117,7 @@ const Dashboard = () => {
       <div className="dashboard-wrapper">
         <div className="dashboard-brand-band">
           <div className="dashboard-brand login-brand">
-            {`in${activeLanguage || '...'}`}
+            {`in${brandLanguage}`}
             <span className="brand-dot">.</span>
           </div>
           <div className="dashboard-controls">
@@ -213,9 +218,6 @@ const Dashboard = () => {
                     <p className="menu-label">Profile</p>
                     <p className="muted small">Account settings coming soon.</p>
                   </div>
-                  <button className="menu-footer" onClick={() => navigate('/my-languages')}>
-                    Manage languages
-                  </button>
                   <button className="menu-footer" onClick={handleLogout}>
                     Log out
                   </button>

@@ -4,6 +4,40 @@ import { useAuth } from '../context/AuthContext'
 
 const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review']
 
+const LANGUAGE_NATIVE_NAMES = {
+  Arabic: 'العربية',
+  Danish: 'Dansk',
+  Dutch: 'Nederlands',
+  English: 'English',
+  Filipino: 'Filipino',
+  Finnish: 'Suomi',
+  French: 'Français',
+  German: 'Deutsch',
+  Greek: 'Ελληνικά',
+  Hebrew: 'עברית',
+  Hindi: 'हिन्दी',
+  Hungarian: 'Magyar',
+  Indonesian: 'Bahasa Indonesia',
+  Italian: 'Italiano',
+  Japanese: '日本語',
+  Korean: '한국어',
+  Malay: 'Bahasa Melayu',
+  Mandarin: '中文',
+  Norwegian: 'Norsk',
+  Polish: 'Polski',
+  Portuguese: 'Português',
+  Romanian: 'Română',
+  Russian: 'Русский',
+  Spanish: 'Español',
+  Swahili: 'Kiswahili',
+  Swedish: 'Svenska',
+  Thai: 'ไทย',
+  Turkish: 'Türkçe',
+  Ukrainian: 'Українська',
+  Vietnamese: 'Tiếng Việt',
+  Zulu: 'isiZulu',
+}
+
 const Dashboard = () => {
   const { user, profile, logout, addLanguage, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
@@ -37,7 +71,8 @@ const Dashboard = () => {
 
   const brandLanguage = useMemo(() => {
     if (!activeLanguage) return '...'
-    return activeLanguage.replace(/\s+/g, '')
+    const nativeName = LANGUAGE_NATIVE_NAMES[activeLanguage] || activeLanguage
+    return nativeName.replace(/\s+/g, '')
   }, [activeLanguage])
 
   const nativeLanguage = profile?.nativeLanguage || ''
@@ -114,9 +149,9 @@ const Dashboard = () => {
 
   return (
     <div className="page dashboard-page">
-      <div className="dashboard-wrapper">
+      <header className="dashboard-header">
         <div className="dashboard-brand-band">
-          <div className="dashboard-brand login-brand">
+          <div className="dashboard-brand">
             {`in${brandLanguage}`}
             <span className="brand-dot">.</span>
           </div>
@@ -240,7 +275,9 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
+      </header>
 
+      <div className="dashboard-wrapper">
         <div className="card dashboard-card">
           <div className="tab-panel">
             {activeTab === 'read' ? (

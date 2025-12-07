@@ -503,10 +503,11 @@ pre {
 }
 
 .login-brand {
-  font-size: 4.25rem;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-size: 4.25rem;     /* was 3rem – make it large again */
+  font-weight: 300;       /* lighter than normal to avoid “bold” look */
+  letter-spacing: 0;      /* neutral; let Garamond breathe */
   color: #000;
+  font-family: 'Garamond', serif;
   margin-bottom: 0.2rem;
 }
 
@@ -591,4 +592,8 @@ pre {
 
 .login-footer a:hover {
   color: #111;
+}
+
+.brand-dot {
+  margin-left: -0.12em;   /* increase negative margin so the dot hugs the “s” */
 }

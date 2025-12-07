@@ -45,10 +45,6 @@ const LandingRedirect = () => {
     return <Navigate to="/login" replace />
   }
 
-  if (!profile?.myLanguages?.length) {
-    return <Navigate to="/select-language" replace />
-  }
-
   return <Navigate to="/dashboard" replace />
 }
 

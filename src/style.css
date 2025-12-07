@@ -504,7 +504,7 @@ pre {
 
 .login-brand {
   font-size: 4.25rem;     /* was 3rem – make it large again */
-  font-weight: 300;       /* lighter than normal to avoid “bold” look */
+  font-weight: 200;       /* lighter than normal to avoid “bold” look */
   letter-spacing: 0;      /* neutral; let Garamond breathe */
   color: #000;
   font-family: 'Garamond', serif;

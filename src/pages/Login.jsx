@@ -36,7 +36,7 @@ const Login = () => {
 
   return (
     <div className="login-container">
-      <div className="login-brand">inTongues</div>
+      <div className="login-brand">inTongues.</div>
       <h1 className="login-title">Welcome back</h1>
       <p className="login-subtitle">Log in with your email and password.</p>
       <form onSubmit={handleSubmit} className="login-form">

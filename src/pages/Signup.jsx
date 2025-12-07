@@ -35,41 +35,44 @@ const Signup = () => {
   }
 
   return (
-    <div className="page">
-      <div className="card">
-        <h1>Create your account</h1>
-        <p className="muted">Sign up to start saving your stories.</p>
-        <form onSubmit={handleSubmit} className="form">
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </label>
-          {error && <p className="error">{error}</p>}
-          <button type="submit" className="button" disabled={submitting}>
-            {submitting ? 'Creating account...' : 'Sign up'}
-          </button>
-        </form>
-        <p className="muted">
-          Already have an account? <Link to="/login">Log in</Link>
-        </p>
+    <div className="login-container">
+      <div className="login-brand">
+        inTongues<span className="brand-dot">.</span>
       </div>
+      <h1 className="login-title">Create your account</h1>
+      <p className="login-subtitle">Sign up to start your language learning journey.</p>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>
+          Email
+          <input
+            className="login-input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </label>
+        <label>
+          Password
+          <input
+            className="login-input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            autoComplete="new-password"
+          />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit" className="login-button" disabled={submitting}>
+          {submitting ? 'Creating account...' : 'Sign up'}
+        </button>
+      </form>
+      <p className="login-footer">
+        Already have an account? <Link to="/login">Log in</Link>
+      </p>
     </div>
   )
 }

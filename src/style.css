@@ -505,7 +505,7 @@ pre {
 .login-brand {
   font-size: 4.25rem;
   font-weight: 400;
-  letter-spacing: 0.04em;
+  letter-spacing: -0.01em;
   color: #000;
   margin-bottom: 0.2rem;
 }

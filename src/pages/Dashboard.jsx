@@ -45,7 +45,6 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('home')
   const [slideDirection, setSlideDirection] = useState('')
-  const [activeReadTool, setActiveReadTool] = useState('generate')
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [languageSearch, setLanguageSearch] = useState('')
@@ -431,43 +430,14 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <section className="read-section actions-section">
-                    <div className="read-section-header">
-                      <h3>Actions</h3>
-                    </div>
-                    <div className="read-actions-row">
-                      <button
-                        className={`button primary ${
-                          activeReadTool === 'generate' ? 'selected' : ''
-                        }`}
-                        onClick={() => activeLanguage && setActiveReadTool('generate')}
-                        disabled={!activeLanguage}
-                      >
-                        <span>Generate a story</span>
-                      </button>
-                      <button
-                        className={`button ghost ${
-                          activeReadTool === 'import' ? 'selected' : ''
-                        }`}
-                        onClick={() => activeLanguage && setActiveReadTool('import')}
-                        disabled={!activeLanguage}
-                      >
-                        <span>Import a book</span>
-                      </button>
-                    </div>
-                  </section>
-
-                  {activeReadTool === 'import' && activeLanguage && (
-                    <div className="read-tool-panel">
-                      <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                    </div>
-                  )}
-
-                  {activeReadTool === 'generate' && activeLanguage && (
+                  <div className="read-tool-panels">
                     <div className="read-tool-panel">
                       <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
                     </div>
-                  )}
+                    <div className="read-tool-panel">
+                      <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                    </div>
+                  </div>
                 </div>
               )}
 

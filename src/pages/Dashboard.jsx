@@ -325,38 +325,122 @@ const Dashboard = () => {
               )}
 
               {activeTab === 'read' && (
-                <div className="read-grid">
-                  <div className="read-card">
-                    <h3>Library</h3>
-                    <p className="muted small">
-                      Browse curated stories and articles tailored for {activeLanguage || 'your language'}.
-                    </p>
-                    <button
-                      className="button ghost"
-                      onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
-                      disabled={!activeLanguage}
-                    >
-                      View library
-                    </button>
-                  </div>
-                  <div className="read-card">
-                    <h3>Import</h3>
-                    <p className="muted small">Bring in your own texts to practice reading comprehension.</p>
-                    <button
-                      className="button ghost"
-                      onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
-                      disabled={!activeLanguage}
-                    >
-                      Import for {activeLanguage || 'language'}
-                    </button>
-                  </div>
-                  <div className="read-card">
-                    <h3>Generate</h3>
-                    <p className="muted small">Create new passages on topics you love.</p>
-                    <button className="button ghost" onClick={handleGenerateClick} disabled={!activeLanguage}>
-                      Generate for {activeLanguage || 'language'}
-                    </button>
-                  </div>
+                <div className="read-layout">
+                  <section className="read-section continue-section">
+                    <div className="continue-card">
+                      <div className="continue-card-meta">
+                        <span className="continue-card-label">Continue reading</span>
+                        <div className="continue-card-title">Your current book</div>
+                        <div className="continue-card-progress">Chapter X · Y% complete</div>
+                      </div>
+                      <div className="continue-card-actions">
+                        <button
+                          className="button ghost"
+                          onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                          disabled={!activeLanguage}
+                        >
+                          Resume
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="read-section">
+                    <div className="read-section-header">
+                      <h3>My library</h3>
+                      <button
+                        className="button ghost"
+                        onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                        disabled={!activeLanguage}
+                      >
+                        View all
+                      </button>
+                    </div>
+                    <div className="book-grid">
+                      {[
+                        { title: 'Cuentos Cortos', progress: 40 },
+                        { title: 'Historias del Día', progress: 65 },
+                        { title: 'Diálogos Urbanos', progress: 15 },
+                        { title: 'Notas de Viaje', progress: 5 },
+                      ].map((book) => (
+                        <div
+                          key={book.title}
+                          className="book-tile"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              navigate(`/library/${encodeURIComponent(activeLanguage)}`)
+                            }
+                          }}
+                        >
+                          <div className="book-tile-cover" />
+                          <div className="book-tile-title">{book.title}</div>
+                          <div className="book-tile-meta">Spanish · A2</div>
+                          <div className="book-progress-bar">
+                            <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="read-section actions-section">
+                    <div className="read-actions-row">
+                      <button
+                        className="button primary"
+                        onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
+                        disabled={!activeLanguage}
+                      >
+                        Import a book
+                      </button>
+                      <button className="button ghost" onClick={handleGenerateClick} disabled={!activeLanguage}>
+                        Generate a story
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="read-section">
+                    <div className="read-section-header">
+                      <h3>InTongues library</h3>
+                      <button
+                        className="button ghost"
+                        onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                        disabled={!activeLanguage}
+                      >
+                        Browse all
+                      </button>
+                    </div>
+                    <div className="book-grid">
+                      {[
+                        { title: 'Short Stories A2', level: 'A2', progress: 25 },
+                        { title: 'Everyday Dialogues B1', level: 'B1', progress: 50 },
+                        { title: 'Cultural Notes A1', level: 'A1', progress: 10 },
+                        { title: 'Reading Sprints B2', level: 'B2', progress: 70 },
+                      ].map((book) => (
+                        <div
+                          key={book.title}
+                          className="book-tile"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              navigate(`/library/${encodeURIComponent(activeLanguage)}`)
+                            }
+                          }}
+                        >
+                          <div className="book-tile-cover" />
+                          <div className="book-tile-title">{book.title}</div>
+                          <div className="book-tile-meta">{book.level} · Curated</div>
+                          <div className="book-progress-bar">
+                            <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
               )}
 

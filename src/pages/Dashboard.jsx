@@ -148,7 +148,6 @@ const Dashboard = () => {
               {`in${brandLanguage}`}
               <span className="brand-dot">.</span>
             </div>
-            <span className="brand-home-hint">Home</span>
           </button>
           <div className="dashboard-controls">
             <div className="dashboard-dropdown" ref={languageMenuRef}>
@@ -259,7 +258,10 @@ const Dashboard = () => {
 
         <div className="dashboard-nav">
           {DASHBOARD_TABS.map((tab, index) => (
-            <div key={tab} className="dashboard-nav-item">
+            <div
+              key={tab}
+              className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
+            >
               <button
                 className={`dashboard-nav-button ${activeTab === tab ? 'active' : ''}`}
                 onClick={() => handleTabClick(tab)}

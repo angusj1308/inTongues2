@@ -228,6 +228,7 @@ textarea {
   gap: 0.05rem;
   font-size: 2.4rem;
   font-weight: 400;
+  font-family: 'Garamond', serif;
 }
 
 .dashboard-controls {
@@ -390,6 +391,19 @@ textarea {
 .dashboard-nav-item {
   display: flex;
   align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 12px;
+}
+
+.dashboard-nav-item.active {
+  background: #0f172a;
+  color: #fff;
+  padding: 0.1rem 0.35rem;
+}
+
+.dashboard-nav-item.active .dashboard-nav-divider {
+  color: #fff;
 }
 
 .dashboard-nav-button {
@@ -410,7 +424,7 @@ textarea {
 .dashboard-nav-button.active {
   color: #fff;
   font-weight: 700;
-  background: #0f172a;
+  background: transparent;
   padding-inline: 0.9rem;
   transform: translateY(-1px);
 }
@@ -434,13 +448,6 @@ textarea {
 .dashboard-brand-button:hover .dashboard-brand,
 .dashboard-brand-button:focus-visible .dashboard-brand {
   color: #0f172a;
-}
-
-.brand-home-hint {
-  font-size: 0.7rem;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .dashboard-nav-divider {

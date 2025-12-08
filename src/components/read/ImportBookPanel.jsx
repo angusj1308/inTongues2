@@ -107,8 +107,10 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
     <div className="import-book-panel">
       <div className="page-header">
         <div>
-          <HeadingTag>Import a Book</HeadingTag>
-          <p className="muted small">Upload a text file and provide details for translation.</p>
+          <HeadingTag className="text-center">Import a Book</HeadingTag>
+          <p className="muted small text-center">
+            Import any book and get a full adaptation in your target language at your level.
+          </p>
         </div>
         {onBack && (
           <button className="button ghost" type="button" onClick={onBack}>
@@ -136,12 +138,6 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
             onChange={(event) => setOriginalLanguage(event.target.value)}
             placeholder="e.g., Spanish"
           />
-        </label>
-
-        <label>
-          Output language
-          <input type="text" value={activeLanguage || ''} disabled />
-          <p className="muted small">Language is set by your selection and cannot be changed here.</p>
         </label>
 
         <fieldset className="radio-group">

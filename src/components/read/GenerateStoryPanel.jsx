@@ -63,6 +63,9 @@ const GenerateStoryPanel = ({
     ? 'The selected language is not available in your account.'
     : ''
 
+  const environmentLanguage = activeLanguage || ''
+  const normalizedEnvironmentLanguage = environmentLanguage.toLowerCase()
+
   useEffect(() => {
     if (profile && !availableLanguages.length) {
       navigate('/select-language')
@@ -152,7 +155,9 @@ const GenerateStoryPanel = ({
     <div className="generate-story-panel">
       <div className="page-header">
         <div>
-          <HeadingTag>Generate content</HeadingTag>
+          <HeadingTag className="text-center">
+            {`Generate ${environmentLanguage.charAt(0).toUpperCase() + environmentLanguage.slice(1)} Content`}
+          </HeadingTag>
         </div>
         {onBack && (
           <button className="button ghost" onClick={onBack}>
@@ -161,33 +166,35 @@ const GenerateStoryPanel = ({
         )}
       </div>
 
-      <div className="section">
-        <div className="section-header">
-          <h3>Language</h3>
+      {normalizedEnvironmentLanguage !== 'spanish' && (
+        <div className="section">
+          <div className="section-header">
+            <h3>Language</h3>
+          </div>
+          {availableLanguages.length ? (
+            <>
+              <div className="language-switcher">
+                <span className="pill primary">in{activeLanguage || '...'}</span>
+                <select
+                  className="language-select"
+                  value={activeLanguage}
+                  onChange={(event) => handleLanguageChange(event.target.value)}
+                  disabled={languageLocked}
+                >
+                  {availableLanguages.map((language) => (
+                    <option key={language} value={language}>
+                      {language}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {languageError && <p className="error small">{languageError}</p>}
+            </>
+          ) : (
+            <p className="muted">Add a language to begin generating content.</p>
+          )}
         </div>
-        {availableLanguages.length ? (
-          <>
-            <div className="language-switcher">
-              <span className="pill primary">in{activeLanguage || '...'}</span>
-              <select
-                className="language-select"
-                value={activeLanguage}
-                onChange={(event) => handleLanguageChange(event.target.value)}
-                disabled={languageLocked}
-              >
-                {availableLanguages.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {languageError && <p className="error small">{languageError}</p>}
-          </>
-        ) : (
-          <p className="muted">Add a language to begin generating content.</p>
-        )}
-      </div>
+      )}
 
       <form className="form" onSubmit={handleSubmit}>
         <label>
@@ -216,7 +223,6 @@ const GenerateStoryPanel = ({
             />
             <span className="pill">{length} page{length === 1 ? '' : 's'}</span>
           </div>
-          <p className="muted small">Adjust based on how long you want the reading passage to be.</p>
         </label>
 
         <label>

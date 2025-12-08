@@ -64,6 +64,8 @@ const GenerateStoryPanel = ({
     : ''
 
   const environmentLanguage = activeLanguage || ''
+  const environmentLanguageCapitalized =
+    environmentLanguage.charAt(0).toUpperCase() + environmentLanguage.slice(1)
   const normalizedEnvironmentLanguage = environmentLanguage.toLowerCase()
 
   useEffect(() => {
@@ -156,8 +158,11 @@ const GenerateStoryPanel = ({
       <div className="page-header">
         <div>
           <HeadingTag className="text-center">
-            {`Generate ${environmentLanguage.charAt(0).toUpperCase() + environmentLanguage.slice(1)} Content`}
+            {`Generate ${environmentLanguageCapitalized} Content`}
           </HeadingTag>
+          <p className="text-center">
+            Create original content in your target language, tailored to your level and interests.
+          </p>
         </div>
         {onBack && (
           <button className="button ghost" onClick={onBack}>

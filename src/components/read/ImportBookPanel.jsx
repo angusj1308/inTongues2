@@ -12,6 +12,14 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
   const [isPublicDomain, setIsPublicDomain] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  if (!activeLanguage) {
+    return (
+      <div className="import-book-panel">
+        <p className="muted small">Select a language to import a book.</p>
+      </div>
+    )
+  }
+
   const HeadingTag = useMemo(() => headingLevel || 'h2', [headingLevel])
 
   const handleSubmit = async (event) => {

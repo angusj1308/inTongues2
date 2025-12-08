@@ -135,12 +135,6 @@ const Dashboard = () => {
   }
 
   useEffect(() => {
-    if (activeTab === 'read') {
-      setActiveReadTool('generate')
-    }
-  }, [activeTab])
-
-  useEffect(() => {
     const handleClickOutside = (event) => {
       if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
         setLanguageMenuOpen(false)
@@ -430,14 +424,20 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <div className="read-tool-panels">
-                    <div className="read-tool-panel">
-                      <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                  {activeLanguage ? (
+                    <div className="read-tool-panels">
+                      <div className="read-tool-panel">
+                        <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                      </div>
+                      <div className="read-tool-panel">
+                        <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                      </div>
                     </div>
-                    <div className="read-tool-panel">
-                      <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="muted small" style={{ marginTop: '0.75rem' }}>
+                      Add a language to unlock your reading tools.
+                    </p>
+                  )}
                 </div>
               )}
 

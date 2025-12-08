@@ -679,30 +679,12 @@ textarea {
   background: #5c8ae6;
 }
 
-.actions-section {
-  margin-top: 0.35rem;
-}
-
-.actions-section .read-actions-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  justify-content: center;
-}
-
-.actions-section .button {
-  min-width: 150px;
-  padding: 0.75rem 1rem;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
-}
-
-.actions-section .button.primary {
-  background: linear-gradient(120deg, #4c68f1, #3a63e3);
-}
-
-.button.selected {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-  border: 1px solid #000000;
+.read-tool-panels {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  align-items: start;
 }
 
 .with-icon {
@@ -788,14 +770,10 @@ textarea {
 }
 
 .read-tool-panel {
-  margin-top: 0.75rem;
   border-radius: 14px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
   padding: 1rem 1.25rem;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .page-header {

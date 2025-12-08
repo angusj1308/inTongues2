@@ -547,6 +547,137 @@ textarea {
   color: #0f172a;
 }
 
+.read-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.read-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.read-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.read-section-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.continue-section .continue-card {
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.continue-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.continue-card-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.continue-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.continue-card-progress {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.continue-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.book-tile {
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.book-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5f5;
+}
+
+.book-tile-cover {
+  width: 32px;
+  height: 44px;
+  border-radius: 6px;
+  background: #e2e8f0;
+}
+
+.book-tile-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.book-tile-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.book-progress-bar {
+  margin-top: 0.15rem;
+  height: 3px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.book-progress-bar-inner {
+  width: 40%;
+  height: 100%;
+  background: #3b82f6;
+}
+
+.actions-section .read-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actions-section .button {
+  min-width: 150px;
+}
+
 .read-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

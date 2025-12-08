@@ -156,7 +156,7 @@ const GenerateStoryPanel = ({
   return (
     <div className="generate-story-panel">
       <div className="page-header">
-        <div>
+        <div className="page-header-title">
           <HeadingTag className="text-center">
             {`Generate ${environmentLanguageCapitalized} Content`}
           </HeadingTag>

@@ -571,7 +571,7 @@ textarea {
   font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
-  font-family: 'Garamond', serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   letter-spacing: 0.01em;
 }
 
@@ -599,14 +599,14 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: #7b8799;
-  font-family: 'Garamond', serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
 }
 
 .continue-card-title {
   font-size: 1.05rem;
   font-weight: 600;
   color: #0f172a;
-  font-family: 'Garamond', serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
 }
 
 .continue-card-progress {
@@ -654,7 +654,7 @@ textarea {
 }
 
 .book-tile-title {
-  font-size: 0.98rem;
+  font-size: 1.08rem;
   font-weight: 600;
   color: #0f172a;
   font-family: 'Garamond', serif;
@@ -679,6 +679,10 @@ textarea {
   background: #5c8ae6;
 }
 
+.actions-section {
+  margin-top: 0.35rem;
+}
+
 .actions-section .read-actions-row {
   display: flex;
   flex-wrap: wrap;
@@ -694,6 +698,11 @@ textarea {
 
 .actions-section .button.primary {
   background: linear-gradient(120deg, #4c68f1, #3a63e3);
+}
+
+.button.selected {
+  box-shadow: 0 10px 30px rgba(59, 87, 111, 0.18);
+  border: 1px solid #c7d2fe;
 }
 
 .with-icon {
@@ -776,6 +785,14 @@ textarea {
   border-radius: 12px;
   background: #f8fafc;
   text-transform: capitalize;
+}
+
+.read-tool-panel {
+  margin-top: 0.75rem;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 1rem 1.25rem;
 }
 
 .page-header {

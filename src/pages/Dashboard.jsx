@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ImportBookPanel from '../components/read/ImportBookPanel'
+import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import { useAuth } from '../context/AuthContext'
 
 const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review']
@@ -43,6 +45,7 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('home')
   const [slideDirection, setSlideDirection] = useState('')
+  const [activeReadTool, setActiveReadTool] = useState('')
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [languageSearch, setLanguageSearch] = useState('')
@@ -117,11 +120,6 @@ const Dashboard = () => {
     setLanguageMenuOpen(true)
   }
 
-  const handleGenerateClick = () => {
-    if (!activeLanguage) return
-    navigate(`/generate/${encodeURIComponent(activeLanguage)}`)
-  }
-
   const handleTabClick = (tab) => {
     if (tab === activeTab) return
 
@@ -132,6 +130,10 @@ const Dashboard = () => {
       setSlideDirection('right')
     } else if (nextIndex < currentIndex) {
       setSlideDirection('left')
+    }
+
+    if (activeTab === 'read' && tab !== 'read') {
+      setActiveReadTool('')
     }
 
     setActiveTab(tab)
@@ -386,31 +388,6 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <section className="read-section actions-section">
-                    <div className="read-actions-row">
-                      <button
-                        className="button primary with-icon"
-                        onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
-                        disabled={!activeLanguage}
-                      >
-                        <span className="button-icon" aria-hidden>
-                          📄
-                        </span>
-                        <span>Import a book</span>
-                      </button>
-                      <button
-                        className="button ghost with-icon"
-                        onClick={handleGenerateClick}
-                        disabled={!activeLanguage}
-                      >
-                        <span className="button-icon" aria-hidden>
-                          ✨
-                        </span>
-                        <span>Generate a story</span>
-                      </button>
-                    </div>
-                  </section>
-
                   <section className="read-section">
                     <div className="read-section-header">
                       <h3>InTongues library</h3>
@@ -451,6 +428,50 @@ const Dashboard = () => {
                       ))}
                     </div>
                   </section>
+
+                  <section className="read-section actions-section">
+                    <div className="read-section-header">
+                      <h3>Actions</h3>
+                    </div>
+                    <div className="read-actions-row">
+                      <button
+                        className={`button primary with-icon ${
+                          activeReadTool === 'import' ? 'selected' : ''
+                        }`}
+                        onClick={() => activeLanguage && setActiveReadTool('import')}
+                        disabled={!activeLanguage}
+                      >
+                        <span className="button-icon" aria-hidden>
+                          📄
+                        </span>
+                        <span>Import a book</span>
+                      </button>
+                      <button
+                        className={`button ghost with-icon ${
+                          activeReadTool === 'generate' ? 'selected' : ''
+                        }`}
+                        onClick={() => activeLanguage && setActiveReadTool('generate')}
+                        disabled={!activeLanguage}
+                      >
+                        <span className="button-icon" aria-hidden>
+                          ✨
+                        </span>
+                        <span>Generate a story</span>
+                      </button>
+                    </div>
+                  </section>
+
+                  {activeReadTool === 'import' && activeLanguage && (
+                    <div className="read-tool-panel">
+                      <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                    </div>
+                  )}
+
+                  {activeReadTool === 'generate' && activeLanguage && (
+                    <div className="read-tool-panel">
+                      <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                    </div>
+                  )}
                 </div>
               )}
 

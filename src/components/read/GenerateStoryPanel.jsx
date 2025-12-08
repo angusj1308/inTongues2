@@ -153,7 +153,6 @@ const GenerateStoryPanel = ({
       <div className="page-header">
         <div>
           <HeadingTag>Generate content</HeadingTag>
-          <p className="muted small">Configure a custom passage to practice reading in your selected language.</p>
         </div>
         {onBack && (
           <button className="button ghost" onClick={onBack}>
@@ -165,7 +164,6 @@ const GenerateStoryPanel = ({
       <div className="section">
         <div className="section-header">
           <h3>Language</h3>
-          <p className="muted small">We will tailor the output for this language.</p>
         </div>
         {availableLanguages.length ? (
           <>
@@ -184,9 +182,6 @@ const GenerateStoryPanel = ({
                 ))}
               </select>
             </div>
-            {languageLocked && (
-              <p className="muted small">Language is locked to your current selection.</p>
-            )}
             {languageError && <p className="error small">{languageError}</p>}
           </>
         ) : (
@@ -207,7 +202,6 @@ const GenerateStoryPanel = ({
             />
             <span className="pill primary">{CEFR_LEVELS[levelIndex]}</span>
           </div>
-          <p className="muted small">CEFR scale from A1 (beginner) to C2 (mastery).</p>
         </label>
 
         <label>
@@ -234,7 +228,6 @@ const GenerateStoryPanel = ({
               </option>
             ))}
           </select>
-          <p className="muted small">Choose the tone and style for the generated content.</p>
         </label>
 
         <label>

@@ -331,7 +331,7 @@ const Dashboard = () => {
                       <div className="continue-card-meta">
                         <span className="continue-card-label">Continue reading</span>
                         <div className="continue-card-title">Your current book</div>
-                        <div className="continue-card-progress">Chapter X · Y% complete</div>
+                        <div className="continue-card-progress">Spanish · Chapter X · 12% complete</div>
                       </div>
                       <div className="continue-card-actions">
                         <button
@@ -349,11 +349,11 @@ const Dashboard = () => {
                     <div className="read-section-header">
                       <h3>My library</h3>
                       <button
-                        className="button ghost"
+                        className="text-link"
                         onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
                         disabled={!activeLanguage}
                       >
-                        View all
+                        View all →
                       </button>
                     </div>
                     <div className="book-grid">
@@ -389,14 +389,24 @@ const Dashboard = () => {
                   <section className="read-section actions-section">
                     <div className="read-actions-row">
                       <button
-                        className="button primary"
+                        className="button primary with-icon"
                         onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
                         disabled={!activeLanguage}
                       >
-                        Import a book
+                        <span className="button-icon" aria-hidden>
+                          📄
+                        </span>
+                        <span>Import a book</span>
                       </button>
-                      <button className="button ghost" onClick={handleGenerateClick} disabled={!activeLanguage}>
-                        Generate a story
+                      <button
+                        className="button ghost with-icon"
+                        onClick={handleGenerateClick}
+                        disabled={!activeLanguage}
+                      >
+                        <span className="button-icon" aria-hidden>
+                          ✨
+                        </span>
+                        <span>Generate a story</span>
                       </button>
                     </div>
                   </section>
@@ -405,11 +415,11 @@ const Dashboard = () => {
                     <div className="read-section-header">
                       <h3>InTongues library</h3>
                       <button
-                        className="button ghost"
+                        className="text-link"
                         onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
                         disabled={!activeLanguage}
                       >
-                        Browse all
+                        Browse all →
                       </button>
                     </div>
                     <div className="book-grid">

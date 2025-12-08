@@ -477,6 +477,45 @@ textarea {
 
 .tab-panel {
   margin-top: 0.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-panel-inner {
+  display: block;
+  will-change: transform, opacity;
+  transform: translateX(0);
+  transition: transform 220ms ease-out, opacity 220ms ease-out;
+}
+
+.tab-panel-inner.slide-in-right {
+  animation: slideInFromRight 220ms ease-out;
+}
+
+.tab-panel-inner.slide-in-left {
+  animation: slideInFromLeft 220ms ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .home-grid {

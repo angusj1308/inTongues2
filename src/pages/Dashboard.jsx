@@ -42,6 +42,7 @@ const Dashboard = () => {
   const { user, profile, logout, addLanguage, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('home')
+  const [slideDirection, setSlideDirection] = useState('')
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [languageSearch, setLanguageSearch] = useState('')
@@ -122,6 +123,17 @@ const Dashboard = () => {
   }
 
   const handleTabClick = (tab) => {
+    if (tab === activeTab) return
+
+    const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
+    const nextIndex = DASHBOARD_TABS.indexOf(tab)
+
+    if (nextIndex > currentIndex) {
+      setSlideDirection('right')
+    } else if (nextIndex < currentIndex) {
+      setSlideDirection('left')
+    }
+
     setActiveTab(tab)
   }
 
@@ -143,7 +155,7 @@ const Dashboard = () => {
     <div className="page dashboard-page">
       <header className="dashboard-header">
         <div className="dashboard-brand-band">
-          <button className="dashboard-brand-button" onClick={() => setActiveTab('home')}>
+          <button className="dashboard-brand-button" onClick={() => handleTabClick('home')}>
             <div className="dashboard-brand">
               {`in${brandLanguage}`}
               <span className="brand-dot">.</span>
@@ -277,130 +289,141 @@ const Dashboard = () => {
       <div className="dashboard-wrapper">
         <div className="card dashboard-card">
           <div className="tab-panel">
-            {activeTab === 'home' && (
-              <div className="home-grid">
-                <div className="stat-card">
-                  <div className="stat-label">Daily streak</div>
-                  <div className="stat-value">— days</div>
-                  <p className="muted small">Keep showing up each day to grow your streak.</p>
+            <div
+              className={`tab-panel-inner ${
+                slideDirection === 'right'
+                  ? 'slide-in-right'
+                  : slideDirection === 'left'
+                    ? 'slide-in-left'
+                    : ''
+              }`}
+              key={activeTab}
+            >
+              {activeTab === 'home' && (
+                <div className="home-grid">
+                  <div className="stat-card">
+                    <div className="stat-label">Daily streak</div>
+                    <div className="stat-value">— days</div>
+                    <p className="muted small">Keep showing up each day to grow your streak.</p>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Minutes today</div>
+                    <div className="stat-value">00:00</div>
+                    <p className="muted small">Track how much time you spend practicing.</p>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Words reviewed</div>
+                    <div className="stat-value">0</div>
+                    <p className="muted small">Your spaced repetition stats will appear here.</p>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Sessions this week</div>
+                    <div className="stat-value">0</div>
+                    <p className="muted small">See your weekly rhythm at a glance.</p>
+                  </div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-label">Minutes today</div>
-                  <div className="stat-value">00:00</div>
-                  <p className="muted small">Track how much time you spend practicing.</p>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Words reviewed</div>
-                  <div className="stat-value">0</div>
-                  <p className="muted small">Your spaced repetition stats will appear here.</p>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Sessions this week</div>
-                  <div className="stat-value">0</div>
-                  <p className="muted small">See your weekly rhythm at a glance.</p>
-                </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === 'read' && (
-              <div className="read-grid">
-                <div className="read-card">
-                  <h3>Library</h3>
-                  <p className="muted small">
-                    Browse curated stories and articles tailored for {activeLanguage || 'your language'}.
-                  </p>
-                  <button
-                    className="button ghost"
-                    onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
-                    disabled={!activeLanguage}
-                  >
-                    View library
-                  </button>
+              {activeTab === 'read' && (
+                <div className="read-grid">
+                  <div className="read-card">
+                    <h3>Library</h3>
+                    <p className="muted small">
+                      Browse curated stories and articles tailored for {activeLanguage || 'your language'}.
+                    </p>
+                    <button
+                      className="button ghost"
+                      onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
+                      disabled={!activeLanguage}
+                    >
+                      View library
+                    </button>
+                  </div>
+                  <div className="read-card">
+                    <h3>Import</h3>
+                    <p className="muted small">Bring in your own texts to practice reading comprehension.</p>
+                    <button
+                      className="button ghost"
+                      onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
+                      disabled={!activeLanguage}
+                    >
+                      Import for {activeLanguage || 'language'}
+                    </button>
+                  </div>
+                  <div className="read-card">
+                    <h3>Generate</h3>
+                    <p className="muted small">Create new passages on topics you love.</p>
+                    <button className="button ghost" onClick={handleGenerateClick} disabled={!activeLanguage}>
+                      Generate for {activeLanguage || 'language'}
+                    </button>
+                  </div>
                 </div>
-                <div className="read-card">
-                  <h3>Import</h3>
-                  <p className="muted small">Bring in your own texts to practice reading comprehension.</p>
-                  <button
-                    className="button ghost"
-                    onClick={() => navigate(`/import/${encodeURIComponent(activeLanguage)}`)}
-                    disabled={!activeLanguage}
-                  >
-                    Import for {activeLanguage || 'language'}
-                  </button>
-                </div>
-                <div className="read-card">
-                  <h3>Generate</h3>
-                  <p className="muted small">Create new passages on topics you love.</p>
-                  <button className="button ghost" onClick={handleGenerateClick} disabled={!activeLanguage}>
-                    Generate for {activeLanguage || 'language'}
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === 'listen' && (
-              <div className="read-grid">
-                <div className="read-card">
-                  <h3>Listening library</h3>
-                  <p className="muted small">Play stories and dialogues in {activeLanguage || 'your language'}.</p>
-                  <button className="button ghost" onClick={() => navigate('/listening')} disabled={!activeLanguage}>
-                    Open listening
-                  </button>
+              {activeTab === 'listen' && (
+                <div className="read-grid">
+                  <div className="read-card">
+                    <h3>Listening library</h3>
+                    <p className="muted small">Play stories and dialogues in {activeLanguage || 'your language'}.</p>
+                    <button className="button ghost" onClick={() => navigate('/listening')} disabled={!activeLanguage}>
+                      Open listening
+                    </button>
+                  </div>
+                  <div className="read-card">
+                    <h3>Import audio & video</h3>
+                    <p className="muted small">Upload your own clips to create listening practice.</p>
+                    <button className="button ghost" onClick={() => navigate('/importaudio/video')}>
+                      Import media
+                    </button>
+                  </div>
+                  <div className="read-card">
+                    <h3>Intongues cinema</h3>
+                    <p className="muted small">Watch curated clips with subtitles and translations.</p>
+                    <button className="button ghost" onClick={() => navigate('/cinema/library')}>
+                      Browse cinema
+                    </button>
+                  </div>
                 </div>
-                <div className="read-card">
-                  <h3>Import audio & video</h3>
-                  <p className="muted small">Upload your own clips to create listening practice.</p>
-                  <button className="button ghost" onClick={() => navigate('/importaudio/video')}>
-                    Import media
-                  </button>
-                </div>
-                <div className="read-card">
-                  <h3>Intongues cinema</h3>
-                  <p className="muted small">Watch curated clips with subtitles and translations.</p>
-                  <button className="button ghost" onClick={() => navigate('/cinema/library')}>
-                    Browse cinema
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === 'speak' && (
-              <div className="coming-soon">
-                <p className="muted">Speaking workouts will land here soon.</p>
-              </div>
-            )}
+              {activeTab === 'speak' && (
+                <div className="coming-soon">
+                  <p className="muted">Speaking workouts will land here soon.</p>
+                </div>
+              )}
 
-            {activeTab === 'write' && (
-              <div className="coming-soon">
-                <p className="muted">Writing prompts and feedback are on the way.</p>
-              </div>
-            )}
+              {activeTab === 'write' && (
+                <div className="coming-soon">
+                  <p className="muted">Writing prompts and feedback are on the way.</p>
+                </div>
+              )}
 
-            {activeTab === 'review' && (
-              <div className="read-grid">
-                <div className="read-card">
-                  <h3>Flashcard review</h3>
-                  <p className="muted small">Keep vocabulary fresh with spaced repetition.</p>
-                  <button className="button ghost" onClick={() => navigate('/review')} disabled={!activeLanguage}>
-                    Start reviewing
-                  </button>
+              {activeTab === 'review' && (
+                <div className="read-grid">
+                  <div className="read-card">
+                    <h3>Flashcard review</h3>
+                    <p className="muted small">Keep vocabulary fresh with spaced repetition.</p>
+                    <button className="button ghost" onClick={() => navigate('/review')} disabled={!activeLanguage}>
+                      Start reviewing
+                    </button>
+                  </div>
+                  <div className="read-card">
+                    <h3>Recent words</h3>
+                    <p className="muted small">Quick access to the latest terms you saved.</p>
+                    <button className="button ghost" onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}>
+                      View words
+                    </button>
+                  </div>
+                  <div className="read-card">
+                    <h3>Progress</h3>
+                    <p className="muted small">Review streaks and accuracy coming soon.</p>
+                    <button className="button ghost" disabled>
+                      Tracking soon
+                    </button>
+                  </div>
                 </div>
-                <div className="read-card">
-                  <h3>Recent words</h3>
-                  <p className="muted small">Quick access to the latest terms you saved.</p>
-                  <button className="button ghost" onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}>
-                    View words
-                  </button>
-                </div>
-                <div className="read-card">
-                  <h3>Progress</h3>
-                  <p className="muted small">Review streaks and accuracy coming soon.</p>
-                  <button className="button ghost" disabled>
-                    Tracking soon
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

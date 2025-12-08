@@ -45,7 +45,7 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('home')
   const [slideDirection, setSlideDirection] = useState('')
-  const [activeReadTool, setActiveReadTool] = useState('')
+  const [activeReadTool, setActiveReadTool] = useState('generate')
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [languageSearch, setLanguageSearch] = useState('')
@@ -132,12 +132,14 @@ const Dashboard = () => {
       setSlideDirection('left')
     }
 
-    if (activeTab === 'read' && tab !== 'read') {
-      setActiveReadTool('')
-    }
-
     setActiveTab(tab)
   }
+
+  useEffect(() => {
+    if (activeTab === 'read') {
+      setActiveReadTool('generate')
+    }
+  }, [activeTab])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -435,28 +437,22 @@ const Dashboard = () => {
                     </div>
                     <div className="read-actions-row">
                       <button
-                        className={`button primary with-icon ${
-                          activeReadTool === 'import' ? 'selected' : ''
-                        }`}
-                        onClick={() => activeLanguage && setActiveReadTool('import')}
-                        disabled={!activeLanguage}
-                      >
-                        <span className="button-icon" aria-hidden>
-                          📄
-                        </span>
-                        <span>Import a book</span>
-                      </button>
-                      <button
-                        className={`button ghost with-icon ${
+                        className={`button primary ${
                           activeReadTool === 'generate' ? 'selected' : ''
                         }`}
                         onClick={() => activeLanguage && setActiveReadTool('generate')}
                         disabled={!activeLanguage}
                       >
-                        <span className="button-icon" aria-hidden>
-                          ✨
-                        </span>
                         <span>Generate a story</span>
+                      </button>
+                      <button
+                        className={`button ghost ${
+                          activeReadTool === 'import' ? 'selected' : ''
+                        }`}
+                        onClick={() => activeLanguage && setActiveReadTool('import')}
+                        disabled={!activeLanguage}
+                      >
+                        <span>Import a book</span>
                       </button>
                     </div>
                   </section>

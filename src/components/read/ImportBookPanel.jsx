@@ -106,7 +106,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
   return (
     <div className="import-book-panel">
       <div className="page-header">
-        <div>
+        <div className="page-header-title">
           <HeadingTag className="text-center">Import a Book</HeadingTag>
           <p className="muted small text-center">
             Import any book and get a full adaptation in your target language at your level.

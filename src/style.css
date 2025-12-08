@@ -393,44 +393,56 @@ textarea {
   align-items: center;
   gap: 0.35rem;
   padding: 0.1rem 0.2rem;
-  border-radius: 12px;
+  position: relative;
 }
 
 .dashboard-nav-item.active {
-  background: #0f172a;
-  color: #fff;
-  padding: 0.1rem 0.35rem;
+  background: transparent;
 }
 
 .dashboard-nav-item.active .dashboard-nav-divider {
-  color: #fff;
+  color: #94a3b8;
 }
 
 .dashboard-nav-button {
   padding: 0.35rem 0.5rem;
   border: none;
   background: transparent;
-  color: #0f172a;
-  font-family: 'Garamond', serif;
-  font-weight: 600;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+  font-weight: 500;
   font-size: 0.95rem;
-  text-transform: capitalize;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  border-radius: 12px;
   transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
   scroll-snap-align: center;
 }
 
 .dashboard-nav-button.active {
-  color: #fff;
+  color: #0f172a;
   font-weight: 700;
   background: transparent;
-  padding-inline: 0.9rem;
-  transform: translateY(-1px);
 }
 
 .dashboard-nav-button:hover {
-  color: #334155;
+  color: #475569;
+}
+
+.dashboard-nav-button.active:hover {
+  color: #0f172a;
+}
+
+.dashboard-nav-item.active::after {
+  content: '•';
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.1rem);
+  transform: translateX(-50%);
+  color: #0f172a;
+  font-size: 0.8rem;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .dashboard-brand-button {

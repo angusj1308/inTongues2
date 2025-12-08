@@ -242,9 +242,11 @@ textarea {
   border: none;
   background: transparent;
   color: #0f172a;
-  font-family: 'Garamond', serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-size: 1rem;
   font-weight: 600;
+  margin-top: 0.2rem;
+  line-height: 1.1;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -383,7 +385,7 @@ textarea {
   flex-wrap: wrap;
   padding: 0.3rem 1.5rem;
   width: min(1200px, 100%);
-  margin: 0 auto;
+  margin: 1.9rem auto 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
 }
@@ -401,7 +403,7 @@ textarea {
 }
 
 .dashboard-nav-item.active .dashboard-nav-divider {
-  color: #94a3b8;
+  color: #b3bcc7;
 }
 
 .dashboard-nav-button {
@@ -413,10 +415,11 @@ textarea {
   font-weight: 500;
   font-size: 0.95rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
   scroll-snap-align: center;
+  position: relative;
 }
 
 .dashboard-nav-button.active {
@@ -433,7 +436,7 @@ textarea {
   color: #0f172a;
 }
 
-.dashboard-nav-item.active::after {
+.dashboard-nav-button.active::after {
   content: '•';
   position: absolute;
   left: 50%;
@@ -464,8 +467,8 @@ textarea {
 
 .dashboard-nav-divider {
   display: inline-block;
-  margin: 0 0.35rem;
-  color: #94a3b8;
+  margin: 0 0.7rem;
+  color: #b3bcc7;
 }
 
 .dashboard-card {

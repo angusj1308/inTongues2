@@ -265,7 +265,7 @@ const GenerateStoryPanel = ({
               Cancel
             </button>
           )}
-          <button className="button" type="submit" disabled={!activeLanguage || isSubmitting}>
+          <button className="button primary" type="submit" disabled={!activeLanguage || isSubmitting}>
             {isSubmitting ? 'Generating...' : 'Generate'}
           </button>
         </div>

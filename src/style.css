@@ -90,8 +90,12 @@ input {
 }
 
 input[type='range'] {
-  accent-color: #000;
+  accent-color: #cbd5e1;
   width: 100%;
+}
+
+input[type='range']:focus {
+  outline: none;
 }
 
 select,
@@ -917,6 +921,16 @@ textarea {
   gap: 0.5rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.generate-story-panel .action-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.generate-story-panel .action-row .button {
+  width: 100%;
+  text-align: center;
 }
 
 .language-grid {

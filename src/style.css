@@ -7,9 +7,10 @@
   background-color: #f8fafc;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --accent-primary: #00000000;
+  /* Safe neutral defaults for unknown / unmapped languages */
+  --accent-primary: #111111;
   --accent-secondary: #ffffff;
-  --accent-tertiary: #00000000;
+  --accent-tertiary: #c89a4b;
 }
 
 /* Arabic — green & gold (generic pan-Arab aesthetic) */
@@ -348,6 +349,7 @@ textarea {
 
 .button:not(:disabled):hover {
   transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .button:not(:disabled):active {
@@ -419,7 +421,8 @@ textarea {
 
 .dashboard-header {
   width: 100%;
-  background: #ffffff;
+  background: var(--accent-primary);
+  color: #fff;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -444,6 +447,7 @@ textarea {
   width: min(1200px, 100%);
   margin: 0 auto;
   font-family: 'Garamond', serif;
+  color: #fff;
 }
 
 .dashboard-brand {
@@ -455,6 +459,7 @@ textarea {
   font-size: 2.4rem;
   font-weight: 400;
   font-family: 'Garamond', serif;
+  color: inherit;
 }
 
 .dashboard-controls {
@@ -467,7 +472,7 @@ textarea {
   padding: 0.35rem 0.5rem;
   border: none;
   background: transparent;
-  color: #0f172a;
+  color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-size: 1rem;
   font-weight: 600;
@@ -478,7 +483,8 @@ textarea {
 }
 
 .dashboard-control:hover {
-  color: #334155;
+  color: var(--accent-secondary);
+  opacity: 0.9;
 }
 
 .dashboard-dropdown {
@@ -500,6 +506,7 @@ textarea {
   gap: 0.75rem;
   z-index: 10;
   font-family: 'Garamond', serif;
+  color: #0f172a;
 }
 
 .menu-search {
@@ -636,7 +643,7 @@ textarea {
   padding: 0.35rem 0.5rem;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 500;
   font-size: 0.95rem;
@@ -649,29 +656,19 @@ textarea {
 }
 
 .dashboard-nav-button.active {
-  color: #0f172a;
+  color: var(--accent-primary);
   font-weight: 700;
-  background: transparent;
+  background: var(--accent-secondary);
 }
 
 .dashboard-nav-button:hover {
-  color: #475569;
+  color: var(--accent-primary);
+  background: var(--accent-secondary);
 }
 
 .dashboard-nav-button.active:hover {
-  color: #0f172a;
-}
-
-.dashboard-nav-button.active::after {
-  content: '•';
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.1rem);
-  transform: translateX(-50%);
   color: var(--accent-primary);
-  font-size: 0.8rem;
-  line-height: 1;
-  pointer-events: none;
+  background: var(--accent-secondary);
 }
 
 .dashboard-brand-button {
@@ -688,7 +685,7 @@ textarea {
 
 .dashboard-brand-button:hover .dashboard-brand,
 .dashboard-brand-button:focus-visible .dashboard-brand {
-  color: #0f172a;
+  color: var(--accent-secondary);
 }
 
 .dashboard-nav-divider {
@@ -1149,7 +1146,7 @@ textarea {
 
 .pill.primary {
   background: var(--accent-primary);
-  color: #111;
+  color: #fff;
 }
 
 .pill-row {

@@ -287,18 +287,17 @@ const Dashboard = () => {
 
       <main className="dashboard-main">
         <div className="dashboard-wrapper">
-          <div className="card dashboard-card">
-            <div className="tab-panel">
-              <div
-                className={`tab-panel-inner ${
-                  slideDirection === 'right'
-                    ? 'slide-in-right'
-                    : slideDirection === 'left'
-                      ? 'slide-in-left'
-                      : ''
-                }`}
-                key={activeTab}
-              >
+          <div className="tab-panel">
+            <div
+              className={`tab-panel-inner ${
+                slideDirection === 'right'
+                  ? 'slide-in-right'
+                  : slideDirection === 'left'
+                    ? 'slide-in-left'
+                    : ''
+              }`}
+              key={activeTab}
+            >
               {activeTab === 'home' && (
                 <div className="home-grid">
                   <div className="stat-card">
@@ -325,8 +324,8 @@ const Dashboard = () => {
               )}
 
               {activeTab === 'read' && (
-                <div className="read-layout">
-                  <section className="read-section continue-section">
+                <div className="read-layout read-slab-stack">
+                  <section className="read-section read-slab continue-section">
                     <div className="continue-card">
                       <div className="continue-card-meta">
                         <span className="continue-card-label ui-text">Continue reading</span>
@@ -345,7 +344,7 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <section className="read-section">
+                  <section className="read-section read-slab">
                     <div className="read-section-header">
                       <h3>My library</h3>
                       <button
@@ -386,7 +385,7 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <section className="read-section">
+                  <section className="read-section read-slab">
                     <div className="read-section-header">
                       <h3>InTongues library</h3>
                       <button
@@ -428,14 +427,16 @@ const Dashboard = () => {
                   </section>
 
                   {activeLanguage ? (
-                    <div className="read-tool-panels">
-                      <div className="read-tool-panel">
-                        <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                    <section className="read-section read-slab">
+                      <div className="read-tool-panels">
+                        <div className="read-tool-panel">
+                          <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                        </div>
+                        <div className="read-tool-panel">
+                          <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                        </div>
                       </div>
-                      <div className="read-tool-panel">
-                        <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                      </div>
-                    </div>
+                    </section>
                   ) : (
                     <p className="muted small" style={{ marginTop: '0.75rem' }}>
                       Add a language to unlock your reading tools.

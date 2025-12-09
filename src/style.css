@@ -617,6 +617,18 @@ textarea {
   gap: 1.5rem;
 }
 
+.read-slab-stack {
+  gap: 1.1rem;
+}
+
+.read-slab {
+  border: 1px solid #e2e2e2;
+  border-radius: 14px;
+  background: #fff;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
 .read-section {
   display: flex;
   flex-direction: column;
@@ -639,15 +651,15 @@ textarea {
 }
 
 .continue-section .continue-card {
-  padding: 0.85rem 1.1rem;
+  padding: 0;
   border-radius: 12px;
-  border: 1px solid #e2e2e2;
-  background: #fff;
+  border: none;
+  background: transparent;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
   flex-wrap: wrap;
 }
 

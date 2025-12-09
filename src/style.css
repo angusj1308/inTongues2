@@ -426,7 +426,14 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  padding: 1rem 0 1.25rem;
+  padding: 1rem 0 1rem;
+}
+
+.dashboard-nav-bar {
+  width: 100%;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 
 .dashboard-wrapper {
@@ -616,9 +623,9 @@ textarea {
   justify-content: center;
   gap: 0.65rem;
   flex-wrap: wrap;
-  padding: 0.3rem 1.5rem;
+  padding: 0.65rem 1.5rem;
   width: min(1200px, 100%);
-  margin: 1.9rem auto 0;
+  margin: 0 auto;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
 }
@@ -640,35 +647,42 @@ textarea {
 }
 
 .dashboard-nav-button {
-  padding: 0.35rem 0.5rem;
-  border: none;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
   background: transparent;
-  color: #fff;
+  color: #0f172a;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 500;
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease,
+    box-shadow 0.2s ease, border-color 0.2s ease;
   scroll-snap-align: center;
   position: relative;
 }
 
 .dashboard-nav-button.active {
-  color: var(--accent-primary);
+  color: #0f172a;
   font-weight: 700;
-  background: var(--accent-secondary);
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px var(--accent-primary);
+  border-color: var(--accent-primary);
 }
 
 .dashboard-nav-button:hover {
-  color: var(--accent-primary);
-  background: var(--accent-secondary);
+  color: #0f172a;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--accent-primary);
+  transform: translateY(-1px);
 }
 
 .dashboard-nav-button.active:hover {
-  color: var(--accent-primary);
-  background: var(--accent-secondary);
+  color: #0f172a;
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .dashboard-brand-button {

@@ -159,6 +159,24 @@ const Dashboard = () => {
               <span className="brand-dot">.</span>
             </div>
           </button>
+
+          <nav className="dashboard-nav" aria-label="Dashboard navigation">
+            {DASHBOARD_TABS.map((tab, index) => (
+              <div
+                key={tab}
+                className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
+              >
+                <button
+                  className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
+                  onClick={() => handleTabClick(tab)}
+                >
+                  {tab}
+                </button>
+                {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
+              </div>
+            ))}
+          </nav>
+
           <div className="dashboard-controls">
             <div className="dashboard-dropdown" ref={languageMenuRef}>
               <button
@@ -268,25 +286,6 @@ const Dashboard = () => {
       </header>
 
       <main className="dashboard-main">
-        <nav className="dashboard-nav-bar">
-          <div className="dashboard-nav">
-            {DASHBOARD_TABS.map((tab, index) => (
-              <div
-                key={tab}
-                className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
-              >
-                <button
-                  className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
-                  onClick={() => handleTabClick(tab)}
-                >
-                  {tab}
-                </button>
-                {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
-              </div>
-            ))}
-          </div>
-        </nav>
-
         <div className="dashboard-wrapper">
           <div className="card dashboard-card">
             <div className="tab-panel">

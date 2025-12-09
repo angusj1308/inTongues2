@@ -23,7 +23,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #7a1f1f;
+  background: #fff;
 }
 
 #root {
@@ -207,7 +207,8 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #7a1f1f;
+  background: #fff;
+  min-height: 100vh;
 }
 
 .dashboard-header {
@@ -222,15 +223,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #7a1f1f;
-}
-
-.dashboard-nav-bar {
-  width: 100%;
-  background: #7a1f1f;
-  display: flex;
-  justify-content: center;
-  padding: 0.25rem 0 1.25rem;
+  background: #fff;
 }
 
 .dashboard-wrapper {
@@ -248,12 +241,13 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.25rem;
   padding: 0 1.5rem;
   width: min(1320px, 100%);
   margin: 0 auto;
   font-family: 'Garamond', serif;
   color: inherit;
+  flex-wrap: wrap;
 }
 
 .dashboard-brand {
@@ -281,6 +275,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .dashboard-control {
@@ -430,15 +425,17 @@ textarea {
   justify-content: center;
   gap: 0.35rem;
   flex-wrap: wrap;
-  padding: 0.35rem 0.75rem;
+  padding: 0.25rem 0.5rem;
   width: 100%;
-  margin: 0.35rem auto 1rem;
+  margin: 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  background: #000;
-  border-radius: 9999px;
+  background: transparent;
+  border-radius: 0;
   border: none;
   box-shadow: none;
+  flex: 1;
+  min-width: 0;
 }
 
 .dashboard-nav-item {
@@ -462,7 +459,7 @@ textarea {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #fff;
+  color: #0f172a;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
@@ -475,16 +472,16 @@ textarea {
 }
 
 .dashboard-nav-button.active {
-  color: #fff;
+  color: #0f172a;
   font-weight: 700;
 }
 
 .dashboard-nav-button:hover {
-  color: #fff;
+  color: #000;
 }
 
 .dashboard-nav-button.active:hover {
-  color: #fff;
+  color: #000;
 }
 
 .dashboard-nav-button::after {
@@ -494,7 +491,7 @@ textarea {
   right: 0.8rem;
   bottom: 0.35rem;
   height: 2px;
-  background: #fff;
+  background: #0f172a;
   border-radius: 999px;
   transform: scaleX(0);
   opacity: 0;
@@ -522,6 +519,7 @@ textarea {
   gap: 0.1rem;
   padding: 0;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .dashboard-brand-button:hover .dashboard-brand,

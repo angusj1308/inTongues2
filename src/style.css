@@ -7,227 +7,163 @@
   background-color: #f8fafc;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  /* Safe neutral defaults for unknown / unmapped languages */
-  --accent-primary: #111111;
-  --accent-secondary: #ffffff;
-  --accent-tertiary: #c89a4b;
+  /* Neutral fallback for languages without a mapping */
+  --accent-color: #111111;
 }
 
 /* Arabic — green & gold (generic pan-Arab aesthetic) */
 :root[data-language="Arabic"] {
-  --accent-primary: #006233;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #C9A74A;
+  --accent-color: #006233;
 }
 
 /* Danish — red & white */
 :root[data-language="Danish"] {
-  --accent-primary: #C60C30;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #8A0A24;
+  --accent-color: #C60C30;
 }
 
 /* Dutch — orange-ish palette */
 :root[data-language="Dutch"] {
-  --accent-primary: #21468B;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FF7F00;
+  --accent-color: #21468B;
 }
 
 /* English — navy & red */
 :root[data-language="English"] {
-  --accent-primary: #002D72;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #C8102E;
+  --accent-color: #002D72;
 }
 
 /* Filipino — blue, red, yellow */
 :root[data-language="Filipino"] {
-  --accent-primary: #0038A8;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #CE1126;
+  --accent-color: #0038A8;
 }
 
 /* Finnish — blue & white */
 :root[data-language="Finnish"] {
-  --accent-primary: #003580;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #001F4D;
+  --accent-color: #003580;
 }
 
 /* French — blue & red */
 :root[data-language="French"] {
-  --accent-primary: #002395;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #ED2939;
+  --accent-color: #002395;
 }
 
 /* German — black, gold, red */
 :root[data-language="German"] {
-  --accent-primary: #000000;
-  --accent-secondary: #FFCE00;
-  --accent-tertiary: #DD0000;
+  --accent-color: #000000;
 }
 
 /* Greek — blue & white */
 :root[data-language="Greek"] {
-  --accent-primary: #0D5EAF;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #0A3F73;
+  --accent-color: #0D5EAF;
 }
 
 /* Hebrew — blue & white */
 :root[data-language="Hebrew"] {
-  --accent-primary: #0038B8;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #001F73;
+  --accent-color: #0038B8;
 }
 
 /* Hindi — saffron & green */
 :root[data-language="Hindi"] {
-  --accent-primary: #FF9933;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #138808;
+  --accent-color: #FF9933;
 }
 
 /* Hungarian — green & red */
 :root[data-language="Hungarian"] {
-  --accent-primary: #008751;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #CE2939;
+  --accent-color: #008751;
 }
 
 /* Indonesian — red & white */
 :root[data-language="Indonesian"] {
-  --accent-primary: #CE1126;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #8B0C1A;
+  --accent-color: #CE1126;
 }
 
 /* Italian — green & red */
 :root[data-language="Italian"] {
-  --accent-primary: #008C45;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #CD212A;
+  --accent-color: #008C45;
 }
 
 /* Japanese — red on white */
 :root[data-language="Japanese"] {
-  --accent-primary: #BC002D;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #8E001F;
+  --accent-color: #BC002D;
 }
 
 /* Korean — blue/red yin-yang */
 :root[data-language="Korean"] {
-  --accent-primary: #0047A0;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #C60C30;
+  --accent-color: #0047A0;
 }
 
 /* Malay — yellow & black (Malaysia) */
 :root[data-language="Malay"] {
-  --accent-primary: #FFCC00;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #000000;
+  --accent-color: #FFCC00;
 }
 
 /* Mandarin — red & gold (PRC-inspired) */
 :root[data-language="Mandarin"] {
-  --accent-primary: #DE2910;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FFDE00;
+  --accent-color: #DE2910;
 }
 
 /* Norwegian — deep red & blue */
 :root[data-language="Norwegian"] {
-  --accent-primary: #BA0C2F;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #00205B;
+  --accent-color: #BA0C2F;
 }
 
 /* Polish — red & white */
 :root[data-language="Polish"] {
-  --accent-primary: #DC143C;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #A10E2A;
+  --accent-color: #DC143C;
 }
 
 /* Portuguese — green & gold */
 :root[data-language="Portuguese"] {
-  --accent-primary: #006600;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FFCC00;
+  --accent-color: #006600;
 }
 
 /* Romanian — blue, yellow, red */
 :root[data-language="Romanian"] {
-  --accent-primary: #002B7F;
-  --accent-secondary: #FCD116;
-  --accent-tertiary: #CE1126;
+  --accent-color: #002B7F;
 }
 
 /* Russian — blue & red */
 :root[data-language="Russian"] {
-  --accent-primary: #0033A0;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #DA291C;
+  --accent-color: #0033A0;
 }
 
 /* Spanish — Argentine-inspired palette */
 :root[data-language="Spanish"] {
-  --accent-primary: #6CB5F6;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #C9A74A;
+  --accent-color: #6CB5F6;
 }
 
 /* Swahili — green, gold, black (Tanzania/Kenya inspired) */
 :root[data-language="Swahili"] {
-  --accent-primary: #1EB53A;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FCD116;
+  --accent-color: #1EB53A;
 }
 
 /* Swedish — blue & yellow */
 :root[data-language="Swedish"] {
-  --accent-primary: #006AA7;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FECC00;
+  --accent-color: #006AA7;
 }
 
 /* Thai — red, blue, white */
 :root[data-language="Thai"] {
-  --accent-primary: #A51931;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #2D2A4A;
+  --accent-color: #A51931;
 }
 
 /* Turkish — red & white */
 :root[data-language="Turkish"] {
-  --accent-primary: #E30A17;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #A00811;
+  --accent-color: #E30A17;
 }
 
 /* Ukrainian — blue & yellow */
 :root[data-language="Ukrainian"] {
-  --accent-primary: #0057B8;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FFD700;
+  --accent-color: #0057B8;
 }
 
 /* Vietnamese — red & yellow */
 :root[data-language="Vietnamese"] {
-  --accent-primary: #DA251D;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FFDD00;
+  --accent-color: #DA251D;
 }
 
 /* Zulu — green & gold (South Africa inspired) */
 :root[data-language="Zulu"] {
-  --accent-primary: #007A4D;
-  --accent-secondary: #FFFFFF;
-  --accent-tertiary: #FFB612;
+  --accent-color: #007A4D;
 }
 
 .ui-text {
@@ -254,7 +190,7 @@ a {
   text-decoration-thickness: 1px;
 }
 a:hover {
-  color: var(--accent-primary);
+  color: var(--accent-color);
 }
 
 .page {
@@ -349,7 +285,7 @@ textarea {
 
 .button:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 0 1px var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-color);
 }
 
 .button:not(:disabled):active {
@@ -421,8 +357,8 @@ textarea {
 
 .dashboard-header {
   width: 100%;
-  background: var(--accent-primary);
-  color: #fff;
+  background: #ffffff;
+  color: #0f172a;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -454,7 +390,7 @@ textarea {
   width: min(1200px, 100%);
   margin: 0 auto;
   font-family: 'Garamond', serif;
-  color: #fff;
+  color: inherit;
 }
 
 .dashboard-brand {
@@ -479,7 +415,7 @@ textarea {
   padding: 0.35rem 0.5rem;
   border: none;
   background: transparent;
-  color: #fff;
+  color: #0f172a;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-size: 1rem;
   font-weight: 600;
@@ -490,8 +426,7 @@ textarea {
 }
 
 .dashboard-control:hover {
-  color: var(--accent-secondary);
-  opacity: 0.9;
+  color: #334155;
 }
 
 .dashboard-dropdown {
@@ -668,21 +603,21 @@ textarea {
   color: #0f172a;
   font-weight: 700;
   background: #f8fafc;
-  box-shadow: 0 0 0 1px var(--accent-primary);
-  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 .dashboard-nav-button:hover {
   color: #0f172a;
   background: #fff;
-  box-shadow: 0 0 0 1px var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-color);
   transform: translateY(-1px);
 }
 
 .dashboard-nav-button.active:hover {
   color: #0f172a;
   background: #f8fafc;
-  box-shadow: 0 0 0 1px var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-color);
 }
 
 .dashboard-brand-button {
@@ -699,7 +634,7 @@ textarea {
 
 .dashboard-brand-button:hover .dashboard-brand,
 .dashboard-brand-button:focus-visible .dashboard-brand {
-  color: var(--accent-secondary);
+  color: #0f172a;
 }
 
 .dashboard-nav-divider {
@@ -881,7 +816,7 @@ textarea {
 
 .book-tile:hover {
   transform: translateY(-1px);
-  border-color: var(--accent-primary);
+  border-color: var(--accent-color);
 }
 
 .book-tile-cover {
@@ -900,7 +835,7 @@ textarea {
 
 .book-tile-meta {
   font-size: 0.8rem;
-  color: var(--accent-tertiary);
+  color: #6b7280;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
 }
 
@@ -914,7 +849,7 @@ textarea {
 .book-progress-bar-inner {
   width: 40%;
   height: 100%;
-  background: var(--accent-tertiary);
+  background: var(--accent-color);
 }
 
 .read-tool-panels {
@@ -962,7 +897,7 @@ textarea {
 }
 
 .text-link:not(:disabled):hover {
-  color: var(--accent-primary);
+  color: var(--accent-color);
 }
 
 .book-tile::after {
@@ -1159,7 +1094,7 @@ textarea {
 }
 
 .pill.primary {
-  background: var(--accent-primary);
+  background: var(--accent-color);
   color: #fff;
 }
 

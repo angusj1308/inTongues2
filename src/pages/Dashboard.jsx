@@ -159,6 +159,24 @@ const Dashboard = () => {
               <span className="brand-dot">.</span>
             </div>
           </button>
+
+          <nav className="dashboard-nav" aria-label="Dashboard navigation">
+            {DASHBOARD_TABS.map((tab, index) => (
+              <div
+                key={tab}
+                className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
+              >
+                <button
+                  className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
+                  onClick={() => handleTabClick(tab)}
+                >
+                  {tab}
+                </button>
+                {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
+              </div>
+            ))}
+          </nav>
+
           <div className="dashboard-controls">
             <div className="dashboard-dropdown" ref={languageMenuRef}>
               <button
@@ -268,38 +286,18 @@ const Dashboard = () => {
       </header>
 
       <main className="dashboard-main">
-        <nav className="dashboard-nav-bar">
-          <div className="dashboard-nav">
-            {DASHBOARD_TABS.map((tab, index) => (
-              <div
-                key={tab}
-                className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
-              >
-                <button
-                  className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
-                  onClick={() => handleTabClick(tab)}
-                >
-                  {tab}
-                </button>
-                {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
-              </div>
-            ))}
-          </div>
-        </nav>
-
         <div className="dashboard-wrapper">
-          <div className="card dashboard-card">
-            <div className="tab-panel">
-              <div
-                className={`tab-panel-inner ${
-                  slideDirection === 'right'
-                    ? 'slide-in-right'
-                    : slideDirection === 'left'
-                      ? 'slide-in-left'
-                      : ''
-                }`}
-                key={activeTab}
-              >
+          <div className="tab-panel">
+            <div
+              className={`tab-panel-inner ${
+                slideDirection === 'right'
+                  ? 'slide-in-right'
+                  : slideDirection === 'left'
+                    ? 'slide-in-left'
+                    : ''
+              }`}
+              key={activeTab}
+            >
               {activeTab === 'home' && (
                 <div className="home-grid">
                   <div className="stat-card">
@@ -326,8 +324,8 @@ const Dashboard = () => {
               )}
 
               {activeTab === 'read' && (
-                <div className="read-layout">
-                  <section className="read-section continue-section">
+                <>
+                  <section className="read-section read-slab continue-section">
                     <div className="continue-card">
                       <div className="continue-card-meta">
                         <span className="continue-card-label ui-text">Continue reading</span>
@@ -346,7 +344,7 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <section className="read-section">
+                  <section className="read-section read-slab">
                     <div className="read-section-header">
                       <h3>My library</h3>
                       <button
@@ -387,7 +385,7 @@ const Dashboard = () => {
                     </div>
                   </section>
 
-                  <section className="read-section">
+                  <section className="read-section read-slab">
                     <div className="read-section-header">
                       <h3>InTongues library</h3>
                       <button
@@ -429,20 +427,22 @@ const Dashboard = () => {
                   </section>
 
                   {activeLanguage ? (
-                    <div className="read-tool-panels">
-                      <div className="read-tool-panel">
-                        <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                    <section className="read-section read-slab">
+                      <div className="read-tool-panels">
+                        <div className="read-tool-panel">
+                          <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                        </div>
+                        <div className="read-tool-panel">
+                          <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                        </div>
                       </div>
-                      <div className="read-tool-panel">
-                        <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                      </div>
-                    </div>
+                    </section>
                   ) : (
                     <p className="muted small" style={{ marginTop: '0.75rem' }}>
                       Add a language to unlock your reading tools.
                     </p>
                   )}
-                </div>
+                </>
               )}
 
               {activeTab === 'listen' && (

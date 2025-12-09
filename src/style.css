@@ -207,7 +207,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: var(--dashboard-surface);
+  background: #000;
 }
 
 .dashboard-header {
@@ -227,8 +227,7 @@ textarea {
 
 .dashboard-nav-bar {
   width: 100%;
-  background: var(--dashboard-surface);
-  background-color: var(--dashboard-surface);
+  background: #000;
   display: flex;
   justify-content: center;
   padding: 0.25rem 0 1.25rem;
@@ -436,10 +435,10 @@ textarea {
   margin: 0.35rem auto 1rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  background: var(--dashboard-surface-contrast);
+  background: #000;
   border-radius: 9999px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  border: none;
+  box-shadow: none;
 }
 
 .dashboard-nav-item {
@@ -463,7 +462,7 @@ textarea {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #4b5563;
+  color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
@@ -476,16 +475,16 @@ textarea {
 }
 
 .dashboard-nav-button.active {
-  color: #0f172a;
+  color: #fff;
   font-weight: 700;
 }
 
 .dashboard-nav-button:hover {
-  color: #111;
+  color: #fff;
 }
 
 .dashboard-nav-button.active:hover {
-  color: #0f172a;
+  color: #fff;
 }
 
 .dashboard-nav-button::after {
@@ -495,7 +494,7 @@ textarea {
   right: 0.8rem;
   bottom: 0.35rem;
   height: 2px;
-  background: #0f172a;
+  background: #fff;
   border-radius: 999px;
   transform: scaleX(0);
   opacity: 0;

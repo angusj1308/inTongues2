@@ -5,8 +5,8 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
   const { user } = useAuth()
   const [file, setFile] = useState(null)
   const [originalLanguage, setOriginalLanguage] = useState('')
-  const [translationMode, setTranslationMode] = useState('literal')
-  const [level, setLevel] = useState('A1')
+  const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+  const [levelIndex, setLevelIndex] = useState(0)
   const [author, setAuthor] = useState('')
   const [title, setTitle] = useState('')
   const [isPublicDomain, setIsPublicDomain] = useState(false)
@@ -26,27 +26,21 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
     event.preventDefault()
     setSubmitting(true)
 
-    if (
-      !file ||
-      !originalLanguage ||
-      !title ||
-      (translationMode === 'graded' && !level) ||
-      !activeLanguage
-    ) {
+    if (!file || !originalLanguage || !title || !activeLanguage) {
       alert('Please fill in all required fields')
       setSubmitting(false)
       return
     }
+
+    const selectedLevel = CEFR_LEVELS[levelIndex] || ''
 
     try {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('originalLanguage', originalLanguage)
       formData.append('outputLanguage', activeLanguage)
-      formData.append('translationMode', translationMode)
-      if (translationMode === 'graded') {
-        formData.append('level', level)
-      }
+      formData.append('translationMode', 'graded')
+      formData.append('level', selectedLevel)
       formData.append('author', author)
       formData.append('title', title)
       formData.append('isPublicDomain', isPublicDomain ? 'true' : 'false')
@@ -96,12 +90,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
   }
 
   const isSubmitDisabled =
-    !file ||
-    !originalLanguage ||
-    !title ||
-    (translationMode === 'graded' && !level) ||
-    submitting ||
-    !activeLanguage
+    !file || !originalLanguage || !title || submitting || !activeLanguage
 
   return (
     <div className="import-book-panel">
@@ -140,42 +129,29 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
           />
         </label>
 
-        <fieldset className="radio-group">
-          <legend className="ui-text">Translation mode</legend>
-          <label className="inline ui-text">
+        <label className="ui-text">
+          Adapt to your level
+          <div className="slider-row">
             <input
-              type="radio"
-              name="translationMode"
-              value="literal"
-              checked={translationMode === 'literal'}
-              onChange={(event) => setTranslationMode(event.target.value)}
+              type="range"
+              min="0"
+              max={CEFR_LEVELS.length - 1}
+              value={levelIndex}
+              onChange={(event) => setLevelIndex(Number(event.target.value))}
             />
-            Literal translation
-          </label>
-          <label className="inline ui-text">
-            <input
-              type="radio"
-              name="translationMode"
-              value="graded"
-              checked={translationMode === 'graded'}
-              onChange={(event) => setTranslationMode(event.target.value)}
-            />
-            Simplified graded reader
-          </label>
-        </fieldset>
-
-        {translationMode === 'graded' && (
-          <label className="ui-text">
-            Level
-            <select value={level} onChange={(event) => setLevel(event.target.value)}>
-              <option value="A1">A1</option>
-              <option value="A2">A2</option>
-              <option value="B1">B1</option>
-              <option value="B2">B2</option>
-              <option value="C1">C1</option>
-            </select>
-          </label>
-        )}
+            <span className="pill primary">{CEFR_LEVELS[levelIndex]}</span>
+          </div>
+          <div className="slider-marks">
+            {CEFR_LEVELS.map((level, index) => (
+              <span
+                key={level}
+                className={`slider-mark${levelIndex === index ? ' active' : ''}`}
+              >
+                {level}
+              </span>
+            ))}
+          </div>
+        </label>
 
         <label className="ui-text">
           Author
@@ -197,13 +173,13 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
           />
         </label>
 
-        <label className="checkbox ui-text">
+        <label className="checkbox ui-text public-domain-checkbox">
+          <span className="ui-text">This is a public domain text</span>
           <input
             type="checkbox"
             checked={isPublicDomain}
             onChange={(event) => setIsPublicDomain(event.target.checked)}
           />
-          <span className="ui-text">This is a public domain text</span>
         </label>
 
         <button type="submit" className="button primary" disabled={isSubmitDisabled}>

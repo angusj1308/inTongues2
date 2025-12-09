@@ -659,7 +659,7 @@ textarea {
 
 .book-tile-title {
   font-size: 1.08rem;
-  font-weight: 600;
+  font-weight: 400;
   color: #0f172a;
   font-family: 'Garamond', serif;
 }
@@ -695,6 +695,15 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.generate-story-panel h1,
+.generate-story-panel h2,
+.generate-story-panel h3,
+.import-book-panel h1,
+.import-book-panel h2,
+.import-book-panel h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
 }
 
 .button-icon {

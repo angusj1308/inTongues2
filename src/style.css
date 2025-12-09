@@ -23,7 +23,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--dashboard-surface);
+  background: #000;
 }
 
 #root {
@@ -222,7 +222,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: var(--dashboard-surface);
+  background: #000;
 }
 
 .dashboard-nav-bar {

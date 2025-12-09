@@ -7,164 +7,7 @@
   background-color: #f5f5f7;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  /* Neutral fallback for languages without a mapping */
-  --primary-blue: #245e9c;
-  --accent-color: var(--primary-blue);
-}
-
-/* Arabic — green & gold (generic pan-Arab aesthetic) */
-:root[data-language="Arabic"] {
-  --accent-color: #006233;
-}
-
-/* Danish — red & white */
-:root[data-language="Danish"] {
-  --accent-color: #C60C30;
-}
-
-/* Dutch — orange-ish palette */
-:root[data-language="Dutch"] {
-  --accent-color: #21468B;
-}
-
-/* English — navy & red */
-:root[data-language="English"] {
-  --accent-color: #002D72;
-}
-
-/* Filipino — blue, red, yellow */
-:root[data-language="Filipino"] {
-  --accent-color: #0038A8;
-}
-
-/* Finnish — blue & white */
-:root[data-language="Finnish"] {
-  --accent-color: #003580;
-}
-
-/* French — blue & red */
-:root[data-language="French"] {
-  --accent-color: #002395;
-}
-
-/* German — black, gold, red */
-:root[data-language="German"] {
-  --accent-color: #000000;
-}
-
-/* Greek — blue & white */
-:root[data-language="Greek"] {
-  --accent-color: #0D5EAF;
-}
-
-/* Hebrew — blue & white */
-:root[data-language="Hebrew"] {
-  --accent-color: #0038B8;
-}
-
-/* Hindi — saffron & green */
-:root[data-language="Hindi"] {
-  --accent-color: #FF9933;
-}
-
-/* Hungarian — green & red */
-:root[data-language="Hungarian"] {
-  --accent-color: #008751;
-}
-
-/* Indonesian — red & white */
-:root[data-language="Indonesian"] {
-  --accent-color: #CE1126;
-}
-
-/* Italian — green & red */
-:root[data-language="Italian"] {
-  --accent-color: #008C45;
-}
-
-/* Japanese — red on white */
-:root[data-language="Japanese"] {
-  --accent-color: #BC002D;
-}
-
-/* Korean — blue/red yin-yang */
-:root[data-language="Korean"] {
-  --accent-color: #0047A0;
-}
-
-/* Malay — yellow & black (Malaysia) */
-:root[data-language="Malay"] {
-  --accent-color: #FFCC00;
-}
-
-/* Mandarin — red & gold (PRC-inspired) */
-:root[data-language="Mandarin"] {
-  --accent-color: #DE2910;
-}
-
-/* Norwegian — deep red & blue */
-:root[data-language="Norwegian"] {
-  --accent-color: #BA0C2F;
-}
-
-/* Polish — red & white */
-:root[data-language="Polish"] {
-  --accent-color: #DC143C;
-}
-
-/* Portuguese — green & gold */
-:root[data-language="Portuguese"] {
-  --accent-color: #006600;
-}
-
-/* Romanian — blue, yellow, red */
-:root[data-language="Romanian"] {
-  --accent-color: #002B7F;
-}
-
-/* Russian — blue & red */
-:root[data-language="Russian"] {
-  --accent-color: #0033A0;
-}
-
-/* Spanish — Argentine-inspired palette */
-:root[data-language="Spanish"] {
-  --accent-color: #245e9c;
-}
-
-/* Swahili — green, gold, black (Tanzania/Kenya inspired) */
-:root[data-language="Swahili"] {
-  --accent-color: #1EB53A;
-}
-
-/* Swedish — blue & yellow */
-:root[data-language="Swedish"] {
-  --accent-color: #006AA7;
-}
-
-/* Thai — red, blue, white */
-:root[data-language="Thai"] {
-  --accent-color: #A51931;
-}
-
-/* Turkish — red & white */
-:root[data-language="Turkish"] {
-  --accent-color: #E30A17;
-}
-
-/* Ukrainian — blue & yellow */
-:root[data-language="Ukrainian"] {
-  --accent-color: #0057B8;
-}
-
-/* Vietnamese — red & yellow */
-:root[data-language="Vietnamese"] {
-  --accent-color: #DA251D;
-}
-
-/* Zulu — green & gold (South Africa inspired) */
-:root[data-language="Zulu"] {
-  --accent-color: #007A4D;
+  --accent-color: #111111;
 }
 
 .ui-text {
@@ -191,7 +34,7 @@ a {
   text-decoration-thickness: 1px;
 }
 a:hover {
-  color: var(--primary-blue);
+  color: #000;
 }
 
 .page {
@@ -272,8 +115,8 @@ textarea {
 .button {
   padding: 0.9rem 1rem;
   border-radius: 9999px;
-  border: 1px solid var(--primary-blue);
-  background: var(--primary-blue);
+  border: 1px solid #111;
+  background: #111;
   color: #fff;
   font-weight: 700;
   box-shadow: none;
@@ -286,7 +129,7 @@ textarea {
 
 .button:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 0 1px var(--primary-blue);
+  box-shadow: 0 0 0 1px #111;
 }
 
 .button:not(:disabled):active {
@@ -294,55 +137,62 @@ textarea {
 }
 
 .word-new {
-  color: #0b3d0b;
-  font-weight: 600;
+  color: #111;
+  font-weight: 700;
 }
 
 .word-unknown {
-  color: #001f3f;
-  font-weight: 600;
+  color: #1f2937;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
 }
 
 .word-recognised {
-  color: #800000;
+  color: #374151;
+  font-weight: 600;
 }
 
 .word-familiar {
-  color: #4B0082;
+  color: #4b5563;
+  font-style: italic;
 }
 
 .word-known {
-  color: inherit;
+  color: #6b7280;
 }
 
 .phrase-new {
-  color: #0b3d0b;
-  font-weight: 600;
+  color: #111;
+  font-weight: 700;
 }
 
 .phrase-unknown {
-  color: #001f3f;
-  font-weight: 600;
+  color: #1f2937;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
 }
 
 .phrase-recognised {
-  color: #800000;
+  color: #374151;
   font-weight: 600;
 }
 
 .phrase-familiar {
-  color: #4B0082;
+  color: #4b5563;
   font-weight: 600;
+  font-style: italic;
 }
 
 .phrase-known {
-  color: inherit;
+  color: #6b7280;
 }
 
 .error {
-  color: #b91c1c;
-  background: #fee2e2;
-  border: 1px solid #fecdd3;
+  color: #111;
+  background: #f1f1f2;
+  border: 1px solid #d4d4d8;
   padding: 0.75rem 1rem;
   border-radius: 10px;
   margin: 0;
@@ -413,7 +263,7 @@ textarea {
 }
 
 .dashboard-brand-language {
-  color: var(--primary-blue);
+  color: inherit;
   font-weight: 600;
 }
 
@@ -601,7 +451,7 @@ textarea {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #6b7280;
+  color: #4b5563;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
@@ -614,16 +464,16 @@ textarea {
 }
 
 .dashboard-nav-button.active {
-  color: var(--primary-blue);
+  color: #0f172a;
   font-weight: 700;
 }
 
 .dashboard-nav-button:hover {
-  color: var(--primary-blue);
+  color: #111;
 }
 
 .dashboard-nav-button.active:hover {
-  color: var(--primary-blue);
+  color: #0f172a;
 }
 
 .dashboard-nav-button::after {
@@ -633,7 +483,7 @@ textarea {
   right: 0.8rem;
   bottom: 0.35rem;
   height: 2px;
-  background: var(--primary-blue);
+  background: #0f172a;
   border-radius: 999px;
   transform: scaleX(0);
   opacity: 0;
@@ -847,7 +697,7 @@ textarea {
 
 .book-tile:hover {
   transform: translateY(-1px);
-  border-color: var(--accent-color);
+  border-color: #0f172a;
 }
 
 .book-tile-cover {
@@ -880,7 +730,7 @@ textarea {
 .book-progress-bar-inner {
   width: 40%;
   height: 100%;
-  background: var(--primary-blue);
+  background: #111;
 }
 
 .read-tool-panels {
@@ -928,7 +778,7 @@ textarea {
 }
 
 .text-link:not(:disabled):hover {
-  color: var(--primary-blue);
+  color: #000;
 }
 
 .book-tile::after {
@@ -1058,8 +908,8 @@ textarea {
 }
 
 .language-row.saved {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: #f3f4f6;
+  border-color: #d1d5db;
   cursor: default;
 }
 
@@ -1088,7 +938,7 @@ textarea {
 }
 
 .chip:hover:not(:disabled) {
-  background: #eef2ff;
+  background: #f3f4f6;
   transform: translateY(-1px);
 }
 
@@ -1125,7 +975,7 @@ textarea {
 }
 
 .pill.primary {
-  background: var(--accent-color);
+  background: #111;
   color: #fff;
 }
 

@@ -154,7 +154,8 @@ const Dashboard = () => {
         <div className="dashboard-brand-band">
           <button className="dashboard-brand-button" onClick={() => handleTabClick('home')}>
             <div className="dashboard-brand">
-              {`in${brandLanguage}`}
+              <span className="dashboard-brand-prefix">in</span>
+              <span className="dashboard-brand-language">{brandLanguage}</span>
               <span className="brand-dot">.</span>
             </div>
           </button>
@@ -266,38 +267,39 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <nav className="dashboard-nav-bar">
-        <div className="dashboard-nav">
-          {DASHBOARD_TABS.map((tab, index) => (
-            <div
-              key={tab}
-              className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
-            >
-              <button
-                className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => handleTabClick(tab)}
+      <main className="dashboard-main">
+        <nav className="dashboard-nav-bar">
+          <div className="dashboard-nav">
+            {DASHBOARD_TABS.map((tab, index) => (
+              <div
+                key={tab}
+                className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
               >
-                {tab}
-              </button>
-              {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
-            </div>
-          ))}
-        </div>
-      </nav>
+                <button
+                  className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
+                  onClick={() => handleTabClick(tab)}
+                >
+                  {tab}
+                </button>
+                {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
+              </div>
+            ))}
+          </div>
+        </nav>
 
-      <div className="dashboard-wrapper">
-        <div className="card dashboard-card">
-          <div className="tab-panel">
-            <div
-              className={`tab-panel-inner ${
-                slideDirection === 'right'
-                  ? 'slide-in-right'
-                  : slideDirection === 'left'
-                    ? 'slide-in-left'
-                    : ''
-              }`}
-              key={activeTab}
-            >
+        <div className="dashboard-wrapper">
+          <div className="card dashboard-card">
+            <div className="tab-panel">
+              <div
+                className={`tab-panel-inner ${
+                  slideDirection === 'right'
+                    ? 'slide-in-right'
+                    : slideDirection === 'left'
+                      ? 'slide-in-left'
+                      : ''
+                }`}
+                key={activeTab}
+              >
               {activeTab === 'home' && (
                 <div className="home-grid">
                   <div className="stat-card">
@@ -510,7 +512,8 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
+  </div>
   )
 }
 

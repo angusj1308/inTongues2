@@ -657,7 +657,7 @@ textarea {
   width: 32px;
   height: 44px;
   border-radius: 8px;
-  background: #e6e9f0;
+  background: #e5e5e5;
 }
 
 .book-tile-title {
@@ -780,16 +780,16 @@ textarea {
 
 .coming-soon {
   padding: 2rem;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed #d4d4d4;
   border-radius: 12px;
-  background: #f8fafc;
+  background: #fff;
   text-transform: capitalize;
 }
 
 .read-tool-panel {
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  background: #fff;
   padding: 1rem 1.25rem;
 }
 
@@ -928,8 +928,8 @@ textarea {
 }
 
 .pill.primary {
-  background: #c7d2fe;
-  color: #1d4ed8;
+  background: #c89a4b;
+  color: #111;
 }
 
 .pill-row {

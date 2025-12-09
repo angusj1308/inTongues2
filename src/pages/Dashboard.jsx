@@ -427,7 +427,7 @@ const Dashboard = () => {
                   </section>
 
                   {activeLanguage ? (
-                    <section className="read-section read-slab">
+                    <section className="read-section">
                       <div className="read-tool-panels">
                         <div className="read-tool-panel">
                           <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />

@@ -89,6 +89,11 @@ input {
   background-color: #f8fafc;
 }
 
+input[type='range'] {
+  accent-color: #000;
+  width: 100%;
+}
+
 select,
 textarea {
   padding: 0.75rem 1rem;
@@ -112,6 +117,11 @@ textarea:focus {
 textarea {
   min-height: 140px;
   resize: vertical;
+}
+
+.generate-story-panel textarea {
+  font-family: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont,
+    system-ui, sans-serif;
 }
 
 .button {
@@ -1025,6 +1035,19 @@ textarea {
   gap: 0.75rem;
 }
 
+.slider-marks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.slider-mark.active {
+  color: #000;
+}
+
 .preview-card {
   margin-top: 1rem;
   padding: 1.25rem;
@@ -1039,6 +1062,31 @@ textarea {
   border: 1px solid #000;
   color: #000;
   box-shadow: none;
+}
+
+.import-book-panel input[type='file'] {
+  border-radius: 12px;
+}
+
+.import-book-panel input[type='file']::file-selector-button {
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.import-book-panel input[type='file']::file-selector-button:hover {
+  background: #e2e8f0;
+}
+
+.public-domain-checkbox {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .button.ghost:hover:not(:disabled) {

@@ -214,6 +214,16 @@ const GenerateStoryPanel = ({
             />
             <span className="pill primary">{CEFR_LEVELS[levelIndex]}</span>
           </div>
+          <div className="slider-marks">
+            {CEFR_LEVELS.map((level, index) => (
+              <span
+                key={level}
+                className={`slider-mark${levelIndex === index ? ' active' : ''}`}
+              >
+                {level}
+              </span>
+            ))}
+          </div>
         </label>
 
         <label className="ui-text">

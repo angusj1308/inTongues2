@@ -160,7 +160,7 @@ const GenerateStoryPanel = ({
           <HeadingTag className="text-center">
             {`Generate ${environmentLanguageCapitalized} Content`}
           </HeadingTag>
-          <p className="text-center">
+          <p className="text-center ui-text">
             Create original content in your target language, tailored to your level and interests.
           </p>
         </div>
@@ -193,16 +193,16 @@ const GenerateStoryPanel = ({
                   ))}
                 </select>
               </div>
-              {languageError && <p className="error small">{languageError}</p>}
+              {languageError && <p className="error small ui-text">{languageError}</p>}
             </>
           ) : (
-            <p className="muted">Add a language to begin generating content.</p>
+            <p className="muted ui-text">Add a language to begin generating content.</p>
           )}
         </div>
       )}
 
       <form className="form" onSubmit={handleSubmit}>
-        <label>
+        <label className="ui-text">
           Language level
           <div className="slider-row">
             <input
@@ -216,7 +216,7 @@ const GenerateStoryPanel = ({
           </div>
         </label>
 
-        <label>
+        <label className="ui-text">
           Length in pages
           <div className="slider-row">
             <input
@@ -230,7 +230,7 @@ const GenerateStoryPanel = ({
           </div>
         </label>
 
-        <label>
+        <label className="ui-text">
           Genre
           <select value={genre} onChange={(event) => setGenre(event.target.value)}>
             {GENRES.map((genreOption) => (
@@ -241,7 +241,7 @@ const GenerateStoryPanel = ({
           </select>
         </label>
 
-        <label>
+        <label className="ui-text">
           Text description
           <textarea
             placeholder="Describe the topic, themes, or characters you want to include."
@@ -262,7 +262,7 @@ const GenerateStoryPanel = ({
         </div>
       </form>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error ui-text">{error}</p>}
     </div>
   )
 }

@@ -161,7 +161,7 @@ const Dashboard = () => {
           <div className="dashboard-controls">
             <div className="dashboard-dropdown" ref={languageMenuRef}>
               <button
-                className="dashboard-control"
+                className="dashboard-control ui-text"
                 onClick={() => {
                   setLanguageMenuOpen(!languageMenuOpen)
                   setAccountMenuOpen(false)
@@ -242,7 +242,7 @@ const Dashboard = () => {
 
             <div className="dashboard-dropdown" ref={accountMenuRef}>
               <button
-                className="dashboard-control"
+                className="dashboard-control ui-text"
                 onClick={() => {
                   setAccountMenuOpen(!accountMenuOpen)
                   setLanguageMenuOpen(false)
@@ -272,7 +272,7 @@ const Dashboard = () => {
               className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
             >
               <button
-                className={`dashboard-nav-button ${activeTab === tab ? 'active' : ''}`}
+                className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
                 onClick={() => handleTabClick(tab)}
               >
                 {tab}
@@ -299,22 +299,22 @@ const Dashboard = () => {
               {activeTab === 'home' && (
                 <div className="home-grid">
                   <div className="stat-card">
-                    <div className="stat-label">Daily streak</div>
+                    <div className="stat-label ui-text">Daily streak</div>
                     <div className="stat-value">— days</div>
                     <p className="muted small">Keep showing up each day to grow your streak.</p>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-label">Minutes today</div>
+                    <div className="stat-label ui-text">Minutes today</div>
                     <div className="stat-value">00:00</div>
                     <p className="muted small">Track how much time you spend practicing.</p>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-label">Words reviewed</div>
+                    <div className="stat-label ui-text">Words reviewed</div>
                     <div className="stat-value">0</div>
                     <p className="muted small">Your spaced repetition stats will appear here.</p>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-label">Sessions this week</div>
+                    <div className="stat-label ui-text">Sessions this week</div>
                     <div className="stat-value">0</div>
                     <p className="muted small">See your weekly rhythm at a glance.</p>
                   </div>
@@ -326,9 +326,9 @@ const Dashboard = () => {
                   <section className="read-section continue-section">
                     <div className="continue-card">
                       <div className="continue-card-meta">
-                        <span className="continue-card-label">Continue reading</span>
+                        <span className="continue-card-label ui-text">Continue reading</span>
                         <div className="continue-card-title">Your current book</div>
-                        <div className="continue-card-progress">Spanish · Chapter X · 12% complete</div>
+                        <div className="continue-card-progress ui-text">Spanish · Chapter X · 12% complete</div>
                       </div>
                       <div className="continue-card-actions">
                         <button
@@ -346,7 +346,7 @@ const Dashboard = () => {
                     <div className="read-section-header">
                       <h3>My library</h3>
                       <button
-                        className="text-link"
+                        className="text-link ui-text"
                         onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
                         disabled={!activeLanguage}
                       >
@@ -374,7 +374,7 @@ const Dashboard = () => {
                         >
                           <div className="book-tile-cover" />
                           <div className="book-tile-title">{book.title}</div>
-                          <div className="book-tile-meta">Spanish · A2</div>
+                          <div className="book-tile-meta ui-text">Spanish · A2</div>
                           <div className="book-progress-bar">
                             <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
                           </div>
@@ -387,7 +387,7 @@ const Dashboard = () => {
                     <div className="read-section-header">
                       <h3>InTongues library</h3>
                       <button
-                        className="text-link"
+                        className="text-link ui-text"
                         onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
                         disabled={!activeLanguage}
                       >
@@ -415,7 +415,7 @@ const Dashboard = () => {
                         >
                           <div className="book-tile-cover" />
                           <div className="book-tile-title">{book.title}</div>
-                          <div className="book-tile-meta">{book.level} · Curated</div>
+                          <div className="book-tile-meta ui-text">{book.level} · Curated</div>
                           <div className="book-progress-bar">
                             <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
                           </div>

@@ -324,7 +324,7 @@ const Dashboard = () => {
               )}
 
               {activeTab === 'read' && (
-                <div className="read-layout read-slab-stack">
+                <>
                   <section className="read-section read-slab continue-section">
                     <div className="continue-card">
                       <div className="continue-card-meta">
@@ -442,7 +442,7 @@ const Dashboard = () => {
                       Add a language to unlock your reading tools.
                     </p>
                   )}
-                </div>
+                </>
               )}
 
               {activeTab === 'listen' && (

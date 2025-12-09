@@ -218,15 +218,15 @@ textarea {
 
 .dashboard-nav-bar {
   width: 100%;
-  background: transparent;
-  background-color: transparent;
+  background: #f5f5f7;
+  background-color: #f5f5f7;
   display: flex;
   justify-content: center;
   padding: 0.25rem 0 1.25rem;
 }
 
 .dashboard-wrapper {
-  width: min(1100px, 100%);
+  width: min(1200px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -253,7 +253,7 @@ textarea {
   align-items: baseline;
   gap: 0.05rem;
   font-size: 2.4rem;
-  font-weight: 400;
+  font-weight: 300;
   font-family: 'Garamond', serif;
   color: inherit;
 }
@@ -264,7 +264,7 @@ textarea {
 
 .dashboard-brand-language {
   color: inherit;
-  font-weight: 600;
+  font-weight: inherit;
 }
 
 .dashboard-controls {
@@ -526,6 +526,7 @@ textarea {
 
 .dashboard-card {
   width: 100%;
+  max-width: 100%;
 }
 
 .tab-panel {

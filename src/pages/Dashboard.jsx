@@ -264,7 +264,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+      </header>
 
+      <nav className="dashboard-nav-bar">
         <div className="dashboard-nav">
           {DASHBOARD_TABS.map((tab, index) => (
             <div
@@ -281,7 +283,7 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
-      </header>
+      </nav>
 
       <div className="dashboard-wrapper">
         <div className="card dashboard-card">

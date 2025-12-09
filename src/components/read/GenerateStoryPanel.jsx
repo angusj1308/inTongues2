@@ -212,7 +212,6 @@ const GenerateStoryPanel = ({
               value={levelIndex}
               onChange={(event) => setLevelIndex(Number(event.target.value))}
             />
-            <span className="pill primary">{CEFR_LEVELS[levelIndex]}</span>
           </div>
           <div className="slider-marks">
             {CEFR_LEVELS.map((level, index) => (
@@ -266,7 +265,7 @@ const GenerateStoryPanel = ({
               Cancel
             </button>
           )}
-          <button className="button" type="submit" disabled={!activeLanguage || isSubmitting}>
+          <button className="button primary" type="submit" disabled={!activeLanguage || isSubmitting}>
             {isSubmitting ? 'Generating...' : 'Generate'}
           </button>
         </div>

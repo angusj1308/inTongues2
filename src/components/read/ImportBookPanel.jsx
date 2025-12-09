@@ -139,7 +139,6 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
               value={levelIndex}
               onChange={(event) => setLevelIndex(Number(event.target.value))}
             />
-            <span className="pill primary">{CEFR_LEVELS[levelIndex]}</span>
           </div>
           <div className="slider-marks">
             {CEFR_LEVELS.map((level, index) => (

@@ -1035,6 +1035,10 @@ textarea {
   gap: 0.75rem;
 }
 
+.slider-row input[type='range'] {
+  width: 100%;
+}
+
 .slider-marks {
   display: flex;
   justify-content: space-between;

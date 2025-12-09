@@ -23,7 +23,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #ead7cf;
+  background: #7a1f1f;
 }
 
 #root {
@@ -207,7 +207,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #ead7cf;
+  background: #7a1f1f;
 }
 
 .dashboard-header {
@@ -222,12 +222,12 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #ead7cf;
+  background: #7a1f1f;
 }
 
 .dashboard-nav-bar {
   width: 100%;
-  background: #ead7cf;
+  background: #7a1f1f;
   display: flex;
   justify-content: center;
   padding: 0.25rem 0 1.25rem;

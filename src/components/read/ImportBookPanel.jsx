@@ -15,7 +15,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
   if (!activeLanguage) {
     return (
       <div className="import-book-panel">
-        <p className="muted small">Select a language to import a book.</p>
+        <p className="muted small ui-text">Select a language to import a book.</p>
       </div>
     )
   }
@@ -108,7 +108,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
       <div className="page-header">
         <div className="page-header-title">
           <HeadingTag className="text-center">Import a Book</HeadingTag>
-          <p className="muted small text-center">
+          <p className="muted small text-center ui-text">
             Import any book and get a full adaptation in your target language at your level.
           </p>
         </div>
@@ -120,17 +120,17 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
       </div>
 
       <form className="form" onSubmit={handleSubmit}>
-        <label>
+        <label className="ui-text">
           Upload file
           <input
             type="file"
             accept=".txt,.pdf,.epub"
             onChange={(event) => setFile(event.target.files?.[0] || null)}
           />
-          <p className="muted small">Accepted formats: .txt, .pdf, .epub</p>
+          <p className="muted small ui-text">Accepted formats: .txt, .pdf, .epub</p>
         </label>
 
-        <label>
+        <label className="ui-text">
           Original language
           <input
             type="text"
@@ -141,8 +141,8 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
         </label>
 
         <fieldset className="radio-group">
-          <legend>Translation mode</legend>
-          <label className="inline">
+          <legend className="ui-text">Translation mode</legend>
+          <label className="inline ui-text">
             <input
               type="radio"
               name="translationMode"
@@ -152,7 +152,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
             />
             Literal translation
           </label>
-          <label className="inline">
+          <label className="inline ui-text">
             <input
               type="radio"
               name="translationMode"
@@ -165,7 +165,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
         </fieldset>
 
         {translationMode === 'graded' && (
-          <label>
+          <label className="ui-text">
             Level
             <select value={level} onChange={(event) => setLevel(event.target.value)}>
               <option value="A1">A1</option>
@@ -177,7 +177,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
           </label>
         )}
 
-        <label>
+        <label className="ui-text">
           Author
           <input
             type="text"
@@ -187,7 +187,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
           />
         </label>
 
-        <label>
+        <label className="ui-text">
           Title
           <input
             type="text"
@@ -197,13 +197,13 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
           />
         </label>
 
-        <label className="checkbox">
+        <label className="checkbox ui-text">
           <input
             type="checkbox"
             checked={isPublicDomain}
             onChange={(event) => setIsPublicDomain(event.target.checked)}
           />
-          <span>This is a public domain text</span>
+          <span className="ui-text">This is a public domain text</span>
         </label>
 
         <button type="submit" className="button primary" disabled={isSubmitDisabled}>

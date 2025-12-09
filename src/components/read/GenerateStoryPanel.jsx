@@ -211,6 +211,7 @@ const GenerateStoryPanel = ({
               max={CEFR_LEVELS.length - 1}
               value={levelIndex}
               onChange={(event) => setLevelIndex(Number(event.target.value))}
+              style={{ '--range-progress': `${(levelIndex / (CEFR_LEVELS.length - 1)) * 100}%` }}
             />
           </div>
           <div className="slider-marks">
@@ -234,6 +235,7 @@ const GenerateStoryPanel = ({
               max="25"
               value={length}
               onChange={(event) => setLength(Number(event.target.value))}
+              style={{ '--range-progress': `${((length - 1) / 24) * 100}%` }}
             />
             <span className="pill">{length} page{length === 1 ? '' : 's'}</span>
           </div>

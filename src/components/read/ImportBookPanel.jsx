@@ -138,6 +138,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
               max={CEFR_LEVELS.length - 1}
               value={levelIndex}
               onChange={(event) => setLevelIndex(Number(event.target.value))}
+              style={{ '--range-progress': `${(levelIndex / (CEFR_LEVELS.length - 1)) * 100}%` }}
             />
           </div>
           <div className="slider-marks">

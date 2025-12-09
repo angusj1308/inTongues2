@@ -328,7 +328,7 @@ const Dashboard = () => {
                   <section className="read-section read-slab continue-section">
                     <div className="continue-card">
                       <div className="continue-card-meta">
-                        <span className="continue-card-label ui-text">Continue reading</span>
+                        <h3 className="continue-card-label">Continue reading</h3>
                         <div className="continue-card-title">Your current book</div>
                         <div className="continue-card-progress ui-text">Spanish · Chapter X · 12% complete</div>
                       </div>

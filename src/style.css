@@ -7,6 +7,226 @@
   background-color: #f8fafc;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  --accent-primary: #00000000;
+  --accent-secondary: #ffffff;
+  --accent-tertiary: #00000000;
+}
+
+/* Arabic — green & gold (generic pan-Arab aesthetic) */
+:root[data-language="Arabic"] {
+  --accent-primary: #006233;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #C9A74A;
+}
+
+/* Danish — red & white */
+:root[data-language="Danish"] {
+  --accent-primary: #C60C30;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #8A0A24;
+}
+
+/* Dutch — orange-ish palette */
+:root[data-language="Dutch"] {
+  --accent-primary: #21468B;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FF7F00;
+}
+
+/* English — navy & red */
+:root[data-language="English"] {
+  --accent-primary: #002D72;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #C8102E;
+}
+
+/* Filipino — blue, red, yellow */
+:root[data-language="Filipino"] {
+  --accent-primary: #0038A8;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #CE1126;
+}
+
+/* Finnish — blue & white */
+:root[data-language="Finnish"] {
+  --accent-primary: #003580;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #001F4D;
+}
+
+/* French — blue & red */
+:root[data-language="French"] {
+  --accent-primary: #002395;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #ED2939;
+}
+
+/* German — black, gold, red */
+:root[data-language="German"] {
+  --accent-primary: #000000;
+  --accent-secondary: #FFCE00;
+  --accent-tertiary: #DD0000;
+}
+
+/* Greek — blue & white */
+:root[data-language="Greek"] {
+  --accent-primary: #0D5EAF;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #0A3F73;
+}
+
+/* Hebrew — blue & white */
+:root[data-language="Hebrew"] {
+  --accent-primary: #0038B8;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #001F73;
+}
+
+/* Hindi — saffron & green */
+:root[data-language="Hindi"] {
+  --accent-primary: #FF9933;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #138808;
+}
+
+/* Hungarian — green & red */
+:root[data-language="Hungarian"] {
+  --accent-primary: #008751;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #CE2939;
+}
+
+/* Indonesian — red & white */
+:root[data-language="Indonesian"] {
+  --accent-primary: #CE1126;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #8B0C1A;
+}
+
+/* Italian — green & red */
+:root[data-language="Italian"] {
+  --accent-primary: #008C45;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #CD212A;
+}
+
+/* Japanese — red on white */
+:root[data-language="Japanese"] {
+  --accent-primary: #BC002D;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #8E001F;
+}
+
+/* Korean — blue/red yin-yang */
+:root[data-language="Korean"] {
+  --accent-primary: #0047A0;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #C60C30;
+}
+
+/* Malay — yellow & black (Malaysia) */
+:root[data-language="Malay"] {
+  --accent-primary: #FFCC00;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #000000;
+}
+
+/* Mandarin — red & gold (PRC-inspired) */
+:root[data-language="Mandarin"] {
+  --accent-primary: #DE2910;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FFDE00;
+}
+
+/* Norwegian — deep red & blue */
+:root[data-language="Norwegian"] {
+  --accent-primary: #BA0C2F;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #00205B;
+}
+
+/* Polish — red & white */
+:root[data-language="Polish"] {
+  --accent-primary: #DC143C;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #A10E2A;
+}
+
+/* Portuguese — green & gold */
+:root[data-language="Portuguese"] {
+  --accent-primary: #006600;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FFCC00;
+}
+
+/* Romanian — blue, yellow, red */
+:root[data-language="Romanian"] {
+  --accent-primary: #002B7F;
+  --accent-secondary: #FCD116;
+  --accent-tertiary: #CE1126;
+}
+
+/* Russian — blue & red */
+:root[data-language="Russian"] {
+  --accent-primary: #0033A0;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #DA291C;
+}
+
+/* Spanish — Argentine-inspired palette */
+:root[data-language="Spanish"] {
+  --accent-primary: #6CB5F6;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #C9A74A;
+}
+
+/* Swahili — green, gold, black (Tanzania/Kenya inspired) */
+:root[data-language="Swahili"] {
+  --accent-primary: #1EB53A;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FCD116;
+}
+
+/* Swedish — blue & yellow */
+:root[data-language="Swedish"] {
+  --accent-primary: #006AA7;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FECC00;
+}
+
+/* Thai — red, blue, white */
+:root[data-language="Thai"] {
+  --accent-primary: #A51931;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #2D2A4A;
+}
+
+/* Turkish — red & white */
+:root[data-language="Turkish"] {
+  --accent-primary: #E30A17;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #A00811;
+}
+
+/* Ukrainian — blue & yellow */
+:root[data-language="Ukrainian"] {
+  --accent-primary: #0057B8;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FFD700;
+}
+
+/* Vietnamese — red & yellow */
+:root[data-language="Vietnamese"] {
+  --accent-primary: #DA251D;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FFDD00;
+}
+
+/* Zulu — green & gold (South Africa inspired) */
+:root[data-language="Zulu"] {
+  --accent-primary: #007A4D;
+  --accent-secondary: #FFFFFF;
+  --accent-tertiary: #FFB612;
 }
 
 .ui-text {
@@ -33,7 +253,7 @@ a {
   text-decoration-thickness: 1px;
 }
 a:hover {
-  color: #000;
+  color: var(--accent-primary);
 }
 
 .page {
@@ -448,7 +668,7 @@ textarea {
   left: 50%;
   top: calc(100% + 0.1rem);
   transform: translateX(-50%);
-  color: #0f172a;
+  color: var(--accent-primary);
   font-size: 0.8rem;
   line-height: 1;
   pointer-events: none;
@@ -650,7 +870,7 @@ textarea {
 
 .book-tile:hover {
   transform: translateY(-1px);
-  border-color: #dcdcdc;
+  border-color: var(--accent-primary);
 }
 
 .book-tile-cover {
@@ -669,7 +889,7 @@ textarea {
 
 .book-tile-meta {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--accent-tertiary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
 }
 
@@ -683,7 +903,7 @@ textarea {
 .book-progress-bar-inner {
   width: 40%;
   height: 100%;
-  background: #c89a4b;
+  background: var(--accent-tertiary);
 }
 
 .read-tool-panels {
@@ -731,7 +951,7 @@ textarea {
 }
 
 .text-link:not(:disabled):hover {
-  color: #000;
+  color: var(--accent-primary);
 }
 
 .book-tile::after {
@@ -928,7 +1148,7 @@ textarea {
 }
 
 .pill.primary {
-  background: #c89a4b;
+  background: var(--accent-primary);
   color: #111;
 }
 

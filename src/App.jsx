@@ -49,6 +49,17 @@ const LandingRedirect = () => {
 }
 
 const App = () => {
+  const { profile } = useAuth()
+  const activeLanguage = profile?.lastUsedLanguage || ''
+
+  useEffect(() => {
+    if (activeLanguage) {
+      document.documentElement.setAttribute('data-language', activeLanguage)
+    } else {
+      document.documentElement.removeAttribute('data-language')
+    }
+  }, [activeLanguage])
+
   return (
     <Routes>
       <Route path="/" element={<LandingRedirect />} />

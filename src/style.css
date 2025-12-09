@@ -208,7 +208,7 @@ textarea {
 
 .dashboard-header {
   width: 100%;
-  background: #f5f5f7;
+  background: #ffffff;
   color: #0f172a;
   display: flex;
   flex-direction: column;
@@ -427,7 +427,7 @@ textarea {
   margin: 0.35rem auto 1rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  background: #ffffff;
+  background: #f5f5f7;
   border-radius: 9999px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
 }

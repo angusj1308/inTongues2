@@ -77,10 +77,19 @@ const Reader = () => {
   const [readerTheme, setReaderTheme] = useState('soft-white')
   const [readerFont, setReaderFont] = useState('crimson-pro')
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
+  const [readerMode, setReaderMode] = useState('active')
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
-  const readerMode = 'active'
+  const settingsRef = useRef(null)
   // popup: { x, y, word, translation } | null
+
+  const readerModes = [
+    { id: 'extensive', label: 'Extensive' },
+    { id: 'active', label: 'Active' },
+    { id: 'intensive', label: 'Intensive' },
+  ]
 
   async function handleWordClick(e) {
     e.stopPropagation()
@@ -289,6 +298,49 @@ const Reader = () => {
   const visiblePages = pages.slice(currentIndex, currentIndex + 2)
   const pageText = visiblePages.map((p) => getDisplayText(p)).join(' ')
 
+  const splitIntoSentences = (text) => {
+    if (!text) return []
+
+    const matches = text.match(/[^.!?]+[.!?]?\s*/g)
+
+    if (!matches || matches.length === 0) return [text]
+
+    return matches
+  }
+
+  const visiblePageSentences = visiblePages.map((page) =>
+    splitIntoSentences(getDisplayText(page))
+  )
+
+  const sentenceOffsets = []
+  let runningSentenceOffset = 0
+
+  visiblePageSentences.forEach((sentences, index) => {
+    sentenceOffsets[index] = runningSentenceOffset
+    runningSentenceOffset += sentences.length
+  })
+
+  const allVisibleSentences = visiblePageSentences.flat()
+
+  useEffect(() => {
+    if (readerMode !== 'intensive') return
+
+    if (allVisibleSentences.length === 0) {
+      setCurrentSentenceIndex(0)
+      return
+    }
+
+    setCurrentSentenceIndex((prev) =>
+      Math.min(prev, Math.max(allVisibleSentences.length - 1, 0))
+    )
+  }, [readerMode, allVisibleSentences.length])
+
+  useEffect(() => {
+    if (readerMode === 'intensive') {
+      setCurrentSentenceIndex(0)
+    }
+  }, [readerMode, currentIndex])
+
   const getNewWordsOnCurrentPages = () => {
     const combinedText = visiblePages.map((p) => getDisplayText(p)).join(' ')
 
@@ -315,6 +367,20 @@ const Reader = () => {
   const handleNextPages = async () => {
     if (!hasNext) return
 
+    const advancePages = () => {
+      setCurrentIndex((prev) =>
+        Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2))
+      )
+    }
+
+    const shouldAutoPromote = readerMode === 'active' || readerMode === 'intensive'
+
+    // If we don't have user/language or we're in extensive mode, just advance
+    if (!user || !language || !shouldAutoPromote) {
+      advancePages()
+      return
+    }
+
     // First-time info popup
     if (!hasSeenAutoKnownInfo) {
       window.alert(
@@ -322,14 +388,6 @@ const Reader = () => {
       )
       localStorage.setItem('seenAutoKnownInfo', 'true')
       setHasSeenAutoKnownInfo(true)
-    }
-
-    // If we don't have user/language, just advance
-    if (!user || !language) {
-      setCurrentIndex((prev) =>
-        Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2))
-      )
-      return
     }
 
     const newWords = getNewWordsOnCurrentPages()
@@ -389,9 +447,7 @@ const Reader = () => {
     }
 
     // Finally, advance to next pages
-    setCurrentIndex((prev) =>
-      Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2))
-    )
+    advancePages()
   }
 
   const isWordChar = (ch) => {
@@ -455,15 +511,11 @@ const Reader = () => {
     return segments
   }
 
-  const renderHighlightedText = (text) => {
+  const renderHighlightedText = (text, sentenceOffset = 0) => {
     const expressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
       .sort((a, b) => b.length - a.length)
-
-    const segments = segmentTextByExpressions(text || '', expressions)
-
-    const elements = []
 
     const getDisplayStatus = (status) => {
       if (!status || status === 'unknown') return 'new'
@@ -473,53 +525,84 @@ const Reader = () => {
       return 'new'
     }
 
-    segments.forEach((segment, segmentIndex) => {
-      if (segment.type === 'phrase') {
-        elements.push(
-          <WordToken
-            key={`phrase-${segmentIndex}`}
-            text={segment.text}
-            status={getDisplayStatus(segment.status)}
-            language={language}
-            readerMode={readerMode}
-          />
-        )
-        return
-      }
+    const renderWordSegments = (customText = text) => {
+      const elements = []
 
-      const tokens = (segment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+      const segments = segmentTextByExpressions(customText || '', expressions)
 
-      tokens.forEach((token, index) => {
-        if (!token) return
-
-        const isWord = /[\p{L}\p{N}]/u.test(token)
-
-        if (!isWord) {
+      segments.forEach((segment, segmentIndex) => {
+        if (segment.type === 'phrase') {
           elements.push(
-            <span key={`separator-${segmentIndex}-${index}`}>
-              {token}
-            </span>
+            <WordToken
+              key={`phrase-${segmentIndex}`}
+              text={segment.text}
+              status={getDisplayStatus(segment.status)}
+              language={language}
+              readerMode={readerMode}
+            />
           )
           return
         }
 
-        const normalised = normaliseExpression(token)
-        const entry = vocabEntries[normalised]
-        const status = getDisplayStatus(entry?.status)
+        const tokens = (segment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
 
-        elements.push(
-          <WordToken
-            key={`word-${segmentIndex}-${index}`}
-            text={token}
-            status={status}
-            language={language}
-            readerMode={readerMode}
-          />
-        )
+        tokens.forEach((token, index) => {
+          if (!token) return
+
+          const isWord = /[\p{L}\p{N}]/u.test(token)
+
+          if (!isWord) {
+            elements.push(
+              <span key={`separator-${segmentIndex}-${index}`}>
+                {token}
+              </span>
+            )
+            return
+          }
+
+          const normalised = normaliseExpression(token)
+          const entry = vocabEntries[normalised]
+          const status = getDisplayStatus(entry?.status)
+
+          elements.push(
+            <WordToken
+              key={`word-${segmentIndex}-${index}`}
+              text={token}
+              status={status}
+              language={language}
+              readerMode={readerMode}
+            />
+          )
+        })
       })
-    })
 
-    return elements
+      return elements
+    }
+
+    if (readerMode !== 'intensive') {
+      return renderWordSegments()
+    }
+
+    const sentences = splitIntoSentences(text)
+
+    if (sentences.length === 0) return null
+
+    return sentences.map((sentence, index) => {
+      const globalIndex = sentenceOffset + index
+      const isActiveSentence = globalIndex === currentSentenceIndex
+
+      return (
+        <span
+          key={`sentence-${globalIndex}`}
+          className={`reader-sentence ${
+            isActiveSentence ? 'reader-sentence--active' : 'reader-sentence--muted'
+          }`}
+          data-active={isActiveSentence}
+        >
+          {renderWordSegments(sentence)}
+        </span>
+      )
+    })
   }
 
   useEffect(() => {
@@ -592,6 +675,22 @@ const Reader = () => {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isSettingsOpen) return undefined
+
+    const handleOutsideClick = (event) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+        setIsSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [isSettingsOpen])
+
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex + 2 < pages.length
   // visiblePages is already defined above
@@ -634,7 +733,29 @@ const Reader = () => {
     }
   }
 
+  const playSentenceAudio = (sentenceIndex) => {
+    const sentenceText = allVisibleSentences[sentenceIndex] || ''
+    // Placeholder for future audio integration
+    console.log('Play sentence audio (placeholder)', {
+      sentenceIndex,
+      sentenceText,
+    })
+  }
+
+  const goToPreviousSentence = () => {
+    setCurrentSentenceIndex((prev) => Math.max(prev - 1, 0))
+  }
+
+  const goToNextSentence = () => {
+    setCurrentSentenceIndex((prev) => {
+      if (allVisibleSentences.length === 0) return 0
+      return Math.min(prev + 1, allVisibleSentences.length - 1)
+    })
+  }
+
   useEffect(() => {
+    if (readerMode === 'intensive') return undefined
+
     const handleSpaceToggle = (event) => {
       if (event.code !== 'Space' && event.key !== ' ') return
 
@@ -665,7 +786,7 @@ const Reader = () => {
     return () => {
       window.removeEventListener('keydown', handleSpaceToggle)
     }
-  }, [])
+  }, [readerMode])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -678,6 +799,46 @@ const Reader = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
   }, [])
+
+  useEffect(() => {
+    if (readerMode !== 'intensive') return undefined
+
+    const handleIntensiveShortcuts = (event) => {
+      const activeTag = document.activeElement?.tagName
+      if (
+        activeTag &&
+        ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)
+      ) {
+        return
+      }
+
+      if (document.activeElement?.isContentEditable) return
+
+      if (event.code === 'Space' || event.key === ' ') {
+        if (allVisibleSentences.length === 0) return
+        event.preventDefault()
+        playSentenceAudio(currentSentenceIndex)
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        goToPreviousSentence()
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        goToNextSentence()
+      }
+    }
+
+    window.addEventListener('keydown', handleIntensiveShortcuts)
+
+    return () => {
+      window.removeEventListener('keydown', handleIntensiveShortcuts)
+    }
+  }, [readerMode, currentSentenceIndex, allVisibleSentences.length])
 
   const toggleFullscreen = async () => {
     try {
@@ -753,6 +914,53 @@ const Reader = () => {
                 Lighting
               </button>
 
+              <div className="reader-settings-menu" ref={settingsRef}>
+                <button
+                  className="reader-header-button ui-text reader-mode-trigger"
+                  type="button"
+                  onClick={() => setIsSettingsOpen((prev) => !prev)}
+                  aria-expanded={isSettingsOpen}
+                  aria-controls="reader-mode-panel"
+                >
+                  {readerMode === 'extensive'
+                    ? 'Extensive'
+                    : readerMode === 'intensive'
+                      ? 'Intensive'
+                      : 'Active'}{' '}
+                  mode
+                </button>
+
+                {isSettingsOpen && (
+                  <div className="reader-theme-panel reader-settings-panel" id="reader-mode-panel">
+                    <div className="reader-theme-panel-header">
+                      <div className="reader-theme-panel-title">Reading mode</div>
+                      <div className="reader-theme-panel-subtitle">
+                        Choose how highlights and progress behave
+                      </div>
+                    </div>
+
+                    <div className="reader-mode-toggle" role="group" aria-label="Reader mode">
+                      {readerModes.map((mode) => (
+                        <button
+                          type="button"
+                          key={mode.id}
+                          className={`reader-mode-option ${
+                            readerMode === mode.id ? 'active' : ''
+                          }`}
+                          onClick={() => {
+                            setReaderMode(mode.id)
+                            setIsSettingsOpen(false)
+                          }}
+                          aria-pressed={readerMode === mode.id}
+                        >
+                          {mode.label.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 className="reader-header-button ui-text"
                 type="button"
@@ -794,7 +1002,10 @@ const Reader = () => {
                     className={`reader-page-block ${isLeftPage ? 'page--left' : 'page--right'}`}
                   >
                     <div className="page-text" onMouseUp={handleWordClick}>
-                      {renderHighlightedText(getDisplayText(page))}
+                      {renderHighlightedText(
+                        getDisplayText(page),
+                        sentenceOffsets[pageIndex] || 0
+                      )}
                     </div>
                     <div className="page-number">{pageNumber}</div>
                   </div>

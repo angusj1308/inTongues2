@@ -196,6 +196,22 @@ textarea {
   transition: background-color 0.15s ease;
 }
 
+.reader-sentence {
+  display: inline;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.reader-sentence--muted {
+  opacity: 0.18;
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+.reader-sentence--active {
+  opacity: 1;
+  filter: none;
+}
+
 .phrase-new {
   color: #000;
   font-weight: 700;
@@ -1323,6 +1339,53 @@ textarea {
 .reader-themed[data-reader-tone='dark'] .reader-theme-panel {
   border-color: rgba(255, 255, 255, 0.16);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.reader-settings-menu {
+  position: relative;
+}
+
+.reader-settings-panel {
+  min-width: 320px;
+}
+
+.reader-mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  background: var(--reader-gutter, rgba(0, 0, 0, 0.05));
+  border-radius: 12px;
+  padding: 0.35rem;
+}
+
+.reader-mode-option {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0.65rem 0.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.15s ease;
+}
+
+.reader-mode-option:not(.active):hover {
+  background: rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.reader-mode-option.active {
+  background: #0f172a;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-mode-option.active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.18);
 }
 
 .reader-theme-panel-header {

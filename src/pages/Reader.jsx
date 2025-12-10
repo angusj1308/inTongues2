@@ -845,12 +845,16 @@ const Reader = () => {
               onClick={() => handleEdgeNavigation('previous')}
             />
 
-            <div className="reader-pages">
-              {visiblePages.map((page) => {
+            <div className="reader-pages reader-spread">
+              {visiblePages.map((page, pageIndex) => {
                 const pageNumber = (page.index ?? pages.indexOf(page)) + 1
+                const isLeftPage = pageIndex % 2 === 0
 
                 return (
-                  <div key={page.id || page.index} className="reader-page-block">
+                  <div
+                    key={page.id || page.index}
+                    className={`reader-page-block ${isLeftPage ? 'page--left' : 'page--right'}`}
+                  >
                     <div className="page-text" onMouseUp={handleWordClick}>
                       {renderHighlightedText(getDisplayText(page))}
                     </div>

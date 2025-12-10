@@ -12,6 +12,49 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 
+const themeOptions = [
+  {
+    id: 'cream',
+    name: 'Cream Mode',
+    description: 'Default Bookish',
+    background: '#F5F1E8',
+    text: '#1B1B1B',
+    tone: 'light',
+  },
+  {
+    id: 'white',
+    name: 'White Mode',
+    description: 'Bright / Clean',
+    background: '#FAFAFA',
+    text: '#1A1A1A',
+    tone: 'light',
+  },
+  {
+    id: 'dark',
+    name: 'Dark Mode',
+    description: 'Charcoal',
+    background: '#1C1C1C',
+    text: '#EDEDED',
+    tone: 'dark',
+  },
+  {
+    id: 'sepia-dark',
+    name: 'Sepia Dark Mode',
+    description: 'Warm Night',
+    background: '#2A241F',
+    text: '#E8E2D9',
+    tone: 'dark',
+  },
+  {
+    id: 'sepia',
+    name: 'Classic Sepia Mode',
+    description: 'Daytime Sepia',
+    background: '#ECE3D3',
+    text: '#2B2B2B',
+    tone: 'light',
+  },
+]
+
 const Reader = () => {
   const navigate = useNavigate()
   const { id, language } = useParams()
@@ -30,8 +73,12 @@ const Reader = () => {
   const [audioStatus, setAudioStatus] = useState('')
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
+  const [readerTheme, setReaderTheme] = useState('cream')
+  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
+  const themeMenuRef = useRef(null)
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -619,18 +666,91 @@ const Reader = () => {
     }
   }, [])
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleClickAway = (event) => {
+      if (!isThemeMenuOpen) return
+      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target)) {
+        setIsThemeMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickAway)
+
+    return () => document.removeEventListener('mousedown', handleClickAway)
+  }, [isThemeMenuOpen])
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen()
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen()
+      }
+    } catch (err) {
+      console.error('Failed to toggle fullscreen mode', err)
+    }
+  }
+
+  const activeTheme =
+    themeOptions.find((option) => option.id === readerTheme) || themeOptions[0]
+
+  const applyTheme = (themeId) => {
+    setReaderTheme(themeId)
+    setIsThemeMenuOpen(false)
+  }
+
+  const renderLampIcon = () => (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="reader-lamp-icon"
+    >
+      <path
+        d="M7 16h10M9.5 16 8 9.5 5 4h2.5l2.25 3.5H14L16.5 4H19l-3 5.5L14.5 16"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7 18.5h10"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+
   return (
-    <div className="page reader-page">
+    <div
+      className="page reader-page reader-themed"
+      style={{
+        '--reader-bg': activeTheme.background,
+        '--reader-text': activeTheme.text,
+      }}
+      data-reader-tone={activeTheme.tone}
+    >
       <div className="reader-hover-shell">
         <div className="reader-hover-hitbox" />
         <header className="dashboard-header reader-hover-header">
-          <div className="dashboard-brand-band">
-            <div className="dashboard-brand">
-              <span className="dashboard-brand-prefix">in</span>
-              <span className="dashboard-brand-language">Tongues</span>
-              <span className="brand-dot">.</span>
-            </div>
-
+          <div className="dashboard-brand-band reader-header-band">
             <button
               className="dashboard-control ui-text reader-back-button"
               onClick={() =>
@@ -639,6 +759,71 @@ const Reader = () => {
             >
               Back to library
             </button>
+
+            <div className="reader-header-actions">
+              <button
+                className="reader-header-button ui-text"
+                type="button"
+                onClick={toggleFullscreen}
+                aria-pressed={isFullscreen}
+              >
+                {isFullscreen ? 'Exit full screen' : 'Full screen'}
+              </button>
+
+              <div className="reader-theme-menu" ref={themeMenuRef}>
+                <button
+                  className="reader-header-button ui-text reader-theme-trigger"
+                  type="button"
+                  onClick={() => setIsThemeMenuOpen((open) => !open)}
+                  aria-expanded={isThemeMenuOpen}
+                  aria-haspopup="true"
+                >
+                  {renderLampIcon()}
+                  <div className="reader-theme-trigger-text">
+                    <span className="reader-theme-trigger-title">Reading Lamp</span>
+                    <span className="reader-theme-trigger-subtitle">Pick your colour mood</span>
+                  </div>
+                </button>
+
+                {isThemeMenuOpen && (
+                  <div className="reader-theme-panel" role="menu">
+                    <div className="reader-theme-panel-header">
+                      <span className="reader-theme-panel-title">Reading Lamp</span>
+                      <span className="reader-theme-panel-subtitle">
+                        A warm palette tailored for inTongues.
+                      </span>
+                    </div>
+                    <div className="reader-theme-options">
+                      {themeOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          className={`reader-theme-option ${
+                            readerTheme === option.id ? 'active' : ''
+                          }`}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={readerTheme === option.id}
+                          onClick={() => applyTheme(option.id)}
+                        >
+                          <span
+                            className="reader-theme-swatch"
+                            style={{ background: option.background }}
+                            aria-hidden="true"
+                          />
+                          <div className="reader-theme-copy">
+                            <span className="reader-theme-name">{option.name}</span>
+                            <span className="reader-theme-description">{option.description}</span>
+                            <span className="reader-theme-meta">
+                              Background: {option.background} · Text: {option.text}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </header>
       </div>

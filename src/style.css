@@ -1212,6 +1212,180 @@ textarea {
   margin-top: 0;
 }
 
+.reader-header-band {
+  font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+}
+
+.reader-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reader-header-button {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  color: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  font-weight: 600;
+}
+
+.reader-header-button:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-header-button {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--reader-text);
+}
+
+.reader-theme-menu {
+  position: relative;
+}
+
+.reader-theme-trigger {
+  min-width: 210px;
+}
+
+.reader-theme-trigger-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.reader-theme-trigger-title {
+  font-weight: 700;
+}
+
+.reader-theme-trigger-subtitle {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.reader-theme-panel {
+  position: absolute;
+  right: 0;
+  margin-top: 0.5rem;
+  min-width: 320px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  background: var(--reader-bg, #fff);
+  color: var(--reader-text, #0f172a);
+  padding: 0.9rem;
+  z-index: 1;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-theme-panel {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.reader-theme-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.reader-theme-panel-title {
+  font-weight: 700;
+}
+
+.reader-theme-panel-subtitle {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.reader-theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.reader-theme-option {
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.5);
+  color: inherit;
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  text-align: left;
+}
+
+.reader-theme-option:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-theme-option {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-theme-option:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.reader-theme-option.active {
+  border-color: rgba(17, 24, 39, 0.25);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-theme-option.active {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.reader-theme-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.reader-theme-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reader-theme-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.reader-theme-description {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.reader-theme-meta {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.reader-lamp-icon {
+  opacity: 0.85;
+}
+
 .reader-actions {
   display: flex;
   justify-content: space-between;
@@ -1269,6 +1443,25 @@ textarea {
   cursor: pointer;
   user-select: text;
   padding: 3rem 1.75rem 2rem;
+}
+
+.reader-themed {
+  background: var(--reader-bg);
+  color: var(--reader-text);
+}
+
+.reader-themed .dashboard-header {
+  background: var(--reader-bg);
+  color: var(--reader-text);
+}
+
+.reader-themed .reader-page-block .page-text {
+  color: inherit;
+}
+
+.reader-themed .reader-page-block .page-number {
+  color: inherit;
+  opacity: 0.75;
 }
 
 .audio-hover-area {

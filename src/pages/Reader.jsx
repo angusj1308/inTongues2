@@ -15,8 +15,8 @@ import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } 
 const themeOptions = [
   {
     id: 'soft-white',
-    label: 'Soft White',
-    background: '#F8F8F8',
+    label: 'Pure White',
+    background: '#FFFFFF',
     text: '#1A1A1A',
     tone: 'light',
     gutter: 'rgba(0, 0, 0, 0.08)',
@@ -37,18 +37,21 @@ const fontOptions = [
     label: 'Crimson Pro',
     fontFamily: "'Crimson Pro', 'Times New Roman', serif",
     fontWeight: 300,
+    fontSize: '1.125rem',
   },
   {
     id: 'inter',
     label: 'Inter',
     fontFamily: "'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif",
     fontWeight: 300,
+    fontSize: '0.9375rem',
   },
   {
     id: 'atkinson-hyperlegible',
     label: 'Atkinson Hyperlegible',
     fontFamily: "'Atkinson Hyperlegible', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
+    fontSize: '1rem',
   },
 ]
 
@@ -712,6 +715,7 @@ const Reader = () => {
         '--reader-gutter': activeTheme.gutter ?? 'rgba(0, 0, 0, 0.08)',
         '--reader-font-family': activeFont.fontFamily,
         '--reader-font-weight': activeFont.fontWeight,
+        '--reader-font-size': activeFont.fontSize ?? '1rem',
       }}
       data-reader-tone={activeTheme.tone}
       data-reader-theme={activeTheme.id}

@@ -1179,6 +1179,37 @@ textarea {
   align-items: stretch;
 }
 
+.reader-navigation {
+  position: relative;
+}
+
+.reader-nav-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6%;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.04), transparent);
+  opacity: 0;
+}
+
+.reader-navigation:hover .reader-nav-zone {
+  opacity: 1;
+}
+
+.reader-nav-zone.right {
+  right: 0;
+  transform: scaleX(-1);
+}
+
+.reader-nav-zone.disabled {
+  pointer-events: none;
+  opacity: 0;
+  background: transparent;
+  cursor: default;
+}
+
 .reader-page-block {
   flex: 1;
   display: flex;
@@ -1189,6 +1220,40 @@ textarea {
   flex: 1;
   cursor: pointer;
   user-select: text;
+  padding: 3rem 1.75rem 2rem;
+}
+
+.audio-hover-area {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  z-index: 50;
+}
+
+.audio-player-shell {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 100%);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.audio-hover-area:hover .audio-player-shell {
+  transform: translate(-50%, -8px);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.audio-player-shell audio {
+  width: min(360px, 90vw);
+  background: #fff;
+  padding: 0.35rem 0.6rem 0.45rem;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
 }
 
 .reader-page-block .page-number {

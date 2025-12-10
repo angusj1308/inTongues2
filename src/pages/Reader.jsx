@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   collection,
@@ -30,6 +30,8 @@ const Reader = () => {
   const [audioStatus, setAudioStatus] = useState('')
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
+  const audioRef = useRef(null)
+  const pointerStartRef = useRef(null)
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -546,6 +548,77 @@ const Reader = () => {
   const hasNext = currentIndex + 2 < pages.length
   // visiblePages is already defined above
 
+  const handleEdgeNavigation = (direction) => {
+    const selection = window.getSelection()
+    if (selection && selection.toString().trim()) return
+
+    if (direction === 'previous' && hasPrevious) {
+      setCurrentIndex((prev) => Math.max(prev - 2, 0))
+    }
+
+    if (direction === 'next' && hasNext) {
+      handleNextPages()
+    }
+  }
+
+  const handlePointerDown = (event) => {
+    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+  }
+
+  const handlePointerUp = (event) => {
+    const start = pointerStartRef.current
+    pointerStartRef.current = null
+
+    if (!start) return
+
+    const selection = window.getSelection()
+    if (selection && selection.toString().trim()) return
+
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+      if (dx < 0) {
+        handleEdgeNavigation('next')
+      } else {
+        handleEdgeNavigation('previous')
+      }
+    }
+  }
+
+  useEffect(() => {
+    const handleSpaceToggle = (event) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+
+      const activeTag = document.activeElement?.tagName
+      if (
+        activeTag &&
+        ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)
+      ) {
+        return
+      }
+
+      if (document.activeElement?.isContentEditable) return
+
+      const audioEl = audioRef.current
+      if (!audioEl) return
+
+      event.preventDefault()
+
+      if (audioEl.paused) {
+        audioEl.play().catch(() => {})
+      } else {
+        audioEl.pause()
+      }
+    }
+
+    window.addEventListener('keydown', handleSpaceToggle)
+
+    return () => {
+      window.removeEventListener('keydown', handleSpaceToggle)
+    }
+  }, [])
+
   return (
     <div className="page reader-page">
       <div className="reader-actions">
@@ -555,9 +628,6 @@ const Reader = () => {
         >
           Back to library
         </button>
-        {audioStatus === 'ready' && fullAudioUrl && (
-          <audio controls src={fullAudioUrl} style={{ width: '100%' }} />
-        )}
       </div>
 
       {loading ? (
@@ -566,40 +636,48 @@ const Reader = () => {
         <p className="error">{error}</p>
       ) : pages.length ? (
         <>
-          <div className="reader-pages">
-            {visiblePages.map((page) => {
-              const pageNumber = (page.index ?? pages.indexOf(page)) + 1
+          <div
+            className="reader-navigation"
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+          >
+            <div
+              className={`reader-nav-zone left ${hasPrevious ? '' : 'disabled'}`}
+              aria-label="Previous pages"
+              onClick={() => handleEdgeNavigation('previous')}
+            />
 
-              return (
-                <div key={page.id || page.index} className="reader-page-block">
-                  <div className="page-text" onMouseUp={handleWordClick}>
-                    {renderHighlightedText(getDisplayText(page))}
+            <div className="reader-pages">
+              {visiblePages.map((page) => {
+                const pageNumber = (page.index ?? pages.indexOf(page)) + 1
+
+                return (
+                  <div key={page.id || page.index} className="reader-page-block">
+                    <div className="page-text" onMouseUp={handleWordClick}>
+                      {renderHighlightedText(getDisplayText(page))}
+                    </div>
+                    <div className="page-number">{pageNumber}</div>
                   </div>
-                  <div className="page-number">{pageNumber}</div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
 
-          <div className="section" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-            <button
-              className="button ghost"
-              disabled={!hasPrevious}
-              onClick={() => setCurrentIndex((prev) => Math.max(prev - 2, 0))}
-            >
-              Previous pages
-            </button>
-            <button
-              className="button ghost"
-              disabled={!hasNext}
-              onClick={handleNextPages}
-            >
-              Next pages
-            </button>
+            <div
+              className={`reader-nav-zone right ${hasNext ? '' : 'disabled'}`}
+              aria-label="Next pages"
+              onClick={() => handleEdgeNavigation('next')}
+            />
           </div>
         </>
       ) : (
         <p className="muted">Story {id} is ready to read soon.</p>
+      )}
+      {audioStatus === 'ready' && fullAudioUrl && (
+        <div className="audio-hover-area">
+          <div className="audio-player-shell">
+            <audio ref={audioRef} controls src={fullAudioUrl} />
+          </div>
+        </div>
       )}
       {popup && (
         <div

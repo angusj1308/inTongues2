@@ -447,17 +447,16 @@ const Reader = ({ initialMode }) => {
 
   useEffect(() => {
     if (!pages.length) return
+    if (hasAppliedBookmarkRef.current) return
 
     const targetIndex = Number.isFinite(bookmarkIndex) ? bookmarkIndex : 0
     const boundedIndex = Math.min(Math.max(targetIndex, 0), Math.max(pages.length - 1, 0))
     const evenIndex = boundedIndex - (boundedIndex % 2)
 
-    if (!hasAppliedBookmarkRef.current || currentIndex !== evenIndex) {
-      setCurrentIndex(evenIndex)
-      lastPageIndexRef.current = evenIndex
-      hasAppliedBookmarkRef.current = true
-    }
-  }, [pages.length, bookmarkIndex, currentIndex])
+    setCurrentIndex(evenIndex)
+    lastPageIndexRef.current = evenIndex
+    hasAppliedBookmarkRef.current = true
+  }, [pages.length, bookmarkIndex])
 
   useEffect(() => {
     hasAppliedBookmarkRef.current = false

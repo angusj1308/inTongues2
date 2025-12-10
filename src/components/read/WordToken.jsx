@@ -35,15 +35,21 @@ const WordToken = ({ text, status, language, readerMode, onWordClick }) => {
 
   const highlighted = Boolean(style['--hlt-opacity'])
 
+  const handleWordInteraction = (event) => {
+    const selection = window.getSelection()?.toString().trim()
+
+    if (selection) return
+
+    if (onWordClick) {
+      onWordClick(text, event)
+    }
+  }
+
   return (
     <span
       className={highlighted ? 'reader-word reader-word--highlighted' : 'reader-word'}
       style={style}
-      onMouseUp={(event) => {
-        if (onWordClick) {
-          onWordClick(text, event)
-        }
-      }}
+      onClick={handleWordInteraction}
     >
       {text}
     </span>

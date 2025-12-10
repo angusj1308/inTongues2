@@ -19,6 +19,7 @@ const themeOptions = [
     background: '#F8F8F8',
     text: '#1A1A1A',
     tone: 'light',
+    gutter: 'rgba(0, 0, 0, 0.08)',
   },
   {
     id: 'pure-black',
@@ -26,13 +27,15 @@ const themeOptions = [
     background: '#000000',
     text: '#FFFFFF',
     tone: 'dark',
+    gutter: 'rgba(255, 255, 255, 0.12)',
   },
   {
     id: 'amber-sepia',
     label: 'Amber Sepia',
-    background: '#F6E7C1',
-    text: '#3A2E1F',
+    background: '#FFB56A',
+    text: '#3D1E00',
     tone: 'light',
+    gutter: 'rgba(0, 0, 0, 0.2)',
   },
 ]
 
@@ -692,41 +695,16 @@ const Reader = () => {
     setIsThemeMenuOpen(false)
   }
 
-  const renderLampIcon = () => (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="reader-lamp-icon"
-    >
-      <path
-        d="M7 16h10M9.5 16 8 9.5 5 4h2.5l2.25 3.5H14L16.5 4H19l-3 5.5L14.5 16"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7 18.5h10"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-
   return (
     <div
       className="page reader-page reader-themed"
       style={{
         '--reader-bg': activeTheme.background,
         '--reader-text': activeTheme.text,
+        '--reader-gutter': activeTheme.gutter ?? 'rgba(0, 0, 0, 0.08)',
       }}
       data-reader-tone={activeTheme.tone}
+      data-reader-theme={activeTheme.id}
     >
       <div className="reader-hover-shell">
         <div className="reader-hover-hitbox" />
@@ -742,15 +720,6 @@ const Reader = () => {
             </button>
 
             <div className="reader-header-actions">
-              <button
-                className="reader-header-button ui-text"
-                type="button"
-                onClick={toggleFullscreen}
-                aria-pressed={isFullscreen}
-              >
-                {isFullscreen ? 'Exit full screen' : 'Full screen'}
-              </button>
-
               <div
                 className="reader-theme-menu"
                 ref={themeMenuRef}
@@ -770,7 +739,7 @@ const Reader = () => {
                   aria-haspopup="true"
                   aria-label="Reader theme"
                 >
-                  {renderLampIcon()}
+                  Theme
                 </button>
 
                 {isThemeMenuOpen && (
@@ -800,6 +769,15 @@ const Reader = () => {
                   </div>
                 )}
               </div>
+
+              <button
+                className="reader-header-button ui-text"
+                type="button"
+                onClick={toggleFullscreen}
+                aria-pressed={isFullscreen}
+              >
+                {isFullscreen ? 'Exit full screen' : 'Full screen'}
+              </button>
             </div>
           </div>
         </header>

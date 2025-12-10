@@ -1253,10 +1253,10 @@ textarea {
 
 .reader-theme-trigger {
   min-width: unset;
-  width: 44px;
-  height: 44px;
-  padding: 0.5rem;
-  border-radius: 999px;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
   justify-content: center;
 }
 
@@ -1368,10 +1368,6 @@ textarea {
   flex-shrink: 0;
 }
 
-.reader-lamp-icon {
-  opacity: 0.85;
-}
-
 .reader-actions {
   display: flex;
   justify-content: space-between;
@@ -1405,7 +1401,11 @@ textarea {
   width: 6%;
   cursor: pointer;
   transition: background 0.2s ease, opacity 0.2s ease;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.04), transparent);
+  background: linear-gradient(
+    to right,
+    var(--reader-gutter, rgba(0, 0, 0, 0.04)),
+    transparent
+  );
   opacity: 0;
 }
 
@@ -1447,6 +1447,10 @@ textarea {
   color: var(--reader-text);
   min-height: 100vh;
   width: 100%;
+}
+
+.reader-themed[data-reader-theme='amber-sepia'] {
+  --reader-gutter: rgba(0, 0, 0, 0.2);
 }
 
 .page.reader-page {

@@ -1247,10 +1247,16 @@ textarea {
   border-color: rgba(0, 0, 0, 0.18);
 }
 
+.reader-themed .reader-header-button {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+}
+
 .reader-themed[data-reader-tone='dark'] .reader-header-button {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: var(--reader-text);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #0f172a;
 }
 
 .reader-theme-menu {
@@ -1467,8 +1473,8 @@ textarea {
 }
 
 .reader-themed .dashboard-header {
-  background: var(--reader-bg);
-  color: var(--reader-text);
+  background: #fff;
+  color: #0f172a;
 }
 
 .reader-themed .reader-page-block .page-text {

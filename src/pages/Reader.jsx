@@ -58,11 +58,9 @@ const Reader = () => {
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
   const [readerTheme, setReaderTheme] = useState('soft-white')
-  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
-  const themeMenuRef = useRef(null)
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -662,19 +660,6 @@ const Reader = () => {
     }
   }, [])
 
-  useEffect(() => {
-    const handleClickAway = (event) => {
-      if (!isThemeMenuOpen) return
-      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target)) {
-        setIsThemeMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickAway)
-
-    return () => document.removeEventListener('mousedown', handleClickAway)
-  }, [isThemeMenuOpen])
-
   const toggleFullscreen = async () => {
     try {
       if (!document.fullscreenElement) {
@@ -690,9 +675,10 @@ const Reader = () => {
   const activeTheme =
     themeOptions.find((option) => option.id === readerTheme) || themeOptions[0]
 
-  const applyTheme = (themeId) => {
-    setReaderTheme(themeId)
-    setIsThemeMenuOpen(false)
+  const cycleTheme = () => {
+    const currentIndex = themeOptions.findIndex((option) => option.id === readerTheme)
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % themeOptions.length
+    setReaderTheme(themeOptions[nextIndex].id)
   }
 
   return (
@@ -708,11 +694,7 @@ const Reader = () => {
     >
       <div className="reader-hover-shell">
         <div className="reader-hover-hitbox" />
-        <header
-          className={`dashboard-header reader-hover-header ${
-            isThemeMenuOpen ? 'reader-hover-header--pinned' : ''
-          }`}
-        >
+        <header className="dashboard-header reader-hover-header">
           <div className="dashboard-brand-band reader-header-band">
             <button
               className="dashboard-control ui-text reader-back-button"
@@ -724,55 +706,14 @@ const Reader = () => {
             </button>
 
             <div className="reader-header-actions">
-              <div
-                className="reader-theme-menu"
-                ref={themeMenuRef}
-                onMouseEnter={() => setIsThemeMenuOpen(true)}
-                onMouseLeave={() => setIsThemeMenuOpen(false)}
-                onFocusCapture={() => setIsThemeMenuOpen(true)}
-                onBlurCapture={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsThemeMenuOpen(false)
-                  }
-                }}
+              <button
+                className="reader-header-button ui-text reader-theme-trigger"
+                type="button"
+                aria-label="Reader lighting"
+                onClick={cycleTheme}
               >
-                <button
-                  className="reader-header-button ui-text reader-theme-trigger"
-                  type="button"
-                  aria-expanded={isThemeMenuOpen}
-                  aria-haspopup="true"
-                  aria-label="Reader theme"
-                >
-                  Theme
-                </button>
-
-                {isThemeMenuOpen && (
-                  <div className="reader-theme-panel" role="menu">
-                    <div className="reader-theme-options">
-                      {themeOptions.map((option) => (
-                        <button
-                          key={option.id}
-                          className={`reader-theme-option ${
-                            readerTheme === option.id ? 'active' : ''
-                          }`}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={readerTheme === option.id}
-                          aria-label={option.label}
-                          title={option.label}
-                          onClick={() => applyTheme(option.id)}
-                        >
-                          <span
-                            className="reader-theme-swatch"
-                            style={{ background: option.background }}
-                            aria-hidden="true"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                Lighting
+              </button>
 
               <button
                 className="reader-header-button ui-text"

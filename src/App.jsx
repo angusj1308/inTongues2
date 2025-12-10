@@ -16,7 +16,6 @@ import ListeningLibrary from './pages/ListeningLibrary'
 import AudioPlayer from './pages/AudioPlayer'
 import ImportAudioVideo from './pages/ImportAudioVideo'
 import IntonguesCinema from './pages/IntonguesCinema'
-import IntensiveMode from './pages/IntensiveMode'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -142,7 +141,7 @@ const App = () => {
         path="/reader/:language/:id/intensive"
         element={
           <ProtectedRoute>
-            <IntensiveMode />
+            <Reader initialMode="intensive" />
           </ProtectedRoute>
         }
       />
@@ -150,7 +149,7 @@ const App = () => {
         path="/reader/:id/intensive"
         element={
           <ProtectedRoute>
-            <IntensiveMode />
+            <Reader initialMode="intensive" />
           </ProtectedRoute>
         }
       />

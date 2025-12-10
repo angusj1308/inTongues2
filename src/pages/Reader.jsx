@@ -57,7 +57,7 @@ const fontOptions = [
   },
 ]
 
-const Reader = () => {
+const Reader = ({ initialMode }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { id, language } = useParams()
@@ -80,9 +80,13 @@ const Reader = () => {
   const [readerFont, setReaderFont] = useState('crimson-pro')
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const [readerMode, setReaderMode] = useState(
-    () => location.state?.readerMode || 'active'
+    () => initialMode || location.state?.readerMode || 'active'
   )
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
+  const [intensiveTranslation, setIntensiveTranslation] = useState('')
+  const [isIntensiveTranslationLoading, setIsIntensiveTranslationLoading] =
+    useState(false)
+  const [showIntensiveTranslation, setShowIntensiveTranslation] = useState(false)
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
   // popup: { x, y, word, translation } | null
@@ -317,6 +321,7 @@ const Reader = () => {
   })
 
   const allVisibleSentences = visiblePageSentences.flat()
+  const firstVisibleSentence = allVisibleSentences[0]?.trim() || ''
 
   useEffect(() => {
     if (readerMode !== 'intensive') return
@@ -336,6 +341,13 @@ const Reader = () => {
       setCurrentSentenceIndex(0)
     }
   }, [readerMode, currentIndex])
+
+  useEffect(() => {
+    if (readerMode !== 'intensive') return
+
+    setShowIntensiveTranslation(false)
+    setIntensiveTranslation('')
+  }, [firstVisibleSentence, readerMode])
 
   const getNewWordsOnCurrentPages = () => {
     const combinedText = visiblePages.map((p) => getDisplayText(p)).join(' ')
@@ -850,21 +862,53 @@ const Reader = () => {
   }
 
   const handleModeSelect = (modeId) => {
-    if (modeId === 'intensive') {
-      const intensivePath = language
-        ? `/reader/${encodeURIComponent(language)}/${id}/intensive`
-        : `/reader/${id}/intensive`
+    setReaderMode(modeId)
+  }
 
-      navigate(intensivePath)
+  const handleRevealIntensiveTranslation = async () => {
+    setShowIntensiveTranslation(true)
+
+    if (!firstVisibleSentence) {
+      setIntensiveTranslation('No sentence available to translate.')
       return
     }
 
-    setReaderMode(modeId)
+    if (intensiveTranslation || isIntensiveTranslationLoading) return
+
+    setIsIntensiveTranslationLoading(true)
+
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: firstVisibleSentence,
+          sourceLang: language || 'es',
+          targetLang: profile?.nativeLanguage || 'English',
+        }),
+      })
+
+      if (!response.ok) {
+        console.error('Sentence translation failed:', await response.text())
+        setIntensiveTranslation('Unable to fetch translation right now.')
+        return
+      }
+
+      const data = await response.json()
+      setIntensiveTranslation(data.translation || 'No translation found.')
+    } catch (error) {
+      console.error('Error translating sentence:', error)
+      setIntensiveTranslation('Unable to fetch translation right now.')
+    } finally {
+      setIsIntensiveTranslationLoading(false)
+    }
   }
 
   return (
     <div
-      className="page reader-page reader-themed"
+      className={`page reader-page reader-themed ${
+        readerMode === 'intensive' ? 'reader-intensive-active' : ''
+      }`}
       style={{
         '--reader-bg': activeTheme.background,
         '--reader-text': activeTheme.text,
@@ -876,215 +920,243 @@ const Reader = () => {
       data-reader-tone={activeTheme.tone}
       data-reader-theme={activeTheme.id}
     >
-      <div className="reader-hover-shell">
-        <div className="reader-hover-hitbox" />
-        <header className="dashboard-header reader-hover-header">
-          <div className="dashboard-brand-band reader-header-band">
-            <div className="reader-header-left">
-              <button
-                className="dashboard-control ui-text reader-back-button"
-                onClick={() =>
-                  navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
-                }
-              >
-                Back to library
-              </button>
-            </div>
-
-            <nav className="dashboard-nav reader-mode-nav" aria-label="Reading mode">
-              {readerModes.map((mode, index) => (
-                <div
-                  key={mode.id}
-                  className={`dashboard-nav-item ${readerMode === mode.id ? 'active' : ''}`}
+      <div className="reader-main-shell">
+        <div className="reader-hover-shell">
+          <div className="reader-hover-hitbox" />
+          <header className="dashboard-header reader-hover-header">
+            <div className="dashboard-brand-band reader-header-band">
+              <div className="reader-header-left">
+                <button
+                  className="dashboard-control ui-text reader-back-button"
+                  onClick={() =>
+                    navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
+                  }
                 >
-                  <button
-                    className={`dashboard-nav-button ui-text ${
-                      readerMode === mode.id ? 'active' : ''
-                    }`}
-                    type="button"
-                    onClick={() => handleModeSelect(mode.id)}
+                  Back to library
+                </button>
+              </div>
+
+              <nav className="dashboard-nav reader-mode-nav" aria-label="Reading mode">
+                {readerModes.map((mode, index) => (
+                  <div
+                    key={mode.id}
+                    className={`dashboard-nav-item ${readerMode === mode.id ? 'active' : ''}`}
                   >
-                    {mode.label.toUpperCase()}
-                  </button>
-                  {index < readerModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
-                </div>
-              ))}
-            </nav>
+                    <button
+                      className={`dashboard-nav-button ui-text ${
+                        readerMode === mode.id ? 'active' : ''
+                      }`}
+                      type="button"
+                      onClick={() => handleModeSelect(mode.id)}
+                    >
+                      {mode.label.toUpperCase()}
+                    </button>
+                    {index < readerModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
+                  </div>
+                ))}
+              </nav>
 
-            <div className="reader-header-actions">
+              <div className="reader-header-actions">
+                <button
+                  className="reader-header-button ui-text"
+                  type="button"
+                  aria-label={`Font: ${activeFont.label}`}
+                  onClick={cycleFont}
+                >
+                  Aa
+                </button>
+                <button
+                  className="reader-header-button ui-text reader-theme-trigger"
+                  type="button"
+                  aria-label="Reader lighting"
+                  onClick={cycleTheme}
+                >
+                  Lighting
+                </button>
+
+                <button
+                  className="reader-header-button ui-text"
+                  type="button"
+                  onClick={toggleFullscreen}
+                  aria-pressed={isFullscreen}
+                >
+                  {isFullscreen ? 'Exit full screen' : 'Full screen'}
+                </button>
+              </div>
+            </div>
+          </header>
+        </div>
+
+        {loading ? (
+          <p className="muted">Loading pages...</p>
+        ) : error ? (
+          <p className="error">{error}</p>
+        ) : pages.length ? (
+          <>
+            <div
+              className="reader-navigation"
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+            >
+              <div
+                className={`reader-nav-zone left ${hasPrevious ? '' : 'disabled'}`}
+                aria-label="Previous pages"
+                onClick={() => handleEdgeNavigation('previous')}
+              />
+
+              <div className="reader-pages reader-spread">
+                {visiblePages.map((page, pageIndex) => {
+                  const pageNumber = (page.index ?? pages.indexOf(page)) + 1
+                  const isLeftPage = pageIndex % 2 === 0
+
+                  return (
+                    <div
+                      key={page.id || page.index}
+                      className={`reader-page-block ${isLeftPage ? 'page--left' : 'page--right'}`}
+                    >
+                      <div className="page-text" onMouseUp={handleWordClick}>
+                        {renderHighlightedText(
+                          getDisplayText(page),
+                          sentenceOffsets[pageIndex] || 0
+                        )}
+                      </div>
+                      <div className="page-number">{pageNumber}</div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div
+                className={`reader-nav-zone right ${hasNext ? '' : 'disabled'}`}
+                aria-label="Next pages"
+                onClick={() => handleEdgeNavigation('next')}
+              />
+            </div>
+          </>
+        ) : (
+          <p className="muted">Story {id} is ready to read soon.</p>
+        )}
+        {audioStatus === 'ready' && fullAudioUrl && (
+          <div className="audio-hover-area">
+            <div className="audio-player-shell">
+              <audio ref={audioRef} controls src={fullAudioUrl} />
+            </div>
+          </div>
+        )}
+        {popup && (
+          <div
+            className="translate-popup"
+            style={{
+              position: 'absolute',
+              top: popup.y,
+              left: popup.x,
+              background: 'white',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              zIndex: 1000,
+              maxWidth: '260px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <strong>{popup.word}</strong>
+            <div style={{ marginTop: '4px' }}>{popup.translation}</div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: '6px',
+                marginTop: '8px',
+                flexWrap: 'wrap',
+              }}
+            >
               <button
-                className="reader-header-button ui-text"
                 type="button"
-                aria-label={`Font: ${activeFont.label}`}
-                onClick={cycleFont}
+                onClick={() => handleSetWordStatus('unknown')}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#001f3f', // navy
+                  color: 'white',
+                  fontSize: '0.75rem',
+                }}
               >
-                Aa
+                Unknown
               </button>
               <button
-                className="reader-header-button ui-text reader-theme-trigger"
                 type="button"
-                aria-label="Reader lighting"
-                onClick={cycleTheme}
+                onClick={() => handleSetWordStatus('recognised')}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#800000', // maroon
+                  color: 'white',
+                  fontSize: '0.75rem',
+                }}
               >
-                Lighting
+                Recognised
               </button>
-
               <button
-                className="reader-header-button ui-text"
                 type="button"
-                onClick={toggleFullscreen}
-                aria-pressed={isFullscreen}
+                onClick={() => handleSetWordStatus('familiar')}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#0b3d0b', // dark forest green
+                  color: 'white',
+                  fontSize: '0.75rem',
+                }}
               >
-                {isFullscreen ? 'Exit full screen' : 'Full screen'}
+                Familiar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetWordStatus('known')}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#000000', // black
+                  color: 'white',
+                  fontSize: '0.75rem',
+                }}
+              >
+                Known
               </button>
             </div>
           </div>
-        </header>
+        )}
       </div>
 
-      {loading ? (
-        <p className="muted">Loading pages...</p>
-      ) : error ? (
-        <p className="error">{error}</p>
-      ) : pages.length ? (
-        <>
-          <div
-            className="reader-navigation"
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-          >
-            <div
-              className={`reader-nav-zone left ${hasPrevious ? '' : 'disabled'}`}
-              aria-label="Previous pages"
-              onClick={() => handleEdgeNavigation('previous')}
-            />
+      {readerMode === 'intensive' && (
+        <div className="reader-intensive-overlay">
+          <div className="reader-intensive-card">
+            <p className="reader-intensive-label">INTENSIVE MODE</p>
+            <p className="reader-intensive-sentence">
+              {firstVisibleSentence || 'No text available for this page.'}
+            </p>
 
-            <div className="reader-pages reader-spread">
-              {visiblePages.map((page, pageIndex) => {
-                const pageNumber = (page.index ?? pages.indexOf(page)) + 1
-                const isLeftPage = pageIndex % 2 === 0
+            <button
+              className="reader-intensive-button"
+              type="button"
+              onClick={handleRevealIntensiveTranslation}
+              disabled={isIntensiveTranslationLoading}
+            >
+              {isIntensiveTranslationLoading ? 'Loading translation...' : 'Show translation'}
+            </button>
 
-                return (
-                  <div
-                    key={page.id || page.index}
-                    className={`reader-page-block ${isLeftPage ? 'page--left' : 'page--right'}`}
-                  >
-                    <div className="page-text" onMouseUp={handleWordClick}>
-                      {renderHighlightedText(
-                        getDisplayText(page),
-                        sentenceOffsets[pageIndex] || 0
-                      )}
-                    </div>
-                    <div className="page-number">{pageNumber}</div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div
-              className={`reader-nav-zone right ${hasNext ? '' : 'disabled'}`}
-              aria-label="Next pages"
-              onClick={() => handleEdgeNavigation('next')}
-            />
-          </div>
-        </>
-      ) : (
-        <p className="muted">Story {id} is ready to read soon.</p>
-      )}
-      {audioStatus === 'ready' && fullAudioUrl && (
-        <div className="audio-hover-area">
-          <div className="audio-player-shell">
-            <audio ref={audioRef} controls src={fullAudioUrl} />
-          </div>
-        </div>
-      )}
-      {popup && (
-        <div
-          className="translate-popup"
-          style={{
-            position: 'absolute',
-            top: popup.y,
-            left: popup.x,
-            background: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            maxWidth: '260px',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <strong>{popup.word}</strong>
-          <div style={{ marginTop: '4px' }}>{popup.translation}</div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '6px',
-              marginTop: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('unknown')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#001f3f', // navy
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Unknown
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('recognised')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#800000', // maroon
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Recognised
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('familiar')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#0b3d0b', // dark forest green
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Familiar
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('known')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#000000', // black
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Known
-            </button>
+            {showIntensiveTranslation && (
+              <p className="reader-intensive-translation">
+                {intensiveTranslation || 'Translation will appear here.'}
+              </p>
+            )}
           </div>
         </div>
       )}

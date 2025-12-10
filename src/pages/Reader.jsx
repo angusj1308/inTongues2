@@ -84,8 +84,11 @@ const Reader = ({ initialMode }) => {
   )
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
   const [intensiveTranslation, setIntensiveTranslation] = useState('')
+  const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] =
+    useState(false)
   const [isIntensiveTranslationLoading, setIsIntensiveTranslationLoading] =
     useState(false)
+  const [lastTranslatedSentence, setLastTranslatedSentence] = useState('')
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
   // popup: { x, y, word, translation } | null
@@ -722,7 +725,8 @@ const Reader = ({ initialMode }) => {
       // If clicking inside the text area or inside the popup, do NOT close
       if (
         event.target.closest('.page-text') ||
-        event.target.closest('.translate-popup')
+        event.target.closest('.translate-popup') ||
+        event.target.closest('.reader-intensive-card')
       ) {
         return
       }
@@ -980,63 +984,64 @@ const Reader = ({ initialMode }) => {
   }
 
   useEffect(() => {
-    if (readerMode !== 'intensive') {
-      setIntensiveTranslation('')
-      setIsIntensiveTranslationLoading(false)
-      return undefined
-    }
+    setIsIntensiveTranslationVisible(false)
+    setIntensiveTranslation('')
+    setIsIntensiveTranslationLoading(false)
+    setLastTranslatedSentence('')
+  }, [readerMode, currentIntensiveSentence])
 
+  const fetchIntensiveTranslation = async () => {
     if (!currentIntensiveSentence) {
       setIntensiveTranslation('No sentence available to translate.')
-      setIsIntensiveTranslationLoading(false)
-      return undefined
+      return
     }
 
     const controller = new AbortController()
-    let cancelled = false
 
-    const fetchTranslation = async () => {
-      setIsIntensiveTranslationLoading(true)
-      setIntensiveTranslation('')
+    setIsIntensiveTranslationLoading(true)
+    setIntensiveTranslation('')
 
-      try {
-        const response = await fetch('http://localhost:4000/api/translatePhrase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase: currentIntensiveSentence,
-            sourceLang: language || 'es',
-            targetLang: profile?.nativeLanguage || 'English',
-          }),
-          signal: controller.signal,
-        })
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: currentIntensiveSentence,
+          sourceLang: language || 'es',
+          targetLang: profile?.nativeLanguage || 'English',
+        }),
+        signal: controller.signal,
+      })
 
-        if (!response.ok) {
-          console.error('Sentence translation failed:', await response.text())
-          if (!cancelled) setIntensiveTranslation('Unable to fetch translation right now.')
-          return
-        }
-
-        const data = await response.json()
-        if (!cancelled) {
-          setIntensiveTranslation(data.translation || 'No translation found.')
-        }
-      } catch (error) {
-        if (error.name === 'AbortError') return
-        console.error('Error translating sentence:', error)
-        if (!cancelled) setIntensiveTranslation('Unable to fetch translation right now.')
-      } finally {
-        if (!cancelled) setIsIntensiveTranslationLoading(false)
+      if (!response.ok) {
+        console.error('Sentence translation failed:', await response.text())
+        setIntensiveTranslation('Unable to fetch translation right now.')
+        return
       }
-    }
 
-    fetchTranslation()
-
-    return () => {
-      cancelled = true
-      controller.abort()
+      const data = await response.json()
+      setIntensiveTranslation(data.translation || 'No translation found.')
+      setLastTranslatedSentence(currentIntensiveSentence)
+    } catch (error) {
+      if (error.name === 'AbortError') return
+      console.error('Error translating sentence:', error)
+      setIntensiveTranslation('Unable to fetch translation right now.')
+    } finally {
+      setIsIntensiveTranslationLoading(false)
     }
-  }, [readerMode, currentIntensiveSentence, language, profile?.nativeLanguage])
+  }
+
+  const toggleIntensiveTranslation = () => {
+    const nextVisibility = !isIntensiveTranslationVisible
+    setIsIntensiveTranslationVisible(nextVisibility)
+
+    if (
+      nextVisibility &&
+      (!intensiveTranslation || lastTranslatedSentence !== currentIntensiveSentence)
+    ) {
+      fetchIntensiveTranslation()
+    }
+  }
 
   return (
     <div
@@ -1179,96 +1184,6 @@ const Reader = ({ initialMode }) => {
               </div>
             </div>
           )}
-          {popup && (
-            <div
-              className="translate-popup"
-              style={{
-                position: 'absolute',
-                top: popup.y,
-                left: popup.x,
-                background: 'white',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                zIndex: 1000,
-                maxWidth: '260px',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <strong>{popup.word}</strong>
-              <div style={{ marginTop: '4px' }}>{popup.translation}</div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '6px',
-                  marginTop: '8px',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSetWordStatus('unknown')}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: '#001f3f', // navy
-                    color: 'white',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  Unknown
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetWordStatus('recognised')}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: '#800000', // maroon
-                    color: 'white',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  Recognised
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetWordStatus('familiar')}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: '#0b3d0b', // dark forest green
-                    color: 'white',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  Familiar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetWordStatus('known')}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: '#000000', // black
-                    color: 'white',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  Known
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1282,15 +1197,91 @@ const Reader = ({ initialMode }) => {
                 : 'No text available for this page.'}
             </div>
 
-            <p className="reader-intensive-translation">
-              {isIntensiveTranslationLoading
-                ? 'Loading translation...'
-                : intensiveTranslation || 'Translation will appear here.'}
-            </p>
+            <div className="reader-intensive-controls">
+              <button
+                type="button"
+                className="intensive-translation-toggle"
+                onClick={toggleIntensiveTranslation}
+              >
+                {isIntensiveTranslationVisible ? 'Hide translation' : 'Show translation'}
+              </button>
+
+              {isIntensiveTranslationVisible && (
+                <p className="reader-intensive-translation">
+                  {isIntensiveTranslationLoading
+                    ? 'Loading translation...'
+                    : intensiveTranslation || 'Translation will appear here.'}
+                </p>
+              )}
+            </div>
 
             <p className="reader-intensive-helper">
               Space = play / repeat · ← / → = previous / next sentence
             </p>
+          </div>
+        </div>
+      )}
+
+      {popup && (
+        <div
+          className="translate-popup"
+          style={{
+            position: 'fixed',
+            top: popup.y,
+            left: popup.x,
+            background: 'white',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            boxShadow: '0 6px 18px rgba(15, 23, 42, 0.18)',
+            zIndex: 1000,
+            maxWidth: '280px',
+            border: '1px solid #e2e8f0',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <strong style={{ fontSize: '0.95rem' }}>{popup.word}</strong>
+          <div style={{ marginTop: '6px', color: '#0f172a' }}>{popup.translation}</div>
+
+          <div
+            style={{
+              marginTop: '10px',
+              background: '#f8fafc',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              padding: '6px',
+              display: 'flex',
+              gap: '6px',
+              justifyContent: 'space-between',
+              alignItems: 'stretch',
+            }}
+          >
+            {VOCAB_STATUSES.map((status) => {
+              const isActive =
+                vocabEntries[normaliseExpression(popup.word)]?.status === status
+
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => handleSetWordStatus(status)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 4px',
+                    background: isActive ? '#e2e8f0' : 'transparent',
+                    color: '#0f172a',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    fontWeight: isActive ? 700 : 500,
+                    transition: 'background 120ms ease, transform 120ms ease',
+                  }}
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

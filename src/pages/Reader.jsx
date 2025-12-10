@@ -621,13 +621,26 @@ const Reader = () => {
 
   return (
     <div className="page reader-page">
-      <div className="reader-actions">
-        <button
-          className="button ghost"
-          onClick={() => navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')}
-        >
-          Back to library
-        </button>
+      <div className="reader-hover-shell">
+        <div className="reader-hover-hitbox" />
+        <header className="dashboard-header reader-hover-header">
+          <div className="dashboard-brand-band">
+            <div className="dashboard-brand">
+              <span className="dashboard-brand-prefix">in</span>
+              <span className="dashboard-brand-language">Tongues</span>
+              <span className="brand-dot">.</span>
+            </div>
+
+            <button
+              className="dashboard-control ui-text reader-back-button"
+              onClick={() =>
+                navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
+              }
+            >
+              Back to library
+            </button>
+          </div>
+        </header>
       </div>
 
       {loading ? (

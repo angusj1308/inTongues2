@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
+import WordToken from '../components/read/WordToken'
 
 const themeOptions = [
   {
@@ -78,6 +79,7 @@ const Reader = () => {
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
+  const readerMode = 'active'
   // popup: { x, y, word, translation } | null
 
   async function handleWordClick(e) {
@@ -463,15 +465,24 @@ const Reader = () => {
 
     const elements = []
 
+    const getDisplayStatus = (status) => {
+      if (!status || status === 'unknown') return 'new'
+      if (status === 'recognised' || status === 'familiar' || status === 'known') {
+        return status
+      }
+      return 'new'
+    }
+
     segments.forEach((segment, segmentIndex) => {
       if (segment.type === 'phrase') {
         elements.push(
-          <span
+          <WordToken
             key={`phrase-${segmentIndex}`}
-            className={`phrase-${segment.status || 'new'}`}
-          >
-            {segment.text}
-          </span>
+            text={segment.text}
+            status={getDisplayStatus(segment.status)}
+            language={language}
+            readerMode={readerMode}
+          />
         )
         return
       }
@@ -494,25 +505,16 @@ const Reader = () => {
 
         const normalised = normaliseExpression(token)
         const entry = vocabEntries[normalised]
-        const status = entry?.status
-
-        let className
-        if (!status) {
-          className = 'word-new'
-        } else if (status === 'unknown') {
-          className = 'word-unknown'
-        } else if (status === 'recognised') {
-          className = 'word-recognised'
-        } else if (status === 'familiar') {
-          className = 'word-familiar'
-        } else {
-          className = 'word-known'
-        }
+        const status = getDisplayStatus(entry?.status)
 
         elements.push(
-          <span key={`word-${segmentIndex}-${index}`} className={className}>
-            {token}
-          </span>
+          <WordToken
+            key={`word-${segmentIndex}-${index}`}
+            text={token}
+            status={status}
+            language={language}
+            readerMode={readerMode}
+          />
         )
       })
     })

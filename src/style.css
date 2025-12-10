@@ -180,6 +180,22 @@ textarea {
   color: #000;
 }
 
+.reader-word {
+  color: inherit;
+}
+
+.reader-word--highlighted {
+  background-color: rgba(0, 0, 0, var(--hlt-opacity, 0.16));
+  background-color: color-mix(
+    in srgb,
+    var(--hlt-base) calc(var(--hlt-opacity, 0) * 100%),
+    transparent
+  );
+  border-radius: 0.2em;
+  padding: 0 0.05em;
+  transition: background-color 0.15s ease;
+}
+
 .phrase-new {
   color: #000;
   font-weight: 700;

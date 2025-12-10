@@ -14,43 +14,24 @@ import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } 
 
 const themeOptions = [
   {
-    id: 'cream',
-    name: 'Cream Mode',
-    description: 'Default Bookish',
-    background: '#F5F1E8',
-    text: '#1B1B1B',
-    tone: 'light',
-  },
-  {
-    id: 'white',
-    name: 'White Mode',
-    description: 'Bright / Clean',
-    background: '#FAFAFA',
+    id: 'soft-white',
+    label: 'Soft White',
+    background: '#F8F8F8',
     text: '#1A1A1A',
     tone: 'light',
   },
   {
-    id: 'dark',
-    name: 'Dark Mode',
-    description: 'Charcoal',
-    background: '#1C1C1C',
-    text: '#EDEDED',
+    id: 'pure-black',
+    label: 'Pure Black',
+    background: '#000000',
+    text: '#FFFFFF',
     tone: 'dark',
   },
   {
-    id: 'sepia-dark',
-    name: 'Sepia Dark Mode',
-    description: 'Warm Night',
-    background: '#2A241F',
-    text: '#E8E2D9',
-    tone: 'dark',
-  },
-  {
-    id: 'sepia',
-    name: 'Classic Sepia Mode',
-    description: 'Daytime Sepia',
-    background: '#ECE3D3',
-    text: '#2B2B2B',
+    id: 'amber-sepia',
+    label: 'Amber Sepia',
+    background: '#F6E7C1',
+    text: '#3A2E1F',
     tone: 'light',
   },
 ]
@@ -73,7 +54,7 @@ const Reader = () => {
   const [audioStatus, setAudioStatus] = useState('')
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
-  const [readerTheme, setReaderTheme] = useState('cream')
+  const [readerTheme, setReaderTheme] = useState('soft-white')
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const audioRef = useRef(null)
@@ -770,29 +751,30 @@ const Reader = () => {
                 {isFullscreen ? 'Exit full screen' : 'Full screen'}
               </button>
 
-              <div className="reader-theme-menu" ref={themeMenuRef}>
+              <div
+                className="reader-theme-menu"
+                ref={themeMenuRef}
+                onMouseEnter={() => setIsThemeMenuOpen(true)}
+                onMouseLeave={() => setIsThemeMenuOpen(false)}
+                onFocusCapture={() => setIsThemeMenuOpen(true)}
+                onBlurCapture={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setIsThemeMenuOpen(false)
+                  }
+                }}
+              >
                 <button
                   className="reader-header-button ui-text reader-theme-trigger"
                   type="button"
-                  onClick={() => setIsThemeMenuOpen((open) => !open)}
                   aria-expanded={isThemeMenuOpen}
                   aria-haspopup="true"
+                  aria-label="Reader theme"
                 >
                   {renderLampIcon()}
-                  <div className="reader-theme-trigger-text">
-                    <span className="reader-theme-trigger-title">Reading Lamp</span>
-                    <span className="reader-theme-trigger-subtitle">Pick your colour mood</span>
-                  </div>
                 </button>
 
                 {isThemeMenuOpen && (
                   <div className="reader-theme-panel" role="menu">
-                    <div className="reader-theme-panel-header">
-                      <span className="reader-theme-panel-title">Reading Lamp</span>
-                      <span className="reader-theme-panel-subtitle">
-                        A warm palette tailored for inTongues.
-                      </span>
-                    </div>
                     <div className="reader-theme-options">
                       {themeOptions.map((option) => (
                         <button
@@ -803,6 +785,8 @@ const Reader = () => {
                           type="button"
                           role="menuitemradio"
                           aria-checked={readerTheme === option.id}
+                          aria-label={option.label}
+                          title={option.label}
                           onClick={() => applyTheme(option.id)}
                         >
                           <span
@@ -810,13 +794,6 @@ const Reader = () => {
                             style={{ background: option.background }}
                             aria-hidden="true"
                           />
-                          <div className="reader-theme-copy">
-                            <span className="reader-theme-name">{option.name}</span>
-                            <span className="reader-theme-description">{option.description}</span>
-                            <span className="reader-theme-meta">
-                              Background: {option.background} · Text: {option.text}
-                            </span>
-                          </div>
                         </button>
                       ))}
                     </div>

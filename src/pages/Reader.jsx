@@ -680,20 +680,27 @@ const Reader = ({ initialMode }) => {
     })
   }
 
-  useEffect(() => {
-    if (!pageText || typeof pageText !== 'string') return
+  const allStoryWords = useMemo(() => {
+    const combinedText = pages.map((page) => getDisplayText(page)).join(' ')
 
-    const words = Array.from(
+    if (!combinedText || typeof combinedText !== 'string') return []
+
+    return Array.from(
       new Set(
-        pageText
+        combinedText
           .replace(/[^\p{L}\p{N}]+/gu, ' ')
           .toLowerCase()
           .split(/\s+/)
           .filter(Boolean)
       )
     )
+  }, [pages])
 
-    if (words.length === 0) return
+  useEffect(() => {
+    if (!language || !profile?.nativeLanguage || allStoryWords.length === 0) {
+      setPageTranslations({})
+      return undefined
+    }
 
     const controller = new AbortController()
 
@@ -703,9 +710,9 @@ const Reader = ({ initialMode }) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            languageCode: language || 'es', // TODO: replace with real language code
-            targetLang: profile?.nativeLanguage || 'English',
-            words,
+            languageCode: language, // TODO: replace with real language code
+            targetLang: profile.nativeLanguage,
+            words: allStoryWords,
           }),
           signal: controller.signal,
         })
@@ -729,7 +736,7 @@ const Reader = ({ initialMode }) => {
     return () => {
       controller.abort()
     }
-  }, [language, pageText, profile?.nativeLanguage])
+  }, [allStoryWords, language, profile?.nativeLanguage])
 
   useEffect(() => {
     function handleGlobalClick(event) {

@@ -86,7 +86,6 @@ const Reader = ({ initialMode }) => {
   const [intensiveTranslation, setIntensiveTranslation] = useState('')
   const [isIntensiveTranslationLoading, setIsIntensiveTranslationLoading] =
     useState(false)
-  const [showIntensiveTranslation, setShowIntensiveTranslation] = useState(false)
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
   // popup: { x, y, word, translation } | null
@@ -321,7 +320,10 @@ const Reader = ({ initialMode }) => {
   })
 
   const allVisibleSentences = visiblePageSentences.flat()
-  const firstVisibleSentence = allVisibleSentences[0]?.trim() || ''
+  const currentIntensiveSentence =
+    readerMode === 'intensive'
+      ? allVisibleSentences[currentSentenceIndex]?.trim() || ''
+      : ''
 
   useEffect(() => {
     if (readerMode !== 'intensive') return
@@ -340,14 +342,7 @@ const Reader = ({ initialMode }) => {
     if (readerMode === 'intensive') {
       setCurrentSentenceIndex(0)
     }
-  }, [readerMode, currentIndex])
-
-  useEffect(() => {
-    if (readerMode !== 'intensive') return
-
-    setShowIntensiveTranslation(false)
-    setIntensiveTranslation('')
-  }, [firstVisibleSentence, readerMode])
+  }, [readerMode])
 
   const getNewWordsOnCurrentPages = () => {
     const combinedText = visiblePages.map((p) => getDisplayText(p)).join(' ')
@@ -370,6 +365,66 @@ const Reader = ({ initialMode }) => {
     })
 
     return newWords
+  }
+
+  const getNewWordsInSentence = (sentence) => {
+    if (!sentence) return []
+
+    const rawWords = Array.from(
+      new Set(
+        sentence
+          .replace(/[^\p{L}\p{N}]+/gu, ' ')
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean)
+      )
+    )
+
+    return rawWords.filter((word) => {
+      const key = normaliseExpression(word)
+      const status = vocabEntries[key]?.status
+      return !status || status === 'unknown'
+    })
+  }
+
+  const autoMarkSentenceWordsAsKnown = async (sentence) => {
+    if (!user || !language) return
+
+    const newWords = getNewWordsInSentence(sentence)
+
+    if (newWords.length === 0) return
+
+    try {
+      await Promise.all(
+        newWords.map((word) => {
+          const key = normaliseExpression(word)
+          const translation =
+            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+
+          return upsertVocabEntry(user.uid, language, word, translation, 'known')
+        })
+      )
+
+      setVocabEntries((prev) => {
+        const next = { ...prev }
+
+        newWords.forEach((word) => {
+          const key = normaliseExpression(word)
+          const translation =
+            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+
+          next[key] = {
+            ...(next[key] || { text: word, language }),
+            status: 'known',
+            translation,
+          }
+        })
+
+        return next
+      })
+    } catch (error) {
+      console.error('Failed to auto-mark intensive sentence words as known', error)
+    }
   }
 
   const handleNextPages = async () => {
@@ -519,76 +574,74 @@ const Reader = ({ initialMode }) => {
     return segments
   }
 
-  const renderHighlightedText = (text, sentenceOffset = 0) => {
+  const getDisplayStatus = (status) => {
+    if (!status || status === 'unknown') return 'new'
+    if (status === 'recognised' || status === 'familiar' || status === 'known') {
+      return status
+    }
+    return 'new'
+  }
+
+  const renderWordSegments = (text = '') => {
     const expressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
       .sort((a, b) => b.length - a.length)
 
-    const getDisplayStatus = (status) => {
-      if (!status || status === 'unknown') return 'new'
-      if (status === 'recognised' || status === 'familiar' || status === 'known') {
-        return status
+    const elements = []
+
+    const segments = segmentTextByExpressions(text || '', expressions)
+
+    segments.forEach((segment, segmentIndex) => {
+      if (segment.type === 'phrase') {
+        elements.push(
+          <WordToken
+            key={`phrase-${segmentIndex}`}
+            text={segment.text}
+            status={getDisplayStatus(segment.status)}
+            language={language}
+            readerMode={readerMode}
+          />
+        )
+        return
       }
-      return 'new'
-    }
 
-    const renderWordSegments = (customText = text) => {
-      const elements = []
+      const tokens = (segment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
 
-      const segments = segmentTextByExpressions(customText || '', expressions)
+      tokens.forEach((token, index) => {
+        if (!token) return
 
-      segments.forEach((segment, segmentIndex) => {
-        if (segment.type === 'phrase') {
+        const isWord = /[\p{L}\p{N}]/u.test(token)
+
+        if (!isWord) {
           elements.push(
-            <WordToken
-              key={`phrase-${segmentIndex}`}
-              text={segment.text}
-              status={getDisplayStatus(segment.status)}
-              language={language}
-              readerMode={readerMode}
-            />
+            <span key={`separator-${segmentIndex}-${index}`}>{token}</span>
           )
           return
         }
 
-        const tokens = (segment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+        const normalised = normaliseExpression(token)
+        const entry = vocabEntries[normalised]
+        const status = getDisplayStatus(entry?.status)
 
-        tokens.forEach((token, index) => {
-          if (!token) return
-
-          const isWord = /[\p{L}\p{N}]/u.test(token)
-
-          if (!isWord) {
-            elements.push(
-              <span key={`separator-${segmentIndex}-${index}`}>
-                {token}
-              </span>
-            )
-            return
-          }
-
-          const normalised = normaliseExpression(token)
-          const entry = vocabEntries[normalised]
-          const status = getDisplayStatus(entry?.status)
-
-          elements.push(
-            <WordToken
-              key={`word-${segmentIndex}-${index}`}
-              text={token}
-              status={status}
-              language={language}
-              readerMode={readerMode}
-            />
-          )
-        })
+        elements.push(
+          <WordToken
+            key={`word-${segmentIndex}-${index}`}
+            text={token}
+            status={status}
+            language={language}
+            readerMode={readerMode}
+          />
+        )
       })
+    })
 
-      return elements
-    }
+    return elements
+  }
 
+  const renderHighlightedText = (text, sentenceOffset = 0) => {
     if (readerMode !== 'intensive') {
-      return renderWordSegments()
+      return renderWordSegments(text)
     }
 
     const sentences = splitIntoSentences(text)
@@ -718,7 +771,13 @@ const Reader = ({ initialMode }) => {
 
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
       if (dx < 0) {
-        handleEdgeNavigation('next')
+        if (readerMode === 'intensive') {
+          handleSentenceNavigation('next')
+        } else {
+          handleEdgeNavigation('next')
+        }
+      } else if (readerMode === 'intensive') {
+        handleSentenceNavigation('previous')
       } else {
         handleEdgeNavigation('previous')
       }
@@ -734,15 +793,64 @@ const Reader = ({ initialMode }) => {
     })
   }
 
-  const goToPreviousSentence = () => {
-    setCurrentSentenceIndex((prev) => Math.max(prev - 1, 0))
-  }
+  const handleSentenceNavigation = async (direction) => {
+    if (readerMode !== 'intensive') return
+    if (allVisibleSentences.length === 0) return
 
-  const goToNextSentence = () => {
-    setCurrentSentenceIndex((prev) => {
-      if (allVisibleSentences.length === 0) return 0
-      return Math.min(prev + 1, allVisibleSentences.length - 1)
-    })
+    const movingForward = direction === 'next'
+    const movingBackward = direction === 'previous'
+
+    const atLastSentence = currentSentenceIndex >= allVisibleSentences.length - 1
+    const atFirstSentence = currentSentenceIndex === 0
+
+    if ((movingForward && atLastSentence && !hasNext) || (movingBackward && atFirstSentence && !hasPrevious)) {
+      return
+    }
+
+    await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
+
+    if (movingForward) {
+      if (!atLastSentence) {
+        setCurrentSentenceIndex((prev) => prev + 1)
+        return
+      }
+
+      if (hasNext) {
+        const nextIndex = Math.min(
+          currentIndex + 2,
+          pages.length - (pages.length % 2 ? 1 : 2)
+        )
+        const nextPages = pages.slice(nextIndex, nextIndex + 2)
+        const nextSentences = nextPages
+          .map((page) => splitIntoSentences(getDisplayText(page)))
+          .flat()
+
+        setCurrentIndex(nextIndex)
+        setCurrentSentenceIndex(nextSentences.length ? 0 : 0)
+      }
+
+      return
+    }
+
+    if (movingBackward) {
+      if (!atFirstSentence) {
+        setCurrentSentenceIndex((prev) => Math.max(prev - 1, 0))
+        return
+      }
+
+      if (hasPrevious) {
+        const previousIndex = Math.max(currentIndex - 2, 0)
+        const previousPages = pages.slice(previousIndex, previousIndex + 2)
+        const previousSentences = previousPages
+          .map((page) => splitIntoSentences(getDisplayText(page)))
+          .flat()
+
+        setCurrentIndex(previousIndex)
+        setCurrentSentenceIndex(
+          previousSentences.length ? previousSentences.length - 1 : 0
+        )
+      }
+    }
   }
 
   useEffect(() => {
@@ -815,13 +923,13 @@ const Reader = ({ initialMode }) => {
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault()
-        goToPreviousSentence()
+        handleSentenceNavigation('previous')
         return
       }
 
       if (event.key === 'ArrowRight') {
         event.preventDefault()
-        goToNextSentence()
+        handleSentenceNavigation('next')
       }
     }
 
@@ -830,7 +938,13 @@ const Reader = ({ initialMode }) => {
     return () => {
       window.removeEventListener('keydown', handleIntensiveShortcuts)
     }
-  }, [readerMode, currentSentenceIndex, allVisibleSentences.length])
+  }, [
+    readerMode,
+    currentSentenceIndex,
+    allVisibleSentences.length,
+    currentIntensiveSentence,
+    handleSentenceNavigation,
+  ])
 
   const toggleFullscreen = async () => {
     try {
@@ -865,44 +979,64 @@ const Reader = ({ initialMode }) => {
     setReaderMode(modeId)
   }
 
-  const handleRevealIntensiveTranslation = async () => {
-    setShowIntensiveTranslation(true)
-
-    if (!firstVisibleSentence) {
-      setIntensiveTranslation('No sentence available to translate.')
-      return
-    }
-
-    if (intensiveTranslation || isIntensiveTranslationLoading) return
-
-    setIsIntensiveTranslationLoading(true)
-
-    try {
-      const response = await fetch('http://localhost:4000/api/translatePhrase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phrase: firstVisibleSentence,
-          sourceLang: language || 'es',
-          targetLang: profile?.nativeLanguage || 'English',
-        }),
-      })
-
-      if (!response.ok) {
-        console.error('Sentence translation failed:', await response.text())
-        setIntensiveTranslation('Unable to fetch translation right now.')
-        return
-      }
-
-      const data = await response.json()
-      setIntensiveTranslation(data.translation || 'No translation found.')
-    } catch (error) {
-      console.error('Error translating sentence:', error)
-      setIntensiveTranslation('Unable to fetch translation right now.')
-    } finally {
+  useEffect(() => {
+    if (readerMode !== 'intensive') {
+      setIntensiveTranslation('')
       setIsIntensiveTranslationLoading(false)
+      return undefined
     }
-  }
+
+    if (!currentIntensiveSentence) {
+      setIntensiveTranslation('No sentence available to translate.')
+      setIsIntensiveTranslationLoading(false)
+      return undefined
+    }
+
+    const controller = new AbortController()
+    let cancelled = false
+
+    const fetchTranslation = async () => {
+      setIsIntensiveTranslationLoading(true)
+      setIntensiveTranslation('')
+
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: currentIntensiveSentence,
+            sourceLang: language || 'es',
+            targetLang: profile?.nativeLanguage || 'English',
+          }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          console.error('Sentence translation failed:', await response.text())
+          if (!cancelled) setIntensiveTranslation('Unable to fetch translation right now.')
+          return
+        }
+
+        const data = await response.json()
+        if (!cancelled) {
+          setIntensiveTranslation(data.translation || 'No translation found.')
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') return
+        console.error('Error translating sentence:', error)
+        if (!cancelled) setIntensiveTranslation('Unable to fetch translation right now.')
+      } finally {
+        if (!cancelled) setIsIntensiveTranslationLoading(false)
+      }
+    }
+
+    fetchTranslation()
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [readerMode, currentIntensiveSentence, language, profile?.nativeLanguage])
 
   return (
     <div
@@ -986,177 +1120,177 @@ const Reader = ({ initialMode }) => {
             </div>
           </header>
         </div>
-
-        {loading ? (
-          <p className="muted">Loading pages...</p>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : pages.length ? (
-          <>
-            <div
-              className="reader-navigation"
-              onPointerDown={handlePointerDown}
-              onPointerUp={handlePointerUp}
-            >
+        <div className="reader-body-shell">
+          {loading ? (
+            <p className="muted">Loading pages...</p>
+          ) : error ? (
+            <p className="error">{error}</p>
+          ) : pages.length ? (
+            <>
               <div
-                className={`reader-nav-zone left ${hasPrevious ? '' : 'disabled'}`}
-                aria-label="Previous pages"
-                onClick={() => handleEdgeNavigation('previous')}
-              />
+                className="reader-navigation"
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+              >
+                <div
+                  className={`reader-nav-zone left ${hasPrevious ? '' : 'disabled'}`}
+                  aria-label="Previous pages"
+                  onClick={() => handleEdgeNavigation('previous')}
+                />
 
-              <div className="reader-pages reader-spread">
-                {visiblePages.map((page, pageIndex) => {
-                  const pageNumber = (page.index ?? pages.indexOf(page)) + 1
-                  const isLeftPage = pageIndex % 2 === 0
+                <div className="reader-pages reader-spread">
+                  {visiblePages.map((page, pageIndex) => {
+                    const pageNumber = (page.index ?? pages.indexOf(page)) + 1
+                    const isLeftPage = pageIndex % 2 === 0
 
-                  return (
-                    <div
-                      key={page.id || page.index}
-                      className={`reader-page-block ${isLeftPage ? 'page--left' : 'page--right'}`}
-                    >
-                      <div className="page-text" onMouseUp={handleWordClick}>
-                        {renderHighlightedText(
-                          getDisplayText(page),
-                          sentenceOffsets[pageIndex] || 0
-                        )}
+                    return (
+                      <div
+                        key={page.id || page.index}
+                        className={`reader-page-block ${
+                          isLeftPage ? 'page--left' : 'page--right'
+                        }`}
+                      >
+                        <div className="page-text" onMouseUp={handleWordClick}>
+                          {renderHighlightedText(
+                            getDisplayText(page),
+                            sentenceOffsets[pageIndex] || 0
+                          )}
+                        </div>
+                        <div className="page-number">{pageNumber}</div>
                       </div>
-                      <div className="page-number">{pageNumber}</div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+
+                <div
+                  className={`reader-nav-zone right ${hasNext ? '' : 'disabled'}`}
+                  aria-label="Next pages"
+                  onClick={() => handleEdgeNavigation('next')}
+                />
               </div>
+            </>
+          ) : (
+            <p className="muted">Story {id} is ready to read soon.</p>
+          )}
+          {audioStatus === 'ready' && fullAudioUrl && (
+            <div className="audio-hover-area">
+              <div className="audio-player-shell">
+                <audio ref={audioRef} controls src={fullAudioUrl} />
+              </div>
+            </div>
+          )}
+          {popup && (
+            <div
+              className="translate-popup"
+              style={{
+                position: 'absolute',
+                top: popup.y,
+                left: popup.x,
+                background: 'white',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                maxWidth: '260px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <strong>{popup.word}</strong>
+              <div style={{ marginTop: '4px' }}>{popup.translation}</div>
 
               <div
-                className={`reader-nav-zone right ${hasNext ? '' : 'disabled'}`}
-                aria-label="Next pages"
-                onClick={() => handleEdgeNavigation('next')}
-              />
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  marginTop: '8px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleSetWordStatus('unknown')}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: '#001f3f', // navy
+                    color: 'white',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Unknown
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetWordStatus('recognised')}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: '#800000', // maroon
+                    color: 'white',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Recognised
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetWordStatus('familiar')}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: '#0b3d0b', // dark forest green
+                    color: 'white',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Familiar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetWordStatus('known')}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: '#000000', // black
+                    color: 'white',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Known
+                </button>
+              </div>
             </div>
-          </>
-        ) : (
-          <p className="muted">Story {id} is ready to read soon.</p>
-        )}
-        {audioStatus === 'ready' && fullAudioUrl && (
-          <div className="audio-hover-area">
-            <div className="audio-player-shell">
-              <audio ref={audioRef} controls src={fullAudioUrl} />
-            </div>
-          </div>
-        )}
-        {popup && (
-          <div
-            className="translate-popup"
-            style={{
-              position: 'absolute',
-              top: popup.y,
-              left: popup.x,
-              background: 'white',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              zIndex: 1000,
-              maxWidth: '260px',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <strong>{popup.word}</strong>
-            <div style={{ marginTop: '4px' }}>{popup.translation}</div>
-
-            <div
-              style={{
-                display: 'flex',
-                gap: '6px',
-                marginTop: '8px',
-                flexWrap: 'wrap',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => handleSetWordStatus('unknown')}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: '#001f3f', // navy
-                  color: 'white',
-                  fontSize: '0.75rem',
-                }}
-              >
-                Unknown
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetWordStatus('recognised')}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: '#800000', // maroon
-                  color: 'white',
-                  fontSize: '0.75rem',
-                }}
-              >
-                Recognised
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetWordStatus('familiar')}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: '#0b3d0b', // dark forest green
-                  color: 'white',
-                  fontSize: '0.75rem',
-                }}
-              >
-                Familiar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetWordStatus('known')}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: '#000000', // black
-                  color: 'white',
-                  fontSize: '0.75rem',
-                }}
-              >
-                Known
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {readerMode === 'intensive' && (
         <div className="reader-intensive-overlay">
           <div className="reader-intensive-card">
             <p className="reader-intensive-label">INTENSIVE MODE</p>
-            <p className="reader-intensive-sentence">
-              {firstVisibleSentence || 'No text available for this page.'}
+            <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+              {currentIntensiveSentence
+                ? renderWordSegments(currentIntensiveSentence)
+                : 'No text available for this page.'}
+            </div>
+
+            <p className="reader-intensive-translation">
+              {isIntensiveTranslationLoading
+                ? 'Loading translation...'
+                : intensiveTranslation || 'Translation will appear here.'}
             </p>
 
-            <button
-              className="reader-intensive-button"
-              type="button"
-              onClick={handleRevealIntensiveTranslation}
-              disabled={isIntensiveTranslationLoading}
-            >
-              {isIntensiveTranslationLoading ? 'Loading translation...' : 'Show translation'}
-            </button>
-
-            {showIntensiveTranslation && (
-              <p className="reader-intensive-translation">
-                {intensiveTranslation || 'Translation will appear here.'}
-              </p>
-            )}
+            <p className="reader-intensive-helper">
+              Space = play / repeat · ← / → = previous / next sentence
+            </p>
           </div>
         </div>
       )}

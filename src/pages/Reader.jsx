@@ -7,6 +7,8 @@ import {
   getDocs,
   orderBy,
   query,
+  serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -86,9 +88,12 @@ const Reader = ({ initialMode }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] =
     useState(false)
+  const [bookmarkIndex, setBookmarkIndex] = useState(null)
+  const [isSavingBookmark, setIsSavingBookmark] = useState(false)
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
   const lastPageIndexRef = useRef(currentIndex)
+  const hasAppliedBookmarkRef = useRef(false)
   // popup: { x, y, word, displayText, translation } | null
 
   const getPopupPosition = (rect) => {
@@ -284,7 +289,6 @@ const Reader = ({ initialMode }) => {
           ...doc.data(),
         }))
         setPages(nextPages)
-        setCurrentIndex(0)
         setError('')
       } catch (loadError) {
         console.error(loadError)
@@ -303,6 +307,7 @@ const Reader = ({ initialMode }) => {
       setAudioStatus('')
       setFullAudioUrl('')
       setHasFullAudio(false)
+      setBookmarkIndex(null)
       return
     }
 
@@ -322,11 +327,17 @@ const Reader = ({ initialMode }) => {
         setAudioStatus(data.audioStatus || '')
         setFullAudioUrl(data.fullAudioUrl || '')
         setHasFullAudio(Boolean(data.hasFullAudio))
+        setBookmarkIndex(
+          Number.isFinite(data.bookmarkIndex) ? data.bookmarkIndex : null
+        )
+        hasAppliedBookmarkRef.current = false
       } catch (err) {
         console.error('Failed to load story audio metadata', err)
         setAudioStatus('')
         setFullAudioUrl('')
         setHasFullAudio(false)
+        setBookmarkIndex(null)
+        hasAppliedBookmarkRef.current = false
       }
     }
 
@@ -334,8 +345,22 @@ const Reader = ({ initialMode }) => {
   }, [user, id])
 
   useEffect(() => {
-    setCurrentIndex(0)
-  }, [pages.length])
+    if (!pages.length) return
+
+    const targetIndex = Number.isFinite(bookmarkIndex) ? bookmarkIndex : 0
+    const boundedIndex = Math.min(Math.max(targetIndex, 0), Math.max(pages.length - 1, 0))
+    const evenIndex = boundedIndex - (boundedIndex % 2)
+
+    if (!hasAppliedBookmarkRef.current || currentIndex !== evenIndex) {
+      setCurrentIndex(evenIndex)
+      lastPageIndexRef.current = evenIndex
+      hasAppliedBookmarkRef.current = true
+    }
+  }, [pages.length, bookmarkIndex, currentIndex])
+
+  useEffect(() => {
+    hasAppliedBookmarkRef.current = false
+  }, [id])
 
   const getDisplayText = (page) =>
     page?.adaptedText || page?.originalText || page?.text || ''
@@ -867,6 +892,60 @@ const Reader = ({ initialMode }) => {
     }
   }
 
+  const persistBookmark = async (index = currentIndex, { notify = true } = {}) => {
+    if (!user || !id) return false
+
+    const boundedIndex = Math.min(
+      Math.max(index, 0),
+      Math.max(pages.length - 1, 0)
+    )
+    const evenIndex = boundedIndex - (boundedIndex % 2)
+
+    setIsSavingBookmark(true)
+
+    try {
+      const storyRef = doc(db, 'users', user.uid, 'stories', id)
+      await updateDoc(storyRef, {
+        bookmarkIndex: evenIndex,
+        bookmarkUpdatedAt: serverTimestamp(),
+      })
+
+      setBookmarkIndex(evenIndex)
+      hasAppliedBookmarkRef.current = false
+
+      if (notify) {
+        window.alert('Bookmark saved. You\'ll return to this page next time.')
+      }
+
+      return true
+    } catch (err) {
+      console.error('Failed to save bookmark', err)
+      if (notify) {
+        window.alert('Unable to save bookmark right now.')
+      }
+      return false
+    } finally {
+      setIsSavingBookmark(false)
+    }
+  }
+
+  const handleBackToLibrary = async () => {
+    const hasUnsavedProgress =
+      !Number.isFinite(bookmarkIndex) || bookmarkIndex !== currentIndex
+
+    if (hasUnsavedProgress) {
+      const shouldSave = window.confirm(
+        'Save a bookmark for this page before returning to the library?'
+      )
+
+      if (shouldSave) {
+        await persistBookmark(currentIndex, { notify: false })
+      }
+    }
+
+    navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
+  }
+
   const playSentenceAudio = (sentenceIndex) => {
     const sentenceText = allVisibleSentences[sentenceIndex] || ''
     // Placeholder for future audio integration
@@ -1169,9 +1248,7 @@ const Reader = ({ initialMode }) => {
               <div className="reader-header-left">
                 <button
                   className="dashboard-control ui-text reader-back-button"
-                  onClick={() =>
-                    navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
-                  }
+                  onClick={handleBackToLibrary}
                 >
                   Back to library
                 </button>
@@ -1222,6 +1299,18 @@ const Reader = ({ initialMode }) => {
                   aria-pressed={isFullscreen}
                 >
                   {isFullscreen ? 'Exit full screen' : 'Full screen'}
+                </button>
+                <button
+                  className="reader-header-button ui-text"
+                  type="button"
+                  onClick={() => persistBookmark()}
+                  disabled={isSavingBookmark}
+                >
+                  {isSavingBookmark
+                    ? 'Saving...'
+                    : bookmarkIndex === currentIndex
+                      ? 'Bookmark saved'
+                      : 'Save bookmark'}
                 </button>
               </div>
             </div>

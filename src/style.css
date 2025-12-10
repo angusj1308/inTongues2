@@ -1422,10 +1422,6 @@ textarea {
   opacity: 0;
 }
 
-.reader-navigation:hover .reader-nav-zone {
-  opacity: 1;
-}
-
 .reader-nav-zone.right {
   right: 0;
   transform: scaleX(-1);

@@ -39,7 +39,7 @@ const GenerateStoryPanel = ({
   const { profile, setLastUsedLanguage, user } = useAuth()
 
   const [levelIndex, setLevelIndex] = useState(2)
-  const [length, setLength] = useState(3)
+  const [length, setLength] = useState(5)
   const [genre, setGenre] = useState(GENRES[0])
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -101,21 +101,26 @@ const GenerateStoryPanel = ({
     setError('')
     setIsSubmitting(true)
 
+    const minimumPageCount = Math.max(5, length)
+
     const params = {
       level: CEFR_LEVELS[levelIndex],
       genre,
-      length,
-      pageCount: length,
+      length: minimumPageCount,
+      pageCount: minimumPageCount,
       description: description.trim(),
       language: activeLanguage,
     }
 
     try {
-      const pages = await generateStory(params)
+      const { pages, title } = await generateStory(params)
       const storiesRef = collection(db, 'users', user.uid, 'stories')
+
+      const resolvedTitle = (title || '').trim() || params.description || 'Untitled Story'
 
       const storyRef = await addDoc(storiesRef, {
         ...params,
+        title: resolvedTitle,
         createdAt: serverTimestamp(),
         hasFullAudio: false,
         audioStatus: 'none',
@@ -202,7 +207,7 @@ const GenerateStoryPanel = ({
       )}
 
       <form className="form" onSubmit={handleSubmit}>
-        <label className="ui-text">
+      <label className="ui-text">
           Language level
           <div className="slider-row">
             <input
@@ -231,11 +236,11 @@ const GenerateStoryPanel = ({
           <div className="slider-row">
             <input
               type="range"
-              min="1"
+              min="5"
               max="25"
               value={length}
-              onChange={(event) => setLength(Number(event.target.value))}
-              style={{ '--range-progress': `${((length - 1) / 24) * 100}%` }}
+              onChange={(event) => setLength(Math.max(5, Number(event.target.value)))}
+              style={{ '--range-progress': `${((length - 5) / 20) * 100}%` }}
             />
             <span className="pill">{length} page{length === 1 ? '' : 's'}</span>
           </div>

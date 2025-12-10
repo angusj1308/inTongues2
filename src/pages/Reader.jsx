@@ -547,124 +547,60 @@ const Reader = () => {
   // visiblePages is already defined above
 
   return (
-    <div className="page">
-      <div className="card dashboard-card">
-        <div className="page-header">
-          <div>
-            <h1>Reader</h1>
-            <p className="muted small">Review each generated page in order.</p>
-          </div>
-          <button
-            className="button ghost"
-            onClick={() => navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')}
+    <div className="page reader-page">
+      <div className="reader-actions">
+        <button
+          className="button ghost"
+          onClick={() => navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')}
         >
-            Back to library
-          </button>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.75rem',
-            gap: '0.5rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span
-            className="pill"
-            style={{
-              background:
-                audioStatus === 'ready'
-                  ? '#dcfce7'
-                  : audioStatus === 'processing'
-                    ? '#fef9c3'
-                    : '#e2e8f0',
-              color:
-                audioStatus === 'ready'
-                  ? '#166534'
-                  : audioStatus === 'processing'
-                    ? '#854d0e'
-                    : '#0f172a',
-            }}
-          >
-            {audioStatus === 'ready'
-              ? 'Audio Ready'
-              : audioStatus === 'processing'
-                ? 'Audio Processing…'
-                : 'No Audio'}
-          </span>
-        </div>
-
+          Back to library
+        </button>
         {audioStatus === 'ready' && fullAudioUrl && (
-          <audio
-            controls
-            src={fullAudioUrl}
-            style={{ width: '100%', marginBottom: '1rem' }}
-          />
-        )}
-
-        {loading ? (
-          <p className="muted">Loading pages...</p>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : pages.length ? (
-          <div className="preview-card">
-            <div className="section-header">
-              <div className="pill-row">{language && <span className="pill primary">in{language}</span>}</div>
-            </div>
-            <div
-              className="section"
-              style={{
-                display: 'flex',
-                gap: '1rem',
-                justifyContent: 'space-between',
-              }}
-            >
-              {visiblePages.map((page) => (
-                <div
-                  key={page.id || page.index}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  <div className="section-header">
-                    <span className="pill">Page {(page.index ?? pages.indexOf(page)) + 1}</span>
-                  </div>
-                  <div
-                  className="page-text"
-                  onMouseUp={handleWordClick}
-                  style={{ cursor: 'pointer', userSelect: 'text' }}
-                >
-                  {renderHighlightedText(getDisplayText(page))}
-                </div>
-                </div>
-              ))}
-            </div>
-            <div className="section" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-              <button
-                className="button ghost"
-                disabled={!hasPrevious}
-                onClick={() => setCurrentIndex((prev) => Math.max(prev - 2, 0))}
-              >
-                Previous pages
-              </button>
-              <button
-                className="button ghost"
-                disabled={!hasNext}
-                onClick={handleNextPages}
-              >
-                Next pages
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="muted">Story {id} is ready to read soon.</p>
+          <audio controls src={fullAudioUrl} style={{ width: '100%' }} />
         )}
       </div>
+
+      {loading ? (
+        <p className="muted">Loading pages...</p>
+      ) : error ? (
+        <p className="error">{error}</p>
+      ) : pages.length ? (
+        <>
+          <div className="reader-pages">
+            {visiblePages.map((page) => {
+              const pageNumber = (page.index ?? pages.indexOf(page)) + 1
+
+              return (
+                <div key={page.id || page.index} className="reader-page-block">
+                  <div className="page-text" onMouseUp={handleWordClick}>
+                    {renderHighlightedText(getDisplayText(page))}
+                  </div>
+                  <div className="page-number">{pageNumber}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="section" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            <button
+              className="button ghost"
+              disabled={!hasPrevious}
+              onClick={() => setCurrentIndex((prev) => Math.max(prev - 2, 0))}
+            >
+              Previous pages
+            </button>
+            <button
+              className="button ghost"
+              disabled={!hasNext}
+              onClick={handleNextPages}
+            >
+              Next pages
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="muted">Story {id} is ready to read soon.</p>
+      )}
       {popup && (
         <div
           className="translate-popup"

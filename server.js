@@ -1371,9 +1371,23 @@ app.post('/api/generate', async (req, res) => {
 
     for (let index = 0; index < totalPages; index += 1) {
       const pageNumber = index + 1
+
+      const isFirstPage = pageNumber === 1
+
+      const baseInstructions = `You are writing page ${pageNumber} of ${totalPages} of a ${genre} story in ${language} at ${level} level. Each page must be approximately 250 words (between 230 and 260 words). A page is just a layout boundary, not a unit of the story. Scenes, ideas, paragraphs, and sentences can start on one page and continue onto the next.`
+
+      const input = isFirstPage
+        ? `${baseInstructions} Continue the same story from any previous pages, keeping characters and tone consistent. Story description: ${trimmedDescription}. Provide only the full text for page ${pageNumber} with no headings, titles, or page labels.`
+        : (() => {
+            const previousPage = pages[pageNumber - 2] || ''
+            const previousTail = previousPage.slice(Math.max(previousPage.length - 1000, 0))
+
+            return `${baseInstructions} Continue directly from the previous page. Previous page ending (context only, do not repeat): "${previousTail}". Use the previous page ending only as context and do not repeat those sentences. Keep characters and tone consistent. Scenes, ideas, paragraphs, and sentences can cross page boundaries. Do not try to start or wrap up a scene just because the page is ending. Stop after about 250 words (between 230 and 260) even if in the middle of a paragraph or scene. Story description: ${trimmedDescription}. Provide only the full text for page ${pageNumber} with no headings, titles, or page labels.`
+          })()
+
       const response = await client.responses.create({
         model: "gpt-4.1",
-        input: `You are writing page ${pageNumber} of ${totalPages} of a ${genre} story in ${language} at ${level} level. Each page must be approximately 300 words (between 280 and 320 words). Continue the same story from any previous pages, keeping characters and tone consistent. Story description: ${trimmedDescription}. Provide only the full text for page ${pageNumber} with no headings, titles, or page labels.`
+        input,
       })
 
       pages.push(response.output_text.trim())

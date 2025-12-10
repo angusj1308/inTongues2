@@ -91,6 +91,19 @@ const Reader = ({ initialMode }) => {
   const lastPageIndexRef = useRef(currentIndex)
   // popup: { x, y, word, displayText, translation } | null
 
+  const getPopupPosition = (rect) => {
+    const lineHeightOffset = 48
+    const belowOffset = 8
+    const isBottomHalf = rect.bottom > window.innerHeight / 2
+
+    const x = rect.left + window.scrollX
+    const y = isBottomHalf
+      ? Math.max(rect.top + window.scrollY - lineHeightOffset, 8)
+      : rect.bottom + window.scrollY + belowOffset
+
+    return { x, y }
+  }
+
   async function handleWordClick(e) {
     e.stopPropagation()
 
@@ -134,13 +147,9 @@ const Reader = ({ initialMode }) => {
         console.error('Error translating phrase:', err)
       }
 
-      setPopup({
-        x: rect.left + window.scrollX,
-        y: rect.bottom + window.scrollY + 8,
-        word: phrase,
-        displayText: selection,
-        translation,
-      })
+      const { x, y } = getPopupPosition(rect)
+
+      setPopup({ x, y, word: phrase, displayText: selection, translation })
 
       return
     }
@@ -157,13 +166,9 @@ const Reader = ({ initialMode }) => {
     const range = selectionObj.getRangeAt(0)
     const rect = range.getBoundingClientRect()
 
-    setPopup({
-      x: rect.left + window.scrollX,
-      y: rect.bottom + window.scrollY + 8,
-      word: clean,
-      displayText: selection,
-      translation,
-    })
+    const { x, y } = getPopupPosition(rect)
+
+    setPopup({ x, y, word: clean, displayText: selection, translation })
   }
 
   const handleSingleWordClick = (text, event) => {
@@ -178,8 +183,7 @@ const Reader = ({ initialMode }) => {
       pageTranslations[key] || pageTranslations[text] || 'No translation found'
 
     const rect = event.currentTarget.getBoundingClientRect()
-    const x = rect.left + window.scrollX
-    const y = rect.bottom + window.scrollY + 8
+    const { x, y } = getPopupPosition(rect)
 
     setPopup({ x, y, word: key, displayText: text, translation })
   }
@@ -459,6 +463,64 @@ const Reader = ({ initialMode }) => {
     }
   }
 
+  const promoteNewWordsToKnown = async () => {
+    const shouldAutoPromote = readerMode === 'active' || readerMode === 'intensive'
+
+    if (!user || !language || !shouldAutoPromote) return true
+
+    if (!hasSeenAutoKnownInfo) {
+      window.alert(
+        'When you move forward, all new words you have not tagged will automatically be marked as Known.'
+      )
+      localStorage.setItem('seenAutoKnownInfo', 'true')
+      setHasSeenAutoKnownInfo(true)
+    }
+
+    const newWords = getNewWordsOnCurrentPages()
+
+    if (newWords.length === 0) return true
+
+    const confirmed = window.confirm(
+      'By proceeding, all new words you have not tagged will be marked as Known. Continue?'
+    )
+
+    if (!confirmed) {
+      return false
+    }
+
+    try {
+      await Promise.all(
+        newWords.map((word) => {
+          const key = normaliseExpression(word)
+          const translation =
+            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+
+          return upsertVocabEntry(user.uid, language, word, translation, 'known')
+        })
+      )
+
+      setVocabEntries((prev) => {
+        const next = { ...prev }
+        newWords.forEach((word) => {
+          const key = normaliseExpression(word)
+          const translation =
+            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+
+          next[key] = {
+            ...(next[key] || { text: word, language }),
+            status: 'known',
+            translation,
+          }
+        })
+        return next
+      })
+    } catch (error) {
+      console.error('Failed to auto-mark new words as known:', error)
+    }
+
+    return true
+  }
+
   const handleNextPages = async () => {
     if (!hasNext) return
 
@@ -468,81 +530,18 @@ const Reader = ({ initialMode }) => {
       )
     }
 
-    const shouldAutoPromote = readerMode === 'active' || readerMode === 'intensive'
+    const canAdvance = await promoteNewWordsToKnown()
+    if (!canAdvance) return
 
-    // If we don't have user/language or we're in extensive mode, just advance
-    if (!user || !language || !shouldAutoPromote) {
-      advancePages()
-      return
-    }
-
-    // First-time info popup
-    if (!hasSeenAutoKnownInfo) {
-      window.alert(
-        'When you move to the next page, all new words you have not tagged will automatically be marked as Known.'
-      )
-      localStorage.setItem('seenAutoKnownInfo', 'true')
-      setHasSeenAutoKnownInfo(true)
-    }
-
-    const newWords = getNewWordsOnCurrentPages()
-
-    if (newWords.length > 0) {
-      const confirmed = window.confirm(
-        'By going to the next page, all new words you have not tagged will be marked as Known. Continue?'
-      )
-
-      if (!confirmed) {
-        // User cancelled: do not advance
-        return
-      }
-
-      try {
-        // Persist each new word as known
-        await Promise.all(
-          newWords.map((word) => {
-            const key = normaliseExpression(word)
-            const translation =
-              pageTranslations[key] ||
-              pageTranslations[word] ||
-              'No translation found'
-
-            return upsertVocabEntry(
-              user.uid,
-              language,
-              word,
-              translation,
-              'known'
-            )
-          })
-        )
-
-        // Update local vocabEntries so they render as known
-        setVocabEntries((prev) => {
-          const next = { ...prev }
-          newWords.forEach((word) => {
-            const key = normaliseExpression(word)
-            const translation =
-              pageTranslations[key] ||
-              pageTranslations[word] ||
-              'No translation found'
-
-            next[key] = {
-              ...(next[key] || { text: word, language }),
-              status: 'known',
-              translation,
-            }
-          })
-          return next
-        })
-      } catch (error) {
-        console.error('Failed to auto-mark new words as known:', error)
-        // Even if this fails, still allow the user to move on
-      }
-    }
-
-    // Finally, advance to next pages
     advancePages()
+  }
+
+  const handleFinishStory = async () => {
+    const canFinish = await promoteNewWordsToKnown()
+
+    if (!canFinish) return
+
+    navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
   }
 
   const isWordChar = (ch) => {
@@ -1228,6 +1227,18 @@ const Reader = ({ initialMode }) => {
                   onClick={() => handleEdgeNavigation('next')}
                 />
               </div>
+
+              {!hasNext && (
+                <div className="reader-end-actions">
+                  <button
+                    type="button"
+                    className="reader-end-button"
+                    onClick={handleFinishStory}
+                  >
+                    End story
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <p className="muted">Story {id} is ready to read soon.</p>

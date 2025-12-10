@@ -1509,6 +1509,36 @@ textarea {
   position: relative;
 }
 
+.reader-end-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.reader-end-button {
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  padding: 0.55rem 1.1rem;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.reader-end-button:hover {
+  background: #1f2937;
+}
+
+.reader-end-button:active {
+  transform: translateY(1px);
+}
+
+.reader-end-button:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
 .reader-nav-zone {
   position: absolute;
   top: 0;

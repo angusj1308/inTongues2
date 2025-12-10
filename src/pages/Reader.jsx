@@ -708,7 +708,11 @@ const Reader = () => {
     >
       <div className="reader-hover-shell">
         <div className="reader-hover-hitbox" />
-        <header className="dashboard-header reader-hover-header">
+        <header
+          className={`dashboard-header reader-hover-header ${
+            isThemeMenuOpen ? 'reader-hover-header--pinned' : ''
+          }`}
+        >
           <div className="dashboard-brand-band reader-header-band">
             <button
               className="dashboard-control ui-text reader-back-button"

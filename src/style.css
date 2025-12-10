@@ -1626,7 +1626,7 @@ textarea {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
   z-index: 40;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .reader-intensive-card {

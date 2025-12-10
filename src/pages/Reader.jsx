@@ -29,13 +29,26 @@ const themeOptions = [
     tone: 'dark',
     gutter: 'rgba(255, 255, 255, 0.12)',
   },
+]
+
+const fontOptions = [
   {
-    id: 'amber-sepia',
-    label: 'Amber Sepia',
-    background: '#FFB56A',
-    text: '#3D1E00',
-    tone: 'light',
-    gutter: 'rgba(0, 0, 0, 0.2)',
+    id: 'crimson-pro',
+    label: 'Crimson Pro',
+    fontFamily: "'Crimson Pro', 'Times New Roman', serif",
+    fontWeight: 300,
+  },
+  {
+    id: 'inter',
+    label: 'Inter',
+    fontFamily: "'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif",
+    fontWeight: 300,
+  },
+  {
+    id: 'atkinson-hyperlegible',
+    label: 'Atkinson Hyperlegible',
+    fontFamily: "'Atkinson Hyperlegible', 'Inter', system-ui, -apple-system, sans-serif",
+    fontWeight: 400,
   },
 ]
 
@@ -58,6 +71,7 @@ const Reader = () => {
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
   const [readerTheme, setReaderTheme] = useState('soft-white')
+  const [readerFont, setReaderFont] = useState('crimson-pro')
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
@@ -675,10 +689,18 @@ const Reader = () => {
   const activeTheme =
     themeOptions.find((option) => option.id === readerTheme) || themeOptions[0]
 
+  const activeFont = fontOptions.find((option) => option.id === readerFont) || fontOptions[0]
+
   const cycleTheme = () => {
     const currentIndex = themeOptions.findIndex((option) => option.id === readerTheme)
     const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % themeOptions.length
     setReaderTheme(themeOptions[nextIndex].id)
+  }
+
+  const cycleFont = () => {
+    const currentIndex = fontOptions.findIndex((option) => option.id === readerFont)
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % fontOptions.length
+    setReaderFont(fontOptions[nextIndex].id)
   }
 
   return (
@@ -688,6 +710,8 @@ const Reader = () => {
         '--reader-bg': activeTheme.background,
         '--reader-text': activeTheme.text,
         '--reader-gutter': activeTheme.gutter ?? 'rgba(0, 0, 0, 0.08)',
+        '--reader-font-family': activeFont.fontFamily,
+        '--reader-font-weight': activeFont.fontWeight,
       }}
       data-reader-tone={activeTheme.tone}
       data-reader-theme={activeTheme.id}
@@ -706,6 +730,14 @@ const Reader = () => {
             </button>
 
             <div className="reader-header-actions">
+              <button
+                className="reader-header-button ui-text"
+                type="button"
+                aria-label={`Font: ${activeFont.label}`}
+                onClick={cycleFont}
+              >
+                Aa
+              </button>
               <button
                 className="reader-header-button ui-text reader-theme-trigger"
                 type="button"

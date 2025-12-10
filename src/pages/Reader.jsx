@@ -91,6 +91,7 @@ const Reader = ({ initialMode }) => {
   const [bookmarkIndex, setBookmarkIndex] = useState(null)
   const [isSavingBookmark, setIsSavingBookmark] = useState(false)
   const audioRef = useRef(null)
+  const pronunciationAudioRef = useRef(null)
   const pointerStartRef = useRef(null)
   const lastPageIndexRef = useRef(currentIndex)
   const hasAppliedBookmarkRef = useRef(false)
@@ -107,6 +108,46 @@ const Reader = ({ initialMode }) => {
       : rect.bottom + window.scrollY + belowOffset
 
     return { x, y }
+  }
+
+  const playPronunciationAudio = (audioData) => {
+    if (!audioData?.audioBase64 && !audioData?.audioUrl) return
+
+    if (pronunciationAudioRef.current) {
+      if (pronunciationAudioRef.current._objectUrl) {
+        URL.revokeObjectURL(pronunciationAudioRef.current._objectUrl)
+      }
+      pronunciationAudioRef.current.pause()
+    }
+
+    const audio = new Audio()
+
+    if (audioData.audioUrl) {
+      audio.src = audioData.audioUrl
+    } else {
+      const byteCharacters = atob(audioData.audioBase64)
+      const byteNumbers = new Array(byteCharacters.length)
+
+      for (let i = 0; i < byteCharacters.length; i += 1) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'audio/mpeg' })
+      const objectUrl = URL.createObjectURL(blob)
+      audio.src = objectUrl
+      audio._objectUrl = objectUrl
+
+      audio.addEventListener('ended', () => {
+        if (audio._objectUrl) {
+          URL.revokeObjectURL(audio._objectUrl)
+          audio._objectUrl = null
+        }
+      })
+    }
+
+    pronunciationAudioRef.current = audio
+    audio.play().catch((err) => console.error('Pronunciation playback failed', err))
   }
 
   async function handleWordClick(e) {
@@ -130,6 +171,9 @@ const Reader = ({ initialMode }) => {
       const rect = range.getBoundingClientRect()
 
       let translation = 'No translation found'
+      let audioBase64 = null
+      let audioUrl = null
+      let targetText = null
 
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
@@ -145,6 +189,9 @@ const Reader = ({ initialMode }) => {
         if (response.ok) {
           const data = await response.json()
           translation = data.translation || translation
+          targetText = data.targetText || translation
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
         } else {
           console.error('Phrase translation failed:', await response.text())
         }
@@ -154,7 +201,16 @@ const Reader = ({ initialMode }) => {
 
       const { x, y } = getPopupPosition(rect)
 
-      setPopup({ x, y, word: phrase, displayText: selection, translation })
+      setPopup({
+        x,
+        y,
+        word: phrase,
+        displayText: selection,
+        translation,
+        targetText,
+        audioBase64,
+        audioUrl,
+      })
 
       return
     }
@@ -167,6 +223,9 @@ const Reader = ({ initialMode }) => {
       pageTranslations[clean] ||
       pageTranslations[selection] ||
       null
+    let audioBase64 = null
+    let audioUrl = null
+    let targetText = null
 
     if (!translation) {
       try {
@@ -183,6 +242,9 @@ const Reader = ({ initialMode }) => {
         if (response.ok) {
           const data = await response.json()
           translation = data.translation || 'No translation found'
+          targetText = data.targetText || translation
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
         } else {
           translation = 'No translation found'
         }
@@ -199,7 +261,16 @@ const Reader = ({ initialMode }) => {
 
     const { x, y } = getPopupPosition(rect)
 
-    setPopup({ x, y, word: clean, displayText: selection, translation })
+    setPopup({
+      x,
+      y,
+      word: clean,
+      displayText: selection,
+      translation,
+      targetText,
+      audioBase64,
+      audioUrl,
+    })
   }
 
   const handleSingleWordClick = async (text, event) => {
@@ -211,6 +282,9 @@ const Reader = ({ initialMode }) => {
 
     const key = normaliseExpression(text)
     let translation = pageTranslations[key] || pageTranslations[text] || null
+    let audioBase64 = null
+    let audioUrl = null
+    let targetText = null
 
     if (!translation) {
       try {
@@ -227,6 +301,9 @@ const Reader = ({ initialMode }) => {
         if (response.ok) {
           const data = await response.json()
           translation = data.translation || 'No translation found'
+          targetText = data.targetText || translation
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
         } else {
           translation = 'No translation found'
         }
@@ -238,7 +315,16 @@ const Reader = ({ initialMode }) => {
     const rect = event.currentTarget.getBoundingClientRect()
     const { x, y } = getPopupPosition(rect)
 
-    setPopup({ x, y, word: key, displayText: text, translation })
+    setPopup({
+      x,
+      y,
+      word: key,
+      displayText: text,
+      translation,
+      targetText,
+      audioBase64,
+      audioUrl,
+    })
   }
 
   const handleSetWordStatus = async (status) => {
@@ -1463,8 +1549,30 @@ const Reader = ({ initialMode }) => {
               <p className="translate-popup-language-label">
                 {profile?.nativeLanguage || 'Native language'}
               </p>
-              <p className="translate-popup-language-text translate-popup-book-text">
-                {popup.translation}
+              <p
+                className="translate-popup-language-text translate-popup-book-text"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <span>{popup.translation}</span>
+                {(popup.audioBase64 || popup.audioUrl) && (
+                  <button
+                    type="button"
+                    className="translate-popup-audio"
+                    onClick={() => playPronunciationAudio(popup)}
+                    aria-label="Play pronunciation"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      color: '#0f172a',
+                    }}
+                  >
+                    🔊
+                  </button>
+                )}
               </p>
             </div>
           </div>

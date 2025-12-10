@@ -1079,6 +1079,23 @@ async function downloadYoutubeAudio(videoId) {
   return actualAudioPath
 }
 
+async function downloadAudioUrlToTempFile(audioUrl) {
+  if (!audioUrl) return null
+
+  const response = await fetch(audioUrl)
+
+  if (!response.ok) {
+    throw new Error(`Failed to download audio: ${response.status} ${response.statusText}`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  const tempPath = path.join(os.tmpdir(), `audio-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`)
+
+  await fs.writeFile(tempPath, Buffer.from(arrayBuffer))
+
+  return tempPath
+}
+
 function buildSentenceSegments(whisperSegments = []) {
   const sentenceSegments = []
   const segments = Array.isArray(whisperSegments) ? whisperSegments : []
@@ -1143,49 +1160,41 @@ function buildSentenceSegments(whisperSegments = []) {
   return sentenceSegments
 }
 
-async function transcribeWithWhisper(videoId, languageCode) {
+async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
   let audioPath = null
 
   try {
-    audioPath = await downloadYoutubeAudio(videoId)
-
-    const ISO_LANG_MAP = {
-      spanish: 'es',
-      english: 'en',
-      french: 'fr',
-      german: 'de',
-      italian: 'it',
-      japanese: 'ja',
-      korean: 'ko',
-      mandarin: 'zh',
+    if (videoId) {
+      audioPath = await downloadYoutubeAudio(videoId)
+    } else if (audioUrl) {
+      audioPath = await downloadAudioUrlToTempFile(audioUrl)
     }
 
-    const iso = ISO_LANG_MAP[(languageCode || '').toLowerCase()]
+    if (!audioPath) {
+      throw new Error('No audio source provided for Whisper transcription')
+    }
 
-    // NOTE: whisper-1 + verbose_json gives us timestamped segments for tightly synced subtitles.
+    const resolvedLanguage = resolveTargetCode(languageCode || 'auto')
+    const whisperLanguage = resolvedLanguage === 'auto' ? null : resolvedLanguage
+
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(audioPath),
       model: 'whisper-1',
       response_format: 'verbose_json',
-      ...(iso ? { language: iso } : {}),
+      ...(whisperLanguage ? { language: whisperLanguage } : {}),
     })
 
     console.log('Whisper verbose_json response keys:', Object.keys(transcription || {}))
     console.log('First segment sample:', transcription?.segments?.[0])
 
-    const segments = (transcription?.segments || [])
-      .map((segment) => ({
-        start: Math.max(0, Number(segment.start || 0)),
-        end: Math.max(0, Number(segment.end || segment.start || 0)),
-        text: (segment.text || '').trim(),
-      }))
-      .filter((segment) => segment.text)
+    const segments = normaliseTranscriptSegments(transcription?.segments || [])
+    const sentenceSegments = buildSentenceSegments(segments)
 
     if (!segments.length) {
       console.warn('Whisper verbose_json has no segments, falling back to text-only')
     }
 
-    return { text: transcription?.text || '', segments }
+    return { text: transcription?.text || '', segments, sentenceSegments }
   } finally {
     if (audioPath) {
       try {
@@ -1235,7 +1244,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
         })
       }
     }
-    let transcriptResult = { text: '', segments: [] }
+    let transcriptResult = { text: '', segments: [], sentenceSegments: [] }
 
     try {
       const captionSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
@@ -1246,10 +1255,13 @@ app.post('/api/youtube/transcript', async (req, res) => {
 
     if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
       try {
-        const whisperResult = await transcribeWithWhisper(videoId, languageCode)
+        const whisperResult = await transcribeWithWhisper({ videoId, languageCode })
         transcriptResult = {
           text: whisperResult?.text || '',
           segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+          sentenceSegments: Array.isArray(whisperResult?.sentenceSegments)
+            ? whisperResult.sentenceSegments
+            : [],
         }
       } catch (transcriptionError) {
         console.error('Failed to transcribe audio with Whisper', transcriptionError)
@@ -1258,7 +1270,11 @@ app.post('/api/youtube/transcript', async (req, res) => {
     }
 
     const normalisedSegments = normaliseTranscriptSegments(transcriptResult.segments)
-    const sentenceSegments = buildSentenceSegments(normalisedSegments)
+    const resolvedSentenceSegments = (() => {
+      const cached = normaliseTranscriptSegments(transcriptResult.sentenceSegments)
+      if (cached.length) return cached
+      return buildSentenceSegments(normalisedSegments)
+    })()
     const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
     const transcriptPayload = {
@@ -1266,7 +1282,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
       language: languageCode,
       segments: normalisedSegments,
       text: transcriptText,
-      sentenceSegments,
+      sentenceSegments: resolvedSentenceSegments,
       createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
     }
 
@@ -1493,6 +1509,8 @@ ${phrase}
 `.trim()
 
     let translation = phrase
+    let targetText = phrase
+    let audioBase64 = null
 
     try {
       const response = await client.responses.create({
@@ -1500,11 +1518,26 @@ ${phrase}
         input: prompt,
       })
       translation = response.output_text?.trim() || translation
+      targetText = translation
     } catch (innerErr) {
       console.error('Error translating phrase with OpenAI:', innerErr)
     }
 
-    return res.json({ phrase, translation })
+    try {
+      const ttsResponse = await client.audio.speech.create({
+        model: 'gpt-4o-mini-tts',
+        voice: 'alloy',
+        input: targetText,
+        format: 'mp3',
+      })
+
+      const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+      audioBase64 = audioBuffer.toString('base64')
+    } catch (ttsError) {
+      console.error('Error generating pronunciation audio:', ttsError)
+    }
+
+    return res.json({ phrase, translation, targetText, audioBase64 })
   } catch (error) {
     console.error('Error translating phrase:', error)
     return res.status(500).json({ error: 'Internal server error' })
@@ -2144,6 +2177,8 @@ app.post('/api/generate-audio-book', async (req, res) => {
       return res.status(404).json({ error: 'Story not found' })
     }
 
+    const storyData = storySnap.data() || {}
+
     await storyRef.update({
       audioStatus: 'processing',
       hasFullAudio: false,
@@ -2253,6 +2288,33 @@ app.post('/api/generate-audio-book', async (req, res) => {
         audioStatus: 'ready',
         fullAudioUrl,
       })
+
+      try {
+        const transcriptResult = await transcribeWithWhisper({
+          audioUrl: fullAudioUrl,
+          languageCode: storyData?.language || storyData?.outputLanguage,
+        })
+
+        const transcriptRef = storyRef.collection('transcripts').doc('intensive')
+        const timestamp = admin.firestore.FieldValue.serverTimestamp()
+
+        await transcriptRef.set(
+          {
+            text: transcriptResult?.text || '',
+            segments: Array.isArray(transcriptResult?.segments)
+              ? transcriptResult.segments
+              : [],
+            sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
+              ? transcriptResult.sentenceSegments
+              : buildSentenceSegments(normaliseTranscriptSegments(transcriptResult?.segments || [])),
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          { merge: true },
+        )
+      } catch (transcriptError) {
+        console.error('Failed to generate Whisper transcript for story', transcriptError)
+      }
 
       return res.json({
         success: true,

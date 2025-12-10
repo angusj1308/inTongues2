@@ -21,6 +21,7 @@ const AudioPlayer = () => {
   const { user, profile } = useAuth()
   const location = useLocation()
   const audioRef = useRef(null)
+  const pronunciationAudioRef = useRef(null)
 
   const searchParams = new URLSearchParams(location.search)
   const source = searchParams.get('source')
@@ -61,6 +62,46 @@ const AudioPlayer = () => {
   }, [user])
 
   const transcriptText = useMemo(() => pages.map((page) => getDisplayText(page)).join(' '), [pages])
+
+  const playPronunciationAudio = (audioData) => {
+    if (!audioData?.audioBase64 && !audioData?.audioUrl) return
+
+    if (pronunciationAudioRef.current) {
+      if (pronunciationAudioRef.current._objectUrl) {
+        URL.revokeObjectURL(pronunciationAudioRef.current._objectUrl)
+      }
+      pronunciationAudioRef.current.pause()
+    }
+
+    const audio = new Audio()
+
+    if (audioData.audioUrl) {
+      audio.src = audioData.audioUrl
+    } else {
+      const byteCharacters = atob(audioData.audioBase64)
+      const byteNumbers = new Array(byteCharacters.length)
+
+      for (let i = 0; i < byteCharacters.length; i += 1) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'audio/mpeg' })
+      const objectUrl = URL.createObjectURL(blob)
+      audio.src = objectUrl
+      audio._objectUrl = objectUrl
+
+      audio.addEventListener('ended', () => {
+        if (audio._objectUrl) {
+          URL.revokeObjectURL(audio._objectUrl)
+          audio._objectUrl = null
+        }
+      })
+    }
+
+    pronunciationAudioRef.current = audio
+    audio.play().catch((err) => console.error('Pronunciation playback failed', err))
+  }
 
   useEffect(() => {
     if (!user || !id) {
@@ -370,6 +411,8 @@ const AudioPlayer = () => {
       const rect = range.getBoundingClientRect()
 
       let translation = 'No translation found'
+      let audioBase64 = null
+      let audioUrl = null
 
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
@@ -385,6 +428,8 @@ const AudioPlayer = () => {
         if (response.ok) {
           const data = await response.json()
           translation = data.translation || translation
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
         } else {
           console.error('Phrase translation failed:', await response.text())
         }
@@ -397,6 +442,8 @@ const AudioPlayer = () => {
         y: rect.bottom + window.scrollY + 8,
         word: phrase,
         translation,
+        audioBase64,
+        audioUrl,
       })
 
       return
@@ -418,6 +465,8 @@ const AudioPlayer = () => {
       y: rect.bottom + window.scrollY + 8,
       word: clean,
       translation,
+      audioBase64: null,
+      audioUrl: null,
     })
   }
 
@@ -719,7 +768,33 @@ const AudioPlayer = () => {
           onClick={(e) => e.stopPropagation()}
         >
           <strong>{popup.word}</strong>
-          <div style={{ marginTop: '4px' }}>{popup.translation}</div>
+          <div
+            style={{
+              marginTop: '4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            <span>{popup.translation}</span>
+            {(popup.audioBase64 || popup.audioUrl) && (
+              <button
+                type="button"
+                aria-label="Play pronunciation"
+                onClick={() => playPronunciationAudio(popup)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                🔊
+              </button>
+            )}
+          </div>
 
           <div
             style={{

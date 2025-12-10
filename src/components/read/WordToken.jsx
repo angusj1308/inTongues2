@@ -25,7 +25,7 @@ const normaliseStatus = (status) => {
   return 'new'
 }
 
-const WordToken = ({ text, status, language, readerMode }) => {
+const WordToken = ({ text, status, language, readerMode, onWordClick }) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
     language,
@@ -39,6 +39,11 @@ const WordToken = ({ text, status, language, readerMode }) => {
     <span
       className={highlighted ? 'reader-word reader-word--highlighted' : 'reader-word'}
       style={style}
+      onMouseUp={(event) => {
+        if (onWordClick) {
+          onWordClick(text, event)
+        }
+      }}
     >
       {text}
     </span>

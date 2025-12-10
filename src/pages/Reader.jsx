@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   collection,
   doc,
@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import WordToken from '../components/read/WordToken'
+import { readerModes } from '../constants/readerModes'
 
 const themeOptions = [
   {
@@ -58,6 +59,7 @@ const fontOptions = [
 
 const Reader = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id, language } = useParams()
   const { user, profile } = useAuth()
 
@@ -77,19 +79,13 @@ const Reader = () => {
   const [readerTheme, setReaderTheme] = useState('soft-white')
   const [readerFont, setReaderFont] = useState('crimson-pro')
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement))
-  const [readerMode, setReaderMode] = useState('active')
+  const [readerMode, setReaderMode] = useState(
+    () => location.state?.readerMode || 'active'
+  )
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const audioRef = useRef(null)
   const pointerStartRef = useRef(null)
-  const settingsRef = useRef(null)
   // popup: { x, y, word, translation } | null
-
-  const readerModes = [
-    { id: 'extensive', label: 'Extensive' },
-    { id: 'active', label: 'Active' },
-    { id: 'intensive', label: 'Intensive' },
-  ]
 
   async function handleWordClick(e) {
     e.stopPropagation()
@@ -675,22 +671,6 @@ const Reader = () => {
     }
   }, [])
 
-  useEffect(() => {
-    if (!isSettingsOpen) return undefined
-
-    const handleOutsideClick = (event) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
-        setIsSettingsOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleOutsideClick)
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick)
-    }
-  }, [isSettingsOpen])
-
   const hasPrevious = currentIndex > 0
   const hasNext = currentIndex + 2 < pages.length
   // visiblePages is already defined above
@@ -869,6 +849,19 @@ const Reader = () => {
     setReaderFont(fontOptions[nextIndex].id)
   }
 
+  const handleModeSelect = (modeId) => {
+    if (modeId === 'intensive') {
+      const intensivePath = language
+        ? `/reader/${encodeURIComponent(language)}/${id}/intensive`
+        : `/reader/${id}/intensive`
+
+      navigate(intensivePath)
+      return
+    }
+
+    setReaderMode(modeId)
+  }
+
   return (
     <div
       className="page reader-page reader-themed"
@@ -887,14 +880,36 @@ const Reader = () => {
         <div className="reader-hover-hitbox" />
         <header className="dashboard-header reader-hover-header">
           <div className="dashboard-brand-band reader-header-band">
-            <button
-              className="dashboard-control ui-text reader-back-button"
-              onClick={() =>
-                navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
-              }
-            >
-              Back to library
-            </button>
+            <div className="reader-header-left">
+              <button
+                className="dashboard-control ui-text reader-back-button"
+                onClick={() =>
+                  navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
+                }
+              >
+                Back to library
+              </button>
+            </div>
+
+            <nav className="dashboard-nav reader-mode-nav" aria-label="Reading mode">
+              {readerModes.map((mode, index) => (
+                <div
+                  key={mode.id}
+                  className={`dashboard-nav-item ${readerMode === mode.id ? 'active' : ''}`}
+                >
+                  <button
+                    className={`dashboard-nav-button ui-text ${
+                      readerMode === mode.id ? 'active' : ''
+                    }`}
+                    type="button"
+                    onClick={() => handleModeSelect(mode.id)}
+                  >
+                    {mode.label.toUpperCase()}
+                  </button>
+                  {index < readerModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
+                </div>
+              ))}
+            </nav>
 
             <div className="reader-header-actions">
               <button
@@ -913,53 +928,6 @@ const Reader = () => {
               >
                 Lighting
               </button>
-
-              <div className="reader-settings-menu" ref={settingsRef}>
-                <button
-                  className="reader-header-button ui-text reader-mode-trigger"
-                  type="button"
-                  onClick={() => setIsSettingsOpen((prev) => !prev)}
-                  aria-expanded={isSettingsOpen}
-                  aria-controls="reader-mode-panel"
-                >
-                  {readerMode === 'extensive'
-                    ? 'Extensive'
-                    : readerMode === 'intensive'
-                      ? 'Intensive'
-                      : 'Active'}{' '}
-                  mode
-                </button>
-
-                {isSettingsOpen && (
-                  <div className="reader-theme-panel reader-settings-panel" id="reader-mode-panel">
-                    <div className="reader-theme-panel-header">
-                      <div className="reader-theme-panel-title">Reading mode</div>
-                      <div className="reader-theme-panel-subtitle">
-                        Choose how highlights and progress behave
-                      </div>
-                    </div>
-
-                    <div className="reader-mode-toggle" role="group" aria-label="Reader mode">
-                      {readerModes.map((mode) => (
-                        <button
-                          type="button"
-                          key={mode.id}
-                          className={`reader-mode-option ${
-                            readerMode === mode.id ? 'active' : ''
-                          }`}
-                          onClick={() => {
-                            setReaderMode(mode.id)
-                            setIsSettingsOpen(false)
-                          }}
-                          aria-pressed={readerMode === mode.id}
-                        >
-                          {mode.label.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
 
               <button
                 className="reader-header-button ui-text"

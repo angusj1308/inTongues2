@@ -1233,11 +1233,13 @@ const Reader = ({ initialMode }) => {
                 {isIntensiveTranslationVisible ? 'Hide translation' : 'Show translation'}
               </button>
 
-              {isIntensiveTranslationVisible && (
-                <p className="reader-intensive-translation">
-                  {intensiveTranslation || 'Translation will appear here.'}
-                </p>
-              )}
+              <p
+                className={`reader-intensive-translation ${
+                  isIntensiveTranslationVisible ? 'is-visible' : 'is-hidden'
+                }`}
+              >
+                {intensiveTranslation || 'Translation will appear here.'}
+              </p>
             </div>
 
             <p className="reader-intensive-helper">
@@ -1258,7 +1260,7 @@ const Reader = ({ initialMode }) => {
           onClick={(e) => e.stopPropagation()}
         >
           <div className="translate-popup-header">
-            <div className="translate-popup-title">Translations</div>
+            <div className="translate-popup-title">Translation</div>
             <button
               type="button"
               className="translate-popup-close"
@@ -1272,45 +1274,23 @@ const Reader = ({ initialMode }) => {
             </button>
           </div>
 
-          <div className="translate-popup-meta">
-            <span className="translate-popup-language">{`Target (${language || 'source'})`}</span>
-            <span className="translate-popup-arrow" aria-hidden="true">
-              →
-            </span>
-            <span className="translate-popup-language">
-              {`Native (${profile?.nativeLanguage || 'English'})`}
-            </span>
-          </div>
-
           <div className="translate-popup-body">
-            <div className="translate-popup-preview-text">
-              {popup.displayText || popup.word}
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">
+                {language || 'Target language'}
+              </p>
+              <p className="translate-popup-language-text translate-popup-book-text">
+                {popup.displayText || popup.word}
+              </p>
             </div>
 
-            <div className="translate-popup-divider" />
-
-            <div className="translate-popup-preview-text">
-              {popup.translation}
-            </div>
-
-            <div className="translate-popup-language-pair">
-              <div className="translate-popup-language-column">
-                <p className="translate-popup-language-label">
-                  {language || 'Target language'}
-                </p>
-                <p className="translate-popup-language-text">
-                  {popup.displayText || popup.word}
-                </p>
-              </div>
-
-              <div className="translate-popup-language-column">
-                <p className="translate-popup-language-label">
-                  {profile?.nativeLanguage || 'Native language'}
-                </p>
-                <p className="translate-popup-language-text">
-                  {popup.translation}
-                </p>
-              </div>
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">
+                {profile?.nativeLanguage || 'Native language'}
+              </p>
+              <p className="translate-popup-language-text translate-popup-book-text">
+                {popup.translation}
+              </p>
             </div>
           </div>
 

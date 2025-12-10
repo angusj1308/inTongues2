@@ -1645,6 +1645,17 @@ textarea {
 
 .reader-intensive-translation {
   color: #1e293b;
+  transition: opacity 160ms ease, visibility 160ms ease;
+}
+
+.reader-intensive-translation.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.reader-intensive-translation.is-visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 .reader-intensive-controls {
@@ -1716,6 +1727,7 @@ textarea {
   font-weight: 700;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
+  font-family: 'SF Pro Display', 'SF Pro Text', system-ui, -apple-system, sans-serif;
 }
 
 .translate-popup-close {
@@ -1738,48 +1750,13 @@ textarea {
   outline-offset: 2px;
 }
 
-.translate-popup-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: #1f2937;
-  margin-bottom: 10px;
-}
-
-.translate-popup-language {
-  font-weight: 600;
-}
-
-.translate-popup-arrow {
-  opacity: 0.65;
-}
-
 .translate-popup-body {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.translate-popup-preview-text {
-  font-size: 0.98rem;
-  line-height: 1.4;
-}
-
-.translate-popup-divider {
-  height: 1px;
-  background: #cbd5e1;
-  width: 100%;
-}
-
-.translate-popup-language-pair {
+  padding: 12px 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .translate-popup-language-label {
@@ -1787,6 +1764,7 @@ textarea {
   margin: 0 0 4px;
   font-size: 0.87rem;
   color: #0f172a;
+  font-family: 'SF Pro Display', 'SF Pro Text', system-ui, -apple-system, sans-serif;
 }
 
 .translate-popup-language-text {
@@ -1794,6 +1772,12 @@ textarea {
   font-size: 0.95rem;
   line-height: 1.5;
   color: #111827;
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+}
+
+.translate-popup-book-text {
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-weight: var(--reader-font-weight, 400);
 }
 
 .translate-popup-status {
@@ -1802,9 +1786,9 @@ textarea {
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   padding: 8px;
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .translate-popup-status-button {
@@ -1817,6 +1801,7 @@ textarea {
   font-size: 0.85rem;
   font-weight: 600;
   transition: background 120ms ease, transform 120ms ease;
+  flex: 1 1 22%;
 }
 
 .translate-popup-status-button:hover {

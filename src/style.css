@@ -153,56 +153,56 @@ textarea {
 }
 
 .word-new {
-  color: #111;
+  color: #000;
   font-weight: 700;
 }
 
 .word-unknown {
-  color: #1f2937;
+  color: #000;
   font-weight: 700;
   text-decoration: underline;
   text-decoration-thickness: 1px;
 }
 
 .word-recognised {
-  color: #374151;
+  color: #000;
   font-weight: 600;
 }
 
 .word-familiar {
-  color: #4b5563;
+  color: #000;
   font-style: italic;
 }
 
 .word-known {
-  color: #6b7280;
+  color: #000;
 }
 
 .phrase-new {
-  color: #111;
+  color: #000;
   font-weight: 700;
 }
 
 .phrase-unknown {
-  color: #1f2937;
+  color: #000;
   font-weight: 700;
   text-decoration: underline;
   text-decoration-thickness: 1px;
 }
 
 .phrase-recognised {
-  color: #374151;
+  color: #000;
   font-weight: 600;
 }
 
 .phrase-familiar {
-  color: #4b5563;
+  color: #000;
   font-weight: 600;
   font-style: italic;
 }
 
 .phrase-known {
-  color: #6b7280;
+  color: #000;
 }
 
 .error {

@@ -98,14 +98,29 @@ const Reader = ({ initialMode }) => {
   // popup: { x, y, word, displayText, translation } | null
 
   const getPopupPosition = (rect) => {
-    const lineHeightOffset = 48
-    const belowOffset = 8
-    const isBottomHalf = rect.bottom > window.innerHeight / 2
+    const margin = 12
+    const estimatedPopupHeight = 280
+    const estimatedPopupWidth = 360
 
-    const x = rect.left + window.scrollX
-    const y = isBottomHalf
-      ? Math.max(rect.top + window.scrollY - lineHeightOffset, 8)
-      : rect.bottom + window.scrollY + belowOffset
+    const viewportWidth = window.innerWidth
+    const spaceAbove = rect.top
+    const spaceBelow = window.innerHeight - rect.bottom
+
+    const shouldRenderAbove =
+      spaceBelow < estimatedPopupHeight + margin && spaceAbove > spaceBelow
+
+    const y = shouldRenderAbove
+      ? Math.max(window.scrollY + rect.top - estimatedPopupHeight - margin, window.scrollY + margin)
+      : Math.min(
+          window.scrollY + rect.bottom + margin,
+          window.scrollY + window.innerHeight - estimatedPopupHeight - margin
+        )
+
+    const centerX = rect.left + rect.width / 2 + window.scrollX
+    const x = Math.min(
+      Math.max(centerX - estimatedPopupWidth / 2, window.scrollX + margin),
+      window.scrollX + viewportWidth - estimatedPopupWidth - margin
+    )
 
     return { x, y }
   }

@@ -1570,19 +1570,86 @@ textarea {
   gap: 1.5rem;
 }
 
-.reader-intensive-shell {
+
+.reader-main-shell {
+  position: relative;
+  width: 100%;
+}
+
+.reader-intensive-active .reader-main-shell {
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.reader-intensive-overlay {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  padding: 2rem 1rem;
+  padding: 2.5rem 1.5rem;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 2000;
 }
 
-.reader-intensive-message {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.reader-intensive-card {
+  background: #ffffff;
+  color: #0f172a;
+  padding: clamp(1.5rem, 2vw + 1rem, 3rem);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+  max-width: min(960px, 94vw);
+  width: 100%;
   text-align: center;
+}
+
+.reader-intensive-label {
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.reader-intensive-sentence {
+  font-size: clamp(2.25rem, 3vw + 1.25rem, 3.75rem);
+  line-height: 1.25;
+  font-weight: 700;
+  margin: 0 0 1.75rem;
+}
+
+.reader-intensive-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 0.85rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.reader-intensive-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+}
+
+.reader-intensive-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.reader-intensive-translation {
+  margin-top: 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .reader-themed .dashboard-header {

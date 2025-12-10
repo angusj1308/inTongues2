@@ -166,6 +166,24 @@ const Reader = ({ initialMode }) => {
     })
   }
 
+  const handleSingleWordClick = (text, event) => {
+    const selection = window.getSelection()?.toString().trim()
+    const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
+
+    // Let the multi-word path handle multi-word selections
+    if (parts.length > 1) return
+
+    const key = normaliseExpression(text)
+    const translation =
+      pageTranslations[key] || pageTranslations[text] || 'No translation found'
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = rect.left + window.scrollX
+    const y = rect.bottom + window.scrollY + 8
+
+    setPopup({ x, y, word: key, displayText: text, translation })
+  }
+
   const handleSetWordStatus = async (status) => {
     if (!user || !language || !popup?.word) return
     if (!VOCAB_STATUSES.includes(status)) return
@@ -645,6 +663,7 @@ const Reader = ({ initialMode }) => {
             status={status}
             language={language}
             readerMode={readerMode}
+            onWordClick={handleSingleWordClick}
           />
         )
       })
@@ -742,6 +761,7 @@ const Reader = ({ initialMode }) => {
     function handleGlobalClick(event) {
       // If clicking inside the popup, do NOT close
       if (event.target.closest('.translate-popup')) return
+      if (event.target.closest('.page-text')) return
 
       setPopup(null)
     }

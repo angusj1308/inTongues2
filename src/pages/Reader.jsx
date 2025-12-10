@@ -158,7 +158,33 @@ const Reader = ({ initialMode }) => {
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
+    let translation =
+      pageTranslations[clean] ||
+      pageTranslations[selection] ||
+      null
+
+    if (!translation) {
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: selection,
+            sourceLang: language || 'es',
+            targetLang: profile?.nativeLanguage || 'English',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || 'No translation found'
+        } else {
+          translation = 'No translation found'
+        }
+      } catch (err) {
+        translation = 'No translation found'
+      }
+    }
 
     const selectionObj = window.getSelection()
     if (!selectionObj || selectionObj.rangeCount === 0) return
@@ -171,7 +197,7 @@ const Reader = ({ initialMode }) => {
     setPopup({ x, y, word: clean, displayText: selection, translation })
   }
 
-  const handleSingleWordClick = (text, event) => {
+  const handleSingleWordClick = async (text, event) => {
     const selection = window.getSelection()?.toString().trim()
     const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
 
@@ -179,8 +205,30 @@ const Reader = ({ initialMode }) => {
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
-    const translation =
-      pageTranslations[key] || pageTranslations[text] || 'No translation found'
+    let translation = pageTranslations[key] || pageTranslations[text] || null
+
+    if (!translation) {
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: text,
+            sourceLang: language || 'es',
+            targetLang: profile?.nativeLanguage || 'English',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || 'No translation found'
+        } else {
+          translation = 'No translation found'
+        }
+      } catch (err) {
+        translation = 'No translation found'
+      }
+    }
 
     const rect = event.currentTarget.getBoundingClientRect()
     const { x, y } = getPopupPosition(rect)

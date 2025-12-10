@@ -1090,6 +1090,26 @@ textarea {
   background: transparent;
 }
 
+.slider-row input[type='range']::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    #000 0%,
+    #000 var(--range-progress, 0%),
+    #fff var(--range-progress, 0%),
+    #fff 100%
+  );
+}
+
+.slider-row input[type='range']::-moz-range-track {
+  background: linear-gradient(
+    to right,
+    #000 0%,
+    #000 var(--range-progress, 0%),
+    #fff var(--range-progress, 0%),
+    #fff 100%
+  );
+}
+
 .slider-marks {
   display: flex;
   justify-content: space-between;

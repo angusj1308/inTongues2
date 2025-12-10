@@ -1396,8 +1396,15 @@ textarea {
 }
 
 .reader-pages {
-  display: flex;
-  gap: 1rem;
+  width: 100%;
+}
+
+.reader-spread {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 3rem;
   align-items: stretch;
 }
 
@@ -1442,7 +1449,11 @@ textarea {
   flex: 1;
   cursor: pointer;
   user-select: text;
-  padding: 3rem 1.75rem 2rem;
+  padding: 4rem 2.5rem 3rem 4rem;
+}
+
+.page--right .page-text {
+  padding: 4rem 4rem 3rem 2.5rem;
 }
 
 .reader-themed {

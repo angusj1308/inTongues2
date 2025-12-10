@@ -114,6 +114,8 @@ const Library = () => {
     return getDisplayText(previewPage) || item.description || 'No description provided.'
   }
 
+  const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
+
   return (
     <div className="page">
       <div className="card dashboard-card">
@@ -190,10 +192,11 @@ const Library = () => {
                       style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
                       onClick={() => handleDeleteStory(item.id)}
                     >
-                      Delete
+                    Delete
                     </button>
                   </div>
                 </div>
+                <h4 style={{ margin: '0.25rem 0' }}>{getStoryTitle(item)}</h4>
                 <p className="muted small">{getPreviewSnippet(item)}</p>
                 <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <span

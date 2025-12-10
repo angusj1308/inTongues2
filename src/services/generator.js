@@ -22,7 +22,10 @@ export const generateStory = async (params) => {
       throw new Error('No story pages were returned.')
     }
 
-    return data.pages
+    return {
+      pages: data.pages,
+      title: data.title,
+    }
   } catch (error) {
     throw new Error(error?.message || 'Unable to generate story. Please try again.')
   }

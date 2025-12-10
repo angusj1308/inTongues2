@@ -1364,8 +1364,55 @@ async function translateWords(words, sourceLang, targetLang) {
 app.post('/api/generate', async (req, res) => {
   try {
     const { level, genre, length, description, language, pageCount } = req.body
-    const totalPages = Math.max(1, Number(pageCount || length || 1) || 1)
+    const totalPages = Math.max(5, Number(pageCount || length || 1) || 1)
     const trimmedDescription = description?.trim() || 'Use your creativity to craft the plot.'
+
+    let title = 'Untitled Story'
+    let pagePlans = new Array(totalPages).fill(null)
+
+    try {
+      const planningPrompt = `You are planning a ${genre} story in ${language} for a reader at ${level} level. Use this idea: ${trimmedDescription}. Create a concise outline for ${totalPages} pages. Provide a JSON object with a short, compelling story title in the requested language and an array of page-level beats that loosely guide the narrative (do not force scene endings to align to page breaks). Return only JSON with keys "title" and "pagePlans" (array length ${totalPages}, each entry 1-3 sentences).`
+
+      const planningResponse = await client.responses.create({
+        model: "gpt-4.1",
+        input: planningPrompt,
+        response_format: { type: 'json_object' },
+      })
+
+      const contentBlocks = planningResponse?.output?.[0]?.content || []
+      const jsonBlock = contentBlocks.find((block) =>
+        block?.type === 'output_json' || block?.type === 'json'
+      )
+
+      let planningPayload = jsonBlock?.output_json || jsonBlock?.json
+
+      if (!planningPayload) {
+        const textBlock = contentBlocks.find((block) => typeof block?.text === 'string')
+        const candidateText = textBlock?.text || planningResponse?.output_text
+        if (candidateText) {
+          try {
+            planningPayload = JSON.parse(candidateText)
+          } catch (err) {
+            planningPayload = null
+          }
+        }
+      }
+
+      if (planningPayload) {
+        if (typeof planningPayload.title === 'string' && planningPayload.title.trim()) {
+          title = planningPayload.title.trim()
+        }
+
+        if (Array.isArray(planningPayload.pagePlans)) {
+          const normalizedPlans = Array.from({ length: totalPages }, (_, index) =>
+            planningPayload.pagePlans[index] ?? null,
+          )
+          pagePlans = normalizedPlans
+        }
+      }
+    } catch (planningError) {
+      console.error('Planning step failed:', planningError)
+    }
 
     const pages = []
 
@@ -1374,7 +1421,9 @@ app.post('/api/generate', async (req, res) => {
 
       const isFirstPage = pageNumber === 1
 
-      const baseInstructions = `You are writing page ${pageNumber} of ${totalPages} of a ${genre} story in ${language} at ${level} level. Each page must be approximately 250 words (between 230 and 260 words). A page is just a layout boundary, not a unit of the story. Scenes, ideas, paragraphs, and sentences can start on one page and continue onto the next.`
+      const plannedBeat = pagePlans[index] || 'Continue following the planned narrative and pacing.'
+
+      const baseInstructions = `You are writing page ${pageNumber} of ${totalPages} of a ${genre} story in ${language} at ${level} level. Story title: ${title}. Planned beat for this page: ${plannedBeat}. Each page must be approximately 250 words (between 230 and 260 words). A page is just a layout boundary, not a unit of the story. Scenes, ideas, paragraphs, and sentences can start on one page and continue onto the next.`
 
       const input = isFirstPage
         ? `${baseInstructions} Continue the same story from any previous pages, keeping characters and tone consistent. Story description: ${trimmedDescription}. Provide only the full text for page ${pageNumber} with no headings, titles, or page labels.`
@@ -1393,7 +1442,7 @@ app.post('/api/generate', async (req, res) => {
       pages.push(response.output_text.trim())
     }
 
-    res.json({ pages })
+    res.json({ title, pages })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: "OpenAI generation failed" })

@@ -1448,6 +1448,15 @@ textarea {
 .reader-themed {
   background: var(--reader-bg);
   color: var(--reader-text);
+  min-height: 100vh;
+  width: 100%;
+}
+
+.page.reader-page {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.5rem;
 }
 
 .reader-themed .dashboard-header {
@@ -1495,6 +1504,11 @@ textarea {
   padding: 0.35rem 0.6rem 0.45rem;
   border-radius: 14px 14px 0 0;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.reader-themed .audio-player-shell audio {
+  background: var(--reader-bg);
+  color: var(--reader-text);
 }
 
 .reader-page-block .page-number {

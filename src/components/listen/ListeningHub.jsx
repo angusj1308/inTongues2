@@ -550,7 +550,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                       isGeneratedStory ? 'inTongues Generator' : item.author || item.language || 'Audio story'
                     }
                     thumbnailUrl={item.coverImageUrl || item.imageUrl || item.coverImage}
-                    tags={[item.language && `in${item.language}`, item.level && `Level ${item.level}`]}
+                    tags={[item.level && `Level ${item.level}`]}
                     onPlay={() => navigate(`/listen/${item.id}`)}
                     onDelete={() => handleDeleteStory(item.id)}
                     progress={item.progress ?? 0}

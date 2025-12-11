@@ -905,6 +905,12 @@ textarea {
   align-items: flex-start;
 }
 
+.media-card.media-card-youtube .media-card-main {
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
 .media-card-thumbnail {
   position: relative;
   aspect-ratio: 2 / 3;
@@ -914,6 +920,13 @@ textarea {
   border-radius: 12px;
   overflow: hidden;
   flex: 0 0 130px;
+}
+
+.media-card.media-card-youtube .media-card-thumbnail {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  flex: 0 0 auto;
+  border-radius: 0;
 }
 
 .media-card-thumbnail img {
@@ -1156,6 +1169,10 @@ textarea {
   min-width: 0;
 }
 
+.media-card.media-card-youtube .media-card-body {
+  padding: 1rem 1.1rem 0.9rem;
+}
+
 .media-card-title {
   font-family: 'Garamond', serif;
   font-size: 1.2rem;
@@ -1210,9 +1227,10 @@ textarea {
 }
 
 .media-card-primary {
-  padding: 0.65rem 0.9rem;
+  padding: 0.5rem 1.1rem;
   border-radius: 12px;
   font-size: 0.95rem;
+  white-space: nowrap;
 }
 
 .media-card-delete {

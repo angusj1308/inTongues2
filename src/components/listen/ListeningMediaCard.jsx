@@ -30,7 +30,7 @@ const ListeningMediaCard = ({
 
   return (
     <div
-      className="preview-card listen-card media-card"
+      className={`preview-card listen-card media-card media-card-${type}`}
       onClick={onPlay}
       onKeyDown={handleKeyDown}
       role="button"

@@ -930,6 +930,10 @@ textarea {
   margin-bottom: 1.5rem;
 }
 
+.library-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+}
+
 .page-header-title {
   flex: 1;
   display: flex;
@@ -1112,6 +1116,10 @@ textarea {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+}
+
+.bookshelf-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
 }
 
 .bookshelf-cta {

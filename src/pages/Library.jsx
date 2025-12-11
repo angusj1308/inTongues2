@@ -8,7 +8,7 @@ import { db } from '../firebase'
 const BookshelfRow = ({ title, books, emptyMessage, cta, getStoryTitle }) => (
   <section className="bookshelf-section">
     <div className="bookshelf-header">
-      <h3>{title}</h3>
+      <h3 className="bookshelf-title">{title}</h3>
       {cta ? <button className="bookshelf-cta">{cta}</button> : null}
     </div>
     {books && books.length ? (
@@ -126,11 +126,6 @@ const Library = () => {
     return unsubscribe
   }, [activeLanguage, user])
 
-  const handleLanguageChange = (language) => {
-    if (!language) return
-    navigate(`/library/${encodeURIComponent(language)}`)
-  }
-
   const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
 
   const allBooks = items
@@ -174,46 +169,26 @@ const Library = () => {
       <div className="card dashboard-card">
         <div className="page-header">
           <div>
-            <h1>Your library</h1>
+            <h1 className="library-title">Your library</h1>
             <p className="muted small">Stories are organized by the language you are learning.</p>
           </div>
-          <button className="button ghost" onClick={() => navigate('/dashboard')}>
-            Back to dashboard
-          </button>
         </div>
 
-        <div className="section">
-          <div className="section-header">
-            <h3>Language</h3>
-            <p className="muted small">Only stories for this language will appear in the library.</p>
+        {availableLanguages.length ? (
+          <div className="language-switcher">
+            <span className="pill primary">in{activeLanguage || '...'}</span>
           </div>
-          {availableLanguages.length ? (
-            <div className="language-switcher">
-              <span className="pill primary">in{activeLanguage || '...'}</span>
-              <select
-                className="language-select"
-                value={activeLanguage}
-                onChange={(event) => handleLanguageChange(event.target.value)}
-              >
-                {availableLanguages.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <p className="muted">Add a language to start saving stories.</p>
-          )}
-          {invalidLanguageParam && (
-            <p className="error small">
-              {languageParam} is not in your language list. Choose another language to view its stories.
-            </p>
-          )}
-        </div>
+        ) : (
+          <p className="muted">Add a language to start saving stories.</p>
+        )}
+        {invalidLanguageParam && (
+          <p className="error small">
+            {languageParam} is not in your language list. Choose another language to view its stories.
+          </p>
+        )}
 
         {!activeLanguage ? (
-          <p className="muted">Select a language to view its stories.</p>
+          <p className="muted">Add a language to view its stories.</p>
         ) : loading ? (
           <p className="muted">Loading library...</p>
         ) : error ? (

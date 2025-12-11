@@ -1077,6 +1077,60 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+.bookshelf-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-top: 0.75rem;
+  scrollbar-width: thin;
+}
+
+.bookshelf-row::-webkit-scrollbar {
+  height: 6px;
+}
+
+.bookshelf-row::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.bookshelf-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bookshelf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.bookshelf-pill:hover {
+  background: #e2e8f0;
+}
+
+.bookshelf-pill.is-active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.bookshelf-pill.is-action {
+  border-style: dashed;
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+}
+
 .slider-row {
   display: flex;
   align-items: center;

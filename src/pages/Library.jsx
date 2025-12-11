@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import DashboardLayout from '../components/layout/DashboardLayout'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
+
+const BOOKSHELVES = [
+  { id: 'in-progress', label: 'In Progress' },
+  { id: 'all', label: 'All Books' },
+  { id: 'favourites', label: 'Favourites' },
+  { id: 'generated', label: 'My Generated' },
+  { id: 'adaptations', label: 'My Adaptations' },
+  { id: 'create-collection', label: '+ Create a collection' },
+]
 
 const Library = () => {
   const { user, profile, setLastUsedLanguage } = useAuth()
@@ -12,6 +22,7 @@ const Library = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [openAudioId, setOpenAudioId] = useState('')
+  const [activeBookshelfId, setActiveBookshelfId] = useState('in-progress')
 
   const handleDeleteStory = async (storyId) => {
     if (!user || !storyId) return
@@ -116,8 +127,95 @@ const Library = () => {
 
   const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
 
+  const filteredItems = useMemo(() => {
+    if (activeBookshelfId === 'all' || activeBookshelfId === 'create-collection') {
+      return items
+    }
+
+    if (activeBookshelfId === 'favourites') {
+      const favourites = items.filter(
+        (item) => item.isFavorite || item.favorite || item.favourite === true,
+      )
+
+      if (!favourites.length) {
+        // TODO: Add favourite metadata to stories to support bookshelf filtering.
+        return items
+      }
+
+      return favourites
+    }
+
+    if (activeBookshelfId === 'generated') {
+      const generatedStories = items.filter(
+        (item) => item.sourceType === 'generated' || item.storyType === 'generated',
+      )
+
+      if (!generatedStories.length) {
+        // TODO: Store a source type for generated stories to enable filtering.
+        return items
+      }
+
+      return generatedStories
+    }
+
+    if (activeBookshelfId === 'adaptations') {
+      const adaptedStories = items.filter(
+        (item) => item.sourceType === 'adaptation' || item.storyType === 'adaptation',
+      )
+
+      if (!adaptedStories.length) {
+        // TODO: Track adaptations separately to power this bookshelf.
+        return items
+      }
+
+      return adaptedStories
+    }
+
+    const inProgressStories = items.filter((item) => {
+      const hasProgressValue = typeof item.progress === 'number'
+      const hasPageIndex = typeof item.currentPageIndex === 'number'
+      return Boolean(item.lastReadAt) || hasProgressValue || hasPageIndex
+    })
+
+    if (!inProgressStories.length) {
+      // TODO: Add progress tracking metadata to distinguish started stories.
+      return items
+    }
+
+    return inProgressStories
+  }, [activeBookshelfId, items])
+
+  const handleBookshelfClick = (shelfId) => {
+    if (!shelfId) return
+    if (shelfId === 'create-collection') {
+      const collectionName = window.prompt('Name your new collection')
+      if (collectionName) {
+        console.log('New collection name:', collectionName)
+      }
+      return
+    }
+
+    setActiveBookshelfId(shelfId)
+  }
+
+  const handleNavTabChange = (tab) => {
+    if (tab === 'read') return
+
+    if (tab === 'listen') {
+      navigate('/listening')
+      return
+    }
+
+    if (tab === 'review') {
+      navigate('/review')
+      return
+    }
+
+    navigate('/dashboard')
+  }
+
   return (
-    <div className="page">
+    <DashboardLayout activeTab="read" onTabChange={handleNavTabChange}>
       <div className="card dashboard-card">
         <div className="page-header">
           <div>
@@ -159,15 +257,37 @@ const Library = () => {
           )}
         </div>
 
+        <div className="section">
+          <div className="section-header">
+            <h3>Bookshelves</h3>
+          </div>
+          <div className="bookshelf-row" role="tablist" aria-label="Bookshelves">
+            {BOOKSHELVES.map((shelf) => (
+              <button
+                key={shelf.id}
+                className={`bookshelf-pill ${
+                  activeBookshelfId === shelf.id ? 'is-active' : ''
+                } ${shelf.id === 'create-collection' ? 'is-action' : ''}`}
+                type="button"
+                onClick={() => handleBookshelfClick(shelf.id)}
+                role="tab"
+                aria-selected={activeBookshelfId === shelf.id}
+              >
+                {shelf.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {!activeLanguage ? (
           <p className="muted">Select a language to view its stories.</p>
         ) : loading ? (
           <p className="muted">Loading library...</p>
         ) : error ? (
           <p className="error">{error}</p>
-        ) : items.length ? (
+        ) : filteredItems.length ? (
           <div className="library-list">
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <div className="preview-card" key={item.id}>
                 <div className="section-header">
                   <div className="pill-row">
@@ -244,10 +364,10 @@ const Library = () => {
             ))}
           </div>
         ) : (
-          <p className="muted">No stories yet. Generate one to get started!</p>
+          <p className="muted">No stories yet in this bookshelf.</p>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

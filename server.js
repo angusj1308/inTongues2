@@ -54,6 +54,7 @@ const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173'
 const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
@@ -145,6 +146,72 @@ app.use((req, res, next) => {
 })
 
 const getSpotifyTokenRef = (userId) => firestore.collection('spotifyTokens').doc(userId)
+
+const extractYouTubeId = (url) => {
+  if (!url) return ''
+
+  try {
+    const parsed = new URL(url)
+
+    if (parsed.hostname === 'youtu.be') {
+      return parsed.pathname.replace('/', '')
+    }
+
+    if (parsed.searchParams.get('v')) {
+      return parsed.searchParams.get('v')
+    }
+
+    const paths = parsed.pathname.split('/')
+    const embedIndex = paths.indexOf('embed')
+    if (embedIndex !== -1 && paths[embedIndex + 1]) {
+      return paths[embedIndex + 1]
+    }
+  } catch (err) {
+    return ''
+  }
+
+  return ''
+}
+
+const parseIsoDurationToSeconds = (duration) => {
+  if (!duration || typeof duration !== 'string') return null
+  const match = duration.match(
+    /P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?/,
+  )
+  if (!match) return null
+
+  const [, days, hours, minutes, seconds] = match.map((value) => Number(value) || 0)
+  return days * 86400 + hours * 3600 + minutes * 60 + seconds
+}
+
+const fetchYoutubeMetadata = async (videoId) => {
+  if (!videoId) return { channelTitle: null, durationSeconds: null }
+
+  if (!YOUTUBE_API_KEY) {
+    console.warn('YOUTUBE_API_KEY is not set; skipping YouTube metadata fetch')
+    return { channelTitle: null, durationSeconds: null }
+  }
+
+  const apiUrl = new URL('https://www.googleapis.com/youtube/v3/videos')
+  apiUrl.searchParams.set('part', 'snippet,contentDetails')
+  apiUrl.searchParams.set('id', videoId)
+  apiUrl.searchParams.set('key', YOUTUBE_API_KEY)
+
+  const response = await fetch(apiUrl.toString())
+  if (!response.ok) {
+    throw new Error(`YouTube API request failed: ${response.status} ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  const item = Array.isArray(data?.items) ? data.items[0] : null
+
+  if (!item) return { channelTitle: null, durationSeconds: null }
+
+  const channelTitle = item?.snippet?.channelTitle || null
+  const durationSeconds = parseIsoDurationToSeconds(item?.contentDetails?.duration)
+
+  return { channelTitle, durationSeconds }
+}
 
 const decodeState = (state) => {
   try {
@@ -1272,6 +1339,51 @@ app.post('/api/youtube/transcript', async (req, res) => {
   } catch (error) {
     console.error('Failed to transcribe YouTube audio', error)
     return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })
+  }
+})
+
+app.post('/api/youtube/import', async (req, res) => {
+  const { title, youtubeUrl, uid } = req.body || {}
+  const trimmedTitle = (title || '').trim()
+  const trimmedUrl = (youtubeUrl || '').trim()
+
+  if (!trimmedTitle || !trimmedUrl || !uid) {
+    return res.status(400).json({ error: 'title, youtubeUrl, and uid are required' })
+  }
+
+  const videoId = extractYouTubeId(trimmedUrl)
+  if (!videoId) {
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  let metadata = { channelTitle: null, durationSeconds: null }
+  try {
+    metadata = await fetchYoutubeMetadata(videoId)
+  } catch (metadataError) {
+    console.error('Failed to fetch YouTube metadata', metadataError)
+  }
+
+  const payload = {
+    title: trimmedTitle,
+    youtubeUrl: trimmedUrl,
+    videoId,
+    channelTitle: metadata.channelTitle || 'Unknown channel',
+    ...(Number.isFinite(metadata.durationSeconds) && { durationSeconds: metadata.durationSeconds }),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    source: 'youtube',
+  }
+
+  try {
+    const videoRef = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('youtubeVideos')
+      .add(payload)
+
+    return res.json({ id: videoRef.id, ...payload })
+  } catch (error) {
+    console.error('Failed to save YouTube import', error)
+    return res.status(500).json({ error: 'Failed to import YouTube video' })
   }
 })
 

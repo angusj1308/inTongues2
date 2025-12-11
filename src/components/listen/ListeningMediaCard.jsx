@@ -17,9 +17,9 @@ const ListeningMediaCard = ({
   tags = [],
   placeholder,
 }) => {
-  const badgeLabel = type === 'youtube' ? 'YouTube' : 'Audio'
-  const badgeClass = type === 'youtube' ? 'media-card-badge youtube' : 'media-card-badge audio'
-  const cardActionLabel = actionLabel || (type === 'youtube' ? 'Watch video →' : 'Play →')
+  const badgeLabel = type === 'youtube' ? '' : 'Audio'
+  const badgeClass = type === 'youtube' ? '' : 'media-card-badge audio'
+  const cardActionLabel = actionLabel || (type === 'youtube' ? 'Watch →' : 'Play →')
   const progressPercent = normaliseProgress(progress)
   const handleKeyDown = (event) => {
     if (!onPlay) return
@@ -46,7 +46,7 @@ const ListeningMediaCard = ({
             {placeholder || <span className="ui-text">No image available</span>}
           </div>
         )}
-        <span className={badgeClass}>{badgeLabel}</span>
+        {type !== 'youtube' && <span className={badgeClass}>{badgeLabel}</span>}
       </div>
 
       <div className="media-card-body">

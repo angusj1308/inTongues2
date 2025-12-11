@@ -352,22 +352,13 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   return (
     <div className={`listening-hub ${embedded ? '' : 'page'}`}>
       <div className={`${embedded ? '' : 'card dashboard-card'} listening-surface`}>
-        <div className="page-header">
-          <div>
-            <h1>Listening Hub</h1>
-            <p className="muted small">Audiobooks, YouTube imports, and Spotify tools in one place.</p>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="button" onClick={() => navigate('/importaudio/video')}>
-              Import audio or video
+        {showBackButton && !embedded && (
+          <div className="page-header" style={{ justifyContent: 'flex-end' }}>
+            <button className="button ghost" onClick={() => navigate('/dashboard')}>
+              Back to dashboard
             </button>
-            {showBackButton && !embedded && (
-              <button className="button ghost" onClick={() => navigate('/dashboard')}>
-                Back to dashboard
-              </button>
-            )}
           </div>
-        </div>
+        )}
 
         <div className="section">
           <div className="section-header">
@@ -422,7 +413,6 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
         <div className="section">
           <div className="section-header">
             <h3>YouTube videos</h3>
-            <p className="muted small">Imported videos that open inside inTongues Cinema.</p>
           </div>
 
           {videoLoading ? (
@@ -663,7 +653,6 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
         <div className="section">
           <div className="section-header">
             <h3>My Spotify Library</h3>
-            <p className="muted small">Items you saved from Spotify into inTongues.</p>
           </div>
 
           {spotifyLibraryLoading ? (

@@ -86,12 +86,15 @@ const Reader = ({ initialMode }) => {
   )
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
   const [sentenceTranslations, setSentenceTranslations] = useState({})
+  const [sentenceSegments, setSentenceSegments] = useState([])
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] =
     useState(false)
   const [bookmarkIndex, setBookmarkIndex] = useState(null)
   const [isSavingBookmark, setIsSavingBookmark] = useState(false)
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
+  const sentenceAudioRef = useRef(null)
+  const sentenceAudioStopRef = useRef(null)
   const pointerStartRef = useRef(null)
   const lastPageIndexRef = useRef(currentIndex)
   const hasAppliedBookmarkRef = useRef(false)
@@ -137,9 +140,7 @@ const Reader = ({ initialMode }) => {
 
     const audio = new Audio()
 
-    if (audioData.audioUrl) {
-      audio.src = audioData.audioUrl
-    } else {
+    if (audioData.audioBase64) {
       const byteCharacters = atob(audioData.audioBase64)
       const byteNumbers = new Array(byteCharacters.length)
 
@@ -159,6 +160,9 @@ const Reader = ({ initialMode }) => {
           audio._objectUrl = null
         }
       })
+    } else {
+      audio.src = audioData.audioUrl
+      audio._objectUrl = null
     }
 
     pronunciationAudioRef.current = audio
@@ -296,12 +300,15 @@ const Reader = ({ initialMode }) => {
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
-    let translation = pageTranslations[key] || pageTranslations[text] || null
+    const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
+    let translation = cachedTranslation
     let audioBase64 = null
     let audioUrl = null
-    let targetText = null
+    let targetText = cachedTranslation
 
-    if (!translation) {
+    const shouldFetch = !cachedTranslation || !audioBase64 || !audioUrl
+
+    if (shouldFetch) {
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -315,15 +322,17 @@ const Reader = ({ initialMode }) => {
 
         if (response.ok) {
           const data = await response.json()
-          translation = data.translation || 'No translation found'
-          targetText = data.targetText || translation
+          translation = translation || data.translation || 'No translation found'
+          targetText = data.targetText || translation || 'No translation found'
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
         } else {
-          translation = 'No translation found'
+          translation = translation || 'No translation found'
+          targetText = targetText || translation
         }
       } catch (err) {
-        translation = 'No translation found'
+        translation = translation || 'No translation found'
+        targetText = targetText || translation
       }
     }
 
@@ -335,10 +344,10 @@ const Reader = ({ initialMode }) => {
       y,
       word: key,
       displayText: text,
-      translation,
-      targetText,
-      audioBase64,
-      audioUrl,
+      translation: translation || 'No translation found',
+      targetText: targetText || translation || 'No translation found',
+      audioBase64: audioBase64 || null,
+      audioUrl: audioUrl || null,
     })
   }
 
@@ -444,6 +453,64 @@ const Reader = ({ initialMode }) => {
 
     loadStoryMeta()
   }, [user, id])
+
+  useEffect(() => {
+    if (!user || !id || readerMode !== 'intensive') {
+      setSentenceSegments([])
+      return undefined
+    }
+
+    let isActive = true
+
+    const loadIntensiveTranscript = async () => {
+      try {
+        const transcriptRef = doc(
+          db,
+          'users',
+          user.uid,
+          'stories',
+          id,
+          'transcripts',
+          'intensive'
+        )
+
+        const transcriptSnap = await getDoc(transcriptRef)
+
+        if (!isActive) return
+
+        if (!transcriptSnap.exists()) {
+          setSentenceSegments([])
+          return
+        }
+
+        const data = transcriptSnap.data() || {}
+        const rawSegments =
+          (Array.isArray(data.sentenceSegments) && data.sentenceSegments) ||
+          (Array.isArray(data.segments) && data.segments) ||
+          []
+        const normalised = rawSegments
+          .map((seg) => ({
+            start: Number(seg.start) || 0,
+            end: Number(seg.end) || 0,
+            text: seg.text || '',
+          }))
+          .filter((seg) => seg.end > seg.start)
+
+        setSentenceSegments(normalised)
+      } catch (error) {
+        console.error('Failed to load intensive transcript', error)
+        if (isActive) {
+          setSentenceSegments([])
+        }
+      }
+    }
+
+    loadIntensiveTranscript()
+
+    return () => {
+      isActive = false
+    }
+  }, [id, readerMode, user])
 
   useEffect(() => {
     if (!pages.length) return
@@ -1047,12 +1114,50 @@ const Reader = ({ initialMode }) => {
   }
 
   const playSentenceAudio = (sentenceIndex) => {
-    const sentenceText = allVisibleSentences[sentenceIndex] || ''
-    // Placeholder for future audio integration
-    console.log('Play sentence audio (placeholder)', {
-      sentenceIndex,
-      sentenceText,
-    })
+    if (readerMode !== 'intensive') return
+    if (!fullAudioUrl || !sentenceSegments.length) return
+
+    const sentenceText = (allVisibleSentences[sentenceIndex] || '').trim()
+
+    let segment = sentenceSegments.find(
+      (item) => (item.text || '').trim() === sentenceText
+    )
+
+    if (!segment) {
+      segment = sentenceSegments[sentenceIndex]
+    }
+
+    if (!segment) return
+
+    const startTime = Number(segment.start) || 0
+    const endTime = Number(segment.end) || 0
+
+    if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
+      sentenceAudioRef.current = new Audio(fullAudioUrl)
+    }
+
+    const audio = sentenceAudioRef.current
+
+    if (sentenceAudioStopRef.current) {
+      clearTimeout(sentenceAudioStopRef.current)
+      sentenceAudioStopRef.current = null
+    }
+
+    try {
+      audio.currentTime = startTime
+    } catch (error) {
+      console.error('Failed to set sentence audio start time', error)
+    }
+
+    audio.play().catch((err) => console.error('Sentence playback failed', err))
+
+    if (endTime > startTime) {
+      const durationMs = Math.max((endTime - startTime) * 1000, 0)
+
+      sentenceAudioStopRef.current = setTimeout(() => {
+        audio.pause()
+      }, durationMs + 120)
+    }
   }
 
   const handleSentenceNavigation = async (direction) => {
@@ -1162,6 +1267,20 @@ const Reader = ({ initialMode }) => {
     }
   }, [])
 
+  useEffect(
+    () => () => {
+      if (sentenceAudioStopRef.current) {
+        clearTimeout(sentenceAudioStopRef.current)
+        sentenceAudioStopRef.current = null
+      }
+
+      if (sentenceAudioRef.current) {
+        sentenceAudioRef.current.pause()
+      }
+    },
+    []
+  )
+
   useEffect(() => {
     if (readerMode !== 'intensive') return undefined
 
@@ -1179,7 +1298,14 @@ const Reader = ({ initialMode }) => {
       if (event.code === 'Space' || event.key === ' ') {
         if (allVisibleSentences.length === 0) return
         event.preventDefault()
-        playSentenceAudio(currentSentenceIndex)
+
+        if (
+          readerMode === 'intensive' &&
+          sentenceSegments.length > 0 &&
+          fullAudioUrl
+        ) {
+          playSentenceAudio(currentSentenceIndex)
+        }
         return
       }
 
@@ -1205,6 +1331,8 @@ const Reader = ({ initialMode }) => {
     currentSentenceIndex,
     allVisibleSentences.length,
     currentIntensiveSentence,
+    fullAudioUrl,
+    sentenceSegments.length,
     handleSentenceNavigation,
   ])
 

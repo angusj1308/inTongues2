@@ -349,8 +349,8 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   }, [user])
 
   return (
-    <div className={embedded ? '' : 'page'}>
-      <div className={embedded ? '' : 'card dashboard-card'}>
+    <div className={`listening-hub ${embedded ? '' : 'page'}`}>
+      <div className={`${embedded ? '' : 'card dashboard-card'} listening-surface`}>
         <div className="page-header">
           <div>
             <h1>Listening Hub</h1>
@@ -381,16 +381,16 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           ) : items.length === 0 ? (
             <p className="muted">No audiobooks yet. Import a video or story to get started.</p>
           ) : (
-            <div className="library-list">
+            <div className="listen-shelf">
               {items.map((item) => (
                 <div
-                  className="preview-card"
+                  className="preview-card listen-card"
                   key={item.id}
                   onClick={() => navigate(`/listen/${item.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <div className="section-header">
-                    <h3>{item.title || 'Untitled story'}</h3>
+                  <div className="listen-card-header">
+                    <div className="listen-card-title">{item.title || 'Untitled story'}</div>
                     <span className="pill primary">Audio</span>
                     <button
                       className="button ghost"
@@ -429,16 +429,16 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           ) : youtubeVideos.length === 0 ? (
             <p className="muted">No YouTube videos imported yet.</p>
           ) : (
-            <div className="library-list">
+            <div className="listen-shelf">
               {youtubeVideos.map((video) => (
                 <div
-                  className="preview-card"
+                  className="preview-card listen-card"
                   key={video.id}
                   onClick={() => navigate(`/cinema/${video.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <div className="section-header">
-                    <h3>{video.title || 'Untitled video'}</h3>
+                  <div className="listen-card-header">
+                    <div className="listen-card-title">{video.title || 'Untitled video'}</div>
                     <span className="pill" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
                       YouTube
                     </span>
@@ -655,16 +655,16 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           ) : spotifyLibrary.length === 0 ? (
             <p className="muted">No Spotify items saved yet.</p>
           ) : (
-            <div className="library-list">
+            <div className="listen-shelf">
               {spotifyLibrary.map((item) => (
                 <div
-                  className="preview-card"
+                  className="preview-card listen-card"
                   key={item.id}
                   onClick={() => navigateToSpotifyItem(item)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <div className="section-header">
-                    <h3>{item.title || 'Untitled Spotify item'}</h3>
+                  <div className="listen-card-header">
+                    <div className="listen-card-title">{item.title || 'Untitled Spotify item'}</div>
                     <span className="pill">{item.type || 'spotify'}</span>
                     <span className="pill" style={{ background: '#e5e7eb', color: '#111827' }}>
                       {item.transcriptStatus || 'pending'}

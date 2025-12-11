@@ -822,6 +822,49 @@ textarea {
   }
 }
 
+.listening-hub h1,
+.listening-hub h2,
+.listening-hub h3,
+.listening-hub .section-header h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui,
+    sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.listening-surface {
+  background: #fff;
+}
+
+.listen-shelf {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.25rem 0 0.5rem;
+  scroll-snap-type: x proximity;
+}
+
+.listen-card {
+  flex: 0 0 320px;
+  min-width: 280px;
+  scroll-snap-align: start;
+}
+
+.listen-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.listen-card-title {
+  font-family: 'Garamond', serif;
+  font-size: 1.08rem;
+  color: #0f172a;
+  flex: 1;
+  min-width: 160px;
+}
+
 .with-icon {
   display: inline-flex;
   align-items: center;

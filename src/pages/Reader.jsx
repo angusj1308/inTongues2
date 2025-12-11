@@ -781,7 +781,7 @@ const Reader = ({ initialMode }) => {
 
     if (!canFinish) return
 
-    navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
+    navigate('/dashboard', { state: { initialTab: 'read' } })
   }
 
   const isWordChar = (ch) => {
@@ -1110,7 +1110,7 @@ const Reader = ({ initialMode }) => {
       }
     }
 
-    navigate(language ? `/library/${encodeURIComponent(language)}` : '/library')
+    navigate('/dashboard', { state: { initialTab: 'read' } })
   }
 
   const playSentenceAudio = (sentenceIndex) => {

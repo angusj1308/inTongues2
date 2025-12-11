@@ -150,7 +150,7 @@ const GenerateStoryPanel = ({
         console.error('Failed to trigger audio book generation:', err)
       }
 
-      navigate(`/library/${encodeURIComponent(activeLanguage)}`)
+      navigate('/dashboard', { state: { initialTab: 'read' } })
     } catch (submissionError) {
       setError(submissionError?.message || 'Unable to generate story.')
     } finally {

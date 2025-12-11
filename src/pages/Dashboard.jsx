@@ -1,21 +1,159 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import { useAuth } from '../context/AuthContext'
+import { db } from '../firebase'
+
+const BookGrid = ({
+  title,
+  books,
+  emptyMessage,
+  loading,
+  onEmptyAction,
+  onEmptyActionLabel,
+  onBookClick,
+  getStoryTitle,
+}) => (
+  <section className="read-section read-slab">
+    <div className="read-section-header">
+      <h3>{title}</h3>
+    </div>
+    {loading ? (
+      <p className="muted small">Loading your books...</p>
+    ) : !books?.length ? (
+      <div className="empty-bookshelf">
+        <p className="muted small">{emptyMessage}</p>
+        {onEmptyAction ? (
+          <button className="button ghost" onClick={onEmptyAction}>
+            {onEmptyActionLabel}
+          </button>
+        ) : null}
+      </div>
+    ) : (
+      <div className="book-grid">
+        {books.map((book) => {
+          const progress = Math.max(0, Math.min(100, book.progress || 0))
+          const titleText = getStoryTitle ? getStoryTitle(book) : book.title
+
+          return (
+            <div
+              key={book.id || book.title}
+              className="book-tile"
+              role={onBookClick ? 'button' : undefined}
+              tabIndex={onBookClick ? 0 : undefined}
+              onClick={onBookClick ? () => onBookClick(book) : undefined}
+              onKeyDown={
+                onBookClick
+                  ? (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        onBookClick(book)
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <div className="book-tile-cover" />
+              <div className="book-tile-title">{titleText}</div>
+              <div className="book-tile-meta ui-text">
+                {book.language || 'Unknown language'}
+                {book.level ? ` · Level ${book.level}` : ''}
+              </div>
+              <div className="book-progress-bar">
+                <div className="book-progress-bar-inner" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )}
+  </section>
+)
 
 const Dashboard = () => {
-  const { profile } = useAuth()
+  const { user, profile, setLastUsedLanguage } = useAuth()
+  const location = useLocation()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('home')
+  const preferredTab = useMemo(() => {
+    const requestedTab = location.state?.initialTab
+    return requestedTab && DASHBOARD_TABS.includes(requestedTab) ? requestedTab : 'home'
+  }, [location.state?.initialTab])
+  const [activeTab, setActiveTab] = useState(preferredTab)
   const [slideDirection, setSlideDirection] = useState('')
+  const [items, setItems] = useState([])
+  const [libraryLoading, setLibraryLoading] = useState(true)
+  const [libraryError, setLibraryError] = useState('')
+  const generatePanelRef = useRef(null)
+  const importPanelRef = useRef(null)
 
+  const availableLanguages = profile?.myLanguages || []
   const activeLanguage = useMemo(() => {
-    if (profile?.lastUsedLanguage) return profile.lastUsedLanguage
-    if (profile?.myLanguages?.length) return profile.myLanguages[0]
+    if (profile?.lastUsedLanguage && availableLanguages.includes(profile.lastUsedLanguage)) {
+      return profile.lastUsedLanguage
+    }
+    if (availableLanguages.length) return availableLanguages[0]
     return ''
-  }, [profile?.lastUsedLanguage, profile?.myLanguages])
+  }, [availableLanguages, profile?.lastUsedLanguage])
+
+  useEffect(() => {
+    if (preferredTab !== activeTab) {
+      const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
+      const nextIndex = DASHBOARD_TABS.indexOf(preferredTab)
+
+      if (nextIndex > currentIndex) {
+        setSlideDirection('right')
+      } else if (nextIndex < currentIndex) {
+        setSlideDirection('left')
+      }
+
+      setActiveTab(preferredTab)
+    }
+  }, [activeTab, preferredTab])
+
+  useEffect(() => {
+    if (activeLanguage) {
+      setLastUsedLanguage(activeLanguage)
+    }
+  }, [activeLanguage, setLastUsedLanguage])
+
+  useEffect(() => {
+    if (!user || !activeLanguage) {
+      setItems([])
+      setLibraryLoading(false)
+      return undefined
+    }
+
+    setLibraryError('')
+    setLibraryLoading(true)
+
+    const storiesRef = collection(db, 'users', user.uid, 'stories')
+    const languageLibraryQuery = query(
+      storiesRef,
+      where('language', '==', activeLanguage),
+      orderBy('createdAt', 'desc'),
+    )
+
+    const unsubscribe = onSnapshot(
+      languageLibraryQuery,
+      (snapshot) => {
+        const nextItems = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        setItems(nextItems)
+        setLibraryLoading(false)
+      },
+      (err) => {
+        console.error('Library load error:', err)
+        setLibraryError('Unable to load your library right now.')
+        setLibraryLoading(false)
+      },
+    )
+
+    return unsubscribe
+  }, [activeLanguage, user])
 
   const handleTabClick = (tab) => {
     if (tab === activeTab) return
@@ -31,6 +169,50 @@ const Dashboard = () => {
 
     setActiveTab(tab)
   }
+
+  const handleOpenBook = (book) => {
+    if (!book?.id) return
+
+    const languageForReader = book.language || activeLanguage
+    const readerPath = languageForReader
+      ? `/reader/${encodeURIComponent(languageForReader)}/${book.id}`
+      : `/reader/${book.id}`
+
+    navigate(readerPath)
+  }
+
+  const scrollToPanel = (ref) => {
+    ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
+
+  const inProgressBooks =
+    items.filter((item) => Number.isFinite(item.progress) && item.progress > 0 && item.progress < 100) || []
+  const yourRecentBooks = items.slice(0, 8)
+  const allBooks = items
+  const generatedBooks =
+    items.filter((item) => item.sourceType === 'generated' || item.storyType === 'generated') || []
+  const adaptationBooks =
+    items.filter((item) => item.sourceType === 'adaptation' || item.storyType === 'adaptation') || []
+  const suggestedBooks = [
+    { id: 'suggest-1', title: 'Short Stories A2', language: 'Spanish', level: 'A2' },
+    { id: 'suggest-2', title: 'Everyday Dialogues B1', language: 'Spanish', level: 'B1' },
+    { id: 'suggest-3', title: 'Cultural Notes A1', language: 'Spanish', level: 'A1' },
+  ]
+  const intonguesLibraryBooks = [
+    { id: 'library-1', title: 'Graded Readers A1', language: 'Spanish', level: 'A1' },
+    { id: 'library-2', title: 'Cultural Snapshots A2', language: 'Spanish', level: 'A2' },
+    { id: 'library-3', title: 'Travel Dialogues B1', language: 'Spanish', level: 'B1' },
+  ]
+
+  const continueStory = inProgressBooks[0] || yourRecentBooks[0]
+  const continueProgress = Math.max(0, Math.min(100, continueStory?.progress || 0))
+  const continueMeta = continueStory
+    ? `${continueStory.language || activeLanguage || 'Your language'} · ${
+        continueProgress ? `${continueProgress}% complete` : 'Ready to start'
+      }`
+    : 'Your next read will appear here.'
 
   return (
     <DashboardLayout activeTab={activeTab} onTabChange={handleTabClick}>
@@ -71,118 +253,118 @@ const Dashboard = () => {
           )}
 
           {activeTab === 'read' && (
-            <>
-              <section className="read-section read-slab continue-section">
-                <div className="continue-card">
-                  <div className="continue-card-meta">
-                    <h3 className="continue-card-label">Continue reading</h3>
-                    <div className="continue-card-title">Your current book</div>
-                    <div className="continue-card-progress ui-text">Spanish · Chapter X · 12% complete</div>
-                  </div>
-                  <div className="continue-card-actions">
-                    <button
-                      className="button ghost"
-                      onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
-                      disabled={!activeLanguage}
-                    >
-                      Resume
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <section className="read-section read-slab">
-                <div className="read-section-header">
-                  <h3>My library</h3>
-                  <button
-                    className="text-link ui-text"
-                    onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
-                    disabled={!activeLanguage}
-                  >
-                    View all →
-                  </button>
-                </div>
-                <div className="book-grid">
-                  {[
-                    { title: 'Cuentos Cortos', progress: 40 },
-                    { title: 'Historias del Día', progress: 65 },
-                    { title: 'Diálogos Urbanos', progress: 15 },
-                    { title: 'Notas de Viaje', progress: 5 },
-                  ].map((book) => (
-                    <div
-                      key={book.title}
-                      className="book-tile"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          navigate(`/library/${encodeURIComponent(activeLanguage)}`)
-                        }
-                      }}
-                    >
-                      <div className="book-tile-cover" />
-                      <div className="book-tile-title">{book.title}</div>
-                      <div className="book-progress-bar">
-                        <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="read-section-header">
-                  <h3>Suggested for you</h3>
-                  <button className="text-link ui-text" onClick={() => navigate('/library')}>
-                    Browse all →
-                  </button>
-                </div>
-                <div className="book-grid">
-                  {[
-                    { title: 'Short Stories A2', level: 'A2', progress: 25 },
-                    { title: 'Everyday Dialogues B1', level: 'B1', progress: 50 },
-                    { title: 'Cultural Notes A1', level: 'A1', progress: 10 },
-                    { title: 'Reading Sprints B2', level: 'B2', progress: 70 },
-                  ].map((book) => (
-                    <div
-                      key={book.title}
-                      className="book-tile"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          navigate(`/library/${encodeURIComponent(activeLanguage)}`)
-                        }
-                      }}
-                    >
-                      <div className="book-tile-cover" />
-                      <div className="book-tile-title">{book.title}</div>
-                      <div className="book-tile-meta ui-text">{book.level} · Curated</div>
-                      <div className="book-progress-bar">
-                        <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {activeLanguage ? (
-                <section className="read-section">
-                  <div className="read-tool-panels">
-                    <div className="read-tool-panel">
-                      <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                    </div>
-                    <div className="read-tool-panel">
-                      <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                    </div>
-                  </div>
-                </section>
-              ) : (
+            <div className="read-stack">
+              {!activeLanguage ? (
                 <p className="muted small" style={{ marginTop: '0.75rem' }}>
                   Add a language to unlock your reading tools.
                 </p>
+              ) : (
+                <>
+                  <section className="read-section read-slab continue-section">
+                    <div className="continue-card">
+                      <div className="continue-card-meta">
+                        <h3 className="continue-card-label">Continue reading</h3>
+                        <div className="continue-card-title">
+                          {libraryLoading
+                            ? 'Loading your books...'
+                            : continueStory
+                              ? getStoryTitle(continueStory)
+                              : 'No books yet'}
+                        </div>
+                        <div className="continue-card-progress ui-text">
+                          {libraryLoading ? 'Fetching your shelves' : continueMeta}
+                        </div>
+                      </div>
+                      <div className="continue-card-actions">
+                        <button
+                          className="button ghost"
+                          onClick={() => handleOpenBook(continueStory)}
+                          disabled={!continueStory || libraryLoading}
+                        >
+                          {continueStory ? 'Resume' : 'Start reading'}
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+
+                  {libraryError ? <p className="error small">{libraryError}</p> : null}
+
+                  <BookGrid
+                    title="Your Recent"
+                    books={yourRecentBooks}
+                    emptyMessage="Your recent books will show up here."
+                    loading={libraryLoading}
+                    onBookClick={handleOpenBook}
+                    getStoryTitle={getStoryTitle}
+                  />
+
+                  <BookGrid
+                    title="All Books"
+                    books={allBooks}
+                    emptyMessage="No books in your library yet."
+                    loading={libraryLoading}
+                    onBookClick={handleOpenBook}
+                    getStoryTitle={getStoryTitle}
+                  />
+
+                  <BookGrid
+                    title="Your Generated"
+                    books={generatedBooks}
+                    emptyMessage="You haven't generated any stories yet."
+                    loading={libraryLoading}
+                    onEmptyAction={() => scrollToPanel(generatePanelRef)}
+                    onEmptyActionLabel="Generate your first book"
+                    onBookClick={handleOpenBook}
+                    getStoryTitle={getStoryTitle}
+                  />
+
+                  <BookGrid
+                    title="Your Adaptations"
+                    books={adaptationBooks}
+                    emptyMessage="You haven't imported or adapted any books yet."
+                    loading={libraryLoading}
+                    onEmptyAction={() => scrollToPanel(importPanelRef)}
+                    onEmptyActionLabel="Import your first book"
+                    onBookClick={handleOpenBook}
+                    getStoryTitle={getStoryTitle}
+                  />
+
+                  <BookGrid
+                    title="InTongues Library"
+                    books={intonguesLibraryBooks}
+                    emptyMessage="Browse curated titles from InTongues."
+                    loading={false}
+                    getStoryTitle={getStoryTitle}
+                  />
+
+                  <BookGrid
+                    title="Suggested for you"
+                    books={suggestedBooks}
+                    emptyMessage="No suggestions available yet."
+                    loading={false}
+                    getStoryTitle={getStoryTitle}
+                  />
+
+                  <section className="read-section read-slab">
+                    <div className="bookshelf-header">
+                      <h3>Create a Bookshelf</h3>
+                    </div>
+                    <button className="button ghost">+ Create a bookshelf</button>
+                  </section>
+
+                  <section className="read-section">
+                    <div className="read-tool-panels">
+                      <div className="read-tool-panel" ref={generatePanelRef}>
+                        <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                      </div>
+                      <div className="read-tool-panel" ref={importPanelRef}>
+                        <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
+                      </div>
+                    </div>
+                  </section>
+                </>
               )}
-            </>
+            </div>
           )}
 
           {activeTab === 'listen' && (
@@ -235,7 +417,7 @@ const Dashboard = () => {
               <div className="read-card">
                 <h3>Recent words</h3>
                 <p className="muted small">Quick access to the latest terms you saved.</p>
-                <button className="button ghost" onClick={() => navigate(`/library/${encodeURIComponent(activeLanguage)}`)}>
+                <button className="button ghost" onClick={() => navigate('/dashboard', { state: { initialTab: 'read' } })}>
                   View words
                 </button>
               </div>

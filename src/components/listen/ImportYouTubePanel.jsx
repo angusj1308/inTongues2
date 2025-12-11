@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { useAuth } from '../../context/AuthContext'
-import { db } from '../../firebase'
 import { extractYouTubeId } from '../../utils/youtube'
 
 const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess }) => {
@@ -40,15 +38,20 @@ const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess })
     setError('')
 
     try {
-      const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
-
-      await addDoc(videosRef, {
-        title: trimmedTitle,
-        youtubeUrl: trimmedUrl,
-        videoId,
-        createdAt: serverTimestamp(),
-        source: 'youtube',
+      const response = await fetch('http://localhost:4000/api/youtube/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: trimmedTitle,
+          youtubeUrl: trimmedUrl,
+          uid: user.uid,
+        }),
       })
+
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(message || 'Failed to import YouTube video')
+      }
 
       setTitle('')
       setYoutubeUrl('')

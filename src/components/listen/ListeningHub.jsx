@@ -578,13 +578,11 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                   key={video.id}
                   type="youtube"
                   title={video.title || 'Untitled video'}
-                  channel={video.channel || 'YouTube import'}
+                  channel={video.channelTitle || video.channel || 'Unknown channel'}
                   thumbnailUrl={getYouTubeThumbnailUrl(video.youtubeUrl)}
-                  tags={[video.source === 'youtube' && 'Opens in inTongues Cinema']}
                   onPlay={() => navigate(`/cinema/${video.id}`)}
                   onDelete={() => handleDeleteVideo(video.id)}
                   progress={video.progress ?? 0}
-                  actionLabel="Watch video →"
                 />
               ))}
             </div>

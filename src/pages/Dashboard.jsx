@@ -76,11 +76,11 @@ const Dashboard = () => {
   const { user, profile, setLastUsedLanguage } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const preferredTab = useMemo(() => {
-    const requestedTab = location.state?.initialTab
-    return requestedTab && DASHBOARD_TABS.includes(requestedTab) ? requestedTab : 'home'
+  const requestedTab = useMemo(() => {
+    const initialTab = location.state?.initialTab
+    return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : ''
   }, [location.state?.initialTab])
-  const [activeTab, setActiveTab] = useState(preferredTab)
+  const [activeTab, setActiveTab] = useState(requestedTab || 'home')
   const [slideDirection, setSlideDirection] = useState('')
   const [items, setItems] = useState([])
   const [libraryLoading, setLibraryLoading] = useState(true)
@@ -98,19 +98,19 @@ const Dashboard = () => {
   }, [availableLanguages, profile?.lastUsedLanguage])
 
   useEffect(() => {
-    if (preferredTab !== activeTab) {
-      const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
-      const nextIndex = DASHBOARD_TABS.indexOf(preferredTab)
+    if (!requestedTab || requestedTab === activeTab) return
 
-      if (nextIndex > currentIndex) {
-        setSlideDirection('right')
-      } else if (nextIndex < currentIndex) {
-        setSlideDirection('left')
-      }
+    const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
+    const nextIndex = DASHBOARD_TABS.indexOf(requestedTab)
 
-      setActiveTab(preferredTab)
+    if (nextIndex > currentIndex) {
+      setSlideDirection('right')
+    } else if (nextIndex < currentIndex) {
+      setSlideDirection('left')
     }
-  }, [activeTab, preferredTab])
+
+    setActiveTab(requestedTab)
+  }, [activeTab, requestedTab])
 
   useEffect(() => {
     if (activeLanguage) {

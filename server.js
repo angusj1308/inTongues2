@@ -1096,9 +1096,63 @@ async function downloadAudioUrlToTempFile(audioUrl) {
   return tempPath
 }
 
-function buildSentenceSegments(whisperSegments = []) {
+function splitIntoSentences(text) {
+  return (text || '')
+    .split(/(?<=[.!?¡¿…])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+}
+
+function buildSentenceSegments(whisperSegments = [], textSentences = []) {
   const sentenceSegments = []
   const segments = Array.isArray(whisperSegments) ? whisperSegments : []
+  const sentences = Array.isArray(textSentences) ? textSentences : []
+  const hasTextSentences = sentences.length > 0
+
+  if (hasTextSentences) {
+    const norm = (s) => (s || '').replace(/\s+/g, ' ').trim()
+    let segmentIndex = 0
+
+    for (let i = 0; i < sentences.length; i += 1) {
+      const target = norm(sentences[i])
+
+      if (!target) {
+        sentenceSegments.push({ start: 0, end: 0, text: sentences[i] })
+        continue
+      }
+
+      let buffer = ''
+      let start = null
+      let end = null
+
+      while (segmentIndex < segments.length && norm(buffer).indexOf(target) === -1) {
+        const seg = segments[segmentIndex]
+        const segText = seg?.text || ''
+        const rawStart = Number(seg?.start)
+        const rawEnd = Number(seg?.end)
+
+        if (start == null) {
+          start = Number.isFinite(rawStart) ? rawStart : 0
+        }
+
+        end = Number.isFinite(rawEnd) ? rawEnd : start ?? 0
+        buffer = `${buffer} ${segText}`
+        segmentIndex += 1
+      }
+
+      if (start != null && end != null) {
+        sentenceSegments.push({
+          start: Math.max(0, start),
+          end: Math.max(Math.max(0, start), end),
+          text: sentences[i],
+        })
+      } else {
+        sentenceSegments.push({ start: 0, end: 0, text: sentences[i] })
+      }
+    }
+
+    return sentenceSegments
+  }
 
   segments.forEach((seg) => {
     const rawStart = Number(seg?.start)
@@ -1117,16 +1171,16 @@ function buildSentenceSegments(whisperSegments = []) {
       .map((sentence) => sentence.trim())
       .filter(Boolean)
 
-    const sentences = rawSentences.length ? rawSentences : [text]
-    const totalChars = sentences.reduce((sum, sentence) => sum + sentence.length, 0)
+    const fallbackSentences = rawSentences.length ? rawSentences : [text]
+    const totalChars = fallbackSentences.reduce((sum, sentence) => sum + sentence.length, 0)
     const timedSentences = []
 
     let cursor = segmentStart
-    sentences.forEach((sentence, index) => {
-      const weight = totalChars > 0 ? sentence.length / totalChars : 1 / sentences.length
-      const sentenceDuration = duration * (Number.isFinite(weight) && weight > 0 ? weight : 1 / sentences.length)
+    fallbackSentences.forEach((sentence, index) => {
+      const weight = totalChars > 0 ? sentence.length / totalChars : 1 / fallbackSentences.length
+      const sentenceDuration = duration * (Number.isFinite(weight) && weight > 0 ? weight : 1 / fallbackSentences.length)
       const sentenceEnd =
-        index === sentences.length - 1
+        index === fallbackSentences.length - 1
           ? segmentEnd
           : Math.max(cursor, cursor + sentenceDuration)
 
@@ -1160,7 +1214,7 @@ function buildSentenceSegments(whisperSegments = []) {
   return sentenceSegments
 }
 
-async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
+async function transcribeWithWhisper({ videoId, audioUrl, languageCode, originalText }) {
   let audioPath = null
 
   try {
@@ -1188,7 +1242,8 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
     console.log('First segment sample:', transcription?.segments?.[0])
 
     const segments = normaliseTranscriptSegments(transcription?.segments || [])
-    const sentenceSegments = buildSentenceSegments(segments)
+    const textSentences = splitIntoSentences(originalText || '')
+    const sentenceSegments = buildSentenceSegments(segments, textSentences)
 
     if (!segments.length) {
       console.warn('Whisper verbose_json has no segments, falling back to text-only')
@@ -2218,6 +2273,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
     let pagesProcessed = 0
     let pagesSucceeded = 0
+    const storyTextParts = []
 
     for (const doc of pagesSnap.docs) {
       const data = doc.data() || {}
@@ -2228,6 +2284,8 @@ app.post('/api/generate-audio-book', async (req, res) => {
         (data.originalText && data.originalText.trim()) ||
         (data.text && data.text.trim()) ||
         ''
+
+      storyTextParts.push(pageText)
 
       if (readyAudio) {
         pagesSucceeded += 1
@@ -2260,6 +2318,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
       }
     }
 
+    const fullStoryText = storyTextParts.filter(Boolean).join(' ')
     const finalStatus = pagesSucceeded === pagesSnap.size ? 'ready' : 'error'
     if (finalStatus !== 'ready') {
       await storyRef.update({
@@ -2312,6 +2371,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
         const transcriptResult = await transcribeWithWhisper({
           audioUrl: fullAudioUrl,
           languageCode: storyData?.language || storyData?.outputLanguage,
+          originalText: fullStoryText,
         })
 
         const transcriptRef = storyRef.collection('transcripts').doc('intensive')

@@ -14,6 +14,7 @@ import {
 import useAuth from '../../context/AuthContext'
 import db from '../../firebase'
 import { signOutFromSpotify } from '../../services/spotifyAuth'
+import ImportYouTubePanel from './ImportYouTubePanel'
 
 const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   const { user } = useAuth()
@@ -468,180 +469,195 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
         </div>
 
         <div className="section">
-          <div className="section-header" style={{ alignItems: 'flex-start' }}>
-            <div>
-              <h3>Spotify Search</h3>
-              <p className="muted small">
-                Search tracks, playlists, artists, albums, and podcast shows to add them to your inTongues library.
-              </p>
+          <div className="listen-tool-panels">
+            <div className="listen-tool-panel">
+              <ImportYouTubePanel headingLevel="h3" layout="card" />
             </div>
-            {spotifyConnected && !spotifyLoading && (
-              <button className="button ghost" onClick={handleSignOutSpotify}>
-                Sign out of Spotify
-              </button>
-            )}
-          </div>
 
-          {spotifyError && <p className="error">{spotifyError}</p>}
-
-          {!spotifyConnected ? (
-            <div>
-              <p className="muted">Connect Spotify to search the full catalogue.</p>
-              <button className="button primary" onClick={handleConnectSpotify} disabled={!user}>
-                Connect Spotify
-              </button>
-            </div>
-          ) : spotifyLoading ? (
-            <p className="muted">Checking your Spotify connection…</p>
-          ) : (
-            <div className="preview-card">
-              <form
-                className="pill-row"
-                style={{ gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
-                onSubmit={handleSpotifySearch}
-              >
-                <input
-                  type="text"
-                  placeholder="Search Spotify"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ flex: 1, minWidth: '16rem' }}
-                />
-                <select value={searchType} onChange={(e) => setSearchType(e.target.value)} style={{ minWidth: '10rem' }}>
-                  <option value="track">Tracks</option>
-                  <option value="playlist">Playlists</option>
-                  <option value="artist">Artists</option>
-                  <option value="album">Albums</option>
-                  <option value="show">Podcast Shows</option>
-                </select>
-                <button className="button primary" type="submit" disabled={spotifySearchLoading}>
-                  {spotifySearchLoading ? 'Searching…' : 'Search Spotify'}
-                </button>
-              </form>
-
-              {spotifySearchError && <p className="error">{spotifySearchError}</p>}
-
-              <div className="pill-column" style={{ marginTop: '1rem', gap: '1rem' }}>
-                {['tracks', 'playlists', 'artists', 'albums', 'shows'].map((key) => {
-                  const itemsForType = searchResults[key] || []
-                  if (!itemsForType.length) return null
-
-                  const labels = {
-                    tracks: 'Tracks',
-                    playlists: 'Playlists',
-                    artists: 'Artists',
-                    albums: 'Albums',
-                    shows: 'Podcast Shows',
-                  }
-
-                  return (
-                    <div key={key} className="preview-card">
-                      <div className="section-header">
-                        <h3>{labels[key]}</h3>
-                        <span className="pill">{itemsForType.length} results</span>
-                      </div>
-                      <div className="pill-column">
-                        {itemsForType.map((item) => (
-                          <div
-                            key={item.spotifyId}
-                            className="pill-row"
-                            style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              {item.imageUrl && (
-                                <img
-                                  src={item.imageUrl}
-                                  alt="Cover art"
-                                  style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
-                                />
-                              )}
-                              <div>
-                                <div className="small" style={{ fontWeight: 600 }}>
-                                  {item.title}
-                                </div>
-                                <div className="muted small">{item.subtitle}</div>
-                                <div className="muted small" style={{ textTransform: 'capitalize' }}>
-                                  {item.type}
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                              {item.type === 'show' && (
-                                <button className="button ghost" onClick={() => handleViewEpisodes(item)}>
-                                  View Episodes →
-                                </button>
-                              )}
-                              <button className="button ghost" onClick={() => handleAddSpotifyItem(item)}>
-                                Add to Library
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {!spotifySearchLoading &&
-                  Object.values(searchResults).every((list) => (list || []).length === 0) && (
-                    <p className="muted" style={{ marginTop: '0.5rem' }}>
-                      Start a search to see results from Spotify.
+            <div className="listen-tool-panel">
+              <div className="preview-card">
+                <div className="section-header" style={{ alignItems: 'flex-start' }}>
+                  <div>
+                    <h3>Spotify Search</h3>
+                    <p className="muted small">
+                      Search tracks, playlists, artists, albums, and podcast shows to add them to your inTongues
+                      library.
                     </p>
-                  )}
-              </div>
-
-              {episodePanel.show && (
-                <div className="preview-card" style={{ marginTop: '1rem' }}>
-                  <div className="section-header">
-                    <div>
-                      <h3>Episodes — {episodePanel.show.title}</h3>
-                      <p className="muted small">Browse episodes and add them individually to your library.</p>
-                    </div>
-                    <button className="button ghost" onClick={handleCloseEpisodes}>
-                      Close
-                    </button>
                   </div>
-
-                  {episodePanel.loading ? (
-                    <p className="muted">Loading episodes…</p>
-                  ) : episodePanel.error ? (
-                    <p className="error">{episodePanel.error}</p>
-                  ) : episodePanel.episodes.length === 0 ? (
-                    <p className="muted">No episodes found for this show.</p>
-                  ) : (
-                    <div className="pill-column">
-                      {episodePanel.episodes.map((episode) => (
-                        <div
-                          key={episode.spotifyId}
-                          className="pill-row"
-                          style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
-                        >
-                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                            {episode.imageUrl && (
-                              <img
-                                src={episode.imageUrl}
-                                alt="Episode art"
-                                style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
-                              />
-                            )}
-                            <div>
-                              <div className="small" style={{ fontWeight: 600 }}>
-                                {episode.title}
-                              </div>
-                              <div className="muted small">{episode.subtitle}</div>
-                            </div>
-                          </div>
-                          <button className="button ghost" onClick={() => handleAddSpotifyItem(episode)}>
-                            Add to Library
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                  {spotifyConnected && !spotifyLoading && (
+                    <button className="button ghost" onClick={handleSignOutSpotify}>
+                      Sign out of Spotify
+                    </button>
                   )}
                 </div>
-              )}
+
+                {spotifyError && <p className="error">{spotifyError}</p>}
+
+                {!spotifyConnected ? (
+                  <div>
+                    <p className="muted">Connect Spotify to search the full catalogue.</p>
+                    <button className="button primary" onClick={handleConnectSpotify} disabled={!user}>
+                      Connect Spotify
+                    </button>
+                  </div>
+                ) : spotifyLoading ? (
+                  <p className="muted">Checking your Spotify connection…</p>
+                ) : (
+                  <div>
+                    <form
+                      className="pill-row"
+                      style={{ gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
+                      onSubmit={handleSpotifySearch}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search Spotify"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ flex: 1, minWidth: '16rem' }}
+                      />
+                      <select
+                        value={searchType}
+                        onChange={(e) => setSearchType(e.target.value)}
+                        style={{ minWidth: '10rem' }}
+                      >
+                        <option value="track">Tracks</option>
+                        <option value="playlist">Playlists</option>
+                        <option value="artist">Artists</option>
+                        <option value="album">Albums</option>
+                        <option value="show">Podcast Shows</option>
+                      </select>
+                      <button className="button primary" type="submit" disabled={spotifySearchLoading}>
+                        {spotifySearchLoading ? 'Searching…' : 'Search Spotify'}
+                      </button>
+                    </form>
+
+                    {spotifySearchError && <p className="error">{spotifySearchError}</p>}
+
+                    <div className="pill-column" style={{ marginTop: '1rem', gap: '1rem' }}>
+                      {['tracks', 'playlists', 'artists', 'albums', 'shows'].map((key) => {
+                        const itemsForType = searchResults[key] || []
+                        if (!itemsForType.length) return null
+
+                        const labels = {
+                          tracks: 'Tracks',
+                          playlists: 'Playlists',
+                          artists: 'Artists',
+                          albums: 'Albums',
+                          shows: 'Podcast Shows',
+                        }
+
+                        return (
+                          <div key={key} className="preview-card">
+                            <div className="section-header">
+                              <h3>{labels[key]}</h3>
+                              <span className="pill">{itemsForType.length} results</span>
+                            </div>
+                            <div className="pill-column">
+                              {itemsForType.map((item) => (
+                                <div
+                                  key={item.spotifyId}
+                                  className="pill-row"
+                                  style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    {item.imageUrl && (
+                                      <img
+                                        src={item.imageUrl}
+                                        alt="Cover art"
+                                        style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
+                                      />
+                                    )}
+                                    <div>
+                                      <div className="small" style={{ fontWeight: 600 }}>
+                                        {item.title}
+                                      </div>
+                                      <div className="muted small">{item.subtitle}</div>
+                                      <div className="muted small" style={{ textTransform: 'capitalize' }}>
+                                        {item.type}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    {item.type === 'show' && (
+                                      <button className="button ghost" onClick={() => handleViewEpisodes(item)}>
+                                        View Episodes →
+                                      </button>
+                                    )}
+                                    <button className="button ghost" onClick={() => handleAddSpotifyItem(item)}>
+                                      Add to Library
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {!spotifySearchLoading &&
+                        Object.values(searchResults).every((list) => (list || []).length === 0) && (
+                          <p className="muted" style={{ marginTop: '0.5rem' }}>
+                            Start a search to see results from Spotify.
+                          </p>
+                        )}
+                    </div>
+
+                    {episodePanel.show && (
+                      <div className="preview-card" style={{ marginTop: '1rem' }}>
+                        <div className="section-header">
+                          <div>
+                            <h3>Episodes — {episodePanel.show.title}</h3>
+                            <p className="muted small">Browse episodes and add them individually to your library.</p>
+                          </div>
+                          <button className="button ghost" onClick={handleCloseEpisodes}>
+                            Close
+                          </button>
+                        </div>
+
+                        {episodePanel.loading ? (
+                          <p className="muted">Loading episodes…</p>
+                        ) : episodePanel.error ? (
+                          <p className="error">{episodePanel.error}</p>
+                        ) : episodePanel.episodes.length === 0 ? (
+                          <p className="muted">No episodes found for this show.</p>
+                        ) : (
+                          <div className="pill-column">
+                            {episodePanel.episodes.map((episode) => (
+                              <div
+                                key={episode.spotifyId}
+                                className="pill-row"
+                                style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
+                              >
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                  {episode.imageUrl && (
+                                    <img
+                                      src={episode.imageUrl}
+                                      alt="Episode art"
+                                      style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
+                                    />
+                                  )}
+                                  <div>
+                                    <div className="small" style={{ fontWeight: 600 }}>
+                                      {episode.title}
+                                    </div>
+                                    <div className="muted small">{episode.subtitle}</div>
+                                  </div>
+                                </div>
+                                <button className="button ghost" onClick={() => handleAddSpotifyItem(episode)}>
+                                  Add to Library
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <div className="section">

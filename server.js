@@ -1530,7 +1530,10 @@ ${phrase}
       translation,
       targetText,
     }) => {
-      const phraseForAudio = targetText?.trim() || translation?.trim() || phrase
+      // Always pronounce the learner's target-language text (i.e., the text they selected),
+      // not the translated/native-language output. This keeps audio aligned with the
+      // on-page content when learners are translating into their native language.
+      const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
 
       try {
         const ttsResponse = await client.audio.speech.create({

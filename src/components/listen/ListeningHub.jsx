@@ -15,6 +15,8 @@ import useAuth from '../../context/AuthContext'
 import db from '../../firebase'
 import { signOutFromSpotify } from '../../services/spotifyAuth'
 import ImportYouTubePanel from './ImportYouTubePanel'
+import ListeningMediaCard from './ListeningMediaCard'
+import { getYouTubeThumbnailUrl } from '../../utils/youtube'
 
 const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   const { user } = useAuth()
@@ -375,36 +377,18 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           ) : (
             <div className="listen-shelf">
               {items.map((item) => (
-                <div
-                  className="preview-card listen-card"
+                <ListeningMediaCard
                   key={item.id}
-                  onClick={() => navigate(`/listen/${item.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="listen-card-header">
-                    <div className="listen-card-title">{item.title || 'Untitled story'}</div>
-                    <span className="pill primary">Audio</span>
-                    <button
-                      className="button ghost"
-                      style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        handleDeleteStory(item.id)
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      {item.language && <span className="pill primary">in{item.language}</span>}
-                      {item.level && <span className="pill">Level {item.level}</span>}
-                    </div>
-                    <span className="button ghost" style={{ padding: '0.25rem 0.75rem' }}>
-                      Open audio player →
-                    </span>
-                  </div>
-                </div>
+                  type="audio"
+                  title={item.title || 'Untitled story'}
+                  channel={item.author || item.language || 'Audio story'}
+                  thumbnailUrl={item.coverImageUrl || item.imageUrl || item.coverImage}
+                  tags={[item.language && `in${item.language}`, item.level && `Level ${item.level}`]}
+                  onPlay={() => navigate(`/listen/${item.id}`)}
+                  onDelete={() => handleDeleteStory(item.id)}
+                  progress={item.progress ?? 0}
+                  actionLabel="Play →"
+                />
               ))}
             </div>
           )}
@@ -422,37 +406,18 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           ) : (
             <div className="listen-shelf">
               {youtubeVideos.map((video) => (
-                <div
-                  className="preview-card listen-card"
+                <ListeningMediaCard
                   key={video.id}
-                  onClick={() => navigate(`/cinema/${video.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="listen-card-header">
-                    <div className="listen-card-title">{video.title || 'Untitled video'}</div>
-                    <span className="pill" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
-                      YouTube
-                    </span>
-                    <button
-                      className="button ghost"
-                      style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        handleDeleteVideo(video.id)
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span className="pill">Opens in inTongues Cinema</span>
-                    </div>
-                    <span className="button ghost" style={{ padding: '0.25rem 0.75rem' }}>
-                      Watch video →
-                    </span>
-                  </div>
-                </div>
+                  type="youtube"
+                  title={video.title || 'Untitled video'}
+                  channel={video.channel || 'YouTube import'}
+                  thumbnailUrl={getYouTubeThumbnailUrl(video.youtubeUrl)}
+                  tags={[video.source === 'youtube' && 'Opens in inTongues Cinema']}
+                  onPlay={() => navigate(`/cinema/${video.id}`)}
+                  onDelete={() => handleDeleteVideo(video.id)}
+                  progress={video.progress ?? 0}
+                  actionLabel="Watch video →"
+                />
               ))}
             </div>
           )}

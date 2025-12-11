@@ -2,32 +2,7 @@ import { useMemo, useState } from 'react'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-
-export const extractYouTubeId = (url) => {
-  if (!url) return ''
-
-  try {
-    const parsed = new URL(url)
-
-    if (parsed.hostname === 'youtu.be') {
-      return parsed.pathname.replace('/', '')
-    }
-
-    if (parsed.searchParams.get('v')) {
-      return parsed.searchParams.get('v')
-    }
-
-    const paths = parsed.pathname.split('/')
-    const embedIndex = paths.indexOf('embed')
-    if (embedIndex !== -1 && paths[embedIndex + 1]) {
-      return paths[embedIndex + 1]
-    }
-  } catch (err) {
-    return ''
-  }
-
-  return ''
-}
+import { extractYouTubeId } from '../../utils/youtube'
 
 const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess }) => {
   const { user } = useAuth()

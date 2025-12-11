@@ -1508,34 +1508,53 @@ Return only the translated phrase, with no extra commentary.
 ${phrase}
 `.trim()
 
-    let translation = phrase
-    let targetText = phrase
-    let audioBase64 = null
+    const translationPromise = (async () => {
+      let translation = phrase
+      let targetText = phrase
 
-    try {
-      const response = await client.responses.create({
-        model: 'gpt-4o-mini',
-        input: prompt,
-      })
-      translation = response.output_text?.trim() || translation
-      targetText = translation
-    } catch (innerErr) {
-      console.error('Error translating phrase with OpenAI:', innerErr)
-    }
+      try {
+        const response = await client.responses.create({
+          model: 'gpt-4o-mini',
+          input: prompt,
+        })
+        translation = response.output_text?.trim() || translation
+        targetText = translation
+      } catch (innerErr) {
+        console.error('Error translating phrase with OpenAI:', innerErr)
+      }
 
-    try {
-      const ttsResponse = await client.audio.speech.create({
-        model: 'gpt-4o-mini-tts',
-        voice: 'alloy',
-        input: targetText,
-        format: 'mp3',
-      })
+      return { translation, targetText }
+    })()
 
-      const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
-      audioBase64 = audioBuffer.toString('base64')
-    } catch (ttsError) {
-      console.error('Error generating pronunciation audio:', ttsError)
-    }
+    const pronunciationPromise = translationPromise.then(async ({
+      translation,
+      targetText,
+    }) => {
+      // Always pronounce the learner's target-language text (i.e., the text they selected),
+      // not the translated/native-language output. This keeps audio aligned with the
+      // on-page content when learners are translating into their native language.
+      const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
+
+      try {
+        const ttsResponse = await client.audio.speech.create({
+          model: 'gpt-4o-mini-tts',
+          voice: 'alloy',
+          input: phraseForAudio,
+          format: 'mp3',
+        })
+
+        const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+        return audioBuffer.toString('base64')
+      } catch (ttsError) {
+        console.error('Error generating pronunciation audio:', ttsError)
+        return null
+      }
+    })
+
+    const [{ translation, targetText }, audioBase64] = await Promise.all([
+      translationPromise,
+      pronunciationPromise,
+    ])
 
     return res.json({ phrase, translation, targetText, audioBase64 })
   } catch (error) {

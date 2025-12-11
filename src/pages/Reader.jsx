@@ -1554,20 +1554,11 @@ const Reader = ({ initialMode }) => {
               <p className="translate-popup-language-label">
                 {language || 'Target language'}
               </p>
-              <p className="translate-popup-language-text translate-popup-book-text">
-                {popup.displayText || popup.word}
-              </p>
-            </div>
-
-            <div className="translate-popup-language-column">
-              <p className="translate-popup-language-label">
-                {profile?.nativeLanguage || 'Native language'}
-              </p>
               <p
                 className="translate-popup-language-text translate-popup-book-text"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
               >
-                <span>{popup.translation}</span>
+                <span>{popup.displayText || popup.word}</span>
                 {(popup.audioBase64 || popup.audioUrl) && (
                   <button
                     type="button"
@@ -1575,18 +1566,45 @@ const Reader = ({ initialMode }) => {
                     onClick={() => playPronunciationAudio(popup)}
                     aria-label="Play pronunciation"
                     style={{
-                      border: 'none',
-                      background: 'transparent',
+                      border: '1px solid #d7d7db',
+                      background: '#f5f5f7',
                       cursor: 'pointer',
-                      padding: 0,
+                      padding: '0.35rem',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       color: '#0f172a',
+                      borderRadius: '999px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
                     }}
                   >
-                    🔊
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 9v6h3.8L14 19V5l-5.2 4H5z" fill="currentColor" />
+                      <path d="M16 9.5c1.25 1 1.25 4 0 5" />
+                      <path d="M18.5 7c2 2 2 8 0 10" />
+                    </svg>
                   </button>
                 )}
+              </p>
+            </div>
+
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">
+                {profile?.nativeLanguage || 'Native language'}
+              </p>
+              <p className="translate-popup-language-text translate-popup-book-text">
+                {popup.translation}
               </p>
             </div>
           </div>

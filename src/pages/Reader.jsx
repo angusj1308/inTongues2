@@ -484,15 +484,15 @@ const Reader = ({ initialMode }) => {
         }
 
         const data = transcriptSnap.data() || {}
-        const rawSegments =
-          (Array.isArray(data.sentenceSegments) && data.sentenceSegments) ||
-          (Array.isArray(data.segments) && data.segments) ||
-          []
-        const normalised = rawSegments
+        const rawSentenceSegments = Array.isArray(data.sentenceSegments)
+          ? data.sentenceSegments
+          : []
+
+        const normalised = rawSentenceSegments
           .map((seg) => ({
             start: Number(seg.start) || 0,
             end: Number(seg.end) || 0,
-            text: seg.text || '',
+            text: (seg.text || '').trim(),
           }))
           .filter((seg) => seg.end > seg.start)
 
@@ -1117,20 +1117,18 @@ const Reader = ({ initialMode }) => {
     if (readerMode !== 'intensive') return
     if (!fullAudioUrl || !sentenceSegments.length) return
 
-    const sentenceText = (allVisibleSentences[sentenceIndex] || '').trim()
+    const index = Math.max(0, Math.min(sentenceIndex, sentenceSegments.length - 1))
 
-    let segment = sentenceSegments.find(
-      (item) => (item.text || '').trim() === sentenceText
+    const segment = sentenceSegments[index]
+    if (
+      !segment ||
+      !Number.isFinite(segment.start) ||
+      !Number.isFinite(segment.end)
     )
+      return
 
-    if (!segment) {
-      segment = sentenceSegments[sentenceIndex]
-    }
-
-    if (!segment) return
-
-    const startTime = Number(segment.start) || 0
-    const endTime = Number(segment.end) || 0
+    const startTime = Math.max(0, Number(segment.start) || 0)
+    const endTime = Math.max(startTime, Number(segment.end) || 0)
 
     if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
       sentenceAudioRef.current = new Audio(fullAudioUrl)
@@ -1147,17 +1145,16 @@ const Reader = ({ initialMode }) => {
       audio.currentTime = startTime
     } catch (error) {
       console.error('Failed to set sentence audio start time', error)
+      return
     }
 
     audio.play().catch((err) => console.error('Sentence playback failed', err))
 
-    if (endTime > startTime) {
-      const durationMs = Math.max((endTime - startTime) * 1000, 0)
+    const durationMs = Math.max((endTime - startTime) * 1000, 0)
 
-      sentenceAudioStopRef.current = setTimeout(() => {
-        audio.pause()
-      }, durationMs + 120)
-    }
+    sentenceAudioStopRef.current = setTimeout(() => {
+      audio.pause()
+    }, durationMs + 100)
   }
 
   const handleSentenceNavigation = async (direction) => {
@@ -1221,11 +1218,11 @@ const Reader = ({ initialMode }) => {
   }
 
   useEffect(() => {
-    if (readerMode === 'intensive') return undefined
+    if (readerMode === 'intensive') {
+      return undefined
+    }
 
     const handleSpaceToggle = (event) => {
-      if (event.code !== 'Space' && event.key !== ' ') return
-
       const activeTag = document.activeElement?.tagName
       if (
         activeTag &&
@@ -1233,23 +1230,19 @@ const Reader = ({ initialMode }) => {
       ) {
         return
       }
-
       if (document.activeElement?.isContentEditable) return
 
-      const audioEl = audioRef.current
-      if (!audioEl) return
+      if (event.code === 'Space' || event.key === ' ') {
+        const audioEl = audioRef.current
+        if (!audioEl) return
 
-      event.preventDefault()
-
-      if (audioEl.paused) {
-        audioEl.play().catch(() => {})
-      } else {
-        audioEl.pause()
+        event.preventDefault()
+        if (audioEl.paused) audioEl.play().catch(() => {})
+        else audioEl.pause()
       }
     }
 
     window.addEventListener('keydown', handleSpaceToggle)
-
     return () => {
       window.removeEventListener('keydown', handleSpaceToggle)
     }
@@ -1296,16 +1289,9 @@ const Reader = ({ initialMode }) => {
       if (document.activeElement?.isContentEditable) return
 
       if (event.code === 'Space' || event.key === ' ') {
-        if (allVisibleSentences.length === 0) return
+        if (!sentenceSegments.length) return
         event.preventDefault()
-
-        if (
-          readerMode === 'intensive' &&
-          sentenceSegments.length > 0 &&
-          fullAudioUrl
-        ) {
-          playSentenceAudio(currentSentenceIndex)
-        }
+        playSentenceAudio(currentSentenceIndex)
         return
       }
 
@@ -1329,9 +1315,6 @@ const Reader = ({ initialMode }) => {
   }, [
     readerMode,
     currentSentenceIndex,
-    allVisibleSentences.length,
-    currentIntensiveSentence,
-    fullAudioUrl,
     sentenceSegments.length,
     handleSentenceNavigation,
   ])

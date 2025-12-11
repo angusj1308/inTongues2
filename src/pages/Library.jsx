@@ -5,14 +5,30 @@ import DashboardLayout from '../components/layout/DashboardLayout'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 
-const BOOKSHELVES = [
-  { id: 'in-progress', label: 'In Progress' },
-  { id: 'all', label: 'All Books' },
-  { id: 'favourites', label: 'Favourites' },
-  { id: 'generated', label: 'My Generated' },
-  { id: 'adaptations', label: 'My Adaptations' },
-  { id: 'create-collection', label: '+ Create a collection' },
-]
+const BookshelfRow = ({ title, books, emptyMessage, cta, getStoryTitle }) => (
+  <section className="bookshelf-section">
+    <div className="bookshelf-header">
+      <h3>{title}</h3>
+      {cta ? <button className="bookshelf-cta">{cta}</button> : null}
+    </div>
+    {books && books.length ? (
+      <div className="book-row-scroll">
+        {books.map((book) => (
+          <div key={book.id || book.title} className="book-card">
+            <div className="book-card-cover" />
+            <div className="book-card-title">{getStoryTitle(book)}</div>
+            <div className="book-card-meta">
+              {book.language || 'Unknown language'} ·{' '}
+              {book.level ? `Level ${book.level}` : 'Level unknown'}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p className="muted small">{emptyMessage}</p>
+    )}
+  </section>
+)
 
 const Library = () => {
   const { user, profile, setLastUsedLanguage } = useAuth()
@@ -21,8 +37,6 @@ const Library = () => {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [openAudioId, setOpenAudioId] = useState('')
-  const [activeBookshelfId, setActiveBookshelfId] = useState('in-progress')
 
   const handleDeleteStory = async (storyId) => {
     if (!user || !storyId) return
@@ -117,86 +131,27 @@ const Library = () => {
     navigate(`/library/${encodeURIComponent(language)}`)
   }
 
-  const getDisplayText = (page) =>
-    page?.adaptedText || page?.originalText || page?.text || ''
-
-  const getPreviewSnippet = (item) => {
-    const previewPage = item.previewPage || item.pagePreview || item.firstPage || item.pages?.[0]
-    return getDisplayText(previewPage) || item.description || 'No description provided.'
-  }
-
   const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
 
-  const filteredItems = useMemo(() => {
-    if (activeBookshelfId === 'all' || activeBookshelfId === 'create-collection') {
-      return items
-    }
+  const allBooks = items
 
-    if (activeBookshelfId === 'favourites') {
-      const favourites = items.filter(
-        (item) => item.isFavorite || item.favorite || item.favourite === true,
-      )
+  const inProgressBooks =
+    items.filter((item) => Boolean(item.progress && item.progress > 0 && item.progress < 100)) ||
+    [] // TODO: Track reading progress to power this shelf with real data.
 
-      if (!favourites.length) {
-        // TODO: Add favourite metadata to stories to support bookshelf filtering.
-        return items
-      }
+  const generatedBooks =
+    items.filter((item) => item.sourceType === 'generated' || item.storyType === 'generated') ||
+    [] // TODO: Persist source type for generated stories.
 
-      return favourites
-    }
+  const adaptationBooks =
+    items.filter((item) => item.sourceType === 'adaptation' || item.storyType === 'adaptation') ||
+    [] // TODO: Persist source type for adaptations.
 
-    if (activeBookshelfId === 'generated') {
-      const generatedStories = items.filter(
-        (item) => item.sourceType === 'generated' || item.storyType === 'generated',
-      )
-
-      if (!generatedStories.length) {
-        // TODO: Store a source type for generated stories to enable filtering.
-        return items
-      }
-
-      return generatedStories
-    }
-
-    if (activeBookshelfId === 'adaptations') {
-      const adaptedStories = items.filter(
-        (item) => item.sourceType === 'adaptation' || item.storyType === 'adaptation',
-      )
-
-      if (!adaptedStories.length) {
-        // TODO: Track adaptations separately to power this bookshelf.
-        return items
-      }
-
-      return adaptedStories
-    }
-
-    const inProgressStories = items.filter((item) => {
-      const hasProgressValue = typeof item.progress === 'number'
-      const hasPageIndex = typeof item.currentPageIndex === 'number'
-      return Boolean(item.lastReadAt) || hasProgressValue || hasPageIndex
-    })
-
-    if (!inProgressStories.length) {
-      // TODO: Add progress tracking metadata to distinguish started stories.
-      return items
-    }
-
-    return inProgressStories
-  }, [activeBookshelfId, items])
-
-  const handleBookshelfClick = (shelfId) => {
-    if (!shelfId) return
-    if (shelfId === 'create-collection') {
-      const collectionName = window.prompt('Name your new collection')
-      if (collectionName) {
-        console.log('New collection name:', collectionName)
-      }
-      return
-    }
-
-    setActiveBookshelfId(shelfId)
-  }
+  const suggestedBooks = [
+    { id: 'suggest-1', title: 'Short Stories A2', language: 'Spanish', level: 'A2' },
+    { id: 'suggest-2', title: 'Everyday Dialogues B1', language: 'Spanish', level: 'B1' },
+    { id: 'suggest-3', title: 'Cultural Notes A1', language: 'Spanish', level: 'A1' },
+  ]
 
   const handleNavTabChange = (tab) => {
     if (tab === 'read') return
@@ -257,114 +212,58 @@ const Library = () => {
           )}
         </div>
 
-        <div className="section">
-          <div className="section-header">
-            <h3>Bookshelves</h3>
-          </div>
-          <div className="bookshelf-row" role="tablist" aria-label="Bookshelves">
-            {BOOKSHELVES.map((shelf) => (
-              <button
-                key={shelf.id}
-                className={`bookshelf-pill ${
-                  activeBookshelfId === shelf.id ? 'is-active' : ''
-                } ${shelf.id === 'create-collection' ? 'is-action' : ''}`}
-                type="button"
-                onClick={() => handleBookshelfClick(shelf.id)}
-                role="tab"
-                aria-selected={activeBookshelfId === shelf.id}
-              >
-                {shelf.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {!activeLanguage ? (
           <p className="muted">Select a language to view its stories.</p>
         ) : loading ? (
           <p className="muted">Loading library...</p>
         ) : error ? (
           <p className="error">{error}</p>
-        ) : filteredItems.length ? (
-          <div className="library-list">
-            {filteredItems.map((item) => (
-              <div className="preview-card" key={item.id}>
-                <div className="section-header">
-                  <div className="pill-row">
-                    <span className="pill primary">in{item.language}</span>
-                    {item.level && <span className="pill">Level {item.level}</span>}
-                    {item.genre && <span className="pill">{item.genre}</span>}
-                    {(item.pageCount || item.length) && (
-                      <span className="pill">
-                        {item.pageCount || item.length} page{(item.pageCount || item.length) === 1 ? '' : 's'}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      className="button ghost"
-                      onClick={() => navigate(`/reader/${encodeURIComponent(activeLanguage)}/${item.id}`)}
-                    >
-                      Read
-                    </button>
-                    <button
-                      className="button ghost"
-                      style={{ color: '#b91c1c', borderColor: '#b91c1c' }}
-                      onClick={() => handleDeleteStory(item.id)}
-                    >
-                    Delete
-                    </button>
-                  </div>
-                </div>
-                <h4 style={{ margin: '0.25rem 0' }}>{getStoryTitle(item)}</h4>
-                <p className="muted small">{getPreviewSnippet(item)}</p>
-                <div className="pill-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span
-                    className="pill"
-                    style={{
-                      background:
-                        item.audioStatus === 'ready'
-                          ? '#dcfce7'
-                          : item.audioStatus === 'processing'
-                            ? '#fef9c3'
-                            : '#e2e8f0',
-                      color:
-                        item.audioStatus === 'ready'
-                          ? '#166534'
-                          : item.audioStatus === 'processing'
-                            ? '#854d0e'
-                            : '#0f172a',
-                    }}
-                  >
-                    {item.audioStatus === 'ready'
-                      ? 'Audio Ready'
-                      : item.audioStatus === 'processing'
-                        ? 'Audio Processing…'
-                        : 'No Audio'}
-                  </span>
-                  {item.audioStatus === 'ready' && item.fullAudioUrl && (
-                    <button
-                      className="button ghost"
-                      onClick={() =>
-                        setOpenAudioId((current) => (current === item.id ? '' : item.id))
-                      }
-                    >
-                      ► Listen
-                    </button>
-                  )}
-                </div>
-                {openAudioId === item.id && item.audioStatus === 'ready' && item.fullAudioUrl && (
-                  <audio
-                    controls
-                    style={{ width: '100%', marginTop: '0.75rem' }}
-                    src={item.fullAudioUrl}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
+        ) : !items.length ? (
+          <p className="muted">No stories yet. Generate one to get started!</p>
         ) : (
-          <p className="muted">No stories yet in this bookshelf.</p>
+          <>
+            <BookshelfRow
+              title="In Progress"
+              books={inProgressBooks}
+              emptyMessage="You haven't started any books yet."
+              cta={inProgressBooks.length ? 'View all' : null}
+              getStoryTitle={getStoryTitle}
+            />
+            <BookshelfRow
+              title="All Books"
+              books={allBooks}
+              emptyMessage="No books in your library yet."
+              cta={allBooks.length ? 'View all' : null}
+              getStoryTitle={getStoryTitle}
+            />
+            <BookshelfRow
+              title="My Generated"
+              books={generatedBooks}
+              emptyMessage="You haven't generated any stories yet."
+              cta={generatedBooks.length ? 'View all' : null}
+              getStoryTitle={getStoryTitle}
+            />
+            <BookshelfRow
+              title="My Adaptations"
+              books={adaptationBooks}
+              emptyMessage="You haven't imported or adapted any books yet."
+              cta={adaptationBooks.length ? 'View all' : null}
+              getStoryTitle={getStoryTitle}
+            />
+            <BookshelfRow
+              title="Suggested for you"
+              books={suggestedBooks}
+              emptyMessage="No suggestions available yet."
+              cta="Browse all"
+              getStoryTitle={getStoryTitle}
+            />
+            <section className="bookshelf-section">
+              <div className="bookshelf-header">
+                <h3>Create Bookshelf</h3>
+              </div>
+              <button className="button ghost">+ Create a bookshelf</button>
+            </section>
+          </>
         )}
       </div>
     </DashboardLayout>

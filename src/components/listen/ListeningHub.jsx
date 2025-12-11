@@ -778,17 +778,17 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
 
           {spotifyLibraryLoading ? (
             <p className="muted">Loading Spotify library…</p>
-          ) : spotifyLibrary.length === 0 ? (
+          ) : spotifyLibrary.length === 0 && spotifyPlaylists.length === 0 ? (
             <p className="muted">No Spotify items saved yet.</p>
           ) : (
-            <div className="pill-column" style={{ gap: '1.5rem' }}>
-              <div>
-                <div className="section-header">
-                  <h4>All tracks</h4>
-                  <span className="pill">{spotifyTracks.length}</span>
-                </div>
+            <div>
+              <div className="section-header" style={{ alignItems: 'center', gap: '0.5rem' }}>
+                <h4 style={{ margin: 0 }}>Spotify playlists</h4>
+                <span className="pill">{spotifyTracks.length + spotifyPlaylists.length}</span>
+              </div>
 
-                <div className="listen-shelf">
+              <div className="listen-shelf">
+                {spotifyTracks.length > 0 && (
                   <SpotifyCollectionCard
                     key={allTracksCollection.id}
                     title={allTracksCollection.title}
@@ -798,81 +798,59 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                     onOpen={() => navigate(`/listening/spotify/${allTracksCollection.id}`)}
                     ctaLabel="View all tracks →"
                   />
-                </div>
-              </div>
-
-              <div>
-                <div className="section-header">
-                  <h4>Albums</h4>
-                  <span className="pill">{albumCollections.length}</span>
-                </div>
-
-                {albumCollections.length === 0 ? (
-                  <p className="muted">No albums imported yet.</p>
-                ) : (
-                  <div className="listen-shelf">
-                    {albumCollections.map((album) => (
-                      <SpotifyCollectionCard
-                        key={album.id}
-                        title={album.title}
-                        subtitle={album.subtitle}
-                        meta={album.meta}
-                        imageUrl={album.imageUrl}
-                        onOpen={() => navigate(`/listening/spotify/${album.id}`)}
-                        ctaLabel={album.ctaLabel}
-                      />
-                    ))}
-                  </div>
                 )}
-              </div>
 
-              <div>
-                <div className="section-header">
-                  <h4>Playlists</h4>
-                  <span className="pill">{spotifyPlaylists.length}</span>
-                </div>
+                {albumCollections.map((album) => (
+                  <SpotifyCollectionCard
+                    key={album.id}
+                    title={album.title}
+                    subtitle={album.subtitle}
+                    meta={album.meta}
+                    imageUrl={album.imageUrl}
+                    onOpen={() => navigate(`/listening/spotify/${album.id}`)}
+                    ctaLabel={album.ctaLabel}
+                  />
+                ))}
 
                 {spotifyPlaylistsLoading ? (
-                  <p className="muted">Loading playlists…</p>
+                  <p className="muted" style={{ padding: '0.5rem 0' }}>Loading playlists…</p>
                 ) : (
-                  <div className="listen-shelf">
-                    {playlistCollections.map((playlist) => (
-                      <SpotifyCollectionCard
-                        key={playlist.id}
-                        title={playlist.title}
-                        subtitle={playlist.subtitle}
-                        meta={playlist.meta}
-                        imageUrl={playlist.imageUrl}
-                        onOpen={() => navigate(`/listening/spotify/${playlist.id}`)}
-                        ctaLabel="Open playlist →"
-                      />
-                    ))}
-
-                    <div
-                      className="preview-card spotify-collection-card create"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setShowCreatePlaylist(true)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          setShowCreatePlaylist(true)
-                        }
-                      }}
-                    >
-                      <div className="spotify-collection-cover create">
-                        <div className="spotify-collection-cover-placeholder">Create playlist</div>
-                      </div>
-                      <div className="spotify-collection-body">
-                        <div className="spotify-collection-title">Create playlist</div>
-                        <div className="spotify-collection-subtitle">Group your imported tracks into a mix.</div>
-                        <button className="button ghost" type="button" style={{ marginTop: 'auto' }}>
-                          Start a playlist →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  playlistCollections.map((playlist) => (
+                    <SpotifyCollectionCard
+                      key={playlist.id}
+                      title={playlist.title}
+                      subtitle={playlist.subtitle}
+                      meta={playlist.meta}
+                      imageUrl={playlist.imageUrl}
+                      onOpen={() => navigate(`/listening/spotify/${playlist.id}`)}
+                      ctaLabel="Open playlist →"
+                    />
+                  ))
                 )}
+
+                <div
+                  className="preview-card spotify-collection-card create"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setShowCreatePlaylist(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setShowCreatePlaylist(true)
+                    }
+                  }}
+                >
+                  <div className="spotify-collection-cover create">
+                    <div className="spotify-collection-cover-placeholder">Create playlist</div>
+                  </div>
+                  <div className="spotify-collection-body">
+                    <div className="spotify-collection-title">Create playlist</div>
+                    <div className="spotify-collection-subtitle">Group your imported tracks into a mix.</div>
+                    <button className="button ghost" type="button" style={{ marginTop: 'auto' }}>
+                      Start a playlist →
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

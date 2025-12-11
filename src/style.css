@@ -1099,6 +1099,65 @@ textarea {
   background: transparent;
 }
 
+.bookshelf-section {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  margin-top: 1.25rem;
+  box-shadow: 0 0 0 1px #e5e7eb;
+}
+
+.bookshelf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.bookshelf-cta {
+  font-size: 0.875rem;
+  border: none;
+  background: transparent;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.book-row-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.book-card {
+  min-width: 220px;
+  max-width: 260px;
+  background: #ffffff;
+  border-radius: 1.25rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 0 0 1px #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.book-card-cover {
+  width: 36px;
+  height: 48px;
+  border-radius: 0.5rem;
+  background: #f1f5f9;
+}
+
+.book-card-title {
+  font-family: 'Garamond', 'Times New Roman', serif;
+  font-size: 1rem;
+}
+
+.book-card-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
 .bookshelf-pill {
   display: inline-flex;
   align-items: center;

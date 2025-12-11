@@ -1103,118 +1103,40 @@ function splitIntoSentences(text) {
     .filter(Boolean)
 }
 
-function buildSentenceSegments(whisperSegments = [], textSentences = []) {
+function buildSentenceSegmentsFromWhisper(whisperSegments = []) {
   const sentenceSegments = []
   const segments = Array.isArray(whisperSegments) ? whisperSegments : []
-  const sentences = Array.isArray(textSentences) ? textSentences : []
-  const hasTextSentences = sentences.length > 0
-
-  if (hasTextSentences) {
-    const norm = (s) => (s || '').replace(/\s+/g, ' ').trim()
-    let segmentIndex = 0
-
-    for (let i = 0; i < sentences.length; i += 1) {
-      const target = norm(sentences[i])
-
-      if (!target) {
-        sentenceSegments.push({ start: 0, end: 0, text: sentences[i] })
-        continue
-      }
-
-      let buffer = ''
-      let start = null
-      let end = null
-
-      while (segmentIndex < segments.length && norm(buffer).indexOf(target) === -1) {
-        const seg = segments[segmentIndex]
-        const segText = seg?.text || ''
-        const rawStart = Number(seg?.start)
-        const rawEnd = Number(seg?.end)
-
-        if (start == null) {
-          start = Number.isFinite(rawStart) ? rawStart : 0
-        }
-
-        end = Number.isFinite(rawEnd) ? rawEnd : start ?? 0
-        buffer = `${buffer} ${segText}`
-        segmentIndex += 1
-      }
-
-      if (start != null && end != null) {
-        sentenceSegments.push({
-          start: Math.max(0, start),
-          end: Math.max(Math.max(0, start), end),
-          text: sentences[i],
-        })
-      } else {
-        sentenceSegments.push({ start: 0, end: 0, text: sentences[i] })
-      }
-    }
-
-    return sentenceSegments
-  }
 
   segments.forEach((seg) => {
     const rawStart = Number(seg?.start)
     const rawEnd = Number(seg?.end)
-    const start = Number.isFinite(rawStart) ? rawStart : 0
-    const end = Number.isFinite(rawEnd) ? rawEnd : start
-    const segmentStart = Math.max(0, start)
-    const segmentEnd = Math.max(segmentStart, end)
+    const segmentStart = Number.isFinite(rawStart) ? Math.max(0, rawStart) : 0
+    const segmentEnd = Number.isFinite(rawEnd) ? Math.max(segmentStart, rawEnd) : segmentStart
     const duration = Math.max(0, segmentEnd - segmentStart)
 
-    const text = (seg?.text || '').trim()
-    if (!text) return
+    const normalisedText = (seg?.text || '').replace(/\s+/g, ' ').trim()
+    if (!normalisedText) return
 
-    const rawSentences = text
-      .split(/(?<=[.!?¡¿…])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean)
-
-    const fallbackSentences = rawSentences.length ? rawSentences : [text]
-    const totalChars = fallbackSentences.reduce((sum, sentence) => sum + sentence.length, 0)
-    const timedSentences = []
+    const subSentences = splitIntoSentences(normalisedText)
+    const parts = subSentences.length ? subSentences : [normalisedText]
+    const totalChars = parts.reduce((sum, sentence) => sum + sentence.length, 0)
 
     let cursor = segmentStart
-    fallbackSentences.forEach((sentence, index) => {
-      const weight = totalChars > 0 ? sentence.length / totalChars : 1 / fallbackSentences.length
-      const sentenceDuration = duration * (Number.isFinite(weight) && weight > 0 ? weight : 1 / fallbackSentences.length)
-      const sentenceEnd =
-        index === fallbackSentences.length - 1
-          ? segmentEnd
-          : Math.max(cursor, cursor + sentenceDuration)
+    parts.forEach((sentence, index) => {
+      const defaultWeight = parts.length > 0 ? 1 / parts.length : 1
+      const weight = totalChars > 0 ? sentence.length / totalChars : defaultWeight
+      const subDuration = duration * (Number.isFinite(weight) && weight > 0 ? weight : defaultWeight)
+      const sentenceEnd = index === parts.length - 1 ? segmentEnd : Math.max(cursor, cursor + subDuration)
 
-      timedSentences.push({
-        start: cursor,
-        end: sentenceEnd,
-        text: sentence,
-      })
-
+      sentenceSegments.push({ start: cursor, end: sentenceEnd, text: sentence })
       cursor = sentenceEnd
     })
-
-    for (let i = 0; i < timedSentences.length; i += 2) {
-      const group = timedSentences.slice(i, i + 2)
-      const groupText = group
-        .map((sentence) => sentence.text)
-        .filter(Boolean)
-        .join(' ')
-        .trim()
-
-      if (!groupText) continue
-
-      sentenceSegments.push({
-        start: group[0].start,
-        end: group[group.length - 1].end,
-        text: groupText,
-      })
-    }
   })
 
   return sentenceSegments
 }
 
-async function transcribeWithWhisper({ videoId, audioUrl, languageCode, originalText }) {
+async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
   let audioPath = null
 
   try {
@@ -1242,8 +1164,7 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode, original
     console.log('First segment sample:', transcription?.segments?.[0])
 
     const segments = normaliseTranscriptSegments(transcription?.segments || [])
-    const textSentences = splitIntoSentences(originalText || '')
-    const sentenceSegments = buildSentenceSegments(segments, textSentences)
+    const sentenceSegments = buildSentenceSegmentsFromWhisper(segments)
 
     if (!segments.length) {
       console.warn('Whisper verbose_json has no segments, falling back to text-only')
@@ -1290,7 +1211,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
         const resolvedSentenceSegments =
           cachedSentenceSegments.length > 0
             ? cachedSentenceSegments
-            : buildSentenceSegments(cachedSegments)
+            : buildSentenceSegmentsFromWhisper(cachedSegments)
 
         return res.json({
           text: existingData.text || cachedSegments.map((segment) => segment.text).join(' '),
@@ -1328,7 +1249,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const resolvedSentenceSegments = (() => {
       const cached = normaliseTranscriptSegments(transcriptResult.sentenceSegments)
       if (cached.length) return cached
-      return buildSentenceSegments(normalisedSegments)
+      return buildSentenceSegmentsFromWhisper(normalisedSegments)
     })()
     const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
@@ -2318,7 +2239,6 @@ app.post('/api/generate-audio-book', async (req, res) => {
       }
     }
 
-    const fullStoryText = storyTextParts.filter(Boolean).join(' ')
     const finalStatus = pagesSucceeded === pagesSnap.size ? 'ready' : 'error'
     if (finalStatus !== 'ready') {
       await storyRef.update({
@@ -2371,7 +2291,6 @@ app.post('/api/generate-audio-book', async (req, res) => {
         const transcriptResult = await transcribeWithWhisper({
           audioUrl: fullAudioUrl,
           languageCode: storyData?.language || storyData?.outputLanguage,
-          originalText: fullStoryText,
         })
 
         const transcriptRef = storyRef.collection('transcripts').doc('intensive')
@@ -2385,7 +2304,9 @@ app.post('/api/generate-audio-book', async (req, res) => {
               : [],
             sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
               ? transcriptResult.sentenceSegments
-              : buildSentenceSegments(normaliseTranscriptSegments(transcriptResult?.segments || [])),
+              : buildSentenceSegmentsFromWhisper(
+                  normaliseTranscriptSegments(transcriptResult?.segments || []),
+                ),
             createdAt: timestamp,
             updatedAt: timestamp,
           },

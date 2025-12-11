@@ -103,7 +103,7 @@ const Dashboard = () => {
                   </button>
                 </div>
                 <div className="book-grid">
-                  [
+                  {[
                     { title: 'Cuentos Cortos', progress: 40 },
                     { title: 'Historias del Día', progress: 65 },
                     { title: 'Diálogos Urbanos', progress: 15 },
@@ -127,7 +127,7 @@ const Dashboard = () => {
                         <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
                       </div>
                     </div>
-                  ))
+                  ))}
                 </div>
 
                 <div className="read-section-header">
@@ -137,7 +137,7 @@ const Dashboard = () => {
                   </button>
                 </div>
                 <div className="book-grid">
-                  [
+                  {[
                     { title: 'Short Stories A2', level: 'A2', progress: 25 },
                     { title: 'Everyday Dialogues B1', level: 'B1', progress: 50 },
                     { title: 'Cultural Notes A1', level: 'A1', progress: 10 },
@@ -162,7 +162,7 @@ const Dashboard = () => {
                         <div className="book-progress-bar-inner" style={{ width: `${book.progress}%` }} />
                       </div>
                     </div>
-                  ))
+                  ))}
                 </div>
               </section>
 

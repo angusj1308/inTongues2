@@ -99,19 +99,23 @@ const Dashboard = () => {
   }, [availableLanguages, profile?.lastUsedLanguage])
 
   useEffect(() => {
-    if (!requestedTab || requestedTab === activeTab) return
+    if (!requestedTab) return
 
-    const currentIndex = DASHBOARD_TABS.indexOf(activeTab)
-    const nextIndex = DASHBOARD_TABS.indexOf(requestedTab)
+    setActiveTab((currentTab) => {
+      if (requestedTab === currentTab) return currentTab
 
-    if (nextIndex > currentIndex) {
-      setSlideDirection('right')
-    } else if (nextIndex < currentIndex) {
-      setSlideDirection('left')
-    }
+      const currentIndex = DASHBOARD_TABS.indexOf(currentTab)
+      const nextIndex = DASHBOARD_TABS.indexOf(requestedTab)
 
-    setActiveTab(requestedTab)
-  }, [activeTab, requestedTab])
+      if (nextIndex > currentIndex) {
+        setSlideDirection('right')
+      } else if (nextIndex < currentIndex) {
+        setSlideDirection('left')
+      }
+
+      return requestedTab
+    })
+  }, [requestedTab])
 
   useEffect(() => {
     if (activeLanguage) {

@@ -518,10 +518,9 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           </div>
         )}
 
-        <div className="section">
+        <div className="section listening-audiobooks">
           <div className="section-header">
             <h3>Audiobooks</h3>
-            <p className="muted small">Stories with full audio ready to open in the player.</p>
           </div>
 
           {audioLoading ? (
@@ -532,20 +531,33 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             <p className="muted">No audiobooks yet. Import a video or story to get started.</p>
           ) : (
             <div className="listen-shelf">
-              {items.map((item) => (
-                <ListeningMediaCard
-                  key={item.id}
-                  type="audio"
-                  title={item.title || 'Untitled story'}
-                  channel={item.author || item.language || 'Audio story'}
-                  thumbnailUrl={item.coverImageUrl || item.imageUrl || item.coverImage}
-                  tags={[item.language && `in${item.language}`, item.level && `Level ${item.level}`]}
-                  onPlay={() => navigate(`/listen/${item.id}`)}
-                  onDelete={() => handleDeleteStory(item.id)}
-                  progress={item.progress ?? 0}
-                  actionLabel="Play →"
-                />
-              ))}
+              {items.map((item) => {
+                const isGeneratedStory = Boolean(
+                  item.source === 'generated' ||
+                    item.source === 'generator' ||
+                    item.origin === 'generator' ||
+                    item.generated === true ||
+                    item.generatorMetadata ||
+                    (!item.source && typeof item.genre === 'string' && item.genre),
+                )
+
+                return (
+                  <ListeningMediaCard
+                    key={item.id}
+                    type="audio"
+                    title={item.title || 'Untitled story'}
+                    channel={
+                      isGeneratedStory ? 'inTongues Generator' : item.author || item.language || 'Audio story'
+                    }
+                    thumbnailUrl={item.coverImageUrl || item.imageUrl || item.coverImage}
+                    tags={[item.language && `in${item.language}`, item.level && `Level ${item.level}`]}
+                    onPlay={() => navigate(`/listen/${item.id}`)}
+                    onDelete={() => handleDeleteStory(item.id)}
+                    progress={item.progress ?? 0}
+                    actionLabel="Play →"
+                  />
+                )
+              })}
             </div>
           )}
         </div>

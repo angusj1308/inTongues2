@@ -368,29 +368,216 @@ const Dashboard = () => {
           )}
 
           {activeTab === 'listen' && (
-            <div className="read-grid">
-              <div className="read-card">
-                <h3>Listening library</h3>
-                <p className="muted small">Play stories and dialogues in {activeLanguage || 'your language'}.</p>
-                <button className="button ghost" onClick={() => navigate('/listening')} disabled={!activeLanguage}>
-                  Open listening
-                </button>
-              </div>
-              <div className="read-card">
-                <h3>Import audio & video</h3>
-                <p className="muted small">Upload your own clips to create listening practice.</p>
-                <button className="button ghost" onClick={() => navigate('/importaudio/video')}>
-                  Import media
-                </button>
-              </div>
-              <div className="read-card">
-                <h3>Intongues cinema</h3>
-                <p className="muted small">Watch curated clips with subtitles and translations.</p>
-                <button className="button ghost" onClick={() => navigate('/cinema/library')}>
-                  Browse cinema
-                </button>
-              </div>
-            </div>
+            <>
+              <section className="read-section read-slab continue-section">
+                <div className="continue-card">
+                  <div className="continue-card-meta">
+                    <h3 className="continue-card-label">Continue listening</h3>
+                    <div className="continue-card-title">Your latest session</div>
+                    <div className="continue-card-progress ui-text">
+                      {activeLanguage || 'Target language'} · Episode 5 · 42% complete
+                    </div>
+                  </div>
+                  <div className="continue-card-actions">
+                    <button
+                      className="button ghost"
+                      onClick={() => navigate('/listening')}
+                      disabled={!activeLanguage}
+                    >
+                      Resume
+                    </button>
+                    <button
+                      className="text-link ui-text"
+                      onClick={() => navigate('/listening')}
+                      disabled={!activeLanguage}
+                    >
+                      View listening library →
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="read-section read-slab">
+                <div className="read-section-header">
+                  <h3>Your audiobooks</h3>
+                  <button
+                    className="text-link ui-text"
+                    onClick={() => navigate('/listening')}
+                    disabled={!activeLanguage}
+                  >
+                    View all →
+                  </button>
+                </div>
+                <div className="book-grid">
+                  {[
+                    { title: 'City Dialogues', progress: 45, meta: 'Spanish · 14m left' },
+                    { title: 'Mountain Tales', progress: 20, meta: 'French · Chapter 3' },
+                    { title: 'Everyday Heroes', progress: 70, meta: 'German · 6m left' },
+                    { title: 'Quiet Mornings', progress: 10, meta: 'Italian · Chapter 1' },
+                  ].map((item) => (
+                    <div
+                      key={item.title}
+                      className="book-tile"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate('/listening')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          navigate('/listening')
+                        }
+                      }}
+                    >
+                      <div className="book-tile-cover" />
+                      <div className="book-tile-title">{item.title}</div>
+                      <div className="book-tile-meta ui-text">{item.meta}</div>
+                      <div className="book-progress-bar">
+                        <div className="book-progress-bar-inner" style={{ width: `${item.progress}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="read-section-header">
+                  <h3>Your podcasts</h3>
+                  <button className="text-link ui-text" onClick={() => navigate('/listening')}>
+                    Explore shows →
+                  </button>
+                </div>
+                <div className="book-grid">
+                  {[
+                    { title: 'Language Lab Live', progress: 35, meta: 'Episode 12 · 18m left' },
+                    { title: 'Café Chats', progress: 60, meta: 'Episode 4 · Spanish' },
+                    { title: 'Traveler Notes', progress: 15, meta: 'Episode 2 · French' },
+                  ].map((item) => (
+                    <div
+                      key={item.title}
+                      className="book-tile"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate('/listening')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          navigate('/listening')
+                        }
+                      }}
+                    >
+                      <div className="book-tile-cover" />
+                      <div className="book-tile-title">{item.title}</div>
+                      <div className="book-tile-meta ui-text">{item.meta}</div>
+                      <div className="book-progress-bar">
+                        <div className="book-progress-bar-inner" style={{ width: `${item.progress}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="read-section-header">
+                  <h3>Your videos</h3>
+                  <button className="text-link ui-text" onClick={() => navigate('/cinema/library')}>
+                    Browse cinema →
+                  </button>
+                </div>
+                <div className="book-grid">
+                  {[
+                    { title: 'Street Food Stories', progress: 50, meta: 'Subtitled clip' },
+                    { title: 'News Highlights', progress: 30, meta: 'Spanish · 6m left' },
+                    { title: 'Mini Docu', progress: 10, meta: 'French · New' },
+                  ].map((item) => (
+                    <div
+                      key={item.title}
+                      className="book-tile"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate('/cinema/library')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          navigate('/cinema/library')
+                        }
+                      }}
+                    >
+                      <div className="book-tile-cover" />
+                      <div className="book-tile-title">{item.title}</div>
+                      <div className="book-tile-meta ui-text">{item.meta}</div>
+                      <div className="book-progress-bar">
+                        <div className="book-progress-bar-inner" style={{ width: `${item.progress}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="read-section-header">
+                  <h3>Your music</h3>
+                  <button className="text-link ui-text" onClick={() => navigate('/listening')}>
+                    Open library →
+                  </button>
+                </div>
+                <div className="book-grid">
+                  {[
+                    { title: 'Morning Mix', progress: 80, meta: 'Playlist · 22 tracks' },
+                    { title: 'Indie Focus', progress: 55, meta: 'Album · 8 tracks' },
+                    { title: 'Chill Study', progress: 15, meta: 'Playlist · New' },
+                  ].map((item) => (
+                    <div
+                      key={item.title}
+                      className="book-tile"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate('/listening')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          navigate('/listening')
+                        }
+                      }}
+                    >
+                      <div className="book-tile-cover" />
+                      <div className="book-tile-title">{item.title}</div>
+                      <div className="book-tile-meta ui-text">{item.meta}</div>
+                      <div className="book-progress-bar">
+                        <div className="book-progress-bar-inner" style={{ width: `${item.progress}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {activeLanguage ? (
+                <section className="read-section">
+                  <div className="read-tool-panels">
+                    <div className="read-tool-panel">
+                      <h3>Spotify importer</h3>
+                      <p className="muted small">
+                        Connect your Spotify to pull playlists, podcasts, and albums directly into your listening library.
+                      </p>
+                      <button className="button ghost" onClick={() => navigate('/listening')}>
+                        Open Spotify importer
+                      </button>
+                    </div>
+                    <div className="read-tool-panel">
+                      <h3>YouTube importer</h3>
+                      <p className="muted small">
+                        Import subtitles and transcripts from your favorite videos to keep them in your study stack.
+                      </p>
+                      <button className="button ghost" onClick={() => navigate('/importaudio/video')}>
+                        Open YouTube importer
+                      </button>
+                    </div>
+                    <div className="read-tool-panel">
+                      <h3>Comprehension Practice with Juan</h3>
+                      <p className="muted small">
+                        Practice understanding conversational {activeLanguage || 'target language'} while responding naturally in your own native language.
+                      </p>
+                      <button className="button ghost" onClick={() => navigate('/listening')}>
+                        Start comprehension practice
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <p className="muted small" style={{ marginTop: '0.75rem' }}>
+                  Add a language to unlock your listening tools.
+                </p>
+              )}
+            </>
           )}
 
           {activeTab === 'speak' && (

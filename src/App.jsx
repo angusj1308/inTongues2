@@ -9,7 +9,6 @@ import MyLanguages from './pages/MyLanguages'
 import ImportTextPage from './pages/ImportTextPage'
 import SelectLanguagePage from './pages/SelectLanguagePage'
 import Signup from './pages/Signup'
-import Library from './pages/Library'
 import Reader from './pages/Reader'
 import Review from './pages/Review'
 import ListeningLibrary from './pages/ListeningLibrary'
@@ -102,22 +101,6 @@ const App = () => {
         element={
           <ProtectedRoute>
             <GenerateContent />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/library"
-        element={
-          <ProtectedRoute>
-            <Library />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/library/:language"
-        element={
-          <ProtectedRoute>
-            <Library />
           </ProtectedRoute>
         }
       />

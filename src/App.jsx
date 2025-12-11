@@ -15,6 +15,7 @@ import ListeningLibrary from './pages/ListeningLibrary'
 import AudioPlayer from './pages/AudioPlayer'
 import ImportAudioVideo from './pages/ImportAudioVideo'
 import IntonguesCinema from './pages/IntonguesCinema'
+import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -141,6 +142,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <ListeningLibrary />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/listening/spotify/:collectionId"
+        element={
+          <ProtectedRoute>
+            <SpotifyCollectionPage />
           </ProtectedRoute>
         }
       />

@@ -860,12 +860,6 @@ const AudioPlayer = () => {
 
       <main className="listening-lab-main">
         <div className="listening-lab-wrapper">
-          <div className="listening-lab-top">
-            <div>
-              <h1 className="listening-title">{storyMeta.title || ''}</h1>
-            </div>
-          </div>
-
           <div className={`listening-layout listening-layout--${listeningMode}`}>
             {listeningMode === 'extensive' ? (
               <ExtensiveMode

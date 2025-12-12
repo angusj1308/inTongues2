@@ -3306,6 +3306,14 @@ pre {
   color: #fff;
   border-color: #0f172a;
 }
+.listening-layout--extensive .extensive-subs-on {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
 
 .extensive-subs-on {
   display: grid;

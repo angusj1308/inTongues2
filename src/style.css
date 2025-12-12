@@ -3051,6 +3051,245 @@ pre {
   height: 100%;
 }
 
+.active-shell {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.active-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr 240px;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.active-column {
+  align-self: start;
+}
+
+.active-workbench {
+  min-width: 0;
+}
+
+.active-surface {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.active-meta-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.active-range {
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.active-step-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.active-step-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.active-step-progress {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.active-step-text {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.active-cta {
+  margin-top: 1rem;
+}
+
+.chunk-timeline {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  position: sticky;
+  top: 16px;
+}
+
+.chunk-timeline-heading {
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.chunk-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chunk-list-item {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.chunk-list-item.active {
+  border-color: #0f172a;
+  background: #f1f5f9;
+}
+
+.chunk-list-item.completed {
+  border-color: #16a34a;
+}
+
+.chunk-list-item.locked {
+  opacity: 0.65;
+}
+
+.chunk-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chunk-button:disabled {
+  cursor: not-allowed;
+}
+
+.chunk-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.chunk-status {
+  color: #0f172a;
+}
+
+.chunk-locked-note {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.pass-ladder {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  position: sticky;
+  top: 16px;
+}
+
+.pass-ladder-heading {
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.pass-ladder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pass-ladder-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.pass-ladder-item.current {
+  border-color: #0f172a;
+  background: #f1f5f9;
+}
+
+.pass-ladder-item.completed {
+  border-color: #16a34a;
+}
+
+.pass-ladder-icon {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pass-ladder-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pass-ladder-subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.pass-ladder-footnote {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+@media (max-width: 1100px) {
+  .active-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chunk-timeline,
+  .pass-ladder {
+    position: relative;
+    top: auto;
+  }
+}
+
 .active-pane-body {
   background: #fff;
   border: 1px solid #e2e8f0;

@@ -2807,19 +2807,28 @@ pre {
 }
 
 .listening-brand-band {
-  justify-content: space-between;
+  justify-content: center;
+  gap: 1rem;
+  align-items: center;
 }
 
-.listening-brand {
-  font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.listening-header-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .listening-header-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.listening-mode-nav {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
 }
 
 .listening-mode-toggle {

@@ -785,8 +785,7 @@ const AudioPlayer = () => {
         <div className="reader-hover-hitbox" />
         <header className="dashboard-header reader-hover-header listening-hover-header">
           <div className="dashboard-brand-band reader-header-band listening-brand-band">
-            <div className="listening-brand">Listening Lab</div>
-            <div className="listening-header-actions">
+            <div className="listening-header-left">
               <button
                 className="dashboard-control ui-text reader-back-button"
                 onClick={() => navigate('/listening')}
@@ -794,8 +793,29 @@ const AudioPlayer = () => {
               >
                 Back to library
               </button>
-              {storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}
             </div>
+            <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
+              {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
+                (mode, index) => (
+                  <div
+                    key={mode.id}
+                    className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
+                  >
+                    <button
+                      className={`dashboard-nav-button ui-text ${
+                        listeningMode === mode.id ? 'active' : ''
+                      }`}
+                      type="button"
+                      onClick={() => handleChangeMode(mode.id)}
+                    >
+                      {mode.label.toUpperCase()}
+                    </button>
+                    {index < 2 && <span className="dashboard-nav-divider">|</span>}
+                  </div>
+                ),
+              )}
+            </nav>
+            <div className="listening-header-actions" />
           </div>
         </header>
       </div>
@@ -804,56 +824,7 @@ const AudioPlayer = () => {
         <div className="listening-lab-wrapper">
           <div className="listening-lab-top">
             <div>
-              <p className="muted small">Audio-first workspace</p>
-              <h1 className="listening-title">{storyMeta.title || 'Audiobook'}</h1>
-              <div className="pill-row listening-meta-row">
-                {isSpotify ? (
-                  <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
-                    Spotify playback
-                  </span>
-                ) : (
-                  <span
-                    className="pill"
-                    style={{
-                      background:
-                        storyMeta.audioStatus === 'ready'
-                          ? '#dcfce7'
-                          : storyMeta.audioStatus === 'processing'
-                            ? '#fef9c3'
-                            : '#e2e8f0',
-                      color:
-                        storyMeta.audioStatus === 'ready'
-                          ? '#166534'
-                          : storyMeta.audioStatus === 'processing'
-                            ? '#854d0e'
-                            : '#0f172a',
-                    }}
-                  >
-                    {storyMeta.audioStatus === 'ready'
-                      ? 'Audio Ready'
-                      : storyMeta.audioStatus === 'processing'
-                        ? 'Audio Processing…'
-                        : 'No Audio'}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="listening-mode-toggle" role="group" aria-label="Listening mode">
-              {[
-                { id: 'extensive', label: 'Extensive' },
-                { id: 'active', label: 'Active' },
-                { id: 'intensive', label: 'Intensive' },
-              ].map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  className={`listening-mode-button ${listeningMode === mode.id ? 'active' : ''}`}
-                  onClick={() => handleChangeMode(mode.id)}
-                >
-                  {mode.label}
-                </button>
-              ))}
+              <h1 className="listening-title">{storyMeta.title || ''}</h1>
             </div>
           </div>
 

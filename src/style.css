@@ -3059,23 +3059,37 @@ pre {
 .active-shell {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   max-width: 1360px;
+  width: 100%;
   margin: 0 auto;
   padding: 24px;
 }
 
 .active-grid {
   display: grid;
-  grid-template-columns: 240px 1fr 240px;
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  grid-template-areas: 'chunks workbench passes';
   gap: 20px;
   align-items: flex-start;
+  width: 100%;
 }
 
 .active-column {
   align-self: start;
+  min-width: 0;
+}
+
+.active-chunk-column {
+  grid-area: chunks;
 }
 
 .active-workbench {
+  grid-area: workbench;
   min-width: 0;
+}
+
+.active-ladder-column {
+  grid-area: passes;
+  align-self: start;
 }
 
 .active-surface {
@@ -3087,6 +3101,7 @@ pre {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
 }
 
 .active-meta-row {
@@ -3101,6 +3116,18 @@ pre {
 .active-range {
   font-size: 0.95rem;
   color: #1f2937;
+}
+
+.active-progress-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.active-progress-indicator .muted {
+  white-space: nowrap;
+  text-wrap: nowrap;
 }
 
 .active-step-panel {
@@ -3285,13 +3312,26 @@ pre {
 
 @media (max-width: 1100px) {
   .active-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'workbench workbench'
+      'chunks passes';
   }
 
   .chunk-timeline,
   .pass-ladder {
     position: relative;
     top: auto;
+  }
+}
+
+@media (max-width: 800px) {
+  .active-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'workbench'
+      'chunks'
+      'passes';
   }
 }
 

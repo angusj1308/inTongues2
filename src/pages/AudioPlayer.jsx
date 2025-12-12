@@ -96,6 +96,10 @@ const AudioPlayer = () => {
 
   const chunkLengthSeconds = 60
 
+  // TODO: Keep declarations above hooks to avoid TDZ crashes.
+  const playbackPositionSeconds = progressSeconds
+  const playbackDurationSeconds = durationSeconds
+
   const activeChunks = useMemo(() => {
     if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) return []
     const totalChunks = Math.ceil(playbackDurationSeconds / chunkLengthSeconds)
@@ -680,53 +684,6 @@ const AudioPlayer = () => {
     lastCompletionRef.current = { chunkIndex: -1, step: null }
   }, [activeChunkIndex, activeStep, listeningMode])
 
-  useEffect(() => {
-    if (listeningMode !== 'active') return
-    const chunk = currentChunk
-    if (!chunk) return
-
-    if (progressSeconds < chunk.start - 0.2) {
-      handleSeekTo(chunk.start)
-      return
-    }
-
-    if (progressSeconds > chunk.end + 0.2) {
-      handleSeekTo(chunk.end)
-      return
-    }
-
-    const completionThreshold = chunk.end - 0.05
-    if (progressSeconds < completionThreshold) return
-
-    const lastCompletion = lastCompletionRef.current
-    if (lastCompletion.chunkIndex === activeChunkIndex && lastCompletion.step === activeStep) return
-
-    lastCompletionRef.current = { chunkIndex: activeChunkIndex, step: activeStep }
-
-    if (activeStep === 1) {
-      setActiveStep(2)
-      handleSeekTo(chunk.start)
-    } else if (activeStep === 2) {
-      pauseAllAudio()
-      setActiveStep(3)
-      handleSeekTo(chunk.start)
-    } else if (activeStep === 4) {
-      setCompletedChunks((prev) => {
-        const next = new Set(prev)
-        next.add(activeChunkIndex)
-        return next
-      })
-
-      const nextChunkIndex = Math.min(activeChunkIndex + 1, Math.max(activeChunks.length - 1, 0))
-      setActiveChunkIndex(nextChunkIndex)
-      setActiveStep(1)
-      const nextChunk = activeChunks[nextChunkIndex]
-      if (nextChunk) {
-        handleSeekTo(nextChunk.start)
-      }
-    }
-  }, [activeStep, activeChunkIndex, activeChunks, currentChunk, handleSeekTo, listeningMode, pauseAllAudio, progressSeconds])
-
   const startSpotifyPlayback = async () => {
     if (!user || !spotifyDeviceId || !storyMeta.spotifyUri) return
 
@@ -891,6 +848,53 @@ const AudioPlayer = () => {
     if (!isPlaying) togglePlay()
   }
 
+  useEffect(() => {
+    if (listeningMode !== 'active') return
+    const chunk = currentChunk
+    if (!chunk) return
+
+    if (progressSeconds < chunk.start - 0.2) {
+      handleSeekTo(chunk.start)
+      return
+    }
+
+    if (progressSeconds > chunk.end + 0.2) {
+      handleSeekTo(chunk.end)
+      return
+    }
+
+    const completionThreshold = chunk.end - 0.05
+    if (progressSeconds < completionThreshold) return
+
+    const lastCompletion = lastCompletionRef.current
+    if (lastCompletion.chunkIndex === activeChunkIndex && lastCompletion.step === activeStep) return
+
+    lastCompletionRef.current = { chunkIndex: activeChunkIndex, step: activeStep }
+
+    if (activeStep === 1) {
+      setActiveStep(2)
+      handleSeekTo(chunk.start)
+    } else if (activeStep === 2) {
+      pauseAllAudio()
+      setActiveStep(3)
+      handleSeekTo(chunk.start)
+    } else if (activeStep === 4) {
+      setCompletedChunks((prev) => {
+        const next = new Set(prev)
+        next.add(activeChunkIndex)
+        return next
+      })
+
+      const nextChunkIndex = Math.min(activeChunkIndex + 1, Math.max(activeChunks.length - 1, 0))
+      setActiveChunkIndex(nextChunkIndex)
+      setActiveStep(1)
+      const nextChunk = activeChunks[nextChunkIndex]
+      if (nextChunk) {
+        handleSeekTo(nextChunk.start)
+      }
+    }
+  }, [activeStep, activeChunkIndex, activeChunks, currentChunk, handleSeekTo, listeningMode, pauseAllAudio, progressSeconds])
+
   const cancelAdvance = () => setShowAdvanceModal(false)
 
   const currentIntensiveSentence =
@@ -913,9 +917,6 @@ const AudioPlayer = () => {
   const showPlaybackControls = isSpotify
     ? Boolean(storyMeta.spotifyUri)
     : storyMeta.audioStatus === 'ready' && storyMeta.fullAudioUrl
-
-  const playbackPositionSeconds = progressSeconds
-  const playbackDurationSeconds = durationSeconds
 
   const playbackProgressPercent = playbackDurationSeconds
     ? Math.min(100, (playbackPositionSeconds / playbackDurationSeconds) * 100)

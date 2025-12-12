@@ -12,6 +12,7 @@ import {
   seek as seekSpotify,
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
+import ExtensiveMode from '../components/listen/ExtensiveMode'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -35,7 +36,8 @@ const AudioPlayer = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [isPlaying, setIsPlaying] = useState(false)
   const [listeningMode, setListeningMode] = useState('extensive')
-  const [isExtensiveTranscriptOpen, setIsExtensiveTranscriptOpen] = useState(false)
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
+  const [scrubSeconds, setScrubSeconds] = useState(5)
   const [activePageIndex, setActivePageIndex] = useState(0)
   const [hasSeenAdvancePrompt, setHasSeenAdvancePrompt] = useState(false)
   const [showAdvanceModal, setShowAdvanceModal] = useState(false)
@@ -79,6 +81,13 @@ const AudioPlayer = () => {
       .map((sentence) => sentence.trim())
       .filter(Boolean)
   }, [transcriptText])
+
+  const transcriptSegments = useMemo(() => {
+    const segments = pages.flatMap((page) => page?.transcriptSegments || [])
+    if (segments.length) return segments
+
+    return transcriptSentences.map((text) => ({ text }))
+  }, [pages, transcriptSentences])
 
   const playPronunciationAudio = (audioData) => {
     if (!audioData?.audioBase64 && !audioData?.audioUrl) return
@@ -672,34 +681,28 @@ const AudioPlayer = () => {
     }
   }
 
-  const handleRewind = (seconds = 10) => {
+  const handleSeekTo = (seconds = 0) => {
+    const duration = playbackDurationSeconds || 0
+    const nextPosition = Math.max(0, Math.min(duration, Number.isFinite(seconds) ? seconds : 0))
+
     if (isSpotify) {
-      const positionMs = spotifyPlayerState?.position || 0
-      const nextPosition = Math.max(0, positionMs - seconds * 1000)
-      seekSpotify(nextPosition)
-      return
+      seekSpotify(nextPosition * 1000)
+    } else {
+      const audio = audioRef.current
+      if (audio) {
+        audio.currentTime = nextPosition
+      }
     }
 
-    const audio = audioRef.current
-    if (!audio) return
+    setProgressSeconds(nextPosition)
+  }
 
-    audio.currentTime = Math.max(0, (audio.currentTime || 0) - seconds)
+  const handleRewind = (seconds = 10) => {
+    handleSeekTo((spotifyPlayerState?.position || progressSeconds * 1000 || 0) / 1000 - seconds)
   }
 
   const handleForward = (seconds = 10) => {
-    if (isSpotify) {
-      const positionMs = spotifyPlayerState?.position || 0
-      const durationMs = spotifyPlayerState?.duration || 0
-      const nextPosition = Math.min(durationMs, positionMs + seconds * 1000)
-      seekSpotify(nextPosition)
-      return
-    }
-
-    const audio = audioRef.current
-    if (!audio) return
-
-    const duration = audio.duration || 0
-    audio.currentTime = Math.min(duration, (audio.currentTime || 0) + seconds)
+    handleSeekTo((spotifyPlayerState?.position || progressSeconds * 1000 || 0) / 1000 + seconds)
   }
 
   const handlePlaybackRateChange = (nextRate) => {
@@ -715,7 +718,7 @@ const AudioPlayer = () => {
 
   const handleChangeMode = (mode) => {
     setListeningMode(mode)
-    setIsExtensiveTranscriptOpen(false)
+    setSubtitlesEnabled(false)
   }
 
   const activePage = pages[activePageIndex]
@@ -779,6 +782,41 @@ const AudioPlayer = () => {
     ? Math.min(100, (playbackPositionSeconds / playbackDurationSeconds) * 100)
     : 0
 
+  const activeTranscriptIndex = useMemo(() => {
+    if (!transcriptSegments.length) return -1
+
+    const hasTimestamps = transcriptSegments.some(
+      (segment) => typeof segment.start === 'number' && typeof segment.end === 'number',
+    )
+
+    if (hasTimestamps) {
+      const nextIndex = transcriptSegments.findIndex(
+        (segment) =>
+          typeof segment.start === 'number' &&
+          typeof segment.end === 'number' &&
+          playbackPositionSeconds >= segment.start &&
+          playbackPositionSeconds < segment.end,
+      )
+
+      if (nextIndex !== -1) return nextIndex
+      if (
+        playbackPositionSeconds >=
+        (transcriptSegments[transcriptSegments.length - 1].end ?? Number.POSITIVE_INFINITY)
+      ) {
+        return transcriptSegments.length - 1
+      }
+      return 0
+    }
+
+    // TODO: replace this placeholder mapping once timestamped segments are available.
+    if (playbackDurationSeconds > 0) {
+      const ratio = Math.min(1, playbackPositionSeconds / playbackDurationSeconds)
+      return Math.min(transcriptSegments.length - 1, Math.floor(ratio * transcriptSegments.length))
+    }
+
+    return 0
+  }, [playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
+
   return (
     <div className={`listening-lab-page listening-mode-${listeningMode}`}>
       <div className="reader-hover-shell">
@@ -829,161 +867,158 @@ const AudioPlayer = () => {
           </div>
 
           <div className={`listening-layout listening-layout--${listeningMode}`}>
-            <section className="audio-focus-zone" aria-label="Audio controls">
-              <div className="audio-cover" aria-hidden>
-                <div className="audio-cover-portrait">{storyMeta.title?.slice(0, 1) || 'A'}</div>
-              </div>
-              <div className="audio-focus-details">
-                <div className="audio-meta">
-                  <h2 className="audio-title">{storyMeta.title || 'Audiobook'}</h2>
-                  <p className="muted small">{storyMeta.language ? `in${storyMeta.language}` : 'Language not set'}</p>
-                </div>
-                <div className="audio-controls-row">
-                  <button className="transport-btn" type="button" onClick={() => handleRewind()}>
-                    −10s
-                  </button>
-                  <button
-                    className="transport-btn transport-btn-primary"
-                    type="button"
-                    onClick={togglePlay}
-                    disabled={!showPlaybackControls}
-                  >
-                    {isPlaying ? 'Pause' : 'Play'}
-                  </button>
-                  <button className="transport-btn" type="button" onClick={() => handleForward()}>
-                    +10s
-                  </button>
-                  <div className="playback-speed" aria-label="Playback speed">
-                    <span className="muted tiny">Speed</span>
-                    <div className="speed-chips">
-                      {[0.75, 1, 1.25, 1.5].map((rate) => (
-                        <button
-                          key={rate}
-                          type="button"
-                          className={`speed-chip ${playbackRate === rate ? 'active' : ''}`}
-                          onClick={() => handlePlaybackRateChange(rate)}
-                        >
-                          {rate}x
-                        </button>
-                      ))}
+            {listeningMode === 'extensive' ? (
+              <ExtensiveMode
+                storyMeta={storyMeta}
+                isPlaying={isPlaying}
+                playbackPositionSeconds={playbackPositionSeconds}
+                playbackDurationSeconds={playbackDurationSeconds}
+                onPlayPause={togglePlay}
+                onSeek={handleSeekTo}
+                playbackRate={playbackRate}
+                onPlaybackRateChange={handlePlaybackRateChange}
+                subtitlesEnabled={subtitlesEnabled}
+                onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
+                scrubSeconds={scrubSeconds}
+                onScrubChange={setScrubSeconds}
+                transcriptSegments={transcriptSegments}
+                activeTranscriptIndex={activeTranscriptIndex}
+              />
+            ) : (
+              <>
+                <section className="audio-focus-zone" aria-label="Audio controls">
+                  <div className="audio-cover" aria-hidden>
+                    <div className="audio-cover-portrait">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                  </div>
+                  <div className="audio-focus-details">
+                    <div className="audio-meta">
+                      <h2 className="audio-title">{storyMeta.title || 'Audiobook'}</h2>
+                      <p className="muted small">{storyMeta.language ? `in${storyMeta.language}` : 'Language not set'}</p>
                     </div>
-                  </div>
-                </div>
-                <div className="audio-progress" role="presentation">
-                  <div className="audio-progress-track">
-                    <div
-                      className="audio-progress-fill"
-                      style={{ width: `${playbackProgressPercent}%` }}
-                      aria-hidden
-                    />
-                  </div>
-                  <div className="audio-progress-labels">
-                    <span>{playbackPositionSeconds.toFixed(1)}s</span>
-                    <span>{playbackDurationSeconds ? `${playbackDurationSeconds.toFixed(1)}s` : '—'}</span>
-                  </div>
-                </div>
-              </div>
-              {!isSpotify && storyMeta.fullAudioUrl && (
-                <audio ref={audioRef} src={storyMeta.fullAudioUrl} className="sr-only-audio" />
-              )}
-            </section>
-
-            <section className="listening-mode-surface">
-              {loading ? (
-                <p className="muted">Loading transcript…</p>
-              ) : error ? (
-                <p className="error">{error}</p>
-              ) : !pages.length ? (
-                <p className="muted">Transcript not available yet.</p>
-              ) : (
-                <>
-                  {listeningMode === 'extensive' && (
-                    <div className="extensive-pane">
-                      <div className="extensive-toggle-row">
-                        <p className="muted">Transcript stays out of the way.</p>
-                        <button
-                          type="button"
-                          className="button ghost"
-                          onClick={() => setIsExtensiveTranscriptOpen((prev) => !prev)}
-                        >
-                          {isExtensiveTranscriptOpen ? 'Hide transcript' : 'Show transcript'}
-                        </button>
+                    <div className="audio-controls-row">
+                      <button className="transport-btn" type="button" onClick={() => handleRewind()}>
+                        −10s
+                      </button>
+                      <button
+                        className="transport-btn transport-btn-primary"
+                        type="button"
+                        onClick={togglePlay}
+                        disabled={!showPlaybackControls}
+                      >
+                        {isPlaying ? 'Pause' : 'Play'}
+                      </button>
+                      <button className="transport-btn" type="button" onClick={() => handleForward()}>
+                        +10s
+                      </button>
+                      <div className="playback-speed" aria-label="Playback speed">
+                        <span className="muted tiny">Speed</span>
+                        <div className="speed-chips">
+                          {[0.75, 1, 1.25, 1.5].map((rate) => (
+                            <button
+                              key={rate}
+                              type="button"
+                              className={`speed-chip ${playbackRate === rate ? 'active' : ''}`}
+                              onClick={() => handlePlaybackRateChange(rate)}
+                            >
+                              {rate}x
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      {isExtensiveTranscriptOpen && (
+                    </div>
+                    <div className="audio-progress" role="presentation">
+                      <div className="audio-progress-track">
                         <div
-                          className="subtitle-shell"
-                          onMouseUp={handleWordClick}
-                          style={{ whiteSpace: 'pre-wrap' }}
-                        >
-                          {renderHighlightedText(transcriptText)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {listeningMode === 'active' && (
-                    <div className="active-pane">
-                      <div className="active-pane-body" onMouseUp={handleWordClick}>
-                        <h3 className="muted">Current page</h3>
-                        <div className="active-transcript" style={{ whiteSpace: 'pre-wrap' }}>
-                          {renderHighlightedText(getDisplayText(activePage))}
-                        </div>
+                          className="audio-progress-fill"
+                          style={{ width: `${playbackProgressPercent}%` }}
+                          aria-hidden
+                        />
                       </div>
-                      <footer className="active-footer">
-                        <button
-                          type="button"
-                          className="button ghost"
-                          onClick={handlePreviousPage}
-                          disabled={activePageIndex === 0}
-                        >
-                          Previous Page
-                        </button>
-                        <div className="muted small">Page {activePageIndex + 1} of {pages.length}</div>
-                        <button
-                          type="button"
-                          className="button"
-                          onClick={handleNextPage}
-                          disabled={activePageIndex >= pages.length - 1}
-                        >
-                          Next Page
-                        </button>
-                      </footer>
+                      <div className="audio-progress-labels">
+                        <span>{playbackPositionSeconds.toFixed(1)}s</span>
+                        <span>{playbackDurationSeconds ? `${playbackDurationSeconds.toFixed(1)}s` : '—'}</span>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                </section>
 
-                  {listeningMode === 'intensive' && (
-                    <div className="intensive-pane">
-                      <div className="intensive-sentence-card">
-                        <p className="muted tiny">Sentence workbench</p>
-                        <div className="intensive-sentence">{currentIntensiveSentence}</div>
-                        <div className="intensive-input-row">
-                          <input type="text" placeholder="Type what you hear…" className="intensive-input" />
-                          <div className="intensive-actions">
+                <section className="listening-mode-surface">
+                  {loading ? (
+                    <p className="muted">Loading transcript…</p>
+                  ) : error ? (
+                    <p className="error">{error}</p>
+                  ) : !pages.length ? (
+                    <p className="muted">Transcript not available yet.</p>
+                  ) : (
+                    <>
+                      {listeningMode === 'active' && (
+                        <div className="active-pane">
+                          <div className="active-pane-body" onMouseUp={handleWordClick}>
+                            <h3 className="muted">Current page</h3>
+                            <div className="active-transcript" style={{ whiteSpace: 'pre-wrap' }}>
+                              {renderHighlightedText(getDisplayText(activePage))}
+                            </div>
+                          </div>
+                          <footer className="active-footer">
                             <button
                               type="button"
                               className="button ghost"
-                              onClick={handlePreviousSentence}
-                              disabled={intensiveSentenceIndex === 0}
+                              onClick={handlePreviousPage}
+                              disabled={activePageIndex === 0}
                             >
-                              Previous
+                              Previous Page
                             </button>
+                            <div className="muted small">Page {activePageIndex + 1} of {pages.length}</div>
                             <button
                               type="button"
                               className="button"
-                              onClick={handleNextSentence}
-                              disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
+                              onClick={handleNextPage}
+                              disabled={activePageIndex >= pages.length - 1}
                             >
-                              Next
+                              Next Page
                             </button>
+                          </footer>
+                        </div>
+                      )}
+
+                      {listeningMode === 'intensive' && (
+                        <div className="intensive-pane">
+                          <div className="intensive-sentence-card">
+                            <p className="muted tiny">Sentence workbench</p>
+                            <div className="intensive-sentence">{currentIntensiveSentence}</div>
+                            <div className="intensive-input-row">
+                              <input type="text" placeholder="Type what you hear…" className="intensive-input" />
+                              <div className="intensive-actions">
+                                <button
+                                  type="button"
+                                  className="button ghost"
+                                  onClick={handlePreviousSentence}
+                                  disabled={intensiveSentenceIndex === 0}
+                                >
+                                  Previous
+                                </button>
+                                <button
+                                  type="button"
+                                  className="button"
+                                  onClick={handleNextSentence}
+                                  disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            </div>
+                            <p className="muted tiny">Audio auto-pauses between sentences.</p>
                           </div>
                         </div>
-                        <p className="muted tiny">Audio auto-pauses between sentences.</p>
-                      </div>
-                    </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </section>
+                </section>
+              </>
+            )}
+            {!isSpotify && storyMeta.fullAudioUrl && (
+              <audio ref={audioRef} src={storyMeta.fullAudioUrl} className="sr-only-audio" />
+            )}
           </div>
         </div>
       </main>

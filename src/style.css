@@ -835,6 +835,22 @@ textarea {
   }
 }
 
+.importers-row {
+  display: flex;
+  gap: 24px;
+}
+
+.importer-left,
+.importer-right {
+  flex: 1;
+}
+
+@media (max-width: 767px) {
+  .importers-row {
+    flex-direction: column;
+  }
+}
+
 .listening-hub h1,
 .listening-hub h2,
 .listening-hub h3,

@@ -932,6 +932,15 @@ textarea {
   padding: 0;
 }
 
+.listening-media-card-audio .media-card-main {
+  align-items: stretch;
+}
+
+.listening-media-card-audio .media-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
 .media-card-thumbnail {
   position: relative;
   aspect-ratio: 2 / 3;
@@ -1203,7 +1212,18 @@ textarea {
 }
 
 .media-card.media-card-youtube .media-card-body {
-  padding: 1rem 1.1rem 0.9rem;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.media-card-youtube-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  height: 100%;
+  padding: 1rem 1.1rem;
 }
 
 .media-card-title {

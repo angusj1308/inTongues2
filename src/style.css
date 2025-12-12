@@ -2864,6 +2864,11 @@ pre {
   align-items: stretch;
 }
 
+.listening-layout--extensive {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
 .listening-layout--extensive .listening-mode-surface,
 .listening-layout--intensive .listening-mode-surface {
   align-self: center;
@@ -3170,6 +3175,9 @@ pre {
 .extensive-player-shell {
   display: flex;
   justify-content: center;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
   padding: 32px 16px 48px;
 }
 

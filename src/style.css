@@ -932,6 +932,12 @@ textarea {
   padding: 0;
 }
 
+.media-card.media-card-youtube {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .listening-media-card-audio .media-card-main {
   align-items: stretch;
 }
@@ -1222,6 +1228,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  flex: 1;
   height: 100%;
   padding: 1rem 1.1rem;
 }

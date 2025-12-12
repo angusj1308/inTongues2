@@ -58,98 +58,96 @@ const ActiveMode = ({
   }
 
   return (
-    <div className="active-shell">
-      <div className="active-grid">
-        <aside className="active-column active-chunk-column">
-          <ChunkTimeline
-            chunks={chunks}
-            activeIndex={activeChunkIndex}
-            completedSet={completedChunks}
-            onSelectChunk={handleSelectChunk}
-            isChunkLocked={isChunkLocked}
-          />
-        </aside>
+    <div className="active-layout">
+      <aside className="active-col active-col--left">
+        <ChunkTimeline
+          chunks={chunks}
+          activeIndex={activeChunkIndex}
+          completedSet={completedChunks}
+          onSelectChunk={handleSelectChunk}
+          isChunkLocked={isChunkLocked}
+        />
+      </aside>
 
-        <main className="active-column active-workbench">
-          <div className="active-surface">
-            <ActiveStepGate step={activeStep} />
+      <section className="active-col active-col--center">
+        <div className="active-surface">
+          <ActiveStepGate step={activeStep} />
 
-            <div className="active-meta-row">
-              <div className="active-meta">Chunk {String((currentChunk?.index || 0) + 1).padStart(2, '0')}</div>
-              <div className="active-range">
-                {formatTime(chunkStart)} → {formatTime(chunkEnd)}
-              </div>
-              <div className="muted tiny">{storyMeta.title || 'Audiobook'}</div>
+          <div className="active-meta-row">
+            <div className="active-meta">Chunk {String((currentChunk?.index || 0) + 1).padStart(2, '0')}</div>
+            <div className="active-range">
+              {formatTime(chunkStart)} → {formatTime(chunkEnd)}
             </div>
+            <div className="muted tiny">{storyMeta.title || 'Audiobook'}</div>
+          </div>
 
-            <div className="progress-shell">
-              <span className="muted tiny">{formatTime(playbackPositionSeconds)}</span>
-              <input
-                type="range"
-                min={chunkStart}
-                max={chunkEnd}
-                step="0.1"
-                value={Math.min(Math.max(playbackPositionSeconds, chunkStart), chunkEnd)}
-                onChange={(event) => onSeek(Number(event.target.value))}
-                aria-label="Chunk progress"
-              />
-              <span className="muted tiny">{formatTime(chunkEnd)}</span>
+          <div className="progress-shell">
+            <span className="muted tiny">{formatTime(playbackPositionSeconds)}</span>
+            <input
+              type="range"
+              min={chunkStart}
+              max={chunkEnd}
+              step="0.1"
+              value={Math.min(Math.max(playbackPositionSeconds, chunkStart), chunkEnd)}
+              onChange={(event) => onSeek(Number(event.target.value))}
+              aria-label="Chunk progress"
+            />
+            <span className="muted tiny">{formatTime(chunkEnd)}</span>
+          </div>
+
+          <div className="transport-row">
+            <button type="button" className="transport-btn" onClick={() => onSeek(chunkStart)}>
+              Start
+            </button>
+            <button type="button" className="transport-btn" onClick={() => onSeek(withinChunk(-10))}>
+              −10s
+            </button>
+            <button type="button" className="transport-btn transport-btn-primary" onClick={onPlayPause}>
+              {isPlaying ? 'Pause' : 'Play'}
+            </button>
+            <button type="button" className="transport-btn" onClick={() => onSeek(withinChunk(10))}>
+              +10s
+            </button>
+            <button type="button" className="transport-btn" onClick={onRestartChunk}>
+              Restart
+            </button>
+          </div>
+
+          <div className="active-progress-indicator">
+            <div className="active-progress-bar">
+              <div className="active-progress-fill" style={{ width: `${chunkProgress}%` }} />
             </div>
-
-            <div className="transport-row">
-              <button type="button" className="transport-btn" onClick={() => onSeek(chunkStart)}>
-                Start
-              </button>
-              <button type="button" className="transport-btn" onClick={() => onSeek(withinChunk(-10))}>
-                −10s
-              </button>
-              <button type="button" className="transport-btn transport-btn-primary" onClick={onPlayPause}>
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
-              <button type="button" className="transport-btn" onClick={() => onSeek(withinChunk(10))}>
-                +10s
-              </button>
-              <button type="button" className="transport-btn" onClick={onRestartChunk}>
-                Restart
-              </button>
-            </div>
-
-            <div className="active-progress-indicator">
-              <div className="active-progress-bar">
-                <div className="active-progress-fill" style={{ width: `${chunkProgress}%` }} />
-              </div>
-              <div className="muted tiny">
-                {Math.round(chunkProgress)}% of this chunk | {chunks.length} chunks total
-              </div>
-            </div>
-
-            <div className="active-step-panel">
-              {!stepAllowsTranscript ? (
-                <div className="transcript-locked">Subtitles are off for this pass.</div>
-              ) : (
-                <ActiveTranscript
-                  segments={filteredSegments}
-                  activeSegmentIndex={activeTranscriptIndex}
-                  showWordStatus={showWordStatus}
-                  allowEditing={allowEditing}
-                />
-              )}
-
-              {activeStep === 3 && (
-                <div className="active-cta">
-                  <button type="button" className="button" onClick={onBeginFinalListen}>
-                    Begin final listen
-                  </button>
-                </div>
-              )}
+            <div className="muted tiny">
+              {Math.round(chunkProgress)}% of this chunk | {chunks.length} chunks total
             </div>
           </div>
-        </main>
 
-        <aside className="active-column active-ladder-column">
-          <PassLadder activeStep={activeStep} />
-        </aside>
-      </div>
+          <div className="active-step-panel">
+            {!stepAllowsTranscript ? (
+              <div className="transcript-locked">Subtitles are off for this pass.</div>
+            ) : (
+              <ActiveTranscript
+                segments={filteredSegments}
+                activeSegmentIndex={activeTranscriptIndex}
+                showWordStatus={showWordStatus}
+                allowEditing={allowEditing}
+              />
+            )}
+
+            {activeStep === 3 && (
+              <div className="active-cta">
+                <button type="button" className="button" onClick={onBeginFinalListen}>
+                  Begin final listen
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <aside className="active-col active-col--right">
+        <PassLadder activeStep={activeStep} />
+      </aside>
     </div>
   )
 }

@@ -3056,40 +3056,34 @@ pre {
   height: 100%;
 }
 
-.active-shell {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  max-width: 1360px;
+.active-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  gap: 24px;
   width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  align-items: start;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
-.active-grid {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 260px;
-  grid-template-areas: 'chunks workbench passes';
-  gap: 20px;
-  align-items: flex-start;
-  width: 100%;
-}
-
-.active-column {
-  align-self: start;
+.active-col {
   min-width: 0;
 }
 
-.active-chunk-column {
-  grid-area: chunks;
-}
-
-.active-workbench {
-  grid-area: workbench;
+.active-col--center {
   min-width: 0;
 }
 
-.active-ladder-column {
-  grid-area: passes;
-  align-self: start;
+.active-col--center * {
+  min-width: 0;
+}
+
+.active-col--left,
+.active-col--right {
+  max-height: calc(100vh - 160px);
+  overflow: auto;
 }
 
 .active-surface {
@@ -3125,9 +3119,8 @@ pre {
   min-width: 0;
 }
 
-.active-progress-indicator .muted {
+.active-progress-indicator .muted.tiny {
   white-space: nowrap;
-  text-wrap: nowrap;
 }
 
 .active-step-panel {
@@ -3135,6 +3128,12 @@ pre {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 1rem;
+}
+
+.transcript-locked {
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .active-step-gate {
@@ -3169,8 +3168,6 @@ pre {
   border-radius: 14px;
   padding: 1rem;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-  position: sticky;
-  top: 16px;
 }
 
 .chunk-timeline-heading {
@@ -3249,8 +3246,6 @@ pre {
   border-radius: 14px;
   padding: 1rem;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-  position: sticky;
-  top: 16px;
 }
 
 .pass-ladder-heading {
@@ -3311,27 +3306,13 @@ pre {
 }
 
 @media (max-width: 1100px) {
-  .active-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas:
-      'workbench workbench'
-      'chunks passes';
-  }
-
-  .chunk-timeline,
-  .pass-ladder {
-    position: relative;
-    top: auto;
-  }
-}
-
-@media (max-width: 800px) {
-  .active-grid {
+  .active-layout {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      'workbench'
-      'chunks'
-      'passes';
+  }
+
+  .active-col--left,
+  .active-col--right {
+    max-height: none;
   }
 }
 

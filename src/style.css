@@ -893,6 +893,11 @@ textarea {
   cursor: pointer;
 }
 
+.listening-media-card {
+  display: flex;
+  flex-direction: column;
+}
+
 .media-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -1169,6 +1174,18 @@ textarea {
   min-width: 0;
 }
 
+.listening-card-content {
+  flex-grow: 1;
+}
+
+.listening-card-footer {
+  margin-top: auto;
+}
+
+.listening-card-footer .media-card-actions {
+  margin-top: 0;
+}
+
 .media-card.media-card-youtube .media-card-body {
   padding: 1rem 1.1rem 0.9rem;
 }
@@ -1252,6 +1269,10 @@ textarea {
   background: #e5e7eb;
   overflow: hidden;
   border-radius: 0 0 12px 12px;
+}
+
+.listening-media-card .media-card-progress {
+  background: transparent;
 }
 
 .media-card-progress-bar {

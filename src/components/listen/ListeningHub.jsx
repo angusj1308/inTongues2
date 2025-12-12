@@ -596,7 +596,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
 
         <div className="section">
           <div className="section-header">
-            <h3>My Spotify Library</h3>
+            <h3>Spotify playlists</h3>
           </div>
 
           {spotifyLibraryLoading ? (
@@ -605,17 +605,11 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             <p className="muted">No Spotify items saved yet.</p>
           ) : (
             <div>
-              <div className="section-header" style={{ alignItems: 'center', gap: '0.5rem' }}>
-                <h4 style={{ margin: 0 }}>Spotify playlists</h4>
-                <span className="pill">{spotifyTracks.length + spotifyPlaylists.length}</span>
-              </div>
-
               <div className="listen-shelf">
                 {spotifyTracks.length > 0 && (
                   <SpotifyCollectionCard
                     key={allTracksCollection.id}
                     title={allTracksCollection.title}
-                    subtitle={allTracksCollection.subtitle}
                     meta={allTracksCollection.meta}
                     imageUrl={allTracksCollection.imageUrl}
                     onOpen={() => navigate(`/listening/spotify/${allTracksCollection.id}`)}
@@ -627,7 +621,6 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                   <SpotifyCollectionCard
                     key={album.id}
                     title={album.title}
-                    subtitle={album.subtitle}
                     meta={album.meta}
                     imageUrl={album.imageUrl}
                     onOpen={() => navigate(`/listening/spotify/${album.id}`)}
@@ -642,7 +635,6 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                     <SpotifyCollectionCard
                       key={playlist.id}
                       title={playlist.title}
-                      subtitle={playlist.subtitle}
                       meta={playlist.meta}
                       imageUrl={playlist.imageUrl}
                       onOpen={() => navigate(`/listening/spotify/${playlist.id}`)}
@@ -664,14 +656,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                   }}
                 >
                   <div className="spotify-collection-cover create">
-                    <div className="spotify-collection-cover-placeholder">Create playlist</div>
-                  </div>
-                  <div className="spotify-collection-body">
-                    <div className="spotify-collection-title">Create playlist</div>
-                    <div className="spotify-collection-subtitle">Group your imported tracks into a mix.</div>
-                    <button className="button ghost" type="button" style={{ marginTop: 'auto' }}>
-                      Start a playlist →
-                    </button>
+                    <div className="spotify-collection-cover-plus">+</div>
                   </div>
                 </div>
               </div>

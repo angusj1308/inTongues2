@@ -26,7 +26,7 @@ const SpotifyCollectionCard = ({ title, subtitle, meta, imageUrl, onOpen, ctaLab
         <div className="spotify-collection-title">{title}</div>
         {subtitle && <div className="spotify-collection-subtitle">{subtitle}</div>}
         {meta && <div className="spotify-collection-meta">{meta}</div>}
-        <button className="button ghost" type="button" style={{ marginTop: 'auto' }}>
+        <button className="button primary" type="button" style={{ marginTop: 'auto' }}>
           {ctaLabel}
         </button>
       </div>

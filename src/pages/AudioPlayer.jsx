@@ -34,6 +34,15 @@ const AudioPlayer = () => {
   const [popup, setPopup] = useState(null)
   const [vocabEntries, setVocabEntries] = useState({})
   const [isPlaying, setIsPlaying] = useState(false)
+  const [listeningMode, setListeningMode] = useState('extensive')
+  const [isExtensiveTranscriptOpen, setIsExtensiveTranscriptOpen] = useState(false)
+  const [activePageIndex, setActivePageIndex] = useState(0)
+  const [hasSeenAdvancePrompt, setHasSeenAdvancePrompt] = useState(false)
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false)
+  const [intensiveSentenceIndex, setIntensiveSentenceIndex] = useState(0)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [progressSeconds, setProgressSeconds] = useState(0)
+  const [durationSeconds, setDurationSeconds] = useState(0)
   const [storyMeta, setStoryMeta] = useState({
     title: '',
     language: '',
@@ -62,6 +71,14 @@ const AudioPlayer = () => {
   }, [user])
 
   const transcriptText = useMemo(() => pages.map((page) => getDisplayText(page)).join(' '), [pages])
+
+  const transcriptSentences = useMemo(() => {
+    if (!transcriptText) return []
+    return transcriptText
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean)
+  }, [transcriptText])
 
   const playPronunciationAudio = (audioData) => {
     if (!audioData?.audioBase64 && !audioData?.audioUrl) return
@@ -567,16 +584,50 @@ const AudioPlayer = () => {
     const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
 
+    const handleTimeUpdate = () => setProgressSeconds(audio.currentTime || 0)
+    const handleDurationChange = () => setDurationSeconds(audio.duration || 0)
+
     audio.addEventListener('play', handlePlay)
     audio.addEventListener('pause', handlePause)
     audio.addEventListener('ended', handlePause)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('loadedmetadata', handleDurationChange)
+    audio.addEventListener('durationchange', handleDurationChange)
 
     return () => {
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('ended', handlePause)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('loadedmetadata', handleDurationChange)
+      audio.removeEventListener('durationchange', handleDurationChange)
     }
   }, [isSpotify, storyMeta.fullAudioUrl])
+
+  useEffect(() => {
+    if (!isSpotify) return
+
+    setProgressSeconds((spotifyPlayerState?.position || 0) / 1000)
+    setDurationSeconds((spotifyPlayerState?.duration || 0) / 1000)
+  }, [isSpotify, spotifyPlayerState])
+
+  useEffect(() => {
+    if (!pages.length) {
+      setActivePageIndex(0)
+      return
+    }
+
+    setActivePageIndex((prev) => Math.min(prev, Math.max(pages.length - 1, 0)))
+  }, [pages])
+
+  useEffect(() => {
+    if (!transcriptSentences.length) {
+      setIntensiveSentenceIndex(0)
+      return
+    }
+
+    setIntensiveSentenceIndex((prev) => Math.min(prev, transcriptSentences.length - 1))
+  }, [transcriptSentences])
 
   const startSpotifyPlayback = async () => {
     if (!user || !spotifyDeviceId || !storyMeta.spotifyUri) return
@@ -635,122 +686,337 @@ const AudioPlayer = () => {
     audio.currentTime = Math.max(0, (audio.currentTime || 0) - seconds)
   }
 
+  const handleForward = (seconds = 10) => {
+    if (isSpotify) {
+      const positionMs = spotifyPlayerState?.position || 0
+      const durationMs = spotifyPlayerState?.duration || 0
+      const nextPosition = Math.min(durationMs, positionMs + seconds * 1000)
+      seekSpotify(nextPosition)
+      return
+    }
+
+    const audio = audioRef.current
+    if (!audio) return
+
+    const duration = audio.duration || 0
+    audio.currentTime = Math.min(duration, (audio.currentTime || 0) + seconds)
+  }
+
+  const handlePlaybackRateChange = (nextRate) => {
+    setPlaybackRate(nextRate)
+
+    if (isSpotify) return
+
+    const audio = audioRef.current
+    if (!audio) return
+
+    audio.playbackRate = nextRate
+  }
+
+  const handleChangeMode = (mode) => {
+    setListeningMode(mode)
+    setIsExtensiveTranscriptOpen(false)
+  }
+
+  const activePage = pages[activePageIndex]
+
+  const pauseAllAudio = async () => {
+    if (isSpotify) {
+      await pauseSpotify()
+    } else {
+      const audio = audioRef.current
+      if (audio) audio.pause()
+    }
+  }
+
+  const handleNextPage = async () => {
+    if (!hasSeenAdvancePrompt) {
+      await pauseAllAudio()
+      setShowAdvanceModal(true)
+      return
+    }
+
+    setActivePageIndex((prev) => Math.min(prev + 1, Math.max(pages.length - 1, 0)))
+  }
+
+  const handlePreviousPage = () => {
+    setActivePageIndex((prev) => Math.max(prev - 1, 0))
+  }
+
+  const confirmAdvance = () => {
+    setHasSeenAdvancePrompt(true)
+    setShowAdvanceModal(false)
+    setActivePageIndex((prev) => Math.min(prev + 1, Math.max(pages.length - 1, 0)))
+  }
+
+  const cancelAdvance = () => setShowAdvanceModal(false)
+
+  const currentIntensiveSentence =
+    transcriptSentences[intensiveSentenceIndex] || 'Sentence will appear here.'
+
+  const handleNextSentence = async () => {
+    if (!transcriptSentences.length) return
+
+    await pauseAllAudio()
+    setIntensiveSentenceIndex((prev) => Math.min(prev + 1, transcriptSentences.length - 1))
+  }
+
+  const handlePreviousSentence = async () => {
+    if (!transcriptSentences.length) return
+
+    await pauseAllAudio()
+    setIntensiveSentenceIndex((prev) => Math.max(prev - 1, 0))
+  }
+
   const showPlaybackControls = isSpotify
     ? Boolean(storyMeta.spotifyUri)
     : storyMeta.audioStatus === 'ready' && storyMeta.fullAudioUrl
 
-  const playbackPositionSeconds = isSpotify
-    ? (spotifyPlayerState?.position || 0) / 1000
-    : audioRef.current?.currentTime || 0
+  const playbackPositionSeconds = progressSeconds
+  const playbackDurationSeconds = durationSeconds
 
-  const playbackDurationSeconds = isSpotify
-    ? (spotifyPlayerState?.duration || 0) / 1000
-    : audioRef.current?.duration || 0
+  const playbackProgressPercent = playbackDurationSeconds
+    ? Math.min(100, (playbackPositionSeconds / playbackDurationSeconds) * 100)
+    : 0
 
   return (
-    <div className="page">
-      <div className="card dashboard-card">
-        <div className="page-header">
-          <div>
-            <h1>{storyMeta.title || 'Audiobook'}</h1>
-            <p className="muted small">Listen while reviewing the full transcript.</p>
-          </div>
-          <button className="button ghost" onClick={() => navigate('/listening')}>
-            Back to listening library
-          </button>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.75rem',
-            gap: '0.5rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div className="pill-row" style={{ gap: '0.5rem', alignItems: 'center' }}>
-            {storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}
-            {isSpotify ? (
-              <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
-                Spotify playback
-              </span>
-            ) : (
-              <span
-                className="pill"
-                style={{
-                  background:
-                    storyMeta.audioStatus === 'ready'
-                      ? '#dcfce7'
-                      : storyMeta.audioStatus === 'processing'
-                        ? '#fef9c3'
-                        : '#e2e8f0',
-                  color:
-                    storyMeta.audioStatus === 'ready'
-                      ? '#166534'
-                      : storyMeta.audioStatus === 'processing'
-                        ? '#854d0e'
-                        : '#0f172a',
-                }}
+    <div className={`listening-lab-page listening-mode-${listeningMode}`}>
+      <div className="reader-hover-shell">
+        <div className="reader-hover-hitbox" />
+        <header className="dashboard-header reader-hover-header listening-hover-header">
+          <div className="dashboard-brand-band reader-header-band listening-brand-band">
+            <div className="listening-brand">Listening Lab</div>
+            <div className="listening-header-actions">
+              <button
+                className="dashboard-control ui-text reader-back-button"
+                onClick={() => navigate('/listening')}
+                type="button"
               >
-                {storyMeta.audioStatus === 'ready'
-                  ? 'Audio Ready'
-                  : storyMeta.audioStatus === 'processing'
-                    ? 'Audio Processing…'
-                    : 'No Audio'}
-              </span>
-            )}
+                Back to library
+              </button>
+              {storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}
+            </div>
+          </div>
+        </header>
+      </div>
+
+      <main className="listening-lab-main">
+        <div className="listening-lab-wrapper">
+          <div className="listening-lab-top">
+            <div>
+              <p className="muted small">Audio-first workspace</p>
+              <h1 className="listening-title">{storyMeta.title || 'Audiobook'}</h1>
+              <div className="pill-row listening-meta-row">
+                {isSpotify ? (
+                  <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>
+                    Spotify playback
+                  </span>
+                ) : (
+                  <span
+                    className="pill"
+                    style={{
+                      background:
+                        storyMeta.audioStatus === 'ready'
+                          ? '#dcfce7'
+                          : storyMeta.audioStatus === 'processing'
+                            ? '#fef9c3'
+                            : '#e2e8f0',
+                      color:
+                        storyMeta.audioStatus === 'ready'
+                          ? '#166534'
+                          : storyMeta.audioStatus === 'processing'
+                            ? '#854d0e'
+                            : '#0f172a',
+                    }}
+                  >
+                    {storyMeta.audioStatus === 'ready'
+                      ? 'Audio Ready'
+                      : storyMeta.audioStatus === 'processing'
+                        ? 'Audio Processing…'
+                        : 'No Audio'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="listening-mode-toggle" role="group" aria-label="Listening mode">
+              {[
+                { id: 'extensive', label: 'Extensive' },
+                { id: 'active', label: 'Active' },
+                { id: 'intensive', label: 'Intensive' },
+              ].map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={`listening-mode-button ${listeningMode === mode.id ? 'active' : ''}`}
+                  onClick={() => handleChangeMode(mode.id)}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={`listening-layout listening-layout--${listeningMode}`}>
+            <section className="audio-focus-zone" aria-label="Audio controls">
+              <div className="audio-cover" aria-hidden>
+                <div className="audio-cover-portrait">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+              </div>
+              <div className="audio-focus-details">
+                <div className="audio-meta">
+                  <h2 className="audio-title">{storyMeta.title || 'Audiobook'}</h2>
+                  <p className="muted small">{storyMeta.language ? `in${storyMeta.language}` : 'Language not set'}</p>
+                </div>
+                <div className="audio-controls-row">
+                  <button className="transport-btn" type="button" onClick={() => handleRewind()}>
+                    −10s
+                  </button>
+                  <button
+                    className="transport-btn transport-btn-primary"
+                    type="button"
+                    onClick={togglePlay}
+                    disabled={!showPlaybackControls}
+                  >
+                    {isPlaying ? 'Pause' : 'Play'}
+                  </button>
+                  <button className="transport-btn" type="button" onClick={() => handleForward()}>
+                    +10s
+                  </button>
+                  <div className="playback-speed" aria-label="Playback speed">
+                    <span className="muted tiny">Speed</span>
+                    <div className="speed-chips">
+                      {[0.75, 1, 1.25, 1.5].map((rate) => (
+                        <button
+                          key={rate}
+                          type="button"
+                          className={`speed-chip ${playbackRate === rate ? 'active' : ''}`}
+                          onClick={() => handlePlaybackRateChange(rate)}
+                        >
+                          {rate}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="audio-progress" role="presentation">
+                  <div className="audio-progress-track">
+                    <div
+                      className="audio-progress-fill"
+                      style={{ width: `${playbackProgressPercent}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                  <div className="audio-progress-labels">
+                    <span>{playbackPositionSeconds.toFixed(1)}s</span>
+                    <span>{playbackDurationSeconds ? `${playbackDurationSeconds.toFixed(1)}s` : '—'}</span>
+                  </div>
+                </div>
+              </div>
+              {!isSpotify && storyMeta.fullAudioUrl && (
+                <audio ref={audioRef} src={storyMeta.fullAudioUrl} className="sr-only-audio" />
+              )}
+            </section>
+
+            <section className="listening-mode-surface">
+              {loading ? (
+                <p className="muted">Loading transcript…</p>
+              ) : error ? (
+                <p className="error">{error}</p>
+              ) : !pages.length ? (
+                <p className="muted">Transcript not available yet.</p>
+              ) : (
+                <>
+                  {listeningMode === 'extensive' && (
+                    <div className="extensive-pane">
+                      <div className="extensive-toggle-row">
+                        <p className="muted">Transcript stays out of the way.</p>
+                        <button
+                          type="button"
+                          className="button ghost"
+                          onClick={() => setIsExtensiveTranscriptOpen((prev) => !prev)}
+                        >
+                          {isExtensiveTranscriptOpen ? 'Hide transcript' : 'Show transcript'}
+                        </button>
+                      </div>
+                      {isExtensiveTranscriptOpen && (
+                        <div
+                          className="subtitle-shell"
+                          onMouseUp={handleWordClick}
+                          style={{ whiteSpace: 'pre-wrap' }}
+                        >
+                          {renderHighlightedText(transcriptText)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {listeningMode === 'active' && (
+                    <div className="active-pane">
+                      <div className="active-pane-body" onMouseUp={handleWordClick}>
+                        <h3 className="muted">Current page</h3>
+                        <div className="active-transcript" style={{ whiteSpace: 'pre-wrap' }}>
+                          {renderHighlightedText(getDisplayText(activePage))}
+                        </div>
+                      </div>
+                      <footer className="active-footer">
+                        <button
+                          type="button"
+                          className="button ghost"
+                          onClick={handlePreviousPage}
+                          disabled={activePageIndex === 0}
+                        >
+                          Previous Page
+                        </button>
+                        <div className="muted small">Page {activePageIndex + 1} of {pages.length}</div>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={handleNextPage}
+                          disabled={activePageIndex >= pages.length - 1}
+                        >
+                          Next Page
+                        </button>
+                      </footer>
+                    </div>
+                  )}
+
+                  {listeningMode === 'intensive' && (
+                    <div className="intensive-pane">
+                      <div className="intensive-sentence-card">
+                        <p className="muted tiny">Sentence workbench</p>
+                        <div className="intensive-sentence">{currentIntensiveSentence}</div>
+                        <div className="intensive-input-row">
+                          <input type="text" placeholder="Type what you hear…" className="intensive-input" />
+                          <div className="intensive-actions">
+                            <button
+                              type="button"
+                              className="button ghost"
+                              onClick={handlePreviousSentence}
+                              disabled={intensiveSentenceIndex === 0}
+                            >
+                              Previous
+                            </button>
+                            <button
+                              type="button"
+                              className="button"
+                              onClick={handleNextSentence}
+                              disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                        <p className="muted tiny">Audio auto-pauses between sentences.</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
           </div>
         </div>
+      </main>
 
-        {showPlaybackControls && (
-          <div className="section" style={{ position: 'sticky', bottom: 0, background: '#f8fafc', zIndex: 2 }}>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button className="button ghost" onClick={() => handleRewind()}>
-                ⏪ Rewind 10s
-              </button>
-              <button className="button ghost" onClick={togglePlay}>
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
-            </div>
-            {isSpotify ? (
-              <p className="muted small" style={{ textAlign: 'center' }}>
-                Playing from Spotify — {playbackPositionSeconds.toFixed(1)}s /{' '}
-                {playbackDurationSeconds.toFixed(1)}s
-              </p>
-            ) : (
-              <audio
-                ref={audioRef}
-                src={storyMeta.fullAudioUrl}
-                style={{ width: '100%', marginTop: '0.5rem' }}
-                controls
-              />
-            )}
-          </div>
-        )}
-
-        {loading ? (
-          <p className="muted">Loading transcript…</p>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : pages.length ? (
-            <div className="preview-card">
-              <div className="section-header">
-                <div className="pill-row">{storyMeta.language && <span className="pill primary">in{storyMeta.language}</span>}</div>
-              </div>
-            <div
-              className="page-text"
-              onMouseUp={handleWordClick}
-              style={{ cursor: 'pointer', userSelect: 'text', whiteSpace: 'pre-wrap' }}
-            >
-              {renderHighlightedText(transcriptText)}
-            </div>
-          </div>
-        ) : (
-          <p className="muted">Transcript not available yet.</p>
-        )}
-      </div>
       {popup && (
         <div
           className="translate-popup"
@@ -864,6 +1130,23 @@ const AudioPlayer = () => {
             >
               Known
             </button>
+          </div>
+        </div>
+      )}
+
+      {showAdvanceModal && (
+        <div className="listening-modal-overlay" role="dialog" aria-modal="true">
+          <div className="listening-modal">
+            <h3>Advancing means you’re committing understanding of this page.</h3>
+            <p className="muted">Placeholder modal — logic arrives later.</p>
+            <div className="modal-actions">
+              <button type="button" className="button ghost" onClick={cancelAdvance}>
+                Cancel
+              </button>
+              <button type="button" className="button" onClick={confirmAdvance}>
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       )}

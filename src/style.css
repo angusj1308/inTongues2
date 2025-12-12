@@ -874,6 +874,11 @@ textarea {
   overflow-x: auto;
   padding: 0.25rem 0 0.5rem;
   scroll-snap-type: x proximity;
+  align-items: stretch;
+}
+
+.listen-shelf .listening-media-card-youtube {
+  height: 100%;
 }
 
 .listen-card {

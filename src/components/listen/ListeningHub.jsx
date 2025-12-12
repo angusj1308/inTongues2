@@ -22,7 +22,7 @@ import SpotifyCollectionCard from './SpotifyCollectionCard'
 import { getYouTubeThumbnailUrl } from '../../utils/youtube'
 
 const ListeningHub = ({ embedded = false, showBackButton = true }) => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [youtubeVideos, setYoutubeVideos] = useState([])
@@ -53,6 +53,11 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   const [audioLoading, setAudioLoading] = useState(true)
   const [videoLoading, setVideoLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const activeLanguage = profile?.lastUsedLanguage || profile?.myLanguages?.[0] || ''
+  const juanDescription = activeLanguage
+    ? `Practice understanding conversational ${activeLanguage} while replying in your native language. Juan speaks only your target language so you can focus 100% on comprehension, not output.`
+    : 'Practice understanding conversational language while replying in your native language. Juan speaks only your target language so you can focus 100% on comprehension, not output.'
 
   const spotifyTracks = spotifyLibrary.filter((item) => item.type === 'track')
 
@@ -593,6 +598,21 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           <div className="listen-tool-panels">
             <div className="listen-tool-panel">
               <ImportYouTubePanel headingLevel="h3" layout="card" />
+            </div>
+
+            <div className="listen-tool-panel">
+              <div className="preview-card">
+                <div className="section-header" style={{ alignItems: 'flex-start' }}>
+                  <div>
+                    <h3>Comprehension practice with Juan</h3>
+                    <p className="muted small">{juanDescription}</p>
+                  </div>
+                </div>
+
+                <button className="button primary" onClick={() => navigate('/juan-comprehension')}>
+                  Start practice
+                </button>
+              </div>
             </div>
 
             <div className="listen-tool-panel">

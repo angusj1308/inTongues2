@@ -13,6 +13,7 @@ import {
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
+import ActiveMode from '../components/listen/ActiveMode'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -56,6 +57,10 @@ const AudioPlayer = () => {
   })
   const [spotifyDeviceId, setSpotifyDeviceId] = useState('')
   const [spotifyPlayerState, setSpotifyPlayerState] = useState(null)
+  const [activeChunkIndex, setActiveChunkIndex] = useState(0)
+  const [activeStep, setActiveStep] = useState(1)
+  const [completedChunks, setCompletedChunks] = useState(new Set())
+  const lastCompletionRef = useRef({ chunkIndex: -1, step: null })
 
   const fetchSpotifyAccessToken = useCallback(async () => {
     if (!user) throw new Error('User not authenticated')
@@ -88,6 +93,30 @@ const AudioPlayer = () => {
 
     return transcriptSentences.map((text) => ({ text }))
   }, [pages, transcriptSentences])
+
+  const chunkLengthSeconds = 60
+
+  const activeChunks = useMemo(() => {
+    if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) return []
+    const totalChunks = Math.ceil(playbackDurationSeconds / chunkLengthSeconds)
+
+    return Array.from({ length: totalChunks }, (_, index) => {
+      const start = index * chunkLengthSeconds
+      const end = Math.min((index + 1) * chunkLengthSeconds, playbackDurationSeconds)
+      const labelStart = `${Math.floor(start / 60)
+        .toString()
+        .padStart(2, '0')}:${Math.floor(start % 60)
+        .toString()
+        .padStart(2, '0')}`
+      const labelEnd = `${Math.floor(end / 60)
+        .toString()
+        .padStart(2, '0')}:${Math.floor(end % 60)
+        .toString()
+        .padStart(2, '0')}`
+
+      return { index, start, end, labelStart, labelEnd }
+    })
+  }, [playbackDurationSeconds])
 
   const playPronunciationAudio = (audioData) => {
     if (!audioData?.audioBase64 && !audioData?.audioUrl) return
@@ -638,6 +667,66 @@ const AudioPlayer = () => {
     setIntensiveSentenceIndex((prev) => Math.min(prev, transcriptSentences.length - 1))
   }, [transcriptSentences])
 
+  useEffect(() => {
+    if (!activeChunks.length) {
+      setActiveChunkIndex(0)
+      return
+    }
+
+    setActiveChunkIndex((prev) => Math.min(prev, activeChunks.length - 1))
+  }, [activeChunks.length])
+
+  useEffect(() => {
+    lastCompletionRef.current = { chunkIndex: -1, step: null }
+  }, [activeChunkIndex, activeStep, listeningMode])
+
+  useEffect(() => {
+    if (listeningMode !== 'active') return
+    const chunk = currentChunk
+    if (!chunk) return
+
+    if (progressSeconds < chunk.start - 0.2) {
+      handleSeekTo(chunk.start)
+      return
+    }
+
+    if (progressSeconds > chunk.end + 0.2) {
+      handleSeekTo(chunk.end)
+      return
+    }
+
+    const completionThreshold = chunk.end - 0.05
+    if (progressSeconds < completionThreshold) return
+
+    const lastCompletion = lastCompletionRef.current
+    if (lastCompletion.chunkIndex === activeChunkIndex && lastCompletion.step === activeStep) return
+
+    lastCompletionRef.current = { chunkIndex: activeChunkIndex, step: activeStep }
+
+    if (activeStep === 1) {
+      setActiveStep(2)
+      handleSeekTo(chunk.start)
+    } else if (activeStep === 2) {
+      pauseAllAudio()
+      setActiveStep(3)
+      handleSeekTo(chunk.start)
+    } else if (activeStep === 4) {
+      setCompletedChunks((prev) => {
+        const next = new Set(prev)
+        next.add(activeChunkIndex)
+        return next
+      })
+
+      const nextChunkIndex = Math.min(activeChunkIndex + 1, Math.max(activeChunks.length - 1, 0))
+      setActiveChunkIndex(nextChunkIndex)
+      setActiveStep(1)
+      const nextChunk = activeChunks[nextChunkIndex]
+      if (nextChunk) {
+        handleSeekTo(nextChunk.start)
+      }
+    }
+  }, [activeStep, activeChunkIndex, activeChunks, currentChunk, handleSeekTo, listeningMode, pauseAllAudio, progressSeconds])
+
   const startSpotifyPlayback = async () => {
     if (!user || !spotifyDeviceId || !storyMeta.spotifyUri) return
 
@@ -662,6 +751,13 @@ const AudioPlayer = () => {
   }
 
   const togglePlay = async () => {
+    if (listeningMode === 'active') {
+      const chunk = activeChunks[activeChunkIndex]
+      if (chunk && (progressSeconds < chunk.start || progressSeconds > chunk.end)) {
+        handleSeekTo(chunk.start)
+      }
+    }
+
     if (isSpotify) {
       if (isPlaying) {
         await pauseSpotify()
@@ -683,18 +779,25 @@ const AudioPlayer = () => {
 
   const handleSeekTo = (seconds = 0) => {
     const duration = playbackDurationSeconds || 0
-    const nextPosition = Math.max(0, Math.min(duration, Number.isFinite(seconds) ? seconds : 0))
+    let target = Math.max(0, Math.min(duration, Number.isFinite(seconds) ? seconds : 0))
 
-    if (isSpotify) {
-      seekSpotify(nextPosition * 1000)
-    } else {
-      const audio = audioRef.current
-      if (audio) {
-        audio.currentTime = nextPosition
+    if (listeningMode === 'active' && activeChunks.length) {
+      const chunk = activeChunks[activeChunkIndex]
+      if (chunk) {
+        target = Math.min(chunk.end, Math.max(chunk.start, target))
       }
     }
 
-    setProgressSeconds(nextPosition)
+    if (isSpotify) {
+      seekSpotify(target * 1000)
+    } else {
+      const audio = audioRef.current
+      if (audio) {
+        audio.currentTime = target
+      }
+    }
+
+    setProgressSeconds(target)
   }
 
   const handleRewind = (seconds = 10) => {
@@ -719,9 +822,33 @@ const AudioPlayer = () => {
   const handleChangeMode = (mode) => {
     setListeningMode(mode)
     setSubtitlesEnabled(false)
+    if (mode !== 'active') {
+      setActiveStep(1)
+      setActiveChunkIndex(0)
+    }
   }
 
   const activePage = pages[activePageIndex]
+  const currentChunk = activeChunks[activeChunkIndex]
+
+  const chunkTranscriptSegments = useMemo(() => {
+    if (!currentChunk) return transcriptSegments
+    if (!transcriptSegments.length) return []
+
+    const hasTimestamps = transcriptSegments.some(
+      (segment) => typeof segment.start === 'number' && typeof segment.end === 'number',
+    )
+
+    if (!hasTimestamps) return transcriptSegments
+
+    return transcriptSegments.filter(
+      (segment) =>
+        typeof segment.start === 'number' &&
+        typeof segment.end === 'number' &&
+        segment.start >= currentChunk.start &&
+        segment.start < currentChunk.end,
+    )
+  }, [currentChunk, transcriptSegments])
 
   const pauseAllAudio = async () => {
     if (isSpotify) {
@@ -750,6 +877,18 @@ const AudioPlayer = () => {
     setHasSeenAdvancePrompt(true)
     setShowAdvanceModal(false)
     setActivePageIndex((prev) => Math.min(prev + 1, Math.max(pages.length - 1, 0)))
+  }
+
+  const handleRestartChunk = () => {
+    if (!currentChunk) return
+    handleSeekTo(currentChunk.start)
+  }
+
+  const handleBeginFinalListen = () => {
+    if (!currentChunk) return
+    setActiveStep(4)
+    handleSeekTo(currentChunk.start)
+    if (!isPlaying) togglePlay()
   }
 
   const cancelAdvance = () => setShowAdvanceModal(false)
@@ -817,6 +956,27 @@ const AudioPlayer = () => {
     return 0
   }, [playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
 
+  const chunkActiveTranscriptIndex = useMemo(() => {
+    if (!chunkTranscriptSegments.length) return -1
+    if (activeTranscriptIndex < 0) return -1
+
+    const activeSegment = transcriptSegments[activeTranscriptIndex]
+    if (!activeSegment) return -1
+
+    const hasTimestamps = chunkTranscriptSegments.some(
+      (segment) => typeof segment.start === 'number' && typeof segment.end === 'number',
+    )
+
+    if (!hasTimestamps) {
+      const rawIndex = chunkTranscriptSegments.findIndex((segment) => segment.text === activeSegment.text)
+      return rawIndex
+    }
+
+    return chunkTranscriptSegments.findIndex(
+      (segment) => segment.start === activeSegment.start && segment.end === activeSegment.end,
+    )
+  }, [activeTranscriptIndex, chunkTranscriptSegments, transcriptSegments])
+
   return (
     <div className={`listening-lab-page listening-mode-${listeningMode}`}>
       <div className="reader-hover-shell">
@@ -867,7 +1027,7 @@ const AudioPlayer = () => {
           </div>
 
           <div className={`listening-layout listening-layout--${listeningMode}`}>
-            {listeningMode === 'extensive' ? (
+            {listeningMode === 'extensive' && (
               <ExtensiveMode
                 storyMeta={storyMeta}
                 isPlaying={isPlaying}
@@ -884,7 +1044,28 @@ const AudioPlayer = () => {
                 transcriptSegments={transcriptSegments}
                 activeTranscriptIndex={activeTranscriptIndex}
               />
-            ) : (
+            )}
+
+            {listeningMode === 'active' && (
+              <ActiveMode
+                storyMeta={storyMeta}
+                chunks={activeChunks}
+                activeChunkIndex={activeChunkIndex}
+                completedChunks={completedChunks}
+                activeStep={activeStep}
+                isPlaying={isPlaying}
+                playbackPositionSeconds={playbackPositionSeconds}
+                playbackDurationSeconds={playbackDurationSeconds}
+                onPlayPause={togglePlay}
+                onSeek={handleSeekTo}
+                transcriptSegments={chunkTranscriptSegments}
+                activeTranscriptIndex={chunkActiveTranscriptIndex}
+                onBeginFinalListen={handleBeginFinalListen}
+                onRestartChunk={handleRestartChunk}
+              />
+            )}
+
+            {listeningMode === 'intensive' && (
               <>
                 <section className="audio-focus-zone" aria-label="Audio controls">
                   <div className="audio-cover" aria-hidden>
@@ -950,68 +1131,34 @@ const AudioPlayer = () => {
                   ) : !pages.length ? (
                     <p className="muted">Transcript not available yet.</p>
                   ) : (
-                    <>
-                      {listeningMode === 'active' && (
-                        <div className="active-pane">
-                          <div className="active-pane-body" onMouseUp={handleWordClick}>
-                            <h3 className="muted">Current page</h3>
-                            <div className="active-transcript" style={{ whiteSpace: 'pre-wrap' }}>
-                              {renderHighlightedText(getDisplayText(activePage))}
-                            </div>
-                          </div>
-                          <footer className="active-footer">
+                    <div className="intensive-pane">
+                      <div className="intensive-sentence-card">
+                        <p className="muted tiny">Sentence workbench</p>
+                        <div className="intensive-sentence">{currentIntensiveSentence}</div>
+                        <div className="intensive-input-row">
+                          <input type="text" placeholder="Type what you hear…" className="intensive-input" />
+                          <div className="intensive-actions">
                             <button
                               type="button"
                               className="button ghost"
-                              onClick={handlePreviousPage}
-                              disabled={activePageIndex === 0}
+                              onClick={handlePreviousSentence}
+                              disabled={intensiveSentenceIndex === 0}
                             >
-                              Previous Page
+                              Previous
                             </button>
-                            <div className="muted small">Page {activePageIndex + 1} of {pages.length}</div>
                             <button
                               type="button"
                               className="button"
-                              onClick={handleNextPage}
-                              disabled={activePageIndex >= pages.length - 1}
+                              onClick={handleNextSentence}
+                              disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
                             >
-                              Next Page
+                              Next
                             </button>
-                          </footer>
-                        </div>
-                      )}
-
-                      {listeningMode === 'intensive' && (
-                        <div className="intensive-pane">
-                          <div className="intensive-sentence-card">
-                            <p className="muted tiny">Sentence workbench</p>
-                            <div className="intensive-sentence">{currentIntensiveSentence}</div>
-                            <div className="intensive-input-row">
-                              <input type="text" placeholder="Type what you hear…" className="intensive-input" />
-                              <div className="intensive-actions">
-                                <button
-                                  type="button"
-                                  className="button ghost"
-                                  onClick={handlePreviousSentence}
-                                  disabled={intensiveSentenceIndex === 0}
-                                >
-                                  Previous
-                                </button>
-                                <button
-                                  type="button"
-                                  className="button"
-                                  onClick={handleNextSentence}
-                                  disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
-                                >
-                                  Next
-                                </button>
-                              </div>
-                            </div>
-                            <p className="muted tiny">Audio auto-pauses between sentences.</p>
                           </div>
                         </div>
-                      )}
-                    </>
+                        <p className="muted tiny">Audio auto-pauses between sentences.</p>
+                      </div>
+                    </div>
                   )}
                 </section>
               </>

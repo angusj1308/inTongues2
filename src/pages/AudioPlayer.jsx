@@ -12,6 +12,7 @@ import {
   seek as seekSpotify,
   subscribeToStateChanges,
 } from '../services/spotifyPlayer'
+import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
 import ActiveMode from '../components/listen/ActiveMode'
 
@@ -979,49 +980,55 @@ const AudioPlayer = () => {
   }, [activeTranscriptIndex, chunkTranscriptSegments, transcriptSegments])
 
   return (
-    <div className={`listening-lab-page listening-mode-${listeningMode}`}>
-      <div className="reader-hover-shell">
-        <div className="reader-hover-hitbox" />
-        <header className="dashboard-header reader-hover-header listening-hover-header">
-          <div className="dashboard-brand-band reader-header-band listening-brand-band">
-            <div className="listening-header-left">
-              <button
-                className="dashboard-control ui-text reader-back-button"
-                onClick={() => navigate('/listening')}
-                type="button"
-              >
-                Back to library
-              </button>
-            </div>
-            <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
-              {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
-                (mode, index) => (
-                  <div
-                    key={mode.id}
-                    className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
-                  >
-                    <button
-                      className={`dashboard-nav-button ui-text ${
-                        listeningMode === mode.id ? 'active' : ''
-                      }`}
-                      type="button"
-                      onClick={() => handleChangeMode(mode.id)}
+    <div
+      className={`listening-lab-page listening-mode-${listeningMode} ${
+        listeningMode === 'intensive' ? 'reader-intensive-active' : ''
+      }`}
+    >
+      <div className="reader-main-shell">
+        <div className="reader-hover-shell">
+          <div className="reader-hover-hitbox" />
+          <header className="dashboard-header reader-hover-header listening-hover-header">
+            <div className="dashboard-brand-band reader-header-band listening-brand-band">
+              <div className="listening-header-left">
+                <button
+                  className="dashboard-control ui-text reader-back-button"
+                  onClick={() => navigate('/listening')}
+                  type="button"
+                >
+                  Back to library
+                </button>
+              </div>
+              <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
+                {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
+                  (mode, index) => (
+                    <div
+                      key={mode.id}
+                      className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
                     >
-                      {mode.label.toUpperCase()}
-                    </button>
-                    {index < 2 && <span className="dashboard-nav-divider">|</span>}
-                  </div>
-                ),
-              )}
-            </nav>
-            <div className="listening-header-actions" />
-          </div>
-        </header>
-      </div>
+                      <button
+                        className={`dashboard-nav-button ui-text ${
+                          listeningMode === mode.id ? 'active' : ''
+                        }`}
+                        type="button"
+                        onClick={() => handleChangeMode(mode.id)}
+                      >
+                        {mode.label.toUpperCase()}
+                      </button>
+                      {index < 2 && <span className="dashboard-nav-divider">|</span>}
+                    </div>
+                  ),
+                )}
+              </nav>
+              <div className="listening-header-actions" />
+            </div>
+          </header>
+        </div>
 
-      <main className="listening-lab-main">
-        <div className="listening-lab-wrapper">
-          <div className={`listening-layout listening-layout--${listeningMode}`}>
+        <div className="reader-body-shell">
+          <main className="listening-lab-main">
+            <div className="listening-lab-wrapper">
+              <div className={`listening-layout listening-layout--${listeningMode}`}>
             {listeningMode === 'extensive' && (
               <ExtensiveMode
                 storyMeta={storyMeta}
@@ -1163,121 +1170,118 @@ const AudioPlayer = () => {
             )}
           </div>
         </div>
-      </main>
+          </main>
+        </div>
+      </div>
+
+      <IntensiveListeningMode
+        listeningMode={listeningMode}
+        transcriptSentences={transcriptSentences}
+        transcriptSegments={transcriptSegments}
+        language={storyMeta.language}
+        nativeLanguage={profile?.nativeLanguage}
+        vocabEntries={vocabEntries}
+        setVocabEntries={setVocabEntries}
+        pageTranslations={pageTranslations}
+        setPopup={setPopup}
+        intensiveSentenceIndex={intensiveSentenceIndex}
+        setIntensiveSentenceIndex={setIntensiveSentenceIndex}
+        audioRef={audioRef}
+        user={user}
+      />
 
       {popup && (
         <div
           className="translate-popup"
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: popup.y,
             left: popup.x,
-            background: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            maxWidth: '260px',
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <strong>{popup.word}</strong>
-          <div
-            style={{
-              marginTop: '4px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-            }}
-          >
-            <span>{popup.translation}</span>
-            {(popup.audioBase64 || popup.audioUrl) && (
-              <button
-                type="button"
-                aria-label="Play pronunciation"
-                onClick={() => playPronunciationAudio(popup)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  padding: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                }}
-              >
-                🔊
-              </button>
-            )}
+          <div className="translate-popup-header">
+            <div className="translate-popup-title">Translation</div>
+            <button
+              type="button"
+              className="translate-popup-close"
+              aria-label="Close translation popup"
+              onClick={(event) => {
+                event.stopPropagation()
+                setPopup(null)
+              }}
+            >
+              ×
+            </button>
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: '6px',
-              marginTop: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('unknown')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#001f3f',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Unknown
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('recognised')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#800000',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Recognised
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('familiar')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#0b3d0b',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Familiar
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('known')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#000000',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Known
-            </button>
+          <div className="translate-popup-body">
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">
+                {storyMeta.language || 'Target language'}
+              </p>
+              <p
+                className="translate-popup-language-text translate-popup-book-text"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <span>{popup.displayText || popup.word}</span>
+                {(popup.audioBase64 || popup.audioUrl) && (
+                  <button
+                    type="button"
+                    className="translate-popup-audio"
+                    onClick={() => playPronunciationAudio(popup)}
+                    aria-label="Play pronunciation"
+                    style={{
+                      border: '1px solid #d7d7db',
+                      background: '#f5f5f7',
+                      cursor: 'pointer',
+                      padding: '0.35rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0f172a',
+                      borderRadius: '999px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  </button>
+                )}
+              </p>
+            </div>
+
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">{profile?.nativeLanguage || 'English'}</p>
+              <p className="translate-popup-language-text">{popup.translation}</p>
+
+              <div className="translate-popup-actions">
+                <p className="translate-popup-actions-label">Mark word as</p>
+                <div className="translate-popup-chip-row">
+                  {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      className={`translate-popup-chip translate-popup-chip-${status}`}
+                      onClick={() => handleSetWordStatus(status)}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

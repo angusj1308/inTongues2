@@ -2864,6 +2864,10 @@ pre {
   align-items: stretch;
 }
 
+.listening-layout--active {
+  grid-template-columns: 1fr;
+}
+
 .listening-layout--extensive {
   grid-template-columns: 1fr;
   justify-items: center;
@@ -3066,6 +3070,10 @@ pre {
   padding: 24px;
   align-items: start;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+}
+
+.listening-layout--active .active-layout {
+  max-width: none;
 }
 
 .active-col {

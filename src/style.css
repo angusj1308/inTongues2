@@ -3058,10 +3058,10 @@ pre {
 
 .active-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr) minmax(240px, 360px);
   gap: 24px;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 24px;
   align-items: start;

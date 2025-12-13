@@ -986,46 +986,46 @@ const AudioPlayer = () => {
       }`}
     >
       <div className="reader-main-shell">
-        <div className="reader-body-shell">
-          <div className="reader-hover-shell">
-            <div className="reader-hover-hitbox" />
-            <header className="dashboard-header reader-hover-header listening-hover-header">
-              <div className="dashboard-brand-band reader-header-band listening-brand-band">
-                <div className="listening-header-left">
-                  <button
-                    className="dashboard-control ui-text reader-back-button"
-                    onClick={() => navigate('/listening')}
-                    type="button"
-                  >
-                    Back to library
-                  </button>
-                </div>
-                <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
-                  {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
-                    (mode, index) => (
-                      <div
-                        key={mode.id}
-                        className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
-                      >
-                        <button
-                          className={`dashboard-nav-button ui-text ${
-                            listeningMode === mode.id ? 'active' : ''
-                          }`}
-                          type="button"
-                          onClick={() => handleChangeMode(mode.id)}
-                        >
-                          {mode.label.toUpperCase()}
-                        </button>
-                        {index < 2 && <span className="dashboard-nav-divider">|</span>}
-                      </div>
-                    ),
-                  )}
-                </nav>
-                <div className="listening-header-actions" />
+        <div className="reader-hover-shell">
+          <div className="reader-hover-hitbox" />
+          <header className="dashboard-header reader-hover-header listening-hover-header">
+            <div className="dashboard-brand-band reader-header-band listening-brand-band">
+              <div className="listening-header-left">
+                <button
+                  className="dashboard-control ui-text reader-back-button"
+                  onClick={() => navigate('/listening')}
+                  type="button"
+                >
+                  Back to library
+                </button>
               </div>
-            </header>
-          </div>
+              <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
+                {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
+                  (mode, index) => (
+                    <div
+                      key={mode.id}
+                      className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
+                    >
+                      <button
+                        className={`dashboard-nav-button ui-text ${
+                          listeningMode === mode.id ? 'active' : ''
+                        }`}
+                        type="button"
+                        onClick={() => handleChangeMode(mode.id)}
+                      >
+                        {mode.label.toUpperCase()}
+                      </button>
+                      {index < 2 && <span className="dashboard-nav-divider">|</span>}
+                    </div>
+                  ),
+                )}
+              </nav>
+              <div className="listening-header-actions" />
+            </div>
+          </header>
+        </div>
 
+        <div className="reader-body-shell">
           <main className="listening-lab-main">
             <div className="listening-lab-wrapper">
               <div className={`listening-layout listening-layout--${listeningMode}`}>
@@ -1170,7 +1170,7 @@ const AudioPlayer = () => {
             )}
           </div>
         </div>
-      </main>
+          </main>
         </div>
       </div>
 

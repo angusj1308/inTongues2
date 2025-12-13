@@ -3556,6 +3556,11 @@ pre {
   grid-template-columns: 56px 1fr 56px;
   align-items: center;
   gap: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .audible-progress-shell {
@@ -3563,6 +3568,11 @@ pre {
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .audible-progress {
@@ -3572,6 +3582,11 @@ pre {
   background: transparent;
   height: 12px;
   cursor: pointer;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  -webkit-appearance: none;
 }
 
 .audible-progress:focus-visible {

@@ -230,36 +230,41 @@ const ExtensiveMode = ({
           </div>
         </div>
         <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
-        {renderProgressBar()}
-        {renderTransportButtons()}
-        <div className="player-secondary-row icon-secondary-row" role="group" aria-label="Secondary controls">
-          <button
-            type="button"
-            className={`icon-btn subtle ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-            onClick={cyclePlaybackRate}
-            aria-label={`Playback speed ${playbackRate || 1}x`}
-            title="Change playback speed"
-          >
-            <Icon name="speed" />
-            <span className="icon-badge">{`${playbackRate || 1}x`}</span>
-          </button>
-          <button
-            type="button"
-            className="icon-btn subtle"
-            aria-label="Sleep timer"
-            title="Sleep timer (coming soon)"
-          >
-            <Icon name="timer" />
-          </button>
-          <button
-            type="button"
-            className={`icon-btn subtle ${subtitlesEnabled ? 'active' : ''}`}
-            onClick={onToggleSubtitles}
-            aria-label={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
-            title="Toggle subtitles"
-          >
-            <Icon name="subtitles" filled={subtitlesEnabled} />
-          </button>
+        <div className="player-surface">
+          {renderProgressBar()}
+          <div className="player-transport-shell">{renderTransportButtons()}</div>
+          <div className="player-secondary-row chip-row" role="group" aria-label="Secondary controls">
+            <button
+              type="button"
+              className={`control-chip ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+              onClick={cyclePlaybackRate}
+              aria-label={`Playback speed ${playbackRate || 1}x`}
+              title="Change playback speed"
+            >
+              <Icon name="speed" />
+              <span className="chip-label">Speed</span>
+              {playbackRate && playbackRate !== 1 ? <span className="chip-badge">{`${playbackRate}x`}</span> : null}
+            </button>
+            <button
+              type="button"
+              className="control-chip"
+              aria-label="Sleep timer"
+              title="Sleep timer (coming soon)"
+            >
+              <Icon name="timer" />
+              <span className="chip-label">Timer</span>
+            </button>
+            <button
+              type="button"
+              className={`control-chip ${subtitlesEnabled ? 'active' : ''}`}
+              onClick={onToggleSubtitles}
+              aria-label={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
+              title="Toggle subtitles"
+            >
+              <Icon name="subtitles" filled={subtitlesEnabled} />
+              <span className="chip-label">Subs</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -33,12 +33,31 @@ const PlayPauseIcon = ({ isPlaying }) =>
     </svg>
   )
 
-const ScrubIcon = ({ direction = 'back', seconds }) => (
-  <span className="scrub-icon" aria-hidden="true">
-    <Icon name={direction === 'back' ? 'replay' : 'forward'} className="scrub-icon-glyph" />
-    <span className="scrub-badge ui-text">{seconds}</span>
-  </span>
-)
+const ScrubIcon = ({ direction = 'back', seconds }) => {
+  const isBack = direction === 'back'
+
+  const arcPath = isBack
+    ? 'M18 9.8c-7.6 0-13.8 6.2-13.8 13.8 0 7.6 6.2 13.8 13.8 13.8 5.2 0 9.8-2.7 12.3-6.8'
+    : 'M26 9.8c7.6 0 13.8 6.2 13.8 13.8 0 7.6-6.2 13.8-13.8 13.8-5.2 0-9.8-2.7-12.3-6.8'
+
+  const arrowHeadPath = isBack ? 'M11.5 8.5l-4 4 4 4' : 'M32.5 8.5l4 4-4 4'
+
+  return (
+    <svg
+      className="scrub-svg"
+      viewBox="0 0 44 44"
+      role="presentation"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path className="scrub-arrow" d={arcPath} />
+      <path className="scrub-arrowhead" d={arrowHeadPath} />
+      <text className="scrub-text" x="22" y="24" textAnchor="middle" dominantBaseline="middle">
+        {seconds}
+      </text>
+    </svg>
+  )
+}
 
 const ExtensiveMode = ({
   storyMeta,

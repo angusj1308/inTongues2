@@ -12,9 +12,31 @@ const formatTime = (seconds) => {
 const scrubOptions = [5, 10, 15, 30]
 const speedPresets = [0.75, 1, 1.25, 1.5]
 
-const Icon = ({ name, filled = false }) => (
-  <span className={`material-symbols-outlined ${filled ? 'filled' : ''}`} aria-hidden="true">
+const Icon = ({ name, filled = false, className = '' }) => (
+  <span
+    className={`material-symbols-outlined ${filled ? 'filled' : ''} ${className}`.trim()}
+    aria-hidden="true"
+  >
     {name}
+  </span>
+)
+
+const PlayPauseIcon = ({ isPlaying }) =>
+  isPlaying ? (
+    <svg className="playpause-icon" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+      <rect x="9" y="8" width="6" height="20" rx="2" />
+      <rect x="21" y="8" width="6" height="20" rx="2" />
+    </svg>
+  ) : (
+    <svg className="playpause-icon" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+      <path d="M11 7.5v21l16-10.5z" />
+    </svg>
+  )
+
+const ScrubIcon = ({ direction = 'back', seconds }) => (
+  <span className="scrub-icon" aria-hidden="true">
+    <Icon name={direction === 'back' ? 'replay' : 'forward'} className="scrub-icon-glyph" />
+    <span className="scrub-badge ui-text">{seconds}</span>
   </span>
 )
 
@@ -62,11 +84,6 @@ const ExtensiveMode = ({
     )
 
   const handleSkipToEnd = () => handleSeek(playbackDurationSeconds || playbackPositionSeconds || 0)
-
-  const scrubIconName = (direction = 'back') => {
-    const suffix = scrubSeconds === 5 ? '5' : scrubSeconds === 10 ? '10' : scrubSeconds === 15 ? '15' : '30'
-    return `${direction === 'back' ? 'replay' : 'forward'}_${suffix}`
-  }
 
   const cyclePlaybackRate = () => {
     if (!onPlaybackRateChange) return
@@ -121,7 +138,7 @@ const ExtensiveMode = ({
     <div className="transport-row transport-row-icons" role="group" aria-label="Playback controls">
       <button
         type="button"
-        className="icon-btn ghost"
+        className="transport-icon"
         onClick={handleStart}
         aria-label="Start from beginning"
         title="Start from beginning"
@@ -132,7 +149,7 @@ const ExtensiveMode = ({
         <button
           ref={rewindButtonRef}
           type="button"
-          className="icon-btn ghost"
+          className="transport-icon"
           onClick={handleRewindClick}
           onContextMenu={handleRewindContextMenu}
           onPointerDown={handleRewindPressStart}
@@ -141,7 +158,7 @@ const ExtensiveMode = ({
           aria-label={`Rewind ${scrubSeconds} seconds`}
           title="Long-press or right-click to change interval"
         >
-          <Icon name={scrubIconName('back')} />
+          <ScrubIcon direction="back" seconds={scrubSeconds} />
         </button>
         {scrubMenuOpen && (
           <div ref={scrubMenuRef} className="scrub-popover" role="dialog" aria-label="Rewind interval">
@@ -171,20 +188,20 @@ const ExtensiveMode = ({
         aria-label={isPlaying ? 'Pause' : 'Play'}
         title={isPlaying ? 'Pause' : 'Play'}
       >
-        <Icon name={isPlaying ? 'pause' : 'play_arrow'} />
+        <PlayPauseIcon isPlaying={isPlaying} />
       </button>
       <button
         type="button"
-        className="icon-btn ghost"
+        className="transport-icon"
         onClick={handleForward}
         aria-label={`Forward ${scrubSeconds} seconds`}
         title={`Forward ${scrubSeconds} seconds`}
       >
-        <Icon name={scrubIconName('forward')} />
+        <ScrubIcon direction="forward" seconds={scrubSeconds} />
       </button>
       <button
         type="button"
-        className="icon-btn ghost"
+        className="transport-icon"
         onClick={handleSkipToEnd}
         aria-label="Skip to end"
         title="Skip to end"

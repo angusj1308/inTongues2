@@ -201,7 +201,6 @@ const ExtensiveMode = ({
 
     return (
       <div className="progress-shell audible-progress-shell">
-        <span className="muted tiny">{formatTime(playbackPositionSeconds)}</span>
         <input
           className="audible-progress"
           type="range"
@@ -213,7 +212,10 @@ const ExtensiveMode = ({
           aria-label="Playback position"
           style={{ '--progress': `${progressPercent}%` }}
         />
-        <span className="muted tiny">{playbackDurationSeconds ? formatTime(playbackDurationSeconds) : '0:00'}</span>
+        <div className="progress-times ui-text">
+          <span className="muted tiny">{formatTime(playbackPositionSeconds)}</span>
+          <span className="muted tiny">{playbackDurationSeconds ? formatTime(playbackDurationSeconds) : '0:00'}</span>
+        </div>
       </div>
     )
   }

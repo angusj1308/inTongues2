@@ -432,7 +432,7 @@ const IntensiveListeningMode = ({
       if (!segment) return
 
       const startTime = segment.start ?? 0
-      const endTime = segment.end ?? audio.duration || startTime
+      const endTime = segment.end ?? (audio.duration || startTime)
 
       try {
         audio.currentTime = startTime

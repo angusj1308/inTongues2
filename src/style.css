@@ -3685,11 +3685,15 @@ pre {
 .transport-row-icons {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: min(440px, 100%);
+  justify-content: space-between;
+  width: min(640px, 100%);
   margin: 0 auto;
   gap: 26px;
   padding: 4px 12px;
+}
+
+.transport-row-icons > * {
+  flex: 0 0 auto;
 }
 
 .transport-btn {

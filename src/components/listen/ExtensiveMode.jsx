@@ -49,9 +49,17 @@ const ScrubIcon = ({ direction = 'back', seconds }) => {
       role="presentation"
       aria-hidden="true"
       focusable="false"
+      fill="none"
     >
-      <path className="scrub-arrow" d={arcPath} />
-      <path className="scrub-arrowhead" d={arrowHeadPath} />
+      <path
+        className="scrub-arrow"
+        d={arcPath}
+      />
+      <path
+        className="scrub-arrowhead"
+        d={arrowHeadPath}
+        fill="none"
+      />
       <text className="scrub-text" x="22" y="24" textAnchor="middle" dominantBaseline="middle">
         {seconds}
       </text>

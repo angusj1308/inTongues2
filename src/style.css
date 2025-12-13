@@ -3768,14 +3768,17 @@ pre {
   border: none;
   border-radius: 16px;
   background: transparent;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #0f172a;
   cursor: pointer;
   transition: color 0.18s ease, background-color 0.18s ease, transform 0.12s ease;
 }
 
 .transport-icon .material-symbols-outlined {
+  display: block;
+  line-height: 1;
   font-size: 32px;
   font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 32;
 }
@@ -3796,20 +3799,21 @@ pre {
 .scrub-svg {
   width: 44px;
   height: 44px;
+  display: block;
 }
 
 .scrub-arrow {
   fill: none;
-  stroke: #0f172a;
-  stroke-width: 2.1;
+  stroke: currentColor;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .scrub-arrowhead {
   fill: none;
-  stroke: #0f172a;
-  stroke-width: 2.1;
+  stroke: currentColor;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -3850,6 +3854,7 @@ pre {
   width: 42px;
   height: 42px;
   fill: #fff;
+  display: block;
 }
 
 .transport-primary:hover {

@@ -431,8 +431,25 @@ const IntensiveListeningMode = ({
       const segment = transcriptSegments[index]
       if (!segment) return
 
-      const startTime = segment.start ?? 0
-      const endTime = segment.end ?? (audio.duration || startTime)
+      const wordTimings = Array.isArray(segment.words)
+        ? segment.words.filter(
+            (word) => typeof word?.start === 'number' && typeof word?.end === 'number'
+          )
+        : []
+
+      const startTime =
+        typeof segment.start === 'number'
+          ? segment.start
+          : wordTimings.length
+            ? wordTimings[0].start
+            : 0
+
+      const endTime =
+        typeof segment.end === 'number'
+          ? segment.end
+          : wordTimings.length
+            ? wordTimings[wordTimings.length - 1].end
+            : audio.duration || startTime
 
       try {
         audio.currentTime = startTime
@@ -446,18 +463,36 @@ const IntensiveListeningMode = ({
         .catch((err) => console.error('Sentence playback failed', err))
 
       if (sentenceAudioStopRef.current) {
-        clearTimeout(sentenceAudioStopRef.current)
+        audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
         sentenceAudioStopRef.current = null
       }
 
-      const durationMs = Math.max((endTime - startTime) * 1000, 0)
+      const stopAtEnd = () => {
+        if (audio.currentTime >= endTime) {
+          audio.pause()
+          audio.currentTime = Math.min(audio.currentTime, endTime)
+          audio.removeEventListener('timeupdate', stopAtEnd)
+          sentenceAudioStopRef.current = null
+        }
+      }
 
-      sentenceAudioStopRef.current = setTimeout(() => {
-        audio.pause()
-      }, durationMs + 100)
+      sentenceAudioStopRef.current = stopAtEnd
+      audio.addEventListener('timeupdate', stopAtEnd)
     },
     [audioRef, transcriptSegments]
   )
+
+  useEffect(() => {
+    const audio = audioRef?.current
+    if (!audio) return undefined
+
+    return () => {
+      if (sentenceAudioStopRef.current) {
+        audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
+        sentenceAudioStopRef.current = null
+      }
+    }
+  }, [audioRef])
 
   useEffect(() => {
     if (listeningMode !== 'intensive') return undefined

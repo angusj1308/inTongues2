@@ -3689,7 +3689,7 @@ pre {
 .transport-row-icons {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   width: min(640px, 100%);
   margin: 0 auto;
   gap: 26px;

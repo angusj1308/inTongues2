@@ -3804,12 +3804,13 @@ pre {
   overflow: visible;
 }
 
-.scrub-arrow {
+.scrub-arc {
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
-  stroke-linejoin: round;
   fill: none;
+  stroke-dasharray: 56.549 18.849;
+  stroke-dashoffset: 0;
 }
 
 .scrub-arrowhead {

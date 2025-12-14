@@ -38,7 +38,9 @@ const ScrubIcon = ({ direction = 'back', seconds }) => {
 
   const arcPath = isBack ? 'M 28 24 A 12 12 0 1 0 10 10' : 'M 8 24 A 12 12 0 1 1 26 10'
 
-  const arrowHeadPath = isBack ? 'M 10 10 L 14 7 L 14 13 Z' : 'M 26 10 L 22 7 L 22 13 Z'
+  const arrowHeadPath = isBack
+    ? 'M 19.5 4.5 L 16.5 6 L 19.5 7.5 Z'
+    : 'M 16.5 4.5 L 19.5 6 L 16.5 7.5 Z'
 
   return (
     <svg

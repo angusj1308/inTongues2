@@ -3858,17 +3858,13 @@ pre {
 
 .transport-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.9) inset,
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22),
     0 0 0 8px rgba(15, 23, 42, 0.05);
-}
-
-.transport-primary.is-playing {
-  background: linear-gradient(145deg, #0f172a, #0b9a6d);
 }
 
 .transport-primary:active {
   transform: translateY(0);
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.75) inset,
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18),
     0 0 0 6px rgba(15, 23, 42, 0.03);
 }
 

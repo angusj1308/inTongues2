@@ -37,30 +37,23 @@ const ScrubIcon = ({ direction = 'back', seconds }) => {
   const isBack = direction === 'back'
 
   const arcPath = isBack
-    ? 'M18 9.8c-7.6 0-13.8 6.2-13.8 13.8 0 7.6 6.2 13.8 13.8 13.8 5.2 0 9.8-2.7 12.3-6.8'
-    : 'M26 9.8c7.6 0 13.8 6.2 13.8 13.8 0 7.6-6.2 13.8-13.8 13.8-5.2 0-9.8-2.7-12.3-6.8'
+    ? 'M18 7c-6.6 0-12 5.4-12 12s5.4 12 12 12c4.2 0 7.9-2 10.4-5.2'
+    : 'M18 7c6.6 0 12 5.4 12 12s-5.4 12-12 12c-4.2 0-7.9-2-10.4-5.2'
 
-  const arrowHeadPath = isBack ? 'M11.5 8.5l-4 4 4 4' : 'M32.5 8.5l4 4-4 4'
+  const arrowHeadPath = isBack ? 'M12 6.5 8 10.5 12 14.5' : 'M24 6.5 28 10.5 24 14.5'
 
   return (
     <svg
       className="scrub-svg"
-      viewBox="0 0 44 44"
+      viewBox="0 0 36 36"
       role="presentation"
       aria-hidden="true"
       focusable="false"
       fill="none"
     >
-      <path
-        className="scrub-arrow"
-        d={arcPath}
-      />
-      <path
-        className="scrub-arrowhead"
-        d={arrowHeadPath}
-        fill="none"
-      />
-      <text className="scrub-text" x="22" y="24" textAnchor="middle" dominantBaseline="middle">
+      <path className="scrub-arrow" d={arcPath} />
+      <path className="scrub-arrowhead" d={arrowHeadPath} fill="none" />
+      <text className="scrub-text" x="18" y="18" textAnchor="middle" dominantBaseline="middle">
         {seconds}
       </text>
     </svg>

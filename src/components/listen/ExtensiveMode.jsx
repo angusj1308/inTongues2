@@ -36,11 +36,9 @@ const PlayPauseIcon = ({ isPlaying }) =>
 const ScrubIcon = ({ direction = 'back', seconds }) => {
   const isBack = direction === 'back'
 
-  const arcPath = isBack
-    ? 'M18 7c-6.6 0-12 5.4-12 12s5.4 12 12 12c4.2 0 7.9-2 10.4-5.2'
-    : 'M18 7c6.6 0 12 5.4 12 12s-5.4 12-12 12c-4.2 0-7.9-2-10.4-5.2'
+  const arcPath = isBack ? 'M 28 24 A 12 12 0 1 0 10 10' : 'M 8 24 A 12 12 0 1 1 26 10'
 
-  const arrowHeadPath = isBack ? 'M12 6.5 8 10.5 12 14.5' : 'M24 6.5 28 10.5 24 14.5'
+  const arrowHeadPath = isBack ? 'M 10 10 L 14 7 L 14 13 Z' : 'M 26 10 L 22 7 L 22 13 Z'
 
   return (
     <svg
@@ -52,7 +50,7 @@ const ScrubIcon = ({ direction = 'back', seconds }) => {
       fill="none"
     >
       <path className="scrub-arrow" d={arcPath} />
-      <path className="scrub-arrowhead" d={arrowHeadPath} fill="none" />
+      <path className="scrub-arrowhead" d={arrowHeadPath} />
       <text className="scrub-text" x="18" y="18" textAnchor="middle" dominantBaseline="middle">
         {seconds}
       </text>

@@ -3805,26 +3805,23 @@ pre {
 }
 
 .scrub-arrow {
-  fill: none;
   stroke: currentColor;
-  stroke-width: calc(var(--transport-icon-size) / 16);
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  fill: none;
 }
 
 .scrub-arrowhead {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: calc(var(--transport-icon-size) / 16);
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: currentColor;
+  stroke: none;
 }
 
 .scrub-text {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  fill: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  fill: currentColor;
 }
 
 .icon-btn-popover-wrap {

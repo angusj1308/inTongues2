@@ -45,7 +45,7 @@ const ScrubIcon = ({ direction = 'back', seconds }) => {
   return (
     <svg
       className="scrub-svg"
-      viewBox="0 0 36 36"
+      viewBox="-2 -2 40 40"
       role="presentation"
       aria-hidden="true"
       focusable="false"

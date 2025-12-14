@@ -3543,7 +3543,7 @@ pre {
 }
 
 .player-transport-shell {
-  --transport-btn-size: 72px;
+  --transport-btn-size: clamp(48px, 10vw, 72px);
   --transport-icon-size: calc(var(--transport-btn-size) * 0.78);
   --transport-skip-icon-font-size: calc(var(--transport-icon-size) * 0.92);
 
@@ -3675,14 +3675,14 @@ pre {
 
 .transport-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   justify-items: center;
   align-items: center;
-  width: min(640px, 100%);
+  width: 100%;
   margin: 0 auto;
-  padding-inline: 24px;
+  padding-inline: clamp(8px, 3vw, 24px);
   box-sizing: border-box;
-  column-gap: 32px;
+  column-gap: clamp(10px, 3vw, 32px);
 }
 
 .transport-row-compact {
@@ -3831,8 +3831,8 @@ pre {
 }
 
 .transport-primary {
-  width: 82px;
-  height: 82px;
+  width: clamp(60px, 12vw, 82px);
+  height: clamp(60px, 12vw, 82px);
   border-radius: 50%;
   border: none;
   background: linear-gradient(145deg, #0f172a, #111827);

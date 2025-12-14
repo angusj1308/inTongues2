@@ -155,79 +155,81 @@ const ExtensiveMode = ({
   useEffect(() => () => clearLongPress(), [])
 
   const renderTransportButtons = () => (
-    <div className="transport-row transport-row-icons" role="group" aria-label="Playback controls">
-      <button
-        type="button"
-        className="transport-icon"
-        onClick={handleStart}
-        aria-label="Start from beginning"
-        title="Start from beginning"
-      >
-        <Icon name="skip_previous" />
-      </button>
-      <div className="icon-btn-popover-wrap">
+    <div className="transport-row" role="group" aria-label="Playback controls">
+      <div className="transport-row-icons">
         <button
-          ref={rewindButtonRef}
           type="button"
           className="transport-icon"
-          onClick={handleRewindClick}
-          onContextMenu={handleRewindContextMenu}
-          onPointerDown={handleRewindPressStart}
-          onPointerUp={handleRewindPressEnd}
-          onPointerLeave={handleRewindPressEnd}
-          aria-label={`Rewind ${scrubSeconds} seconds`}
-          title="Long-press or right-click to change interval"
+          onClick={handleStart}
+          aria-label="Start from beginning"
+          title="Start from beginning"
         >
-          <ScrubIcon direction="back" seconds={scrubSeconds} />
+          <Icon name="skip_previous" />
         </button>
-        {scrubMenuOpen && (
-          <div ref={scrubMenuRef} className="scrub-popover" role="dialog" aria-label="Rewind interval">
-            <p className="scrub-popover-title">Rewind interval</p>
-            <div className="scrub-popover-options" role="group" aria-label="Choose rewind interval">
-              {scrubOptions.map((seconds) => (
-                <button
-                  key={seconds}
-                  type="button"
-                  className={`scrub-popover-chip ${seconds === scrubSeconds ? 'active' : ''}`}
-                  onClick={() => {
-                    onScrubChange(seconds)
-                    setScrubMenuOpen(false)
-                  }}
-                >
-                  {seconds}s
-                </button>
-              ))}
+        <div className="icon-btn-popover-wrap">
+          <button
+            ref={rewindButtonRef}
+            type="button"
+            className="transport-icon"
+            onClick={handleRewindClick}
+            onContextMenu={handleRewindContextMenu}
+            onPointerDown={handleRewindPressStart}
+            onPointerUp={handleRewindPressEnd}
+            onPointerLeave={handleRewindPressEnd}
+            aria-label={`Rewind ${scrubSeconds} seconds`}
+            title="Long-press or right-click to change interval"
+          >
+            <ScrubIcon direction="back" seconds={scrubSeconds} />
+          </button>
+          {scrubMenuOpen && (
+            <div ref={scrubMenuRef} className="scrub-popover" role="dialog" aria-label="Rewind interval">
+              <p className="scrub-popover-title">Rewind interval</p>
+              <div className="scrub-popover-options" role="group" aria-label="Choose rewind interval">
+                {scrubOptions.map((seconds) => (
+                  <button
+                    key={seconds}
+                    type="button"
+                    className={`scrub-popover-chip ${seconds === scrubSeconds ? 'active' : ''}`}
+                    onClick={() => {
+                      onScrubChange(seconds)
+                      setScrubMenuOpen(false)
+                    }}
+                  >
+                    {seconds}s
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        <button
+          type="button"
+          className={`transport-primary ${isPlaying ? 'is-playing' : ''}`}
+          onClick={onPlayPause}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          title={isPlaying ? 'Pause' : 'Play'}
+        >
+          <PlayPauseIcon isPlaying={isPlaying} />
+        </button>
+        <button
+          type="button"
+          className="transport-icon"
+          onClick={handleForward}
+          aria-label={`Forward ${scrubSeconds} seconds`}
+          title={`Forward ${scrubSeconds} seconds`}
+        >
+          <ScrubIcon direction="forward" seconds={scrubSeconds} />
+        </button>
+        <button
+          type="button"
+          className="transport-icon"
+          onClick={handleSkipToEnd}
+          aria-label="Skip to end"
+          title="Skip to end"
+        >
+          <Icon name="skip_next" />
+        </button>
       </div>
-      <button
-        type="button"
-        className={`transport-primary ${isPlaying ? 'is-playing' : ''}`}
-        onClick={onPlayPause}
-        aria-label={isPlaying ? 'Pause' : 'Play'}
-        title={isPlaying ? 'Pause' : 'Play'}
-      >
-        <PlayPauseIcon isPlaying={isPlaying} />
-      </button>
-      <button
-        type="button"
-        className="transport-icon"
-        onClick={handleForward}
-        aria-label={`Forward ${scrubSeconds} seconds`}
-        title={`Forward ${scrubSeconds} seconds`}
-      >
-        <ScrubIcon direction="forward" seconds={scrubSeconds} />
-      </button>
-      <button
-        type="button"
-        className="transport-icon"
-        onClick={handleSkipToEnd}
-        aria-label="Skip to end"
-        title="Skip to end"
-      >
-        <Icon name="skip_next" />
-      </button>
     </div>
   )
 

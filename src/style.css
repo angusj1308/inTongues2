@@ -3687,19 +3687,16 @@ pre {
 }
 
 .transport-row-icons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  justify-items: center;
+  column-gap: 32px;
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  gap: 26px;
-  padding: 4px 24px;
+  padding-block: 4px;
+  padding-inline: 40px;
   box-sizing: border-box;
-}
-
-.transport-row-icons > * {
-  flex: 0 0 auto;
 }
 
 .transport-btn {

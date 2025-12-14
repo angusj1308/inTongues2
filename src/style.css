@@ -3801,6 +3801,7 @@ pre {
   width: var(--transport-icon-size);
   height: var(--transport-icon-size);
   display: block;
+  overflow: visible;
 }
 
 .scrub-arrow {

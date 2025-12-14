@@ -3806,7 +3806,7 @@ pre {
 
 .scrub-arc {
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.6;
   stroke-linecap: round;
   fill: none;
   stroke-dasharray: 56.549 18.849;

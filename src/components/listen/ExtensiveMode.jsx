@@ -36,8 +36,8 @@ const PlayPauseIcon = ({ isPlaying }) =>
 const ScrubIcon = ({ direction = 'back', seconds }) => {
   const isBack = direction === 'back'
 
-  const arrowHeadPathBack = 'M 14.5 6 L 19 4.5 L 19 7.5 Z'
-  const arrowHeadPathForward = 'M 21.5 6 L 17 4.5 L 17 7.5 Z'
+  const arrowHeadPathBack = 'M 14 6 L 20 4 L 20 8 Z'
+  const arrowHeadPathForward = 'M 22 6 L 16 4 L 16 8 Z'
   const arrowHeadPath = isBack ? arrowHeadPathBack : arrowHeadPathForward
 
   return (

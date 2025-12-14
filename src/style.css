@@ -3675,10 +3675,13 @@ pre {
 
 .transport-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-  width: 100%;
+  grid-template-columns: repeat(5, 1fr);
   justify-items: center;
+  align-items: center;
+  width: 100%;
+  padding-inline: 40px;
+  box-sizing: border-box;
+  column-gap: 32px;
 }
 
 .transport-row-compact {
@@ -3687,17 +3690,8 @@ pre {
 }
 
 .transport-row-icons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: min(640px, 100%);
-  margin: 0 auto;
-  gap: 26px;
-  padding: 4px 12px;
-}
-
-.transport-row-icons > * {
-  flex: 0 0 auto;
+  all: unset;
+  display: contents;
 }
 
 .transport-btn {
@@ -4075,15 +4069,6 @@ pre {
 
   .player-visual-stage {
     min-height: 260px;
-  }
-
-  .transport-row.transport-row-icons {
-    width: 100%;
-    max-width: 100%;
-    padding: 4px 8px;
-    gap: 14px;
-    flex-wrap: wrap;
-    justify-content: center;
   }
 
   .mini-controls-bar {

@@ -35,10 +35,12 @@ const PlayPauseIcon = ({ isPlaying }) =>
 
 const ScrubIcon = ({ direction = 'back', seconds }) => {
   const isBack = direction === 'back'
+  const mirrorBack = isBack ? 'translate(36 0) scale(-1 1)' : undefined
 
   const arrowHeadPathBack = 'M 14 6 L 20 4 L 20 8 Z'
   const arrowHeadPathForward = 'M 22 6 L 16 4 L 16 8 Z'
   const arrowHeadPath = isBack ? arrowHeadPathBack : arrowHeadPathForward
+  const textX = isBack ? 20.5 : 15.5
 
   return (
     <svg
@@ -49,9 +51,11 @@ const ScrubIcon = ({ direction = 'back', seconds }) => {
       focusable="false"
       fill="none"
     >
-      <circle className="scrub-arc" cx="18" cy="18" r="12" />
-      <path className="scrub-arrowhead" d={arrowHeadPath} />
-      <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">
+      <g transform={mirrorBack}>
+        <circle className="scrub-arc" cx="18" cy="18" r="12" />
+        <path className="scrub-arrowhead" d={arrowHeadPath} />
+      </g>
+      <text className="scrub-text" x={textX} y="19" textAnchor="middle" dominantBaseline="middle">
         {seconds}
       </text>
     </svg>

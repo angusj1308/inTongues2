@@ -3674,10 +3674,8 @@ pre {
 }
 
 .transport-row {
-  --transport-play-spacer: clamp(8px, 1.8vw, 18px);
-
   display: grid;
-  grid-template-columns: 1fr 1fr var(--transport-play-spacer) 1fr var(--transport-play-spacer) 1fr 1fr;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   justify-items: center;
   align-items: center;
   width: 100%;
@@ -3695,11 +3693,6 @@ pre {
 .transport-row-icons {
   all: unset;
   display: contents;
-}
-
-.transport-spacer {
-  width: var(--transport-play-spacer);
-  height: 1px;
 }
 
 .transport-btn {
@@ -3853,6 +3846,7 @@ pre {
   height: clamp(60px, 12vw, 82px);
   border-radius: 50%;
   border: none;
+  margin-inline: clamp(10px, 2.2vw, 18px);
   background: linear-gradient(145deg, #0f172a, #111827);
   color: #fff;
   display: grid;

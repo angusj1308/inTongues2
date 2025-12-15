@@ -3785,7 +3785,15 @@ pre {
 }
 
 .transport-icon .material-symbols-outlined.skip-icon {
-  font-variation-settings: 'FILL' 0, 'wght' 250, 'GRAD' 0, 'opsz' 40;
+  font-size: 44px;
+  width: 44px;
+  height: 44px;
+  line-height: 1;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 250,
+    'GRAD' 0,
+    'opsz' 44;
 }
 
 .transport-icon:hover {

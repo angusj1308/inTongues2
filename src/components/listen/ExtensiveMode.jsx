@@ -10,7 +10,12 @@ const formatTime = (seconds) => {
 }
 
 const scrubOptions = [5, 10, 15, 30]
-const speedPresets = [0.75, 1, 1.25, 1.5]
+const speedPresets = [0.75, 0.9, 1, 1.25, 1.5, 2]
+
+const formatRate = (rate) => {
+  if (!Number.isFinite(rate)) return '1.0'
+  return Number.isInteger(rate) ? `${rate.toFixed(1)}` : `${rate}`
+}
 
 const Icon = ({ name, filled = false, className = '' }) => (
   <span
@@ -76,8 +81,11 @@ const ExtensiveMode = ({
   activeTranscriptIndex = 0,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
   const rewindButtonRef = useRef(null)
   const scrubMenuRef = useRef(null)
+  const speedButtonRef = useRef(null)
+  const speedMenuRef = useRef(null)
   const longPressTimeoutRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
 
@@ -104,11 +112,10 @@ const ExtensiveMode = ({
 
   const handleSkipToEnd = () => handleSeek(playbackDurationSeconds || playbackPositionSeconds || 0)
 
-  const cyclePlaybackRate = () => {
+  const handlePlaybackRateChange = (nextRate) => {
     if (!onPlaybackRateChange) return
-    const currentIndex = speedPresets.indexOf(playbackRate)
-    const nextRate = speedPresets[(currentIndex + 1) % speedPresets.length]
     onPlaybackRateChange(nextRate)
+    setSpeedMenuOpen(false)
   }
 
   const handleRewindPressStart = () => {
@@ -138,13 +145,13 @@ const ExtensiveMode = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        scrubMenuRef.current &&
-        !scrubMenuRef.current.contains(event.target) &&
-        !rewindButtonRef.current?.contains(event.target)
-      ) {
-        setScrubMenuOpen(false)
-      }
+      const scrubTarget =
+        scrubMenuRef.current?.contains(event.target) || rewindButtonRef.current?.contains(event.target)
+      const speedTarget =
+        speedMenuRef.current?.contains(event.target) || speedButtonRef.current?.contains(event.target)
+
+      if (!scrubTarget) setScrubMenuOpen(false)
+      if (!speedTarget) setSpeedMenuOpen(false)
     }
 
     document.addEventListener('pointerdown', handleClickOutside)
@@ -274,19 +281,37 @@ const ExtensiveMode = ({
           {renderProgressBar()}
           <div className="player-transport-shell">{renderTransportButtons()}</div>
           <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
-            <button
-              type="button"
-              className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-              onClick={cyclePlaybackRate}
-              aria-label={`Playback speed ${playbackRate || 1}x`}
-              title="Change playback speed"
-            >
-              <Icon name="speed" className="secondary-icon" />
-              <span className="secondary-label">Speed</span>
-              {playbackRate && playbackRate !== 1 ? (
-                <span className="secondary-sublabel">{`${playbackRate}x`}</span>
+            <span className="secondary-spacer" aria-hidden />
+            <div className="secondary-btn-popover-wrap">
+              <button
+                ref={speedButtonRef}
+                type="button"
+                className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                aria-label={`Playback speed ${playbackRate || 1}x`}
+                title="Change playback speed"
+              >
+                <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                <span className="secondary-label">Speed</span>
+              </button>
+              {speedMenuOpen ? (
+                <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
+                  <p className="scrub-popover-title">Playback speed</p>
+                  <div className="scrub-popover-options" role="group" aria-label="Choose playback speed">
+                    {speedPresets.map((rate) => (
+                      <button
+                        key={rate}
+                        type="button"
+                        className={`scrub-popover-chip ${rate === playbackRate ? 'active' : ''}`}
+                        onClick={() => handlePlaybackRateChange(rate)}
+                      >
+                        x{formatRate(rate)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : null}
-            </button>
+            </div>
             <button
               type="button"
               className="secondary-btn"
@@ -305,8 +330,8 @@ const ExtensiveMode = ({
             >
               <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
               <span className="secondary-label">Subs</span>
-              {subtitlesEnabled ? <span className="secondary-sublabel">On</span> : null}
             </button>
+            <span className="secondary-spacer" aria-hidden />
           </div>
         </div>
       </div>

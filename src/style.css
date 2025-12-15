@@ -3678,7 +3678,7 @@ pre {
   grid-template-columns:
     minmax(0, 1fr)
     minmax(0, 1.14fr)
-    minmax(0, 2.08fr)
+    minmax(0, 2.38fr)
     minmax(0, 1.14fr)
     minmax(0, 1fr);
   justify-items: center;
@@ -3687,7 +3687,7 @@ pre {
   margin: 0 auto;
   padding-inline: clamp(10px, 3vw, 28px);
   box-sizing: border-box;
-  column-gap: clamp(18px, 4vw, 52px);
+  column-gap: clamp(22px, 4.8vw, 62px);
 }
 
 .transport-row-compact {
@@ -3702,7 +3702,7 @@ pre {
 
 .transport-row-icons > :nth-child(2),
 .transport-row-icons > :nth-child(4) {
-  margin-inline: clamp(6px, 2.2vw, 18px);
+  margin-inline: clamp(10px, 2.8vw, 24px);
 }
 
 .transport-btn {
@@ -3795,9 +3795,9 @@ pre {
 }
 
 .transport-icon .material-symbols-outlined.skip-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
+  font-size: var(--transport-icon-size);
+  width: var(--transport-icon-size);
+  height: var(--transport-icon-size);
   line-height: 1;
   font-variation-settings:
     'FILL' 0,

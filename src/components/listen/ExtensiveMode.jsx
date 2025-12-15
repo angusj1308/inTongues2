@@ -163,7 +163,7 @@ const ExtensiveMode = ({
           aria-label="Start from beginning"
           title="Start from beginning"
         >
-          <Icon name="skip_previous" />
+          <Icon name="skip_previous" className="skip-icon" />
         </button>
         <div className="icon-btn-popover-wrap">
           <button
@@ -226,7 +226,7 @@ const ExtensiveMode = ({
           aria-label="Skip to end"
           title="Skip to end"
         >
-          <Icon name="skip_next" />
+          <Icon name="skip_next" className="skip-icon" />
         </button>
       </div>
     </div>

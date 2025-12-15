@@ -266,73 +266,88 @@ const ExtensiveMode = ({
   }
 
   return (
-    <div className="extensive-player-shell">
-      <div className="player-stack">
-        <div className={`player-visual-stage ${subtitlesEnabled ? 'show-transcript' : ''}`}>
-          <div className="player-cover" aria-hidden>
-            <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
-          </div>
-          <div className="player-transcript" aria-hidden={!subtitlesEnabled}>
-            <TranscriptRoller segments={transcriptSegments} activeIndex={activeTranscriptIndex} />
+    <div className={`extensive-shell ${subtitlesEnabled ? 'extensive-shell--split' : ''}`}>
+      <div className="extensive-shell-inner">
+        <div className="extensive-pane extensive-pane-left">
+          <div className="extensive-player-shell">
+            <div className="player-stack">
+              <div className="player-visual-stage">
+                <div className="player-cover" aria-hidden>
+                  <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                </div>
+              </div>
+              <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
+              <div className="player-surface">
+                {renderProgressBar()}
+                <div className="player-transport-shell">{renderTransportButtons()}</div>
+                <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
+                  <span className="secondary-spacer" aria-hidden />
+                  <div className="secondary-btn-popover-wrap">
+                    <button
+                      ref={speedButtonRef}
+                      type="button"
+                      className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                      onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                      aria-label={`Playback speed ${playbackRate || 1}x`}
+                      title="Change playback speed"
+                    >
+                      <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                      <span className="secondary-label">Speed</span>
+                    </button>
+                    {speedMenuOpen ? (
+                      <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
+                        <p className="scrub-popover-title">Playback speed</p>
+                        <div className="scrub-popover-options" role="group" aria-label="Choose playback speed">
+                          {speedPresets.map((rate) => (
+                            <button
+                              key={rate}
+                              type="button"
+                              className={`scrub-popover-chip ${rate === playbackRate ? 'active' : ''}`}
+                              onClick={() => handlePlaybackRateChange(rate)}
+                            >
+                              x{formatRate(rate)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    aria-label="Sleep timer"
+                    title="Sleep timer (coming soon)"
+                  >
+                    <Icon name="timer" className="secondary-icon" />
+                    <span className="secondary-label">Timer</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}
+                    onClick={onToggleSubtitles}
+                    aria-label={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
+                    title="Toggle subtitles"
+                  >
+                    <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
+                    <span className="secondary-label">Subs</span>
+                  </button>
+                  <span className="secondary-spacer" aria-hidden />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
-        <div className="player-surface">
-          {renderProgressBar()}
-          <div className="player-transport-shell">{renderTransportButtons()}</div>
-          <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
-            <span className="secondary-spacer" aria-hidden />
-            <div className="secondary-btn-popover-wrap">
-              <button
-                ref={speedButtonRef}
-                type="button"
-                className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                aria-label={`Playback speed ${playbackRate || 1}x`}
-                title="Change playback speed"
-              >
-                <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                <span className="secondary-label">Speed</span>
-              </button>
-              {speedMenuOpen ? (
-                <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
-                  <p className="scrub-popover-title">Playback speed</p>
-                  <div className="scrub-popover-options" role="group" aria-label="Choose playback speed">
-                    {speedPresets.map((rate) => (
-                      <button
-                        key={rate}
-                        type="button"
-                        className={`scrub-popover-chip ${rate === playbackRate ? 'active' : ''}`}
-                        onClick={() => handlePlaybackRateChange(rate)}
-                      >
-                        x{formatRate(rate)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+        <div className="extensive-pane extensive-pane-right" aria-hidden={!subtitlesEnabled}>
+          {subtitlesEnabled ? (
+            <div className="transcript-panel">
+              <div className="transcript-panel-header">
+                <h3 className="transcript-panel-title">Transcript</h3>
+              </div>
+              <div className="transcript-panel-body">
+                <TranscriptRoller segments={transcriptSegments} activeIndex={activeTranscriptIndex} />
+              </div>
             </div>
-            <button
-              type="button"
-              className="secondary-btn"
-              aria-label="Sleep timer"
-              title="Sleep timer (coming soon)"
-            >
-              <Icon name="timer" className="secondary-icon" />
-              <span className="secondary-label">Timer</span>
-            </button>
-            <button
-              type="button"
-              className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}
-              onClick={onToggleSubtitles}
-              aria-label={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
-              title="Toggle subtitles"
-            >
-              <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
-              <span className="secondary-label">Subs</span>
-            </button>
-            <span className="secondary-spacer" aria-hidden />
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

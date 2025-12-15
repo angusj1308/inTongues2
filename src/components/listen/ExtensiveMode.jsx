@@ -201,7 +201,6 @@ const ExtensiveMode = ({
             </div>
           )}
         </div>
-        <span className="transport-spacer" aria-hidden="true" />
         <button
           type="button"
           className={`transport-primary ${isPlaying ? 'is-playing' : ''}`}
@@ -211,7 +210,6 @@ const ExtensiveMode = ({
         >
           <PlayPauseIcon isPlaying={isPlaying} />
         </button>
-        <span className="transport-spacer" aria-hidden="true" />
         <button
           type="button"
           className="transport-icon"

@@ -305,7 +305,7 @@ const ExtensiveMode = ({
             >
               <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
               <span className="secondary-label">Subs</span>
-              <span className="secondary-sublabel">{subtitlesEnabled ? 'On' : 'Off'}</span>
+              {subtitlesEnabled ? <span className="secondary-sublabel">On</span> : null}
             </button>
           </div>
         </div>

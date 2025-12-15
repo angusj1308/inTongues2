@@ -3466,15 +3466,16 @@ pre {
 .player-visual-stage {
   position: relative;
   width: 100%;
-  min-height: clamp(240px, 48vh, 320px);
+  min-height: clamp(200px, 40vh, 260px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .player-cover {
-  width: clamp(170px, 34vw, 220px);
-  height: clamp(240px, 52vw, 320px);
+  width: clamp(160px, 32vw, 200px);
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 16px;
   background: linear-gradient(145deg, #0f172a10, #0f172a05);
   display: flex;

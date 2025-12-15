@@ -3675,14 +3675,19 @@ pre {
 
 .transport-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1.14fr)
+    minmax(0, 2.08fr)
+    minmax(0, 1.14fr)
+    minmax(0, 1fr);
   justify-items: center;
   align-items: center;
   width: 100%;
   margin: 0 auto;
-  padding-inline: clamp(8px, 3vw, 24px);
+  padding-inline: clamp(10px, 3vw, 28px);
   box-sizing: border-box;
-  column-gap: clamp(10px, 3vw, 32px);
+  column-gap: clamp(18px, 4vw, 52px);
 }
 
 .transport-row-compact {
@@ -3693,6 +3698,11 @@ pre {
 .transport-row-icons {
   all: unset;
   display: contents;
+}
+
+.transport-row-icons > :nth-child(2),
+.transport-row-icons > :nth-child(4) {
+  margin-inline: clamp(6px, 2.2vw, 18px);
 }
 
 .transport-btn {

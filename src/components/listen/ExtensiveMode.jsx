@@ -295,7 +295,6 @@ const ExtensiveMode = ({
             >
               <Icon name="timer" className="secondary-icon" />
               <span className="secondary-label">Timer</span>
-              <span className="secondary-sublabel muted">Coming soon</span>
             </button>
             <button
               type="button"

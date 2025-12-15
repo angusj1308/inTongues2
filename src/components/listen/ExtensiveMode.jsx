@@ -273,36 +273,40 @@ const ExtensiveMode = ({
         <div className="player-surface">
           {renderProgressBar()}
           <div className="player-transport-shell">{renderTransportButtons()}</div>
-          <div className="player-secondary-row chip-row" role="group" aria-label="Secondary controls">
+          <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
             <button
               type="button"
-              className={`control-chip ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+              className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
               onClick={cyclePlaybackRate}
               aria-label={`Playback speed ${playbackRate || 1}x`}
               title="Change playback speed"
             >
-              <Icon name="speed" />
-              <span className="chip-label">Speed</span>
-              {playbackRate && playbackRate !== 1 ? <span className="chip-badge">{`${playbackRate}x`}</span> : null}
+              <Icon name="speed" className="secondary-icon" />
+              <span className="secondary-label">Speed</span>
+              {playbackRate && playbackRate !== 1 ? (
+                <span className="secondary-sublabel">{`${playbackRate}x`}</span>
+              ) : null}
             </button>
             <button
               type="button"
-              className="control-chip"
+              className="secondary-btn"
               aria-label="Sleep timer"
               title="Sleep timer (coming soon)"
             >
-              <Icon name="timer" />
-              <span className="chip-label">Timer</span>
+              <Icon name="timer" className="secondary-icon" />
+              <span className="secondary-label">Timer</span>
+              <span className="secondary-sublabel muted">Coming soon</span>
             </button>
             <button
               type="button"
-              className={`control-chip ${subtitlesEnabled ? 'active' : ''}`}
+              className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}
               onClick={onToggleSubtitles}
               aria-label={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
               title="Toggle subtitles"
             >
-              <Icon name="subtitles" filled={subtitlesEnabled} />
-              <span className="chip-label">Subs</span>
+              <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
+              <span className="secondary-label">Subs</span>
+              <span className="secondary-sublabel">{subtitlesEnabled ? 'On' : 'Off'}</span>
             </button>
           </div>
         </div>

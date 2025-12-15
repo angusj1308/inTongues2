@@ -3446,7 +3446,7 @@ pre {
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 32px 16px 48px;
+  padding: clamp(10px, 2vh, 18px) clamp(10px, 2.4vw, 18px) clamp(16px, 3.4vh, 22px);
 }
 
 .player-stack {
@@ -3455,26 +3455,27 @@ pre {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: clamp(12px, 2vw, 16px);
   background: var(--card-bg, #f8fafc);
   border: 1px solid #e2e8f0;
   border-radius: 22px;
-  padding: 30px 26px 34px;
+  padding: clamp(14px, 3vw, 20px) clamp(14px, 3vw, 20px) clamp(16px, 3.2vw, 22px);
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
 }
 
 .player-visual-stage {
   position: relative;
   width: 100%;
-  min-height: 320px;
+  min-height: clamp(170px, 32vh, 210px);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .player-cover {
-  width: 220px;
-  height: 320px;
+  width: clamp(148px, 28vw, 184px);
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 16px;
   background: linear-gradient(145deg, #0f172a10, #0f172a05);
   display: flex;
@@ -3526,7 +3527,7 @@ pre {
 }
 
 .player-title {
-  margin: 0;
+  margin: clamp(8px, 1.6vw, 12px) 0 clamp(10px, 1.8vw, 14px);
   text-align: center;
 }
 
@@ -3534,11 +3535,11 @@ pre {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: clamp(12px, 2vw, 16px);
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 24px;
-  padding: 20px;
+  padding: clamp(12px, 2.4vw, 16px);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
 }
 
@@ -3685,7 +3686,7 @@ pre {
   align-items: center;
   width: 100%;
   margin: 0 auto;
-  padding-inline: clamp(10px, 3vw, 28px);
+  padding-inline: clamp(6px, 2.4vw, 20px);
   box-sizing: border-box;
   column-gap: clamp(22px, 4.8vw, 62px);
 }
@@ -4136,17 +4137,17 @@ pre {
 
 @media (max-width: 720px) {
   .player-stack {
-    padding: 20px 16px;
-    gap: 14px;
+    padding: 16px 14px;
+    gap: 12px;
   }
 
   .player-cover {
-    width: 180px;
-    height: 260px;
+    width: 160px;
+    height: auto;
   }
 
   .player-visual-stage {
-    min-height: 260px;
+    min-height: 200px;
   }
 
   .mini-controls-bar {

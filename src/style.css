@@ -3675,14 +3675,19 @@ pre {
 
 .transport-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1.08fr)
+    minmax(0, 1.6fr)
+    minmax(0, 1.08fr)
+    minmax(0, 1fr);
   justify-items: center;
   align-items: center;
   width: 100%;
   margin: 0 auto;
-  padding-inline: clamp(8px, 3vw, 24px);
+  padding-inline: clamp(10px, 3vw, 28px);
   box-sizing: border-box;
-  column-gap: clamp(10px, 3vw, 32px);
+  column-gap: clamp(14px, 3.5vw, 40px);
 }
 
 .transport-row-compact {

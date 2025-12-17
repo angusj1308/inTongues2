@@ -1,5 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import TranscriptRoller from './TranscriptRoller'
+import { normaliseExpression } from '../../services/vocab'
+
+const getPopupPosition = (rect) => {
+  const padding = 10
+  const viewportWidth = window.innerWidth || 0
+  const viewportHeight = window.innerHeight || 0
+
+  const x = Math.min(Math.max(rect.x + rect.width / 2, padding), viewportWidth - padding)
+  const y = Math.min(rect.y + rect.height + 12, viewportHeight - padding)
+
+  return { x, y }
+}
 
 const formatTime = (seconds) => {
   if (!Number.isFinite(seconds)) return '0:00'
@@ -95,9 +107,18 @@ const ExtensiveMode = ({
   onScrubChange,
   transcriptSegments = [],
   activeTranscriptIndex = 0,
+  vocabEntries = {},
+  language,
+  nativeLanguage,
+  pageTranslations = {},
+  setPopup,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
+  const [showWordStatus, setShowWordStatus] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('extensiveShowWordStatus') !== 'false'
+  })
   const rewindButtonRef = useRef(null)
   const scrubMenuRef = useRef(null)
   const speedButtonRef = useRef(null)
@@ -158,6 +179,75 @@ const ExtensiveMode = ({
     event.preventDefault()
     setScrubMenuOpen((prev) => !prev)
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('extensiveShowWordStatus', showWordStatus ? 'true' : 'false')
+  }, [showWordStatus])
+
+  const handleTranscriptWordClick = useCallback(
+    async (text, event) => {
+      if (!setPopup) return
+
+      const selection = window.getSelection()?.toString().trim()
+      const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
+
+      if (parts.length > 1) return
+
+      const key = normaliseExpression(text)
+      const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
+
+      let translation = cachedTranslation || 'No translation found'
+      let audioBase64 = null
+      let audioUrl = null
+      let displayText = text
+
+      if (!cachedTranslation) {
+        try {
+          const response = await fetch('http://localhost:4000/api/translatePhrase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phrase: text,
+              sourceLang: language || 'es',
+              targetLang: nativeLanguage || 'English',
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            translation = data.translation || translation
+            displayText = data.targetText || displayText
+            audioBase64 = data.audioBase64 || null
+            audioUrl = data.audioUrl || null
+          }
+        } catch (err) {
+          console.error('Translation lookup failed', err)
+        }
+      }
+
+      const rect = event?.currentTarget?.getBoundingClientRect()
+      const selectionObj = window.getSelection()
+      const rangeRect = selectionObj?.rangeCount ? selectionObj.getRangeAt(0).getBoundingClientRect() : null
+      const targetRect = rangeRect && rangeRect.width && rangeRect.height ? rangeRect : rect
+
+      if (!targetRect) return
+
+      const { x, y } = getPopupPosition(targetRect)
+
+      setPopup({
+        x,
+        y,
+        word: text,
+        displayText,
+        translation,
+        targetText: displayText,
+        audioBase64,
+        audioUrl,
+      })
+    },
+    [language, nativeLanguage, pageTranslations, setPopup],
+  )
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -362,8 +452,27 @@ const ExtensiveMode = ({
         <div className="extensive-pane extensive-pane-right" aria-hidden={!subtitlesEnabled}>
           {subtitlesEnabled ? (
             <div className="transcript-panel">
+              <div className="transcript-panel-controls">
+                <span className="transcript-panel-label">Transcript</span>
+                <button
+                  type="button"
+                  className="word-status-toggle"
+                  onClick={() => setShowWordStatus((prev) => !prev)}
+                  aria-pressed={showWordStatus}
+                >
+                  {showWordStatus ? 'Hide word status' : 'Show word status'}
+                </button>
+              </div>
               <div className="transcript-panel-body">
-                <TranscriptRoller segments={transcriptSegments} activeIndex={activeTranscriptIndex} />
+                <TranscriptRoller
+                  segments={transcriptSegments}
+                  activeIndex={activeTranscriptIndex}
+                  vocabEntries={vocabEntries}
+                  language={language}
+                  pageTranslations={pageTranslations}
+                  onWordClick={handleTranscriptWordClick}
+                  showWordStatus={showWordStatus}
+                />
               </div>
             </div>
           ) : null}

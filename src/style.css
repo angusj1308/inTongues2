@@ -2388,6 +2388,8 @@ textarea {
   border: 1px solid #e2e8f0;
   font-family: var(--reader-font-family, 'Inter', system-ui, -apple-system, sans-serif);
   color: #0f172a;
+  max-height: calc(100vh - 20px);
+  overflow: auto;
 }
 
 .translate-popup-header {

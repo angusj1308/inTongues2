@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
@@ -18,6 +18,8 @@ import ActiveMode from '../components/listen/ActiveMode'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
+
 const AudioPlayer = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -25,6 +27,7 @@ const AudioPlayer = () => {
   const location = useLocation()
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
+  const popupRef = useRef(null)
 
   const searchParams = new URLSearchParams(location.search)
   const source = searchParams.get('source')
@@ -35,6 +38,7 @@ const AudioPlayer = () => {
   const [error, setError] = useState('')
   const [pageTranslations, setPageTranslations] = useState({})
   const [popup, setPopup] = useState(null)
+  const [popupPosition, setPopupPosition] = useState({ top: null, left: null })
   const [vocabEntries, setVocabEntries] = useState({})
   const [isPlaying, setIsPlaying] = useState(false)
   const [listeningMode, setListeningMode] = useState('extensive')
@@ -620,6 +624,42 @@ const AudioPlayer = () => {
     }
   }, [])
 
+  useLayoutEffect(() => {
+    if (!popup || !popupRef.current) {
+      setPopupPosition({ top: null, left: null })
+      return
+    }
+
+    const { width, height } = popupRef.current.getBoundingClientRect()
+    const padding = 10
+    const fallbackLeft = popup.x ?? 0
+    const fallbackTop = popup.y ?? 0
+    const anchorRect = popup.anchorRect || {
+      left: fallbackLeft,
+      right: fallbackLeft,
+      top: fallbackTop,
+      bottom: fallbackTop,
+      width: 0,
+      height: 0,
+    }
+    const anchorX = popup.anchorX ?? anchorRect.left + anchorRect.width / 2
+
+    let left = clamp(anchorX - width / 2, padding, window.innerWidth - padding - width)
+
+    const bottomEdge = anchorRect.bottom ?? anchorRect.top ?? fallbackTop
+    const topEdge = anchorRect.top ?? anchorRect.bottom ?? fallbackTop
+
+    let top = bottomEdge + 12
+
+    if (top + height > window.innerHeight - padding) {
+      top = topEdge - 12 - height
+    }
+
+    top = clamp(top, padding, window.innerHeight - padding - height)
+
+    setPopupPosition({ top, left })
+  }, [popup])
+
   useEffect(() => {
     if (isSpotify) return undefined
 
@@ -1199,11 +1239,12 @@ const AudioPlayer = () => {
 
       {popup && (
         <div
+          ref={popupRef}
           className="translate-popup"
           style={{
             position: 'fixed',
-            top: popup.y,
-            left: popup.x,
+            top: popupPosition.top ?? popup.y,
+            left: popupPosition.left ?? popup.x,
           }}
           onClick={(e) => e.stopPropagation()}
         >

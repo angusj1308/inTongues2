@@ -236,6 +236,10 @@ const ExtensiveMode = ({
           y: viewportHeight / 3,
           width: 1,
           height: 1,
+          top: viewportHeight / 3,
+          left: viewportWidth / 2,
+          right: viewportWidth / 2,
+          bottom: viewportHeight / 3,
         }
       }
 
@@ -243,9 +247,20 @@ const ExtensiveMode = ({
 
       const requestId = ++reqIdRef.current
 
+      const anchorRect = {
+        left: targetRect.left ?? targetRect.x ?? 0,
+        right: targetRect.right ?? (targetRect.x ?? 0) + (targetRect.width ?? 0),
+        top: targetRect.top ?? targetRect.y ?? 0,
+        bottom: targetRect.bottom ?? (targetRect.y ?? 0) + (targetRect.height ?? 0),
+        width: targetRect.width ?? 0,
+        height: targetRect.height ?? 0,
+      }
+
       setPopup({
         x,
         y,
+        anchorRect,
+        anchorX: anchorRect.left + anchorRect.width / 2,
         word: text,
         displayText: text,
         translation: 'Loading…',
@@ -352,6 +367,14 @@ const ExtensiveMode = ({
 
         const range = selectionObj.getRangeAt(0)
         const rect = range.getBoundingClientRect()
+        const anchorRect = {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        }
 
         let translation = 'No translation found'
         let audioBase64 = null
@@ -387,6 +410,8 @@ const ExtensiveMode = ({
         setPopup({
           x,
           y,
+          anchorRect,
+          anchorX: rect.left + rect.width / 2,
           word: phrase,
           displayText: selection,
           translation,
@@ -438,11 +463,21 @@ const ExtensiveMode = ({
 
       const range = selectionObj.getRangeAt(0)
       const rect = range.getBoundingClientRect()
+      const anchorRect = {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      }
       const { x, y } = getPopupPosition(rect)
 
       setPopup({
         x,
         y,
+        anchorRect,
+        anchorX: rect.left + rect.width / 2,
         word: clean,
         displayText: selection,
         translation,
@@ -668,6 +703,7 @@ const ExtensiveMode = ({
                   language={language}
                   pageTranslations={pageTranslations}
                   onWordClick={handleTranscriptWordClick}
+                  onSelectionTranslate={handleTranscriptSelection}
                   showWordStatus={showWordStatus}
                   isSynced={isTranscriptSynced}
                   onUserScroll={handleTranscriptUnsync}

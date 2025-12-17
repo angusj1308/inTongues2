@@ -33,6 +33,7 @@ const WordTokenListening = ({
   language,
   listeningMode,
   onWordClick,
+  onSelectionTranslate,
   enableHighlight = false,
 }) => {
   const normalisedStatus = normaliseStatus(status)
@@ -45,8 +46,24 @@ const WordTokenListening = ({
 
   const highlighted = Boolean(style['--hlt-opacity'])
 
-  const handleWordInteraction = (event) => {
-    const selection = window.getSelection()?.toString().trim()
+  const handleMouseUp = (event) => {
+    const selection = window.getSelection()?.toString()?.trim()
+
+    if (selection) {
+      event.stopPropagation()
+      if (onSelectionTranslate) {
+        onSelectionTranslate(event)
+      }
+      return
+    }
+
+    if (onWordClick) {
+      onWordClick(text, event)
+    }
+  }
+
+  const handleClick = (event) => {
+    const selection = window.getSelection()?.toString()?.trim()
 
     if (selection) return
 
@@ -59,7 +76,8 @@ const WordTokenListening = ({
     <span
       className={highlighted ? 'reader-word reader-word--highlighted' : 'reader-word'}
       style={style}
-      onClick={handleWordInteraction}
+      onMouseUp={handleMouseUp}
+      onClick={handleClick}
     >
       {text}
     </span>

@@ -549,6 +549,8 @@ const AudioPlayer = () => {
       }))
     } catch (err) {
       console.error('Failed to update vocab status', err)
+    } finally {
+      setPopup(null)
     }
   }
 
@@ -1259,8 +1261,11 @@ const AudioPlayer = () => {
                       strokeWidth="1.8"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      aria-hidden="true"
                     >
-                      <polygon points="5 3 19 12 5 21 5 3" />
+                      <path d="M5 9v6h3.8L14 19V5l-5.2 4H5z" fill="currentColor" />
+                      <path d="M16 9.5c1.25 1 1.25 4 0 5" />
+                      <path d="M18.5 7c2 2 2 8 0 10" />
                     </svg>
                   </button>
                 )}
@@ -1270,23 +1275,25 @@ const AudioPlayer = () => {
             <div className="translate-popup-language-column">
               <p className="translate-popup-language-label">{profile?.nativeLanguage || 'English'}</p>
               <p className="translate-popup-language-text">{popup.translation}</p>
-
-              <div className="translate-popup-actions">
-                <p className="translate-popup-actions-label">Mark word as</p>
-                <div className="translate-popup-chip-row">
-                  {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      className={`translate-popup-chip translate-popup-chip-${status}`}
-                      onClick={() => handleSetWordStatus(status)}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
+          </div>
+
+          <div className="translate-popup-status">
+            {VOCAB_STATUSES.map((status) => {
+              const isActive = vocabEntries[normaliseExpression(popup.word)]?.status === status
+
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  className={`translate-popup-status-button ${isActive ? 'active' : ''}`}
+                  onClick={() => handleSetWordStatus(status)}
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

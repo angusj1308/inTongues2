@@ -190,6 +190,12 @@ const ExtensiveMode = ({
     async (text, event) => {
       if (!setPopup) return
 
+      const selection = window.getSelection()?.toString().trim()
+      const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
+
+      // Allow the multi-word selection handler to manage phrases
+      if (parts.length > 1) return
+
       const selectionObj = window.getSelection()
       let rangeRect = null
 
@@ -269,9 +275,10 @@ const ExtensiveMode = ({
       let audioBase64 = null
       let audioUrl = null
       let displayText = text
+      let targetText = text
 
       try {
-        const response = await fetch('/api/translatePhrase', {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -285,12 +292,14 @@ const ExtensiveMode = ({
           const data = await response.json()
           translation = data.translation || translation
           displayText = data.targetText || displayText
+          targetText = data.targetText || translation || 'No translation found'
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
         }
       } catch (err) {
         console.error('Translation lookup failed', err)
         translation = 'Translation unavailable. Please try again.'
+        targetText = translation
       }
 
       setPopup((prev) =>
@@ -299,12 +308,132 @@ const ExtensiveMode = ({
               ...prev,
               translation,
               displayText,
-              targetText: displayText,
+              targetText,
               audioBase64,
               audioUrl,
             }
           : prev,
       )
+    },
+    [language, nativeLanguage, pageTranslations, setPopup],
+  )
+
+  const handleTranscriptSelection = useCallback(
+    async (event) => {
+      event.stopPropagation()
+
+      const selection = window.getSelection()?.toString().trim()
+
+      if (!selection) return
+
+      const parts = selection.split(/\s+/).filter(Boolean)
+
+      if (parts.length > 1) {
+        const phrase = selection
+
+        const selectionObj = window.getSelection()
+        if (!selectionObj || selectionObj.rangeCount === 0) return
+
+        const range = selectionObj.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+
+        let translation = 'No translation found'
+        let audioBase64 = null
+        let audioUrl = null
+        let targetText = null
+
+        try {
+          const response = await fetch('http://localhost:4000/api/translatePhrase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phrase,
+              sourceLang: language || 'es',
+              targetLang: nativeLanguage || 'English',
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            translation = data.translation || translation
+            targetText = data.targetText || translation
+            audioBase64 = data.audioBase64 || null
+            audioUrl = data.audioUrl || null
+          } else {
+            console.error('Phrase translation failed:', await response.text())
+          }
+        } catch (err) {
+          console.error('Error translating phrase:', err)
+        }
+
+        const { x, y } = getPopupPosition(rect)
+
+        setPopup({
+          x,
+          y,
+          word: phrase,
+          displayText: selection,
+          translation,
+          targetText,
+          audioBase64,
+          audioUrl,
+        })
+
+        return
+      }
+
+      const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
+      if (!clean) return
+
+      let translation =
+        pageTranslations[clean] || pageTranslations[selection] || null
+      let audioBase64 = null
+      let audioUrl = null
+      let targetText = null
+
+      if (!translation) {
+        try {
+          const response = await fetch('http://localhost:4000/api/translatePhrase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phrase: selection,
+              sourceLang: language || 'es',
+              targetLang: nativeLanguage || 'English',
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            translation = data.translation || 'No translation found'
+            targetText = data.targetText || translation
+            audioBase64 = data.audioBase64 || null
+            audioUrl = data.audioUrl || null
+          } else {
+            translation = 'No translation found'
+          }
+        } catch (err) {
+          translation = 'No translation found'
+        }
+      }
+
+      const selectionObj = window.getSelection()
+      if (!selectionObj || selectionObj.rangeCount === 0) return
+
+      const range = selectionObj.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      const { x, y } = getPopupPosition(rect)
+
+      setPopup({
+        x,
+        y,
+        word: clean,
+        displayText: selection,
+        translation,
+        targetText,
+        audioBase64,
+        audioUrl,
+      })
     },
     [language, nativeLanguage, pageTranslations, setPopup],
   )
@@ -523,7 +652,10 @@ const ExtensiveMode = ({
                   {showWordStatus ? 'Hide word status' : 'Show word status'}
                 </button>
               </div>
-              <div className="transcript-panel-body">
+              <div
+                className="transcript-panel-body"
+                onMouseUp={handleTranscriptSelection}
+              >
                 <TranscriptRoller
                   segments={transcriptSegments}
                   activeIndex={activeTranscriptIndex}

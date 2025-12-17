@@ -4296,6 +4296,32 @@ pre {
   height: 100%;
   padding: 10px 6px;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.transcript-roller::-webkit-scrollbar {
+  width: 4px;
+}
+
+.transcript-roller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.transcript-roller::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 999px;
+  transition: background-color 160ms ease;
+}
+
+.transcript-roller:hover {
+  scrollbar-color: rgba(51, 65, 85, 0.32) transparent;
+}
+
+.transcript-roller:hover::-webkit-scrollbar-thumb,
+.transcript-roller:focus-visible::-webkit-scrollbar-thumb,
+.transcript-roller:active::-webkit-scrollbar-thumb {
+  background-color: rgba(51, 65, 85, 0.32);
 }
 
 .transcript-roller-window::before,
@@ -4351,6 +4377,7 @@ pre {
   color: #0f172a;
   font-weight: 600;
   opacity: 1;
+  line-height: 1.38;
 }
 
 .mini-controls-bar {
@@ -4457,35 +4484,28 @@ pre {
   justify-content: space-between;
   gap: 12px;
   padding-top: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 .transcript-sync-btn {
-  background: #0f172a;
-  color: #fff;
+  background: none;
   border: none;
-  border-radius: 12px;
-  padding: 10px 16px;
-  font-weight: 700;
+  color: #475569;
+  font-size: 0.92rem;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.14);
-  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  padding: 4px 6px;
+  transition: color 140ms ease;
 }
 
 .transcript-sync-btn:disabled {
-  opacity: 0.62;
-  box-shadow: none;
+  color: #94a3b8;
   cursor: default;
 }
 
-.transcript-sync-btn:not(:disabled):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.16);
-}
-
-.transcript-sync-btn:not(:disabled):active {
-  transform: translateY(1px);
-  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.14);
+.transcript-sync-btn:not(:disabled):hover,
+.transcript-sync-btn:not(:disabled):focus-visible {
+  color: #0f172a;
 }
 
 @media (max-width: 720px) {

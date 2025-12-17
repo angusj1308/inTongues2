@@ -26,6 +26,22 @@ const Icon = ({ name, filled = false, className = '' }) => (
   </span>
 )
 
+const TimerIcon = ({ className = '' }) => (
+  <svg
+    className={`secondary-icon ${className}`.trim()}
+    viewBox="0 0 28 28"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="14" cy="15" r="8" />
+      <path d="M14 11v4.5l3 2.2" />
+      <path d="M10.5 6h7" />
+      <path d="M12.2 4h3.6" />
+    </g>
+  </svg>
+)
+
 const PlayPauseIcon = ({ isPlaying }) =>
   isPlaying ? (
     <svg className="playpause-icon" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
@@ -291,21 +307,24 @@ const ExtensiveMode = ({
                       aria-label={`Playback speed ${playbackRate || 1}x`}
                       title="Change playback speed"
                     >
-                      <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                      <span className="secondary-glyph">
+                        <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                      </span>
                       <span className="secondary-label">Speed</span>
                     </button>
                     {speedMenuOpen ? (
                       <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
-                        <p className="scrub-popover-title">Playback speed</p>
-                        <div className="scrub-popover-options" role="group" aria-label="Choose playback speed">
+                        <p className="speed-popover-title">Playback speed</p>
+                        <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
                           {speedPresets.map((rate) => (
                             <button
                               key={rate}
                               type="button"
-                              className={`scrub-popover-chip ${rate === playbackRate ? 'active' : ''}`}
+                              className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
                               onClick={() => handlePlaybackRateChange(rate)}
                             >
-                              x{formatRate(rate)}
+                              <span className="speed-option-indicator" aria-hidden="true" />
+                              <span className="speed-option-label">x{formatRate(rate)}</span>
                             </button>
                           ))}
                         </div>
@@ -318,18 +337,22 @@ const ExtensiveMode = ({
                     aria-label="Sleep timer"
                     title="Sleep timer (coming soon)"
                   >
-                    <Icon name="timer" className="secondary-icon" />
+                    <span className="secondary-glyph">
+                      <TimerIcon />
+                    </span>
                     <span className="secondary-label">Timer</span>
                   </button>
                   <button
                     type="button"
                     className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}
                     onClick={onToggleSubtitles}
-                    aria-label={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
-                    title="Toggle subtitles"
+                    aria-label={subtitlesEnabled ? 'Hide transcript' : 'Show transcript'}
+                    title="Toggle transcript"
                   >
-                    <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
-                    <span className="secondary-label">Subs</span>
+                    <span className="secondary-glyph">
+                      <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
+                    </span>
+                    <span className="secondary-label">Transcript</span>
                   </button>
                   <span className="secondary-spacer" aria-hidden />
                 </div>

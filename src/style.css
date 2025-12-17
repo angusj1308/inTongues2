@@ -3982,7 +3982,7 @@ pre {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: #0f172a;
   cursor: pointer;
   min-width: 80px;
@@ -4002,6 +4002,12 @@ pre {
   display: block;
   color: currentColor;
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 28;
+}
+
+.secondary-glyph .secondary-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .secondary-btn .material-symbols-outlined.secondary-icon.filled {
@@ -4037,20 +4043,28 @@ pre {
 
 .secondary-btn.active {
   color: #0f172a;
-  font-weight: 700;
 }
 
 .secondary-speed-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 16px;
   letter-spacing: 0.01em;
 }
 
 .secondary-btn.active .secondary-speed-icon {
   background: none;
+}
+
+.secondary-glyph {
+  height: 32px;
+  width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
 }
 
 .secondary-spacer {
@@ -4167,6 +4181,65 @@ pre {
 
 .speed-popover {
   top: 10px;
+  background: #f9fafb;
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+  padding: 14px;
+  width: 240px;
+}
+
+.speed-popover-title {
+  margin: 0 0 12px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.speed-popover-options {
+  display: grid;
+  gap: 4px;
+}
+
+.speed-option {
+  border: none;
+  background: transparent;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.speed-option:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.speed-option.active {
+  color: #0b1228;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.speed-option-indicator {
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.speed-option.active .speed-option-indicator {
+  background: #0b1228;
+}
+
+.speed-option-label {
+  justify-self: start;
+  font-weight: 500;
 }
 
 .toggle-row {

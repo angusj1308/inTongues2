@@ -248,23 +248,24 @@ const TranscriptRoller = ({
 
   return (
     <div
-      className={`transcript-roller ${hasTopFade ? 'transcript-roller--has-top-fade' : ''} ${
-        hasBottomFade ? 'transcript-roller--has-bottom-fade' : ''
-      }`}
-      ref={containerRef}
+      className={`transcript-roller-window ${
+        hasTopFade ? 'transcript-roller-window--has-top-fade' : ''
+      } ${hasBottomFade ? 'transcript-roller-window--has-bottom-fade' : ''}`}
     >
-      <div className="transcript-track" ref={trackRef}>
-        {renderedSegments.map((segment, index) => (
-          <div
-            key={segment.key}
-            ref={(el) => {
-              itemRefs.current[index] = el
-            }}
-            className={`transcript-line ${segment.isActive ? 'active' : ''}`}
-          >
-            {segment.content}
-          </div>
-        ))}
+      <div className="transcript-roller" ref={containerRef}>
+        <div className="transcript-track" ref={trackRef}>
+          {renderedSegments.map((segment, index) => (
+            <div
+              key={segment.key}
+              ref={(el) => {
+                itemRefs.current[index] = el
+              }}
+              className={`transcript-line ${segment.isActive ? 'active' : ''}`}
+            >
+              {segment.content}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

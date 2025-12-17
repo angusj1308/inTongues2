@@ -3579,7 +3579,7 @@ pre {
   align-items: stretch;
 }
 
-.player-transcript .transcript-roller {
+.player-transcript .transcript-roller-window {
   width: 100%;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
@@ -4281,20 +4281,25 @@ pre {
   gap: 0;
 }
 
-.transcript-roller {
+.transcript-roller-window {
   position: relative;
-  overflow: auto;
-  padding: 10px 6px;
+  overflow: hidden;
+  height: 100%;
+  min-height: 0;
   background: var(--transcript-roller-bg, #f8fafc);
   border-radius: 14px;
   border: 1px solid #e2e8f0;
+}
+
+.transcript-roller {
+  overflow: auto;
   height: 100%;
-  min-height: 0;
+  padding: 10px 6px;
   scroll-behavior: smooth;
 }
 
-.transcript-roller::before,
-.transcript-roller::after {
+.transcript-roller-window::before,
+.transcript-roller-window::after {
   content: '';
   position: absolute;
   left: 0;
@@ -4306,21 +4311,21 @@ pre {
   transition: opacity 180ms ease;
 }
 
-.transcript-roller::before {
+.transcript-roller-window::before {
   top: 0;
   background: linear-gradient(180deg, var(--transcript-roller-bg, #f8fafc) 0%, rgba(248, 250, 252, 0.65) 55%, rgba(248, 250, 252, 0) 100%);
 }
 
-.transcript-roller::after {
+.transcript-roller-window::after {
   bottom: 0;
   background: linear-gradient(0deg, var(--transcript-roller-bg, #f8fafc) 0%, rgba(248, 250, 252, 0.65) 55%, rgba(248, 250, 252, 0) 100%);
 }
 
-.transcript-roller--has-top-fade::before {
+.transcript-roller-window--has-top-fade::before {
   opacity: 1;
 }
 
-.transcript-roller--has-bottom-fade::after {
+.transcript-roller-window--has-bottom-fade::after {
   opacity: 1;
 }
 
@@ -4367,10 +4372,13 @@ pre {
   flex-wrap: wrap;
 }
 
-.extensive-pane-right .transcript-roller {
+.extensive-pane-right .transcript-roller-window {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   box-shadow: none;
+}
+
+.extensive-pane-right .transcript-roller {
   padding: 10px 6px;
 }
 
@@ -4403,13 +4411,16 @@ pre {
   padding-top: 4px;
 }
 
-.transcript-panel-body .transcript-roller {
+.transcript-panel-body .transcript-roller-window {
   --transcript-roller-bg: #fff;
   border: none;
   background: transparent;
-  padding: 12px 8px 14px;
   box-shadow: none;
   height: 100%;
+}
+
+.transcript-panel-body .transcript-roller {
+  padding: 12px 8px 14px;
 }
 
 .transcript-panel-controls {

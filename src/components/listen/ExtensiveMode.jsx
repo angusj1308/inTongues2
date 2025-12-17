@@ -314,7 +314,6 @@ const ExtensiveMode = ({
                     </button>
                     {speedMenuOpen ? (
                       <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
-                        <p className="speed-popover-title">Playback speed</p>
                         <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
                           {speedPresets.map((rate) => (
                             <button

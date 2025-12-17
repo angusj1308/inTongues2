@@ -3453,7 +3453,7 @@ pre {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
-  align-items: center;
+  align-items: stretch;
   gap: 24px;
   transition: grid-template-columns 360ms ease, transform 360ms ease, opacity 360ms ease;
 }
@@ -3470,6 +3470,7 @@ pre {
   flex-direction: column;
   gap: 12px;
   transition: transform 360ms ease, opacity 360ms ease;
+  min-width: 0;
 }
 
 .extensive-pane-left {
@@ -3478,15 +3479,16 @@ pre {
 
 .extensive-shell--split .extensive-pane-left {
   align-items: stretch;
-  transform: translateX(-16px);
+  transform: translateX(-12px);
 }
 
 .extensive-pane-right {
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateX(28px);
   pointer-events: none;
   max-height: 0;
   overflow: hidden;
+  height: 100%;
 }
 
 .extensive-shell--split .extensive-pane-right {
@@ -4273,40 +4275,57 @@ pre {
 .transcript-roller {
   position: relative;
   overflow: hidden;
-  padding: 12px 8px 10px;
+  padding: 10px 6px;
   background: #f8fafc;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
-  max-height: min(52vh, 320px);
-  min-height: 220px;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+  height: 100%;
+  min-height: 0;
+}
+
+.transcript-roller::before,
+.transcript-roller::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.transcript-roller::before {
+  top: 0;
+  background: linear-gradient(180deg, #f8fafc 0%, rgba(248, 250, 252, 0.65) 55%, rgba(248, 250, 252, 0) 100%);
+}
+
+.transcript-roller::after {
+  bottom: 0;
+  background: linear-gradient(0deg, #f8fafc 0%, rgba(248, 250, 252, 0.65) 55%, rgba(248, 250, 252, 0) 100%);
 }
 
 .transcript-track {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: transform 420ms ease;
+  gap: 8px;
+  transition: transform 520ms ease;
   will-change: transform;
+  padding: 6px 6px 10px;
 }
 
 .transcript-line {
-  padding: 10px 12px;
-  border-radius: 10px;
-  line-height: 1.45;
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  padding: 6px 8px;
+  line-height: 1.32;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 0.98rem;
-  background: rgba(255, 255, 255, 0.72);
-  border-left: 3px solid transparent;
-  transition: background-color 240ms ease, color 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+  color: #475569;
+  transition: color 240ms ease, font-weight 240ms ease, opacity 240ms ease;
 }
 
 .transcript-line.active {
-  background: rgba(15, 23, 42, 0.07);
   color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.35);
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+  font-weight: 600;
+  opacity: 1;
 }
 
 .mini-controls-bar {
@@ -4329,14 +4348,16 @@ pre {
 }
 
 .extensive-pane-right .transcript-roller {
-  background: transparent;
-  border: none;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   box-shadow: none;
-  padding: 0;
+  padding: 10px 6px;
 }
 
 .transcript-panel {
   height: 100%;
+  max-height: min(70vh, 560px);
+  min-height: 320px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -4345,6 +4366,7 @@ pre {
   border-radius: 18px;
   padding: 16px;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  position: relative;
 }
 
 .transcript-panel-body {
@@ -4355,10 +4377,40 @@ pre {
 }
 
 .transcript-panel-body .transcript-roller {
-  border: none;
-  background: transparent;
-  padding: 0;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 10px 6px;
   box-shadow: none;
+  height: 100%;
+}
+
+.transcript-panel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 2px 6px;
+}
+
+.transcript-panel-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.word-status-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 0.92rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: color 160ms ease;
+}
+
+.word-status-toggle:hover,
+.word-status-toggle:focus-visible {
+  color: #0f172a;
 }
 
 @media (max-width: 720px) {

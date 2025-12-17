@@ -3,8 +3,10 @@ import {
   STATUS_OPACITY,
 } from '../../constants/highlightColors'
 
-function getHighlightStyle({ language, status, mode }) {
-  if (mode === 'extensive') return {}
+function getHighlightStyle({ language, status, mode, enableHighlight }) {
+  const shouldHighlight = enableHighlight || mode !== 'extensive'
+
+  if (!shouldHighlight) return {}
 
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
@@ -25,12 +27,20 @@ const normaliseStatus = (status) => {
   return 'new'
 }
 
-const WordTokenListening = ({ text, status, language, listeningMode, onWordClick }) => {
+const WordTokenListening = ({
+  text,
+  status,
+  language,
+  listeningMode,
+  onWordClick,
+  enableHighlight = false,
+}) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
     language,
     status: normalisedStatus,
     mode: listeningMode,
+    enableHighlight,
   })
 
   const highlighted = Boolean(style['--hlt-opacity'])

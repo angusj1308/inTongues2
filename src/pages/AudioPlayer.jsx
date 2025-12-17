@@ -1045,6 +1045,11 @@ const AudioPlayer = () => {
                 onScrubChange={setScrubSeconds}
                 transcriptSegments={transcriptSegments}
                 activeTranscriptIndex={activeTranscriptIndex}
+                vocabEntries={vocabEntries}
+                language={storyMeta.language}
+                nativeLanguage={profile?.nativeLanguage}
+                pageTranslations={pageTranslations}
+                setPopup={setPopup}
               />
             )}
 

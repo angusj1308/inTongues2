@@ -119,6 +119,8 @@ const ExtensiveMode = ({
     if (typeof window === 'undefined') return true
     return localStorage.getItem('extensiveShowWordStatus') !== 'false'
   })
+  const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
+  const [syncToken, setSyncToken] = useState(0)
   const rewindButtonRef = useRef(null)
   const scrubMenuRef = useRef(null)
   const speedButtonRef = useRef(null)
@@ -156,6 +158,15 @@ const ExtensiveMode = ({
     setSpeedMenuOpen(false)
   }
 
+  const handleTranscriptUnsync = useCallback(() => {
+    setIsTranscriptSynced(false)
+  }, [])
+
+  const handleTranscriptResync = useCallback(() => {
+    setIsTranscriptSynced(true)
+    setSyncToken((prev) => prev + 1)
+  }, [])
+
   const handleRewindPressStart = () => {
     longPressTriggeredRef.current = false
     longPressTimeoutRef.current = setTimeout(() => {
@@ -186,11 +197,16 @@ const ExtensiveMode = ({
     localStorage.setItem('extensiveShowWordStatus', showWordStatus ? 'true' : 'false')
   }, [showWordStatus])
 
+  useEffect(() => {
+    setIsTranscriptSynced(true)
+    setSyncToken((prev) => prev + 1)
+  }, [subtitlesEnabled])
+
   const handleTranscriptWordClick = useCallback(
     async (text, event) => {
       if (!setPopup) return
 
-      const selection = window.getSelection()?.toString().trim()
+      const selection = window.getSelection()?.toString()?.trim() || ''
       const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
 
       // Allow the multi-word selection handler to manage phrases
@@ -322,7 +338,7 @@ const ExtensiveMode = ({
     async (event) => {
       event.stopPropagation()
 
-      const selection = window.getSelection()?.toString().trim()
+      const selection = window.getSelection()?.toString()?.trim() || ''
 
       if (!selection) return
 
@@ -641,17 +657,6 @@ const ExtensiveMode = ({
         <div className="extensive-pane extensive-pane-right" aria-hidden={!subtitlesEnabled}>
           {subtitlesEnabled ? (
             <div className="transcript-panel">
-              <div className="transcript-panel-controls">
-                <span className="transcript-panel-label">Transcript</span>
-                <button
-                  type="button"
-                  className="word-status-toggle"
-                  onClick={() => setShowWordStatus((prev) => !prev)}
-                  aria-pressed={showWordStatus}
-                >
-                  {showWordStatus ? 'Hide word status' : 'Show word status'}
-                </button>
-              </div>
               <div
                 className="transcript-panel-body"
                 onMouseUp={handleTranscriptSelection}
@@ -664,7 +669,28 @@ const ExtensiveMode = ({
                   pageTranslations={pageTranslations}
                   onWordClick={handleTranscriptWordClick}
                   showWordStatus={showWordStatus}
+                  isSynced={isTranscriptSynced}
+                  onUserScroll={handleTranscriptUnsync}
+                  syncToken={syncToken}
                 />
+              </div>
+              <div className="transcript-panel-footer">
+                <button
+                  type="button"
+                  className="transcript-sync-btn"
+                  onClick={handleTranscriptResync}
+                  disabled={isTranscriptSynced}
+                >
+                  {isTranscriptSynced ? 'Synced' : 'Sync'}
+                </button>
+                <button
+                  type="button"
+                  className="word-status-toggle"
+                  onClick={() => setShowWordStatus((prev) => !prev)}
+                  aria-pressed={showWordStatus}
+                >
+                  {showWordStatus ? 'Hide word status' : 'Show word status'}
+                </button>
               </div>
             </div>
           ) : null}

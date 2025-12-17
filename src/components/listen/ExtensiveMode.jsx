@@ -362,9 +362,6 @@ const ExtensiveMode = ({
         <div className="extensive-pane extensive-pane-right" aria-hidden={!subtitlesEnabled}>
           {subtitlesEnabled ? (
             <div className="transcript-panel">
-              <div className="transcript-panel-header">
-                <h3 className="transcript-panel-title">Transcript</h3>
-              </div>
               <div className="transcript-panel-body">
                 <TranscriptRoller segments={transcriptSegments} activeIndex={activeTranscriptIndex} />
               </div>

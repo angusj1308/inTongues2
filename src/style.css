@@ -3471,6 +3471,7 @@ pre {
   gap: 12px;
   transition: transform 360ms ease, opacity 360ms ease;
   min-width: 0;
+  min-height: 0;
 }
 
 .extensive-pane-left {
@@ -4381,7 +4382,6 @@ pre {
 
 .extensive-shell--split .transcript-panel {
   max-height: none;
-  height: 100%;
 }
 
 .transcript-panel-body {

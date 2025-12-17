@@ -74,6 +74,7 @@ const TranscriptRoller = ({
   language,
   pageTranslations = {},
   onWordClick,
+  onSelectionTranslate,
   showWordStatus = false,
   isSynced = true,
   onUserScroll,
@@ -110,6 +111,7 @@ const TranscriptRoller = ({
               listeningMode="extensive"
               enableHighlight={showWordStatus}
               onWordClick={onWordClick}
+              onSelectionTranslate={onSelectionTranslate}
             />,
           )
           return
@@ -142,6 +144,7 @@ const TranscriptRoller = ({
               listeningMode="extensive"
               enableHighlight={showWordStatus}
               onWordClick={onWordClick}
+              onSelectionTranslate={onSelectionTranslate}
             />,
           )
         })
@@ -155,7 +158,7 @@ const TranscriptRoller = ({
       content: renderWordSegments(segment.text || ''),
       isActive: index === activeIndex,
     }))
-  }, [activeIndex, language, onWordClick, pageTranslations, segments, showWordStatus, vocabEntries])
+  }, [activeIndex, language, onSelectionTranslate, onWordClick, pageTranslations, segments, showWordStatus, vocabEntries])
 
   const scrollToActive = useCallback(() => {
     const container = containerRef.current

@@ -82,7 +82,8 @@ const TranscriptRoller = ({
   const containerRef = useRef(null)
   const trackRef = useRef(null)
   const itemRefs = useRef([])
-  const [isAtTop, setIsAtTop] = useState(true)
+  const [hasTopFade, setHasTopFade] = useState(false)
+  const [hasBottomFade, setHasBottomFade] = useState(false)
   const programmaticScrollRef = useRef(false)
   const clearProgrammaticTimerRef = useRef(null)
 
@@ -218,8 +219,11 @@ const TranscriptRoller = ({
     if (!container) return undefined
 
     const handleScroll = () => {
-      const atTop = container.scrollTop <= 2
-      setIsAtTop(atTop)
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const threshold = 2
+
+      setHasTopFade(scrollTop > threshold)
+      setHasBottomFade(scrollTop + clientHeight < scrollHeight - threshold)
 
       if (programmaticScrollRef.current) return
 
@@ -243,7 +247,12 @@ const TranscriptRoller = ({
   }, [])
 
   return (
-    <div className={`transcript-roller ${isAtTop ? 'transcript-roller--at-top' : ''}`} ref={containerRef}>
+    <div
+      className={`transcript-roller ${hasTopFade ? 'transcript-roller--has-top-fade' : ''} ${
+        hasBottomFade ? 'transcript-roller--has-bottom-fade' : ''
+      }`}
+      ref={containerRef}
+    >
       <div className="transcript-track" ref={trackRef}>
         {renderedSegments.map((segment, index) => (
           <div

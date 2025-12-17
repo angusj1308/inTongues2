@@ -4302,12 +4302,13 @@ pre {
   height: 18%;
   pointer-events: none;
   z-index: 1;
+  opacity: 0;
+  transition: opacity 180ms ease;
 }
 
 .transcript-roller::before {
   top: 0;
   background: linear-gradient(180deg, var(--transcript-roller-bg, #f8fafc) 0%, rgba(248, 250, 252, 0.65) 55%, rgba(248, 250, 252, 0) 100%);
-  transition: opacity 180ms ease;
 }
 
 .transcript-roller::after {
@@ -4315,8 +4316,12 @@ pre {
   background: linear-gradient(0deg, var(--transcript-roller-bg, #f8fafc) 0%, rgba(248, 250, 252, 0.65) 55%, rgba(248, 250, 252, 0) 100%);
 }
 
-.transcript-roller--at-top::before {
-  opacity: 0;
+.transcript-roller--has-top-fade::before {
+  opacity: 1;
+}
+
+.transcript-roller--has-bottom-fade::after {
+  opacity: 1;
 }
 
 .transcript-track {

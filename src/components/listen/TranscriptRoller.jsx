@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normaliseExpression } from '../../services/vocab'
 import WordTokenListening from './WordTokenListening'
 
@@ -173,7 +173,19 @@ const TranscriptRoller = ({
     const nextScrollTop = Math.min(Math.max(0, desiredScrollTop), maxScroll)
 
     programmaticScrollRef.current = true
-    container.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
+    try {
+      if (typeof container.scrollTo === 'function') {
+        try {
+          container.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
+        } catch (err) {
+          container.scrollTo(0, nextScrollTop)
+        }
+      } else {
+        container.scrollTop = nextScrollTop
+      }
+    } catch (err) {
+      container.scrollTop = nextScrollTop
+    }
 
     if (clearProgrammaticTimerRef.current) {
       clearTimeout(clearProgrammaticTimerRef.current)
@@ -181,7 +193,7 @@ const TranscriptRoller = ({
 
     clearProgrammaticTimerRef.current = setTimeout(() => {
       programmaticScrollRef.current = false
-    }, 300)
+    }, 450)
   }, [activeIndex])
 
   useEffect(() => {

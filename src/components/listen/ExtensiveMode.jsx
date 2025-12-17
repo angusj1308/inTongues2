@@ -206,7 +206,7 @@ const ExtensiveMode = ({
     async (text, event) => {
       if (!setPopup) return
 
-      const selection = window.getSelection()?.toString().trim()
+      const selection = window.getSelection()?.toString()?.trim() || ''
       const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
 
       // Allow the multi-word selection handler to manage phrases
@@ -338,7 +338,7 @@ const ExtensiveMode = ({
     async (event) => {
       event.stopPropagation()
 
-      const selection = window.getSelection()?.toString().trim()
+      const selection = window.getSelection()?.toString()?.trim() || ''
 
       if (!selection) return
 

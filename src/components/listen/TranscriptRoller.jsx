@@ -75,11 +75,16 @@ const TranscriptRoller = ({
   pageTranslations = {},
   onWordClick,
   showWordStatus = false,
+  isSynced = true,
+  onUserScroll,
+  syncToken = 0,
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
   const itemRefs = useRef([])
-  const [offset, setOffset] = useState(0)
+  const [isAtTop, setIsAtTop] = useState(true)
+  const programmaticScrollRef = useRef(false)
+  const clearProgrammaticTimerRef = useRef(null)
 
   itemRefs.current = []
 
@@ -151,7 +156,7 @@ const TranscriptRoller = ({
     }))
   }, [activeIndex, language, onWordClick, pageTranslations, segments, showWordStatus, vocabEntries])
 
-  const updateOffset = () => {
+  const scrollToActive = useCallback(() => {
     const container = containerRef.current
     const track = trackRef.current
     const activeItem = itemRefs.current[activeIndex]
@@ -162,31 +167,72 @@ const TranscriptRoller = ({
     const trackHeight = track.scrollHeight
     const itemCenter = activeItem.offsetTop + activeItem.offsetHeight / 2
     const targetCenter = containerHeight * 0.35
-    const desiredOffset = itemCenter - targetCenter
+    const desiredScrollTop = itemCenter - targetCenter
 
-    const maxOffset = Math.max(0, trackHeight - containerHeight)
-    const constrainedOffset = Math.min(Math.max(0, desiredOffset), maxOffset)
+    const maxScroll = Math.max(0, trackHeight - containerHeight)
+    const nextScrollTop = Math.min(Math.max(0, desiredScrollTop), maxScroll)
 
-    setOffset(constrainedOffset)
-  }
+    programmaticScrollRef.current = true
+    container.scrollTo({ top: nextScrollTop, behavior: 'smooth' })
+
+    if (clearProgrammaticTimerRef.current) {
+      clearTimeout(clearProgrammaticTimerRef.current)
+    }
+
+    clearProgrammaticTimerRef.current = setTimeout(() => {
+      programmaticScrollRef.current = false
+    }, 300)
+  }, [activeIndex])
 
   useEffect(() => {
-    updateOffset()
-  }, [activeIndex, segments])
+    if (isSynced) {
+      scrollToActive()
+    }
+  }, [activeIndex, isSynced, scrollToActive, segments, syncToken])
 
   useEffect(() => {
-    const handleResize = () => updateOffset()
+    const handleResize = () => {
+      if (isSynced) {
+        scrollToActive()
+      }
+    }
+
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [isSynced, scrollToActive])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return undefined
+
+    const handleScroll = () => {
+      const atTop = container.scrollTop <= 2
+      setIsAtTop(atTop)
+
+      if (programmaticScrollRef.current) return
+
+      if (onUserScroll) {
+        onUserScroll()
+      }
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    handleScroll()
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+    }
+  }, [onUserScroll])
+
+  useEffect(() => () => {
+    if (clearProgrammaticTimerRef.current) {
+      clearTimeout(clearProgrammaticTimerRef.current)
+    }
   }, [])
 
   return (
-    <div className="transcript-roller" ref={containerRef}>
-      <div
-        className="transcript-track"
-        ref={trackRef}
-        style={{ transform: `translateY(-${offset}px)` }}
-      >
+    <div className={`transcript-roller ${isAtTop ? 'transcript-roller--at-top' : ''}`} ref={containerRef}>
+      <div className="transcript-track" ref={trackRef}>
         {renderedSegments.map((segment, index) => (
           <div
             key={segment.key}

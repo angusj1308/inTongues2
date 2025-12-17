@@ -125,6 +125,7 @@ const ExtensiveMode = ({
   const speedMenuRef = useRef(null)
   const longPressTimeoutRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
+  const reqIdRef = useRef(0)
 
   const clearLongPress = () => {
     if (longPressTimeoutRef.current) {
@@ -189,62 +190,121 @@ const ExtensiveMode = ({
     async (text, event) => {
       if (!setPopup) return
 
-      const selection = window.getSelection()?.toString().trim()
-      const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
+      const selectionObj = window.getSelection()
+      let rangeRect = null
 
-      if (parts.length > 1) return
-
-      const key = normaliseExpression(text)
-      const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
-
-      let translation = cachedTranslation || 'No translation found'
-      let audioBase64 = null
-      let audioUrl = null
-      let displayText = text
-
-      if (!cachedTranslation) {
+      if (selectionObj?.rangeCount) {
         try {
-          const response = await fetch('http://localhost:4000/api/translatePhrase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phrase: text,
-              sourceLang: language || 'es',
-              targetLang: nativeLanguage || 'English',
-            }),
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            translation = data.translation || translation
-            displayText = data.targetText || displayText
-            audioBase64 = data.audioBase64 || null
-            audioUrl = data.audioUrl || null
+          const candidate = selectionObj.getRangeAt(0).getBoundingClientRect()
+          if (candidate?.width > 0 && candidate?.height > 0) {
+            rangeRect = candidate
           }
         } catch (err) {
-          console.error('Translation lookup failed', err)
+          /* ignore range errors */
+        }
+      }
+      const elementRect = event?.currentTarget?.getBoundingClientRect?.()
+      let targetRect = rangeRect && rangeRect.width && rangeRect.height ? rangeRect : elementRect || null
+
+      if (!targetRect || (!targetRect.width && !targetRect.height)) {
+        const viewportWidth = window.innerWidth || 0
+        const viewportHeight = window.innerHeight || 0
+        targetRect = {
+          x: viewportWidth / 2,
+          y: viewportHeight / 3,
+          width: 1,
+          height: 1,
         }
       }
 
-      const rect = event?.currentTarget?.getBoundingClientRect()
-      const selectionObj = window.getSelection()
-      const rangeRect = selectionObj?.rangeCount ? selectionObj.getRangeAt(0).getBoundingClientRect() : null
-      const targetRect = rangeRect && rangeRect.width && rangeRect.height ? rangeRect : rect
-
-      if (!targetRect) return
-
       const { x, y } = getPopupPosition(targetRect)
+
+      const requestId = ++reqIdRef.current
 
       setPopup({
         x,
         y,
         word: text,
-        displayText,
-        translation,
-        targetText: displayText,
-        audioBase64,
-        audioUrl,
+        displayText: text,
+        translation: 'Loading…',
+        targetText: text,
+        audioBase64: null,
+        audioUrl: null,
+        requestId,
       })
+
+      const key = normaliseExpression(text)
+      const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
+
+      if (cachedTranslation) {
+        const cachedValue =
+          typeof cachedTranslation === 'string'
+            ? cachedTranslation
+            : cachedTranslation.translation ?? 'No translation found'
+        const cachedDisplayText =
+          typeof cachedTranslation === 'object'
+            ? cachedTranslation.displayText || cachedTranslation.targetText || text
+            : text
+        const cachedAudioBase64 =
+          typeof cachedTranslation === 'object' ? cachedTranslation.audioBase64 || null : null
+        const cachedAudioUrl =
+          typeof cachedTranslation === 'object' ? cachedTranslation.audioUrl || null : null
+
+        setPopup((prev) =>
+          prev?.requestId === requestId
+            ? {
+                ...prev,
+                translation: cachedValue,
+                displayText: cachedDisplayText,
+                targetText: cachedDisplayText,
+                audioBase64: cachedAudioBase64,
+                audioUrl: cachedAudioUrl,
+              }
+            : prev,
+        )
+        return
+      }
+
+      let translation = 'No translation found'
+      let audioBase64 = null
+      let audioUrl = null
+      let displayText = text
+
+      try {
+        const response = await fetch('/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: text,
+            sourceLang: language || 'es',
+            targetLang: nativeLanguage || 'English',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || translation
+          displayText = data.targetText || displayText
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
+        }
+      } catch (err) {
+        console.error('Translation lookup failed', err)
+        translation = 'Translation unavailable. Please try again.'
+      }
+
+      setPopup((prev) =>
+        prev?.requestId === requestId
+          ? {
+              ...prev,
+              translation,
+              displayText,
+              targetText: displayText,
+              audioBase64,
+              audioUrl,
+            }
+          : prev,
+      )
     },
     [language, nativeLanguage, pageTranslations, setPopup],
   )

@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react'
 import ActiveStepGate from './ActiveStepGate'
 import ActiveTranscript from './ActiveTranscript'
 import ChunkTimeline from './ChunkTimeline'
-import PassLadder from './PassLadder'
 
 const formatTime = (seconds) => {
   if (!Number.isFinite(seconds)) return '0:00'
@@ -339,6 +338,42 @@ const ActiveMode = ({
             <div className="muted tiny">{storyMeta.title || 'Audiobook'}</div>
           </div>
 
+          <div className="pass-inline-rail" aria-label="Passes">
+            <div className="pass-inline-heading">Passes</div>
+            <ol className="pass-inline-list">
+              {[1, 2, 3, 4].map((step) => {
+                const isCurrent = step === activeStep
+                const isCompleted = step < activeStep
+                const isUpcoming = step > activeStep
+
+                return (
+                  <li
+                    key={step}
+                    className={`pass-inline-item ${isCurrent ? 'current' : ''} ${
+                      isCompleted ? 'completed' : ''
+                    } ${isUpcoming ? 'upcoming' : ''}`}
+                  >
+                    {isCompleted ? (
+                      <span className="pass-inline-icon" aria-hidden="true">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="pass-inline-icon" aria-hidden="true" />
+                    )}
+                    <span className="pass-inline-label">
+                      {step}.{' '}
+                      {step === 1 || step === 4
+                        ? 'Listen'
+                        : step === 2
+                        ? 'Listen + Read'
+                        : 'Read'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+
           <div className="active-step-panel">
             {stepAllowsTranscript ? (
               <ActiveTranscript
@@ -429,10 +464,6 @@ const ActiveMode = ({
           </div>
         </div>
       </section>
-
-      <aside className="active-col active-col--right">
-        <PassLadder activeStep={activeStep} />
-      </aside>
     </div>
   )
 }

@@ -965,39 +965,63 @@ const AudioPlayer = () => {
     ? Math.min(100, (playbackPositionSeconds / playbackDurationSeconds) * 100)
     : 0
 
-  const activeTranscriptIndex = useMemo(() => {
-    if (!transcriptSegments.length) return -1
+  const [activeTranscriptIndex, setActiveTranscriptIndex] = useState(-1)
 
-    const hasTimestamps = transcriptSegments.some(
-      (segment) => typeof segment.start === 'number' && typeof segment.end === 'number',
-    )
+  useEffect(() => {
+    if (!transcriptSegments.length) {
+      setActiveTranscriptIndex(-1)
+      return
+    }
 
-    if (hasTimestamps) {
-      const nextIndex = transcriptSegments.findIndex(
-        (segment) =>
-          typeof segment.start === 'number' &&
-          typeof segment.end === 'number' &&
-          playbackPositionSeconds >= segment.start &&
-          playbackPositionSeconds < segment.end,
-      )
+    setActiveTranscriptIndex(() => {
+      const timestampedSegments = transcriptSegments
+        .map((segment, index) => ({ segment, index }))
+        .filter(
+          ({ segment }) =>
+            Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start,
+        )
 
-      if (nextIndex !== -1) return nextIndex
-      if (
-        playbackPositionSeconds >=
-        (transcriptSegments[transcriptSegments.length - 1].end ?? Number.POSITIVE_INFINITY)
-      ) {
-        return transcriptSegments.length - 1
+      if (timestampedSegments.length) {
+        const firstTimestamped = timestampedSegments[0]
+        const lastTimestamped = timestampedSegments[timestampedSegments.length - 1]
+
+        if (playbackPositionSeconds < firstTimestamped.segment.start) {
+          return firstTimestamped.index
+        }
+
+        if (playbackPositionSeconds >= lastTimestamped.segment.end) {
+          return lastTimestamped.index
+        }
+
+        const matchingSegment = timestampedSegments.find(
+          ({ segment }) =>
+            playbackPositionSeconds >= segment.start && playbackPositionSeconds < segment.end,
+        )
+
+        if (matchingSegment) return matchingSegment.index
+
+        const nearestByStart = timestampedSegments.reduce((nearest, current) => {
+          const nearestDelta = Math.abs(playbackPositionSeconds - nearest.segment.start)
+          const currentDelta = Math.abs(playbackPositionSeconds - current.segment.start)
+          return currentDelta < nearestDelta ? current : nearest
+        })
+
+        return nearestByStart.index
       }
-      return 0
-    }
 
-    // TODO: replace this placeholder mapping once timestamped segments are available.
-    if (playbackDurationSeconds > 0) {
-      const ratio = Math.min(1, playbackPositionSeconds / playbackDurationSeconds)
-      return Math.min(transcriptSegments.length - 1, Math.floor(ratio * transcriptSegments.length))
-    }
+      if (
+        Number.isFinite(playbackDurationSeconds) &&
+        playbackDurationSeconds > 0 &&
+        Number.isFinite(playbackPositionSeconds)
+      ) {
+        const ratioIndex = Math.floor(
+          (playbackPositionSeconds / playbackDurationSeconds) * transcriptSegments.length,
+        )
+        return clamp(ratioIndex, 0, transcriptSegments.length - 1)
+      }
 
-    return 0
+      return transcriptSegments.length ? 0 : -1
+    })
   }, [playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
 
   const chunkActiveTranscriptIndex = useMemo(() => {

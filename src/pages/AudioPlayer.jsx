@@ -1132,6 +1132,10 @@ const AudioPlayer = () => {
                 scrubSeconds={scrubSeconds}
                 onPlayPause={togglePlay}
                 onSeek={handleSeekTo}
+                playbackRate={playbackRate}
+                onPlaybackRateChange={handlePlaybackRateChange}
+                subtitlesEnabled={subtitlesEnabled}
+                onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
                 transcriptSegments={chunkTranscriptSegments}
                 activeTranscriptIndex={chunkActiveTranscriptIndex}
                 onBeginFinalListen={handleBeginFinalListen}

@@ -97,6 +97,29 @@ function resolveTargetCode(targetLang) {
   return targetLang // assume it's already a code
 }
 
+function resolveTtsLanguage(sourceLang) {
+  if (!sourceLang) return 'en'
+
+  const resolvedRaw = resolveTargetCode(sourceLang)
+  const code = String(resolvedRaw || '').toLowerCase().trim()
+
+  if (!code || code === 'auto') return 'en'
+
+  const baseCode = code.includes('-') ? code.split('-')[0] : code
+  const allowlist = new Set(['en', 'es', 'fr', 'de', 'it', 'pt'])
+
+  return allowlist.has(baseCode) ? baseCode : 'en'
+}
+
+function escapeForSsml(text) {
+  return (text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const ADAPTATION_SYSTEM_PROMPT = `
@@ -123,6 +146,15 @@ Meaning fidelity
 
 const app = express()
 app.use(express.json())
+
+const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML === '1'
+const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM === '1'
+
+const logTtsMethod = (method, lang) => {
+  if (process.env.TTS_DEBUG === '1') {
+    console.log(`TTS_LANG_LOCK_METHOD=${method} lang=${lang}`)
+  }
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -1623,18 +1655,70 @@ ${phrase}
       // on-page content when learners are translating into their native language.
       const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
 
+      if (!phraseForAudio || !phraseForAudio.trim()) return null
+
+      const phraseForAudioSafe =
+        phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
+
+      const ttsLanguage = resolveTtsLanguage(sourceLang)
+      const baseTtsConfig = {
+        model: 'gpt-4o-mini-tts',
+        voice: 'alloy',
+        format: 'mp3',
+      }
+
+      let hasLogged = false
+      const logOnce = (method) => {
+        if (!hasLogged) {
+          logTtsMethod(method, ttsLanguage)
+          hasLogged = true
+        }
+      }
+
+      if (TTS_SUPPORTS_SSML) {
+        const ssml = `<speak><lang xml:lang="${ttsLanguage}">${escapeForSsml(phraseForAudioSafe)}</lang></speak>`
+
+        try {
+          const ttsResponse = await client.audio.speech.create({
+            ...baseTtsConfig,
+            input: ssml,
+          })
+
+          const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+          logOnce('ssml')
+          return audioBuffer.toString('base64')
+        } catch (ttsError) {
+          console.error('Error generating pronunciation audio (SSML attempt):', ttsError)
+        }
+      }
+
+      if (TTS_SUPPORTS_LANGUAGE_PARAM) {
+        try {
+          const ttsResponse = await client.audio.speech.create({
+            ...baseTtsConfig,
+            input: phraseForAudioSafe,
+            language: ttsLanguage,
+          })
+
+          const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+          logOnce('language-param')
+          return audioBuffer.toString('base64')
+        } catch (ttsError) {
+          console.error('Error generating pronunciation audio (language-param attempt):', ttsError)
+        }
+      }
+
       try {
-        const ttsResponse = await client.audio.speech.create({
-          model: 'gpt-4o-mini-tts',
-          voice: 'alloy',
-          input: phraseForAudio,
-          format: 'mp3',
+        const fallbackResponse = await client.audio.speech.create({
+          ...baseTtsConfig,
+          input: phraseForAudioSafe,
         })
 
-        const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
-        return audioBuffer.toString('base64')
-      } catch (ttsError) {
-        console.error('Error generating pronunciation audio:', ttsError)
+        const fallbackBuffer = Buffer.from(await fallbackResponse.arrayBuffer())
+        logOnce('plain')
+        return fallbackBuffer.toString('base64')
+      } catch (fallbackError) {
+        console.error('Error generating pronunciation audio (plain fallback):', fallbackError)
         return null
       }
     })
@@ -2247,24 +2331,80 @@ async function encodeMergedWavToMp3(wavBuffer) {
   )
 }
 
-async function generateAudioForPage(bookId, pageIndex, text) {
+async function generateAudioForPage(bookId, pageIndex, text, languageCode) {
   if (!text || !text.trim()) return null
 
   const MAX_CHARS = 6000
   const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
 
-  const audioResponse = await client.audio.speech.create({
+  const ttsLanguage = resolveTtsLanguage(languageCode)
+
+  const baseTtsConfig = {
     model: 'gpt-4o-mini-tts',
     voice: 'alloy',
-    input: safeText,
     format: 'mp3',
-  })
+  }
 
-  const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+  let hasLogged = false
+  const logOnce = (method) => {
+    if (!hasLogged) {
+      logTtsMethod(method, ttsLanguage)
+      hasLogged = true
+    }
+  }
 
-  const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+  if (TTS_SUPPORTS_SSML) {
+    const ssml = `<speak><lang xml:lang="${ttsLanguage}">${escapeForSsml(safeText)}</lang></speak>`
 
-  return audioUrl
+    try {
+      const audioResponse = await client.audio.speech.create({
+        ...baseTtsConfig,
+        input: ssml,
+      })
+
+      const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+      const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+      logOnce('ssml')
+
+      return audioUrl
+    } catch (ttsError) {
+      console.error('Error generating page audio (SSML attempt):', ttsError)
+    }
+  }
+
+  if (TTS_SUPPORTS_LANGUAGE_PARAM) {
+    try {
+      const audioResponse = await client.audio.speech.create({
+        ...baseTtsConfig,
+        input: safeText,
+        language: ttsLanguage,
+      })
+
+      const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+      const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+      logOnce('language-param')
+
+      return audioUrl
+    } catch (ttsError) {
+      console.error('Error generating page audio (language-param attempt):', ttsError)
+    }
+  }
+
+  try {
+    const audioResponse = await client.audio.speech.create({
+      ...baseTtsConfig,
+      input: safeText,
+    })
+
+    const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
+    const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+    logOnce('plain')
+
+    return audioUrl
+  } catch (ttsError) {
+    console.error('Error generating page audio (plain fallback):', ttsError)
+    return null
+  }
 }
 
 app.post('/api/generate-audio-book', async (req, res) => {
@@ -2334,7 +2474,12 @@ app.post('/api/generate-audio-book', async (req, res) => {
       pagesProcessed += 1
 
       try {
-        const audioUrl = await generateAudioForPage(storyId, pageIndex, pageText)
+        const audioUrl = await generateAudioForPage(
+          storyId,
+          pageIndex,
+          pageText,
+          storyData?.language || storyData?.outputLanguage,
+        )
         if (audioUrl) {
           await doc.ref.update({ audioUrl, audioStatus: 'ready' })
           pagesSucceeded += 1

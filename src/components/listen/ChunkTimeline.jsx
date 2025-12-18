@@ -28,14 +28,14 @@ const ChunkTimeline = ({
               disabled={locked}
               aria-label={locked ? 'Chunk locked' : `Go to chunk ${chunk.index + 1}`}
             >
-              <div className="chunk-pill">
+              <span className="chunk-rail-marker" aria-hidden="true" />
+              <div className="chunk-line">
                 <span className="chunk-number">{String(chunk.index + 1).padStart(2, '0')}</span>
-                {isCompleted && <span className="chunk-status">✓</span>}
-                {isActive && !isCompleted && <span className="chunk-status">▶</span>}
-                {locked && !isActive && !isCompleted && <span className="chunk-status">🔒</span>}
-              </div>
-              <div className="chunk-range muted tiny">
-                {chunk.labelStart} – {chunk.labelEnd}
+                <span className="chunk-label">{chunk.labelStart}</span>
+                <span className="chunk-divider" aria-hidden="true">·</span>
+                <span className="chunk-label">{chunk.labelEnd}</span>
+                {isCompleted && <span className="chunk-status" aria-hidden="true">✓</span>}
+                {locked && !isCompleted && <span className="chunk-status" aria-hidden="true">🔒</span>}
               </div>
             </button>
           </li>

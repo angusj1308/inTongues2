@@ -26,7 +26,7 @@ const ChunkTimeline = ({
               className="chunk-button"
               onClick={() => !locked && onSelectChunk(chunk.index)}
               disabled={locked}
-              aria-label={locked ? 'Locked until pass 4 completion' : `Go to chunk ${chunk.index + 1}`}
+              aria-label={locked ? 'Chunk locked' : `Go to chunk ${chunk.index + 1}`}
             >
               <div className="chunk-pill">
                 <span className="chunk-number">{String(chunk.index + 1).padStart(2, '0')}</span>
@@ -37,7 +37,6 @@ const ChunkTimeline = ({
               <div className="chunk-range muted tiny">
                 {chunk.labelStart} – {chunk.labelEnd}
               </div>
-              {locked && <div className="chunk-locked-note">Locked until Pass 4.</div>}
             </button>
           </li>
         )

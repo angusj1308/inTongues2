@@ -2,19 +2,19 @@ import React from 'react'
 
 const STEP_CONTENT = {
   1: {
-    title: 'First listen — no subtitles. Just listen.',
+    title: 'Listen',
     subtitle: 'Pass 1/4',
   },
   2: {
-    title: 'Second listen — subtitles on. Notice what you missed.',
+    title: 'Listen + Read',
     subtitle: 'Pass 2/4',
   },
   3: {
-    title: 'Review — read + adjust word statuses if needed.',
+    title: 'Read',
     subtitle: 'Pass 3/4',
   },
   4: {
-    title: 'Final listen — no transcript. Confirm comprehension.',
+    title: 'Listen',
     subtitle: 'Pass 4/4',
   },
 }

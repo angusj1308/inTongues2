@@ -1129,12 +1129,14 @@ const AudioPlayer = () => {
                 isPlaying={isPlaying}
                 playbackPositionSeconds={playbackPositionSeconds}
                 playbackDurationSeconds={playbackDurationSeconds}
+                scrubSeconds={scrubSeconds}
                 onPlayPause={togglePlay}
                 onSeek={handleSeekTo}
                 transcriptSegments={chunkTranscriptSegments}
                 activeTranscriptIndex={chunkActiveTranscriptIndex}
                 onBeginFinalListen={handleBeginFinalListen}
                 onRestartChunk={handleRestartChunk}
+                onScrubChange={setScrubSeconds}
               />
             )}
 

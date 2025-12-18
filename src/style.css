@@ -3070,7 +3070,7 @@ pre {
   max-width: 1320px;
   margin: 0 auto;
   padding: 24px;
-  align-items: start;
+  align-items: stretch;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3084,6 +3084,7 @@ pre {
 
 .active-col--center {
   min-width: 0;
+  display: flex;
 }
 
 .active-col--center * {
@@ -3106,6 +3107,12 @@ pre {
   flex-direction: column;
   gap: 1.25rem;
   min-width: 0;
+  flex: 1;
+  min-height: calc(100vh - 200px);
+}
+
+.active-player-surface {
+  margin-top: auto;
 }
 
 .active-meta-row {

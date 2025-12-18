@@ -339,6 +339,31 @@ const ActiveMode = ({
             <div className="muted tiny">{storyMeta.title || 'Audiobook'}</div>
           </div>
 
+          <div className="active-step-panel">
+            {stepAllowsTranscript ? (
+              <ActiveTranscript
+                segments={filteredSegments}
+                activeSegmentIndex={activeTranscriptIndex}
+                showWordStatus={showWordStatus}
+                allowEditing={allowEditing}
+              />
+            ) : null}
+
+            {activeStep === 3 && (
+              <div className="active-cta">
+                <button type="button" className="button" onClick={onBeginFinalListen}>
+                  Begin final listen
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="active-progress-indicator">
+            <div className="active-progress-bar">
+              <div className="active-progress-fill" style={{ width: `${chunkProgress}%` }} />
+            </div>
+          </div>
+
           <div className="player-surface active-player-surface">
             {renderProgressBar()}
             <div className="player-transport-shell">{renderTransportButtons()}</div>
@@ -401,36 +426,6 @@ const ActiveMode = ({
               </button>
               <span className="secondary-spacer" aria-hidden />
             </div>
-          </div>
-
-          <div className="active-progress-indicator">
-            <div className="active-progress-bar">
-              <div className="active-progress-fill" style={{ width: `${chunkProgress}%` }} />
-            </div>
-            <div className="muted tiny">
-              {Math.round(chunkProgress)}% of this chunk | {chunks.length} chunks total
-            </div>
-          </div>
-
-          <div className="active-step-panel">
-            {!stepAllowsTranscript ? (
-              <div className="transcript-locked">Subtitles are off for this pass.</div>
-            ) : (
-              <ActiveTranscript
-                segments={filteredSegments}
-                activeSegmentIndex={activeTranscriptIndex}
-                showWordStatus={showWordStatus}
-                allowEditing={allowEditing}
-              />
-            )}
-
-            {activeStep === 3 && (
-              <div className="active-cta">
-                <button type="button" className="button" onClick={onBeginFinalListen}>
-                  Begin final listen
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </section>

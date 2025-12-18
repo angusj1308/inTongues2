@@ -197,7 +197,7 @@ const TranscriptRoller = ({
 
     clearProgrammaticTimerRef.current = setTimeout(() => {
       programmaticScrollRef.current = false
-    }, 450)
+    }, 1000)
   }, [activeIndex])
 
   useEffect(() => {
@@ -230,8 +230,10 @@ const TranscriptRoller = ({
 
       if (programmaticScrollRef.current) return
 
-      if (onUserScroll) {
-        onUserScroll()
+      if (container.matches(':hover')) {
+        if (onUserScroll) {
+          onUserScroll()
+        }
       }
     }
 

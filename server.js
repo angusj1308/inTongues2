@@ -97,18 +97,65 @@ function resolveTargetCode(targetLang) {
   return targetLang // assume it's already a code
 }
 
-function resolveTtsLanguage(sourceLang) {
-  if (!sourceLang) return 'en'
+function detectLikelyLanguage(text = '') {
+  const sample = String(text || '').toLowerCase()
+  if (!sample.trim()) return null
 
+  if (/[áéíóúñü¿¡]/i.test(sample)) return 'es'
+
+  const spanishStopwords = [
+    ' el ',
+    ' la ',
+    ' los ',
+    ' las ',
+    ' de ',
+    ' del ',
+    ' un ',
+    ' una ',
+    ' unos ',
+    ' unas ',
+    ' y ',
+    ' o ',
+    ' que ',
+    ' con ',
+    ' sin ',
+    ' para ',
+    ' por ',
+  ]
+
+  if (spanishStopwords.some((token) => sample.includes(token))) return 'es'
+
+  const commonSpanishSingles = new Set([
+    'hola',
+    'gracias',
+    'buenos',
+    'buenas',
+    'adios',
+    'metro',
+    'solo',
+    'sola',
+    'con',
+    'sin',
+  ])
+
+  if (commonSpanishSingles.has(sample.trim())) return 'es'
+
+  return null
+}
+
+function resolveTtsLanguage(sourceLang, textForDetection = '') {
   const resolvedRaw = resolveTargetCode(sourceLang)
   const code = String(resolvedRaw || '').toLowerCase().trim()
 
-  if (!code || code === 'auto') return 'en'
-
   const baseCode = code.includes('-') ? code.split('-')[0] : code
-  const allowlist = new Set(['en', 'es', 'fr', 'de', 'it', 'pt'])
+  const allowlist = new Set([...Object.values(LANGUAGE_NAME_TO_CODE), 'en'])
 
-  return allowlist.has(baseCode) ? baseCode : 'en'
+  if (code && code !== 'auto' && allowlist.has(baseCode)) return baseCode
+
+  const detected = detectLikelyLanguage(textForDetection)
+  if (detected && allowlist.has(detected)) return detected
+
+  return 'en'
 }
 
 function escapeForSsml(text) {
@@ -1660,7 +1707,7 @@ ${phrase}
       const phraseForAudioSafe =
         phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
 
-      const ttsLanguage = resolveTtsLanguage(sourceLang)
+      const ttsLanguage = resolveTtsLanguage(sourceLang, phraseForAudioSafe)
       const baseTtsConfig = {
         model: 'gpt-4o-mini-tts',
         voice: 'alloy',
@@ -2337,7 +2384,7 @@ async function generateAudioForPage(bookId, pageIndex, text, languageCode) {
   const MAX_CHARS = 6000
   const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
 
-  const ttsLanguage = resolveTtsLanguage(languageCode)
+  const ttsLanguage = resolveTtsLanguage(languageCode, safeText)
 
   const baseTtsConfig = {
     model: 'gpt-4o-mini-tts',

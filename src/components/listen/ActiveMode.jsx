@@ -33,6 +33,29 @@ const PlayPauseIcon = ({ isPlaying }) =>
     </svg>
   )
 
+const TimerIcon = ({ className = '' }) => (
+  <svg
+    className={`secondary-icon ${className}`.trim()}
+    viewBox="0 0 28 28"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="14" cy="15" r="8" />
+      <path d="M14 11v4.5l3 2.2" />
+      <path d="M10.5 6h7" />
+      <path d="M12.2 4h3.6" />
+    </g>
+  </svg>
+)
+
+const speedPresets = [0.75, 0.9, 1, 1.25, 1.5, 2]
+
+const formatRate = (rate) => {
+  if (!Number.isFinite(rate)) return '1.0'
+  return Number.isInteger(rate) ? `${rate.toFixed(1)}` : `${rate}`
+}
+
 const ScrubIcon = ({ direction = 'back', seconds }) => {
   const isBack = direction === 'back'
   const mirrorBack = isBack ? 'translate(36 0) scale(-1 1)' : undefined
@@ -71,6 +94,10 @@ const ActiveMode = ({
   scrubSeconds = 10,
   onPlayPause,
   onSeek,
+  playbackRate,
+  onPlaybackRateChange,
+  subtitlesEnabled,
+  onToggleSubtitles,
   transcriptSegments = [],
   activeTranscriptIndex = -1,
   onBeginFinalListen,
@@ -83,6 +110,9 @@ const ActiveMode = ({
   const longPressTimeoutRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
+  const speedButtonRef = useRef(null)
+  const speedMenuRef = useRef(null)
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
 
   const currentChunk = chunks[activeChunkIndex]
   const chunkStart = currentChunk?.start ?? 0
@@ -138,6 +168,12 @@ const ActiveMode = ({
 
   const handleSkipToEnd = () => handleSeek(chunkEnd)
 
+  const handlePlaybackRateChange = (nextRate) => {
+    if (!onPlaybackRateChange) return
+    onPlaybackRateChange(nextRate)
+    setSpeedMenuOpen(false)
+  }
+
   const handleRewindPressStart = () => {
     longPressTriggeredRef.current = false
     longPressTimeoutRef.current = setTimeout(() => {
@@ -167,8 +203,11 @@ const ActiveMode = ({
     const handleClickOutside = (event) => {
       const scrubTarget =
         scrubMenuRef.current?.contains(event.target) || rewindButtonRef.current?.contains(event.target)
+      const speedTarget =
+        speedMenuRef.current?.contains(event.target) || speedButtonRef.current?.contains(event.target)
 
       if (!scrubTarget) setScrubMenuOpen(false)
+      if (!speedTarget) setSpeedMenuOpen(false)
     }
 
     document.addEventListener('pointerdown', handleClickOutside)
@@ -303,6 +342,65 @@ const ActiveMode = ({
           <div className="player-surface active-player-surface">
             {renderProgressBar()}
             <div className="player-transport-shell">{renderTransportButtons()}</div>
+            <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
+              <span className="secondary-spacer" aria-hidden />
+              <div className="secondary-btn-popover-wrap">
+                <button
+                  ref={speedButtonRef}
+                  type="button"
+                  className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                  onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                  aria-label={`Playback speed ${playbackRate || 1}x`}
+                  title="Change playback speed"
+                >
+                  <span className="secondary-glyph">
+                    <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                  </span>
+                  <span className="secondary-label">Speed</span>
+                </button>
+                {speedMenuOpen ? (
+                  <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
+                    <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
+                      {speedPresets.map((rate) => (
+                        <button
+                          key={rate}
+                          type="button"
+                          className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
+                          onClick={() => handlePlaybackRateChange(rate)}
+                        >
+                          <span className="speed-option-indicator" aria-hidden="true" />
+                          <span className="speed-option-label">x{formatRate(rate)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                className="secondary-btn"
+                aria-label="Sleep timer"
+                title="Sleep timer (coming soon)"
+              >
+                <span className="secondary-glyph">
+                  <TimerIcon />
+                </span>
+                <span className="secondary-label">Timer</span>
+              </button>
+              <button
+                type="button"
+                className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}
+                onClick={onToggleSubtitles}
+                aria-label={subtitlesEnabled ? 'Hide transcript' : 'Show transcript'}
+                title="Toggle transcript"
+              >
+                <span className="secondary-glyph">
+                  <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
+                </span>
+                <span className="secondary-label">Transcript</span>
+              </button>
+              <span className="secondary-spacer" aria-hidden />
+            </div>
           </div>
 
           <div className="active-progress-indicator">

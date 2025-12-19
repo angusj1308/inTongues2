@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import TranscriptRoller from './TranscriptRoller'
 import { normaliseExpression } from '../../services/vocab'
+import { normalizeLanguageCode } from '../../utils/language'
 
 const getPopupPosition = (rect) => {
   const padding = 10
@@ -128,6 +129,8 @@ const ExtensiveMode = ({
   const longPressTimeoutRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
   const reqIdRef = useRef(0)
+  const missingLanguageMessage =
+    'Select a language for this content to enable translation/pronunciation.'
 
   const clearLongPress = () => {
     if (longPressTimeoutRef.current) {
@@ -293,7 +296,7 @@ const ExtensiveMode = ({
                 ...prev,
                 translation: cachedValue,
                 displayText: cachedDisplayText,
-                targetText: cachedDisplayText,
+                targetText: text,
                 audioBase64: cachedAudioBase64,
                 audioUrl: cachedAudioUrl,
               }
@@ -308,6 +311,23 @@ const ExtensiveMode = ({
       let displayText = text
       let targetText = text
 
+      const ttsLanguage = normalizeLanguageCode(language)
+
+      if (!ttsLanguage) {
+        setPopup((prev) =>
+          prev?.requestId === requestId
+            ? {
+                ...prev,
+                translation: missingLanguageMessage,
+                targetText: missingLanguageMessage,
+                audioBase64: null,
+                audioUrl: null,
+              }
+            : prev
+        )
+        return
+      }
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -316,6 +336,7 @@ const ExtensiveMode = ({
             phrase: text,
             sourceLang: language || 'es',
             targetLang: nativeLanguage || 'English',
+            ttsLanguage,
           }),
         })
 
@@ -381,6 +402,27 @@ const ExtensiveMode = ({
         let audioUrl = null
         let targetText = null
 
+        const ttsLanguage = normalizeLanguageCode(language)
+
+        if (!ttsLanguage) {
+          const { x, y } = getPopupPosition(rect)
+
+          setPopup({
+            x,
+            y,
+            anchorRect,
+            anchorX: rect.left + rect.width / 2,
+            word: phrase,
+            displayText: selection,
+            translation: missingLanguageMessage,
+            targetText: missingLanguageMessage,
+            audioBase64: null,
+            audioUrl: null,
+          })
+
+          return
+        }
+
         try {
           const response = await fetch('http://localhost:4000/api/translatePhrase', {
             method: 'POST',
@@ -389,6 +431,7 @@ const ExtensiveMode = ({
               phrase,
               sourceLang: language || 'es',
               targetLang: nativeLanguage || 'English',
+              ttsLanguage,
             }),
           })
 
@@ -432,7 +475,41 @@ const ExtensiveMode = ({
       let audioUrl = null
       let targetText = null
 
+      const ttsLanguage = normalizeLanguageCode(language)
+
       if (!translation) {
+        if (!ttsLanguage) {
+          const selectionObj = window.getSelection()
+          if (!selectionObj || selectionObj.rangeCount === 0) return
+
+          const range = selectionObj.getRangeAt(0)
+          const rect = range.getBoundingClientRect()
+          const anchorRect = {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+          }
+          const { x, y } = getPopupPosition(rect)
+
+          setPopup({
+            x,
+            y,
+            anchorRect,
+            anchorX: rect.left + rect.width / 2,
+            word: clean,
+            displayText: selection,
+            translation: missingLanguageMessage,
+            targetText: missingLanguageMessage,
+            audioBase64: null,
+            audioUrl: null,
+          })
+
+          return
+        }
+
         try {
           const response = await fetch('http://localhost:4000/api/translatePhrase', {
             method: 'POST',
@@ -441,6 +518,7 @@ const ExtensiveMode = ({
               phrase: selection,
               sourceLang: language || 'es',
               targetLang: nativeLanguage || 'English',
+              ttsLanguage,
             }),
           })
 

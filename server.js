@@ -91,6 +91,20 @@ const LANGUAGE_NAME_TO_CODE = {
   Filipino: 'fil',
 }
 
+function normalizeBaseLanguageCode(language) {
+  const raw = String(language || '').trim()
+  if (!raw) return ''
+
+  const lower = raw.toLowerCase()
+  return lower.includes('-') ? lower.split('-')[0] : lower
+}
+
+function isValidLanguageCode(language) {
+  if (!language || typeof language !== 'string') return false
+
+  return /^[a-z]{2,3}(?:-[A-Za-z0-9]+)*$/.test(language.trim())
+}
+
 function resolveTargetCode(targetLang) {
   if (!targetLang) return 'en'
   if (LANGUAGE_NAME_TO_CODE[targetLang]) return LANGUAGE_NAME_TO_CODE[targetLang]
@@ -1655,7 +1669,8 @@ app.post('/api/prefetchTranslations', async (req, res) => {
 
 app.post('/api/translatePhrase', async (req, res) => {
   try {
-    const { phrase, sourceLang, targetLang } = req.body || {}
+    const { phrase, sourceLang, targetLang, ttsLanguage } = req.body || {}
+    const rawTtsLanguage = req.body?.ttsLanguage
 
     if (!phrase || typeof phrase !== 'string') {
       return res.status(400).json({ error: 'phrase is required' })
@@ -1663,6 +1678,17 @@ app.post('/api/translatePhrase', async (req, res) => {
 
     if (!targetLang) {
       return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    const normalizedTtsLanguage = normalizeBaseLanguageCode(ttsLanguage)
+    const ttsLanguageIsValid =
+      typeof normalizedTtsLanguage === 'string' &&
+      normalizedTtsLanguage &&
+      isValidLanguageCode(normalizedTtsLanguage)
+
+    // TTS language must be provided by client; server will not infer.
+    if (!ttsLanguageIsValid) {
+      return res.status(400).json({ error: 'Missing ttsLanguage' })
     }
 
     const sourceLabel = sourceLang || 'auto-detected'
@@ -1707,23 +1733,31 @@ ${phrase}
       const phraseForAudioSafe =
         phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
 
-      const ttsLanguage = resolveTtsLanguage(sourceLang, phraseForAudioSafe)
+      const ttsLanguageCode = normalizedTtsLanguage
       const baseTtsConfig = {
         model: 'gpt-4o-mini-tts',
         voice: 'alloy',
         format: 'mp3',
       }
 
+      if (process.env.TTS_DEBUG === '1') {
+        console.log(
+          `TTS_TRANSLATE_PHRASE len=${phraseForAudioSafe.length} raw=${rawTtsLanguage || 'none'} normalized=${ttsLanguageCode}`
+        )
+      }
+
       let hasLogged = false
       const logOnce = (method) => {
         if (!hasLogged) {
-          logTtsMethod(method, ttsLanguage)
+          logTtsMethod(method, ttsLanguageCode)
           hasLogged = true
         }
       }
 
       if (TTS_SUPPORTS_SSML) {
-        const ssml = `<speak><lang xml:lang="${ttsLanguage}">${escapeForSsml(phraseForAudioSafe)}</lang></speak>`
+        const ssml = `<speak><lang xml:lang="${ttsLanguageCode}">${escapeForSsml(
+          phraseForAudioSafe
+        )}</lang></speak>`
 
         try {
           const ttsResponse = await client.audio.speech.create({
@@ -1744,7 +1778,7 @@ ${phrase}
           const ttsResponse = await client.audio.speech.create({
             ...baseTtsConfig,
             input: phraseForAudioSafe,
-            language: ttsLanguage,
+            language: ttsLanguageCode,
           })
 
           const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
@@ -1759,6 +1793,7 @@ ${phrase}
         const fallbackResponse = await client.audio.speech.create({
           ...baseTtsConfig,
           input: phraseForAudioSafe,
+          ...(TTS_SUPPORTS_LANGUAGE_PARAM ? { language: ttsLanguageCode } : {}),
         })
 
         const fallbackBuffer = Buffer.from(await fallbackResponse.arrayBuffer())

@@ -6,6 +6,7 @@ import { db } from '../firebase'
 import YouTubePlayer from '../components/YouTubePlayer'
 import CinemaSubtitles from '../components/CinemaSubtitles'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
+import { normalizeLanguageCode } from '../utils/language'
 
 const extractVideoId = (video) => {
   if (!video) return ''
@@ -45,6 +46,8 @@ const IntonguesCinema = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
   const [popup, setPopup] = useState(null)
+  const missingLanguageMessage =
+    'Select a language for this content to enable translation/pronunciation.'
 
   const playerRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
@@ -196,6 +199,7 @@ const normalisePagesToSegments = (pages = []) =>
     () => (video?.language || profile?.lastUsedLanguage || 'auto').toLowerCase(),
     [profile?.lastUsedLanguage, video?.language]
   )
+  const transcriptTtsLanguage = normalizeLanguageCode(transcriptLanguage)
 
   useEffect(() => {
     if (isSpotify) return
@@ -715,16 +719,30 @@ const normalisePagesToSegments = (pages = []) =>
       let audioBase64 = null
       let audioUrl = null
 
+      if (!transcriptTtsLanguage) {
+        setPopup({
+          x: rect.left + window.scrollX,
+          y: rect.bottom + window.scrollY + 8,
+          word: phrase,
+          translation: missingLanguageMessage,
+          audioBase64: null,
+          audioUrl: null,
+        })
+
+        return
+      }
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase,
-            sourceLang: transcriptLanguage || 'auto',
-            targetLang: profile?.nativeLanguage || 'English',
-          }),
-        })
+            body: JSON.stringify({
+              phrase,
+              sourceLang: transcriptLanguage || 'auto',
+              targetLang: profile?.nativeLanguage || 'English',
+              ttsLanguage: transcriptTtsLanguage,
+            }),
+          })
 
         if (response.ok) {
           const data = await response.json()

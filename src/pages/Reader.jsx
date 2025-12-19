@@ -15,6 +15,7 @@ import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import WordToken from '../components/read/WordToken'
 import { readerModes } from '../constants/readerModes'
+import { normalizeLanguageCode } from '../utils/language'
 
 const themeOptions = [
   {
@@ -72,6 +73,8 @@ const Reader = ({ initialMode }) => {
   const [pageTranslations, setPageTranslations] = useState({})
   const [popup, setPopup] = useState(null)
   const [vocabEntries, setVocabEntries] = useState({})
+  const missingLanguageMessage =
+    'Select a language for this content to enable translation/pronunciation.'
   const [hasSeenAutoKnownInfo, setHasSeenAutoKnownInfo] = useState(
     () => localStorage.getItem('seenAutoKnownInfo') === 'true'
   )
@@ -194,6 +197,23 @@ const Reader = ({ initialMode }) => {
       let audioUrl = null
       let targetText = null
 
+      const ttsLanguage = normalizeLanguageCode(language)
+
+      if (!ttsLanguage) {
+        setPopup({
+          x: rect.left + window.scrollX,
+          y: rect.bottom + window.scrollY + 8,
+          word: phrase,
+          displayText: selection,
+          translation: missingLanguageMessage,
+          targetText: missingLanguageMessage,
+          audioBase64: null,
+          audioUrl: null,
+        })
+
+        return
+      }
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -202,6 +222,7 @@ const Reader = ({ initialMode }) => {
             phrase,
             sourceLang: language || 'es', // TODO: replace with real source language
             targetLang: profile?.nativeLanguage || 'English',
+            ttsLanguage,
           }),
         })
 
@@ -246,7 +267,31 @@ const Reader = ({ initialMode }) => {
     let audioUrl = null
     let targetText = null
 
+    const ttsLanguage = normalizeLanguageCode(language)
+
     if (!translation) {
+      if (!ttsLanguage) {
+        const selectionObj = window.getSelection()
+        if (!selectionObj || selectionObj.rangeCount === 0) return
+
+        const range = selectionObj.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        const { x, y } = getPopupPosition(rect)
+
+        setPopup({
+          x,
+          y,
+          word: clean,
+          displayText: selection,
+          translation: missingLanguageMessage,
+          targetText: missingLanguageMessage,
+          audioBase64: null,
+          audioUrl: null,
+        })
+
+        return
+      }
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -255,6 +300,7 @@ const Reader = ({ initialMode }) => {
             phrase: selection,
             sourceLang: language || 'es',
             targetLang: profile?.nativeLanguage || 'English',
+            ttsLanguage,
           }),
         })
 
@@ -306,7 +352,27 @@ const Reader = ({ initialMode }) => {
     let audioUrl = null
     let targetText = cachedTranslation
 
+    const ttsLanguage = normalizeLanguageCode(language)
+
     const shouldFetch = !cachedTranslation || !audioBase64 || !audioUrl
+
+    if (shouldFetch && !ttsLanguage) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const { x, y } = getPopupPosition(rect)
+
+      setPopup({
+        x,
+        y,
+        word: key,
+        displayText: text,
+        translation: translation || missingLanguageMessage,
+        targetText: targetText || translation || missingLanguageMessage,
+        audioBase64: null,
+        audioUrl: null,
+      })
+
+      return
+    }
 
     if (shouldFetch) {
       try {
@@ -317,6 +383,7 @@ const Reader = ({ initialMode }) => {
             phrase: text,
             sourceLang: language || 'es',
             targetLang: profile?.nativeLanguage || 'English',
+            ttsLanguage,
           }),
         })
 
@@ -1371,6 +1438,10 @@ const Reader = ({ initialMode }) => {
 
     if (untranslatedSentences.length === 0) return undefined
 
+    const ttsLanguage = normalizeLanguageCode(language)
+
+    if (!ttsLanguage) return undefined
+
     let isCancelled = false
 
     const preloadTranslations = async () => {
@@ -1385,6 +1456,7 @@ const Reader = ({ initialMode }) => {
                   phrase: sentence,
                   sourceLang: language || 'es',
                   targetLang: profile?.nativeLanguage || 'English',
+                  ttsLanguage,
                 }),
               })
 

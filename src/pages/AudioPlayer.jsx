@@ -15,6 +15,7 @@ import {
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
 import ActiveMode from '../components/listen/ActiveMode'
+import { normalizeLanguageCode } from '../utils/language'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -39,6 +40,8 @@ const AudioPlayer = () => {
   const [pageTranslations, setPageTranslations] = useState({})
   const [popup, setPopup] = useState(null)
   const [popupPosition, setPopupPosition] = useState({ top: null, left: null })
+  const missingLanguageMessage =
+    'Select a language for this content to enable translation/pronunciation.'
   const [vocabEntries, setVocabEntries] = useState({})
   const [isPlaying, setIsPlaying] = useState(false)
   const [listeningMode, setListeningMode] = useState('extensive')
@@ -478,16 +481,32 @@ const AudioPlayer = () => {
       let audioBase64 = null
       let audioUrl = null
 
+      const ttsLanguage = normalizeLanguageCode(storyMeta.language)
+
+      if (!ttsLanguage) {
+        setPopup({
+          x: rect.left + window.scrollX,
+          y: rect.bottom + window.scrollY + 8,
+          word: phrase,
+          translation: missingLanguageMessage,
+          audioBase64: null,
+          audioUrl: null,
+        })
+
+        return
+      }
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase,
-            sourceLang: storyMeta.language || 'es',
-            targetLang: profile?.nativeLanguage || 'English',
-          }),
-        })
+            body: JSON.stringify({
+              phrase,
+              sourceLang: storyMeta.language || 'es',
+              targetLang: profile?.nativeLanguage || 'English',
+              ttsLanguage,
+            }),
+          })
 
         if (response.ok) {
           const data = await response.json()

@@ -95,8 +95,7 @@ function normalizeBaseLanguageCode(language) {
   const raw = String(language || '').trim()
   if (!raw) return ''
 
-  const lower = raw.toLowerCase()
-  return lower.includes('-') ? lower.split('-')[0] : lower
+  return raw.toLowerCase()
 }
 
 function isValidLanguageCode(language) {
@@ -164,7 +163,7 @@ function resolveTtsLanguage(sourceLang, textForDetection = '') {
   const baseCode = code.includes('-') ? code.split('-')[0] : code
   const allowlist = new Set([...Object.values(LANGUAGE_NAME_TO_CODE), 'en'])
 
-  if (code && code !== 'auto' && allowlist.has(baseCode)) return baseCode
+  if (code && code !== 'auto' && allowlist.has(baseCode)) return code
 
   const detected = detectLikelyLanguage(textForDetection)
   if (detected && allowlist.has(detected)) return detected
@@ -208,8 +207,8 @@ Meaning fidelity
 const app = express()
 app.use(express.json())
 
-const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML === '1'
-const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM === '1'
+const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML !== '0'
+const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM !== '0'
 
 const logTtsMethod = (method, lang) => {
   if (process.env.TTS_DEBUG === '1') {
@@ -1789,20 +1788,11 @@ ${phrase}
         }
       }
 
-      try {
-        const fallbackResponse = await client.audio.speech.create({
-          ...baseTtsConfig,
-          input: phraseForAudioSafe,
-          ...(TTS_SUPPORTS_LANGUAGE_PARAM ? { language: ttsLanguageCode } : {}),
-        })
-
-        const fallbackBuffer = Buffer.from(await fallbackResponse.arrayBuffer())
-        logOnce('plain')
-        return fallbackBuffer.toString('base64')
-      } catch (fallbackError) {
-        console.error('Error generating pronunciation audio (plain fallback):', fallbackError)
-        return null
-      }
+      console.error(
+        'No pronunciation audio generated: language-locked attempts failed for',
+        ttsLanguageCode
+      )
+      return null
     })
 
     const [{ translation, targetText }, audioBase64] = await Promise.all([
@@ -2472,21 +2462,11 @@ async function generateAudioForPage(bookId, pageIndex, text, languageCode) {
     }
   }
 
-  try {
-    const audioResponse = await client.audio.speech.create({
-      ...baseTtsConfig,
-      input: safeText,
-    })
-
-    const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
-    const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
-    logOnce('plain')
-
-    return audioUrl
-  } catch (ttsError) {
-    console.error('Error generating page audio (plain fallback):', ttsError)
-    return null
-  }
+  console.error(
+    'No page audio generated: language-locked attempts failed for',
+    ttsLanguage
+  )
+  return null
 }
 
 app.post('/api/generate-audio-book', async (req, res) => {

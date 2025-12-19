@@ -4,5 +4,5 @@ export function normalizeLanguageCode(language) {
 
   const lower = raw.toLowerCase()
   if (lower === 'auto') return ''
-  return lower.includes('-') ? lower.split('-')[0] : lower
+  return lower
 }

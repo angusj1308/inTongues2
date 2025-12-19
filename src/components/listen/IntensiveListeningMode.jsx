@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normaliseExpression, upsertVocabEntry } from '../../services/vocab'
 import WordTokenListening from './WordTokenListening'
+import { normalizeLanguageCode } from '../../utils/language'
 
 const getPopupPosition = (rect) => {
   const margin = 12
@@ -56,6 +57,8 @@ const IntensiveListeningMode = ({
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] = useState(false)
   const sentenceAudioStopRef = useRef(null)
+  const missingLanguageMessage =
+    'Select a language for this content to enable translation/pronunciation.'
 
   const intensiveSentences = useMemo(
     () =>
@@ -73,6 +76,10 @@ const IntensiveListeningMode = ({
   useEffect(() => {
     if (listeningMode !== 'intensive') return undefined
 
+    const ttsLanguage = normalizeLanguageCode(language)
+
+    if (!ttsLanguage) return undefined
+
     const untranslatedSentences = intensiveSentences.filter(
       (sentence) => !sentenceTranslations[sentence]
     )
@@ -89,12 +96,13 @@ const IntensiveListeningMode = ({
               const response = await fetch('http://localhost:4000/api/translatePhrase', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  phrase: sentence,
-                  sourceLang: language || 'es',
-                  targetLang: nativeLanguage || 'English',
-                }),
-              })
+                  body: JSON.stringify({
+                    phrase: sentence,
+                    sourceLang: language || 'es',
+                    targetLang: nativeLanguage || 'English',
+                    ttsLanguage,
+                  }),
+                })
 
               if (!response.ok) {
                 console.error('Sentence translation failed:', await response.text())
@@ -161,7 +169,31 @@ const IntensiveListeningMode = ({
     let audioUrl = null
     let targetText = cachedTranslation
 
+    const ttsLanguage = normalizeLanguageCode(language)
+
     const shouldFetch = !cachedTranslation || !audioBase64 || !audioUrl
+
+    if (shouldFetch && !ttsLanguage) {
+      const selectionObj = window.getSelection()
+      if (!selectionObj || selectionObj.rangeCount === 0) return
+
+      const range = selectionObj.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      const { x, y } = getPopupPosition(rect)
+
+      setPopup({
+        x,
+        y,
+        word: text,
+        displayText: text,
+        translation: translation || missingLanguageMessage,
+        targetText: targetText || translation || missingLanguageMessage,
+        audioBase64: null,
+        audioUrl: null,
+      })
+
+      return
+    }
 
     if (shouldFetch) {
       try {
@@ -172,6 +204,7 @@ const IntensiveListeningMode = ({
             phrase: text,
             sourceLang: language || 'es',
             targetLang: nativeLanguage || 'English',
+            ttsLanguage,
           }),
         })
 
@@ -559,16 +592,32 @@ const IntensiveListeningMode = ({
       let audioBase64 = null
       let audioUrl = null
 
+      const ttsLanguage = normalizeLanguageCode(language)
+
+      if (!ttsLanguage) {
+        setPopup({
+          x: rect.left + window.scrollX,
+          y: rect.bottom + window.scrollY + 8,
+          word: phrase,
+          translation: missingLanguageMessage,
+          audioBase64: null,
+          audioUrl: null,
+        })
+
+        return
+      }
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase,
-            sourceLang: language || 'es',
-            targetLang: nativeLanguage || 'English',
-          }),
-        })
+            body: JSON.stringify({
+              phrase,
+              sourceLang: language || 'es',
+              targetLang: nativeLanguage || 'English',
+              ttsLanguage,
+            }),
+          })
 
         if (response.ok) {
           const data = await response.json()

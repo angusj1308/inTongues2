@@ -21,6 +21,21 @@ const getDisplayText = (page) => page?.adaptedText || page?.originalText || page
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
 
+const normaliseTranscriptSegments = (segments = []) =>
+  segments
+    .filter(Boolean)
+    .map((segment) => {
+      const start = Number(segment?.start)
+      const end = Number(segment?.end)
+
+      return {
+        ...segment,
+        start: Number.isFinite(start) ? start : undefined,
+        end: Number.isFinite(end) ? end : undefined,
+        text: (segment?.text || '').trim(),
+      }
+    })
+
 const AudioPlayer = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -38,6 +53,7 @@ const AudioPlayer = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pageTranslations, setPageTranslations] = useState({})
+  const [transcriptDoc, setTranscriptDoc] = useState({ sentenceSegments: [], segments: [] })
   const [popup, setPopup] = useState(null)
   const [popupPosition, setPopupPosition] = useState({ top: null, left: null })
   const missingLanguageMessage =
@@ -96,11 +112,19 @@ const AudioPlayer = () => {
   }, [transcriptText])
 
   const transcriptSegments = useMemo(() => {
-    const segments = pages.flatMap((page) => page?.transcriptSegments || [])
-    if (segments.length) return segments
+    const sentenceSegments = normaliseTranscriptSegments(transcriptDoc?.sentenceSegments)
+    if (sentenceSegments.length) return sentenceSegments
+
+    const docSegments = normaliseTranscriptSegments(transcriptDoc?.segments)
+    if (docSegments.length) return docSegments
+
+    const pageSegments = normaliseTranscriptSegments(
+      pages.flatMap((page) => page?.transcriptSegments || []),
+    )
+    if (pageSegments.length) return pageSegments
 
     return transcriptSentences.map((text) => ({ text }))
-  }, [pages, transcriptSentences])
+  }, [pages, transcriptDoc, transcriptSentences])
 
   const chunkLengthSeconds = 60
 
@@ -306,6 +330,46 @@ const AudioPlayer = () => {
     }
 
     loadPages()
+  }, [id, isSpotify, user])
+
+  useEffect(() => {
+    if (!user || !id || isSpotify) {
+      setTranscriptDoc({ sentenceSegments: [], segments: [] })
+      return undefined
+    }
+
+    let isActive = true
+
+    const loadTranscriptDoc = async () => {
+      try {
+        const transcriptRef = doc(db, 'users', user.uid, 'stories', id, 'transcripts', 'intensive')
+        const transcriptSnap = await getDoc(transcriptRef)
+
+        if (!isActive) return
+
+        if (!transcriptSnap.exists()) {
+          setTranscriptDoc({ sentenceSegments: [], segments: [] })
+          return
+        }
+
+        const data = transcriptSnap.data() || {}
+        const sentenceSegments = Array.isArray(data.sentenceSegments) ? data.sentenceSegments : []
+        const segments = Array.isArray(data.segments) ? data.segments : []
+
+        setTranscriptDoc({ sentenceSegments, segments })
+      } catch (err) {
+        console.error('Failed to load transcript document', err)
+        if (isActive) {
+          setTranscriptDoc({ sentenceSegments: [], segments: [] })
+        }
+      }
+    }
+
+    loadTranscriptDoc()
+
+    return () => {
+      isActive = false
+    }
   }, [id, isSpotify, user])
 
   useEffect(() => {
@@ -1028,20 +1092,9 @@ const AudioPlayer = () => {
         return nearestByStart.index
       }
 
-      if (
-        Number.isFinite(playbackDurationSeconds) &&
-        playbackDurationSeconds > 0 &&
-        Number.isFinite(playbackPositionSeconds)
-      ) {
-        const ratioIndex = Math.floor(
-          (playbackPositionSeconds / playbackDurationSeconds) * transcriptSegments.length,
-        )
-        return clamp(ratioIndex, 0, transcriptSegments.length - 1)
-      }
-
-      return transcriptSegments.length ? 0 : -1
+      return -1
     })
-  }, [playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
+  }, [playbackPositionSeconds, transcriptSegments])
 
   const chunkActiveTranscriptIndex = useMemo(() => {
     if (!chunkTranscriptSegments.length) return -1

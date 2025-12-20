@@ -129,17 +129,6 @@ const ActiveMode = ({
     return () => document.removeEventListener('pointerdown', handleClickOutside)
   }, [])
 
-  useEffect(() => {
-    if (!showChunkList) return undefined
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setShowChunkList(false)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showChunkList])
-
   useEffect(() => () => clearLongPress(), [])
 
   if (!hasChunks) {
@@ -346,34 +335,19 @@ const ActiveMode = ({
   const storyTitle = storyMeta.title || 'Audiobook'
   const chunkSuffix = `Chunk ${chunkPosition} of ${totalChunks}`
 
-  const chunkOverlay =
-    hasChunks && showChunkList ? (
-      <div className="active-chunk-shell is-open" aria-hidden={!showChunkList}>
-        <div className="active-chunk-drawer" role="dialog" aria-label="Chunk navigation">
-          <div className="active-chunk-drawer-header">
-            <div>
-              <div className="active-chunk-drawer-title active-story-title">{storyTitle}</div>
-              <div className="active-chunk-drawer-subtitle">Choose a chunk</div>
-            </div>
-            <button
-              type="button"
-              className="active-chunk-close"
-              onClick={() => setShowChunkList(false)}
-              aria-label="Close chunk navigation"
-            >
-              <Icon name="close" />
-            </button>
-          </div>
-          <ChunkTimeline
-            chunks={chunks}
-            activeIndex={safeChunkIndex}
-            completedSet={completedChunks}
-            onSelectChunk={handleSelectChunk}
-            isChunkLocked={isChunkLocked}
-          />
-        </div>
+  const chunkOverlay = hasChunks ? (
+    <div className={`active-chunk-shell ${showChunkList ? 'is-open' : ''}`} aria-hidden={!showChunkList}>
+      <div className="active-chunk-drawer" role="dialog" aria-label="Chunk navigation">
+        <ChunkTimeline
+          chunks={chunks}
+          activeIndex={safeChunkIndex}
+          completedSet={completedChunks}
+          onSelectChunk={handleSelectChunk}
+          isChunkLocked={isChunkLocked}
+        />
       </div>
-    ) : null
+    </div>
+  ) : null
 
   if (activeStep === 1) {
     return (
@@ -451,7 +425,7 @@ const ActiveMode = ({
                       <button
                         type="button"
                         className="secondary-btn"
-                        onClick={() => setShowChunkList(true)}
+                        onClick={() => setShowChunkList((prev) => !prev)}
                         disabled={!hasChunks}
                         aria-label="Chunks"
                         title="Chunks"
@@ -590,7 +564,7 @@ const ActiveMode = ({
                     <button
                       type="button"
                       className="secondary-btn"
-                      onClick={() => setShowChunkList(true)}
+                      onClick={() => setShowChunkList((prev) => !prev)}
                       disabled={!hasChunks}
                       aria-label="Chunks"
                       title="Chunks"

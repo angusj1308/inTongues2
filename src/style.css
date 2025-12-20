@@ -3252,6 +3252,65 @@ pre {
   color: #0f172a;
 }
 
+.active-chunk-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: clamp(16px, 3vw, 28px);
+  z-index: 40;
+}
+
+.active-chunk-drawer {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.active-chunk-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.active-chunk-drawer-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.active-chunk-drawer-subtitle {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.active-chunk-close {
+  border: none;
+  background: #f1f5f9;
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 0.35rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.active-chunk-close:hover {
+  background: #e2e8f0;
+}
+
 .active-pass-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 420px);

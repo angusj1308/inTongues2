@@ -133,32 +133,136 @@ const AudioPlayer = () => {
   )
 
   const chunkLengthSeconds = 60
+  const chunkTargetSeconds = 60
+  const chunkMinSeconds = 45
+  const chunkMaxSeconds = 75
 
   // TODO: Keep declarations above hooks to avoid TDZ crashes.
   const playbackPositionSeconds = progressSeconds
   const playbackDurationSeconds = durationSeconds
 
   const activeChunks = useMemo(() => {
-    if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) return []
-    const totalChunks = Math.ceil(playbackDurationSeconds / chunkLengthSeconds)
-
-    return Array.from({ length: totalChunks }, (_, index) => {
-      const start = index * chunkLengthSeconds
-      const end = Math.min((index + 1) * chunkLengthSeconds, playbackDurationSeconds)
-      const labelStart = `${Math.floor(start / 60)
+    const formatChunkTime = (seconds) =>
+      `${Math.floor(seconds / 60)
         .toString()
-        .padStart(2, '0')}:${Math.floor(start % 60)
-        .toString()
-        .padStart(2, '0')}`
-      const labelEnd = `${Math.floor(end / 60)
-        .toString()
-        .padStart(2, '0')}:${Math.floor(end % 60)
+        .padStart(2, '0')}:${Math.floor(seconds % 60)
         .toString()
         .padStart(2, '0')}`
 
-      return { index, start, end, labelStart, labelEnd }
-    })
-  }, [playbackDurationSeconds])
+    const buildTimeChunks = () => {
+      if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) return []
+      const totalChunks = Math.ceil(playbackDurationSeconds / chunkLengthSeconds)
+
+      return Array.from({ length: totalChunks }, (_, index) => {
+        const start = index * chunkLengthSeconds
+        const end = Math.min((index + 1) * chunkLengthSeconds, playbackDurationSeconds)
+        const labelStart = formatChunkTime(start)
+        const labelEnd = formatChunkTime(end)
+
+        return { index, start, end, labelStart, labelEnd }
+      })
+    }
+
+    const timestampedSegments = transcriptSegments
+      .filter((segment) => typeof segment.start === 'number' && typeof segment.end === 'number')
+      .sort((a, b) => a.start - b.start)
+
+    if (!timestampedSegments.length) return buildTimeChunks()
+
+    const chunks = []
+    let chunkStartTime = 0
+    let chunkStartIndex = 0
+    let previousSegmentEnd = null
+    let segmentIndex = 0
+
+    while (segmentIndex < timestampedSegments.length) {
+      const segment = timestampedSegments[segmentIndex]
+      const segmentEnd = segment.end
+      const durationToEnd = segmentEnd - chunkStartTime
+
+      if (durationToEnd < chunkTargetSeconds) {
+        previousSegmentEnd = segmentEnd
+        segmentIndex += 1
+        continue
+      }
+
+      const beforeDuration = previousSegmentEnd !== null ? previousSegmentEnd - chunkStartTime : null
+      const afterDuration = durationToEnd
+      const canUseBefore =
+        beforeDuration !== null &&
+        beforeDuration >= chunkMinSeconds &&
+        beforeDuration <= chunkMaxSeconds
+      const canUseAfter = afterDuration >= chunkMinSeconds && afterDuration <= chunkMaxSeconds
+
+      let useBefore = false
+
+      if (canUseBefore && canUseAfter) {
+        useBefore = Math.abs(chunkTargetSeconds - beforeDuration) <= Math.abs(chunkTargetSeconds - afterDuration)
+      } else if (canUseBefore) {
+        useBefore = true
+      } else if (canUseAfter) {
+        useBefore = false
+      } else if (beforeDuration !== null && beforeDuration >= chunkMinSeconds) {
+        useBefore = true
+      }
+
+      if (useBefore && previousSegmentEnd !== null) {
+        chunks.push({
+          start: chunkStartTime,
+          end: previousSegmentEnd,
+          segmentStartIndex: chunkStartIndex,
+          segmentEndIndex: segmentIndex - 1,
+        })
+        chunkStartIndex = segmentIndex
+        chunkStartTime = timestampedSegments[chunkStartIndex]?.start ?? previousSegmentEnd
+        previousSegmentEnd = null
+        continue
+      }
+
+      chunks.push({
+        start: chunkStartTime,
+        end: segmentEnd,
+        segmentStartIndex: chunkStartIndex,
+        segmentEndIndex: segmentIndex,
+      })
+      chunkStartIndex = segmentIndex + 1
+      chunkStartTime = timestampedSegments[chunkStartIndex]?.start ?? segmentEnd
+      previousSegmentEnd = null
+      segmentIndex += 1
+    }
+
+    if (chunkStartIndex < timestampedSegments.length) {
+      const lastSegmentEnd = timestampedSegments[timestampedSegments.length - 1].end
+      if (lastSegmentEnd > chunkStartTime) {
+        chunks.push({
+          start: chunkStartTime,
+          end: lastSegmentEnd,
+          segmentStartIndex: chunkStartIndex,
+          segmentEndIndex: timestampedSegments.length - 1,
+        })
+      }
+    }
+
+    const labeledChunks = chunks.map((chunk, index) => ({
+      ...chunk,
+      index,
+      labelStart: formatChunkTime(chunk.start),
+      labelEnd: formatChunkTime(chunk.end),
+    }))
+
+    if (import.meta.env.DEV) {
+      console.debug(
+        '[chunking] segment-based chunks',
+        labeledChunks.map((chunk) => ({
+          index: chunk.index,
+          duration: +(chunk.end - chunk.start).toFixed(2),
+          segmentRange: `${chunk.segmentStartIndex}-${chunk.segmentEndIndex}`,
+        })),
+      )
+    }
+
+    return labeledChunks
+  }, [playbackDurationSeconds, transcriptSegments])
 
   const playPronunciationAudio = (audioData) => {
     if (!audioData?.audioBase64 && !audioData?.audioUrl) return

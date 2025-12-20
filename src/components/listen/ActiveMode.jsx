@@ -340,7 +340,10 @@ const ActiveMode = ({
   )
 
   const passLabel = PASS_LABELS[activeStep] || PASS_LABELS[1]
-  const chunkLabel = String((currentChunk?.index || 0) + 1).padStart(2, '0')
+  const chunkPosition = (currentChunk?.index || 0) + 1
+  const totalChunks = chunks.length
+  const chunkLabel = String(chunkPosition).padStart(2, '0')
+  const titleWithChunk = `${storyMeta.title || 'Audiobook'} — Chunk ${chunkPosition} of ${totalChunks}`
 
   if (activeStep === 1) {
     return (
@@ -349,13 +352,14 @@ const ActiveMode = ({
           <div className="extensive-shell-inner">
             <div className="extensive-pane extensive-pane-left">
               <div className="extensive-player-shell">
-                <div className="player-stack">
+                <div className="player-stack active-pass-stack">
+                  <span className="active-pass-instruction">Pass 1 of 4 — Just listen</span>
                   <div className="player-visual-stage">
                     <div className="player-cover" aria-hidden>
                       <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
                     </div>
                   </div>
-                  <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
+                  <h2 className="player-title">{titleWithChunk}</h2>
                   <div className="player-surface">
                     {renderProgressBar()}
                     <div className="player-transport-shell">{renderTransportButtons()}</div>
@@ -455,7 +459,7 @@ const ActiveMode = ({
       <>
         <header className="active-topbar">
           <div className="active-topbar-context">
-            <div className="active-topbar-title">{storyMeta.title || 'Audiobook'}</div>
+            <div className="active-topbar-title">{titleWithChunk}</div>
             <div className="active-topbar-meta">
               <span className="active-topbar-chunk">Chunk {chunkLabel}</span>
               <span className="active-topbar-divider" aria-hidden="true">

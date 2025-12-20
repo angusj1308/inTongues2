@@ -346,33 +346,34 @@ const ActiveMode = ({
   const storyTitle = storyMeta.title || 'Audiobook'
   const chunkSuffix = `Chunk ${chunkPosition} of ${totalChunks}`
 
-  const chunkOverlay = hasChunks && (
-    <div className={`active-chunk-shell ${showChunkList ? 'is-open' : ''}`} aria-hidden={!showChunkList}>
-      <div className="active-chunk-drawer" role="dialog" aria-label="Chunk navigation">
-        <div className="active-chunk-drawer-header">
-          <div>
-            <div className="active-chunk-drawer-title active-story-title">{storyTitle}</div>
-            <div className="active-chunk-drawer-subtitle">Choose a chunk</div>
+  const chunkOverlay =
+    hasChunks && showChunkList ? (
+      <div className="active-chunk-shell is-open" aria-hidden={!showChunkList}>
+        <div className="active-chunk-drawer" role="dialog" aria-label="Chunk navigation">
+          <div className="active-chunk-drawer-header">
+            <div>
+              <div className="active-chunk-drawer-title active-story-title">{storyTitle}</div>
+              <div className="active-chunk-drawer-subtitle">Choose a chunk</div>
+            </div>
+            <button
+              type="button"
+              className="active-chunk-close"
+              onClick={() => setShowChunkList(false)}
+              aria-label="Close chunk navigation"
+            >
+              <Icon name="close" />
+            </button>
           </div>
-          <button
-            type="button"
-            className="active-chunk-close"
-            onClick={() => setShowChunkList(false)}
-            aria-label="Close chunk navigation"
-          >
-            <Icon name="close" />
-          </button>
+          <ChunkTimeline
+            chunks={chunks}
+            activeIndex={safeChunkIndex}
+            completedSet={completedChunks}
+            onSelectChunk={handleSelectChunk}
+            isChunkLocked={isChunkLocked}
+          />
         </div>
-        <ChunkTimeline
-          chunks={chunks}
-          activeIndex={safeChunkIndex}
-          completedSet={completedChunks}
-          onSelectChunk={handleSelectChunk}
-          isChunkLocked={isChunkLocked}
-        />
       </div>
-    </div>
-  )
+    ) : null
 
   if (activeStep === 1) {
     return (
@@ -381,7 +382,11 @@ const ActiveMode = ({
           <div className="extensive-shell-inner">
             <div className="extensive-pane extensive-pane-left">
               <div className="extensive-player-shell">
-                <div className="player-stack active-pass-stack active-chunk-host ui-text">
+                <div
+                  className={`player-stack active-pass-stack active-chunk-host ui-text ${
+                    showChunkList ? 'is-chunk-open' : ''
+                  }`}
+                >
                   <div className="active-pass-header">
                     <div className="active-pass-context">
                       <div className="active-pass-cover" aria-hidden>
@@ -572,7 +577,7 @@ const ActiveMode = ({
             )}
 
             {activeStep !== 3 && (
-              <div className="active-pass-block active-chunk-host">
+              <div className={`active-pass-block active-chunk-host ${showChunkList ? 'is-chunk-open' : ''}`}>
                 <div className="active-player-surface">
                   {renderProgressBar()}
                   <div className="player-transport-shell">{renderTransportButtons()}</div>

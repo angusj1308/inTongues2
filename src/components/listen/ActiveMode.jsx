@@ -102,8 +102,8 @@ const ActiveMode = ({
   const speedButtonRef = useRef(null)
   const speedMenuRef = useRef(null)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
-  const [showChunkList, setShowChunkList] = useState(false)
-  const [isChunkDrawerMounted, setIsChunkDrawerMounted] = useState(false)
+  const [chunkDrawerOpen, setChunkDrawerOpen] = useState(false)
+  const [chunkDrawerMounted, setChunkDrawerMounted] = useState(false)
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
@@ -139,24 +139,15 @@ const ActiveMode = ({
   }, [])
 
   useEffect(() => () => clearLongPress(), [])
+  useEffect(() => () => clearChunkDrawerTimeout(), [])
 
-  useEffect(() => {
-    if (showChunkList) {
-      clearChunkDrawerTimeout()
-      setIsChunkDrawerMounted(true)
-      return () => clearChunkDrawerTimeout()
-    }
-
-    if (isChunkDrawerMounted) {
-      clearChunkDrawerTimeout()
-      chunkDrawerCloseTimeoutRef.current = setTimeout(() => {
-        setIsChunkDrawerMounted(false)
-        chunkDrawerCloseTimeoutRef.current = null
-      }, 260)
-    }
-
-    return () => clearChunkDrawerTimeout()
-  }, [showChunkList])
+  const scheduleChunkDrawerUnmount = () => {
+    clearChunkDrawerTimeout()
+    chunkDrawerCloseTimeoutRef.current = setTimeout(() => {
+      setChunkDrawerMounted(false)
+      chunkDrawerCloseTimeoutRef.current = null
+    }, 280)
+  }
 
   if (!hasChunks) {
     return (
@@ -218,22 +209,23 @@ const ActiveMode = ({
   }
 
   const handleChunkToggle = () => {
-    if (showChunkList) {
-      setShowChunkList(false)
+    if (chunkDrawerOpen) {
+      setChunkDrawerOpen(false)
+      scheduleChunkDrawerUnmount()
       return
     }
 
     clearChunkDrawerTimeout()
-    setIsChunkDrawerMounted(true)
-    requestAnimationFrame(() => setShowChunkList(true))
+    setChunkDrawerMounted(true)
+    requestAnimationFrame(() => setChunkDrawerOpen(true))
   }
 
   const handleChunkDrawerTransitionEnd = (event) => {
     if (event.target !== event.currentTarget) return
-    if (showChunkList) return
-    if (event.propertyName !== 'transform' && event.propertyName !== 'opacity') return
+    if (chunkDrawerOpen) return
+    if (event.propertyName !== 'transform') return
     clearChunkDrawerTimeout()
-    setIsChunkDrawerMounted(false)
+    setChunkDrawerMounted(false)
   }
 
   const handleRewindPressStart = () => {
@@ -266,7 +258,8 @@ const ActiveMode = ({
     if (typeof onSelectChunk === 'function') {
       onSelectChunk(index)
     }
-    setShowChunkList(false)
+    setChunkDrawerOpen(false)
+    scheduleChunkDrawerUnmount()
   }
 
   const handleSelectStep = (step) => {
@@ -381,8 +374,8 @@ const ActiveMode = ({
   const storyTitle = storyMeta.title || 'Audiobook'
   const chunkSuffix = `Chunk ${chunkPosition} of ${totalChunks}`
 
-  const chunkOverlay = hasChunks && isChunkDrawerMounted ? (
-    <div className={`active-chunk-shell ${showChunkList ? 'is-open' : ''}`} aria-hidden={!showChunkList}>
+  const chunkOverlay = hasChunks && chunkDrawerMounted ? (
+    <div className={`active-chunk-shell ${chunkDrawerOpen ? 'is-open' : ''}`} aria-hidden={!chunkDrawerOpen}>
       <div
         className="active-chunk-drawer"
         role="dialog"
@@ -407,9 +400,9 @@ const ActiveMode = ({
           <div className="extensive-shell-inner">
             <div className="extensive-pane extensive-pane-left">
               <div className="extensive-player-shell">
-                <div
+                  <div
                   className={`player-stack active-pass-stack active-chunk-host ui-text ${
-                    showChunkList ? 'is-chunk-open' : ''
+                    chunkDrawerOpen ? 'is-chunk-open' : ''
                   }`}
                 >
                   <div className="active-pass-header">
@@ -602,7 +595,7 @@ const ActiveMode = ({
             )}
 
             {activeStep !== 3 && (
-              <div className={`active-pass-block active-chunk-host ${showChunkList ? 'is-chunk-open' : ''}`}>
+                  <div className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}>
                 <div className="active-player-surface">
                   {renderProgressBar()}
                   <div className="player-transport-shell">{renderTransportButtons()}</div>

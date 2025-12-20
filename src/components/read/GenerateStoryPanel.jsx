@@ -47,6 +47,7 @@ const GenerateStoryPanel = ({
   const [length, setLength] = useState(5)
   const [genre, setGenre] = useState(GENRES[0])
   const [description, setDescription] = useState('')
+  const [voiceGender, setVoiceGender] = useState('male')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -124,10 +125,11 @@ const GenerateStoryPanel = ({
       pageCount: minimumPageCount,
       description: description.trim(),
       language: activeLanguage,
+      voiceGender,
     }
 
     try {
-      const { pages, title } = await generateStory(params)
+      const { pages, title, voiceId, voiceGender: resolvedVoiceGender } = await generateStory(params)
       const storiesRef = collection(db, 'users', user.uid, 'stories')
 
       const resolvedTitle = (title || '').trim() || params.description || 'Untitled Story'
@@ -135,6 +137,8 @@ const GenerateStoryPanel = ({
       const storyRef = await addDoc(storiesRef, {
         ...params,
         title: resolvedTitle,
+        voiceGender: resolvedVoiceGender,
+        voiceId,
         createdAt: serverTimestamp(),
         hasFullAudio: false,
         audioStatus: 'none',
@@ -221,7 +225,7 @@ const GenerateStoryPanel = ({
       )}
 
       <form className="form" onSubmit={handleSubmit}>
-      <label className="ui-text">
+        <label className="ui-text">
           Language level
           <div className="slider-row">
             <input
@@ -278,6 +282,28 @@ const GenerateStoryPanel = ({
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
+        </label>
+
+        <label className="ui-text">
+          Voice gender
+          <div className="voice-gender-toggle" role="radiogroup" aria-label="Voice gender">
+            <button
+              className={`voice-gender-option${voiceGender === 'male' ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => setVoiceGender('male')}
+              aria-pressed={voiceGender === 'male'}
+            >
+              Male
+            </button>
+            <button
+              className={`voice-gender-option${voiceGender === 'female' ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => setVoiceGender('female')}
+              aria-pressed={voiceGender === 'female'}
+            >
+              Female
+            </button>
+          </div>
         </label>
 
         <div className="action-row">

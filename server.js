@@ -63,7 +63,48 @@ const LANGUAGE_NAME_TO_CODE = {
   Italian: 'it',
 }
 
+const LANGUAGE_CODE_TO_NAME = Object.fromEntries(
+  Object.entries(LANGUAGE_NAME_TO_CODE).map(([label, code]) => [code, label]),
+)
+
+const ELEVENLABS_VOICE_MAP = {
+  English: {
+    male: 'NFG5qt843uXKj4pFvR7C',
+    female: 'ZF6FPAbjXT4488VcRRnw',
+  },
+  Spanish: {
+    male: 'kulszILr6ees0ArU8miO',
+    female: '1WXz8v08ntDcSTeVXMN2',
+  },
+  French: {
+    male: 'UBXZKOKbt62aLQHhc1Jm',
+    female: 'sANWqF1bCMzR6eyZbCGw',
+  },
+  Italian: {
+    male: 'W71zT1VwIFFx3mMGH2uZ',
+    female: 'gfKKsLN1k0oYYN9n2dXX',
+  },
+}
+
+const SUPPORTED_VOICE_GENDERS = new Set(['male', 'female'])
+
 const SUPPORTED_LANGUAGE_CODES = new Set(Object.values(LANGUAGE_NAME_TO_CODE))
+
+function normalizeLanguageLabel(language) {
+  const raw = String(language || '').trim()
+  if (!raw) return ''
+
+  if (LANGUAGE_NAME_TO_CODE[raw]) return raw
+
+  const lowered = raw.toLowerCase()
+  const matchedLabel = Object.keys(LANGUAGE_NAME_TO_CODE).find(
+    (label) => label.toLowerCase() === lowered,
+  )
+
+  if (matchedLabel) return matchedLabel
+
+  return LANGUAGE_CODE_TO_NAME[lowered] || ''
+}
 
 function normalizeBaseLanguageCode(language) {
   const raw = String(language || '').trim()
@@ -85,65 +126,29 @@ function resolveTargetCode(targetLang) {
   return 'en'
 }
 
-function detectLikelyLanguage(text = '') {
-  const sample = String(text || '').toLowerCase()
-  if (!sample.trim()) return null
+function resolveElevenLabsVoiceId(language, voiceGender) {
+  const normalizedLanguage = normalizeLanguageLabel(language)
+  if (!normalizedLanguage || !ELEVENLABS_VOICE_MAP[normalizedLanguage]) {
+    const message = `Unsupported language for voice selection: ${language || 'unknown'}`
+    console.error(message)
+    throw new Error(message)
+  }
 
-  if (/[áéíóúñü¿¡]/i.test(sample)) return 'es'
+  const normalizedGender = String(voiceGender || '').trim().toLowerCase()
+  if (!SUPPORTED_VOICE_GENDERS.has(normalizedGender)) {
+    const message = `Invalid voice gender selection: ${voiceGender || 'unknown'}`
+    console.error(message)
+    throw new Error(message)
+  }
 
-  const spanishStopwords = [
-    ' el ',
-    ' la ',
-    ' los ',
-    ' las ',
-    ' de ',
-    ' del ',
-    ' un ',
-    ' una ',
-    ' unos ',
-    ' unas ',
-    ' y ',
-    ' o ',
-    ' que ',
-    ' con ',
-    ' sin ',
-    ' para ',
-    ' por ',
-  ]
+  const voiceId = ELEVENLABS_VOICE_MAP[normalizedLanguage]?.[normalizedGender]
+  if (!voiceId) {
+    const message = `Missing ElevenLabs voiceId for ${normalizedLanguage} (${normalizedGender})`
+    console.error(message)
+    throw new Error(message)
+  }
 
-  if (spanishStopwords.some((token) => sample.includes(token))) return 'es'
-
-  const commonSpanishSingles = new Set([
-    'hola',
-    'gracias',
-    'buenos',
-    'buenas',
-    'adios',
-    'metro',
-    'solo',
-    'sola',
-    'con',
-    'sin',
-  ])
-
-  if (commonSpanishSingles.has(sample.trim())) return 'es'
-
-  return null
-}
-
-function resolveTtsLanguage(sourceLang, textForDetection = '') {
-  const resolvedRaw = resolveTargetCode(sourceLang)
-  const code = String(resolvedRaw || '').toLowerCase().trim()
-
-  const baseCode = code.includes('-') ? code.split('-')[0] : code
-  const allowlist = new Set([...SUPPORTED_LANGUAGE_CODES, 'en'])
-
-  if (code && code !== 'auto' && allowlist.has(baseCode)) return code
-
-  const detected = detectLikelyLanguage(textForDetection)
-  if (detected && allowlist.has(detected)) return detected
-
-  return 'en'
+  return { voiceId, voiceGender: normalizedGender, language: normalizedLanguage }
 }
 
 function escapeForSsml(text) {
@@ -184,8 +189,6 @@ app.use(express.json())
 
 const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML !== '0'
 const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM !== '0'
-const ELEVENLABS_ES_VOICE_ID =
-  process.env.ELEVENLABS_ES_VOICE_ID || 'AvFwmpNEfWWu5mtNDqhH'
 
 const logTtsMethod = (method, lang) => {
   if (process.env.TTS_DEBUG === '1') {
@@ -193,10 +196,14 @@ const logTtsMethod = (method, lang) => {
   }
 }
 
-async function requestElevenLabsTts(text) {
+async function requestElevenLabsTts(text, voiceId) {
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) {
     throw new Error('Missing ELEVENLABS_API_KEY')
+  }
+
+  if (!voiceId) {
+    throw new Error('Missing ElevenLabs voiceId')
   }
 
   const controller = new AbortController()
@@ -205,7 +212,7 @@ async function requestElevenLabsTts(text) {
   let response
   try {
     response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_ES_VOICE_ID}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: 'POST',
         headers: {
@@ -1577,9 +1584,20 @@ async function translateWords(words, sourceLang, targetLang) {
 
 app.post('/api/generate', async (req, res) => {
   try {
-    const { level, genre, length, description, language, pageCount } = req.body
+    const { level, genre, length, description, language, pageCount, voiceGender } = req.body
     const totalPages = Math.max(5, Number(pageCount || length || 1) || 1)
     const trimmedDescription = description?.trim() || 'Use your creativity to craft the plot.'
+
+    let resolvedVoiceId = ''
+    let resolvedVoiceGender = ''
+
+    try {
+      const voiceSelection = resolveElevenLabsVoiceId(language, voiceGender)
+      resolvedVoiceId = voiceSelection.voiceId
+      resolvedVoiceGender = voiceSelection.voiceGender
+    } catch (voiceError) {
+      return res.status(400).json({ error: voiceError?.message || 'Invalid voice selection' })
+    }
 
     let title = 'Untitled Story'
     let pagePlans = new Array(totalPages).fill(null)
@@ -1656,7 +1674,7 @@ app.post('/api/generate', async (req, res) => {
       pages.push(response.output_text.trim())
     }
 
-    res.json({ title, pages })
+    res.json({ title, pages, voiceId: resolvedVoiceId, voiceGender: resolvedVoiceGender })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: "OpenAI generation failed" })
@@ -2421,82 +2439,16 @@ async function encodeMergedWavToMp3(wavBuffer) {
   )
 }
 
-async function generateAudioForPage(bookId, pageIndex, text, languageCode) {
+async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLabel) {
   if (!text || !text.trim()) return null
 
   const MAX_CHARS = 6000
   const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
+  const audioBuffer = await requestElevenLabsTts(safeText, voiceId)
+  const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+  logTtsMethod('elevenlabs', languageLabel || 'unknown')
 
-  const ttsLanguage = resolveTtsLanguage(languageCode, safeText)
-  const baseTtsLanguage = ttsLanguage.split('-')[0]
-
-  const baseTtsConfig = {
-    model: 'gpt-4o-mini-tts',
-    voice: 'alloy',
-    format: 'mp3',
-  }
-
-  let hasLogged = false
-  const logOnce = (method) => {
-    if (!hasLogged) {
-      logTtsMethod(method, ttsLanguage)
-      hasLogged = true
-    }
-  }
-
-  if (baseTtsLanguage === 'es') {
-    try {
-      const audioBuffer = await requestElevenLabsTts(safeText)
-      const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
-      logOnce('elevenlabs')
-      return audioUrl
-    } catch (ttsError) {
-      console.error('Spanish ElevenLabs TTS path failed:', ttsError)
-    }
-  }
-
-  if (TTS_SUPPORTS_SSML) {
-    const ssml = `<speak><lang xml:lang="${ttsLanguage}">${escapeForSsml(safeText)}</lang></speak>`
-
-    try {
-      const audioResponse = await client.audio.speech.create({
-        ...baseTtsConfig,
-        input: ssml,
-      })
-
-      const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
-      const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
-      logOnce('ssml')
-
-      return audioUrl
-    } catch (ttsError) {
-      console.error('Error generating page audio (SSML attempt):', ttsError)
-    }
-  }
-
-  if (TTS_SUPPORTS_LANGUAGE_PARAM) {
-    try {
-      const audioResponse = await client.audio.speech.create({
-        ...baseTtsConfig,
-        input: safeText,
-        language: ttsLanguage,
-      })
-
-      const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
-      const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
-      logOnce('language-param')
-
-      return audioUrl
-    } catch (ttsError) {
-      console.error('Error generating page audio (language-param attempt):', ttsError)
-    }
-  }
-
-  console.error(
-    'No page audio generated: language-locked attempts failed for',
-    ttsLanguage
-  )
-  return null
+  return audioUrl
 }
 
 app.post('/api/generate-audio-book', async (req, res) => {
@@ -2517,6 +2469,42 @@ app.post('/api/generate-audio-book', async (req, res) => {
     }
 
     const storyData = storySnap.data() || {}
+    const storyLanguage = normalizeLanguageLabel(storyData?.language || storyData?.outputLanguage)
+    const storyVoiceGender = String(storyData?.voiceGender || '').trim().toLowerCase()
+    const storyVoiceId = storyData?.voiceId
+
+    if (!storyLanguage || !ELEVENLABS_VOICE_MAP[storyLanguage]) {
+      const message = `Unsupported language for audio generation: ${storyData?.language || storyData?.outputLanguage || 'unknown'}`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    if (!SUPPORTED_VOICE_GENDERS.has(storyVoiceGender)) {
+      const message = `Invalid voice gender for audio generation: ${storyData?.voiceGender || 'unknown'}`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    if (!storyVoiceId) {
+      const message = 'Missing ElevenLabs voiceId for audio generation'
+      console.error(message)
+      throw new Error(message)
+    }
+
+    const expectedVoiceId =
+      ELEVENLABS_VOICE_MAP[storyLanguage]?.[storyVoiceGender]
+
+    if (!expectedVoiceId) {
+      const message = `Missing voiceId mapping for ${storyLanguage} (${storyVoiceGender})`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    if (storyVoiceId !== expectedVoiceId) {
+      const message = `VoiceId mismatch for ${storyLanguage} (${storyVoiceGender})`
+      console.error(message)
+      throw new Error(message)
+    }
 
     await storyRef.update({
       audioStatus: 'processing',
@@ -2570,7 +2558,8 @@ app.post('/api/generate-audio-book', async (req, res) => {
           storyId,
           pageIndex,
           pageText,
-          storyData?.language || storyData?.outputLanguage,
+          storyVoiceId,
+          storyLanguage,
         )
         if (audioUrl) {
           await doc.ref.update({ audioUrl, audioStatus: 'ready' })

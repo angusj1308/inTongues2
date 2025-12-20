@@ -353,13 +353,18 @@ const ActiveMode = ({
             <div className="extensive-pane extensive-pane-left">
               <div className="extensive-player-shell">
                 <div className="player-stack active-pass-stack">
-                  <span className="active-pass-instruction">Pass 1 of 4 — Just listen</span>
-                  <div className="player-visual-stage">
-                    <div className="player-cover" aria-hidden>
-                      <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                  <div className="active-pass-header">
+                    <div className="active-pass-context">
+                      <div className="active-pass-cover" aria-hidden>
+                        <div className="active-pass-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                      </div>
+                      <div className="active-pass-title">{titleWithChunk}</div>
+                    </div>
+                    <div className="active-pass-hero" aria-live="polite">
+                      <span className="active-pass-hero-label">PASS 1 OF 4</span>
+                      <span className="active-pass-hero-title">Just listen</span>
                     </div>
                   </div>
-                  <h2 className="player-title">{titleWithChunk}</h2>
                   <div className="player-surface">
                     {renderProgressBar()}
                     <div className="player-transport-shell">{renderTransportButtons()}</div>

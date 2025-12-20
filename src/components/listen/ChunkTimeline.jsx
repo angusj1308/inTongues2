@@ -33,6 +33,11 @@ const ChunkTimeline = ({
                   {chunk.labelStart} – {chunk.labelEnd}
                 </span>
                 {isCompleted && <span className="chunk-status" aria-hidden="true">✓</span>}
+                {!locked && (isActive || isCompleted) && (
+                  <span className="chunk-chevron" aria-hidden="true">
+                    ›
+                  </span>
+                )}
               </div>
             </button>
           </li>

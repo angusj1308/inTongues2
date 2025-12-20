@@ -3353,10 +3353,17 @@ pre {
   padding: 0.4rem 0.25rem;
   text-align: left;
   cursor: pointer;
+  border-radius: 10px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .chunk-button:disabled {
   cursor: not-allowed;
+}
+
+.chunk-button:not(:disabled):hover {
+  background: #f8fafc;
+  transform: translateX(2px);
 }
 
 .chunk-line {
@@ -3366,6 +3373,11 @@ pre {
   width: 100%;
   font-size: 0.95rem;
   color: #0f172a;
+}
+
+.chunk-list-item.is-current .chunk-button {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .chunk-list-item.is-current .chunk-line {
@@ -3385,6 +3397,24 @@ pre {
   color: #22c55e;
   margin-left: auto;
   font-size: 0.9rem;
+}
+
+.chunk-chevron {
+  margin-left: 0.35rem;
+  color: #94a3b8;
+  opacity: 0;
+  transform: translateX(-2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.chunk-list-item.is-current .chunk-chevron {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.chunk-button:not(:disabled):hover .chunk-chevron {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .pass-inline-rail,

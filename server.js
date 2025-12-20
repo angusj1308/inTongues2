@@ -225,7 +225,7 @@ async function requestElevenLabsTts(text) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
 
   let response
   try {
@@ -1615,7 +1615,7 @@ app.post('/api/generate', async (req, res) => {
       const planningResponse = await client.responses.create({
         model: "gpt-4.1",
         input: planningPrompt,
-        response_format: { type: 'json_object' },
+        text: { format: { type: 'json_object' } },
       })
 
       const contentBlocks = planningResponse?.output?.[0]?.content || []

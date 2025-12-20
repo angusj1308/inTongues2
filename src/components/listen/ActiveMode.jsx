@@ -346,12 +346,13 @@ const ActiveMode = ({
   const storyTitle = storyMeta.title || 'Audiobook'
   const chunkSuffix = `Chunk ${chunkPosition} of ${totalChunks}`
 
-  const chunkOverlay = showChunkList && hasChunks && (
+  const chunkOverlay = hasChunks && (
     <div
-      className="active-chunk-overlay"
+      className={`active-chunk-overlay ${showChunkList ? 'is-open' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label="Chunk navigation"
+      aria-hidden={!showChunkList}
       onClick={() => setShowChunkList(false)}
     >
       <div className="active-chunk-drawer" onClick={(event) => event.stopPropagation()}>
@@ -387,7 +388,7 @@ const ActiveMode = ({
           <div className="extensive-shell-inner">
             <div className="extensive-pane extensive-pane-left">
               <div className="extensive-player-shell">
-                <div className="player-stack active-pass-stack ui-text">
+                <div className="player-stack active-pass-stack active-chunk-host ui-text">
                   <div className="active-pass-header">
                     <div className="active-pass-context">
                       <div className="active-pass-cover" aria-hidden>
@@ -477,6 +478,7 @@ const ActiveMode = ({
                       <span className="secondary-spacer" aria-hidden />
                     </div>
                   </div>
+                  {chunkOverlay}
                 </div>
               </div>
             </div>
@@ -497,7 +499,6 @@ const ActiveMode = ({
             ))}
           </ol>
         </nav>
-        {chunkOverlay}
       </>
     )
   }
@@ -578,7 +579,7 @@ const ActiveMode = ({
             )}
 
             {activeStep !== 3 && (
-              <div className="active-pass-block">
+              <div className="active-pass-block active-chunk-host">
                 <div className="active-player-surface">
                   {renderProgressBar()}
                   <div className="player-transport-shell">{renderTransportButtons()}</div>
@@ -642,6 +643,7 @@ const ActiveMode = ({
                     <span className="secondary-spacer" aria-hidden />
                   </div>
                 </div>
+                {chunkOverlay}
               </div>
             )}
           </div>
@@ -658,7 +660,6 @@ const ActiveMode = ({
           )}
         </section>
 
-        {chunkOverlay}
       </>
     </div>
   )

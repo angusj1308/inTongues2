@@ -8,7 +8,6 @@ const ChunkTimeline = ({
   isChunkLocked,
 }) => (
   <div className="chunk-timeline" aria-label="Chunk timeline">
-    <div className="chunk-timeline-heading">Chunks</div>
     <ul className="chunk-list">
       {chunks.map((chunk) => {
         const isActive = chunk.index === activeIndex
@@ -17,8 +16,8 @@ const ChunkTimeline = ({
         return (
           <li
             key={chunk.index}
-            className={`chunk-list-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${
-              locked ? 'locked' : ''
+            className={`chunk-list-item ${isActive ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${
+              locked ? 'is-future' : ''
             }`}
           >
             <button
@@ -26,16 +25,14 @@ const ChunkTimeline = ({
               className="chunk-button"
               onClick={() => !locked && onSelectChunk(chunk.index)}
               disabled={locked}
-              aria-label={locked ? 'Chunk locked' : `Go to chunk ${chunk.index + 1}`}
+              aria-label={locked ? `Chunk ${chunk.index + 1} unavailable` : `Go to chunk ${chunk.index + 1}`}
             >
-              <span className="chunk-rail-marker" aria-hidden="true" />
               <div className="chunk-line">
-                <span className="chunk-number">{String(chunk.index + 1).padStart(2, '0')}</span>
-                <span className="chunk-label">{chunk.labelStart}</span>
-                <span className="chunk-divider" aria-hidden="true">·</span>
-                <span className="chunk-label">{chunk.labelEnd}</span>
+                <span className="chunk-number">Chunk {String(chunk.index + 1).padStart(2, '0')}</span>
+                <span className="chunk-time">
+                  {chunk.labelStart} – {chunk.labelEnd}
+                </span>
                 {isCompleted && <span className="chunk-status" aria-hidden="true">✓</span>}
-                {locked && !isCompleted && <span className="chunk-status" aria-hidden="true">🔒</span>}
               </div>
             </button>
           </li>

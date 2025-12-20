@@ -15,6 +15,7 @@ import {
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
 import ActiveMode from '../components/listen/ActiveMode'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
@@ -125,6 +126,11 @@ const AudioPlayer = () => {
 
     return transcriptSentences.map((text) => ({ text }))
   }, [pages, transcriptDoc, transcriptSentences])
+
+  const storyLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(storyMeta.language, ''),
+    [storyMeta.language],
+  )
 
   const chunkLengthSeconds = 60
 
@@ -373,7 +379,7 @@ const AudioPlayer = () => {
   }, [id, isSpotify, user])
 
   useEffect(() => {
-    if (!user || !storyMeta.language) {
+    if (!user || !storyLanguage) {
       setVocabEntries({})
       return undefined
     }
@@ -382,7 +388,7 @@ const AudioPlayer = () => {
 
     const fetchVocab = async () => {
       try {
-        const entries = await loadUserVocab(user.uid, storyMeta.language)
+        const entries = await loadUserVocab(user.uid, storyLanguage)
         if (isActive) {
           setVocabEntries(entries)
         }
@@ -397,7 +403,7 @@ const AudioPlayer = () => {
     return () => {
       isActive = false
     }
-  }, [storyMeta.language, user])
+  }, [storyLanguage, user])
 
   const isWordChar = (ch) => {
     if (!ch) return false
@@ -545,7 +551,7 @@ const AudioPlayer = () => {
       let audioBase64 = null
       let audioUrl = null
 
-      const ttsLanguage = normalizeLanguageCode(storyMeta.language)
+      const ttsLanguage = normalizeLanguageCode(storyLanguage)
 
       if (!ttsLanguage) {
         setPopup({
@@ -566,8 +572,8 @@ const AudioPlayer = () => {
           headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               phrase,
-              sourceLang: storyMeta.language || 'es',
-              targetLang: profile?.nativeLanguage || 'English',
+              sourceLang: storyLanguage || 'es',
+              targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
               ttsLanguage,
             }),
           })
@@ -618,18 +624,18 @@ const AudioPlayer = () => {
   }
 
   const handleSetWordStatus = async (status) => {
-    if (!user || !storyMeta.language || !popup?.word) return
+    if (!user || !storyLanguage || !popup?.word) return
     if (!VOCAB_STATUSES.includes(status)) return
 
     try {
-      await upsertVocabEntry(user.uid, storyMeta.language, popup.word, popup.translation, status)
+      await upsertVocabEntry(user.uid, storyLanguage, popup.word, popup.translation, status)
 
       const key = normaliseExpression(popup.word)
 
       setVocabEntries((prev) => ({
         ...prev,
         [key]: {
-          ...(prev[key] || { text: popup.word, language: storyMeta.language }),
+          ...(prev[key] || { text: popup.word, language: storyLanguage }),
           status,
           translation: popup.translation,
         },
@@ -664,8 +670,8 @@ const AudioPlayer = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            languageCode: storyMeta.language || 'es',
-            targetLang: profile?.nativeLanguage || 'English',
+            languageCode: storyLanguage || 'es',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             words,
           }),
           signal: controller.signal,
@@ -690,7 +696,7 @@ const AudioPlayer = () => {
     return () => {
       controller.abort()
     }
-  }, [profile?.nativeLanguage, storyMeta.language, transcriptText])
+  }, [profile?.nativeLanguage, storyLanguage, transcriptText])
 
   useEffect(() => {
     function handleGlobalClick(event) {
@@ -1184,7 +1190,7 @@ const AudioPlayer = () => {
                 transcriptSegments={transcriptSegments}
                 activeTranscriptIndex={activeTranscriptIndex}
                 vocabEntries={vocabEntries}
-                language={storyMeta.language}
+                language={storyLanguage}
                 nativeLanguage={profile?.nativeLanguage}
                 pageTranslations={pageTranslations}
                 setPopup={setPopup}
@@ -1225,7 +1231,9 @@ const AudioPlayer = () => {
                   <div className="audio-focus-details">
                     <div className="audio-meta">
                       <h2 className="audio-title">{storyMeta.title || 'Audiobook'}</h2>
-                      <p className="muted small">{storyMeta.language ? `in${storyMeta.language}` : 'Language not set'}</p>
+                      <p className="muted small">
+                        {storyLanguage ? `in${storyLanguage}` : 'Language not set'}
+                      </p>
                     </div>
                     <div className="audio-controls-row">
                       <button className="transport-btn" type="button" onClick={() => handleRewind()}>
@@ -1327,7 +1335,7 @@ const AudioPlayer = () => {
         listeningMode={listeningMode}
         transcriptSentences={transcriptSentences}
         transcriptSegments={transcriptSegments}
-        language={storyMeta.language}
+        language={storyLanguage}
         nativeLanguage={profile?.nativeLanguage}
         vocabEntries={vocabEntries}
         setVocabEntries={setVocabEntries}
@@ -1368,7 +1376,7 @@ const AudioPlayer = () => {
           <div className="translate-popup-body">
             <div className="translate-popup-language-column">
               <p className="translate-popup-language-label">
-                {storyMeta.language || 'Target language'}
+                {storyLanguage || 'Target language'}
               </p>
               <p
                 className="translate-popup-language-text translate-popup-book-text"
@@ -1416,7 +1424,9 @@ const AudioPlayer = () => {
             </div>
 
             <div className="translate-popup-language-column">
-              <p className="translate-popup-language-label">{profile?.nativeLanguage || 'English'}</p>
+              <p className="translate-popup-language-label">
+                {resolveSupportedLanguageLabel(profile?.nativeLanguage)}
+              </p>
               <p className="translate-popup-language-text">{popup.translation}</p>
             </div>
           </div>

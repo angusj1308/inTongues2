@@ -15,6 +15,11 @@ import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import WordToken from '../components/read/WordToken'
 import { readerModes } from '../constants/readerModes'
+import {
+  filterSupportedLanguages,
+  resolveSupportedLanguageLabel,
+  toLanguageLabel,
+} from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
 
 const themeOptions = [
@@ -63,7 +68,7 @@ const fontOptions = [
 const Reader = ({ initialMode }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { id, language } = useParams()
+  const { id, language: languageParam } = useParams()
   const { user, profile } = useAuth()
 
   const [pages, setPages] = useState([])
@@ -102,6 +107,44 @@ const Reader = ({ initialMode }) => {
   const lastPageIndexRef = useRef(currentIndex)
   const hasAppliedBookmarkRef = useRef(false)
   // popup: { x, y, word, displayText, translation } | null
+
+  const supportedLanguages = useMemo(
+    () => filterSupportedLanguages(profile?.myLanguages || []),
+    [profile?.myLanguages],
+  )
+  const nativeLanguage = useMemo(
+    () => resolveSupportedLanguageLabel(profile?.nativeLanguage, ''),
+    [profile?.nativeLanguage],
+  )
+  const resolvedLanguageParam = useMemo(
+    () => resolveSupportedLanguageLabel(languageParam || '', ''),
+    [languageParam],
+  )
+  const fallbackLanguage = useMemo(() => {
+    if (profile?.lastUsedLanguage) {
+      const resolved = resolveSupportedLanguageLabel(profile.lastUsedLanguage, '')
+      if (resolved) return resolved
+    }
+    return supportedLanguages[0] || ''
+  }, [profile?.lastUsedLanguage, supportedLanguages])
+  const activeLanguage = resolvedLanguageParam || fallbackLanguage
+  const language = activeLanguage
+
+  useEffect(() => {
+    if (!languageParam) return
+    if (!resolvedLanguageParam) {
+      if (fallbackLanguage) {
+        navigate(`/reader/${encodeURIComponent(fallbackLanguage)}/${id}`, { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
+      return
+    }
+    const normalizedParam = toLanguageLabel(languageParam)
+    if (normalizedParam && normalizedParam !== languageParam) {
+      navigate(`/reader/${encodeURIComponent(normalizedParam)}/${id}`, { replace: true })
+    }
+  }, [fallbackLanguage, id, languageParam, navigate, resolvedLanguageParam])
 
   const getPopupPosition = (rect) => {
     const margin = 12
@@ -221,7 +264,7 @@ const Reader = ({ initialMode }) => {
           body: JSON.stringify({
             phrase,
             sourceLang: language || 'es', // TODO: replace with real source language
-            targetLang: profile?.nativeLanguage || 'English',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             ttsLanguage,
           }),
         })
@@ -299,7 +342,7 @@ const Reader = ({ initialMode }) => {
           body: JSON.stringify({
             phrase: selection,
             sourceLang: language || 'es',
-            targetLang: profile?.nativeLanguage || 'English',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             ttsLanguage,
           }),
         })
@@ -382,7 +425,7 @@ const Reader = ({ initialMode }) => {
           body: JSON.stringify({
             phrase: text,
             sourceLang: language || 'es',
-            targetLang: profile?.nativeLanguage || 'English',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             ttsLanguage,
           }),
         })
@@ -1022,7 +1065,7 @@ const Reader = ({ initialMode }) => {
   }, [pages])
 
   useEffect(() => {
-    if (!language || !profile?.nativeLanguage || allStoryWords.length === 0) {
+    if (!language || !nativeLanguage || allStoryWords.length === 0) {
       setPageTranslations({})
       return undefined
     }
@@ -1036,7 +1079,7 @@ const Reader = ({ initialMode }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             languageCode: language, // TODO: replace with real language code
-            targetLang: profile.nativeLanguage,
+            targetLang: nativeLanguage,
             words: allStoryWords,
           }),
           signal: controller.signal,
@@ -1061,7 +1104,7 @@ const Reader = ({ initialMode }) => {
     return () => {
       controller.abort()
     }
-  }, [allStoryWords, language, profile?.nativeLanguage])
+  }, [allStoryWords, language, nativeLanguage])
 
   useEffect(() => {
     function handleGlobalClick(event) {
@@ -1455,7 +1498,7 @@ const Reader = ({ initialMode }) => {
                 body: JSON.stringify({
                   phrase: sentence,
                   sourceLang: language || 'es',
-                  targetLang: profile?.nativeLanguage || 'English',
+                  targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
                   ttsLanguage,
                 }),
               })
@@ -1498,7 +1541,7 @@ const Reader = ({ initialMode }) => {
     return () => {
       isCancelled = true
     }
-  }, [intensiveSentences, language, profile?.nativeLanguage, sentenceTranslations])
+  }, [intensiveSentences, language, nativeLanguage, sentenceTranslations])
 
   const toggleIntensiveTranslation = () => {
     setIsIntensiveTranslationVisible((prev) => !prev)
@@ -1784,7 +1827,7 @@ const Reader = ({ initialMode }) => {
 
             <div className="translate-popup-language-column">
               <p className="translate-popup-language-label">
-                {profile?.nativeLanguage || 'Native language'}
+                {nativeLanguage || 'Native language'}
               </p>
               <p className="translate-popup-language-text translate-popup-book-text">
                 {popup.translation}

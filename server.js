@@ -58,38 +58,12 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
-  Spanish: 'es',
-  Mandarin: 'zh',
   French: 'fr',
-  German: 'de',
-  Japanese: 'ja',
-  Korean: 'ko',
+  Spanish: 'es',
   Italian: 'it',
-  Portuguese: 'pt',
-  Russian: 'ru',
-  Arabic: 'ar',
-  Hindi: 'hi',
-  Turkish: 'tr',
-  Dutch: 'nl',
-  Swedish: 'sv',
-  Norwegian: 'no',
-  Danish: 'da',
-  Finnish: 'fi',
-  Polish: 'pl',
-  Greek: 'el',
-  Hebrew: 'he',
-  Thai: 'th',
-  Vietnamese: 'vi',
-  Indonesian: 'id',
-  Czech: 'cs',
-  Hungarian: 'hu',
-  Romanian: 'ro',
-  Ukrainian: 'uk',
-  Swahili: 'sw',
-  Zulu: 'zu',
-  Malay: 'ms',
-  Filipino: 'fil',
 }
+
+const SUPPORTED_LANGUAGE_CODES = new Set(Object.values(LANGUAGE_NAME_TO_CODE))
 
 function normalizeBaseLanguageCode(language) {
   const raw = String(language || '').trim()
@@ -107,7 +81,8 @@ function isValidLanguageCode(language) {
 function resolveTargetCode(targetLang) {
   if (!targetLang) return 'en'
   if (LANGUAGE_NAME_TO_CODE[targetLang]) return LANGUAGE_NAME_TO_CODE[targetLang]
-  return targetLang // assume it's already a code
+  if (SUPPORTED_LANGUAGE_CODES.has(targetLang)) return targetLang
+  return 'en'
 }
 
 function detectLikelyLanguage(text = '') {
@@ -161,7 +136,7 @@ function resolveTtsLanguage(sourceLang, textForDetection = '') {
   const code = String(resolvedRaw || '').toLowerCase().trim()
 
   const baseCode = code.includes('-') ? code.split('-')[0] : code
-  const allowlist = new Set([...Object.values(LANGUAGE_NAME_TO_CODE), 'en'])
+  const allowlist = new Set([...SUPPORTED_LANGUAGE_CODES, 'en'])
 
   if (code && code !== 'auto' && allowlist.has(baseCode)) return code
 

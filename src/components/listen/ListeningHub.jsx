@@ -13,6 +13,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import useAuth from '../../context/AuthContext'
 import db from '../../firebase'
 import { signOutFromSpotify } from '../../services/spotifyAuth'
@@ -54,7 +55,10 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   const [videoLoading, setVideoLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const activeLanguage = profile?.lastUsedLanguage || profile?.myLanguages?.[0] || ''
+  const activeLanguage = resolveSupportedLanguageLabel(
+    profile?.lastUsedLanguage || profile?.myLanguages?.[0] || '',
+    '',
+  )
   const juanDescription = activeLanguage
     ? `Practice understanding conversational ${activeLanguage} while replying in your native language. Juan speaks only your target language so you can focus 100% on comprehension, not output.`
     : 'Practice understanding conversational language while replying in your native language. Juan speaks only your target language so you can focus 100% on comprehension, not output.'

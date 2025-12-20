@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import TranscriptRoller from './TranscriptRoller'
 import { normaliseExpression } from '../../services/vocab'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
 
 const getPopupPosition = (rect) => {
@@ -335,7 +336,7 @@ const ExtensiveMode = ({
           body: JSON.stringify({
             phrase: text,
             sourceLang: language || 'es',
-            targetLang: nativeLanguage || 'English',
+            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
             ttsLanguage,
           }),
         })
@@ -430,7 +431,7 @@ const ExtensiveMode = ({
             body: JSON.stringify({
               phrase,
               sourceLang: language || 'es',
-              targetLang: nativeLanguage || 'English',
+              targetLang: resolveSupportedLanguageLabel(nativeLanguage),
               ttsLanguage,
             }),
           })
@@ -517,7 +518,7 @@ const ExtensiveMode = ({
             body: JSON.stringify({
               phrase: selection,
               sourceLang: language || 'es',
-              targetLang: nativeLanguage || 'English',
+              targetLang: resolveSupportedLanguageLabel(nativeLanguage),
               ttsLanguage,
             }),
           })

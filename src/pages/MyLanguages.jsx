@@ -1,12 +1,17 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 
 const MyLanguages = () => {
   const navigate = useNavigate()
   const { profile, updateProfile } = useAuth()
 
-  const languages = useMemo(() => profile?.myLanguages || [], [profile?.myLanguages])
+  const languages = useMemo(
+    () => filterSupportedLanguages(profile?.myLanguages || []),
+    [profile?.myLanguages],
+  )
+  const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, '')
 
   return (
     <div className="page">
@@ -36,7 +41,7 @@ const MyLanguages = () => {
           </label>
           <select
             id="native-language"
-            value={profile?.nativeLanguage || ''}
+            value={nativeLanguage}
             onChange={(event) => updateProfile({ nativeLanguage: event.target.value })}
           >
             <option value="">Select your native language</option>
@@ -53,8 +58,10 @@ const MyLanguages = () => {
             {languages.map((language) => (
               <li key={language} className="language-row saved">
                 <span>{language}</span>
-                {profile?.nativeLanguage === language && <span className="pill primary">Native</span>}
-                {profile?.lastUsedLanguage === language && <span className="pill">Last used</span>}
+                {nativeLanguage === language && <span className="pill primary">Native</span>}
+                {resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '') === language && (
+                  <span className="pill">Last used</span>
+                )}
               </li>
             ))}
           </ul>

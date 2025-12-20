@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { filterSupportedLanguages } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 
 const Login = () => {
@@ -13,7 +14,7 @@ const Login = () => {
   useEffect(() => {
     if (loading) return
     if (user && profile) {
-      if (profile.myLanguages?.length) {
+      if (filterSupportedLanguages(profile.myLanguages || []).length) {
         navigate('/dashboard', { replace: true })
       } else {
         navigate('/select-language', { replace: true })

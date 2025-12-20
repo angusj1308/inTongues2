@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import { filterSupportedLanguages, resolveSupportedLanguageLabel } from './constants/languages'
 import { useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
 import GenerateContent from './pages/GenerateContent'
@@ -20,17 +21,18 @@ import JuanComprehension from './pages/JuanComprehension'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
-  const hasLanguages = Boolean(profile?.myLanguages?.length)
+  const supportedLanguages = filterSupportedLanguages(profile?.myLanguages || [])
+  const hasLanguages = Boolean(supportedLanguages.length)
 
   useEffect(() => {
     const ensureLastUsedLanguage = async () => {
       if (hasLanguages && !profile?.lastUsedLanguage) {
-        await setLastUsedLanguage(profile.myLanguages[profile.myLanguages.length - 1])
+        await setLastUsedLanguage(supportedLanguages[supportedLanguages.length - 1])
       }
     }
 
     ensureLastUsedLanguage()
-  }, [hasLanguages, profile?.lastUsedLanguage, profile?.myLanguages, setLastUsedLanguage])
+  }, [hasLanguages, profile?.lastUsedLanguage, setLastUsedLanguage, supportedLanguages])
 
   if (loading) {
     return (
@@ -51,7 +53,7 @@ const LandingRedirect = () => {
 
 const App = () => {
   const { profile } = useAuth()
-  const activeLanguage = profile?.lastUsedLanguage || ''
+  const activeLanguage = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
 
   useEffect(() => {
     if (activeLanguage) {

@@ -15,6 +15,24 @@ app.use((req, res, next) => corsHandler(req, res, next))
 const openaiKey = functions.config()?.openai?.key
 const openaiClient = openaiKey ? new OpenAI({ apiKey: openaiKey }) : null
 
+const SUPPORTED_LANGUAGES_MVP = {
+  en: 'English',
+  fr: 'French',
+  es: 'Spanish',
+  it: 'Italian',
+}
+
+const resolveSupportedLanguage = (language) => {
+  const raw = String(language || '').trim()
+  if (!raw) return ''
+  const lower = raw.toLowerCase()
+  if (SUPPORTED_LANGUAGES_MVP[lower]) return SUPPORTED_LANGUAGES_MVP[lower]
+  const labelMatch = Object.values(SUPPORTED_LANGUAGES_MVP).find(
+    (label) => label.toLowerCase() === lower,
+  )
+  return labelMatch || ''
+}
+
 const handleGenerate = async (req, res) => {
   const { level, genre, length, description, language } = req.body || {}
 
@@ -30,6 +48,8 @@ const handleGenerate = async (req, res) => {
     return res.status(500).json({ error: 'OpenAI API key is not configured.' })
   }
 
+  const resolvedLanguage = resolveSupportedLanguage(language) || SUPPORTED_LANGUAGES_MVP.en
+
   const storyDetails = [
     level ? `reading level ${level}` : null,
     genre ? `${genre} genre` : null,
@@ -38,7 +58,7 @@ const handleGenerate = async (req, res) => {
   ].filter(Boolean)
 
   const userPrompt = [
-    `Write an engaging story in ${language}.`,
+    `Write an engaging story in ${resolvedLanguage}.`,
     storyDetails.length ? `Include ${storyDetails.join(', ')}.` : null,
   ]
     .filter(Boolean)

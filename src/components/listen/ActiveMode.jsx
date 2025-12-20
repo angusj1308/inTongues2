@@ -103,27 +103,57 @@ const ActiveMode = ({
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
   const [showChunkList, setShowChunkList] = useState(false)
 
-  const currentChunk = chunks[activeChunkIndex]
-  const chunkStart = currentChunk?.start ?? 0
-  const chunkEnd = currentChunk?.end ?? playbackDurationSeconds
+  const hasChunks = Array.isArray(chunks) && chunks.length > 0
+  const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
+  const safeChunkIndex = hasChunks ? Math.min(Math.max(activeChunkIndex, 0), chunks.length - 1) : 0
+
+  useEffect(() => {
+    if (!hasChunks) {
+      console.error('ActiveMode: chunks missing or empty.')
+    }
+  }, [hasChunks])
+
+  useEffect(() => {
+    if (!hasChunks) return
+    if (activeChunkIndex < 0 || activeChunkIndex >= chunks.length) {
+      console.error('ActiveMode: activeChunkIndex out of range.', { activeChunkIndex, length: chunks.length })
+    }
+  }, [activeChunkIndex, chunks.length, hasChunks])
+
+  if (!hasChunks) {
+    return (
+      <div className="active-loading" role="status" aria-live="polite">
+        Loading chunks…
+      </div>
+    )
+  }
+
+  const currentChunk = chunks[safeChunkIndex]
+  const chunkStart = Number.isFinite(currentChunk?.start) ? currentChunk.start : 0
+  const rawChunkEnd = Number.isFinite(currentChunk?.end) ? currentChunk.end : safePlaybackDuration
+  const chunkEnd = Math.max(rawChunkEnd, chunkStart)
   const chunkDuration = Math.max(0, chunkEnd - chunkStart)
 
   const showTranscript = activeStep === 2 || activeStep === 3
   const allowEditing = activeStep === 3
   const showWordStatus = activeStep === 3
 
-  const clampedPosition = Math.min(Math.max(playbackPositionSeconds, chunkStart), chunkEnd)
+  const safePlaybackPosition = Number.isFinite(playbackPositionSeconds) ? playbackPositionSeconds : chunkStart
+  const clampedPosition = Math.min(Math.max(safePlaybackPosition, chunkStart), chunkEnd)
   const chunkProgress = chunkDuration
     ? Math.min(100, ((clampedPosition - chunkStart) / chunkDuration) * 100)
     : 0
   const progressPercent = chunkProgress
 
-  const filteredSegments = transcriptSegments.filter((segment) => {
-    if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return true
-    return segment.start >= chunkStart && segment.start < chunkEnd
-  })
+  const hasValidChunkBounds = Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart
+  const filteredSegments = hasValidChunkBounds
+    ? transcriptSegments.filter((segment) => {
+        if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return true
+        return segment.start >= chunkStart && segment.start < chunkEnd
+      })
+    : transcriptSegments
 
-  const isChunkLocked = (index) => index > activeChunkIndex
+  const isChunkLocked = (index) => index > safeChunkIndex
   const handleSelectChunk = (index) => {
     if (typeof onSelectChunk === 'function') {
       onSelectChunk(index)
@@ -308,7 +338,7 @@ const ActiveMode = ({
         className="audible-progress"
         type="range"
         min={chunkStart}
-        max={chunkEnd || 0}
+        max={chunkEnd}
         step="0.1"
         value={clampedPosition}
         onChange={(event) => handleSeek(Number(event.target.value))}
@@ -317,7 +347,7 @@ const ActiveMode = ({
       />
       <div className="progress-times ui-text">
         <span className="muted tiny">{formatTime(clampedPosition)}</span>
-        <span className="muted tiny">{chunkEnd ? formatTime(chunkEnd) : '0:00'}</span>
+        <span className="muted tiny">{formatTime(chunkEnd)}</span>
       </div>
     </div>
   )
@@ -514,6 +544,7 @@ const ActiveMode = ({
                       type="button"
                       className="secondary-btn"
                       onClick={() => setShowChunkList(true)}
+                      disabled={!hasChunks}
                       aria-label="Chunks"
                       title="Chunks"
                     >
@@ -579,7 +610,7 @@ const ActiveMode = ({
           )}
         </section>
 
-        {showChunkList && (
+        {showChunkList && hasChunks && (
           <div
             className="active-chunk-overlay"
             role="dialog"
@@ -604,7 +635,7 @@ const ActiveMode = ({
               </div>
               <ChunkTimeline
                 chunks={chunks}
-                activeIndex={activeChunkIndex}
+                activeIndex={safeChunkIndex}
                 completedSet={completedChunks}
                 onSelectChunk={handleSelectChunk}
                 isChunkLocked={isChunkLocked}

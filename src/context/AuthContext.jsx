@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
+import { toLanguageLabel } from '../constants/languages'
 
 const AuthContext = createContext()
 
@@ -98,14 +99,15 @@ export const AuthProvider = ({ children }) => {
 
   const addLanguage = useCallback(
     async (language) => {
-      if (!language) return null
+      const resolvedLanguage = toLanguageLabel(language)
+      if (!resolvedLanguage) return null
       const currentLanguages = profile?.myLanguages || []
-      if (currentLanguages.includes(language)) {
-        return updateProfile({ lastUsedLanguage: language })
+      if (currentLanguages.includes(resolvedLanguage)) {
+        return updateProfile({ lastUsedLanguage: resolvedLanguage })
       }
       return updateProfile({
-        myLanguages: [...currentLanguages, language],
-        lastUsedLanguage: language,
+        myLanguages: [...currentLanguages, resolvedLanguage],
+        lastUsedLanguage: resolvedLanguage,
       })
     },
     [profile?.myLanguages, updateProfile]
@@ -113,8 +115,9 @@ export const AuthProvider = ({ children }) => {
 
   const setLastUsedLanguage = useCallback(
     async (language) => {
-      if (!language) return null
-      return updateProfile({ lastUsedLanguage: language })
+      const resolvedLanguage = toLanguageLabel(language)
+      if (!resolvedLanguage) return null
+      return updateProfile({ lastUsedLanguage: resolvedLanguage })
     },
     [updateProfile]
   )

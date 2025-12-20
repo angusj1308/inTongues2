@@ -1,4 +1,7 @@
+import { resolveSupportedLanguageLabel } from '../constants/languages'
+
 export const generateStory = async (params) => {
+  const language = resolveSupportedLanguageLabel(params?.language)
   try {
     const response = await fetch(
       'http://localhost:4000/api/generate',
@@ -7,7 +10,7 @@ export const generateStory = async (params) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, language }),
       }
     )
 

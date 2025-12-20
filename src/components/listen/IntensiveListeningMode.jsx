@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normaliseExpression, upsertVocabEntry } from '../../services/vocab'
 import WordTokenListening from './WordTokenListening'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
 
 const getPopupPosition = (rect) => {
@@ -99,7 +100,7 @@ const IntensiveListeningMode = ({
                   body: JSON.stringify({
                     phrase: sentence,
                     sourceLang: language || 'es',
-                    targetLang: nativeLanguage || 'English',
+                    targetLang: resolveSupportedLanguageLabel(nativeLanguage),
                     ttsLanguage,
                   }),
                 })
@@ -203,7 +204,7 @@ const IntensiveListeningMode = ({
           body: JSON.stringify({
             phrase: text,
             sourceLang: language || 'es',
-            targetLang: nativeLanguage || 'English',
+            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
             ttsLanguage,
           }),
         })
@@ -614,7 +615,7 @@ const IntensiveListeningMode = ({
             body: JSON.stringify({
               phrase,
               sourceLang: language || 'es',
-              targetLang: nativeLanguage || 'English',
+              targetLang: resolveSupportedLanguageLabel(nativeLanguage),
               ttsLanguage,
             }),
           })

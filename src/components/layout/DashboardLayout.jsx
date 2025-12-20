@@ -1,41 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 
 export const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review']
 
 const LANGUAGE_NATIVE_NAMES = {
-  Arabic: 'العربية',
-  Danish: 'Dansk',
-  Dutch: 'Nederlands',
   English: 'English',
-  Filipino: 'Filipino',
-  Finnish: 'Suomi',
   French: 'Français',
-  German: 'Deutsch',
-  Greek: 'Ελληνικά',
-  Hebrew: 'עברית',
-  Hindi: 'हिन्दी',
-  Hungarian: 'Magyar',
-  Indonesian: 'Bahasa Indonesia',
-  Italian: 'Italiano',
-  Japanese: '日本語',
-  Korean: '한국어',
-  Malay: 'Bahasa Melayu',
-  Mandarin: '中文',
-  Norwegian: 'Norsk',
-  Polish: 'Polski',
-  Portuguese: 'Português',
-  Romanian: 'Română',
-  Russian: 'Русский',
   Spanish: 'Español',
-  Swahili: 'Kiswahili',
-  Swedish: 'Svenska',
-  Thai: 'ไทย',
-  Turkish: 'Türkçe',
-  Ukrainian: 'Українська',
-  Vietnamese: 'Tiếng Việt',
-  Zulu: 'isiZulu',
+  Italian: 'Italiano',
 }
 
 const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
@@ -48,8 +22,10 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const languageMenuRef = useRef(null)
   const accountMenuRef = useRef(null)
 
-  const nativeLanguage = profile?.nativeLanguage || ''
-  const languages = profile?.myLanguages || []
+  const nativeLanguageRaw = profile?.nativeLanguage || ''
+  const nativeLanguage = resolveSupportedLanguageLabel(nativeLanguageRaw, '')
+  const allLanguages = profile?.myLanguages || []
+  const languages = filterSupportedLanguages(allLanguages)
 
   const hasLanguages = Boolean(languages.length)
 
@@ -66,7 +42,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   }, [hasLanguages, navigate, profile, user])
 
   const activeLanguage = useMemo(() => {
-    if (profile?.lastUsedLanguage) return profile.lastUsedLanguage
+    if (profile?.lastUsedLanguage) return resolveSupportedLanguageLabel(profile.lastUsedLanguage, '')
     if (languages.length) return languages[0]
     return ''
   }, [languages, profile?.lastUsedLanguage])
@@ -85,8 +61,9 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   }, [languageSearch, languages])
 
   const handleLanguageChange = async (language) => {
-    if (!language) return
-    await setLastUsedLanguage(language)
+    const nextLanguage = toLanguageLabel(language)
+    if (!nextLanguage) return
+    await setLastUsedLanguage(nextLanguage)
     setLanguageMenuOpen(false)
   }
 
@@ -97,12 +74,15 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
 
   const handleRemoveLanguage = async (language) => {
     if (!language) return
-    const remaining = languages.filter((entry) => entry !== language)
-    const nextActive = remaining[0] || ''
+    const remaining = allLanguages.filter((entry) => entry !== language)
+    const nextActive = resolveSupportedLanguageLabel(
+      remaining.find((entry) => toLanguageLabel(entry)),
+      '',
+    )
     await updateProfile({
       myLanguages: remaining,
       lastUsedLanguage: nextActive,
-      nativeLanguage: nativeLanguage === language ? '' : nativeLanguage,
+      nativeLanguage: nativeLanguageRaw === language ? '' : nativeLanguageRaw,
     })
     setLanguageSearch('')
   }
@@ -110,7 +90,9 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const handleAddLanguage = async () => {
     const trimmed = languageSearch.trim()
     if (!trimmed) return
-    await addLanguage(trimmed)
+    const resolvedLanguage = toLanguageLabel(trimmed)
+    if (!resolvedLanguage) return
+    await addLanguage(resolvedLanguage)
     setLanguageSearch('')
     setLanguageMenuOpen(true)
   }

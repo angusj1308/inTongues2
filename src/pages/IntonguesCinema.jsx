@@ -6,6 +6,7 @@ import { db } from '../firebase'
 import YouTubePlayer from '../components/YouTubePlayer'
 import CinemaSubtitles from '../components/CinemaSubtitles'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
 
 const extractVideoId = (video) => {
@@ -468,7 +469,7 @@ const normalisePagesToSegments = (pages = []) =>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             languageCode: transcriptLanguage || 'auto',
-            targetLang: profile?.nativeLanguage || 'English',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             words,
           }),
           signal: controller.signal,
@@ -739,7 +740,7 @@ const normalisePagesToSegments = (pages = []) =>
             body: JSON.stringify({
               phrase,
               sourceLang: transcriptLanguage || 'auto',
-              targetLang: profile?.nativeLanguage || 'English',
+              targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
               ttsLanguage: transcriptTtsLanguage,
             }),
           })

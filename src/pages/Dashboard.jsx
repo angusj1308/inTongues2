@@ -5,6 +5,7 @@ import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardL
 import ListeningHub from '../components/listen/ListeningHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
+import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 
@@ -89,10 +90,16 @@ const Dashboard = () => {
   const generatePanelRef = useRef(null)
   const importPanelRef = useRef(null)
 
-  const availableLanguages = profile?.myLanguages || []
+  const availableLanguages = useMemo(
+    () => filterSupportedLanguages(profile?.myLanguages || []),
+    [profile?.myLanguages],
+  )
   const activeLanguage = useMemo(() => {
-    if (profile?.lastUsedLanguage && availableLanguages.includes(profile.lastUsedLanguage)) {
-      return profile.lastUsedLanguage
+    if (profile?.lastUsedLanguage) {
+      const resolved = resolveSupportedLanguageLabel(profile.lastUsedLanguage, '')
+      if (resolved && availableLanguages.includes(resolved)) {
+        return resolved
+      }
     }
     if (availableLanguages.length) return availableLanguages[0]
     return ''
@@ -178,7 +185,7 @@ const Dashboard = () => {
   const handleOpenBook = (book) => {
     if (!book?.id) return
 
-    const languageForReader = book.language || activeLanguage
+    const languageForReader = resolveSupportedLanguageLabel(book.language || activeLanguage, '')
     const readerPath = languageForReader
       ? `/reader/${encodeURIComponent(languageForReader)}/${book.id}`
       : `/reader/${book.id}`

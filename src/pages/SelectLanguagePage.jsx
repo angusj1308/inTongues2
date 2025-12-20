@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { POPULAR_LANGUAGES, LANGUAGES } from '../constants/languages'
+import {
+  filterSupportedLanguages,
+  POPULAR_LANGUAGES,
+  LANGUAGES,
+  resolveSupportedLanguageLabel,
+} from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 
 const SelectLanguagePage = () => {
@@ -9,11 +14,17 @@ const SelectLanguagePage = () => {
   const [query, setQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [nativeLanguage, setNativeLanguage] = useState(profile?.nativeLanguage || '')
+  const [nativeLanguage, setNativeLanguage] = useState(
+    resolveSupportedLanguageLabel(profile?.nativeLanguage, '')
+  )
 
   useEffect(() => {
-    setNativeLanguage(profile?.nativeLanguage || '')
+    setNativeLanguage(resolveSupportedLanguageLabel(profile?.nativeLanguage, ''))
   }, [profile?.nativeLanguage])
+  const supportedLanguages = useMemo(
+    () => filterSupportedLanguages(profile?.myLanguages || []),
+    [profile?.myLanguages],
+  )
 
   const filteredLanguages = useMemo(() => {
     if (!query.trim()) {
@@ -120,7 +131,7 @@ const SelectLanguagePage = () => {
                 disabled={saving}
               >
                 <span>{language}</span>
-                {profile?.myLanguages?.includes(language) && <span className="pill">Saved</span>}
+                {supportedLanguages.includes(language) && <span className="pill">Saved</span>}
               </button>
             ))}
             {!filteredLanguages.length && <p className="muted">No results found.</p>}

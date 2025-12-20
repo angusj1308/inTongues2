@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import {
+  filterSupportedLanguages,
+  resolveSupportedLanguageLabel,
+  toLanguageLabel,
+} from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
@@ -45,20 +50,25 @@ const GenerateStoryPanel = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const availableLanguages = profile?.myLanguages || []
+  const availableLanguages = useMemo(
+    () => filterSupportedLanguages(profile?.myLanguages || []),
+    [profile?.myLanguages],
+  )
   const languageLocked = Boolean(languageParam || activeLanguageProp)
 
   const activeLanguage = useMemo(() => {
-    if (activeLanguageProp) return activeLanguageProp
+    if (activeLanguageProp) return resolveSupportedLanguageLabel(activeLanguageProp, '')
     if (languageParam) {
-      return availableLanguages.includes(languageParam) ? languageParam : ''
+      const resolved = resolveSupportedLanguageLabel(languageParam, '')
+      return availableLanguages.includes(resolved) ? resolved : ''
     }
-    if (profile?.lastUsedLanguage) return profile.lastUsedLanguage
+    if (profile?.lastUsedLanguage) return resolveSupportedLanguageLabel(profile.lastUsedLanguage, '')
     if (availableLanguages.length) return availableLanguages[0]
     return ''
   }, [activeLanguageProp, availableLanguages, languageParam, profile?.lastUsedLanguage])
 
-  const lockedLanguageUnavailable = languageParam && !availableLanguages.includes(languageParam)
+  const lockedLanguageUnavailable =
+    languageParam && !availableLanguages.includes(resolveSupportedLanguageLabel(languageParam, ''))
   const languageError = lockedLanguageUnavailable
     ? 'The selected language is not available in your account.'
     : ''
@@ -85,10 +95,14 @@ const GenerateStoryPanel = ({
   const handleLanguageChange = (newLanguage) => {
     if (!newLanguage || languageLocked) return
     if (languageParam) {
-      navigate(`/generate/${encodeURIComponent(newLanguage)}`)
+      const resolved = toLanguageLabel(newLanguage)
+      if (!resolved) return
+      navigate(`/generate/${encodeURIComponent(resolved)}`)
       return
     }
-    setLastUsedLanguage(newLanguage)
+    const resolved = toLanguageLabel(newLanguage)
+    if (!resolved) return
+    setLastUsedLanguage(resolved)
   }
 
   const handleSubmit = async (event) => {

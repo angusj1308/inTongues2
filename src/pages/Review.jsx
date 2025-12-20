@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
+import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { updateVocabSRS } from '../services/vocab'
@@ -15,13 +16,20 @@ const Review = () => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showTranslation, setShowTranslation] = useState(false)
 
-  const hasLanguages = Boolean(profile?.myLanguages?.length)
+  const supportedLanguages = useMemo(
+    () => filterSupportedLanguages(profile?.myLanguages || []),
+    [profile?.myLanguages],
+  )
+  const hasLanguages = Boolean(supportedLanguages.length)
 
   const activeLanguage = useMemo(() => {
-    if (profile?.lastUsedLanguage) return profile.lastUsedLanguage
-    if (profile?.myLanguages?.length) return profile.myLanguages[0]
+    if (profile?.lastUsedLanguage) {
+      const resolved = resolveSupportedLanguageLabel(profile.lastUsedLanguage, '')
+      if (resolved) return resolved
+    }
+    if (supportedLanguages.length) return supportedLanguages[0]
     return ''
-  }, [profile?.lastUsedLanguage, profile?.myLanguages])
+  }, [profile?.lastUsedLanguage, supportedLanguages])
 
   useEffect(() => {
     if (!user) {

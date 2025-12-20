@@ -347,15 +347,8 @@ const ActiveMode = ({
   const chunkSuffix = `Chunk ${chunkPosition} of ${totalChunks}`
 
   const chunkOverlay = hasChunks && (
-    <div
-      className={`active-chunk-overlay ${showChunkList ? 'is-open' : ''}`}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Chunk navigation"
-      aria-hidden={!showChunkList}
-      onClick={() => setShowChunkList(false)}
-    >
-      <div className="active-chunk-drawer" onClick={(event) => event.stopPropagation()}>
+    <div className={`active-chunk-shell ${showChunkList ? 'is-open' : ''}`} aria-hidden={!showChunkList}>
+      <div className="active-chunk-drawer" role="dialog" aria-label="Chunk navigation">
         <div className="active-chunk-drawer-header">
           <div>
             <div className="active-chunk-drawer-title active-story-title">{storyTitle}</div>

@@ -3294,7 +3294,7 @@ pre {
 
 .active-chunk-host {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
 }
 
@@ -3306,33 +3306,24 @@ pre {
   --chunk-panel-radius: 18px;
 }
 
-.active-chunk-overlay {
+.active-chunk-shell {
   position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.08);
-  opacity: 0;
-  visibility: hidden;
+  inset: 0 auto 0 0;
+  right: 100%;
+  display: flex;
+  align-items: stretch;
   pointer-events: none;
-  transition: opacity 0.2s ease;
   z-index: 6;
 }
 
-.active-chunk-overlay.is-open {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
 .active-chunk-drawer {
-  position: absolute;
-  inset: 0 auto 0 0;
   height: 100%;
   background: #fff;
   border-radius: var(--chunk-panel-radius, 18px);
   border: 1px solid #e2e8f0;
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
-  width: min(360px, 85%);
-  max-width: 85%;
+  width: min(320px, 70vw);
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -3340,10 +3331,11 @@ pre {
   overflow: auto;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   transform: translateX(-100%);
+  pointer-events: auto;
   transition: transform 0.25s ease;
 }
 
-.active-chunk-overlay.is-open .active-chunk-drawer {
+.active-chunk-shell.is-open .active-chunk-drawer {
   transform: translateX(0);
 }
 

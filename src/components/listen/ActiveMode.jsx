@@ -97,11 +97,13 @@ const ActiveMode = ({
   const scrubMenuRef = useRef(null)
   const longPressTimeoutRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
+  const chunkDrawerCloseTimeoutRef = useRef(null)
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const speedButtonRef = useRef(null)
   const speedMenuRef = useRef(null)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
   const [showChunkList, setShowChunkList] = useState(false)
+  const [isChunkDrawerMounted, setIsChunkDrawerMounted] = useState(false)
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
@@ -111,6 +113,13 @@ const ActiveMode = ({
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current)
       longPressTimeoutRef.current = null
+    }
+  }
+
+  const clearChunkDrawerTimeout = () => {
+    if (chunkDrawerCloseTimeoutRef.current) {
+      clearTimeout(chunkDrawerCloseTimeoutRef.current)
+      chunkDrawerCloseTimeoutRef.current = null
     }
   }
 
@@ -130,6 +139,24 @@ const ActiveMode = ({
   }, [])
 
   useEffect(() => () => clearLongPress(), [])
+
+  useEffect(() => {
+    if (showChunkList) {
+      clearChunkDrawerTimeout()
+      setIsChunkDrawerMounted(true)
+      return () => clearChunkDrawerTimeout()
+    }
+
+    if (isChunkDrawerMounted) {
+      clearChunkDrawerTimeout()
+      chunkDrawerCloseTimeoutRef.current = setTimeout(() => {
+        setIsChunkDrawerMounted(false)
+        chunkDrawerCloseTimeoutRef.current = null
+      }, 260)
+    }
+
+    return () => clearChunkDrawerTimeout()
+  }, [showChunkList])
 
   if (!hasChunks) {
     return (
@@ -188,6 +215,25 @@ const ActiveMode = ({
     if (!onPlaybackRateChange) return
     onPlaybackRateChange(nextRate)
     setSpeedMenuOpen(false)
+  }
+
+  const handleChunkToggle = () => {
+    if (showChunkList) {
+      setShowChunkList(false)
+      return
+    }
+
+    clearChunkDrawerTimeout()
+    setIsChunkDrawerMounted(true)
+    requestAnimationFrame(() => setShowChunkList(true))
+  }
+
+  const handleChunkDrawerTransitionEnd = (event) => {
+    if (event.target !== event.currentTarget) return
+    if (showChunkList) return
+    if (event.propertyName !== 'transform' && event.propertyName !== 'opacity') return
+    clearChunkDrawerTimeout()
+    setIsChunkDrawerMounted(false)
   }
 
   const handleRewindPressStart = () => {
@@ -335,9 +381,14 @@ const ActiveMode = ({
   const storyTitle = storyMeta.title || 'Audiobook'
   const chunkSuffix = `Chunk ${chunkPosition} of ${totalChunks}`
 
-  const chunkOverlay = hasChunks ? (
+  const chunkOverlay = hasChunks && isChunkDrawerMounted ? (
     <div className={`active-chunk-shell ${showChunkList ? 'is-open' : ''}`} aria-hidden={!showChunkList}>
-      <div className="active-chunk-drawer" role="dialog" aria-label="Chunk navigation">
+      <div
+        className="active-chunk-drawer"
+        role="dialog"
+        aria-label="Chunk navigation"
+        onTransitionEnd={handleChunkDrawerTransitionEnd}
+      >
         <ChunkTimeline
           chunks={chunks}
           activeIndex={safeChunkIndex}
@@ -425,7 +476,7 @@ const ActiveMode = ({
                       <button
                         type="button"
                         className="secondary-btn"
-                        onClick={() => setShowChunkList((prev) => !prev)}
+                        onClick={handleChunkToggle}
                         disabled={!hasChunks}
                         aria-label="Chunks"
                         title="Chunks"

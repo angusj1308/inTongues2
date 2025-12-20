@@ -3329,9 +3329,13 @@ pre {
 .active-chunk-drawer {
   height: 100%;
   background: #fff;
-  border-radius: var(--chunk-panel-radius, 18px);
+  border-top-left-radius: var(--chunk-panel-radius, 18px);
+  border-bottom-left-radius: var(--chunk-panel-radius, 18px);
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+  border-right: 0;
+  box-shadow: -12px 0 28px rgba(15, 23, 42, 0.12);
   width: min(320px, 70vw);
   max-width: 360px;
   display: flex;

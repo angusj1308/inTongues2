@@ -415,13 +415,15 @@ const ActiveMode = ({
                       <button
                         type="button"
                         className="secondary-btn"
-                        aria-label="Sleep timer"
-                        title="Sleep timer (coming soon)"
+                        onClick={() => setShowChunkList(true)}
+                        disabled={!hasChunks}
+                        aria-label="Chunks"
+                        title="Chunks"
                       >
                         <span className="secondary-glyph">
-                          <TimerIcon />
+                          <Icon name="list" className="secondary-icon" />
                         </span>
-                        <span className="secondary-label">Timer</span>
+                        <span className="secondary-label">Chunks</span>
                       </button>
                       <button
                         type="button"

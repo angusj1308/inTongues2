@@ -3312,14 +3312,14 @@ pre {
 
 .active-chunk-shell {
   position: absolute;
-  right: 100%;
+  right: calc(100% - 1px);
   top: 0;
   bottom: 0;
   left: auto;
   display: flex;
   align-items: stretch;
   pointer-events: none;
-  z-index: 6;
+  z-index: 1;
 }
 
 .active-chunk-shell.is-open {
@@ -3335,7 +3335,7 @@ pre {
   border-bottom-right-radius: 0;
   border: 1px solid #e2e8f0;
   border-right: 0;
-  box-shadow: -12px 0 28px rgba(15, 23, 42, 0.12);
+  box-shadow: -12px 0 24px rgba(15, 23, 42, 0.12);
   width: min(320px, 70vw);
   max-width: 360px;
   display: flex;
@@ -3349,6 +3349,11 @@ pre {
   opacity: 0;
   pointer-events: none;
   transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.active-chunk-host > :not(.active-chunk-shell) {
+  position: relative;
+  z-index: 2;
 }
 
 .active-chunk-shell.is-open .active-chunk-drawer {

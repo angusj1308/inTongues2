@@ -3228,6 +3228,46 @@ pre {
   cursor: pointer;
 }
 
+.active-pass-indicator {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 0.75rem;
+}
+
+.active-pass-indicator-list {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  color: #94a3b8;
+}
+
+.active-pass-indicator-item {
+  display: flex;
+}
+
+.active-pass-indicator-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #fff;
+}
+
+.active-pass-indicator-item.is-current .active-pass-indicator-dot {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
 .active-entry {
   display: flex;
   justify-content: center;
@@ -4179,6 +4219,12 @@ pre {
   outline: 2px solid rgba(15, 23, 42, 0.24);
   outline-offset: 4px;
   box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.secondary-btn:disabled,
+.secondary-btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .secondary-btn.active {

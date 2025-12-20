@@ -2810,10 +2810,12 @@ pre {
 
 .listening-lab-main {
   padding: 96px 1.5rem 2.5rem;
+  width: 100%;
 }
 
 .listening-lab-wrapper {
-  width: min(1280px, 100%);
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -2899,17 +2901,20 @@ pre {
 .listening-mode-glide {
   position: relative;
   overflow: hidden;
+  width: 100%;
+  background: inherit;
 }
 
 .listening-mode-track {
   display: flex;
-  width: 300%;
+  width: 100%;
   transition: transform 240ms ease-in-out;
   will-change: transform;
 }
 
 .listening-mode-panel {
   flex: 0 0 100%;
+  width: 100%;
   opacity: 0.65;
   transition: opacity 200ms ease-in-out;
   pointer-events: none;

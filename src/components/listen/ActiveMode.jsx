@@ -330,6 +330,112 @@ const ActiveMode = ({
   const passLabel = PASS_LABELS[activeStep] || PASS_LABELS[1]
   const chunkLabel = String((currentChunk?.index || 0) + 1).padStart(2, '0')
 
+  if (activeStep === 1) {
+    return (
+      <>
+        <div className="extensive-shell">
+          <div className="extensive-shell-inner">
+            <div className="extensive-pane extensive-pane-left">
+              <div className="extensive-player-shell">
+                <div className="player-stack">
+                  <div className="player-visual-stage">
+                    <div className="player-cover" aria-hidden>
+                      <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                    </div>
+                  </div>
+                  <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
+                  <div className="player-surface">
+                    {renderProgressBar()}
+                    <div className="player-transport-shell">{renderTransportButtons()}</div>
+                    <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
+                      <span className="secondary-spacer" aria-hidden />
+                      <div className="secondary-btn-popover-wrap">
+                        <button
+                          ref={speedButtonRef}
+                          type="button"
+                          className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                          onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                          aria-label={`Playback speed ${playbackRate || 1}x`}
+                          title="Change playback speed"
+                        >
+                          <span className="secondary-glyph">
+                            <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                          </span>
+                          <span className="secondary-label">Speed</span>
+                        </button>
+                        {speedMenuOpen ? (
+                          <div
+                            ref={speedMenuRef}
+                            className="scrub-popover speed-popover"
+                            role="dialog"
+                            aria-label="Playback speed"
+                          >
+                            <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
+                              {speedPresets.map((rate) => (
+                                <button
+                                  key={rate}
+                                  type="button"
+                                  className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
+                                  onClick={() => handlePlaybackRateChange(rate)}
+                                >
+                                  <span className="speed-option-indicator" aria-hidden="true" />
+                                  <span className="speed-option-label">x{formatRate(rate)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        aria-label="Sleep timer"
+                        title="Sleep timer (coming soon)"
+                      >
+                        <span className="secondary-glyph">
+                          <TimerIcon />
+                        </span>
+                        <span className="secondary-label">Timer</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-btn is-disabled"
+                        aria-label="Transcript (available in Pass 2)"
+                        title="Transcript (available in Pass 2)"
+                        disabled
+                      >
+                        <span className="secondary-glyph">
+                          <Icon name="subtitles" className="secondary-icon" />
+                        </span>
+                        <span className="secondary-label">Transcript</span>
+                      </button>
+                      <span className="secondary-spacer" aria-hidden />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="extensive-pane extensive-pane-right" aria-hidden />
+          </div>
+        </div>
+        <nav className="active-pass-indicator" aria-label="Pass progress">
+          <ol className="active-pass-indicator-list">
+            {[1, 2, 3, 4].map((step) => (
+              <li
+                key={step}
+                className={`active-pass-indicator-item ${step === activeStep ? 'is-current' : ''}`}
+              >
+                <span className="active-pass-indicator-dot" aria-hidden="true">
+                  {step}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </>
+    )
+  }
+
   return (
     <div className={`active-flow active-step-${activeStep} ${showChunkList ? 'active-entry-view' : ''}`}>
       {showChunkList ? (

@@ -3314,6 +3314,7 @@ pre {
   gap: 1rem;
   padding: 1.5rem;
   overflow: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
 .active-chunk-drawer-header {
@@ -3797,6 +3798,15 @@ pre {
   color: #1f2937;
   line-height: 1.3;
   max-width: min(100%, 360px);
+}
+
+.active-story-title {
+  font-family: 'Garamond', 'Times New Roman', serif;
+}
+
+.active-title-divider,
+.active-chunk-suffix {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
 .active-pass-hero {

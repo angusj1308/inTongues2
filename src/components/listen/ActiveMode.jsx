@@ -38,22 +38,6 @@ const PlayPauseIcon = ({ isPlaying }) =>
     </svg>
   )
 
-const TimerIcon = ({ className = '' }) => (
-  <svg
-    className={`secondary-icon ${className}`.trim()}
-    viewBox="0 0 28 28"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="14" cy="15" r="8" />
-      <path d="M14 11v4.5l3 2.2" />
-      <path d="M10.5 6h7" />
-      <path d="M12.2 4h3.6" />
-    </g>
-  </svg>
-)
-
 const speedPresets = [0.75, 0.9, 1, 1.25, 1.5, 2]
 
 const formatRate = (rate) => {
@@ -117,7 +101,7 @@ const ActiveMode = ({
   const speedButtonRef = useRef(null)
   const speedMenuRef = useRef(null)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
-  const [showChunkList, setShowChunkList] = useState(true)
+  const [showChunkList, setShowChunkList] = useState(false)
 
   const currentChunk = chunks[activeChunkIndex]
   const chunkStart = currentChunk?.start ?? 0
@@ -225,6 +209,17 @@ const ActiveMode = ({
     document.addEventListener('pointerdown', handleClickOutside)
     return () => document.removeEventListener('pointerdown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (!showChunkList) return undefined
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowChunkList(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showChunkList])
 
   useEffect(() => () => clearLongPress(), [])
 
@@ -437,173 +432,187 @@ const ActiveMode = ({
   }
 
   return (
-    <div className={`active-flow active-step-${activeStep} ${showChunkList ? 'active-entry-view' : ''}`}>
-      {showChunkList ? (
-        <section className="active-entry" aria-label="Chunk selection">
-          <div className="active-entry-card">
-            <h2 className="active-entry-title">{storyMeta.title || 'Audiobook'}</h2>
-            <ChunkTimeline
-              chunks={chunks}
-              activeIndex={activeChunkIndex}
-              completedSet={completedChunks}
-              onSelectChunk={handleSelectChunk}
-              isChunkLocked={isChunkLocked}
-            />
+    <div className={`active-flow active-step-${activeStep}`}>
+      <>
+        <header className="active-topbar">
+          <div className="active-topbar-context">
+            <div className="active-topbar-title">{storyMeta.title || 'Audiobook'}</div>
+            <div className="active-topbar-meta">
+              <span className="active-topbar-chunk">Chunk {chunkLabel}</span>
+              <span className="active-topbar-divider" aria-hidden="true">
+                ·
+              </span>
+              <span className="active-topbar-range">
+                {formatTime(chunkStart)} → {formatTime(chunkEnd)}
+              </span>
+            </div>
           </div>
-        </section>
-      ) : (
-        <>
-          <header className="active-topbar">
-            <div className="active-topbar-context">
-              <div className="active-topbar-title">{storyMeta.title || 'Audiobook'}</div>
-              <div className="active-topbar-meta">
-                <span className="active-topbar-chunk">Chunk {chunkLabel}</span>
-                <span className="active-topbar-divider" aria-hidden="true">
-                  ·
-                </span>
-                <span className="active-topbar-range">
-                  {formatTime(chunkStart)} → {formatTime(chunkEnd)}
-                </span>
-              </div>
+          <nav className="active-pass-nav" aria-label="Pass navigation">
+            <div className="active-pass-label">
+              Pass {activeStep} · {passLabel}
             </div>
-            <nav className="active-pass-nav" aria-label="Pass navigation">
-              <div className="active-pass-label">
-                Pass {activeStep} · {passLabel}
-              </div>
-              <ol className="active-pass-steps">
-                {[1, 2, 3, 4].map((step) => {
-                  const isCurrent = step === activeStep
-                  const isCompleted = step < activeStep
-                  const isUpcoming = step > activeStep
-                  return (
-                    <li
-                      key={step}
-                      className={`active-pass-step ${isCurrent ? 'is-current' : ''} ${
-                        isCompleted ? 'is-completed' : ''
-                      } ${isUpcoming ? 'is-upcoming' : ''}`}
+            <ol className="active-pass-steps">
+              {[1, 2, 3, 4].map((step) => {
+                const isCurrent = step === activeStep
+                const isCompleted = step < activeStep
+                const isUpcoming = step > activeStep
+                return (
+                  <li
+                    key={step}
+                    className={`active-pass-step ${isCurrent ? 'is-current' : ''} ${
+                      isCompleted ? 'is-completed' : ''
+                    } ${isUpcoming ? 'is-upcoming' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="active-pass-button"
+                      onClick={() => handleSelectStep(step)}
+                      disabled={isUpcoming}
+                      aria-label={`Pass ${step}`}
                     >
-                      <button
-                        type="button"
-                        className="active-pass-button"
-                        onClick={() => handleSelectStep(step)}
-                        disabled={isUpcoming}
-                        aria-label={`Pass ${step}`}
-                      >
-                        <span className="active-pass-dot" aria-hidden="true">
-                          {isCompleted ? '✓' : step}
-                        </span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ol>
-            </nav>
-            <button
-              type="button"
-              className="active-chunk-toggle"
-              onClick={() => setShowChunkList((prev) => !prev)}
-            >
-              {showChunkList ? 'Return to pass' : 'Chunk list'}
-            </button>
-          </header>
-
-          <section className="active-pass-layout" aria-live="polite">
-            <div className="active-pass-main">
-              {activeStep === 3 && (
-                <div className="active-pass-block">
-                  <ActiveTranscript
-                    segments={filteredSegments}
-                    activeSegmentIndex={activeTranscriptIndex}
-                    showWordStatus={showWordStatus}
-                    allowEditing={allowEditing}
-                  />
-                  <div className="active-cta">
-                    <button type="button" className="button" onClick={onBeginFinalListen}>
-                      Begin final listen
+                      <span className="active-pass-dot" aria-hidden="true">
+                        {isCompleted ? '✓' : step}
+                      </span>
                     </button>
-                  </div>
-                </div>
-              )}
+                  </li>
+                )
+              })}
+            </ol>
+          </nav>
+        </header>
 
-              {activeStep !== 3 && (
-                <div className="active-pass-block">
-                  <div className="active-player-surface">
-                    {renderProgressBar()}
-                    <div className="player-transport-shell">{renderTransportButtons()}</div>
-                    <div
-                      className="player-secondary-row secondary-controls"
-                      role="group"
-                      aria-label="Secondary controls"
-                    >
-                      <span className="secondary-spacer" aria-hidden />
-                      <div className="secondary-btn-popover-wrap">
-                        <button
-                          ref={speedButtonRef}
-                          type="button"
-                          className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                          onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                          aria-label={`Playback speed ${playbackRate || 1}x`}
-                          title="Change playback speed"
-                        >
-                          <span className="secondary-glyph">
-                            <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                          </span>
-                          <span className="secondary-label">Speed</span>
-                        </button>
-                        {speedMenuOpen ? (
-                          <div
-                            ref={speedMenuRef}
-                            className="scrub-popover speed-popover"
-                            role="dialog"
-                            aria-label="Playback speed"
-                          >
-                            <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                              {speedPresets.map((rate) => (
-                                <button
-                                  key={rate}
-                                  type="button"
-                                  className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                                  onClick={() => handlePlaybackRateChange(rate)}
-                                >
-                                  <span className="speed-option-indicator" aria-hidden="true" />
-                                  <span className="speed-option-label">x{formatRate(rate)}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        aria-label="Sleep timer"
-                        title="Sleep timer (coming soon)"
-                      >
-                        <span className="secondary-glyph">
-                          <TimerIcon />
-                        </span>
-                        <span className="secondary-label">Timer</span>
-                      </button>
-                      <span className="secondary-spacer" aria-hidden />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {showTranscript && activeStep !== 3 && (
-              <aside className="active-pass-side">
+        <section className="active-pass-layout" aria-live="polite">
+          <div className="active-pass-main">
+            {activeStep === 3 && (
+              <div className="active-pass-block">
                 <ActiveTranscript
                   segments={filteredSegments}
                   activeSegmentIndex={activeTranscriptIndex}
                   showWordStatus={showWordStatus}
                   allowEditing={allowEditing}
                 />
-              </aside>
+                <div className="active-cta">
+                  <button type="button" className="button" onClick={onBeginFinalListen}>
+                    Begin final listen
+                  </button>
+                </div>
+              </div>
             )}
-          </section>
-        </>
-      )}
+
+            {activeStep !== 3 && (
+              <div className="active-pass-block">
+                <div className="active-player-surface">
+                  {renderProgressBar()}
+                  <div className="player-transport-shell">{renderTransportButtons()}</div>
+                  <div
+                    className="player-secondary-row secondary-controls"
+                    role="group"
+                    aria-label="Secondary controls"
+                  >
+                    <span className="secondary-spacer" aria-hidden />
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => setShowChunkList(true)}
+                      aria-label="Chunks"
+                      title="Chunks"
+                    >
+                      <span className="secondary-glyph">
+                        <Icon name="list" className="secondary-icon" />
+                      </span>
+                      <span className="secondary-label">Chunks</span>
+                    </button>
+                    <div className="secondary-btn-popover-wrap">
+                      <button
+                        ref={speedButtonRef}
+                        type="button"
+                        className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                        onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                        aria-label={`Playback speed ${playbackRate || 1}x`}
+                        title="Change playback speed"
+                      >
+                        <span className="secondary-glyph">
+                          <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                        </span>
+                        <span className="secondary-label">Speed</span>
+                      </button>
+                      {speedMenuOpen ? (
+                        <div
+                          ref={speedMenuRef}
+                          className="scrub-popover speed-popover"
+                          role="dialog"
+                          aria-label="Playback speed"
+                        >
+                          <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
+                            {speedPresets.map((rate) => (
+                              <button
+                                key={rate}
+                                type="button"
+                                className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
+                                onClick={() => handlePlaybackRateChange(rate)}
+                              >
+                                <span className="speed-option-indicator" aria-hidden="true" />
+                                <span className="speed-option-label">x{formatRate(rate)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className="secondary-spacer" aria-hidden />
+                    <span className="secondary-spacer" aria-hidden />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {showTranscript && activeStep !== 3 && (
+            <aside className="active-pass-side">
+              <ActiveTranscript
+                segments={filteredSegments}
+                activeSegmentIndex={activeTranscriptIndex}
+                showWordStatus={showWordStatus}
+                allowEditing={allowEditing}
+              />
+            </aside>
+          )}
+        </section>
+
+        {showChunkList && (
+          <div
+            className="active-chunk-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chunk navigation"
+            onClick={() => setShowChunkList(false)}
+          >
+            <div className="active-chunk-drawer" onClick={(event) => event.stopPropagation()}>
+              <div className="active-chunk-drawer-header">
+                <div>
+                  <div className="active-chunk-drawer-title">{storyMeta.title || 'Audiobook'}</div>
+                  <div className="active-chunk-drawer-subtitle">Choose a chunk</div>
+                </div>
+                <button
+                  type="button"
+                  className="active-chunk-close"
+                  onClick={() => setShowChunkList(false)}
+                  aria-label="Close chunk navigation"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+              <ChunkTimeline
+                chunks={chunks}
+                activeIndex={activeChunkIndex}
+                completedSet={completedChunks}
+                onSelectChunk={handleSelectChunk}
+                isChunkLocked={isChunkLocked}
+              />
+            </div>
+          </div>
+        )}
+      </>
     </div>
   )
 }

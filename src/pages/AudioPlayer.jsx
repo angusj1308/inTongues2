@@ -1384,6 +1384,7 @@ const AudioPlayer = () => {
           </header>
         </div>
 
+        {/* Wrapper hierarchy: reader-body-shell > listening-lab-main > listening-lab-wrapper */}
         <div className="reader-body-shell">
           <main className="listening-lab-main">
             <div className="listening-lab-wrapper">
@@ -1569,8 +1570,7 @@ const AudioPlayer = () => {
               {!isSpotify && storyMeta.fullAudioUrl && (
                 <audio ref={audioRef} src={storyMeta.fullAudioUrl} className="sr-only-audio" />
               )}
-          </div>
-        </div>
+            </div>
           </main>
         </div>
       </div>

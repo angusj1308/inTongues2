@@ -33,7 +33,7 @@ const ActiveTranscript = ({
           <div className="active-transcript-text">{segment.text}</div>
           {showWordStatus && (
             <div className="active-transcript-status muted tiny">
-              {allowEditing ? 'Edit word statuses (TODO)' : 'Word statuses locked'}
+              {allowEditing ? 'Adjust word statuses' : 'Word statuses locked'}
             </div>
           )}
         </div>

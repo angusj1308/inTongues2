@@ -920,6 +920,26 @@ const AudioPlayer = () => {
   const activePage = pages[activePageIndex]
   const currentChunk = activeChunks[activeChunkIndex]
 
+  const handleSelectChunk = (index) => {
+    const selectedChunk = activeChunks[index]
+    setActiveChunkIndex(index)
+    setActiveStep(1)
+    if (selectedChunk) {
+      handleSeekTo(selectedChunk.start)
+    }
+  }
+
+  const handleSelectStep = async (step) => {
+    if (step > activeStep) return
+    if (step === 3) {
+      await pauseAllAudio()
+    }
+    setActiveStep(step)
+    if (currentChunk) {
+      handleSeekTo(currentChunk.start)
+    }
+  }
+
   const chunkTranscriptSegments = useMemo(() => {
     if (!currentChunk) return transcriptSegments
     if (!transcriptSegments.length) return []
@@ -1212,12 +1232,12 @@ const AudioPlayer = () => {
                 onSeek={handleSeekTo}
                 playbackRate={playbackRate}
                 onPlaybackRateChange={handlePlaybackRateChange}
-                subtitlesEnabled={subtitlesEnabled}
-                onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
                 transcriptSegments={chunkTranscriptSegments}
                 activeTranscriptIndex={chunkActiveTranscriptIndex}
                 onBeginFinalListen={handleBeginFinalListen}
                 onRestartChunk={handleRestartChunk}
+                onSelectChunk={handleSelectChunk}
+                onSelectStep={handleSelectStep}
                 onScrubChange={setScrubSeconds}
               />
             )}

@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
-import ActiveStepGate from './ActiveStepGate'
 import ActiveTranscript from './ActiveTranscript'
 import ChunkTimeline from './ChunkTimeline'
+
+const PASS_LABELS = {
+  1: 'Listen',
+  2: 'Listen + Read',
+  3: 'Read + Adjust',
+  4: 'Final Listen',
+}
 
 const formatTime = (seconds) => {
   if (!Number.isFinite(seconds)) return '0:00'
@@ -95,13 +101,12 @@ const ActiveMode = ({
   onSeek,
   playbackRate,
   onPlaybackRateChange,
-  subtitlesEnabled,
-  onToggleSubtitles,
   transcriptSegments = [],
   activeTranscriptIndex = -1,
   onBeginFinalListen,
   onRestartChunk,
   onSelectChunk,
+  onSelectStep,
   onScrubChange,
 }) => {
   const rewindButtonRef = useRef(null)
@@ -112,15 +117,16 @@ const ActiveMode = ({
   const speedButtonRef = useRef(null)
   const speedMenuRef = useRef(null)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
+  const [showChunkList, setShowChunkList] = useState(true)
 
   const currentChunk = chunks[activeChunkIndex]
   const chunkStart = currentChunk?.start ?? 0
   const chunkEnd = currentChunk?.end ?? playbackDurationSeconds
   const chunkDuration = Math.max(0, chunkEnd - chunkStart)
 
-  const stepAllowsTranscript = activeStep === 2 || activeStep === 3
+  const showTranscript = activeStep === 2 || activeStep === 3
   const allowEditing = activeStep === 3
-  const showWordStatus = activeStep === 2 || activeStep === 3
+  const showWordStatus = activeStep === 3
 
   const clampedPosition = Math.min(Math.max(playbackPositionSeconds, chunkStart), chunkEnd)
   const chunkProgress = chunkDuration
@@ -137,6 +143,13 @@ const ActiveMode = ({
   const handleSelectChunk = (index) => {
     if (typeof onSelectChunk === 'function') {
       onSelectChunk(index)
+    }
+    setShowChunkList(false)
+  }
+
+  const handleSelectStep = (step) => {
+    if (typeof onSelectStep === 'function') {
+      onSelectStep(step)
     }
   }
 
@@ -314,156 +327,173 @@ const ActiveMode = ({
     </div>
   )
 
+  const passLabel = PASS_LABELS[activeStep] || PASS_LABELS[1]
+  const chunkLabel = String((currentChunk?.index || 0) + 1).padStart(2, '0')
+
   return (
-    <div className="active-layout">
-      <aside className="active-col active-col--left">
-        <ChunkTimeline
-          chunks={chunks}
-          activeIndex={activeChunkIndex}
-          completedSet={completedChunks}
-          onSelectChunk={handleSelectChunk}
-          isChunkLocked={isChunkLocked}
-        />
-      </aside>
-
-      <section className="active-col active-col--center">
-        <div className="active-surface">
-          <ActiveStepGate step={activeStep} />
-
-          <div className="active-meta-row">
-            <div className="active-meta">Chunk {String((currentChunk?.index || 0) + 1).padStart(2, '0')}</div>
-            <div className="active-range">
+    <div className={`active-flow active-step-${activeStep} ${showChunkList ? 'active-entry-view' : ''}`}>
+      <header className="active-topbar">
+        <div className="active-topbar-context">
+          <div className="active-topbar-title">{storyMeta.title || 'Audiobook'}</div>
+          <div className="active-topbar-meta">
+            <span className="active-topbar-chunk">Chunk {chunkLabel}</span>
+            <span className="active-topbar-divider" aria-hidden="true">
+              ·
+            </span>
+            <span className="active-topbar-range">
               {formatTime(chunkStart)} → {formatTime(chunkEnd)}
-            </div>
-            <div className="muted tiny">{storyMeta.title || 'Audiobook'}</div>
+            </span>
           </div>
-
-          <div className="pass-inline-rail" aria-label="Passes">
-            <div className="pass-inline-heading">Passes</div>
-            <ol className="pass-inline-list">
-              {[1, 2, 3, 4].map((step) => {
-                const isCurrent = step === activeStep
-                const isCompleted = step < activeStep
-                const isUpcoming = step > activeStep
-
-                return (
-                  <li
-                    key={step}
-                    className={`pass-inline-item ${isCurrent ? 'current' : ''} ${
-                      isCompleted ? 'completed' : ''
-                    } ${isUpcoming ? 'upcoming' : ''}`}
+        </div>
+        <nav className="active-pass-nav" aria-label="Pass navigation">
+          <div className="active-pass-label">Pass {activeStep} · {passLabel}</div>
+          <ol className="active-pass-steps">
+            {[1, 2, 3, 4].map((step) => {
+              const isCurrent = step === activeStep
+              const isCompleted = step < activeStep
+              const isUpcoming = step > activeStep
+              return (
+                <li
+                  key={step}
+                  className={`active-pass-step ${isCurrent ? 'is-current' : ''} ${
+                    isCompleted ? 'is-completed' : ''
+                  } ${isUpcoming ? 'is-upcoming' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="active-pass-button"
+                    onClick={() => handleSelectStep(step)}
+                    disabled={isUpcoming}
+                    aria-label={`Pass ${step}`}
                   >
-                    {isCompleted ? (
-                      <span className="pass-inline-icon" aria-hidden="true">
-                        ✓
-                      </span>
-                    ) : (
-                      <span className="pass-inline-icon" aria-hidden="true" />
-                    )}
-                    <span className="pass-inline-label">
-                      {step}.{' '}
-                      {step === 1 || step === 4
-                        ? 'Listen'
-                        : step === 2
-                        ? 'Listen + Read'
-                        : 'Read'}
+                    <span className="active-pass-dot" aria-hidden="true">
+                      {isCompleted ? '✓' : step}
                     </span>
-                  </li>
-                )
-              })}
-            </ol>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
+        <button
+          type="button"
+          className="active-chunk-toggle"
+          onClick={() => setShowChunkList((prev) => !prev)}
+        >
+          {showChunkList ? 'Return to pass' : 'Chunk list'}
+        </button>
+      </header>
+
+      {showChunkList ? (
+        <section className="active-entry" aria-label="Chunk selection">
+          <div className="active-entry-card">
+            <p className="active-entry-kicker">Active Listening</p>
+            <h2 className="active-entry-title">Choose a chunk to begin</h2>
+            <p className="active-entry-body muted">
+              Complete four passes for each chunk. You can return to completed passes at any time.
+            </p>
+            <ChunkTimeline
+              chunks={chunks}
+              activeIndex={activeChunkIndex}
+              completedSet={completedChunks}
+              onSelectChunk={handleSelectChunk}
+              isChunkLocked={isChunkLocked}
+            />
+          </div>
+        </section>
+      ) : (
+        <section className="active-pass-layout" aria-live="polite">
+          <div className="active-pass-main">
+            {activeStep === 3 && (
+              <div className="active-pass-block">
+                <ActiveTranscript
+                  segments={filteredSegments}
+                  activeSegmentIndex={activeTranscriptIndex}
+                  showWordStatus={showWordStatus}
+                  allowEditing={allowEditing}
+                />
+                <div className="active-cta">
+                  <button type="button" className="button" onClick={onBeginFinalListen}>
+                    Begin final listen
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeStep !== 3 && (
+              <div className="active-pass-block">
+                <div className="active-player-surface">
+                  {renderProgressBar()}
+                  <div className="player-transport-shell">{renderTransportButtons()}</div>
+                  <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
+                    <span className="secondary-spacer" aria-hidden />
+                    <div className="secondary-btn-popover-wrap">
+                      <button
+                        ref={speedButtonRef}
+                        type="button"
+                        className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                        onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                        aria-label={`Playback speed ${playbackRate || 1}x`}
+                        title="Change playback speed"
+                      >
+                        <span className="secondary-glyph">
+                          <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                        </span>
+                        <span className="secondary-label">Speed</span>
+                      </button>
+                      {speedMenuOpen ? (
+                        <div
+                          ref={speedMenuRef}
+                          className="scrub-popover speed-popover"
+                          role="dialog"
+                          aria-label="Playback speed"
+                        >
+                          <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
+                            {speedPresets.map((rate) => (
+                              <button
+                                key={rate}
+                                type="button"
+                                className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
+                                onClick={() => handlePlaybackRateChange(rate)}
+                              >
+                                <span className="speed-option-indicator" aria-hidden="true" />
+                                <span className="speed-option-label">x{formatRate(rate)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      aria-label="Sleep timer"
+                      title="Sleep timer (coming soon)"
+                    >
+                      <span className="secondary-glyph">
+                        <TimerIcon />
+                      </span>
+                      <span className="secondary-label">Timer</span>
+                    </button>
+                    <span className="secondary-spacer" aria-hidden />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="active-step-panel">
-            {stepAllowsTranscript ? (
+          {showTranscript && activeStep !== 3 && (
+            <aside className="active-pass-side">
               <ActiveTranscript
                 segments={filteredSegments}
                 activeSegmentIndex={activeTranscriptIndex}
                 showWordStatus={showWordStatus}
                 allowEditing={allowEditing}
               />
-            ) : null}
-
-            {activeStep === 3 && (
-              <div className="active-cta">
-                <button type="button" className="button" onClick={onBeginFinalListen}>
-                  Begin final listen
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="active-progress-indicator">
-            <div className="active-progress-bar">
-              <div className="active-progress-fill" style={{ width: `${chunkProgress}%` }} />
-            </div>
-          </div>
-
-          <div className="player-surface active-player-surface">
-            {renderProgressBar()}
-            <div className="player-transport-shell">{renderTransportButtons()}</div>
-            <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
-              <span className="secondary-spacer" aria-hidden />
-              <div className="secondary-btn-popover-wrap">
-                <button
-                  ref={speedButtonRef}
-                  type="button"
-                  className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                  onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                  aria-label={`Playback speed ${playbackRate || 1}x`}
-                  title="Change playback speed"
-                >
-                  <span className="secondary-glyph">
-                    <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                  </span>
-                  <span className="secondary-label">Speed</span>
-                </button>
-                {speedMenuOpen ? (
-                  <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
-                    <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                      {speedPresets.map((rate) => (
-                        <button
-                          key={rate}
-                          type="button"
-                          className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                          onClick={() => handlePlaybackRateChange(rate)}
-                        >
-                          <span className="speed-option-indicator" aria-hidden="true" />
-                          <span className="speed-option-label">x{formatRate(rate)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                className="secondary-btn"
-                aria-label="Sleep timer"
-                title="Sleep timer (coming soon)"
-              >
-                <span className="secondary-glyph">
-                  <TimerIcon />
-                </span>
-                <span className="secondary-label">Timer</span>
-              </button>
-              <button
-                type="button"
-                className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}
-                onClick={onToggleSubtitles}
-                aria-label={subtitlesEnabled ? 'Hide transcript' : 'Show transcript'}
-                title="Toggle transcript"
-              >
-                <span className="secondary-glyph">
-                  <Icon name="subtitles" className="secondary-icon" filled={subtitlesEnabled} />
-                </span>
-                <span className="secondary-label">Transcript</span>
-              </button>
-              <span className="secondary-spacer" aria-hidden />
-            </div>
-          </div>
-        </div>
-      </section>
+            </aside>
+          )}
+        </section>
+      )}
     </div>
   )
 }

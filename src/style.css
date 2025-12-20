@@ -2896,6 +2896,41 @@ pre {
   align-items: stretch;
 }
 
+.listening-mode-glide {
+  position: relative;
+  overflow: hidden;
+}
+
+.listening-mode-track {
+  display: flex;
+  width: 300%;
+  transition: transform 240ms ease-in-out;
+  will-change: transform;
+}
+
+.listening-mode-panel {
+  flex: 0 0 100%;
+  opacity: 0.65;
+  transition: opacity 200ms ease-in-out;
+  pointer-events: none;
+}
+
+.listening-mode-panel.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.listening-mode-panel .listening-layout {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listening-mode-track,
+  .listening-mode-panel {
+    transition: none;
+  }
+}
+
 .listening-layout--active {
   grid-template-columns: 1fr;
 }

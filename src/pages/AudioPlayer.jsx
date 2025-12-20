@@ -20,6 +20,8 @@ import { normalizeLanguageCode } from '../utils/language'
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
+const LISTENING_MODES = ['extensive', 'active', 'intensive']
+
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
 
 const normaliseTranscriptSegments = (segments = []) =>
@@ -45,6 +47,8 @@ const AudioPlayer = () => {
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
   const popupRef = useRef(null)
+  const listeningShellRef = useRef(null)
+  const lastSwipeRef = useRef(0)
 
   const searchParams = new URLSearchParams(location.search)
   const source = searchParams.get('source')
@@ -85,6 +89,7 @@ const AudioPlayer = () => {
   const [activeChunkIndex, setActiveChunkIndex] = useState(0)
   const [activeStep, setActiveStep] = useState(1)
   const [completedChunks, setCompletedChunks] = useState(new Set())
+  const [transitionDirection, setTransitionDirection] = useState('left')
   const lastCompletionRef = useRef({ chunkIndex: -1, step: null })
 
   const fetchSpotifyAccessToken = useCallback(async () => {
@@ -1012,14 +1017,19 @@ const AudioPlayer = () => {
     audio.playbackRate = nextRate
   }
 
-  const handleChangeMode = (mode) => {
+  const handleChangeMode = useCallback((mode) => {
+    const currentIndex = LISTENING_MODES.indexOf(listeningMode)
+    const nextIndex = LISTENING_MODES.indexOf(mode)
+    if (nextIndex === -1 || nextIndex === currentIndex) return
+
+    setTransitionDirection(nextIndex > currentIndex ? 'left' : 'right')
     setListeningMode(mode)
     setSubtitlesEnabled(false)
     if (mode !== 'active') {
       setActiveStep(1)
       setActiveChunkIndex(0)
     }
-  }
+  }, [listeningMode])
 
   const activePage = pages[activePageIndex]
   const currentChunk = activeChunks[activeChunkIndex]
@@ -1247,8 +1257,89 @@ const AudioPlayer = () => {
     )
   }, [activeTranscriptIndex, chunkTranscriptSegments, transcriptSegments])
 
+  useEffect(() => {
+    const shell = listeningShellRef.current
+    if (!shell) return undefined
+
+    const isSwipeBlockedTarget = (target) => {
+      if (!target || !(target instanceof Element)) return true
+
+      if (
+        target.closest(
+          'input, textarea, select, button, [contenteditable="true"], [role="textbox"]',
+        )
+      ) {
+        return true
+      }
+
+      if (
+        target.closest(
+          '.transcript-panel, .transcript-panel-body, .transcript-roller, .active-transcript-shell, .active-chunk-drawer',
+        )
+      ) {
+        return true
+      }
+
+      if (
+        target.closest(
+          '.scrub-popover, .speed-popover, .listening-modal-overlay, .translate-popup',
+        )
+      ) {
+        return true
+      }
+
+      return false
+    }
+
+    const handleWheel = (event) => {
+      if (!shell.contains(event.target)) return
+
+      if (showAdvanceModal || popup) return
+
+      if (
+        document.querySelector(
+          '.listening-modal-overlay, .modal-backdrop, .scrub-popover, .speed-popover, .active-chunk-shell.is-open, .translate-popup',
+        )
+      ) {
+        return
+      }
+
+      const selection = window.getSelection()
+      if (selection && selection.type === 'Range') return
+
+      if (isSwipeBlockedTarget(event.target)) return
+
+      const absX = Math.abs(event.deltaX)
+      const absY = Math.abs(event.deltaY)
+      if (absX <= absY) return
+
+      if (absX < 45) return
+
+      const now = Date.now()
+      if (now - lastSwipeRef.current < 750) return
+
+      const currentIndex = LISTENING_MODES.indexOf(listeningMode)
+      const direction = event.deltaX > 0 ? 1 : -1
+      const nextIndex = clamp(currentIndex + direction, 0, LISTENING_MODES.length - 1)
+
+      if (nextIndex === currentIndex) return
+
+      lastSwipeRef.current = now
+      handleChangeMode(LISTENING_MODES[nextIndex])
+    }
+
+    shell.addEventListener('wheel', handleWheel, { passive: true })
+    return () => {
+      shell.removeEventListener('wheel', handleWheel)
+    }
+  }, [handleChangeMode, listeningMode, popup, showAdvanceModal])
+
+  const listeningModeIndex = LISTENING_MODES.indexOf(listeningMode)
+  const glideOffset = listeningModeIndex > -1 ? listeningModeIndex * 100 : 0
+
   return (
     <div
+      ref={listeningShellRef}
       className={`listening-lab-page listening-mode-${listeningMode} ${
         listeningMode === 'intensive' ? 'reader-intensive-active' : ''
       }`}
@@ -1296,159 +1387,188 @@ const AudioPlayer = () => {
         <div className="reader-body-shell">
           <main className="listening-lab-main">
             <div className="listening-lab-wrapper">
-              <div className={`listening-layout listening-layout--${listeningMode}`}>
-            {listeningMode === 'extensive' && (
-              <ExtensiveMode
-                storyMeta={storyMeta}
-                isPlaying={isPlaying}
-                playbackPositionSeconds={playbackPositionSeconds}
-                playbackDurationSeconds={playbackDurationSeconds}
-                onPlayPause={togglePlay}
-                onSeek={handleSeekTo}
-                playbackRate={playbackRate}
-                onPlaybackRateChange={handlePlaybackRateChange}
-                subtitlesEnabled={subtitlesEnabled}
-                onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
-                scrubSeconds={scrubSeconds}
-                onScrubChange={setScrubSeconds}
-                transcriptSegments={transcriptSegments}
-                activeTranscriptIndex={activeTranscriptIndex}
-                vocabEntries={vocabEntries}
-                language={storyLanguage}
-                nativeLanguage={profile?.nativeLanguage}
-                pageTranslations={pageTranslations}
-                setPopup={setPopup}
-              />
-            )}
-
-            {listeningMode === 'active' && (
-              <ActiveMode
-                storyMeta={storyMeta}
-                chunks={activeChunks}
-                activeChunkIndex={activeChunkIndex}
-                completedChunks={completedChunks}
-                activeStep={activeStep}
-                isPlaying={isPlaying}
-                playbackPositionSeconds={playbackPositionSeconds}
-                playbackDurationSeconds={playbackDurationSeconds}
-                scrubSeconds={scrubSeconds}
-                onPlayPause={togglePlay}
-                onSeek={handleSeekTo}
-                playbackRate={playbackRate}
-                onPlaybackRateChange={handlePlaybackRateChange}
-                transcriptSegments={chunkTranscriptSegments}
-                activeTranscriptIndex={chunkActiveTranscriptIndex}
-                onBeginFinalListen={handleBeginFinalListen}
-                onRestartChunk={handleRestartChunk}
-                onSelectChunk={handleSelectChunk}
-                onSelectStep={handleSelectStep}
-                onScrubChange={setScrubSeconds}
-              />
-            )}
-
-            {listeningMode === 'intensive' && (
-              <>
-                <section className="audio-focus-zone" aria-label="Audio controls">
-                  <div className="audio-cover" aria-hidden>
-                    <div className="audio-cover-portrait">{storyMeta.title?.slice(0, 1) || 'A'}</div>
-                  </div>
-                  <div className="audio-focus-details">
-                    <div className="audio-meta">
-                      <h2 className="audio-title">{storyMeta.title || 'Audiobook'}</h2>
-                      <p className="muted small">
-                        {storyLanguage ? `in${storyLanguage}` : 'Language not set'}
-                      </p>
+              <div className="listening-mode-glide" data-direction={transitionDirection}>
+                <div
+                  className="listening-mode-track"
+                  style={{ transform: `translateX(-${glideOffset}%)` }}
+                >
+                  <section
+                    className={`listening-mode-panel ${
+                      listeningMode === 'extensive' ? 'is-active' : ''
+                    }`}
+                    aria-hidden={listeningMode !== 'extensive'}
+                  >
+                    <div className="listening-layout listening-layout--extensive">
+                      <ExtensiveMode
+                        storyMeta={storyMeta}
+                        isPlaying={isPlaying}
+                        playbackPositionSeconds={playbackPositionSeconds}
+                        playbackDurationSeconds={playbackDurationSeconds}
+                        onPlayPause={togglePlay}
+                        onSeek={handleSeekTo}
+                        playbackRate={playbackRate}
+                        onPlaybackRateChange={handlePlaybackRateChange}
+                        subtitlesEnabled={subtitlesEnabled}
+                        onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
+                        scrubSeconds={scrubSeconds}
+                        onScrubChange={setScrubSeconds}
+                        transcriptSegments={transcriptSegments}
+                        activeTranscriptIndex={activeTranscriptIndex}
+                        vocabEntries={vocabEntries}
+                        language={storyLanguage}
+                        nativeLanguage={profile?.nativeLanguage}
+                        pageTranslations={pageTranslations}
+                        setPopup={setPopup}
+                      />
                     </div>
-                    <div className="audio-controls-row">
-                      <button className="transport-btn" type="button" onClick={() => handleRewind()}>
-                        −10s
-                      </button>
-                      <button
-                        className="transport-btn transport-btn-primary"
-                        type="button"
-                        onClick={togglePlay}
-                        disabled={!showPlaybackControls}
-                      >
-                        {isPlaying ? 'Pause' : 'Play'}
-                      </button>
-                      <button className="transport-btn" type="button" onClick={() => handleForward()}>
-                        +10s
-                      </button>
-                      <div className="playback-speed" aria-label="Playback speed">
-                        <span className="muted tiny">Speed</span>
-                        <div className="speed-chips">
-                          {[0.75, 1, 1.25, 1.5].map((rate) => (
-                            <button
-                              key={rate}
-                              type="button"
-                              className={`speed-chip ${playbackRate === rate ? 'active' : ''}`}
-                              onClick={() => handlePlaybackRateChange(rate)}
-                            >
-                              {rate}x
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="audio-progress" role="presentation">
-                      <div className="audio-progress-track">
-                        <div
-                          className="audio-progress-fill"
-                          style={{ width: `${playbackProgressPercent}%` }}
-                          aria-hidden
-                        />
-                      </div>
-                      <div className="audio-progress-labels">
-                        <span>{playbackPositionSeconds.toFixed(1)}s</span>
-                        <span>{playbackDurationSeconds ? `${playbackDurationSeconds.toFixed(1)}s` : '—'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                  </section>
 
-                <section className="listening-mode-surface">
-                  {loading ? (
-                    <p className="muted">Loading transcript…</p>
-                  ) : error ? (
-                    <p className="error">{error}</p>
-                  ) : !pages.length ? (
-                    <p className="muted">Transcript not available yet.</p>
-                  ) : (
-                    <div className="intensive-pane">
-                      <div className="intensive-sentence-card">
-                        <p className="muted tiny">Sentence workbench</p>
-                        <div className="intensive-sentence">{currentIntensiveSentence}</div>
-                        <div className="intensive-input-row">
-                          <input type="text" placeholder="Type what you hear…" className="intensive-input" />
-                          <div className="intensive-actions">
-                            <button
-                              type="button"
-                              className="button ghost"
-                              onClick={handlePreviousSentence}
-                              disabled={intensiveSentenceIndex === 0}
-                            >
-                              Previous
-                            </button>
-                            <button
-                              type="button"
-                              className="button"
-                              onClick={handleNextSentence}
-                              disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
-                            >
-                              Next
-                            </button>
+                  <section
+                    className={`listening-mode-panel ${
+                      listeningMode === 'active' ? 'is-active' : ''
+                    }`}
+                    aria-hidden={listeningMode !== 'active'}
+                  >
+                    <div className="listening-layout listening-layout--active">
+                      <ActiveMode
+                        storyMeta={storyMeta}
+                        chunks={activeChunks}
+                        activeChunkIndex={activeChunkIndex}
+                        completedChunks={completedChunks}
+                        activeStep={activeStep}
+                        isPlaying={isPlaying}
+                        playbackPositionSeconds={playbackPositionSeconds}
+                        playbackDurationSeconds={playbackDurationSeconds}
+                        scrubSeconds={scrubSeconds}
+                        onPlayPause={togglePlay}
+                        onSeek={handleSeekTo}
+                        playbackRate={playbackRate}
+                        onPlaybackRateChange={handlePlaybackRateChange}
+                        transcriptSegments={chunkTranscriptSegments}
+                        activeTranscriptIndex={chunkActiveTranscriptIndex}
+                        onBeginFinalListen={handleBeginFinalListen}
+                        onRestartChunk={handleRestartChunk}
+                        onSelectChunk={handleSelectChunk}
+                        onSelectStep={handleSelectStep}
+                        onScrubChange={setScrubSeconds}
+                      />
+                    </div>
+                  </section>
+
+                  <section
+                    className={`listening-mode-panel ${
+                      listeningMode === 'intensive' ? 'is-active' : ''
+                    }`}
+                    aria-hidden={listeningMode !== 'intensive'}
+                  >
+                    <div className="listening-layout listening-layout--intensive">
+                      <section className="audio-focus-zone" aria-label="Audio controls">
+                        <div className="audio-cover" aria-hidden>
+                          <div className="audio-cover-portrait">
+                            {storyMeta.title?.slice(0, 1) || 'A'}
                           </div>
                         </div>
-                        <p className="muted tiny">Audio auto-pauses between sentences.</p>
-                      </div>
+                        <div className="audio-focus-details">
+                          <div className="audio-meta">
+                            <h2 className="audio-title">{storyMeta.title || 'Audiobook'}</h2>
+                            <p className="muted small">
+                              {storyLanguage ? `in${storyLanguage}` : 'Language not set'}
+                            </p>
+                          </div>
+                          <div className="audio-controls-row">
+                            <button className="transport-btn" type="button" onClick={() => handleRewind()}>
+                              −10s
+                            </button>
+                            <button
+                              className="transport-btn transport-btn-primary"
+                              type="button"
+                              onClick={togglePlay}
+                              disabled={!showPlaybackControls}
+                            >
+                              {isPlaying ? 'Pause' : 'Play'}
+                            </button>
+                            <button className="transport-btn" type="button" onClick={() => handleForward()}>
+                              +10s
+                            </button>
+                            <div className="playback-speed" aria-label="Playback speed">
+                              <span className="muted tiny">Speed</span>
+                              <div className="speed-chips">
+                                {[0.75, 1, 1.25, 1.5].map((rate) => (
+                                  <button
+                                    key={rate}
+                                    type="button"
+                                    className={`speed-chip ${playbackRate === rate ? 'active' : ''}`}
+                                    onClick={() => handlePlaybackRateChange(rate)}
+                                  >
+                                    {rate}x
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="audio-progress" role="presentation">
+                            <div className="audio-progress-track">
+                              <div
+                                className="audio-progress-fill"
+                                style={{ width: `${playbackProgressPercent}%` }}
+                                aria-hidden
+                              />
+                            </div>
+                            <div className="audio-progress-labels">
+                              <span>{playbackPositionSeconds.toFixed(1)}s</span>
+                              <span>
+                                {playbackDurationSeconds ? `${playbackDurationSeconds.toFixed(1)}s` : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="listening-mode-surface">
+                        {loading ? (
+                          <p className="muted">Loading transcript…</p>
+                        ) : error ? (
+                          <p className="error">{error}</p>
+                        ) : !pages.length ? (
+                          <p className="muted">Transcript not available yet.</p>
+                        ) : (
+                          <div className="intensive-pane">
+                            <div className="intensive-sentence-card">
+                              <p className="muted tiny">Sentence workbench</p>
+                              <div className="intensive-sentence">{currentIntensiveSentence}</div>
+                              <div className="intensive-input-row">
+                                <input type="text" placeholder="Type what you hear…" className="intensive-input" />
+                                <div className="intensive-actions">
+                                  <button
+                                    type="button"
+                                    className="button ghost"
+                                    onClick={handlePreviousSentence}
+                                    disabled={intensiveSentenceIndex === 0}
+                                  >
+                                    Previous
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="button"
+                                    onClick={handleNextSentence}
+                                    disabled={intensiveSentenceIndex >= transcriptSentences.length - 1}
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="muted tiny">Audio auto-pauses between sentences.</p>
+                            </div>
+                          </div>
+                        )}
+                      </section>
                     </div>
-                  )}
-                </section>
-              </>
-            )}
-            {!isSpotify && storyMeta.fullAudioUrl && (
-              <audio ref={audioRef} src={storyMeta.fullAudioUrl} className="sr-only-audio" />
-            )}
+                  </section>
+                </div>
+              </div>
+              {!isSpotify && storyMeta.fullAudioUrl && (
+                <audio ref={audioRef} src={storyMeta.fullAudioUrl} className="sr-only-audio" />
+              )}
           </div>
         </div>
           </main>

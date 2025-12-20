@@ -105,6 +105,7 @@ const ActiveMode = ({
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
+  const chunkCount = Array.isArray(chunks) ? chunks.length : 0
   const safeChunkIndex = hasChunks ? Math.min(Math.max(activeChunkIndex, 0), chunks.length - 1) : 0
 
   useEffect(() => {
@@ -118,7 +119,7 @@ const ActiveMode = ({
     if (activeChunkIndex < 0 || activeChunkIndex >= chunks.length) {
       console.error('ActiveMode: activeChunkIndex out of range.', { activeChunkIndex, length: chunks.length })
     }
-  }, [activeChunkIndex, chunks.length, hasChunks])
+  }, [activeChunkIndex, chunkCount, hasChunks])
 
   if (!hasChunks) {
     return (

@@ -10,7 +10,7 @@ export const generateStory = async (params) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ ...params, language }),
+      body: JSON.stringify({ ...params, language, voiceGender: params?.voiceGender }),
       }
     )
 
@@ -25,9 +25,19 @@ export const generateStory = async (params) => {
       throw new Error('No story pages were returned.')
     }
 
+    if (!data?.voiceId) {
+      throw new Error('No voiceId was returned for this story.')
+    }
+
+    if (!data?.voiceGender) {
+      throw new Error('No voice gender was returned for this story.')
+    }
+
     return {
       pages: data.pages,
       title: data.title,
+      voiceId: data.voiceId,
+      voiceGender: data.voiceGender,
     }
   } catch (error) {
     throw new Error(error?.message || 'Unable to generate story. Please try again.')

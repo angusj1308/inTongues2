@@ -209,11 +209,54 @@ app.use(express.json())
 
 const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML !== '0'
 const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM !== '0'
+const ELEVENLABS_ES_VOICE_ID =
+  process.env.ELEVENLABS_ES_VOICE_ID || 'AvFwmpNEfWWu5mtNDqhH'
 
 const logTtsMethod = (method, lang) => {
   if (process.env.TTS_DEBUG === '1') {
     console.log(`TTS_LANG_LOCK_METHOD=${method} lang=${lang}`)
   }
+}
+
+async function requestElevenLabsTts(text) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+  if (!apiKey) {
+    throw new Error('Missing ELEVENLABS_API_KEY')
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+  let response
+  try {
+    response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_ES_VOICE_ID}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          text,
+        }),
+        signal: controller.signal,
+      },
+    )
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    const trimmedErrorText = errorText ? errorText.slice(0, 400) : ''
+    throw new Error(
+      `ElevenLabs request failed (${response.status}): ${trimmedErrorText || response.statusText}`,
+    )
+  }
+
+  return Buffer.from(await response.arrayBuffer())
 }
 
 const storage = multer.diskStorage({
@@ -2410,6 +2453,7 @@ async function generateAudioForPage(bookId, pageIndex, text, languageCode) {
   const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
 
   const ttsLanguage = resolveTtsLanguage(languageCode, safeText)
+  const baseTtsLanguage = ttsLanguage.split('-')[0]
 
   const baseTtsConfig = {
     model: 'gpt-4o-mini-tts',
@@ -2422,6 +2466,17 @@ async function generateAudioForPage(bookId, pageIndex, text, languageCode) {
     if (!hasLogged) {
       logTtsMethod(method, ttsLanguage)
       hasLogged = true
+    }
+  }
+
+  if (baseTtsLanguage === 'es') {
+    try {
+      const audioBuffer = await requestElevenLabsTts(safeText)
+      const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+      logOnce('elevenlabs')
+      return audioUrl
+    } catch (ttsError) {
+      console.error('Spanish ElevenLabs TTS path failed:', ttsError)
     }
   }
 

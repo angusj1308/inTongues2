@@ -105,21 +105,42 @@ const ActiveMode = ({
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
-  const chunkCount = Array.isArray(chunks) ? chunks.length : 0
   const safeChunkIndex = hasChunks ? Math.min(Math.max(activeChunkIndex, 0), chunks.length - 1) : 0
 
-  useEffect(() => {
-    if (!hasChunks) {
-      console.error('ActiveMode: chunks missing or empty.')
+  const clearLongPress = () => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current)
+      longPressTimeoutRef.current = null
     }
-  }, [hasChunks])
+  }
 
   useEffect(() => {
-    if (!hasChunks) return
-    if (activeChunkIndex < 0 || activeChunkIndex >= chunks.length) {
-      console.error('ActiveMode: activeChunkIndex out of range.', { activeChunkIndex, length: chunks.length })
+    const handleClickOutside = (event) => {
+      const scrubTarget =
+        scrubMenuRef.current?.contains(event.target) || rewindButtonRef.current?.contains(event.target)
+      const speedTarget =
+        speedMenuRef.current?.contains(event.target) || speedButtonRef.current?.contains(event.target)
+
+      if (!scrubTarget) setScrubMenuOpen(false)
+      if (!speedTarget) setSpeedMenuOpen(false)
     }
-  }, [activeChunkIndex, chunkCount, hasChunks])
+
+    document.addEventListener('pointerdown', handleClickOutside)
+    return () => document.removeEventListener('pointerdown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    if (!showChunkList) return undefined
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowChunkList(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showChunkList])
+
+  useEffect(() => () => clearLongPress(), [])
 
   if (!hasChunks) {
     return (
@@ -153,27 +174,6 @@ const ActiveMode = ({
         return segment.start >= chunkStart && segment.start < chunkEnd
       })
     : transcriptSegments
-
-  const isChunkLocked = (index) => index > safeChunkIndex
-  const handleSelectChunk = (index) => {
-    if (typeof onSelectChunk === 'function') {
-      onSelectChunk(index)
-    }
-    setShowChunkList(false)
-  }
-
-  const handleSelectStep = (step) => {
-    if (typeof onSelectStep === 'function') {
-      onSelectStep(step)
-    }
-  }
-
-  const clearLongPress = () => {
-    if (longPressTimeoutRef.current) {
-      clearTimeout(longPressTimeoutRef.current)
-      longPressTimeoutRef.current = null
-    }
-  }
 
   const handleSeek = (nextTime) => {
     if (!onSeek) return
@@ -226,33 +226,19 @@ const ActiveMode = ({
     setScrubMenuOpen((prev) => !prev)
   }
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const scrubTarget =
-        scrubMenuRef.current?.contains(event.target) || rewindButtonRef.current?.contains(event.target)
-      const speedTarget =
-        speedMenuRef.current?.contains(event.target) || speedButtonRef.current?.contains(event.target)
-
-      if (!scrubTarget) setScrubMenuOpen(false)
-      if (!speedTarget) setSpeedMenuOpen(false)
+  const isChunkLocked = (index) => index > safeChunkIndex
+  const handleSelectChunk = (index) => {
+    if (typeof onSelectChunk === 'function') {
+      onSelectChunk(index)
     }
+    setShowChunkList(false)
+  }
 
-    document.addEventListener('pointerdown', handleClickOutside)
-    return () => document.removeEventListener('pointerdown', handleClickOutside)
-  }, [])
-
-  useEffect(() => {
-    if (!showChunkList) return undefined
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setShowChunkList(false)
-      }
+  const handleSelectStep = (step) => {
+    if (typeof onSelectStep === 'function') {
+      onSelectStep(step)
     }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showChunkList])
-
-  useEffect(() => () => clearLongPress(), [])
+  }
 
   const renderTransportButtons = () => (
     <div className="transport-row" role="group" aria-label="Playback controls">

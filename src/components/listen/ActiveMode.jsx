@@ -151,7 +151,7 @@ const ActiveMode = ({
     if (activeStep !== 2) return
     setIsTranscriptSynced(true)
     setSyncToken((prev) => prev + 1)
-  }, [activeStep, safeChunkIndex, chunkStart, chunkEnd])
+  }, [activeStep, safeChunkIndex])
 
   const handleTranscriptUnsync = useCallback(() => {
     setIsTranscriptSynced(false)

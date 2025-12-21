@@ -3485,6 +3485,25 @@ pre {
   align-items: start;
 }
 
+.active-pass-carousel {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.active-pass-track {
+  display: flex;
+  width: 200%;
+  transition: transform 0.45s ease;
+  will-change: transform;
+}
+
+.active-pass-slide {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .active-pass-main {
   display: flex;
   justify-content: center;
@@ -4500,6 +4519,10 @@ pre {
   cursor: not-allowed;
 }
 
+.secondary-btn.is-locked:disabled {
+  opacity: 0.7;
+}
+
 .secondary-btn.active {
   color: #0f172a;
 }
@@ -4928,6 +4951,10 @@ pre {
   gap: 12px;
   padding-top: 8px;
   border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.transcript-panel-footer-spacer {
+  flex: 1;
 }
 
 .transcript-sync-btn {

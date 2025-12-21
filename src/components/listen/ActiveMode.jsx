@@ -513,10 +513,23 @@ const ActiveMode = ({
   const heroStep = activeStep <= 3 ? activeStep : 1
   const heroTitle = heroTitles[heroStep] || heroTitles[1]
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const { classList } = document.body
+    if (activeStep === 1) {
+      classList.add('active-pass-locked')
+    } else {
+      classList.remove('active-pass-locked')
+    }
+    return () => {
+      classList.remove('active-pass-locked')
+    }
+  }, [activeStep])
+
   return (
     <div className={`active-flow active-step-${activeStep}`}>
       <>
-        {activeStep !== 1 && (
+        {activeStep !== 1 && activeStep !== 2 && (
           <header className="active-topbar">
             <div className="active-topbar-context">
               <div className="active-topbar-title">

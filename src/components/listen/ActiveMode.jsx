@@ -660,7 +660,6 @@ const ActiveMode = ({
                     {chunkOverlay}
                   </div>
                 </div>
-                {passNavigation}
               </div>
               <div className="active-stage-transcript">
                 <div className="active-stage-transcript-card">
@@ -689,6 +688,7 @@ const ActiveMode = ({
                 </div>
               </div>
             </div>
+            {passNavigation}
           </section>
         )}
 

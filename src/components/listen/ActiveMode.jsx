@@ -77,6 +77,9 @@ const ActiveMode = ({
   activeChunkIndex = 0,
   completedChunks = new Set(),
   activeStep = 1,
+  completedPasses = new Set(),
+  canAdvanceToNextStep = false,
+  canMoveToNextChunk = false,
   isPlaying = false,
   playbackPositionSeconds = 0,
   playbackDurationSeconds = 0,
@@ -92,6 +95,7 @@ const ActiveMode = ({
   onSelectChunk,
   onSelectStep,
   onScrubChange,
+  onAdvanceChunk,
 }) => {
   const rewindButtonRef = useRef(null)
   const scrubMenuRef = useRef(null)
@@ -268,6 +272,16 @@ const ActiveMode = ({
     }
   }
 
+  const handlePreviousPass = () => {
+    if (activeStep <= 1) return
+    handleSelectStep(activeStep - 1)
+  }
+
+  const handleNextPass = () => {
+    if (!canAdvanceToNextStep || activeStep >= 4) return
+    handleSelectStep(activeStep + 1)
+  }
+
   const renderTransportButtons = () => (
     <div className="transport-row" role="group" aria-label="Playback controls">
       <div className="transport-row-icons">
@@ -393,6 +407,67 @@ const ActiveMode = ({
     </div>
   ) : null
 
+  const passNavigation = (
+    <nav className="active-pass-footer ui-text" aria-label="Pass navigation">
+      <button
+        type="button"
+        className="active-pass-arrow"
+        onClick={handlePreviousPass}
+        disabled={activeStep === 1}
+        aria-label="Previous pass"
+      >
+        {'<'}
+      </button>
+      <ol className="active-pass-footer-steps" aria-label="Pass steps">
+        {[1, 2, 3, 4].map((step) => {
+          const isCurrent = step === activeStep
+          const isCompleted = completedPasses.has(step)
+          const isNext = step === activeStep + 1
+          const isBeyondNext = step > activeStep + 1
+          const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
+          return (
+            <li
+              key={step}
+              className={`active-pass-footer-step ${isCurrent ? 'is-current' : ''} ${
+                isCompleted ? 'is-completed' : ''
+              } ${isDisabled ? 'is-locked' : ''}`}
+            >
+              <button
+                type="button"
+                className="active-pass-footer-button"
+                onClick={() => handleSelectStep(step)}
+                disabled={isDisabled}
+                aria-label={`Pass ${step}`}
+              >
+                {step}
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+      {activeStep === 4 ? (
+        <button
+          type="button"
+          className="button active-pass-next-chunk"
+          onClick={onAdvanceChunk}
+          disabled={!canMoveToNextChunk}
+        >
+          Move to next chunk
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="active-pass-arrow"
+          onClick={handleNextPass}
+          disabled={!canAdvanceToNextStep || activeStep === 4}
+          aria-label="Next pass"
+        >
+          {'>'}
+        </button>
+      )}
+    </nav>
+  )
+
   if (activeStep === 1) {
     return (
       <>
@@ -501,20 +576,7 @@ const ActiveMode = ({
             <div className="extensive-pane extensive-pane-right" aria-hidden />
           </div>
         </div>
-        <nav className="active-pass-indicator ui-text" aria-label="Pass progress">
-          <ol className="active-pass-indicator-list">
-            {[1, 2, 3, 4].map((step) => (
-              <li
-                key={step}
-                className={`active-pass-indicator-item ${step === activeStep ? 'is-current' : ''}`}
-              >
-                <span className="active-pass-indicator-dot" aria-hidden="true">
-                  {step}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </nav>
+        {passNavigation}
       </>
     )
   }
@@ -542,38 +604,9 @@ const ActiveMode = ({
               </span>
             </div>
           </div>
-          <nav className="active-pass-nav" aria-label="Pass navigation">
-            <div className="active-pass-label">
-              Pass {activeStep} · {passLabel}
-            </div>
-            <ol className="active-pass-steps">
-              {[1, 2, 3, 4].map((step) => {
-                const isCurrent = step === activeStep
-                const isCompleted = step < activeStep
-                const isUpcoming = step > activeStep
-                return (
-                  <li
-                    key={step}
-                    className={`active-pass-step ${isCurrent ? 'is-current' : ''} ${
-                      isCompleted ? 'is-completed' : ''
-                    } ${isUpcoming ? 'is-upcoming' : ''}`}
-                  >
-                    <button
-                      type="button"
-                      className="active-pass-button"
-                      onClick={() => handleSelectStep(step)}
-                      disabled={isUpcoming}
-                      aria-label={`Pass ${step}`}
-                    >
-                      <span className="active-pass-dot" aria-hidden="true">
-                        {isCompleted ? '✓' : step}
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
-          </nav>
+          <div className="active-pass-label">
+            Pass {activeStep} · {passLabel}
+          </div>
         </header>
 
         <section className="active-pass-layout" aria-live="polite">
@@ -588,7 +621,7 @@ const ActiveMode = ({
                 />
                 <div className="active-cta">
                   <button type="button" className="button" onClick={onBeginFinalListen}>
-                    Begin final listen
+                    Commit word status changes
                   </button>
                 </div>
               </div>
@@ -675,6 +708,7 @@ const ActiveMode = ({
             </aside>
           )}
         </section>
+        {passNavigation}
 
       </>
     </div>

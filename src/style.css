@@ -3201,6 +3201,82 @@ pre {
   color: #0f172a;
 }
 
+.active-pass-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 1.5rem;
+  color: #0f172a;
+}
+
+.active-pass-footer-steps {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+}
+
+.active-pass-footer-step {
+  display: flex;
+  align-items: center;
+}
+
+.active-pass-footer-button {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.active-pass-footer-step.is-current .active-pass-footer-button {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.active-pass-footer-step.is-completed .active-pass-footer-button {
+  background: #22c55e;
+  color: #fff;
+  border-color: #22c55e;
+}
+
+.active-pass-footer-step.is-locked .active-pass-footer-button {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.active-pass-footer-button:disabled {
+  cursor: not-allowed;
+}
+
+.active-pass-arrow {
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+
+.active-pass-arrow:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.active-pass-next-chunk {
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+}
+
 .active-pass-steps {
   list-style: none;
   display: flex;

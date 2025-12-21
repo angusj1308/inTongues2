@@ -3496,7 +3496,7 @@ pre {
   align-items: center;
   justify-content: center;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .active-stage-inner {
@@ -3506,6 +3506,7 @@ pre {
   width: min(1100px, 100%);
   margin: 0 auto;
   justify-content: center;
+  overflow: hidden;
 }
 
 .active-stage-player,

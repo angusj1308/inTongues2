@@ -3560,7 +3560,11 @@ pre {
 }
 
 .active-stage--pass-1 .active-pass-footer {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+}
+
+body.active-pass-locked {
+  overflow: hidden;
 }
 
 .active-stage--pass-2 .active-stage-player {

@@ -504,6 +504,19 @@ const ActiveMode = ({
                     <div className="player-transport-shell">{renderTransportButtons()}</div>
                     <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
                       <span className="secondary-spacer" aria-hidden />
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={handleChunkToggle}
+                        disabled={!hasChunks}
+                        aria-label="Chunks"
+                        title="Chunks"
+                      >
+                        <span className="secondary-glyph">
+                          <Icon name="list" className="secondary-icon" />
+                        </span>
+                        <span className="secondary-label">Chunks</span>
+                      </button>
                       <div className="secondary-btn-popover-wrap">
                         <button
                           ref={speedButtonRef}
@@ -541,19 +554,6 @@ const ActiveMode = ({
                           </div>
                         ) : null}
                       </div>
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={handleChunkToggle}
-                        disabled={!hasChunks}
-                        aria-label="Chunks"
-                        title="Chunks"
-                      >
-                        <span className="secondary-glyph">
-                          <Icon name="list" className="secondary-icon" />
-                        </span>
-                        <span className="secondary-label">Chunks</span>
-                      </button>
                       <button
                         type="button"
                         className="secondary-btn is-disabled"

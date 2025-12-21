@@ -707,6 +707,17 @@ const ExtensiveMode = ({
                 <div className="player-transport-shell">{renderTransportButtons()}</div>
                 <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
                   <span className="secondary-spacer" aria-hidden />
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    aria-label="Sleep timer"
+                    title="Sleep timer (coming soon)"
+                  >
+                    <span className="secondary-glyph">
+                      <TimerIcon />
+                    </span>
+                    <span className="secondary-label">Timer</span>
+                  </button>
                   <div className="secondary-btn-popover-wrap">
                     <button
                       ref={speedButtonRef}
@@ -739,17 +750,6 @@ const ExtensiveMode = ({
                       </div>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    aria-label="Sleep timer"
-                    title="Sleep timer (coming soon)"
-                  >
-                    <span className="secondary-glyph">
-                      <TimerIcon />
-                    </span>
-                    <span className="secondary-label">Timer</span>
-                  </button>
                   <button
                     type="button"
                     className={`secondary-btn ${subtitlesEnabled ? 'active' : ''}`}

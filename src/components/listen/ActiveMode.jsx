@@ -516,7 +516,7 @@ const ActiveMode = ({
   return (
     <div className={`active-flow active-step-${activeStep}`}>
       <>
-        {activeStep !== 1 && (
+        {activeStep !== 1 && activeStep !== 2 && (
           <header className="active-topbar">
             <div className="active-topbar-context">
               <div className="active-topbar-title">

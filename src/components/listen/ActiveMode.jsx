@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import ActiveTranscript from './ActiveTranscript'
 import TranscriptPanel from './TranscriptPanel'
 import ChunkTimeline from './ChunkTimeline'
 
@@ -111,6 +110,8 @@ const ActiveMode = ({
   const [chunkDrawerMounted, setChunkDrawerMounted] = useState(false)
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
+  const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
+  const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
@@ -148,10 +149,15 @@ const ActiveMode = ({
   useEffect(() => () => clearLongPress(), [])
   useEffect(() => () => clearChunkDrawerTimeout(), [])
   useEffect(() => {
-    if (activeStep !== 2) return
+    if (activeStep !== 2 && activeStep !== 3) return
     setIsTranscriptSynced(true)
     setSyncToken((prev) => prev + 1)
   }, [activeStep, safeChunkIndex])
+
+  useEffect(() => {
+    setPassThreeWarningAcknowledged(false)
+    setShowPassThreeWarning(false)
+  }, [safeChunkIndex])
 
   const handleTranscriptUnsync = useCallback(() => {
     setIsTranscriptSynced(false)
@@ -183,9 +189,6 @@ const ActiveMode = ({
   const rawChunkEnd = Number.isFinite(currentChunk?.end) ? currentChunk.end : safePlaybackDuration
   const chunkEnd = Math.max(rawChunkEnd, chunkStart)
   const chunkDuration = Math.max(0, chunkEnd - chunkStart)
-
-  const allowEditing = activeStep === 3
-  const showWordStatus = activeStep === 3
 
   const safePlaybackPosition = Number.isFinite(playbackPositionSeconds) ? playbackPositionSeconds : chunkStart
   const clampedPosition = Math.min(Math.max(safePlaybackPosition, chunkStart), chunkEnd)
@@ -296,6 +299,22 @@ const ActiveMode = ({
   const handleNextPass = () => {
     if (!canAdvanceToNextStep || activeStep >= 4) return
     handleSelectStep(activeStep + 1)
+  }
+
+  const handlePassThreeContinue = () => {
+    if (!passThreeWarningAcknowledged) {
+      setShowPassThreeWarning(true)
+      return
+    }
+    onBeginFinalListen?.()
+    handleSelectStep(4)
+  }
+
+  const handleConfirmPassThreeWarning = () => {
+    setPassThreeWarningAcknowledged(true)
+    setShowPassThreeWarning(false)
+    onBeginFinalListen?.()
+    handleSelectStep(4)
   }
 
   const renderTransportButtons = () => (
@@ -484,232 +503,15 @@ const ActiveMode = ({
     </nav>
   )
 
-  const passOneView = (
-    <div className="extensive-shell">
-      <div className="extensive-shell-inner">
-        <div className="extensive-pane extensive-pane-left">
-          <div className="extensive-player-shell">
-            <div
-              className={`player-stack active-pass-stack active-chunk-host ui-text ${
-                chunkDrawerOpen ? 'is-chunk-open' : ''
-              }`}
-            >
-              <div className="active-pass-header">
-                <div className="active-pass-context">
-                  <div className="active-pass-cover" aria-hidden>
-                    <div className="active-pass-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
-                  </div>
-                  <div className="active-pass-title">
-                    <span className="active-story-title">{storyTitle}</span>
-                    <span className="active-title-divider" aria-hidden="true">
-                      {' '}
-                      —{' '}
-                    </span>
-                    <span className="active-chunk-suffix">{chunkSuffix}</span>
-                  </div>
-                </div>
-                <div className="active-pass-hero" aria-live="polite">
-                  <span className="active-pass-hero-label">PASS 1 OF 4</span>
-                  <span className="active-pass-hero-title">Just listen</span>
-                </div>
-              </div>
-              <div className="player-surface">
-                {renderProgressBar()}
-                <div className="player-transport-shell">{renderTransportButtons()}</div>
-                <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
-                  <span className="secondary-spacer" aria-hidden />
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={handleChunkToggle}
-                    disabled={!hasChunks}
-                    aria-label="Chunks"
-                    title="Chunks"
-                  >
-                    <span className="secondary-glyph">
-                      <Icon name="list" className="secondary-icon" />
-                    </span>
-                    <span className="secondary-label">Chunks</span>
-                  </button>
-                  <div className="secondary-btn-popover-wrap">
-                    <button
-                      ref={speedButtonRef}
-                      type="button"
-                      className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                      onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                      aria-label={`Playback speed ${playbackRate || 1}x`}
-                      title="Change playback speed"
-                    >
-                      <span className="secondary-glyph">
-                        <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                      </span>
-                      <span className="secondary-label">Speed</span>
-                    </button>
-                    {speedMenuOpen ? (
-                      <div
-                        ref={speedMenuRef}
-                        className="scrub-popover speed-popover"
-                        role="dialog"
-                        aria-label="Playback speed"
-                      >
-                        <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                          {speedPresets.map((rate) => (
-                            <button
-                              key={rate}
-                              type="button"
-                              className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                              onClick={() => handlePlaybackRateChange(rate)}
-                            >
-                              <span className="speed-option-indicator" aria-hidden="true" />
-                              <span className="speed-option-label">x{formatRate(rate)}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary-btn is-disabled"
-                    aria-label="Transcript (available in Pass 2)"
-                    title="Transcript (available in Pass 2)"
-                    disabled
-                  >
-                    <span className="secondary-glyph">
-                      <Icon name="subtitles" className="secondary-icon" />
-                    </span>
-                    <span className="secondary-label">Transcript</span>
-                  </button>
-                  <span className="secondary-spacer" aria-hidden />
-                </div>
-              </div>
-              {chunkOverlay}
-            </div>
-          </div>
-        </div>
-        <div className="extensive-pane extensive-pane-right" aria-hidden />
-      </div>
-    </div>
-  )
+  const heroTitles = {
+    1: 'Just listen',
+    2: 'Listen + Read',
+    3: 'Read + Adjust',
+  }
 
-  const passTwoView = (
-    <div className="extensive-shell extensive-shell--split active-pass-two-shell">
-      <div className="extensive-shell-inner">
-        <div className="extensive-pane extensive-pane-left">
-          <div className="extensive-player-shell">
-            <div
-              className={`player-stack active-pass-stack active-chunk-host ui-text ${
-                chunkDrawerOpen ? 'is-chunk-open' : ''
-              }`}
-            >
-              <div className="active-pass-header">
-                <div className="active-pass-context">
-                  <div className="active-pass-cover" aria-hidden>
-                    <div className="active-pass-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
-                  </div>
-                  <div className="active-pass-title">
-                    <span className="active-story-title">{storyTitle}</span>
-                    <span className="active-title-divider" aria-hidden="true">
-                      {' '}
-                      —{' '}
-                    </span>
-                    <span className="active-chunk-suffix">{chunkSuffix}</span>
-                  </div>
-                </div>
-                <div className="active-pass-hero" aria-live="polite">
-                  <span className="active-pass-hero-label">PASS 2 OF 4</span>
-                  <span className="active-pass-hero-title">Listen + Read</span>
-                </div>
-              </div>
-              <div className="player-surface">
-                {renderProgressBar()}
-                <div className="player-transport-shell">{renderTransportButtons()}</div>
-                <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
-                  <span className="secondary-spacer" aria-hidden />
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={handleChunkToggle}
-                    disabled={!hasChunks}
-                    aria-label="Chunks"
-                    title="Chunks"
-                  >
-                    <span className="secondary-glyph">
-                      <Icon name="list" className="secondary-icon" />
-                    </span>
-                    <span className="secondary-label">Chunks</span>
-                  </button>
-                  <div className="secondary-btn-popover-wrap">
-                    <button
-                      ref={speedButtonRef}
-                      type="button"
-                      className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                      onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                      aria-label={`Playback speed ${playbackRate || 1}x`}
-                      title="Change playback speed"
-                    >
-                      <span className="secondary-glyph">
-                        <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                      </span>
-                      <span className="secondary-label">Speed</span>
-                    </button>
-                    {speedMenuOpen ? (
-                      <div
-                        ref={speedMenuRef}
-                        className="scrub-popover speed-popover"
-                        role="dialog"
-                        aria-label="Playback speed"
-                      >
-                        <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                          {speedPresets.map((rate) => (
-                            <button
-                              key={rate}
-                              type="button"
-                              className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                              onClick={() => handlePlaybackRateChange(rate)}
-                            >
-                              <span className="speed-option-indicator" aria-hidden="true" />
-                              <span className="speed-option-label">x{formatRate(rate)}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary-btn is-locked active"
-                    aria-label="Transcript (locked on)"
-                    title="Transcript (locked on)"
-                    disabled
-                  >
-                    <span className="secondary-glyph">
-                      <Icon name="subtitles" className="secondary-icon" filled />
-                    </span>
-                    <span className="secondary-label">Transcript</span>
-                  </button>
-                  <span className="secondary-spacer" aria-hidden />
-                </div>
-              </div>
-              {chunkOverlay}
-            </div>
-          </div>
-        </div>
-        <div className="extensive-pane extensive-pane-right">
-          <TranscriptPanel
-            segments={filteredSegments}
-            activeIndex={activeTranscriptIndex}
-            showWordStatus={false}
-            showWordStatusToggle={false}
-            isSynced={isTranscriptSynced}
-            onUserScroll={handleTranscriptUnsync}
-            onResync={handleTranscriptResync}
-            syncToken={syncToken}
-          />
-        </div>
-      </div>
-    </div>
-  )
+  const isTranscriptLockedOn = activeStep >= 2
+  const heroStep = activeStep <= 3 ? activeStep : 1
+  const heroTitle = heroTitles[heroStep] || heroTitles[1]
 
   return (
     <div className={`active-flow active-step-${activeStep}`}>
@@ -741,106 +543,236 @@ const ActiveMode = ({
           </header>
         )}
 
-        {(activeStep === 1 || activeStep === 2) && (
-          <section className="active-pass-carousel" aria-live="polite">
-            <div className="active-pass-track" style={{ transform: `translateX(-${activeStep === 2 ? 100 : 0}%)` }}>
-              <div className="active-pass-slide">{passOneView}</div>
-              <div className="active-pass-slide">{passTwoView}</div>
+        {activeStep <= 3 && (
+          <section className={`active-stage active-stage--pass-${activeStep}`} aria-live="polite">
+            <div className="active-stage-inner">
+              <div className="active-stage-player">
+                <div className="extensive-player-shell">
+                  <div
+                    className={`player-stack active-pass-stack active-chunk-host ui-text ${
+                      chunkDrawerOpen ? 'is-chunk-open' : ''
+                    }`}
+                  >
+                    <div className="active-pass-header">
+                      <div className="active-pass-context">
+                        <div className="active-pass-cover" aria-hidden>
+                          <div className="active-pass-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                        </div>
+                        <div className="active-pass-title">
+                          <span className="active-story-title">{storyTitle}</span>
+                          <span className="active-title-divider" aria-hidden="true">
+                            {' '}
+                            —{' '}
+                          </span>
+                          <span className="active-chunk-suffix">{chunkSuffix}</span>
+                        </div>
+                      </div>
+                      <div className="active-pass-hero" aria-live="polite">
+                        <span className="active-pass-hero-label">PASS {heroStep} OF 4</span>
+                        <span className="active-pass-hero-title">{heroTitle}</span>
+                      </div>
+                    </div>
+                    <div className="player-surface">
+                      {renderProgressBar()}
+                      <div className="player-transport-shell">{renderTransportButtons()}</div>
+                      <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
+                        <span className="secondary-spacer" aria-hidden />
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={handleChunkToggle}
+                          disabled={!hasChunks}
+                          aria-label="Chunks"
+                          title="Chunks"
+                        >
+                          <span className="secondary-glyph">
+                            <Icon name="list" className="secondary-icon" />
+                          </span>
+                          <span className="secondary-label">Chunks</span>
+                        </button>
+                        <div className="secondary-btn-popover-wrap">
+                          <button
+                            ref={speedButtonRef}
+                            type="button"
+                            className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                            onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                            aria-label={`Playback speed ${playbackRate || 1}x`}
+                            title="Change playback speed"
+                          >
+                            <span className="secondary-glyph">
+                              <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
+                            </span>
+                            <span className="secondary-label">Speed</span>
+                          </button>
+                          {speedMenuOpen ? (
+                            <div
+                              ref={speedMenuRef}
+                              className="scrub-popover speed-popover"
+                              role="dialog"
+                              aria-label="Playback speed"
+                            >
+                              <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
+                                {speedPresets.map((rate) => (
+                                  <button
+                                    key={rate}
+                                    type="button"
+                                    className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
+                                    onClick={() => handlePlaybackRateChange(rate)}
+                                  >
+                                    <span className="speed-option-indicator" aria-hidden="true" />
+                                    <span className="speed-option-label">x{formatRate(rate)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          className={`secondary-btn ${isTranscriptLockedOn ? 'is-locked active' : 'is-disabled'}`}
+                          aria-label={
+                            isTranscriptLockedOn ? 'Transcript (locked on)' : 'Transcript (available in Pass 2)'
+                          }
+                          title={isTranscriptLockedOn ? 'Transcript (locked on)' : 'Transcript (available in Pass 2)'}
+                          disabled
+                        >
+                          <span className="secondary-glyph">
+                            <Icon name="subtitles" className="secondary-icon" filled={isTranscriptLockedOn} />
+                          </span>
+                          <span className="secondary-label">Transcript</span>
+                        </button>
+                        <span className="secondary-spacer" aria-hidden />
+                      </div>
+                    </div>
+                    {chunkOverlay}
+                  </div>
+                </div>
+              </div>
+              <div className="active-stage-transcript">
+                <div className="active-stage-transcript-card">
+                  {activeStep === 3 && (
+                    <div className="active-stage-transcript-header">
+                      PASS 3 OF 4 <span aria-hidden="true">·</span> Read + Adjust
+                    </div>
+                  )}
+                  <TranscriptPanel
+                    segments={filteredSegments}
+                    activeIndex={activeTranscriptIndex}
+                    showWordStatus={activeStep === 3}
+                    showWordStatusToggle={false}
+                    isSynced={isTranscriptSynced}
+                    onUserScroll={handleTranscriptUnsync}
+                    onResync={handleTranscriptResync}
+                    syncToken={syncToken}
+                  />
+                  {activeStep === 3 && (
+                    <div className="active-stage-transcript-cta">
+                      <button type="button" className="button" onClick={handlePassThreeContinue}>
+                        Save and continue
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
         )}
 
-        {activeStep > 2 && (
+        {activeStep === 4 && (
           <section className="active-pass-layout" aria-live="polite">
             <div className="active-pass-main">
-              {activeStep === 3 && (
-                <div className="active-pass-block">
-                  <ActiveTranscript
-                    segments={filteredSegments}
-                    activeSegmentIndex={activeTranscriptIndex}
-                    showWordStatus={showWordStatus}
-                    allowEditing={allowEditing}
-                  />
-                  <div className="active-cta">
-                    <button type="button" className="button" onClick={onBeginFinalListen}>
-                      Commit word status changes
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activeStep !== 3 && (
-                <div className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}>
-                  <div className="active-player-surface">
-                    {renderProgressBar()}
-                    <div className="player-transport-shell">{renderTransportButtons()}</div>
-                    <div
-                      className="player-secondary-row secondary-controls"
-                      role="group"
-                      aria-label="Secondary controls"
+              <div className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}>
+                <div className="active-player-surface">
+                  {renderProgressBar()}
+                  <div className="player-transport-shell">{renderTransportButtons()}</div>
+                  <div
+                    className="player-secondary-row secondary-controls"
+                    role="group"
+                    aria-label="Secondary controls"
+                  >
+                    <span className="secondary-spacer" aria-hidden />
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={handleChunkToggle}
+                      disabled={!hasChunks}
+                      aria-label="Chunks"
+                      title="Chunks"
                     >
-                      <span className="secondary-spacer" aria-hidden />
+                      <span className="secondary-glyph">
+                        <Icon name="list" className="secondary-icon" />
+                      </span>
+                      <span className="secondary-label">Chunks</span>
+                    </button>
+                    <div className="secondary-btn-popover-wrap">
                       <button
+                        ref={speedButtonRef}
                         type="button"
-                        className="secondary-btn"
-                        onClick={handleChunkToggle}
-                        disabled={!hasChunks}
-                        aria-label="Chunks"
-                        title="Chunks"
+                        className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                        onClick={() => setSpeedMenuOpen((prev) => !prev)}
+                        aria-label={`Playback speed ${playbackRate || 1}x`}
+                        title="Change playback speed"
                       >
                         <span className="secondary-glyph">
-                          <Icon name="list" className="secondary-icon" />
+                          <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
                         </span>
-                        <span className="secondary-label">Chunks</span>
+                        <span className="secondary-label">Speed</span>
                       </button>
-                      <div className="secondary-btn-popover-wrap">
-                        <button
-                          ref={speedButtonRef}
-                          type="button"
-                          className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                          onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                          aria-label={`Playback speed ${playbackRate || 1}x`}
-                          title="Change playback speed"
+                      {speedMenuOpen ? (
+                        <div
+                          ref={speedMenuRef}
+                          className="scrub-popover speed-popover"
+                          role="dialog"
+                          aria-label="Playback speed"
                         >
-                          <span className="secondary-glyph">
-                            <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                          </span>
-                          <span className="secondary-label">Speed</span>
-                        </button>
-                        {speedMenuOpen ? (
-                          <div
-                            ref={speedMenuRef}
-                            className="scrub-popover speed-popover"
-                            role="dialog"
-                            aria-label="Playback speed"
-                          >
-                            <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                              {speedPresets.map((rate) => (
-                                <button
-                                  key={rate}
-                                  type="button"
-                                  className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                                  onClick={() => handlePlaybackRateChange(rate)}
-                                >
-                                  <span className="speed-option-indicator" aria-hidden="true" />
-                                  <span className="speed-option-label">x{formatRate(rate)}</span>
-                                </button>
-                              ))}
-                            </div>
+                          <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
+                            {speedPresets.map((rate) => (
+                              <button
+                                key={rate}
+                                type="button"
+                                className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
+                                onClick={() => handlePlaybackRateChange(rate)}
+                              >
+                                <span className="speed-option-indicator" aria-hidden="true" />
+                                <span className="speed-option-label">x{formatRate(rate)}</span>
+                              </button>
+                            ))}
                           </div>
-                        ) : null}
-                      </div>
-                      <span className="secondary-spacer" aria-hidden />
-                      <span className="secondary-spacer" aria-hidden />
+                        </div>
+                      ) : null}
                     </div>
+                    <span className="secondary-spacer" aria-hidden />
+                    <span className="secondary-spacer" aria-hidden />
                   </div>
-                  {chunkOverlay}
                 </div>
-              )}
+                {chunkOverlay}
+              </div>
             </div>
           </section>
         )}
         {passNavigation}
+        {showPassThreeWarning && (
+          <div className="modal-backdrop" role="presentation">
+            <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">
+              <div className="section-header" style={{ alignItems: 'flex-start' }}>
+                <div>
+                  <h3>Save word status changes?</h3>
+                  <p className="muted small">
+                    Continuing will mark all untouched new words as Known.
+                  </p>
+                </div>
+              </div>
+              <div className="active-stage-warning-actions">
+                <button type="button" className="button ghost" onClick={() => setShowPassThreeWarning(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="button" onClick={handleConfirmPassThreeWarning}>
+                  Save and continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     </div>
   )

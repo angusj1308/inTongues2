@@ -89,8 +89,11 @@ const AudioPlayer = () => {
   const [activeChunkIndex, setActiveChunkIndex] = useState(0)
   const [activeStep, setActiveStep] = useState(1)
   const [completedChunks, setCompletedChunks] = useState(new Set())
+  const [completedPassesByChunk, setCompletedPassesByChunk] = useState(() => new Map())
+  const [committedPass3ByChunk, setCommittedPass3ByChunk] = useState(new Set())
   const [transitionDirection, setTransitionDirection] = useState('left')
-  const lastCompletionRef = useRef({ chunkIndex: -1, step: null })
+  const completedPassKeyRef = useRef(new Set())
+  const passProgressRef = useRef(new Map())
 
   const fetchSpotifyAccessToken = useCallback(async () => {
     if (!user) throw new Error('User not authenticated')
@@ -921,10 +924,6 @@ const AudioPlayer = () => {
     setActiveChunkIndex((prev) => Math.min(prev, activeChunks.length - 1))
   }, [activeChunks.length])
 
-  useEffect(() => {
-    lastCompletionRef.current = { chunkIndex: -1, step: null }
-  }, [activeChunkIndex, activeStep, listeningMode])
-
   const startSpotifyPlayback = async () => {
     if (!user || !spotifyDeviceId || !storyMeta.spotifyUri) return
 
@@ -1033,6 +1032,17 @@ const AudioPlayer = () => {
 
   const activePage = pages[activePageIndex]
   const currentChunk = activeChunks[activeChunkIndex]
+  const completedPassesForChunk = completedPassesByChunk.get(activeChunkIndex) || new Set()
+  const canAdvanceToNextStep = (() => {
+    if (activeStep === 1 || activeStep === 2) {
+      return completedPassesForChunk.has(activeStep)
+    }
+    if (activeStep === 3) {
+      return committedPass3ByChunk.has(activeChunkIndex)
+    }
+    return false
+  })()
+  const canMoveToNextChunk = completedPassesForChunk.has(4)
 
   const handleSelectChunk = (index) => {
     const selectedChunk = activeChunks[index]
@@ -1044,7 +1054,8 @@ const AudioPlayer = () => {
   }
 
   const handleSelectStep = async (step) => {
-    if (step > activeStep) return
+    if (step > activeStep + 1) return
+    if (step === activeStep + 1 && !canAdvanceToNextStep) return
     if (step === 3) {
       await pauseAllAudio()
     }
@@ -1053,6 +1064,18 @@ const AudioPlayer = () => {
       handleSeekTo(currentChunk.start)
     }
   }
+
+  const markPassCompleted = useCallback((chunkIndex, step) => {
+    setCompletedPassesByChunk((prev) => {
+      const existing = prev.get(chunkIndex)
+      if (existing?.has(step)) return prev
+      const next = new Map(prev)
+      const nextSet = new Set(existing || [])
+      nextSet.add(step)
+      next.set(chunkIndex, nextSet)
+      return next
+    })
+  }, [])
 
   const chunkTranscriptSegments = useMemo(() => {
     if (!currentChunk) return transcriptSegments
@@ -1109,9 +1132,27 @@ const AudioPlayer = () => {
 
   const handleBeginFinalListen = () => {
     if (!currentChunk) return
+    setCommittedPass3ByChunk((prev) => {
+      if (prev.has(activeChunkIndex)) return prev
+      const next = new Set(prev)
+      next.add(activeChunkIndex)
+      return next
+    })
+    markPassCompleted(activeChunkIndex, 3)
     setActiveStep(4)
     handleSeekTo(currentChunk.start)
     if (!isPlaying) togglePlay()
+  }
+
+  const handleAdvanceChunkFromPass4 = () => {
+    if (!canMoveToNextChunk) return
+    const nextChunkIndex = Math.min(activeChunkIndex + 1, Math.max(activeChunks.length - 1, 0))
+    setActiveChunkIndex(nextChunkIndex)
+    setActiveStep(1)
+    const nextChunk = activeChunks[nextChunkIndex]
+    if (nextChunk) {
+      handleSeekTo(nextChunk.start)
+    }
   }
 
   useEffect(() => {
@@ -1129,37 +1170,40 @@ const AudioPlayer = () => {
       return
     }
 
+    if (activeStep === 3) return
     const completionThreshold = chunk.end - 0.05
-    if (progressSeconds < completionThreshold) return
+    if (isPlaying && (activeStep === 1 || activeStep === 2 || activeStep === 4)) {
+      const key = `${activeChunkIndex}-${activeStep}`
+      const currentMax = passProgressRef.current.get(key) || chunk.start
+      passProgressRef.current.set(key, Math.max(currentMax, progressSeconds))
+    }
 
-    const lastCompletion = lastCompletionRef.current
-    if (lastCompletion.chunkIndex === activeChunkIndex && lastCompletion.step === activeStep) return
+    const maxPlayed = passProgressRef.current.get(`${activeChunkIndex}-${activeStep}`) || chunk.start
+    if (maxPlayed < completionThreshold) return
 
-    lastCompletionRef.current = { chunkIndex: activeChunkIndex, step: activeStep }
+    const completionKey = `${activeChunkIndex}-${activeStep}`
+    if (completedPassKeyRef.current.has(completionKey)) return
 
-    if (activeStep === 1) {
-      setActiveStep(2)
-      handleSeekTo(chunk.start)
-    } else if (activeStep === 2) {
-      pauseAllAudio()
-      setActiveStep(3)
-      handleSeekTo(chunk.start)
-    } else if (activeStep === 4) {
+    completedPassKeyRef.current.add(completionKey)
+    markPassCompleted(activeChunkIndex, activeStep)
+    if (activeStep === 4) {
       setCompletedChunks((prev) => {
         const next = new Set(prev)
         next.add(activeChunkIndex)
         return next
       })
-
-      const nextChunkIndex = Math.min(activeChunkIndex + 1, Math.max(activeChunks.length - 1, 0))
-      setActiveChunkIndex(nextChunkIndex)
-      setActiveStep(1)
-      const nextChunk = activeChunks[nextChunkIndex]
-      if (nextChunk) {
-        handleSeekTo(nextChunk.start)
-      }
     }
-  }, [activeStep, activeChunkIndex, activeChunks, currentChunk, handleSeekTo, listeningMode, pauseAllAudio, progressSeconds])
+  }, [
+    activeStep,
+    activeChunkIndex,
+    activeChunks,
+    currentChunk,
+    handleSeekTo,
+    isPlaying,
+    listeningMode,
+    markPassCompleted,
+    progressSeconds,
+  ])
 
   const cancelAdvance = () => setShowAdvanceModal(false)
 
@@ -1437,6 +1481,9 @@ const AudioPlayer = () => {
                         activeChunkIndex={activeChunkIndex}
                         completedChunks={completedChunks}
                         activeStep={activeStep}
+                        completedPasses={completedPassesForChunk}
+                        canAdvanceToNextStep={canAdvanceToNextStep}
+                        canMoveToNextChunk={canMoveToNextChunk}
                         isPlaying={isPlaying}
                         playbackPositionSeconds={playbackPositionSeconds}
                         playbackDurationSeconds={playbackDurationSeconds}
@@ -1452,6 +1499,7 @@ const AudioPlayer = () => {
                         onSelectChunk={handleSelectChunk}
                         onSelectStep={handleSelectStep}
                         onScrubChange={setScrubSeconds}
+                        onAdvanceChunk={handleAdvanceChunkFromPass4}
                       />
                     </div>
                   </section>

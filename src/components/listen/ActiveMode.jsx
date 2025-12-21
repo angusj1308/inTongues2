@@ -647,6 +647,7 @@ const ActiveMode = ({
                     {chunkOverlay}
                   </div>
                 </div>
+                {passNavigation}
               </div>
               <div className="active-stage-transcript">
                 <div className="active-stage-transcript-card">
@@ -747,10 +748,10 @@ const ActiveMode = ({
                 </div>
                 {chunkOverlay}
               </div>
+              {passNavigation}
             </div>
           </section>
         )}
-        {passNavigation}
         {showPassThreeWarning && (
           <div className="modal-backdrop" role="presentation">
             <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">

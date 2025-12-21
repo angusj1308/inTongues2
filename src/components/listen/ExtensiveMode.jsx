@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import TranscriptRoller from './TranscriptRoller'
+import TranscriptPanel from './TranscriptPanel'
 import { normaliseExpression } from '../../services/vocab'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
@@ -770,44 +770,21 @@ const ExtensiveMode = ({
         </div>
         <div className="extensive-pane extensive-pane-right" aria-hidden={!subtitlesEnabled}>
           {subtitlesEnabled ? (
-            <div className="transcript-panel">
-              <div
-                className="transcript-panel-body"
-                onMouseUp={handleTranscriptSelection}
-              >
-                <TranscriptRoller
-                  segments={transcriptSegments}
-                  activeIndex={activeTranscriptIndex}
-                  vocabEntries={vocabEntries}
-                  language={language}
-                  pageTranslations={pageTranslations}
-                  onWordClick={handleTranscriptWordClick}
-                  onSelectionTranslate={handleTranscriptSelection}
-                  showWordStatus={showWordStatus}
-                  isSynced={isTranscriptSynced}
-                  onUserScroll={handleTranscriptUnsync}
-                  syncToken={syncToken}
-                />
-              </div>
-              <div className="transcript-panel-footer">
-                <button
-                  type="button"
-                  className="transcript-sync-btn"
-                  onClick={handleTranscriptResync}
-                  disabled={isTranscriptSynced}
-                >
-                  {isTranscriptSynced ? 'Synced' : 'Sync'}
-                </button>
-                <button
-                  type="button"
-                  className="word-status-toggle"
-                  onClick={() => setShowWordStatus((prev) => !prev)}
-                  aria-pressed={showWordStatus}
-                >
-                  {showWordStatus ? 'Hide word status' : 'Show word status'}
-                </button>
-              </div>
-            </div>
+            <TranscriptPanel
+              segments={transcriptSegments}
+              activeIndex={activeTranscriptIndex}
+              vocabEntries={vocabEntries}
+              language={language}
+              pageTranslations={pageTranslations}
+              onWordClick={handleTranscriptWordClick}
+              onSelectionTranslate={handleTranscriptSelection}
+              showWordStatus={showWordStatus}
+              onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
+              isSynced={isTranscriptSynced}
+              onUserScroll={handleTranscriptUnsync}
+              onResync={handleTranscriptResync}
+              syncToken={syncToken}
+            />
           ) : null}
         </div>
       </div>

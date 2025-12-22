@@ -3210,6 +3210,14 @@ pre {
   color: #0f172a;
 }
 
+.active-stage .active-pass-footer {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
 .active-pass-footer-steps {
   list-style: none;
   display: flex;
@@ -3497,6 +3505,8 @@ pre {
   justify-content: center;
   width: 100%;
   overflow: visible;
+  position: relative;
+  padding-bottom: 3.75rem;
 }
 
 .active-stage-inner {
@@ -3563,7 +3573,7 @@ pre {
 }
 
 .active-stage--pass-1 .active-pass-footer {
-  margin-top: 1.5rem;
+  margin-top: 0;
 }
 
 body.active-pass-locked {

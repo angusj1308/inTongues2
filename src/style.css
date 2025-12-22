@@ -3212,12 +3212,17 @@ pre {
 }
 
 .active-pass-nav-dock {
-  position: fixed;
-  left: 50%;
-  top: var(--pass-nav-top, 50vh);
-  transform: translateX(-50%);
+  position: static;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  transform: none;
   z-index: 40;
   pointer-events: auto;
+}
+
+.listening-mode-panel:not(.is-active) .active-pass-nav-dock {
+  display: none;
 }
 
 .active-pass-nav-dock.is-debug {
@@ -3598,7 +3603,7 @@ pre {
 }
 
 body.active-pass-locked {
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .active-stage--pass-2 .active-stage-player {

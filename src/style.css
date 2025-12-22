@@ -3140,6 +3140,7 @@ pre {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
+  padding-bottom: calc(var(--pass-nav-reserve, 120px));
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3208,6 +3209,20 @@ pre {
   gap: 0.75rem;
   padding: 0.75rem 1rem 1.5rem;
   color: #0f172a;
+}
+
+.active-pass-nav-dock {
+  position: fixed;
+  left: 50%;
+  top: var(--pass-nav-top, 50vh);
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: auto;
+}
+
+.active-pass-nav-dock.is-debug {
+  outline: 2px dashed #f59e0b;
+  outline-offset: 6px;
 }
 
 .active-stage .active-pass-footer {

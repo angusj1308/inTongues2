@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import TranscriptPanel from './TranscriptPanel'
 import ChunkTimeline from './ChunkTimeline'
+import { calculatePassNavLayout } from './passNavLayout'
 
 const PASS_LABELS = {
   1: 'Listen',
@@ -112,6 +113,12 @@ const ActiveMode = ({
   const [syncToken, setSyncToken] = useState(0)
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
+  const playerBoundsRef = useRef(null)
+  const passNavDockRef = useRef(null)
+  const resizeLogRef = useRef(false)
+  const [passNavTop, setPassNavTop] = useState(null)
+  const [passNavReserve, setPassNavReserve] = useState(120)
+  const [debugPassNav, setDebugPassNav] = useState(false)
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safePlaybackDuration = Number.isFinite(playbackDurationSeconds) ? playbackDurationSeconds : 0
@@ -171,6 +178,70 @@ const ActiveMode = ({
       classList.remove('active-pass-locked')
     }
   }, [activeStep])
+
+  useEffect(() => {
+    if (!import.meta.env?.DEV || typeof window === 'undefined') return undefined
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('debugPassNav')) setDebugPassNav(true)
+    const handleDebugToggle = (event) => {
+      if (event.altKey && event.key.toLowerCase() === 'd') {
+        setDebugPassNav((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleDebugToggle)
+    return () => window.removeEventListener('keydown', handleDebugToggle)
+  }, [])
+
+  const updatePassNavPosition = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const playerElement = playerBoundsRef.current
+    const navElement = passNavDockRef.current
+    if (!playerElement || !navElement) return
+    const playerRect = playerElement.getBoundingClientRect()
+    const navRect = navElement.getBoundingClientRect()
+    const viewportHeight = window.innerHeight || 0
+    const { top, reserve } = calculatePassNavLayout({
+      playerBottom: playerRect.bottom,
+      viewportHeight,
+      navHeight: navRect.height,
+    })
+    setPassNavTop(top)
+    setPassNavReserve(reserve)
+    if (debugPassNav && resizeLogRef.current) {
+      console.info('active pass nav layout', {
+        playerBottom: playerRect.bottom,
+        navTop: top,
+        navHeight: navRect.height,
+      })
+      resizeLogRef.current = false
+    }
+  }, [debugPassNav])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    let frame = 0
+    const handleResize = () => {
+      resizeLogRef.current = true
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(updatePassNavPosition)
+    }
+    window.addEventListener('resize', handleResize)
+    resizeLogRef.current = true
+    frame = requestAnimationFrame(updatePassNavPosition)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [updatePassNavPosition, activeStep])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    let frame = 0
+    frame = requestAnimationFrame(updatePassNavPosition)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [updatePassNavPosition, activeStep, chunkDrawerOpen, speedMenuOpen, scrubMenuOpen])
 
   const handleTranscriptUnsync = useCallback(() => {
     setIsTranscriptSynced(false)
@@ -526,8 +597,14 @@ const ActiveMode = ({
   const heroStep = activeStep <= 3 ? activeStep : 1
   const heroTitle = heroTitles[heroStep] || heroTitles[1]
 
+  const activeFlowStyle = {
+    '--pass-nav-reserve': `${passNavReserve}px`,
+  }
+
+  const passNavDockStyle = Number.isFinite(passNavTop) ? { '--pass-nav-top': `${passNavTop}px` } : undefined
+
   return (
-    <div className={`active-flow active-step-${activeStep}`}>
+    <div className={`active-flow active-step-${activeStep}`} style={activeFlowStyle}>
       <>
         {activeStep !== 1 && activeStep !== 2 && (
           <header className="active-topbar">
@@ -559,7 +636,7 @@ const ActiveMode = ({
         {activeStep <= 3 && (
           <section className={`active-stage active-stage--pass-${activeStep}`} aria-live="polite">
             <div className="active-stage-inner">
-              <div className="active-stage-player">
+              <div className="active-stage-player" ref={playerBoundsRef}>
                 <div className="extensive-player-shell">
                   <div
                     className={`player-stack active-pass-stack active-chunk-host ui-text ${
@@ -688,14 +765,16 @@ const ActiveMode = ({
                 </div>
               </div>
             </div>
-            {passNavigation}
           </section>
         )}
 
         {activeStep === 4 && (
           <section className="active-pass-layout" aria-live="polite">
             <div className="active-pass-main">
-              <div className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}>
+              <div
+                className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}
+                ref={playerBoundsRef}
+              >
                 <div className="active-player-surface">
                   {renderProgressBar()}
                   <div className="player-transport-shell">{renderTransportButtons()}</div>
@@ -761,10 +840,17 @@ const ActiveMode = ({
                 </div>
                 {chunkOverlay}
               </div>
-              {passNavigation}
             </div>
           </section>
         )}
+        {/* Dock must stay out of any transformed/filtered ancestor to remain viewport-anchored. */}
+        <div
+          className={`active-pass-nav-dock ${debugPassNav ? 'is-debug' : ''}`}
+          ref={passNavDockRef}
+          style={passNavDockStyle}
+        >
+          {passNavigation}
+        </div>
         {showPassThreeWarning && (
           <div className="modal-backdrop" role="presentation">
             <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">

@@ -3211,11 +3211,10 @@ pre {
 }
 
 .active-stage .active-pass-footer {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
+  position: static;
+  transform: none;
   z-index: 2;
+  align-self: center;
 }
 
 .active-pass-footer-steps {
@@ -3494,19 +3493,26 @@ pre {
 }
 
 .active-pass-main {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  min-height: calc(100vh - 96px - 2.5rem);
+}
+
+.active-pass-main .active-pass-footer {
+  align-self: center;
 }
 
 .active-stage {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   align-items: center;
   justify-content: center;
   width: 100%;
   overflow: visible;
   position: relative;
   padding-bottom: 3.75rem;
+  min-height: calc(100vh - 96px - 2.5rem);
 }
 
 .active-stage-inner {

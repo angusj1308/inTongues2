@@ -3140,7 +3140,8 @@ pre {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
-  padding-bottom: calc(var(--pass-nav-reserve, 120px));
+  height: 100vh;
+  max-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3219,6 +3220,8 @@ pre {
   transform: none;
   z-index: 40;
   pointer-events: auto;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3531,8 +3534,8 @@ pre {
   width: 100%;
   overflow: visible;
   position: relative;
-  padding-bottom: 3.75rem;
-  min-height: calc(100vh - 96px - 2.5rem);
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .active-stage-inner {

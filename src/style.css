@@ -3598,7 +3598,7 @@ pre {
 }
 
 body.active-pass-locked {
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .active-stage--pass-2 .active-stage-player {

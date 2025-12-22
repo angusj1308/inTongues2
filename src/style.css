@@ -3142,7 +3142,6 @@ pre {
   padding: 24px;
   height: 100vh;
   max-height: 100vh;
-  position: relative;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3224,6 +3223,8 @@ pre {
   transform: none;
   z-index: 40;
   pointer-events: auto;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3536,7 +3537,7 @@ pre {
   width: 100%;
   overflow: visible;
   position: relative;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
 }
 

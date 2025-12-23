@@ -53,11 +53,13 @@ const IntensiveListeningMode = ({
   intensiveSentenceIndex,
   setIntensiveSentenceIndex,
   audioRef,
+  fullAudioUrl,
   user,
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] = useState(false)
   const sentenceAudioStopRef = useRef(null)
+  const fallbackAudioRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -459,7 +461,22 @@ const IntensiveListeningMode = ({
 
   const playSentenceAudio = useCallback(
     (index) => {
-      const audio = audioRef?.current
+      const audioElement = audioRef?.current
+      const audio =
+        audioElement ||
+        fallbackAudioRef.current ||
+        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
+
+      if (!audio) return
+
+      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
+        audio.src = fullAudioUrl
+      }
+
+      if (!audioElement) {
+        fallbackAudioRef.current = audio
+      }
+
       if (!audio) return
 
       const segment = transcriptSegments[index]
@@ -513,11 +530,11 @@ const IntensiveListeningMode = ({
       sentenceAudioStopRef.current = stopAtEnd
       audio.addEventListener('timeupdate', stopAtEnd)
     },
-    [audioRef, transcriptSegments]
+    [audioRef, fullAudioUrl, transcriptSegments]
   )
 
   useEffect(() => {
-    const audio = audioRef?.current
+    const audio = audioRef?.current || fallbackAudioRef.current
     if (!audio) return undefined
 
     return () => {

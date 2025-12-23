@@ -769,7 +769,7 @@ const ActiveMode = ({
         )}
 
         {activeStep === 4 && (
-          <section className="active-pass-layout" aria-live="polite">
+          <section className={`active-pass-layout ${activeStep === 1 ? 'is-pass-1' : ''}`} aria-live="polite">
             <div className="active-pass-main">
               <div
                 className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}

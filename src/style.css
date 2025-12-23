@@ -3702,7 +3702,7 @@ body.active-pass-locked {
 }
 
 .active-stage--pass-2 .active-stage-player {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   max-width: 560px;
   transform: translateX(-6%);
   opacity: 1;
@@ -3711,6 +3711,8 @@ body.active-pass-locked {
 .active-stage--pass-2 .active-stage-transcript {
   flex: 1 1 0;
   max-width: 560px;
+  min-height: 0;
+  overflow: hidden;
   opacity: 1;
   pointer-events: auto;
   transform: translateX(6%);
@@ -3718,7 +3720,12 @@ body.active-pass-locked {
 
 .active-stage--pass-2 .active-stage-transcript-card {
   height: 100%;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.active-stage--pass-2 .transcript-panel {
+  min-height: 0;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {

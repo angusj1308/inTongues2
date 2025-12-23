@@ -3697,12 +3697,23 @@ body.active-pass-locked {
   overflow-y: auto;
 }
 
+.active-stage--pass-2 {
+  grid-template-rows: 1fr;
+}
+
 .active-stage--pass-2 .active-stage-inner {
+  height: 100%;
   align-items: stretch;
 }
 
+.active-stage--pass-2 .active-stage-player,
+.active-stage--pass-2 .active-stage-transcript {
+  height: 100%;
+  min-height: 0;
+}
+
 .active-stage--pass-2 .active-stage-player {
-  flex: 0 0 auto;
+  flex: 1 1 0;
   max-width: 560px;
   transform: translateX(-6%);
   opacity: 1;
@@ -3711,7 +3722,6 @@ body.active-pass-locked {
 .active-stage--pass-2 .active-stage-transcript {
   flex: 1 1 0;
   max-width: 560px;
-  min-height: 0;
   overflow: hidden;
   opacity: 1;
   pointer-events: auto;

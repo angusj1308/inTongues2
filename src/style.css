@@ -3607,9 +3607,9 @@ pre {
 .active-stage {
   grid-row: 1;
   display: grid;
+  grid-template-columns: 1fr;
   grid-template-rows: auto 1fr;
   align-items: flex-start;
-  justify-content: flex-start;
   width: 100%;
   overflow: auto;
   position: relative;

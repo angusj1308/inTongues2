@@ -3736,6 +3736,7 @@ body.active-pass-locked {
 
 .active-stage--pass-2 .transcript-panel {
   min-height: 0;
+  max-height: 100%;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {

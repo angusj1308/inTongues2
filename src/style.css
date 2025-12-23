@@ -3699,6 +3699,7 @@ body.active-pass-locked {
 
 .active-stage--pass-2 {
   grid-template-rows: 1fr;
+  overflow: hidden;
 }
 
 .active-stage--pass-2 .active-stage-inner {

@@ -2387,6 +2387,80 @@ textarea {
   transform: translateX(20px);
 }
 
+/* Intensive player controls */
+.intensive-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 320px;
+  margin-inline: auto;
+}
+
+.intensive-player-progress {
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.intensive-player-progress-fill {
+  height: 100%;
+  background: #1e293b;
+  border-radius: 2px;
+  transition: width 50ms linear;
+}
+
+.intensive-player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.intensive-player-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.intensive-player-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.intensive-player-btn.is-active {
+  background: #1e293b;
+  color: #ffffff;
+}
+
+.intensive-player-btn.is-active:hover {
+  background: #0f172a;
+}
+
+.intensive-player-btn-play {
+  width: 48px;
+  height: 48px;
+  background: #1e293b;
+  color: #ffffff;
+}
+
+.intensive-player-btn-play:hover {
+  background: #0f172a;
+  color: #ffffff;
+}
+
 .reader-intensive-label {
   font-size: 0.9rem;
   letter-spacing: 0.2em;

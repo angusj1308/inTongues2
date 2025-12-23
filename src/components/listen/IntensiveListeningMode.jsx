@@ -61,8 +61,14 @@ const IntensiveListeningMode = ({
   const [isTranscriptionMode, setIsTranscriptionMode] = useState(false)
   const [transcriptionDraft, setTranscriptionDraft] = useState('')
   const [isTranscriptRevealed, setIsTranscriptRevealed] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isLooping, setIsLooping] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [progress, setProgress] = useState(0)
   const sentenceAudioStopRef = useRef(null)
   const fallbackAudioRef = useRef(null)
+  const progressIntervalRef = useRef(null)
+  const currentSegmentRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -490,28 +496,10 @@ const IntensiveListeningMode = ({
     ]
   )
 
-  const playSentenceAudio = useCallback(
+  const getSegmentTimes = useCallback(
     (index) => {
-      const audioElement = audioRef?.current
-      const audio =
-        audioElement ||
-        fallbackAudioRef.current ||
-        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
-
-      if (!audio) return
-
-      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
-        audio.src = fullAudioUrl
-      }
-
-      if (!audioElement) {
-        fallbackAudioRef.current = audio
-      }
-
-      if (!audio) return
-
       const segment = transcriptSegments[index]
-      if (!segment) return
+      if (!segment) return null
 
       const wordTimings = Array.isArray(segment.words)
         ? segment.words.filter(
@@ -531,7 +519,57 @@ const IntensiveListeningMode = ({
           ? segment.end
           : wordTimings.length
             ? wordTimings[wordTimings.length - 1].end
-            : audio.duration || startTime
+            : 0
+
+      return { startTime, endTime, duration: endTime - startTime }
+    },
+    [transcriptSegments]
+  )
+
+  const stopPlayback = useCallback(() => {
+    const audio = audioRef?.current || fallbackAudioRef.current
+    if (!audio) return
+
+    audio.pause()
+    setIsPlaying(false)
+
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+
+    if (sentenceAudioStopRef.current) {
+      audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
+      sentenceAudioStopRef.current = null
+    }
+  }, [audioRef])
+
+  const playSentenceAudio = useCallback(
+    (index, shouldLoop = false) => {
+      const audioElement = audioRef?.current
+      const audio =
+        audioElement ||
+        fallbackAudioRef.current ||
+        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
+
+      if (!audio) return
+
+      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
+        audio.src = fullAudioUrl
+      }
+
+      if (!audioElement) {
+        fallbackAudioRef.current = audio
+      }
+
+      const times = getSegmentTimes(index)
+      if (!times) return
+
+      const { startTime, endTime, duration } = times
+      currentSegmentRef.current = { startTime, endTime, duration }
+
+      // Apply playback rate
+      audio.playbackRate = playbackRate
 
       try {
         audio.currentTime = startTime
@@ -542,27 +580,113 @@ const IntensiveListeningMode = ({
 
       audio
         .play()
+        .then(() => setIsPlaying(true))
         .catch((err) => console.error('Sentence playback failed', err))
 
+      // Clear previous listeners
       if (sentenceAudioStopRef.current) {
         audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
         sentenceAudioStopRef.current = null
       }
 
-      const stopAtEnd = () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+
+      // Update progress
+      progressIntervalRef.current = setInterval(() => {
+        if (audio.paused) return
+        const current = audio.currentTime
+        if (current >= startTime && current <= endTime) {
+          const prog = duration > 0 ? ((current - startTime) / duration) * 100 : 0
+          setProgress(Math.min(100, Math.max(0, prog)))
+        }
+      }, 50)
+
+      const handleTimeUpdate = () => {
         if (audio.currentTime >= endTime) {
-          audio.pause()
-          audio.currentTime = Math.min(audio.currentTime, endTime)
-          audio.removeEventListener('timeupdate', stopAtEnd)
-          sentenceAudioStopRef.current = null
+          if (shouldLoop || isLooping) {
+            // Loop back to start
+            audio.currentTime = startTime
+            setProgress(0)
+          } else {
+            // Stop at end
+            audio.pause()
+            setIsPlaying(false)
+            setProgress(100)
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current)
+              progressIntervalRef.current = null
+            }
+            audio.removeEventListener('timeupdate', handleTimeUpdate)
+            sentenceAudioStopRef.current = null
+          }
         }
       }
 
-      sentenceAudioStopRef.current = stopAtEnd
-      audio.addEventListener('timeupdate', stopAtEnd)
+      sentenceAudioStopRef.current = handleTimeUpdate
+      audio.addEventListener('timeupdate', handleTimeUpdate)
     },
-    [audioRef, fullAudioUrl, transcriptSegments]
+    [audioRef, fullAudioUrl, getSegmentTimes, isLooping, playbackRate]
   )
+
+  const togglePlayPause = useCallback(() => {
+    const audio = audioRef?.current || fallbackAudioRef.current
+    if (!audio) {
+      playSentenceAudio(intensiveSentenceIndex)
+      return
+    }
+
+    if (isPlaying) {
+      audio.pause()
+      setIsPlaying(false)
+    } else {
+      // Check if we're at the end or outside segment bounds
+      const times = getSegmentTimes(intensiveSentenceIndex)
+      if (times) {
+        const { startTime, endTime } = times
+        if (audio.currentTime >= endTime || audio.currentTime < startTime) {
+          audio.currentTime = startTime
+          setProgress(0)
+        }
+      }
+      audio.playbackRate = playbackRate
+      audio.play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => console.error('Playback failed', err))
+    }
+  }, [audioRef, getSegmentTimes, intensiveSentenceIndex, isPlaying, playbackRate, playSentenceAudio])
+
+  const scrubAudio = useCallback(
+    (seconds) => {
+      const audio = audioRef?.current || fallbackAudioRef.current
+      if (!audio) return
+
+      const times = getSegmentTimes(intensiveSentenceIndex)
+      if (!times) return
+
+      const { startTime, endTime, duration } = times
+      const newTime = Math.max(startTime, Math.min(endTime, audio.currentTime + seconds))
+      audio.currentTime = newTime
+
+      const prog = duration > 0 ? ((newTime - startTime) / duration) * 100 : 0
+      setProgress(Math.min(100, Math.max(0, prog)))
+    },
+    [audioRef, getSegmentTimes, intensiveSentenceIndex]
+  )
+
+  const toggleLoop = useCallback(() => {
+    setIsLooping((prev) => !prev)
+  }, [])
+
+  const togglePlaybackRate = useCallback(() => {
+    const audio = audioRef?.current || fallbackAudioRef.current
+    const newRate = playbackRate === 1 ? 0.75 : 1
+    setPlaybackRate(newRate)
+    if (audio) {
+      audio.playbackRate = newRate
+    }
+  }, [audioRef, playbackRate])
 
   useEffect(() => {
     const audio = audioRef?.current || fallbackAudioRef.current
@@ -573,8 +697,18 @@ const IntensiveListeningMode = ({
         audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
         sentenceAudioStopRef.current = null
       }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
     }
   }, [audioRef])
+
+  // Reset progress when sentence changes
+  useEffect(() => {
+    stopPlayback()
+    setProgress(0)
+  }, [intensiveSentenceIndex, stopPlayback])
 
   useEffect(() => {
     if (listeningMode !== 'intensive') return undefined
@@ -762,6 +896,84 @@ const IntensiveListeningMode = ({
                   aria-label="Toggle transcribe mode"
                 >
                   <span className="toggle-switch-slider" />
+                </button>
+              </div>
+            </div>
+
+            <div className="intensive-player">
+              <div className="intensive-player-progress">
+                <div
+                  className="intensive-player-progress-fill"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="intensive-player-controls">
+                <button
+                  type="button"
+                  className={`intensive-player-btn ${playbackRate === 0.75 ? 'is-active' : ''}`}
+                  onClick={togglePlaybackRate}
+                  aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
+                  title={playbackRate === 0.75 ? '0.75x' : '1x'}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 19c-4 0-7-3-7-7a7 7 0 0 1 7-7" />
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M17 12a5 5 0 0 0-5-5" />
+                    <path d="M12 2v3M12 19v3" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="intensive-player-btn"
+                  onClick={() => scrubAudio(-2)}
+                  aria-label="Back 2 seconds"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 17l-5-5 5-5" />
+                    <path d="M18 17l-5-5 5-5" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="intensive-player-btn intensive-player-btn-play"
+                  onClick={togglePlayPause}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="intensive-player-btn"
+                  onClick={() => scrubAudio(2)}
+                  aria-label="Forward 2 seconds"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M13 7l5 5-5 5" />
+                    <path d="M6 7l5 5-5 5" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={`intensive-player-btn ${isLooping ? 'is-active' : ''}`}
+                  onClick={toggleLoop}
+                  aria-label={isLooping ? 'Disable loop' : 'Enable loop'}
+                  aria-pressed={isLooping}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 2l4 4-4 4" />
+                    <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                    <path d="M7 22l-4-4 4-4" />
+                    <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                  </svg>
                 </button>
               </div>
             </div>

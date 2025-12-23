@@ -135,6 +135,15 @@ const AudioPlayer = () => {
     return transcriptSentences.map((text) => ({ text }))
   }, [pages, transcriptDoc, transcriptSentences])
 
+  const intensiveSentences = useMemo(() => {
+    const segmentSentences = transcriptSegments
+      .map((segment) => segment?.text?.trim?.())
+      .filter((text) => Boolean(text))
+
+    if (segmentSentences.length) return segmentSentences
+    return transcriptSentences
+  }, [transcriptSegments, transcriptSentences])
+
   const storyLanguage = useMemo(
     () => resolveSupportedLanguageLabel(storyMeta.language, ''),
     [storyMeta.language],
@@ -907,13 +916,13 @@ const AudioPlayer = () => {
   }, [pages])
 
   useEffect(() => {
-    if (!transcriptSentences.length) {
+    if (!intensiveSentences.length) {
       setIntensiveSentenceIndex(0)
       return
     }
 
-    setIntensiveSentenceIndex((prev) => Math.min(prev, transcriptSentences.length - 1))
-  }, [transcriptSentences])
+    setIntensiveSentenceIndex((prev) => Math.min(prev, intensiveSentences.length - 1))
+  }, [intensiveSentences])
 
   useEffect(() => {
     if (!activeChunks.length) {
@@ -1208,7 +1217,7 @@ const AudioPlayer = () => {
   const cancelAdvance = () => setShowAdvanceModal(false)
 
   const currentIntensiveSentence =
-    transcriptSentences[intensiveSentenceIndex] || 'Sentence will appear here.'
+    intensiveSentences[intensiveSentenceIndex] || 'Sentence will appear here.'
 
   const handleNextSentence = async () => {
     if (!transcriptSentences.length) return
@@ -1625,7 +1634,7 @@ const AudioPlayer = () => {
 
       <IntensiveListeningMode
         listeningMode={listeningMode}
-        transcriptSentences={transcriptSentences}
+        transcriptSentences={intensiveSentences}
         transcriptSegments={transcriptSegments}
         language={storyLanguage}
         nativeLanguage={profile?.nativeLanguage}
@@ -1636,6 +1645,7 @@ const AudioPlayer = () => {
         intensiveSentenceIndex={intensiveSentenceIndex}
         setIntensiveSentenceIndex={setIntensiveSentenceIndex}
         audioRef={audioRef}
+        fullAudioUrl={storyMeta.fullAudioUrl}
         user={user}
       />
 

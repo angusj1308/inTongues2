@@ -53,11 +53,16 @@ const IntensiveListeningMode = ({
   intensiveSentenceIndex,
   setIntensiveSentenceIndex,
   audioRef,
+  fullAudioUrl,
   user,
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
-  const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] = useState(false)
+  const [intensiveRevealStep, setIntensiveRevealStep] = useState('hidden')
+  const [isTranscriptionMode, setIsTranscriptionMode] = useState(false)
+  const [transcriptionDraft, setTranscriptionDraft] = useState('')
+  const [isTranscriptRevealed, setIsTranscriptRevealed] = useState(false)
   const sentenceAudioStopRef = useRef(null)
+  const fallbackAudioRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -146,7 +151,9 @@ const IntensiveListeningMode = ({
   }, [intensiveSentences, language, nativeLanguage, listeningMode, sentenceTranslations])
 
   useEffect(() => {
-    setIsIntensiveTranslationVisible(false)
+    setIntensiveRevealStep('hidden')
+    setIsTranscriptRevealed(false)
+    setTranscriptionDraft('')
   }, [listeningMode, currentIntensiveSentence])
 
   useEffect(() => {
@@ -361,8 +368,34 @@ const IntensiveListeningMode = ({
     return elements
   }
 
-  const toggleIntensiveTranslation = () => {
-    setIsIntensiveTranslationVisible((prev) => !prev)
+  const toggleIntensiveRevealStep = () => {
+    if (isTranscriptionMode && !isTranscriptRevealed) return
+
+    setIntensiveRevealStep((prev) => {
+      if (prev === 'hidden') return 'transcript'
+      if (prev === 'transcript') return 'translation'
+      return 'transcript'
+    })
+  }
+
+  const handleTranscriptionToggle = () => {
+    setIsTranscriptionMode((prev) => {
+      const next = !prev
+      setIntensiveRevealStep('hidden')
+      setIsTranscriptRevealed(false)
+      setTranscriptionDraft('')
+      return next
+    })
+  }
+
+  const handleTranscriptionKeyDown = (event) => {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+
+    if (!isTranscriptRevealed) {
+      setIsTranscriptRevealed(true)
+      setIntensiveRevealStep('transcript')
+    }
   }
 
   const getNewWordsInSentence = (sentence) => {
@@ -459,7 +492,22 @@ const IntensiveListeningMode = ({
 
   const playSentenceAudio = useCallback(
     (index) => {
-      const audio = audioRef?.current
+      const audioElement = audioRef?.current
+      const audio =
+        audioElement ||
+        fallbackAudioRef.current ||
+        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
+
+      if (!audio) return
+
+      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
+        audio.src = fullAudioUrl
+      }
+
+      if (!audioElement) {
+        fallbackAudioRef.current = audio
+      }
+
       if (!audio) return
 
       const segment = transcriptSegments[index]
@@ -513,11 +561,11 @@ const IntensiveListeningMode = ({
       sentenceAudioStopRef.current = stopAtEnd
       audio.addEventListener('timeupdate', stopAtEnd)
     },
-    [audioRef, transcriptSegments]
+    [audioRef, fullAudioUrl, transcriptSegments]
   )
 
   useEffect(() => {
-    const audio = audioRef?.current
+    const audio = audioRef?.current || fallbackAudioRef.current
     if (!audio) return undefined
 
     return () => {
@@ -532,12 +580,26 @@ const IntensiveListeningMode = ({
     if (listeningMode !== 'intensive') return undefined
 
     const handleIntensiveShortcuts = (event) => {
-      const activeTag = document.activeElement?.tagName
-      if (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) {
+      const activeElement = document.activeElement
+      const activeTag = activeElement?.tagName
+      const isEditable =
+        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) ||
+        activeElement?.isContentEditable
+      const isArrowLeft = event.key === 'ArrowLeft'
+      const isArrowRight = event.key === 'ArrowRight'
+
+      if (isEditable) {
+        if (
+          activeTag === 'INPUT' &&
+          activeElement?.classList?.contains('intensive-input') &&
+          (isArrowLeft || isArrowRight)
+        ) {
+          event.preventDefault()
+          activeElement.blur()
+          handleSentenceNavigation(isArrowLeft ? 'previous' : 'next')
+        }
         return
       }
-
-      if (document.activeElement?.isContentEditable) return
 
       if (event.code === 'Space' || event.key === ' ') {
         if (!transcriptSegments.length) return
@@ -546,13 +608,13 @@ const IntensiveListeningMode = ({
         return
       }
 
-      if (event.key === 'ArrowLeft') {
+      if (isArrowLeft) {
         event.preventDefault()
         handleSentenceNavigation('previous')
         return
       }
 
-      if (event.key === 'ArrowRight') {
+      if (isArrowRight) {
         event.preventDefault()
         handleSentenceNavigation('next')
       }
@@ -670,30 +732,80 @@ const IntensiveListeningMode = ({
 
   const intensiveTranslation =
     sentenceTranslations[currentIntensiveSentence?.trim?.() || currentIntensiveSentence]
+  const isTranscriptVisible = isTranscriptionMode
+    ? isTranscriptRevealed
+    : intensiveRevealStep !== 'hidden'
+  const isTranslationVisible =
+    intensiveRevealStep === 'translation' && (!isTranscriptionMode || isTranscriptRevealed)
+  const toggleLabel = (() => {
+    if (isTranscriptionMode && !isTranscriptRevealed) {
+      return 'Reveal transcript first'
+    }
+    if (intensiveRevealStep === 'hidden') return 'Show transcript'
+    if (intensiveRevealStep === 'transcript') return 'Show translation'
+    return 'Hide translation'
+  })()
 
   return (
     <>
       {listeningMode === 'intensive' && (
         <div className="reader-intensive-overlay">
           <div className="reader-intensive-card">
-            <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-              {currentIntensiveSentence
-                ? renderWordSegments(currentIntensiveSentence)
-                : 'No text available for this transcript.'}
+            <div className="reader-intensive-header">
+              <button
+                type="button"
+                className={`intensive-transcription-toggle ${isTranscriptionMode ? 'is-active' : ''}`}
+                onClick={handleTranscriptionToggle}
+                aria-pressed={isTranscriptionMode}
+              >
+                Transcription {isTranscriptionMode ? 'On' : 'Off'}
+              </button>
             </div>
+
+            <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+              {isTranscriptVisible ? (
+                currentIntensiveSentence ? (
+                  renderWordSegments(currentIntensiveSentence)
+                ) : (
+                  'No text available for this transcript.'
+                )
+              ) : (
+                <span className="reader-intensive-placeholder">
+                  Audio only — reveal the transcript when you are ready.
+                </span>
+              )}
+            </div>
+
+            {isTranscriptionMode && (
+              <div className="reader-intensive-input-row">
+                <input
+                  type="text"
+                  className="reader-intensive-input intensive-input"
+                  placeholder="Type what you hear, then press Enter to reveal."
+                  value={transcriptionDraft}
+                  onChange={(event) => setTranscriptionDraft(event.target.value)}
+                  onKeyDown={handleTranscriptionKeyDown}
+                  readOnly={isTranscriptRevealed}
+                />
+                <p className="reader-intensive-input-helper">
+                  Press Enter to check your transcription.
+                </p>
+              </div>
+            )}
 
             <div className="reader-intensive-controls">
               <button
                 type="button"
                 className="intensive-translation-toggle"
-                onClick={toggleIntensiveTranslation}
+                onClick={toggleIntensiveRevealStep}
+                disabled={isTranscriptionMode && !isTranscriptRevealed}
               >
-                {isIntensiveTranslationVisible ? 'Hide translation' : 'Show translation'}
+                {toggleLabel}
               </button>
 
               <p
                 className={`reader-intensive-translation ${
-                  isIntensiveTranslationVisible ? 'is-visible' : 'is-hidden'
+                  isTranslationVisible ? 'is-visible' : 'is-hidden'
                 }`}
               >
                 {intensiveTranslation || 'Translation will appear here.'}
@@ -701,7 +813,9 @@ const IntensiveListeningMode = ({
             </div>
 
             <p className="reader-intensive-helper">
-              Space = play / repeat · ← / → = previous / next sentence
+              {isTranscriptionMode
+                ? 'Space = play / repeat · Enter = reveal transcript · ← / → = previous / next sentence'
+                : 'Space = play / repeat · ← / → = previous / next sentence'}
             </p>
           </div>
         </div>

@@ -3207,8 +3207,8 @@ pre {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
-  height: 100vh;
-  max-height: 100vh;
+  height: calc(100vh - 96px);
+  max-height: calc(100vh - 96px);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 

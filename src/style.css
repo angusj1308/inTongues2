@@ -3133,8 +3133,8 @@ pre {
 }
 
 .active-flow {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
@@ -3223,8 +3223,8 @@ pre {
   transform: none;
   z-index: 40;
   pointer-events: auto;
-  margin-top: auto;
-  margin-bottom: auto;
+  align-self: center;
+  justify-self: center;
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3516,6 +3516,7 @@ pre {
   grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
   gap: 2rem;
   align-items: start;
+  min-height: 0;
 }
 
 .active-pass-main {
@@ -3537,7 +3538,6 @@ pre {
   width: 100%;
   overflow: visible;
   position: relative;
-  flex: 0 0 auto;
   min-height: 0;
 }
 

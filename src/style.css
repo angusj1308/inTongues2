@@ -3201,7 +3201,7 @@ pre {
 
 .active-flow {
   display: grid;
-  grid-template-rows: auto minmax(min-content, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) var(--active-pass-nav-height, 64px);
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
@@ -3291,6 +3291,7 @@ pre {
   pointer-events: auto;
   align-self: center;
   justify-self: center;
+  min-height: var(--active-pass-nav-height, 64px);
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3584,8 +3585,7 @@ pre {
   align-items: start;
   min-height: 0;
   grid-row: 2;
-  align-self: stretch;
-  min-height: min-content;
+  align-self: center;
 }
 
 .active-pass-main {
@@ -3609,8 +3609,7 @@ pre {
   overflow: visible;
   position: relative;
   min-height: 0;
-  align-self: stretch;
-  min-height: min-content;
+  align-self: center;
 }
 
 .active-stage-inner {

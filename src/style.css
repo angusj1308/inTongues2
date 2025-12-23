@@ -3134,7 +3134,7 @@ pre {
 
 .active-flow {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
@@ -3150,6 +3150,7 @@ pre {
 }
 
 .active-topbar {
+  grid-row: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -3213,10 +3214,8 @@ pre {
 }
 
 .active-pass-nav-dock {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--pass-nav-top, auto);
+  position: static;
+  grid-row: 3;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -3517,6 +3516,7 @@ pre {
   gap: 2rem;
   align-items: start;
   min-height: 0;
+  grid-row: 2;
 }
 
 .active-pass-main {
@@ -3531,6 +3531,7 @@ pre {
 }
 
 .active-stage {
+  grid-row: 2;
   display: grid;
   grid-template-rows: auto 1fr;
   align-items: center;

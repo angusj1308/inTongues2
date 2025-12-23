@@ -3675,6 +3675,7 @@ pre {
 .active-stage--pass-1 .active-stage-player {
   transform: translateX(0);
   opacity: 1;
+  margin-inline: auto;
 }
 
 .active-stage--pass-1 .active-stage-transcript {

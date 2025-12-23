@@ -2363,11 +2363,11 @@ textarea {
 }
 
 .toggle-switch.is-active {
-  background: #3b82f6;
+  background: #1e293b;
 }
 
 .toggle-switch.is-active:hover {
-  background: #2563eb;
+  background: #0f172a;
 }
 
 .toggle-switch-slider {

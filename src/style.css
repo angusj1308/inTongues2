@@ -3698,22 +3698,26 @@ body.active-pass-locked {
 }
 
 .active-stage--pass-2 .active-stage-inner {
-  align-items: stretch;
+  position: relative;
 }
 
 .active-stage--pass-2 .active-stage-player {
-  flex: 1 1 0;
-  max-width: 560px;
+  flex: 0 0 auto;
+  width: min(560px, 50%);
   transform: translateX(-6%);
   opacity: 1;
 }
 
 .active-stage--pass-2 .active-stage-transcript {
-  flex: 1 1 0;
-  max-width: 560px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(560px, 50%);
   opacity: 1;
   pointer-events: auto;
   transform: translateX(6%);
+  overflow: hidden;
 }
 
 .active-stage--pass-2 .active-stage-transcript-card {

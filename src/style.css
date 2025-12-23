@@ -3697,6 +3697,10 @@ body.active-pass-locked {
   overflow-y: auto;
 }
 
+.active-stage--pass-2 .active-stage-inner {
+  align-items: stretch;
+}
+
 .active-stage--pass-2 .active-stage-player {
   flex: 1 1 0;
   max-width: 560px;
@@ -3710,6 +3714,11 @@ body.active-pass-locked {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(6%);
+}
+
+.active-stage--pass-2 .active-stage-transcript-card {
+  height: 100%;
+  overflow-y: auto;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {

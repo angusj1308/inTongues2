@@ -3133,14 +3133,15 @@ pre {
 }
 
 .active-flow {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
-  padding-bottom: calc(var(--pass-nav-reserve, 120px));
+  height: 100vh;
+  max-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3149,6 +3150,7 @@ pre {
 }
 
 .active-topbar {
+  grid-row: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -3213,12 +3215,15 @@ pre {
 
 .active-pass-nav-dock {
   position: static;
+  grid-row: 3;
   display: flex;
   justify-content: center;
   width: 100%;
   transform: none;
   z-index: 40;
   pointer-events: auto;
+  align-self: center;
+  justify-self: center;
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3510,6 +3515,9 @@ pre {
   grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
   gap: 2rem;
   align-items: start;
+  min-height: 0;
+  grid-row: 2;
+  align-self: center;
 }
 
 .active-pass-main {
@@ -3524,6 +3532,7 @@ pre {
 }
 
 .active-stage {
+  grid-row: 2;
   display: grid;
   grid-template-rows: auto 1fr;
   align-items: center;
@@ -3531,8 +3540,8 @@ pre {
   width: 100%;
   overflow: visible;
   position: relative;
-  padding-bottom: 3.75rem;
-  min-height: calc(100vh - 96px - 2.5rem);
+  min-height: 0;
+  align-self: center;
 }
 
 .active-stage-inner {

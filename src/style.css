@@ -3673,9 +3673,11 @@ pre {
 }
 
 .active-stage--pass-1 .active-stage-player {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
   transform: translateX(0);
   opacity: 1;
-  margin-inline: auto;
 }
 
 .active-stage--pass-1 .active-stage-transcript {

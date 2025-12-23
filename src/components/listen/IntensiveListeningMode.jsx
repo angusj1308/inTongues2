@@ -753,7 +753,7 @@ const IntensiveListeningMode = ({
           <div className="reader-intensive-card">
             <div className="reader-intensive-header">
               <div className="transcribe-mode-toggle">
-                <span className="transcribe-mode-label">Transcribe mode</span>
+                <span className="transcribe-mode-label">Transcribe</span>
                 <button
                   type="button"
                   className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}

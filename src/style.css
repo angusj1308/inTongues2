@@ -2340,9 +2340,10 @@ textarea {
 }
 
 .transcribe-mode-label {
-  font-size: 0.8rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  font-size: 0.85rem;
   font-weight: 500;
-  color: #64748b;
+  color: #1e293b;
 }
 
 /* Toggle switch */

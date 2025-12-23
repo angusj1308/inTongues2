@@ -53,11 +53,13 @@ const IntensiveListeningMode = ({
   intensiveSentenceIndex,
   setIntensiveSentenceIndex,
   audioRef,
+  fullAudioUrl,
   user,
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] = useState(false)
   const sentenceAudioStopRef = useRef(null)
+  const fallbackAudioRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -459,7 +461,22 @@ const IntensiveListeningMode = ({
 
   const playSentenceAudio = useCallback(
     (index) => {
-      const audio = audioRef?.current
+      const audioElement = audioRef?.current
+      const audio =
+        audioElement ||
+        fallbackAudioRef.current ||
+        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
+
+      if (!audio) return
+
+      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
+        audio.src = fullAudioUrl
+      }
+
+      if (!audioElement) {
+        fallbackAudioRef.current = audio
+      }
+
       if (!audio) return
 
       const segment = transcriptSegments[index]
@@ -513,11 +530,11 @@ const IntensiveListeningMode = ({
       sentenceAudioStopRef.current = stopAtEnd
       audio.addEventListener('timeupdate', stopAtEnd)
     },
-    [audioRef, transcriptSegments]
+    [audioRef, fullAudioUrl, transcriptSegments]
   )
 
   useEffect(() => {
-    const audio = audioRef?.current
+    const audio = audioRef?.current || fallbackAudioRef.current
     if (!audio) return undefined
 
     return () => {
@@ -532,12 +549,26 @@ const IntensiveListeningMode = ({
     if (listeningMode !== 'intensive') return undefined
 
     const handleIntensiveShortcuts = (event) => {
-      const activeTag = document.activeElement?.tagName
-      if (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) {
+      const activeElement = document.activeElement
+      const activeTag = activeElement?.tagName
+      const isEditable =
+        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) ||
+        activeElement?.isContentEditable
+      const isArrowLeft = event.key === 'ArrowLeft'
+      const isArrowRight = event.key === 'ArrowRight'
+
+      if (isEditable) {
+        if (
+          activeTag === 'INPUT' &&
+          activeElement?.classList?.contains('intensive-input') &&
+          (isArrowLeft || isArrowRight)
+        ) {
+          event.preventDefault()
+          activeElement.blur()
+          handleSentenceNavigation(isArrowLeft ? 'previous' : 'next')
+        }
         return
       }
-
-      if (document.activeElement?.isContentEditable) return
 
       if (event.code === 'Space' || event.key === ' ') {
         if (!transcriptSegments.length) return
@@ -546,13 +577,13 @@ const IntensiveListeningMode = ({
         return
       }
 
-      if (event.key === 'ArrowLeft') {
+      if (isArrowLeft) {
         event.preventDefault()
         handleSentenceNavigation('previous')
         return
       }
 
-      if (event.key === 'ArrowRight') {
+      if (isArrowRight) {
         event.preventDefault()
         handleSentenceNavigation('next')
       }

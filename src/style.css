@@ -3554,6 +3554,7 @@ pre {
   margin: 0 auto;
   justify-content: center;
   overflow: hidden;
+  height: 100%;
 }
 
 .active-stage-player,

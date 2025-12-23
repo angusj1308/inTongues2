@@ -549,12 +549,26 @@ const IntensiveListeningMode = ({
     if (listeningMode !== 'intensive') return undefined
 
     const handleIntensiveShortcuts = (event) => {
-      const activeTag = document.activeElement?.tagName
-      if (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) {
+      const activeElement = document.activeElement
+      const activeTag = activeElement?.tagName
+      const isEditable =
+        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) ||
+        activeElement?.isContentEditable
+      const isArrowLeft = event.key === 'ArrowLeft'
+      const isArrowRight = event.key === 'ArrowRight'
+
+      if (isEditable) {
+        if (
+          activeTag === 'INPUT' &&
+          activeElement?.classList?.contains('intensive-input') &&
+          (isArrowLeft || isArrowRight)
+        ) {
+          event.preventDefault()
+          activeElement.blur()
+          handleSentenceNavigation(isArrowLeft ? 'previous' : 'next')
+        }
         return
       }
-
-      if (document.activeElement?.isContentEditable) return
 
       if (event.code === 'Space' || event.key === ' ') {
         if (!transcriptSegments.length) return
@@ -563,13 +577,13 @@ const IntensiveListeningMode = ({
         return
       }
 
-      if (event.key === 'ArrowLeft') {
+      if (isArrowLeft) {
         event.preventDefault()
         handleSentenceNavigation('previous')
         return
       }
 
-      if (event.key === 'ArrowRight') {
+      if (isArrowRight) {
         event.preventDefault()
         handleSentenceNavigation('next')
       }

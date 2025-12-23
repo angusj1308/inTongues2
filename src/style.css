@@ -3517,8 +3517,7 @@ pre {
   align-items: start;
   min-height: 0;
   grid-row: 2;
-  height: 100%;
-  align-self: stretch;
+  align-self: center;
 }
 
 .active-pass-main {
@@ -3542,8 +3541,7 @@ pre {
   overflow: visible;
   position: relative;
   min-height: 0;
-  height: 100%;
-  align-self: stretch;
+  align-self: center;
 }
 
 .active-stage-inner {

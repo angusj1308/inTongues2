@@ -59,6 +59,7 @@ const AudioPlayer = () => {
   const [error, setError] = useState('')
   const [pageTranslations, setPageTranslations] = useState({})
   const [transcriptDoc, setTranscriptDoc] = useState({ sentenceSegments: [], segments: [] })
+  const [spotifyTranscriptSegments, setSpotifyTranscriptSegments] = useState([])
   const [popup, setPopup] = useState(null)
   const [popupPosition, setPopupPosition] = useState({ top: null, left: null })
   const missingLanguageMessage =
@@ -94,6 +95,7 @@ const AudioPlayer = () => {
   const [transitionDirection, setTransitionDirection] = useState('left')
   const completedPassKeyRef = useRef(new Set())
   const passProgressRef = useRef(new Map())
+  const lastSpotifyTickRef = useRef(0)
 
   const fetchSpotifyAccessToken = useCallback(async () => {
     if (!user) throw new Error('User not authenticated')
@@ -121,6 +123,10 @@ const AudioPlayer = () => {
   }, [transcriptText])
 
   const transcriptSegments = useMemo(() => {
+    if (isSpotify && spotifyTranscriptSegments.length) {
+      return spotifyTranscriptSegments
+    }
+
     const sentenceSegments = normaliseTranscriptSegments(transcriptDoc?.sentenceSegments)
     if (sentenceSegments.length) return sentenceSegments
 
@@ -133,7 +139,16 @@ const AudioPlayer = () => {
     if (pageSegments.length) return pageSegments
 
     return transcriptSentences.map((text) => ({ text }))
-  }, [pages, transcriptDoc, transcriptSentences])
+  }, [isSpotify, pages, spotifyTranscriptSegments, transcriptDoc, transcriptSentences])
+
+  const intensiveSentences = useMemo(() => {
+    const segmentSentences = transcriptSegments
+      .map((segment) => segment?.text?.trim?.())
+      .filter((text) => Boolean(text))
+
+    if (segmentSentences.length) return segmentSentences
+    return transcriptSentences
+  }, [transcriptSegments, transcriptSentences])
 
   const storyLanguage = useMemo(
     () => resolveSupportedLanguageLabel(storyMeta.language, ''),
@@ -353,6 +368,7 @@ const AudioPlayer = () => {
             type: data.type || '',
             mediaType: data.mediaType || 'audio',
           })
+          setSpotifyTranscriptSegments(normaliseTranscriptSegments(data.transcriptSegments || []))
           return
         }
 
@@ -893,6 +909,10 @@ const AudioPlayer = () => {
   useEffect(() => {
     if (!isSpotify) return
 
+    const now = Date.now()
+    if (now - lastSpotifyTickRef.current < 150) return
+    lastSpotifyTickRef.current = now
+
     setProgressSeconds((spotifyPlayerState?.position || 0) / 1000)
     setDurationSeconds((spotifyPlayerState?.duration || 0) / 1000)
   }, [isSpotify, spotifyPlayerState])
@@ -907,13 +927,13 @@ const AudioPlayer = () => {
   }, [pages])
 
   useEffect(() => {
-    if (!transcriptSentences.length) {
+    if (!intensiveSentences.length) {
       setIntensiveSentenceIndex(0)
       return
     }
 
-    setIntensiveSentenceIndex((prev) => Math.min(prev, transcriptSentences.length - 1))
-  }, [transcriptSentences])
+    setIntensiveSentenceIndex((prev) => Math.min(prev, intensiveSentences.length - 1))
+  }, [intensiveSentences])
 
   useEffect(() => {
     if (!activeChunks.length) {
@@ -1208,7 +1228,7 @@ const AudioPlayer = () => {
   const cancelAdvance = () => setShowAdvanceModal(false)
 
   const currentIntensiveSentence =
-    transcriptSentences[intensiveSentenceIndex] || 'Sentence will appear here.'
+    intensiveSentences[intensiveSentenceIndex] || 'Sentence will appear here.'
 
   const handleNextSentence = async () => {
     if (!transcriptSentences.length) return
@@ -1276,9 +1296,17 @@ const AudioPlayer = () => {
         return nearestByStart.index
       }
 
-      return -1
+      if (!Number.isFinite(playbackDurationSeconds) || playbackDurationSeconds <= 0) {
+        return -1
+      }
+
+      const safeDuration = Math.max(playbackDurationSeconds, 0.01)
+      const progressRatio = Math.min(Math.max(playbackPositionSeconds / safeDuration, 0), 1)
+      const scaledIndex = Math.floor(progressRatio * transcriptSegments.length)
+
+      return Math.min(Math.max(scaledIndex, 0), transcriptSegments.length - 1)
     })
-  }, [playbackPositionSeconds, transcriptSegments])
+  }, [playbackDurationSeconds, playbackPositionSeconds, transcriptSegments])
 
   const chunkActiveTranscriptIndex = useMemo(() => {
     if (!chunkTranscriptSegments.length) return -1
@@ -1625,7 +1653,7 @@ const AudioPlayer = () => {
 
       <IntensiveListeningMode
         listeningMode={listeningMode}
-        transcriptSentences={transcriptSentences}
+        transcriptSentences={intensiveSentences}
         transcriptSegments={transcriptSegments}
         language={storyLanguage}
         nativeLanguage={profile?.nativeLanguage}
@@ -1636,6 +1664,7 @@ const AudioPlayer = () => {
         intensiveSentenceIndex={intensiveSentenceIndex}
         setIntensiveSentenceIndex={setIntensiveSentenceIndex}
         audioRef={audioRef}
+        fullAudioUrl={storyMeta.fullAudioUrl}
         user={user}
       />
 

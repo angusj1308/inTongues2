@@ -417,6 +417,7 @@ const mapTrackItem = (item) => ({
   subtitle: (item?.track?.artists || []).map((a) => a.name).join(', '),
   imageUrl: getSpotifyImage(item?.track?.album?.images),
   durationMs: item?.track?.duration_ms,
+  isrc: item?.track?.external_ids?.isrc || null,
 })
 
 const mapPlaylistItem = (item) => ({
@@ -445,6 +446,7 @@ const mapSearchTrack = (track) => ({
   subtitle: (track?.artists || []).map((a) => a.name).join(', '),
   imageUrl: getSpotifyImage(track?.album?.images),
   durationMs: track?.duration_ms,
+  isrc: track?.external_ids?.isrc || null,
 })
 
 const mapSearchPlaylist = (playlist) => ({
@@ -483,6 +485,30 @@ const mapSearchAlbum = (album) => ({
   imageUrl: getSpotifyImage(album?.images),
 })
 
+async function fetchSpotifyTrackIsrc(userId, spotifyId) {
+  if (!userId || !spotifyId) return null
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return null
+
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${encodeURIComponent(spotifyId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify track lookup failed', response.status, await response.text())
+      return null
+    }
+
+    const data = await response.json()
+    return data?.external_ids?.isrc || null
+  } catch (error) {
+    console.error('Spotify track lookup error', error)
+    return null
+  }
+}
+
 const mapEpisodeItem = (episode) => {
   const minutes = episode?.duration_ms ? Math.round(episode.duration_ms / 60000) : null
   const durationLabel = minutes ? `${minutes} min` : null
@@ -502,6 +528,12 @@ const mapEpisodeItem = (episode) => {
 }
 
 const MUSIXMATCH_BASE_URL = 'https://api.musixmatch.com/ws/1.1'
+const MUSIXMATCH_DEBUG = process.env.MUSIXMATCH_DEBUG === 'true'
+
+const logMusixmatchDebug = (...args) => {
+  if (!MUSIXMATCH_DEBUG) return
+  console.log('[musixmatch]', ...args)
+}
 
 const cleanMusixmatchLyrics = (text = '') => {
   if (!text) return ''
@@ -560,7 +592,10 @@ async function searchMusixmatchTrackId(trackTitle, artistName) {
   const firstTrack = trackList[0]?.track
 
   if (!firstTrack?.track_id) return null
-  return firstTrack.track_id
+  return {
+    trackId: firstTrack.track_id,
+    commontrackId: firstTrack.commontrack_id || null,
+  }
 }
 
 async function fetchMusixmatchLyrics(trackId) {
@@ -584,24 +619,122 @@ async function fetchMusixmatchLyrics(trackId) {
   return { lyrics: cleaned, language }
 }
 
-async function getSpotifyTrackLyrics(title, subtitle) {
+const parseRichsyncSegments = (richsyncBody) => {
+  if (!richsyncBody) return []
+
+  try {
+    const parsed = JSON.parse(richsyncBody)
+    if (!Array.isArray(parsed)) return []
+
+    const entries = parsed
+      .map((entry) => ({
+        start: Number(entry?.ts),
+        end: Number(entry?.te),
+        text: (entry?.x || '').trim(),
+      }))
+      .filter((entry) => Number.isFinite(entry.start) && entry.text)
+      .sort((a, b) => a.start - b.start)
+
+    if (!entries.length) return []
+
+    return entries.map((entry, index) => {
+      const next = entries[index + 1]
+      const inferredEnd =
+        Number.isFinite(entry.end) && entry.end > entry.start
+          ? entry.end
+          : next && next.start > entry.start
+            ? next.start
+            : entry.start
+
+      return {
+        start: entry.start,
+        end: inferredEnd,
+        text: entry.text,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to parse Musixmatch richsync body', error)
+    return []
+  }
+}
+
+async function fetchMusixmatchRichsync({ trackId, commontrackId, isrc }) {
+  if (!MUSIXMATCH_API_KEY) return null
+
+  const params = new URLSearchParams({ apikey: MUSIXMATCH_API_KEY })
+
+  if (isrc) {
+    params.set('track_isrc', isrc)
+  } else if (trackId) {
+    params.set('track_id', String(trackId))
+  } else if (commontrackId) {
+    params.set('commontrack_id', String(commontrackId))
+  } else {
+    return null
+  }
+
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.richsync.get?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.richsync.get failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const richsync = data?.message?.body?.richsync
+
+  if (!richsync || richsync?.restricted || richsync?.instrumental) {
+    logMusixmatchDebug('richsync restricted/unavailable', {
+      restricted: richsync?.restricted,
+      instrumental: richsync?.instrumental,
+    })
+    return null
+  }
+
+  const richsyncBody = richsync?.richsync_body
+  const segments = parseRichsyncSegments(richsyncBody)
+
+  if (!segments.length) {
+    logMusixmatchDebug('richsync empty', { isrc, trackId, commontrackId })
+    return null
+  }
+
+  logMusixmatchDebug('richsync parsed', {
+    count: segments.length,
+    first: segments[0]?.start,
+    last: segments[segments.length - 1]?.start,
+  })
+
+  return { segments }
+}
+
+async function getSpotifyTrackLyrics({ title, subtitle, isrc }) {
   if (!MUSIXMATCH_API_KEY) {
     console.warn('MUSIXMATCH_API_KEY not configured; skipping lyrics fetch')
     return null
   }
 
   const primaryArtist = subtitle?.split(',')?.[0]?.trim() || ''
-  const trackId = await searchMusixmatchTrackId(title, primaryArtist)
-  if (!trackId) return null
+  const trackMatch = await searchMusixmatchTrackId(title, primaryArtist)
 
-  const result = await fetchMusixmatchLyrics(trackId)
-  if (!result?.lyrics) return null
+  const trackId = trackMatch?.trackId || null
+  const commontrackId = trackMatch?.commontrackId || null
+  if (!trackId && !commontrackId && !isrc) return null
 
-  const pages = chunkLyricsToPages(result.lyrics)
+  const [result, richsync] = await Promise.all([
+    trackId ? fetchMusixmatchLyrics(trackId) : null,
+    fetchMusixmatchRichsync({ trackId, commontrackId, isrc }),
+  ])
+
+  const lyricsText = result?.lyrics || ''
+  const pages = lyricsText ? chunkLyricsToPages(lyricsText) : []
+
+  if (!lyricsText && !richsync?.segments?.length) return null
   return {
-    lyrics: result.lyrics,
+    lyrics: lyricsText,
     pages,
-    language: resolveTargetCode(result.language || 'en'),
+    language: resolveTargetCode(result?.language || 'en'),
+    richsyncSegments: richsync?.segments || [],
     provider: 'musixmatch',
   }
 }
@@ -1033,7 +1166,17 @@ app.get('/api/spotify/show/:id/episodes', async (req, res) => {
 })
 
 app.post('/api/spotify/library/add', async (req, res) => {
-  const { uid, spotifyId, spotifyUri, type, title, subtitle, imageUrl, media_type: mediaTypeRaw } = req.body || {}
+  const {
+    uid,
+    spotifyId,
+    spotifyUri,
+    type,
+    title,
+    subtitle,
+    imageUrl,
+    media_type: mediaTypeRaw,
+    isrc: isrcRaw,
+  } = req.body || {}
 
   if (!uid || !spotifyId) {
     return res.status(400).json({ error: 'uid and spotifyId are required' })
@@ -1042,6 +1185,13 @@ app.post('/api/spotify/library/add', async (req, res) => {
   try {
     const mediaType = mediaTypeRaw || 'audio'
     const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
+    const existingSnap = await itemRef.get()
+    const existingData = existingSnap.exists ? existingSnap.data() || {} : {}
+    const cachedSegments = normaliseTranscriptSegments(existingData.transcriptSegments || [])
+    const hasCachedSegments = cachedSegments.length > 0
+    const shouldFetchLyrics = !existingData?.lyricsProvider && !hasCachedSegments
+    const existingIsrc = existingData?.isrc || null
+    const isrc = isrcRaw || existingIsrc || null
     const basePayload = {
       spotifyId,
       spotifyUri: spotifyUri || '',
@@ -1053,27 +1203,47 @@ app.post('/api/spotify/library/add', async (req, res) => {
       hasVideo: mediaType === 'video',
       addedAt: admin.firestore.FieldValue.serverTimestamp(),
       source: 'spotify',
-      transcriptStatus: 'pending',
-      transcriptLanguage: null,
-      transcriptSegments: null,
+      transcriptStatus: existingData?.transcriptStatus || (hasCachedSegments ? 'ready' : 'pending'),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }
 
     let lyricsPages = []
+    let resolvedIsrc = isrc
 
-    if ((type || 'track') === 'track') {
+    if ((type || 'track') === 'track' && !resolvedIsrc) {
+      resolvedIsrc = await fetchSpotifyTrackIsrc(uid, spotifyId)
+    }
+
+    if (resolvedIsrc) {
+      basePayload.isrc = resolvedIsrc
+    }
+
+    if ((type || 'track') === 'track' && shouldFetchLyrics) {
       try {
-        const lyrics = await getSpotifyTrackLyrics(title, subtitle)
+        const lyrics = await getSpotifyTrackLyrics({ title, subtitle, isrc: resolvedIsrc })
         if (lyrics?.pages?.length) {
           lyricsPages = lyrics.pages
-          basePayload.transcriptStatus = 'ready'
           basePayload.transcriptLanguage = lyrics.language || null
           basePayload.lyricsProvider = lyrics.provider
           basePayload.language = lyrics.language || null
         }
+
+        if (lyrics?.richsyncSegments?.length) {
+          basePayload.transcriptSegments = lyrics.richsyncSegments
+          basePayload.transcriptStatus = 'ready'
+          basePayload.transcriptProvider = 'musixmatch-richsync'
+          logMusixmatchDebug('richsync available', {
+            spotifyId,
+            count: lyrics.richsyncSegments.length,
+          })
+        } else if (lyrics?.pages?.length) {
+          basePayload.transcriptStatus = 'ready'
+        }
       } catch (lyricsErr) {
         console.error('Failed to fetch Musixmatch lyrics for Spotify track', lyricsErr)
       }
+    } else if (hasCachedSegments) {
+      logMusixmatchDebug('richsync cached', { spotifyId, count: cachedSegments.length })
     }
 
     await itemRef.set(basePayload, { merge: true })

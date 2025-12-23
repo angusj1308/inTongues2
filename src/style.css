@@ -3584,14 +3584,15 @@ pre {
   align-items: start;
   min-height: 0;
   grid-row: 1;
-  align-self: center;
+  align-self: stretch;
 }
 
 .active-pass-main {
   display: grid;
   grid-template-rows: auto 1fr;
   justify-items: center;
-  min-height: calc(100vh - 96px - 2.5rem);
+  min-height: 0;
+  height: 100%;
 }
 
 .active-pass-main .active-pass-footer {
@@ -3605,10 +3606,10 @@ pre {
   align-items: flex-start;
   justify-content: flex-start;
   width: 100%;
-  overflow: visible;
+  overflow: auto;
   position: relative;
   min-height: 0;
-  align-self: center;
+  align-self: stretch;
 }
 
 .active-stage-inner {

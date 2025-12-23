@@ -3201,7 +3201,7 @@ pre {
 
 .active-flow {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) var(--active-pass-nav-height, 64px);
+  grid-template-rows: auto minmax(0, 0.8fr) var(--active-pass-nav-height, 64px);
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;

@@ -3682,6 +3682,11 @@ pre {
 
 .active-stage--pass-1 .active-stage-transcript {
   display: none;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
 }
 
 .active-stage--pass-1 .active-pass-footer {

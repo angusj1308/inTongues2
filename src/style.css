@@ -3678,7 +3678,7 @@ pre {
 }
 
 .active-stage--pass-1 .active-stage-transcript {
-  transform: translateX(0);
+  display: none;
 }
 
 .active-stage--pass-1 .active-pass-footer {

@@ -604,7 +604,7 @@ const ActiveMode = ({
   const passNavDockStyle = Number.isFinite(passNavTop) ? { '--pass-nav-top': `${passNavTop}px` } : undefined
 
   return (
-    <div className={`active-flow active-step-${activeStep}`} style={activeFlowStyle}>
+    <div className={`active-flow active-step-${activeStep} ${activeStep === 1 ? 'mode-pass-1' : ''}`} style={activeFlowStyle}>
       <>
         {activeStep !== 1 && activeStep !== 2 && (
           <header className="active-topbar">

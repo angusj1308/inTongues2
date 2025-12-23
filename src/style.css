@@ -3212,6 +3212,19 @@ pre {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
+.active-flow.mode-pass-1 {
+  gap: 1rem;
+  padding-bottom: 16px;
+}
+
+.active-flow.mode-pass-1 .active-stage {
+  align-self: end;
+}
+
+.active-flow.mode-pass-1 .active-stage-player {
+  margin-inline: auto;
+}
+
 .listening-layout--active .active-flow {
   max-width: none;
 }

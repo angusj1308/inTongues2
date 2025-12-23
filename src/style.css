@@ -3134,7 +3134,7 @@ pre {
 
 .active-flow {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(min-content, 1fr) auto;
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
@@ -3517,7 +3517,8 @@ pre {
   align-items: start;
   min-height: 0;
   grid-row: 2;
-  align-self: center;
+  align-self: stretch;
+  min-height: min-content;
 }
 
 .active-pass-main {
@@ -3541,7 +3542,8 @@ pre {
   overflow: visible;
   position: relative;
   min-height: 0;
-  align-self: center;
+  align-self: stretch;
+  min-height: min-content;
 }
 
 .active-stage-inner {

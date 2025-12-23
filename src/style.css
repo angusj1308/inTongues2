@@ -3587,6 +3587,11 @@ pre {
   align-self: stretch;
 }
 
+.active-pass-layout.is-pass-1 {
+  grid-template-columns: minmax(0, 560px);
+  justify-content: center;
+}
+
 .active-pass-main {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -3619,8 +3624,8 @@ pre {
   width: min(1100px, 100%);
   margin: 0 auto;
   justify-content: center;
-  overflow: hidden;
-  height: 100%;
+  overflow: visible;
+  height: auto;
 }
 
 .active-stage-player,

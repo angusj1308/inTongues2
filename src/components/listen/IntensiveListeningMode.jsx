@@ -752,14 +752,18 @@ const IntensiveListeningMode = ({
         <div className="reader-intensive-overlay">
           <div className="reader-intensive-card">
             <div className="reader-intensive-header">
-              <button
-                type="button"
-                className={`intensive-transcription-toggle ${isTranscriptionMode ? 'is-active' : ''}`}
-                onClick={handleTranscriptionToggle}
-                aria-pressed={isTranscriptionMode}
-              >
-                Transcription {isTranscriptionMode ? 'On' : 'Off'}
-              </button>
+              <div className="transcribe-mode-toggle">
+                <span className="transcribe-mode-label">Transcribe mode</span>
+                <button
+                  type="button"
+                  className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
+                  onClick={handleTranscriptionToggle}
+                  aria-pressed={isTranscriptionMode}
+                  aria-label="Toggle transcribe mode"
+                >
+                  <span className="toggle-switch-slider" />
+                </button>
+              </div>
             </div>
 
             <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>

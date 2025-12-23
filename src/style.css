@@ -2332,23 +2332,58 @@ textarea {
   align-items: center;
 }
 
-.intensive-transcription-toggle {
-  border: 1px solid #cbd5f5;
-  background: #f8fafc;
-  color: #1e293b;
-  border-radius: 999px;
-  padding: 0.35rem 0.9rem;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 150ms ease;
+/* Transcribe mode toggle container */
+.transcribe-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
 }
 
-.intensive-transcription-toggle.is-active {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #ffffff;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.3);
+.transcribe-mode-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #cbd5e1;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 200ms ease;
+  padding: 0;
+}
+
+.toggle-switch:hover {
+  background: #94a3b8;
+}
+
+.toggle-switch.is-active {
+  background: #3b82f6;
+}
+
+.toggle-switch.is-active:hover {
+  background: #2563eb;
+}
+
+.toggle-switch-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch.is-active .toggle-switch-slider {
+  transform: translateX(20px);
 }
 
 .reader-intensive-label {

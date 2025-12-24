@@ -2579,28 +2579,33 @@ textarea {
 }
 
 .reader-intensive-controls {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   flex: 1;
 }
 
 .intensive-translation-toggle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: transparent;
   color: #0f172a;
   border: none;
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1rem;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   cursor: pointer;
   box-shadow: none;
   text-decoration: none;
-  transition: color 120ms ease, text-decoration-color 120ms ease;
+  transition: font-weight 120ms ease;
 }
 
 .intensive-translation-toggle:disabled {
@@ -2610,13 +2615,11 @@ textarea {
 }
 
 .intensive-translation-toggle:hover {
-  text-decoration: underline;
-  color: #1f2937;
+  font-weight: 800;
 }
 
 .intensive-translation-toggle:active {
-  text-decoration: underline;
-  color: #0f172a;
+  font-weight: 800;
 }
 
 .intensive-translation-toggle:focus-visible {

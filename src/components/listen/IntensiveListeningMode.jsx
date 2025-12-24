@@ -1130,16 +1130,6 @@ const IntensiveListeningMode = ({
               </div>
             </div>
 
-            <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-              {isTranscriptVisible && (
-                currentIntensiveSentence ? (
-                  renderWordSegments(currentIntensiveSentence)
-                ) : (
-                  'No text available for this transcript.'
-                )
-              )}
-            </div>
-
             {isTranscriptionMode && (
               <div className="reader-intensive-input-row">
                 <input
@@ -1166,6 +1156,16 @@ const IntensiveListeningMode = ({
               >
                 {toggleLabel}
               </button>
+
+              <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+                {isTranscriptVisible && (
+                  currentIntensiveSentence ? (
+                    renderWordSegments(currentIntensiveSentence)
+                  ) : (
+                    'No text available for this transcript.'
+                  )
+                )}
+              </div>
 
               <p
                 className={`reader-intensive-translation ${

@@ -615,17 +615,17 @@ const IntensiveListeningMode = ({
       }, 50)
 
       const handleTimeUpdate = () => {
-        const boundaryEnd = (shouldLoop || isLooping) ? actualLoopEnd : endTime
-        if (audio.currentTime >= boundaryEnd) {
+        // Always stop at pin boundary
+        if (audio.currentTime >= actualLoopEnd) {
           if (shouldLoop || isLooping) {
             // Loop back to loop start
             audio.currentTime = actualLoopStart
             setProgress(loopStart)
           } else {
-            // Stop at end
+            // Stop at end pin
             audio.pause()
             setIsPlaying(false)
-            setProgress(100)
+            setProgress(loopEnd)
             if (progressIntervalRef.current) {
               clearInterval(progressIntervalRef.current)
               progressIntervalRef.current = null
@@ -687,17 +687,16 @@ const IntensiveListeningMode = ({
         }
       }, 50)
 
-      // Set up segment boundary enforcement (uses loop bounds when looping)
+      // Set up segment boundary enforcement (always uses pin bounds)
       const handleTimeUpdate = () => {
-        const boundaryEnd = isLooping ? actualLoopEnd : endTime
-        if (audio.currentTime >= boundaryEnd) {
+        if (audio.currentTime >= actualLoopEnd) {
           if (isLooping) {
             audio.currentTime = actualLoopStart
             setProgress(loopStart)
           } else {
             audio.pause()
             setIsPlaying(false)
-            setProgress(100)
+            setProgress(loopEnd)
             if (progressIntervalRef.current) {
               clearInterval(progressIntervalRef.current)
               progressIntervalRef.current = null
@@ -726,14 +725,20 @@ const IntensiveListeningMode = ({
       const times = getSegmentTimes(intensiveSentenceIndex)
       if (!times) return
 
-      const { startTime, endTime, duration } = times
-      const newTime = Math.max(startTime, Math.min(endTime, audio.currentTime + seconds))
+      const { startTime, duration } = times
+
+      // Calculate pin boundaries
+      const actualLoopStart = startTime + (duration * loopStart / 100)
+      const actualLoopEnd = startTime + (duration * loopEnd / 100)
+
+      // Clamp scrub to pin bounds
+      const newTime = Math.max(actualLoopStart, Math.min(actualLoopEnd, audio.currentTime + seconds))
       audio.currentTime = newTime
 
       const prog = duration > 0 ? ((newTime - startTime) / duration) * 100 : 0
       setProgress(Math.min(100, Math.max(0, prog)))
     },
-    [audioRef, getSegmentTimes, intensiveSentenceIndex]
+    [audioRef, getSegmentTimes, intensiveSentenceIndex, loopEnd, loopStart]
   )
 
   const toggleLoop = useCallback(() => {

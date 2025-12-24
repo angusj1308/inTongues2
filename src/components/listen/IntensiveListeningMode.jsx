@@ -1076,9 +1076,12 @@ const IntensiveListeningMode = ({
                   onClick={() => scrubAudio(-2)}
                   aria-label="Back 2 seconds"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 17l-5-5 5-5" />
-                    <path d="M18 17l-5-5 5-5" />
+                  <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
+                    <g transform="translate(36 0) scale(-1 1)">
+                      <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                      <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                    </g>
+                    <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
                   </svg>
                 </button>
                 <button
@@ -1104,9 +1107,10 @@ const IntensiveListeningMode = ({
                   onClick={() => scrubAudio(2)}
                   aria-label="Forward 2 seconds"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M13 7l5 5-5 5" />
-                    <path d="M6 7l5 5-5 5" />
+                  <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
+                    <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                    <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                    <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
                   </svg>
                 </button>
                 <button

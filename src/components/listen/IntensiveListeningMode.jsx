@@ -845,13 +845,13 @@ const IntensiveListeningMode = ({
 
       if (isArrowLeft) {
         event.preventDefault()
-        handleSentenceNavigation('previous')
+        scrubAudio(-2)
         return
       }
 
       if (isArrowRight) {
         event.preventDefault()
-        handleSentenceNavigation('next')
+        scrubAudio(2)
       }
     }
 
@@ -866,6 +866,7 @@ const IntensiveListeningMode = ({
     transcriptSegments.length,
     handleSentenceNavigation,
     playSentenceAudio,
+    scrubAudio,
   ])
 
   const handleWordClick = async (e) => {
@@ -1000,6 +1001,28 @@ const IntensiveListeningMode = ({
                 </button>
               </div>
             </div>
+
+            <button
+              type="button"
+              className="intensive-nav-btn intensive-nav-btn-prev"
+              onClick={() => handleSentenceNavigation('previous')}
+              disabled={intensiveSentenceIndex === 0}
+              aria-label="Previous sentence"
+            >
+              <span className="intensive-nav-arrow">&lt;</span>
+              <span className="intensive-nav-label">previous sentence</span>
+            </button>
+
+            <button
+              type="button"
+              className="intensive-nav-btn intensive-nav-btn-next"
+              onClick={() => handleSentenceNavigation('next')}
+              disabled={intensiveSentenceIndex >= intensiveSentences.length - 1}
+              aria-label="Next sentence"
+            >
+              <span className="intensive-nav-arrow">&gt;</span>
+              <span className="intensive-nav-label">next sentence</span>
+            </button>
 
             {isTranscriptVisible && (
               <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>

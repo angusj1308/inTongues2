@@ -3201,14 +3201,14 @@ pre {
 
 .active-flow {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) var(--active-pass-nav-height, 16px);
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 1.5rem;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 24px 8px 24px;
-  height: calc(100vh - 96px - 2.5rem);
-  max-height: calc(100vh - 96px - 2.5rem);
+  padding: 24px 24px 0 24px;
+  height: calc(100vh - 96px - 24px);
+  max-height: calc(100vh - 96px - 24px);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 

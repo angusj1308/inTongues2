@@ -3418,9 +3418,9 @@ pre {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
-  height: 100vh;
-  max-height: 100vh;
+  padding: 24px 24px 0 24px;
+  height: calc(100vh - 96px - 24px);
+  max-height: calc(100vh - 96px - 24px);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3502,7 +3502,7 @@ pre {
   pointer-events: auto;
   align-self: center;
   justify-self: center;
-  min-height: var(--active-pass-nav-height, 64px);
+  min-height: var(--active-pass-nav-height, 16px);
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3819,9 +3819,9 @@ pre {
 .active-stage {
   grid-row: 1;
   display: grid;
+  grid-template-columns: 1fr;
   grid-template-rows: auto 1fr;
   align-items: flex-start;
-  justify-content: flex-start;
   width: 100%;
   overflow: auto;
   position: relative;
@@ -3894,6 +3894,11 @@ pre {
 
 .active-stage--pass-1 .active-stage-transcript {
   display: none;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
 }
 
 .active-stage--pass-1 .active-pass-footer {
@@ -3902,6 +3907,22 @@ pre {
 
 body.active-pass-locked {
   overflow-y: auto;
+}
+
+.active-stage--pass-2 {
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+.active-stage--pass-2 .active-stage-inner {
+  height: 100%;
+  align-items: stretch;
+}
+
+.active-stage--pass-2 .active-stage-player,
+.active-stage--pass-2 .active-stage-transcript {
+  height: 100%;
+  min-height: 0;
 }
 
 .active-stage--pass-2 .active-stage-player {
@@ -3914,9 +3935,21 @@ body.active-pass-locked {
 .active-stage--pass-2 .active-stage-transcript {
   flex: 1 1 0;
   max-width: 560px;
+  overflow: hidden;
   opacity: 1;
   pointer-events: auto;
   transform: translateX(6%);
+}
+
+.active-stage--pass-2 .active-stage-transcript-card {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.active-stage--pass-2 .transcript-panel {
+  min-height: 0;
+  max-height: 100%;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {

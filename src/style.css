@@ -2526,7 +2526,7 @@ textarea {
 
 .reader-intensive-sentence {
   position: absolute;
-  top: calc(50% + 2rem);
+  top: calc(40% + 2rem);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -2594,7 +2594,7 @@ textarea {
 
 .intensive-translation-toggle {
   position: absolute;
-  top: 50%;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
   background: transparent;

@@ -1055,10 +1055,19 @@ const IntensiveListeningMode = ({
                   aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
                   title={playbackRate === 0.75 ? '0.75x' : '1x'}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <ellipse cx="12" cy="13" rx="7" ry="5" />
-                    <circle cx="18" cy="9" r="2" />
-                    <path d="M6 17l-2 3M8 17l-1 3M16 17l1 3M18 17l2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <svg width="22" height="22" viewBox="0 0 100 100" fill="currentColor">
+                    {/* Shell */}
+                    <ellipse cx="50" cy="50" rx="35" ry="25" />
+                    {/* Head */}
+                    <circle cx="90" cy="50" r="12" />
+                    {/* Front legs */}
+                    <ellipse cx="75" cy="72" rx="8" ry="12" />
+                    <ellipse cx="75" cy="28" rx="8" ry="12" />
+                    {/* Back legs */}
+                    <ellipse cx="25" cy="72" rx="8" ry="12" />
+                    <ellipse cx="25" cy="28" rx="8" ry="12" />
+                    {/* Tail */}
+                    <ellipse cx="12" cy="50" rx="6" ry="4" />
                   </svg>
                 </button>
                 <button

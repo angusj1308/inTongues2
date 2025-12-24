@@ -2525,6 +2525,10 @@ textarea {
 }
 
 .reader-intensive-sentence {
+  position: absolute;
+  top: calc(50% + 2rem);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
@@ -2582,9 +2586,8 @@ textarea {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   flex: 1;
 }
@@ -2606,6 +2609,7 @@ textarea {
   box-shadow: none;
   text-decoration: none;
   transition: font-weight 120ms ease;
+  z-index: 1;
 }
 
 .intensive-translation-toggle:disabled {

@@ -1055,11 +1055,10 @@ const IntensiveListeningMode = ({
                   aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
                   title={playbackRate === 0.75 ? '0.75x' : '1x'}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 19c-4 0-7-3-7-7a7 7 0 0 1 7-7" />
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M17 12a5 5 0 0 0-5-5" />
-                    <path d="M12 2v3M12 19v3" />
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <ellipse cx="12" cy="13" rx="7" ry="5" />
+                    <circle cx="18" cy="9" r="2" />
+                    <path d="M6 17l-2 3M8 17l-1 3M16 17l1 3M18 17l2 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
                 <button

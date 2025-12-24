@@ -383,6 +383,7 @@ const IntensiveListeningMode = ({
 
     setIntensiveRevealStep((prev) => {
       if (prev === 'hidden') return 'transcript'
+      if (prev === 'transcript') return 'translation'
       return 'hidden'
     })
   }
@@ -976,7 +977,8 @@ const IntensiveListeningMode = ({
       return 'Reveal transcript first'
     }
     if (intensiveRevealStep === 'hidden') return 'Show transcript'
-    return 'Hide transcript'
+    if (intensiveRevealStep === 'transcript') return 'Show translation'
+    return 'Hide translation'
   })()
 
   return (
@@ -1145,6 +1147,16 @@ const IntensiveListeningMode = ({
               </div>
             )}
 
+            {isTranscriptVisible && (
+              <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+                {currentIntensiveSentence ? (
+                  renderWordSegments(currentIntensiveSentence)
+                ) : (
+                  'No text available for this transcript.'
+                )}
+              </div>
+            )}
+
             <div className="reader-intensive-controls">
               <button
                 type="button"
@@ -1154,17 +1166,13 @@ const IntensiveListeningMode = ({
               >
                 {toggleLabel}
               </button>
-
-              {isTranscriptVisible && (
-                <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-                  {currentIntensiveSentence ? (
-                    renderWordSegments(currentIntensiveSentence)
-                  ) : (
-                    'No text available for this transcript.'
-                  )}
-                </div>
-              )}
             </div>
+
+            {isTranslationVisible && (
+              <p className="reader-intensive-translation">
+                {intensiveTranslation || 'Translation will appear here.'}
+              </p>
+            )}
           </div>
         </div>
       )}

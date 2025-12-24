@@ -2317,11 +2317,12 @@ textarea {
   min-height: 520px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
   text-align: center;
   pointer-events: auto;
   position: relative;
+  gap: 1.5rem;
 }
 
 .reader-intensive-header {
@@ -2525,14 +2526,12 @@ textarea {
 }
 
 .reader-intensive-sentence {
-  position: absolute;
-  top: calc(40% + 2rem);
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   justify-content: center;
+  max-width: 820px;
+  width: 100%;
 }
 
 .reader-intensive-placeholder {
@@ -2568,35 +2567,22 @@ textarea {
 }
 
 .reader-intensive-translation {
-  color: #1e293b;
-  transition: opacity 160ms ease, visibility 160ms ease;
-}
-
-.reader-intensive-translation.is-hidden {
-  opacity: 0;
-  visibility: hidden;
-}
-
-.reader-intensive-translation.is-visible {
-  opacity: 1;
-  visibility: visible;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: clamp(1.2rem, 1vw + 0.9rem, 1.6rem);
+  color: #64748b;
+  margin: 0;
+  max-width: 820px;
+  width: 100%;
 }
 
 .reader-intensive-controls {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   width: 100%;
-  flex: 1;
 }
 
 .intensive-translation-toggle {
-  position: absolute;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   background: transparent;
   color: #0f172a;
   border: none;
@@ -2609,7 +2595,6 @@ textarea {
   box-shadow: none;
   text-decoration: none;
   transition: font-weight 120ms ease;
-  z-index: 1;
 }
 
 .intensive-translation-toggle:disabled {

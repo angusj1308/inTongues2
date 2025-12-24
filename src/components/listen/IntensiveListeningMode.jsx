@@ -1001,6 +1001,16 @@ const IntensiveListeningMode = ({
               </div>
             </div>
 
+            {isTranscriptVisible && (
+              <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+                {currentIntensiveSentence ? (
+                  renderWordSegments(currentIntensiveSentence)
+                ) : (
+                  'No text available for this transcript.'
+                )}
+              </div>
+            )}
+
             <div className="intensive-player">
               <div
                 className="intensive-player-progress"
@@ -1144,16 +1154,6 @@ const IntensiveListeningMode = ({
                 <p className="reader-intensive-input-helper">
                   Press Enter to check your transcription.
                 </p>
-              </div>
-            )}
-
-            {isTranscriptVisible && (
-              <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-                {currentIntensiveSentence ? (
-                  renderWordSegments(currentIntensiveSentence)
-                ) : (
-                  'No text available for this transcript.'
-                )}
               </div>
             )}
 

@@ -641,21 +641,65 @@ const IntensiveListeningMode = ({
       audio.pause()
       setIsPlaying(false)
     } else {
-      // Check if we're at the end or outside segment bounds
       const times = getSegmentTimes(intensiveSentenceIndex)
-      if (times) {
-        const { startTime, endTime } = times
-        if (audio.currentTime >= endTime || audio.currentTime < startTime) {
-          audio.currentTime = startTime
-          setProgress(0)
+      if (!times) return
+
+      const { startTime, endTime, duration } = times
+
+      // If outside segment bounds, reset to start
+      if (audio.currentTime >= endTime || audio.currentTime < startTime) {
+        audio.currentTime = startTime
+        setProgress(0)
+      }
+
+      // Clear any existing listeners
+      if (sentenceAudioStopRef.current) {
+        audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
+        sentenceAudioStopRef.current = null
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+
+      // Set up progress tracking
+      progressIntervalRef.current = setInterval(() => {
+        if (audio.paused) return
+        const current = audio.currentTime
+        if (current >= startTime && current <= endTime) {
+          const prog = duration > 0 ? ((current - startTime) / duration) * 100 : 0
+          setProgress(Math.min(100, Math.max(0, prog)))
+        }
+      }, 50)
+
+      // Set up segment boundary enforcement
+      const handleTimeUpdate = () => {
+        if (audio.currentTime >= endTime) {
+          if (isLooping) {
+            audio.currentTime = startTime
+            setProgress(0)
+          } else {
+            audio.pause()
+            setIsPlaying(false)
+            setProgress(100)
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current)
+              progressIntervalRef.current = null
+            }
+            audio.removeEventListener('timeupdate', handleTimeUpdate)
+            sentenceAudioStopRef.current = null
+          }
         }
       }
+
+      sentenceAudioStopRef.current = handleTimeUpdate
+      audio.addEventListener('timeupdate', handleTimeUpdate)
+
       audio.playbackRate = playbackRate
       audio.play()
         .then(() => setIsPlaying(true))
         .catch((err) => console.error('Playback failed', err))
     }
-  }, [audioRef, getSegmentTimes, intensiveSentenceIndex, isPlaying, playbackRate, playSentenceAudio])
+  }, [audioRef, getSegmentTimes, intensiveSentenceIndex, isLooping, isPlaying, playbackRate, playSentenceAudio])
 
   const scrubAudio = useCallback(
     (seconds) => {

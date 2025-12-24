@@ -1175,12 +1175,6 @@ const IntensiveListeningMode = ({
                 {intensiveTranslation || 'Translation will appear here.'}
               </p>
             </div>
-
-            <p className="reader-intensive-helper">
-              {isTranscriptionMode
-                ? 'Space = play / repeat · Enter = reveal transcript · ← / → = previous / next sentence'
-                : 'Space = play / repeat · ← / → = previous / next sentence'}
-            </p>
           </div>
         </div>
       )}

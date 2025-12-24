@@ -2514,6 +2514,7 @@ textarea {
 
 .reader-intensive-sentence,
 .reader-intensive-translation {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-size: clamp(1.6rem, 1.2vw + 1.2rem, 2.4rem);
   line-height: 1.4;
   font-weight: 600;
@@ -2582,7 +2583,9 @@ textarea {
   flex-direction: column;
   gap: 0.9rem;
   align-items: center;
+  justify-content: center;
   width: 100%;
+  flex: 1;
 }
 
 .intensive-translation-toggle {

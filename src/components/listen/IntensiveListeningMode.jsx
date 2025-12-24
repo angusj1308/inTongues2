@@ -65,10 +65,14 @@ const IntensiveListeningMode = ({
   const [isLooping, setIsLooping] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [progress, setProgress] = useState(0)
+  const [loopStart, setLoopStart] = useState(0)
+  const [loopEnd, setLoopEnd] = useState(100)
+  const [isDragging, setIsDragging] = useState(null) // 'start' | 'end' | null
   const sentenceAudioStopRef = useRef(null)
   const fallbackAudioRef = useRef(null)
   const progressIntervalRef = useRef(null)
   const currentSegmentRef = useRef(null)
+  const progressBarRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -568,11 +572,18 @@ const IntensiveListeningMode = ({
       const { startTime, endTime, duration } = times
       currentSegmentRef.current = { startTime, endTime, duration }
 
+      // Calculate actual loop bounds based on percentages
+      const actualLoopStart = startTime + (duration * loopStart / 100)
+      const actualLoopEnd = startTime + (duration * loopEnd / 100)
+
       // Apply playback rate
       audio.playbackRate = playbackRate
 
+      // Start from loop start if looping, otherwise segment start
+      const playStart = (shouldLoop || isLooping) ? actualLoopStart : startTime
+
       try {
-        audio.currentTime = startTime
+        audio.currentTime = playStart
       } catch (error) {
         console.error('Failed to set sentence audio start time', error)
         return
@@ -604,11 +615,12 @@ const IntensiveListeningMode = ({
       }, 50)
 
       const handleTimeUpdate = () => {
-        if (audio.currentTime >= endTime) {
+        const boundaryEnd = (shouldLoop || isLooping) ? actualLoopEnd : endTime
+        if (audio.currentTime >= boundaryEnd) {
           if (shouldLoop || isLooping) {
-            // Loop back to start
-            audio.currentTime = startTime
-            setProgress(0)
+            // Loop back to loop start
+            audio.currentTime = actualLoopStart
+            setProgress(loopStart)
           } else {
             // Stop at end
             audio.pause()
@@ -627,7 +639,7 @@ const IntensiveListeningMode = ({
       sentenceAudioStopRef.current = handleTimeUpdate
       audio.addEventListener('timeupdate', handleTimeUpdate)
     },
-    [audioRef, fullAudioUrl, getSegmentTimes, isLooping, playbackRate]
+    [audioRef, fullAudioUrl, getSegmentTimes, isLooping, loopEnd, loopStart, playbackRate]
   )
 
   const togglePlayPause = useCallback(() => {
@@ -646,10 +658,14 @@ const IntensiveListeningMode = ({
 
       const { startTime, endTime, duration } = times
 
-      // If outside segment bounds, reset to start
-      if (audio.currentTime >= endTime || audio.currentTime < startTime) {
-        audio.currentTime = startTime
-        setProgress(0)
+      // Calculate actual loop bounds based on percentages
+      const actualLoopStart = startTime + (duration * loopStart / 100)
+      const actualLoopEnd = startTime + (duration * loopEnd / 100)
+
+      // If outside bounds, reset to loop start
+      if (audio.currentTime >= actualLoopEnd || audio.currentTime < actualLoopStart) {
+        audio.currentTime = actualLoopStart
+        setProgress(loopStart)
       }
 
       // Clear any existing listeners
@@ -671,12 +687,13 @@ const IntensiveListeningMode = ({
         }
       }, 50)
 
-      // Set up segment boundary enforcement
+      // Set up segment boundary enforcement (uses loop bounds when looping)
       const handleTimeUpdate = () => {
-        if (audio.currentTime >= endTime) {
+        const boundaryEnd = isLooping ? actualLoopEnd : endTime
+        if (audio.currentTime >= boundaryEnd) {
           if (isLooping) {
-            audio.currentTime = startTime
-            setProgress(0)
+            audio.currentTime = actualLoopStart
+            setProgress(loopStart)
           } else {
             audio.pause()
             setIsPlaying(false)
@@ -699,7 +716,7 @@ const IntensiveListeningMode = ({
         .then(() => setIsPlaying(true))
         .catch((err) => console.error('Playback failed', err))
     }
-  }, [audioRef, getSegmentTimes, intensiveSentenceIndex, isLooping, isPlaying, playbackRate, playSentenceAudio])
+  }, [audioRef, getSegmentTimes, intensiveSentenceIndex, isLooping, isPlaying, loopEnd, loopStart, playbackRate, playSentenceAudio])
 
   const scrubAudio = useCallback(
     (seconds) => {
@@ -732,6 +749,39 @@ const IntensiveListeningMode = ({
     }
   }, [audioRef, playbackRate])
 
+  const handlePinDrag = useCallback((e) => {
+    if (!isDragging || !progressBarRef.current) return
+
+    const rect = progressBarRef.current.getBoundingClientRect()
+    const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+
+    if (isDragging === 'start') {
+      setLoopStart(Math.min(percent, loopEnd - 5)) // Keep at least 5% gap
+    } else if (isDragging === 'end') {
+      setLoopEnd(Math.max(percent, loopStart + 5)) // Keep at least 5% gap
+    }
+  }, [isDragging, loopEnd, loopStart])
+
+  const handlePinDragEnd = useCallback(() => {
+    setIsDragging(null)
+  }, [])
+
+  // Global mouse listeners for dragging
+  useEffect(() => {
+    if (!isDragging) return undefined
+
+    const handleMouseMove = (e) => handlePinDrag(e)
+    const handleMouseUp = () => handlePinDragEnd()
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, handlePinDrag, handlePinDragEnd])
+
   useEffect(() => {
     const audio = audioRef?.current || fallbackAudioRef.current
     if (!audio) return undefined
@@ -748,10 +798,12 @@ const IntensiveListeningMode = ({
     }
   }, [audioRef])
 
-  // Reset progress when sentence changes
+  // Reset progress and loop bounds when sentence changes
   useEffect(() => {
     stopPlayback()
     setProgress(0)
+    setLoopStart(0)
+    setLoopEnd(100)
   }, [intensiveSentenceIndex, stopPlayback])
 
   useEffect(() => {
@@ -945,10 +997,49 @@ const IntensiveListeningMode = ({
             </div>
 
             <div className="intensive-player">
-              <div className="intensive-player-progress">
+              <div
+                className="intensive-player-progress"
+                ref={progressBarRef}
+              >
+                {/* Selected loop region */}
+                <div
+                  className="intensive-player-loop-region"
+                  style={{
+                    left: `${loopStart}%`,
+                    width: `${loopEnd - loopStart}%`,
+                    opacity: isLooping ? 1 : 0.3
+                  }}
+                />
+                {/* Progress fill */}
                 <div
                   className="intensive-player-progress-fill"
                   style={{ width: `${progress}%` }}
+                />
+                {/* Start pin */}
+                <div
+                  className={`intensive-player-pin intensive-player-pin-start ${isDragging === 'start' ? 'is-dragging' : ''}`}
+                  style={{ left: `${loopStart}%` }}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setIsDragging('start')
+                  }}
+                  role="slider"
+                  aria-label="Loop start"
+                  aria-valuenow={loopStart}
+                  tabIndex={0}
+                />
+                {/* End pin */}
+                <div
+                  className={`intensive-player-pin intensive-player-pin-end ${isDragging === 'end' ? 'is-dragging' : ''}`}
+                  style={{ left: `${loopEnd}%` }}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setIsDragging('end')
+                  }}
+                  role="slider"
+                  aria-label="Loop end"
+                  aria-valuenow={loopEnd}
+                  tabIndex={0}
                 />
               </div>
               <div className="intensive-player-controls">

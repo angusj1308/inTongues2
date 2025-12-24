@@ -1131,16 +1131,12 @@ const IntensiveListeningMode = ({
             </div>
 
             <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-              {isTranscriptVisible ? (
+              {isTranscriptVisible && (
                 currentIntensiveSentence ? (
                   renderWordSegments(currentIntensiveSentence)
                 ) : (
                   'No text available for this transcript.'
                 )
-              ) : (
-                <span className="reader-intensive-placeholder">
-                  Audio only — reveal the transcript when you are ready.
-                </span>
               )}
             </div>
 

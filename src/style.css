@@ -3107,6 +3107,11 @@ pre {
   color: #0f172a;
 }
 
+/* Prevent browser back/forward gesture on horizontal swipe in intensive mode */
+.listening-lab-page.listening-mode-intensive {
+  overscroll-behavior-x: none;
+}
+
 .listening-lab-main {
   padding: 96px 1.5rem 2.5rem;
   width: 100%;

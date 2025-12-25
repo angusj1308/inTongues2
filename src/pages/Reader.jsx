@@ -97,6 +97,7 @@ const Reader = ({ initialMode }) => {
   const [sentenceSegments, setSentenceSegments] = useState([])
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] =
     useState(false)
+  const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
   const [bookmarkIndex, setBookmarkIndex] = useState(null)
   const [isSavingBookmark, setIsSavingBookmark] = useState(false)
   const audioRef = useRef(null)
@@ -1406,74 +1407,112 @@ const Reader = ({ initialMode }) => {
     [allVisibleSentences.join('|')]
   )
 
-  useEffect(() => {
-    const untranslatedSentences = intensiveSentences.filter(
-      (sentence) => !sentenceTranslations[sentence]
-    )
+  // Fetch a single sentence translation (no audio for intensive mode)
+  const fetchSentenceTranslation = useCallback(
+    async (sentence) => {
+      if (!sentence) return null
 
-    if (untranslatedSentences.length === 0) return undefined
+      const ttsLanguage = normalizeLanguageCode(language)
+      if (!ttsLanguage) return null
+
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: sentence,
+            sourceLang: language || 'es',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+            ttsLanguage,
+            skipAudio: true, // No pronunciation needed for intensive reading
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Sentence translation failed:', await response.text())
+          return 'Unable to fetch translation right now.'
+        }
+
+        const data = await response.json()
+        return data.translation || 'No translation found.'
+      } catch (error) {
+        console.error('Error translating sentence:', error)
+        return 'Unable to fetch translation right now.'
+      }
+    },
+    [language, profile?.nativeLanguage]
+  )
+
+  // Lazy-load translations: current sentence + next 2
+  useEffect(() => {
+    if (readerMode !== 'intensive') return undefined
+    if (intensiveSentences.length === 0) return undefined
 
     const ttsLanguage = normalizeLanguageCode(language)
-
     if (!ttsLanguage) return undefined
 
     let isCancelled = false
 
-    const preloadTranslations = async () => {
-      try {
-        const results = await Promise.all(
-          untranslatedSentences.map(async (sentence) => {
-            try {
-              const response = await fetch('http://localhost:4000/api/translatePhrase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  phrase: sentence,
-                  sourceLang: language || 'es',
-                  targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-                  voiceGender,
-                }),
-              })
+    const loadTranslations = async () => {
+      // Get current and next 2 sentences
+      const indicesToFetch = [
+        currentSentenceIndex,
+        currentSentenceIndex + 1,
+        currentSentenceIndex + 2,
+      ].filter((i) => i >= 0 && i < intensiveSentences.length)
 
-              if (!response.ok) {
-                console.error('Sentence translation failed:', await response.text())
-                return [sentence, 'Unable to fetch translation right now.']
-              }
+      const sentencesToFetch = indicesToFetch
+        .map((i) => intensiveSentences[i])
+        .filter((sentence) => sentence && !sentenceTranslations[sentence])
 
-              const data = await response.json()
-              return [sentence, data.translation || 'No translation found.']
-            } catch (error) {
-              console.error('Error translating sentence:', error)
-              return [sentence, 'Unable to fetch translation right now.']
-            }
-          })
-        )
+      if (sentencesToFetch.length === 0) return
 
-        if (isCancelled) return
+      // Show loading only for current sentence if not cached
+      const currentSentence = intensiveSentences[currentSentenceIndex]
+      const needsLoadingIndicator = currentSentence && !sentenceTranslations[currentSentence]
 
-        setSentenceTranslations((prev) => {
-          const next = { ...prev }
-          results.forEach(([sentence, translation]) => {
-            if (!sentence) return
-            if (!next[sentence]) {
-              next[sentence] = translation || 'Translation will appear here.'
-            }
-          })
-          return next
-        })
-      } catch (error) {
-        if (!isCancelled) {
-          console.error('Error preloading intensive translations', error)
+      if (needsLoadingIndicator) {
+        setIsLoadingTranslation(true)
+      }
+
+      // Fetch sentences (current first, then prefetch next ones)
+      for (const sentence of sentencesToFetch) {
+        if (isCancelled) break
+
+        const translation = await fetchSentenceTranslation(sentence)
+
+        if (isCancelled) break
+
+        if (translation) {
+          setSentenceTranslations((prev) => ({
+            ...prev,
+            [sentence]: translation,
+          }))
+        }
+
+        // Turn off loading after current sentence is fetched
+        if (sentence === currentSentence) {
+          setIsLoadingTranslation(false)
         }
       }
+
+      setIsLoadingTranslation(false)
     }
 
-    preloadTranslations()
+    loadTranslations()
 
     return () => {
       isCancelled = true
+      setIsLoadingTranslation(false)
     }
-  }, [intensiveSentences, language, nativeLanguage, sentenceTranslations])
+  }, [
+    currentSentenceIndex,
+    intensiveSentences,
+    language,
+    readerMode,
+    fetchSentenceTranslation,
+    sentenceTranslations,
+  ])
 
   const toggleIntensiveTranslation = () => {
     setIsIntensiveTranslationVisible((prev) => !prev)
@@ -1671,7 +1710,9 @@ const Reader = ({ initialMode }) => {
                   isIntensiveTranslationVisible ? 'is-visible' : 'is-hidden'
                 }`}
               >
-                {intensiveTranslation || 'Translation will appear here.'}
+                {isLoadingTranslation
+                  ? 'Loading translation...'
+                  : intensiveTranslation || 'Translation will appear here.'}
               </p>
             </div>
 

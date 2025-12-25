@@ -1802,7 +1802,8 @@ app.post('/api/generate', async (req, res) => {
 
 app.post('/api/translatePhrase', async (req, res) => {
   try {
-    const { phrase, sourceLang, targetLang, voiceGender } = req.body || {}
+    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio } = req.body || {}
+    const rawTtsLanguage = req.body?.ttsLanguage
 
     if (!phrase || typeof phrase !== 'string') {
       return res.status(400).json({ error: 'phrase is required' })
@@ -1877,6 +1878,12 @@ ${phrase}
         return null
       }
     })
+
+    // Skip audio generation if requested (e.g., for intensive mode sentence preloading)
+    if (skipAudio) {
+      const { translation, targetText } = await translationPromise
+      return res.json({ phrase, translation, targetText, audioBase64: null })
+    }
 
     const [{ translation, targetText }, audioBase64] = await Promise.all([
       translationPromise,

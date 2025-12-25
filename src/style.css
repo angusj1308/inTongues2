@@ -1889,7 +1889,6 @@ textarea {
 }
 
 .reader-hover-shell:hover .reader-hover-header,
-.reader-hover-shell:focus-within .reader-hover-header,
 .reader-hover-hitbox:hover + .reader-hover-header,
 .reader-hover-header:hover {
   opacity: 1;

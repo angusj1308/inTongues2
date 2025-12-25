@@ -489,18 +489,17 @@ const ExtensiveMode = ({
           }),
         })
 
-          if (response.ok) {
-            const data = await response.json()
-            translation = data.translation || 'No translation found'
-            targetText = data.targetText || translation
-            audioBase64 = data.audioBase64 || null
-            audioUrl = data.audioUrl || null
-          } else {
-            translation = 'No translation found'
-          }
-        } catch (err) {
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || 'No translation found'
+          targetText = data.targetText || translation
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
+        } else {
           translation = 'No translation found'
         }
+      } catch (err) {
+        translation = 'No translation found'
       }
 
       const selectionObj = window.getSelection()

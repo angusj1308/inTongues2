@@ -3853,7 +3853,7 @@ pre {
 .active-stage-inner {
   display: flex;
   align-items: stretch;
-  gap: clamp(12px, 2vw, 16px);
+  gap: 24px;
   width: min(1100px, 100%);
   margin: 0 auto;
   justify-content: center;
@@ -3971,7 +3971,7 @@ body.active-pass-locked {
   flex: 0 0 auto;
   width: min(560px, 100%);
   max-width: 560px;
-  transform: translateX(-6%);
+  transform: none;
   opacity: 1;
 }
 
@@ -3982,7 +3982,7 @@ body.active-pass-locked {
   overflow: hidden;
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(6%);
+  transform: none;
 }
 
 .active-stage--pass-2 .active-stage-transcript-card {

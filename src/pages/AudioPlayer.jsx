@@ -1443,7 +1443,10 @@ const AudioPlayer = () => {
                           listeningMode === mode.id ? 'active' : ''
                         }`}
                         type="button"
-                        onClick={() => handleChangeMode(mode.id)}
+                        onClick={(e) => {
+                          handleChangeMode(mode.id)
+                          e.currentTarget.blur()
+                        }}
                       >
                         {mode.label.toUpperCase()}
                       </button>

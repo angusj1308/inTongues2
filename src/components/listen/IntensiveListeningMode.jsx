@@ -847,13 +847,16 @@ const IntensiveListeningMode = ({
     const handleIntensiveShortcuts = (event) => {
       const activeElement = document.activeElement
       const activeTag = activeElement?.tagName
-      const isEditable =
-        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) ||
+      const isTextInput =
+        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) ||
         activeElement?.isContentEditable
+      const isButton = activeTag === 'BUTTON'
       const isArrowLeft = event.key === 'ArrowLeft'
       const isArrowRight = event.key === 'ArrowRight'
+      const isSpace = event.code === 'Space' || event.key === ' '
 
-      if (isEditable) {
+      // For text inputs, only handle arrow keys on intensive-input
+      if (isTextInput) {
         if (
           activeTag === 'INPUT' &&
           activeElement?.classList?.contains('intensive-input') &&
@@ -866,7 +869,13 @@ const IntensiveListeningMode = ({
         return
       }
 
-      if (event.code === 'Space' || event.key === ' ') {
+      // For buttons, blur and handle shortcuts (don't let space/arrows trigger button)
+      if (isButton && (isSpace || isArrowLeft || isArrowRight)) {
+        event.preventDefault()
+        activeElement.blur()
+      }
+
+      if (isSpace) {
         if (!transcriptSegments.length) return
         event.preventDefault()
         playSentenceAudio(intensiveSentenceIndex)
@@ -898,6 +907,51 @@ const IntensiveListeningMode = ({
     playSentenceAudio,
     scrubAudio,
   ])
+
+  // Swipe gesture for sentence navigation (two-finger trackpad swipe)
+  useEffect(() => {
+    if (listeningMode !== 'intensive') return undefined
+
+    let touchStartX = 0
+    let touchStartY = 0
+    const SWIPE_THRESHOLD = 50
+    const SWIPE_VERTICAL_LIMIT = 100
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX
+        touchStartY = e.touches[0].clientY
+      }
+    }
+
+    const handleTouchEnd = (e) => {
+      if (e.changedTouches.length === 1) {
+        const touchEndX = e.changedTouches[0].clientX
+        const touchEndY = e.changedTouches[0].clientY
+        const deltaX = touchEndX - touchStartX
+        const deltaY = Math.abs(touchEndY - touchStartY)
+
+        // Only trigger if horizontal swipe is dominant
+        if (Math.abs(deltaX) > SWIPE_THRESHOLD && deltaY < SWIPE_VERTICAL_LIMIT) {
+          if (deltaX > 0) {
+            // Swipe right = previous sentence
+            handleSentenceNavigation('previous')
+          } else {
+            // Swipe left = next sentence
+            handleSentenceNavigation('next')
+          }
+        }
+      }
+    }
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [listeningMode, handleSentenceNavigation])
 
   const handleWordClick = async (e) => {
     e.stopPropagation()

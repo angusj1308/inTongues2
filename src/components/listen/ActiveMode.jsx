@@ -750,7 +750,8 @@ const ActiveMode = ({
                     segments={filteredSegments}
                     activeIndex={activeTranscriptIndex}
                     showWordStatus={activeStep === 3}
-                    showWordStatusToggle={false}
+                    showWordStatusToggle={activeStep === 3}
+                    wordStatusDisabled={activeStep === 2}
                     isSynced={isTranscriptSynced}
                     onUserScroll={handleTranscriptUnsync}
                     onResync={handleTranscriptResync}

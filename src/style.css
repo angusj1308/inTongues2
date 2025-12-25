@@ -3838,7 +3838,7 @@ pre {
 .active-stage-inner {
   display: flex;
   align-items: stretch;
-  gap: clamp(16px, 4vw, 28px);
+  gap: clamp(12px, 2vw, 16px);
   width: min(1100px, 100%);
   margin: 0 auto;
   justify-content: center;
@@ -3961,7 +3961,8 @@ body.active-pass-locked {
 }
 
 .active-stage--pass-2 .active-stage-transcript {
-  flex: 1 1 0;
+  flex: 0 0 auto;
+  width: min(560px, 100%);
   max-width: 560px;
   overflow: hidden;
   opacity: 1;
@@ -3977,7 +3978,8 @@ body.active-pass-locked {
 
 .active-stage--pass-2 .transcript-panel {
   min-height: 0;
-  max-height: 100%;
+  height: 100%;
+  flex: 1;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {
@@ -5479,6 +5481,14 @@ body.active-pass-locked {
 .word-status-toggle:hover,
 .word-status-toggle:focus-visible {
   color: #0f172a;
+}
+
+.word-status-toggle--disabled,
+.word-status-toggle--disabled:hover,
+.word-status-toggle--disabled:focus-visible {
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .transcript-panel-footer {

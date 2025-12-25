@@ -75,7 +75,7 @@ const Reader = ({ initialMode }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [pageTranslations, setPageTranslations] = useState({})
+  const [voiceGender, setVoiceGender] = useState('male')
   const [popup, setPopup] = useState(null)
   const [vocabEntries, setVocabEntries] = useState({})
   const missingLanguageMessage =
@@ -263,9 +263,9 @@ const Reader = ({ initialMode }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             phrase,
-            sourceLang: language || 'es', // TODO: replace with real source language
+            sourceLang: language || 'es',
             targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            ttsLanguage,
+            voiceGender,
           }),
         })
 
@@ -302,10 +302,7 @@ const Reader = ({ initialMode }) => {
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    let translation =
-      pageTranslations[clean] ||
-      pageTranslations[selection] ||
-      null
+    let translation = null
     let audioBase64 = null
     let audioUrl = null
     let targetText = null
@@ -343,7 +340,7 @@ const Reader = ({ initialMode }) => {
             phrase: selection,
             sourceLang: language || 'es',
             targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            ttsLanguage,
+            voiceGender,
           }),
         })
 
@@ -389,17 +386,14 @@ const Reader = ({ initialMode }) => {
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
-    const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
-    let translation = cachedTranslation
+    let translation = null
     let audioBase64 = null
     let audioUrl = null
-    let targetText = cachedTranslation
+    let targetText = null
 
     const ttsLanguage = normalizeLanguageCode(language)
 
-    const shouldFetch = !cachedTranslation || !audioBase64 || !audioUrl
-
-    if (shouldFetch && !ttsLanguage) {
+    if (!ttsLanguage) {
       const rect = event.currentTarget.getBoundingClientRect()
       const { x, y } = getPopupPosition(rect)
 
@@ -417,33 +411,31 @@ const Reader = ({ initialMode }) => {
       return
     }
 
-    if (shouldFetch) {
-      try {
-        const response = await fetch('http://localhost:4000/api/translatePhrase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase: text,
-            sourceLang: language || 'es',
-            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            ttsLanguage,
-          }),
-        })
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: text,
+          sourceLang: language || 'es',
+          targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+          voiceGender,
+        }),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          translation = translation || data.translation || 'No translation found'
-          targetText = data.targetText || translation || 'No translation found'
-          audioBase64 = data.audioBase64 || null
-          audioUrl = data.audioUrl || null
-        } else {
-          translation = translation || 'No translation found'
-          targetText = targetText || translation
-        }
-      } catch (err) {
-        translation = translation || 'No translation found'
-        targetText = targetText || translation
+      if (response.ok) {
+        const data = await response.json()
+        translation = data.translation || 'No translation found'
+        targetText = data.targetText || translation || 'No translation found'
+        audioBase64 = data.audioBase64 || null
+        audioUrl = data.audioUrl || null
+      } else {
+        translation = 'No translation found'
+        targetText = translation
       }
+    } catch (err) {
+      translation = 'No translation found'
+      targetText = translation
     }
 
     const rect = event.currentTarget.getBoundingClientRect()
@@ -547,6 +539,7 @@ const Reader = ({ initialMode }) => {
         setAudioStatus(data.audioStatus || '')
         setFullAudioUrl(data.fullAudioUrl || '')
         setHasFullAudio(Boolean(data.hasFullAudio))
+        setVoiceGender(data.voiceGender || 'male')
         setBookmarkIndex(
           Number.isFinite(data.bookmarkIndex) ? data.bookmarkIndex : null
         )
@@ -556,6 +549,7 @@ const Reader = ({ initialMode }) => {
         setAudioStatus('')
         setFullAudioUrl('')
         setHasFullAudio(false)
+        setVoiceGender('male')
         setBookmarkIndex(null)
         hasAppliedBookmarkRef.current = false
       }
@@ -784,10 +778,9 @@ const Reader = ({ initialMode }) => {
       await Promise.all(
         newWords.map((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, translation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
         })
       )
 
@@ -796,13 +789,12 @@ const Reader = ({ initialMode }) => {
 
         newWords.forEach((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = prev[key]?.translation || 'No translation found'
 
           next[key] = {
             ...(next[key] || { text: word, language }),
             status: 'known',
-            translation,
+            translation: existingTranslation,
           }
         })
 
@@ -842,10 +834,9 @@ const Reader = ({ initialMode }) => {
       await Promise.all(
         newWords.map((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, translation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
         })
       )
 
@@ -853,13 +844,12 @@ const Reader = ({ initialMode }) => {
         const next = { ...prev }
         newWords.forEach((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = prev[key]?.translation || 'No translation found'
 
           next[key] = {
             ...(next[key] || { text: word, language }),
             status: 'known',
-            translation,
+            translation: existingTranslation,
           }
         })
         return next
@@ -1047,64 +1037,6 @@ const Reader = ({ initialMode }) => {
       )
     })
   }
-
-  const allStoryWords = useMemo(() => {
-    const combinedText = pages.map((page) => getDisplayText(page)).join(' ')
-
-    if (!combinedText || typeof combinedText !== 'string') return []
-
-    return Array.from(
-      new Set(
-        combinedText
-          .replace(/[^\p{L}\p{N}]+/gu, ' ')
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean)
-      )
-    )
-  }, [pages])
-
-  useEffect(() => {
-    if (!language || !nativeLanguage || allStoryWords.length === 0) {
-      setPageTranslations({})
-      return undefined
-    }
-
-    const controller = new AbortController()
-
-    async function prefetch() {
-      try {
-        const response = await fetch('http://localhost:4000/api/prefetchTranslations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            languageCode: language, // TODO: replace with real language code
-            targetLang: nativeLanguage,
-            words: allStoryWords,
-          }),
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          console.error('Failed to prefetch translations', await response.text())
-          return
-        }
-
-        const data = await response.json()
-        setPageTranslations(data.translations || {})
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error prefetching translations', error)
-        }
-      }
-    }
-
-    prefetch()
-
-    return () => {
-      controller.abort()
-    }
-  }, [allStoryWords, language, nativeLanguage])
 
   useEffect(() => {
     function handleGlobalClick(event) {
@@ -1499,7 +1431,7 @@ const Reader = ({ initialMode }) => {
                   phrase: sentence,
                   sourceLang: language || 'es',
                   targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-                  ttsLanguage,
+                  voiceGender,
                 }),
               })
 

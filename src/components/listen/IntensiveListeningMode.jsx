@@ -48,7 +48,7 @@ const IntensiveListeningMode = ({
   nativeLanguage,
   vocabEntries,
   setVocabEntries,
-  pageTranslations,
+  voiceGender,
   setPopup,
   intensiveSentenceIndex,
   setIntensiveSentenceIndex,
@@ -112,13 +112,13 @@ const IntensiveListeningMode = ({
               const response = await fetch('http://localhost:4000/api/translatePhrase', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    phrase: sentence,
-                    sourceLang: language || 'es',
-                    targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-                    ttsLanguage,
-                  }),
-                })
+                body: JSON.stringify({
+                  phrase: sentence,
+                  sourceLang: language || 'es',
+                  targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+                  voiceGender,
+                }),
+              })
 
               if (!response.ok) {
                 console.error('Sentence translation failed:', await response.text())
@@ -181,17 +181,14 @@ const IntensiveListeningMode = ({
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
-    const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
-    let translation = cachedTranslation
+    let translation = null
     let audioBase64 = null
     let audioUrl = null
-    let targetText = cachedTranslation
+    let targetText = null
 
     const ttsLanguage = normalizeLanguageCode(language)
 
-    const shouldFetch = !cachedTranslation || !audioBase64 || !audioUrl
-
-    if (shouldFetch && !ttsLanguage) {
+    if (!ttsLanguage) {
       const selectionObj = window.getSelection()
       if (!selectionObj || selectionObj.rangeCount === 0) return
 
@@ -213,33 +210,31 @@ const IntensiveListeningMode = ({
       return
     }
 
-    if (shouldFetch) {
-      try {
-        const response = await fetch('http://localhost:4000/api/translatePhrase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase: text,
-            sourceLang: language || 'es',
-            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-            ttsLanguage,
-          }),
-        })
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: text,
+          sourceLang: language || 'es',
+          targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+          voiceGender,
+        }),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          translation = translation || data.translation || 'No translation found'
-          targetText = data.targetText || translation || 'No translation found'
-          audioBase64 = data.audioBase64 || null
-          audioUrl = data.audioUrl || null
-        } else {
-          translation = translation || 'No translation found'
-          targetText = targetText || 'No translation found'
-        }
-      } catch (err) {
-        translation = translation || 'No translation found'
-        targetText = targetText || 'No translation found'
+      if (response.ok) {
+        const data = await response.json()
+        translation = data.translation || 'No translation found'
+        targetText = data.targetText || translation || 'No translation found'
+        audioBase64 = data.audioBase64 || null
+        audioUrl = data.audioUrl || null
+      } else {
+        translation = 'No translation found'
+        targetText = 'No translation found'
       }
+    } catch (err) {
+      translation = 'No translation found'
+      targetText = 'No translation found'
     }
 
     const selectionObj = window.getSelection()
@@ -439,10 +434,9 @@ const IntensiveListeningMode = ({
       await Promise.all(
         newWords.map((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, translation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
         })
       )
 
@@ -451,13 +445,12 @@ const IntensiveListeningMode = ({
 
         newWords.forEach((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = prev[key]?.translation || 'No translation found'
 
           next[key] = {
             ...(next[key] || { text: word, language }),
             status: 'known',
-            translation,
+            translation: existingTranslation,
           }
         })
 
@@ -910,13 +903,13 @@ const IntensiveListeningMode = ({
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phrase,
-              sourceLang: language || 'es',
-              targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-              ttsLanguage,
-            }),
-          })
+          body: JSON.stringify({
+            phrase,
+            sourceLang: language || 'es',
+            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+            voiceGender,
+          }),
+        })
 
         if (response.ok) {
           const data = await response.json()
@@ -947,7 +940,7 @@ const IntensiveListeningMode = ({
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
+    const translation = 'No translation found'
 
     const selectionObj = window.getSelection()
     if (!selectionObj || selectionObj.rangeCount === 0) return

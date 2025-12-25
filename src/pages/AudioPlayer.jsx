@@ -1410,6 +1410,35 @@ const AudioPlayer = () => {
   const listeningModeIndex = LISTENING_MODES.indexOf(listeningMode)
   const glideOffset = listeningModeIndex > -1 ? listeningModeIndex * 100 : 0
 
+  // Keyboard shortcuts for extensive and active modes
+  useEffect(() => {
+    if (listeningMode === 'intensive') return undefined // Intensive has its own handler
+
+    const handleKeyDown = (event) => {
+      const activeElement = document.activeElement
+      const activeTag = activeElement?.tagName
+      const isTextInput =
+        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) ||
+        activeElement?.isContentEditable
+
+      if (isTextInput) return
+
+      // Blur buttons and prevent default on space
+      if (activeTag === 'BUTTON' && (event.code === 'Space' || event.key === ' ')) {
+        event.preventDefault()
+        activeElement.blur()
+      }
+
+      if (event.code === 'Space' || event.key === ' ') {
+        event.preventDefault()
+        togglePlay()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [listeningMode, togglePlay])
+
   return (
     <div
       ref={listeningShellRef}

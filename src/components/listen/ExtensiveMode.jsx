@@ -112,7 +112,7 @@ const ExtensiveMode = ({
   vocabEntries = {},
   language,
   nativeLanguage,
-  pageTranslations = {},
+  voiceGender = 'male',
   setPopup,
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
@@ -274,38 +274,6 @@ const ExtensiveMode = ({
         requestId,
       })
 
-      const key = normaliseExpression(text)
-      const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
-
-      if (cachedTranslation) {
-        const cachedValue =
-          typeof cachedTranslation === 'string'
-            ? cachedTranslation
-            : cachedTranslation.translation ?? 'No translation found'
-        const cachedDisplayText =
-          typeof cachedTranslation === 'object'
-            ? cachedTranslation.displayText || cachedTranslation.targetText || text
-            : text
-        const cachedAudioBase64 =
-          typeof cachedTranslation === 'object' ? cachedTranslation.audioBase64 || null : null
-        const cachedAudioUrl =
-          typeof cachedTranslation === 'object' ? cachedTranslation.audioUrl || null : null
-
-        setPopup((prev) =>
-          prev?.requestId === requestId
-            ? {
-                ...prev,
-                translation: cachedValue,
-                displayText: cachedDisplayText,
-                targetText: text,
-                audioBase64: cachedAudioBase64,
-                audioUrl: cachedAudioUrl,
-              }
-            : prev,
-        )
-        return
-      }
-
       let translation = 'No translation found'
       let audioBase64 = null
       let audioUrl = null
@@ -337,7 +305,7 @@ const ExtensiveMode = ({
             phrase: text,
             sourceLang: language || 'es',
             targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-            ttsLanguage,
+            voiceGender,
           }),
         })
 
@@ -368,7 +336,7 @@ const ExtensiveMode = ({
           : prev,
       )
     },
-    [language, nativeLanguage, pageTranslations, setPopup],
+    [language, nativeLanguage, voiceGender, setPopup],
   )
 
   const handleTranscriptSelection = useCallback(
@@ -432,7 +400,7 @@ const ExtensiveMode = ({
               phrase,
               sourceLang: language || 'es',
               targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-              ttsLanguage,
+              voiceGender,
             }),
           })
 
@@ -470,71 +438,68 @@ const ExtensiveMode = ({
       const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
       if (!clean) return
 
-      let translation =
-        pageTranslations[clean] || pageTranslations[selection] || null
+      let translation = null
       let audioBase64 = null
       let audioUrl = null
       let targetText = null
 
       const ttsLanguage = normalizeLanguageCode(language)
 
-      if (!translation) {
-        if (!ttsLanguage) {
-          const selectionObj = window.getSelection()
-          if (!selectionObj || selectionObj.rangeCount === 0) return
+      if (!ttsLanguage) {
+        const selectionObj = window.getSelection()
+        if (!selectionObj || selectionObj.rangeCount === 0) return
 
-          const range = selectionObj.getRangeAt(0)
-          const rect = range.getBoundingClientRect()
-          const anchorRect = {
-            left: rect.left,
-            right: rect.right,
-            top: rect.top,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-          }
-          const { x, y } = getPopupPosition(rect)
-
-          setPopup({
-            x,
-            y,
-            anchorRect,
-            anchorX: rect.left + rect.width / 2,
-            word: clean,
-            displayText: selection,
-            translation: missingLanguageMessage,
-            targetText: missingLanguageMessage,
-            audioBase64: null,
-            audioUrl: null,
-          })
-
-          return
+        const range = selectionObj.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        const anchorRect = {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
         }
+        const { x, y } = getPopupPosition(rect)
 
-        try {
-          const response = await fetch('http://localhost:4000/api/translatePhrase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phrase: selection,
-              sourceLang: language || 'es',
-              targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-              ttsLanguage,
-            }),
-          })
+        setPopup({
+          x,
+          y,
+          anchorRect,
+          anchorX: rect.left + rect.width / 2,
+          word: clean,
+          displayText: selection,
+          translation: missingLanguageMessage,
+          targetText: missingLanguageMessage,
+          audioBase64: null,
+          audioUrl: null,
+        })
 
-          if (response.ok) {
-            const data = await response.json()
-            translation = data.translation || 'No translation found'
-            targetText = data.targetText || translation
-            audioBase64 = data.audioBase64 || null
-            audioUrl = data.audioUrl || null
-          } else {
-            translation = 'No translation found'
-          }
-        } catch (err) {
+        return
+      }
+
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: selection,
+            sourceLang: language || 'es',
+            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+            voiceGender,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || 'No translation found'
+          targetText = data.targetText || translation
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
+        } else {
           translation = 'No translation found'
         }
+      } catch (err) {
+        translation = 'No translation found'
       }
 
       const selectionObj = window.getSelection()
@@ -565,7 +530,7 @@ const ExtensiveMode = ({
         audioUrl,
       })
     },
-    [language, nativeLanguage, pageTranslations, setPopup],
+    [language, nativeLanguage, voiceGender, setPopup],
   )
 
   useEffect(() => {
@@ -775,7 +740,6 @@ const ExtensiveMode = ({
               activeIndex={activeTranscriptIndex}
               vocabEntries={vocabEntries}
               language={language}
-              pageTranslations={pageTranslations}
               onWordClick={handleTranscriptWordClick}
               onSelectionTranslate={handleTranscriptSelection}
               showWordStatus={showWordStatus}

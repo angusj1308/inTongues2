@@ -734,6 +734,7 @@ const ActiveMode = ({
                         <span className="secondary-spacer" aria-hidden />
                       </div>
                     </div>
+                    {passNavigation}
                     {chunkOverlay}
                   </div>
                 </div>
@@ -843,14 +844,16 @@ const ActiveMode = ({
             </div>
           </section>
         )}
-        {/* Dock must stay out of any transformed/filtered ancestor to remain viewport-anchored. */}
-        <div
-          className={`active-pass-nav-dock ${debugPassNav ? 'is-debug' : ''}`}
-          ref={passNavDockRef}
-          style={passNavDockStyle}
-        >
-          {passNavigation}
-        </div>
+        {/* Dock only shown for Pass 4 - for Pass 1-3, navigation is inside player card */}
+        {activeStep === 4 && (
+          <div
+            className={`active-pass-nav-dock ${debugPassNav ? 'is-debug' : ''}`}
+            ref={passNavDockRef}
+            style={passNavDockStyle}
+          >
+            {passNavigation}
+          </div>
+        )}
         {showPassThreeWarning && (
           <div className="modal-backdrop" role="presentation">
             <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">

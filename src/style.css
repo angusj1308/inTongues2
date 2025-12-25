@@ -3412,15 +3412,14 @@ pre {
 }
 
 .active-flow {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) var(--active-pass-nav-height, 64px);
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
-  height: 100vh;
-  max-height: 100vh;
+  padding: clamp(10px, 2vh, 18px) clamp(10px, 2.4vw, 18px) clamp(16px, 3.4vh, 22px);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3487,22 +3486,27 @@ pre {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   color: #0f172a;
+}
+
+/* Pass navigation inside player card */
+.player-stack .active-pass-footer {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 .active-pass-nav-dock {
   position: static;
-  grid-row: 2;
   display: flex;
   justify-content: center;
   width: 100%;
   transform: none;
   z-index: 40;
   pointer-events: auto;
-  align-self: center;
-  justify-self: center;
-  min-height: var(--active-pass-nav-height, 64px);
+  margin-top: auto;
+  padding: 1rem 0;
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3817,27 +3821,24 @@ pre {
 }
 
 .active-stage {
-  grid-row: 1;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  align-items: flex-start;
-  justify-content: flex-start;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
   width: 100%;
-  overflow: auto;
+  flex: 1;
+  overflow: visible;
   position: relative;
-  min-height: 0;
-  align-self: stretch;
 }
 
 .active-stage-inner {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: clamp(16px, 4vw, 28px);
   width: min(1100px, 100%);
   margin: 0 auto;
   justify-content: center;
   overflow: visible;
-  height: auto;
+  flex: 1;
 }
 
 .active-stage-player,
@@ -3849,6 +3850,8 @@ pre {
 .active-stage-player {
   flex: 0 1 560px;
   width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
 }
 
 .active-stage-transcript {
@@ -3892,8 +3895,32 @@ pre {
   opacity: 1;
 }
 
+.active-stage--pass-1 .extensive-player-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.active-stage--pass-1 .player-stack {
+  max-width: 560px;
+}
+
+/* Consistent player layout for all passes */
+.active-stage .active-pass-header {
+  min-height: clamp(200px, 28vh, 280px);
+}
+
+.active-stage .active-pass-hero {
+  margin: auto 0;
+}
+
 .active-stage--pass-1 .active-stage-transcript {
   display: none;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
 }
 
 .active-stage--pass-1 .active-pass-footer {
@@ -3904,8 +3931,25 @@ body.active-pass-locked {
   overflow-y: auto;
 }
 
+.active-stage--pass-2 {
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+.active-stage--pass-2 .active-stage-inner {
+  height: 100%;
+  align-items: stretch;
+}
+
+.active-stage--pass-2 .active-stage-player,
+.active-stage--pass-2 .active-stage-transcript {
+  height: 100%;
+  min-height: 0;
+}
+
 .active-stage--pass-2 .active-stage-player {
-  flex: 1 1 0;
+  flex: 0 0 auto;
+  width: min(560px, 100%);
   max-width: 560px;
   transform: translateX(-6%);
   opacity: 1;
@@ -3914,13 +3958,32 @@ body.active-pass-locked {
 .active-stage--pass-2 .active-stage-transcript {
   flex: 1 1 0;
   max-width: 560px;
+  overflow: hidden;
   opacity: 1;
   pointer-events: auto;
   transform: translateX(6%);
 }
 
+.active-stage--pass-2 .active-stage-transcript-card {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.active-stage--pass-2 .transcript-panel {
+  min-height: 0;
+  max-height: 100%;
+}
+
 .active-stage--pass-2 .active-stage-player .player-stack {
-  max-width: none;
+  max-width: 560px;
+  width: 100%;
+}
+
+.active-stage--pass-2 .extensive-player-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .active-stage--pass-3 .active-stage-inner {
@@ -4364,13 +4427,17 @@ body.active-pass-locked {
 
 .active-pass-stack {
   position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .active-pass-header {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: clamp(12px, 2.4vw, 18px);
+  flex: 1;
+  justify-content: flex-start;
 }
 
 .active-pass-context {
@@ -4407,7 +4474,6 @@ body.active-pass-locked {
   font-weight: 600;
   color: #1f2937;
   line-height: 1.3;
-  max-width: min(100%, 360px);
 }
 
 .active-story-title {
@@ -4426,6 +4492,7 @@ body.active-pass-locked {
   align-items: center;
   text-align: center;
   gap: 4px;
+  margin: auto 0;
 }
 
 .active-pass-hero-label {

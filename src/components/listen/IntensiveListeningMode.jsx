@@ -48,7 +48,7 @@ const IntensiveListeningMode = ({
   nativeLanguage,
   vocabEntries,
   setVocabEntries,
-  pageTranslations,
+  voiceGender,
   setPopup,
   intensiveSentenceIndex,
   setIntensiveSentenceIndex,
@@ -61,8 +61,18 @@ const IntensiveListeningMode = ({
   const [isTranscriptionMode, setIsTranscriptionMode] = useState(false)
   const [transcriptionDraft, setTranscriptionDraft] = useState('')
   const [isTranscriptRevealed, setIsTranscriptRevealed] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isLooping, setIsLooping] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [progress, setProgress] = useState(0)
+  const [loopStart, setLoopStart] = useState(0)
+  const [loopEnd, setLoopEnd] = useState(100)
+  const [isDragging, setIsDragging] = useState(null) // 'start' | 'end' | null
   const sentenceAudioStopRef = useRef(null)
   const fallbackAudioRef = useRef(null)
+  const progressIntervalRef = useRef(null)
+  const currentSegmentRef = useRef(null)
+  const progressBarRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -102,13 +112,13 @@ const IntensiveListeningMode = ({
               const response = await fetch('http://localhost:4000/api/translatePhrase', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    phrase: sentence,
-                    sourceLang: language || 'es',
-                    targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-                    ttsLanguage,
-                  }),
-                })
+                body: JSON.stringify({
+                  phrase: sentence,
+                  sourceLang: language || 'es',
+                  targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+                  voiceGender,
+                }),
+              })
 
               if (!response.ok) {
                 console.error('Sentence translation failed:', await response.text())
@@ -171,17 +181,14 @@ const IntensiveListeningMode = ({
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
-    const cachedTranslation = pageTranslations[key] || pageTranslations[text] || null
-    let translation = cachedTranslation
+    let translation = null
     let audioBase64 = null
     let audioUrl = null
-    let targetText = cachedTranslation
+    let targetText = null
 
     const ttsLanguage = normalizeLanguageCode(language)
 
-    const shouldFetch = !cachedTranslation || !audioBase64 || !audioUrl
-
-    if (shouldFetch && !ttsLanguage) {
+    if (!ttsLanguage) {
       const selectionObj = window.getSelection()
       if (!selectionObj || selectionObj.rangeCount === 0) return
 
@@ -203,33 +210,31 @@ const IntensiveListeningMode = ({
       return
     }
 
-    if (shouldFetch) {
-      try {
-        const response = await fetch('http://localhost:4000/api/translatePhrase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase: text,
-            sourceLang: language || 'es',
-            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-            ttsLanguage,
-          }),
-        })
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: text,
+          sourceLang: language || 'es',
+          targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+          voiceGender,
+        }),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          translation = translation || data.translation || 'No translation found'
-          targetText = data.targetText || translation || 'No translation found'
-          audioBase64 = data.audioBase64 || null
-          audioUrl = data.audioUrl || null
-        } else {
-          translation = translation || 'No translation found'
-          targetText = targetText || 'No translation found'
-        }
-      } catch (err) {
-        translation = translation || 'No translation found'
-        targetText = targetText || 'No translation found'
+      if (response.ok) {
+        const data = await response.json()
+        translation = data.translation || 'No translation found'
+        targetText = data.targetText || translation || 'No translation found'
+        audioBase64 = data.audioBase64 || null
+        audioUrl = data.audioUrl || null
+      } else {
+        translation = 'No translation found'
+        targetText = 'No translation found'
       }
+    } catch (err) {
+      translation = 'No translation found'
+      targetText = 'No translation found'
     }
 
     const selectionObj = window.getSelection()
@@ -374,7 +379,7 @@ const IntensiveListeningMode = ({
     setIntensiveRevealStep((prev) => {
       if (prev === 'hidden') return 'transcript'
       if (prev === 'transcript') return 'translation'
-      return 'transcript'
+      return 'hidden'
     })
   }
 
@@ -429,10 +434,9 @@ const IntensiveListeningMode = ({
       await Promise.all(
         newWords.map((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, translation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
         })
       )
 
@@ -441,13 +445,12 @@ const IntensiveListeningMode = ({
 
         newWords.forEach((word) => {
           const key = normaliseExpression(word)
-          const translation =
-            pageTranslations[key] || pageTranslations[word] || 'No translation found'
+          const existingTranslation = prev[key]?.translation || 'No translation found'
 
           next[key] = {
             ...(next[key] || { text: word, language }),
             status: 'known',
-            translation,
+            translation: existingTranslation,
           }
         })
 
@@ -490,28 +493,10 @@ const IntensiveListeningMode = ({
     ]
   )
 
-  const playSentenceAudio = useCallback(
+  const getSegmentTimes = useCallback(
     (index) => {
-      const audioElement = audioRef?.current
-      const audio =
-        audioElement ||
-        fallbackAudioRef.current ||
-        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
-
-      if (!audio) return
-
-      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
-        audio.src = fullAudioUrl
-      }
-
-      if (!audioElement) {
-        fallbackAudioRef.current = audio
-      }
-
-      if (!audio) return
-
       const segment = transcriptSegments[index]
-      if (!segment) return
+      if (!segment) return null
 
       const wordTimings = Array.isArray(segment.words)
         ? segment.words.filter(
@@ -531,10 +516,67 @@ const IntensiveListeningMode = ({
           ? segment.end
           : wordTimings.length
             ? wordTimings[wordTimings.length - 1].end
-            : audio.duration || startTime
+            : 0
+
+      return { startTime, endTime, duration: endTime - startTime }
+    },
+    [transcriptSegments]
+  )
+
+  const stopPlayback = useCallback(() => {
+    const audio = audioRef?.current || fallbackAudioRef.current
+    if (!audio) return
+
+    audio.pause()
+    setIsPlaying(false)
+
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+
+    if (sentenceAudioStopRef.current) {
+      audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
+      sentenceAudioStopRef.current = null
+    }
+  }, [audioRef])
+
+  const playSentenceAudio = useCallback(
+    (index, shouldLoop = false) => {
+      const audioElement = audioRef?.current
+      const audio =
+        audioElement ||
+        fallbackAudioRef.current ||
+        (fullAudioUrl ? new Audio(fullAudioUrl) : null)
+
+      if (!audio) return
+
+      if (!audioElement && fullAudioUrl && audio.src !== fullAudioUrl) {
+        audio.src = fullAudioUrl
+      }
+
+      if (!audioElement) {
+        fallbackAudioRef.current = audio
+      }
+
+      const times = getSegmentTimes(index)
+      if (!times) return
+
+      const { startTime, endTime, duration } = times
+      currentSegmentRef.current = { startTime, endTime, duration }
+
+      // Calculate actual loop bounds based on percentages
+      const actualLoopStart = startTime + (duration * loopStart / 100)
+      const actualLoopEnd = startTime + (duration * loopEnd / 100)
+
+      // Apply playback rate
+      audio.playbackRate = playbackRate
+
+      // Start from loop start if looping, otherwise segment start
+      const playStart = (shouldLoop || isLooping) ? actualLoopStart : startTime
 
       try {
-        audio.currentTime = startTime
+        audio.currentTime = playStart
       } catch (error) {
         console.error('Failed to set sentence audio start time', error)
         return
@@ -542,27 +584,201 @@ const IntensiveListeningMode = ({
 
       audio
         .play()
+        .then(() => setIsPlaying(true))
         .catch((err) => console.error('Sentence playback failed', err))
 
+      // Clear previous listeners
       if (sentenceAudioStopRef.current) {
         audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
         sentenceAudioStopRef.current = null
       }
 
-      const stopAtEnd = () => {
-        if (audio.currentTime >= endTime) {
-          audio.pause()
-          audio.currentTime = Math.min(audio.currentTime, endTime)
-          audio.removeEventListener('timeupdate', stopAtEnd)
-          sentenceAudioStopRef.current = null
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+
+      // Update progress
+      progressIntervalRef.current = setInterval(() => {
+        if (audio.paused) return
+        const current = audio.currentTime
+        if (current >= startTime && current <= endTime) {
+          const prog = duration > 0 ? ((current - startTime) / duration) * 100 : 0
+          setProgress(Math.min(100, Math.max(0, prog)))
+        }
+      }, 50)
+
+      const handleTimeUpdate = () => {
+        // Always stop at pin boundary
+        if (audio.currentTime >= actualLoopEnd) {
+          if (shouldLoop || isLooping) {
+            // Loop back to loop start
+            audio.currentTime = actualLoopStart
+            setProgress(loopStart)
+          } else {
+            // Stop at end pin
+            audio.pause()
+            setIsPlaying(false)
+            setProgress(loopEnd)
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current)
+              progressIntervalRef.current = null
+            }
+            audio.removeEventListener('timeupdate', handleTimeUpdate)
+            sentenceAudioStopRef.current = null
+          }
         }
       }
 
-      sentenceAudioStopRef.current = stopAtEnd
-      audio.addEventListener('timeupdate', stopAtEnd)
+      sentenceAudioStopRef.current = handleTimeUpdate
+      audio.addEventListener('timeupdate', handleTimeUpdate)
     },
-    [audioRef, fullAudioUrl, transcriptSegments]
+    [audioRef, fullAudioUrl, getSegmentTimes, isLooping, loopEnd, loopStart, playbackRate]
   )
+
+  const togglePlayPause = useCallback(() => {
+    const audio = audioRef?.current || fallbackAudioRef.current
+    if (!audio) {
+      playSentenceAudio(intensiveSentenceIndex)
+      return
+    }
+
+    if (isPlaying) {
+      audio.pause()
+      setIsPlaying(false)
+    } else {
+      const times = getSegmentTimes(intensiveSentenceIndex)
+      if (!times) return
+
+      const { startTime, endTime, duration } = times
+
+      // Calculate actual loop bounds based on percentages
+      const actualLoopStart = startTime + (duration * loopStart / 100)
+      const actualLoopEnd = startTime + (duration * loopEnd / 100)
+
+      // If outside bounds, reset to loop start
+      if (audio.currentTime >= actualLoopEnd || audio.currentTime < actualLoopStart) {
+        audio.currentTime = actualLoopStart
+        setProgress(loopStart)
+      }
+
+      // Clear any existing listeners
+      if (sentenceAudioStopRef.current) {
+        audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
+        sentenceAudioStopRef.current = null
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+
+      // Set up progress tracking
+      progressIntervalRef.current = setInterval(() => {
+        if (audio.paused) return
+        const current = audio.currentTime
+        if (current >= startTime && current <= endTime) {
+          const prog = duration > 0 ? ((current - startTime) / duration) * 100 : 0
+          setProgress(Math.min(100, Math.max(0, prog)))
+        }
+      }, 50)
+
+      // Set up segment boundary enforcement (always uses pin bounds)
+      const handleTimeUpdate = () => {
+        if (audio.currentTime >= actualLoopEnd) {
+          if (isLooping) {
+            audio.currentTime = actualLoopStart
+            setProgress(loopStart)
+          } else {
+            audio.pause()
+            setIsPlaying(false)
+            setProgress(loopEnd)
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current)
+              progressIntervalRef.current = null
+            }
+            audio.removeEventListener('timeupdate', handleTimeUpdate)
+            sentenceAudioStopRef.current = null
+          }
+        }
+      }
+
+      sentenceAudioStopRef.current = handleTimeUpdate
+      audio.addEventListener('timeupdate', handleTimeUpdate)
+
+      audio.playbackRate = playbackRate
+      audio.play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => console.error('Playback failed', err))
+    }
+  }, [audioRef, getSegmentTimes, intensiveSentenceIndex, isLooping, isPlaying, loopEnd, loopStart, playbackRate, playSentenceAudio])
+
+  const scrubAudio = useCallback(
+    (seconds) => {
+      const audio = audioRef?.current || fallbackAudioRef.current
+      if (!audio) return
+
+      const times = getSegmentTimes(intensiveSentenceIndex)
+      if (!times) return
+
+      const { startTime, duration } = times
+
+      // Calculate pin boundaries
+      const actualLoopStart = startTime + (duration * loopStart / 100)
+      const actualLoopEnd = startTime + (duration * loopEnd / 100)
+
+      // Clamp scrub to pin bounds
+      const newTime = Math.max(actualLoopStart, Math.min(actualLoopEnd, audio.currentTime + seconds))
+      audio.currentTime = newTime
+
+      const prog = duration > 0 ? ((newTime - startTime) / duration) * 100 : 0
+      setProgress(Math.min(100, Math.max(0, prog)))
+    },
+    [audioRef, getSegmentTimes, intensiveSentenceIndex, loopEnd, loopStart]
+  )
+
+  const toggleLoop = useCallback(() => {
+    setIsLooping((prev) => !prev)
+  }, [])
+
+  const togglePlaybackRate = useCallback(() => {
+    const audio = audioRef?.current || fallbackAudioRef.current
+    const newRate = playbackRate === 1 ? 0.75 : 1
+    setPlaybackRate(newRate)
+    if (audio) {
+      audio.playbackRate = newRate
+    }
+  }, [audioRef, playbackRate])
+
+  const handlePinDrag = useCallback((e) => {
+    if (!isDragging || !progressBarRef.current) return
+
+    const rect = progressBarRef.current.getBoundingClientRect()
+    const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+
+    if (isDragging === 'start') {
+      setLoopStart(Math.min(percent, loopEnd - 5)) // Keep at least 5% gap
+    } else if (isDragging === 'end') {
+      setLoopEnd(Math.max(percent, loopStart + 5)) // Keep at least 5% gap
+    }
+  }, [isDragging, loopEnd, loopStart])
+
+  const handlePinDragEnd = useCallback(() => {
+    setIsDragging(null)
+  }, [])
+
+  // Global mouse listeners for dragging
+  useEffect(() => {
+    if (!isDragging) return undefined
+
+    const handleMouseMove = (e) => handlePinDrag(e)
+    const handleMouseUp = () => handlePinDragEnd()
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, handlePinDrag, handlePinDragEnd])
 
   useEffect(() => {
     const audio = audioRef?.current || fallbackAudioRef.current
@@ -573,8 +789,20 @@ const IntensiveListeningMode = ({
         audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
         sentenceAudioStopRef.current = null
       }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
     }
   }, [audioRef])
+
+  // Reset progress and loop bounds when sentence changes
+  useEffect(() => {
+    stopPlayback()
+    setProgress(0)
+    setLoopStart(0)
+    setLoopEnd(100)
+  }, [intensiveSentenceIndex, stopPlayback])
 
   useEffect(() => {
     if (listeningMode !== 'intensive') return undefined
@@ -610,13 +838,13 @@ const IntensiveListeningMode = ({
 
       if (isArrowLeft) {
         event.preventDefault()
-        handleSentenceNavigation('previous')
+        scrubAudio(-2)
         return
       }
 
       if (isArrowRight) {
         event.preventDefault()
-        handleSentenceNavigation('next')
+        scrubAudio(2)
       }
     }
 
@@ -631,6 +859,7 @@ const IntensiveListeningMode = ({
     transcriptSegments.length,
     handleSentenceNavigation,
     playSentenceAudio,
+    scrubAudio,
   ])
 
   const handleWordClick = async (e) => {
@@ -674,13 +903,13 @@ const IntensiveListeningMode = ({
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phrase,
-              sourceLang: language || 'es',
-              targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-              ttsLanguage,
-            }),
-          })
+          body: JSON.stringify({
+            phrase,
+            sourceLang: language || 'es',
+            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+            voiceGender,
+          }),
+        })
 
         if (response.ok) {
           const data = await response.json()
@@ -711,7 +940,7 @@ const IntensiveListeningMode = ({
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
+    const translation = 'No translation found'
 
     const selectionObj = window.getSelection()
     if (!selectionObj || selectionObj.rangeCount === 0) return
@@ -753,7 +982,7 @@ const IntensiveListeningMode = ({
           <div className="reader-intensive-card">
             <div className="reader-intensive-header">
               <div className="transcribe-mode-toggle">
-                <span className="transcribe-mode-label">Transcribe mode</span>
+                <span className="transcribe-mode-label">Transcribe</span>
                 <button
                   type="button"
                   className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
@@ -766,18 +995,165 @@ const IntensiveListeningMode = ({
               </div>
             </div>
 
-            <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-              {isTranscriptVisible ? (
-                currentIntensiveSentence ? (
+            <button
+              type="button"
+              className="intensive-nav-btn intensive-nav-btn-prev"
+              onClick={() => handleSentenceNavigation('previous')}
+              disabled={intensiveSentenceIndex === 0}
+              aria-label="Previous sentence"
+            >
+              <span className="intensive-nav-arrow">&lt;</span>
+              <span className="intensive-nav-label">previous sentence</span>
+            </button>
+
+            <button
+              type="button"
+              className="intensive-nav-btn intensive-nav-btn-next"
+              onClick={() => handleSentenceNavigation('next')}
+              disabled={intensiveSentenceIndex >= intensiveSentences.length - 1}
+              aria-label="Next sentence"
+            >
+              <span className="intensive-nav-arrow">&gt;</span>
+              <span className="intensive-nav-label">next sentence</span>
+            </button>
+
+            {isTranscriptVisible && (
+              <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+                {currentIntensiveSentence ? (
                   renderWordSegments(currentIntensiveSentence)
                 ) : (
                   'No text available for this transcript.'
-                )
-              ) : (
-                <span className="reader-intensive-placeholder">
-                  Audio only — reveal the transcript when you are ready.
-                </span>
-              )}
+                )}
+              </div>
+            )}
+
+            <div className="intensive-player">
+              <div
+                className="intensive-player-progress"
+                ref={progressBarRef}
+              >
+                {/* Selected loop region */}
+                <div
+                  className="intensive-player-loop-region"
+                  style={{
+                    left: `${loopStart}%`,
+                    width: `${loopEnd - loopStart}%`,
+                    opacity: isLooping ? 1 : 0.3
+                  }}
+                />
+                {/* Progress fill */}
+                <div
+                  className="intensive-player-progress-fill"
+                  style={{ width: `${progress}%` }}
+                />
+                {/* Start pin */}
+                <div
+                  className={`intensive-player-pin intensive-player-pin-start ${isDragging === 'start' ? 'is-dragging' : ''}`}
+                  style={{ left: `${loopStart}%` }}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setIsDragging('start')
+                  }}
+                  role="slider"
+                  aria-label="Loop start"
+                  aria-valuenow={loopStart}
+                  tabIndex={0}
+                />
+                {/* End pin */}
+                <div
+                  className={`intensive-player-pin intensive-player-pin-end ${isDragging === 'end' ? 'is-dragging' : ''}`}
+                  style={{ left: `${loopEnd}%` }}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setIsDragging('end')
+                  }}
+                  role="slider"
+                  aria-label="Loop end"
+                  aria-valuenow={loopEnd}
+                  tabIndex={0}
+                />
+              </div>
+              <div className="intensive-player-controls">
+                <button
+                  type="button"
+                  className={`intensive-player-btn ${playbackRate === 0.75 ? 'is-active' : ''}`}
+                  onClick={togglePlaybackRate}
+                  aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
+                  title={playbackRate === 0.75 ? '0.75x' : '1x'}
+                >
+                  <svg width="22" height="22" viewBox="0 0 100 100" fill="currentColor">
+                    {/* Shell */}
+                    <ellipse cx="50" cy="50" rx="35" ry="25" />
+                    {/* Head */}
+                    <circle cx="90" cy="50" r="12" />
+                    {/* Front legs */}
+                    <ellipse cx="75" cy="72" rx="8" ry="12" />
+                    <ellipse cx="75" cy="28" rx="8" ry="12" />
+                    {/* Back legs */}
+                    <ellipse cx="25" cy="72" rx="8" ry="12" />
+                    <ellipse cx="25" cy="28" rx="8" ry="12" />
+                    {/* Tail */}
+                    <ellipse cx="12" cy="50" rx="6" ry="4" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="intensive-player-btn"
+                  onClick={() => scrubAudio(-2)}
+                  aria-label="Back 2 seconds"
+                >
+                  <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
+                    <g transform="translate(36 0) scale(-1 1)">
+                      <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                      <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                    </g>
+                    <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="intensive-player-btn intensive-player-btn-play"
+                  onClick={togglePlayPause}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="intensive-player-btn"
+                  onClick={() => scrubAudio(2)}
+                  aria-label="Forward 2 seconds"
+                >
+                  <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
+                    <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                    <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                    <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={`intensive-player-btn ${isLooping ? 'is-active' : ''}`}
+                  onClick={toggleLoop}
+                  aria-label={isLooping ? 'Disable loop' : 'Enable loop'}
+                  aria-pressed={isLooping}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 2l4 4-4 4" />
+                    <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                    <path d="M7 22l-4-4 4-4" />
+                    <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {isTranscriptionMode && (
@@ -806,21 +1182,13 @@ const IntensiveListeningMode = ({
               >
                 {toggleLabel}
               </button>
-
-              <p
-                className={`reader-intensive-translation ${
-                  isTranslationVisible ? 'is-visible' : 'is-hidden'
-                }`}
-              >
-                {intensiveTranslation || 'Translation will appear here.'}
-              </p>
             </div>
 
-            <p className="reader-intensive-helper">
-              {isTranscriptionMode
-                ? 'Space = play / repeat · Enter = reveal transcript · ← / → = previous / next sentence'
-                : 'Space = play / repeat · ← / → = previous / next sentence'}
-            </p>
+            {isTranslationVisible && (
+              <p className="reader-intensive-translation">
+                {intensiveTranslation || 'Translation will appear here.'}
+              </p>
+            )}
           </div>
         </div>
       )}

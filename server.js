@@ -1802,7 +1802,7 @@ app.post('/api/generate', async (req, res) => {
 
 app.post('/api/translatePhrase', async (req, res) => {
   try {
-    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio } = req.body || {}
+    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender } = req.body || {}
     const rawTtsLanguage = req.body?.ttsLanguage
 
     if (!phrase || typeof phrase !== 'string') {

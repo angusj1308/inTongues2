@@ -3944,13 +3944,16 @@ body.active-pass-locked {
 .active-stage--pass-2 .active-stage-inner {
   display: grid;
   grid-template-columns: minmax(0, 560px) minmax(0, 560px);
-  align-items: start;
+  align-items: stretch;
+  --pass2-height: clamp(420px, 58vh, 560px);
+  min-height: var(--pass2-height);
+  max-height: var(--pass2-height);
 }
 
 .active-stage--pass-2 .active-stage-player,
 .active-stage--pass-2 .active-stage-transcript {
   min-height: 0;
-  height: auto;
+  height: 100%;
 }
 
 .active-stage--pass-2 .active-stage-player {
@@ -3967,7 +3970,6 @@ body.active-pass-locked {
   opacity: 1;
   pointer-events: auto;
   transform: none;
-  align-self: stretch;
 }
 
 .active-stage--pass-2 .active-stage-transcript-card {
@@ -3981,18 +3983,20 @@ body.active-pass-locked {
 .active-stage--pass-2 .transcript-panel {
   min-height: 0;
   flex: 1;
-  height: 0;
+  overflow: hidden;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {
   max-width: 560px;
   width: 100%;
+  height: 100%;
 }
 
 .active-stage--pass-2 .extensive-player-shell {
   display: flex;
   flex-direction: column;
   align-items: center;
+  height: 100%;
 }
 
 .active-stage--pass-3 .active-stage-inner {

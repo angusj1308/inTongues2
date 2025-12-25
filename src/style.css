@@ -3908,6 +3908,10 @@ pre {
   max-width: 560px;
 }
 
+.active-stage--pass-1 .player-surface {
+  margin-top: auto;
+}
+
 .active-stage--pass-1 .active-stage-transcript {
   display: none;
   position: absolute;

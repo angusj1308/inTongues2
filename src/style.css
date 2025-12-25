@@ -3897,6 +3897,21 @@ pre {
   opacity: 1;
 }
 
+.active-stage--pass-1 .extensive-player-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.active-stage--pass-1 .player-stack {
+  flex: 1;
+  max-width: 560px;
+}
+
+.active-stage--pass-1 .player-surface {
+  margin-top: auto;
+}
+
 .active-stage--pass-1 .active-stage-transcript {
   display: none;
   position: absolute;

@@ -1701,57 +1701,6 @@ app.post('/api/audio-url', async (req, res) => {
   }
 })
 
-async function translateWords(words, sourceLang, targetLang) {
-  const translations = {}
-  if (!Array.isArray(words) || words.length === 0) return translations
-
-  const uniqueWords = Array.from(new Set(words))
-  const sourceLabel = sourceLang || 'auto-detected'
-  const targetLabel = targetLang || 'English'
-
-  try {
-    const response = await client.responses.create({
-      model: 'gpt-4o-mini',
-      input: `Translate each word from ${sourceLabel} to ${targetLabel}. Return a JSON object where each key is the exact source word and each value is a concise translation of that word. Do not include any extra fields. Source words: ${JSON.stringify(uniqueWords)} Do NOT use markdown code fences or any extra text. Return only raw JSON.`,
-    })
-
-    const jsonContent = response?.output?.[0]?.content?.[0]?.json
-    let parsed = {}
-
-    if (jsonContent && typeof jsonContent === 'object') {
-      parsed = jsonContent
-    } else {
-      const outputText = response.output_text?.trim() || ''
-      const lines = outputText.trim().split('\n')
-      if (lines[0]?.startsWith('```')) {
-        lines.shift()
-      }
-      if (lines[lines.length - 1]?.startsWith('```')) {
-        lines.pop()
-      }
-      const cleanedText = lines.join('\n')
-      try {
-        parsed = JSON.parse(cleanedText)
-      } catch (parseErr) {
-        console.error('Error parsing translation JSON:', parseErr)
-      }
-    }
-
-    uniqueWords.forEach((word) => {
-      const translated = parsed?.[word]
-      translations[word] = typeof translated === 'string' && translated.trim() ? translated.trim() : word
-    })
-
-    return translations
-  } catch (err) {
-    console.error('Error translating words with OpenAI:', err)
-    uniqueWords.forEach((w) => {
-      translations[w] = w
-    })
-    return translations
-  }
-}
-
 app.post('/api/generate', async (req, res) => {
   try {
     const { level, genre, length, description, language, pageCount, voiceGender } = req.body
@@ -1851,31 +1800,9 @@ app.post('/api/generate', async (req, res) => {
   }
 })
 
-app.post('/api/prefetchTranslations', async (req, res) => {
-  try {
-    const { languageCode, targetLang, words } = req.body || {}
-
-    if (!Array.isArray(words) || words.length === 0 || !words.every(word => typeof word === 'string')) {
-      return res.status(400).json({ error: 'Invalid words array' })
-    }
-
-    if (!targetLang) {
-      return res.status(400).json({ error: 'targetLang is required' })
-    }
-
-    const translations = await translateWords(words, languageCode, targetLang)
-
-    res.json({ languageCode, translations })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-})
-
 app.post('/api/translatePhrase', async (req, res) => {
   try {
-    const { phrase, sourceLang, targetLang, ttsLanguage } = req.body || {}
-    const rawTtsLanguage = req.body?.ttsLanguage
+    const { phrase, sourceLang, targetLang, voiceGender } = req.body || {}
 
     if (!phrase || typeof phrase !== 'string') {
       return res.status(400).json({ error: 'phrase is required' })
@@ -1885,15 +1812,8 @@ app.post('/api/translatePhrase', async (req, res) => {
       return res.status(400).json({ error: 'targetLang is required' })
     }
 
-    const normalizedTtsLanguage = normalizeBaseLanguageCode(ttsLanguage)
-    const ttsLanguageIsValid =
-      typeof normalizedTtsLanguage === 'string' &&
-      normalizedTtsLanguage &&
-      isValidLanguageCode(normalizedTtsLanguage)
-
-    // TTS language must be provided by client; server will not infer.
-    if (!ttsLanguageIsValid) {
-      return res.status(400).json({ error: 'Missing ttsLanguage' })
+    if (!sourceLang) {
+      return res.status(400).json({ error: 'sourceLang is required' })
     }
 
     const sourceLabel = sourceLang || 'auto-detected'
@@ -1938,67 +1858,24 @@ ${phrase}
       const phraseForAudioSafe =
         phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
 
-      const ttsLanguageCode = normalizedTtsLanguage
-      const baseTtsConfig = {
-        model: 'gpt-4o-mini-tts',
-        voice: 'alloy',
-        format: 'mp3',
-      }
+      // Use ElevenLabs TTS with language-specific voice to avoid cognate mispronunciation
+      const resolvedGender = voiceGender || 'male'
 
-      if (process.env.TTS_DEBUG === '1') {
-        console.log(
-          `TTS_TRANSLATE_PHRASE len=${phraseForAudioSafe.length} raw=${rawTtsLanguage || 'none'} normalized=${ttsLanguageCode}`
-        )
-      }
+      try {
+        const { voiceId } = resolveElevenLabsVoiceId(sourceLang, resolvedGender)
 
-      let hasLogged = false
-      const logOnce = (method) => {
-        if (!hasLogged) {
-          logTtsMethod(method, ttsLanguageCode)
-          hasLogged = true
+        if (process.env.TTS_DEBUG === '1') {
+          console.log(
+            `TTS_TRANSLATE_PHRASE (ElevenLabs) len=${phraseForAudioSafe.length} lang=${sourceLang} gender=${resolvedGender} voiceId=${voiceId}`
+          )
         }
+
+        const audioBuffer = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
+        return audioBuffer.toString('base64')
+      } catch (ttsError) {
+        console.error('Error generating pronunciation audio (ElevenLabs):', ttsError)
+        return null
       }
-
-      if (TTS_SUPPORTS_SSML) {
-        const ssml = `<speak><lang xml:lang="${ttsLanguageCode}">${escapeForSsml(
-          phraseForAudioSafe
-        )}</lang></speak>`
-
-        try {
-          const ttsResponse = await client.audio.speech.create({
-            ...baseTtsConfig,
-            input: ssml,
-          })
-
-          const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
-          logOnce('ssml')
-          return audioBuffer.toString('base64')
-        } catch (ttsError) {
-          console.error('Error generating pronunciation audio (SSML attempt):', ttsError)
-        }
-      }
-
-      if (TTS_SUPPORTS_LANGUAGE_PARAM) {
-        try {
-          const ttsResponse = await client.audio.speech.create({
-            ...baseTtsConfig,
-            input: phraseForAudioSafe,
-            language: ttsLanguageCode,
-          })
-
-          const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
-          logOnce('language-param')
-          return audioBuffer.toString('base64')
-        } catch (ttsError) {
-          console.error('Error generating pronunciation audio (language-param attempt):', ttsError)
-        }
-      }
-
-      console.error(
-        'No pronunciation audio generated: language-locked attempts failed for',
-        ttsLanguageCode
-      )
-      return null
     })
 
     const [{ translation, targetText }, audioBase64] = await Promise.all([

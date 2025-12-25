@@ -72,7 +72,6 @@ const TranscriptRoller = ({
   activeIndex = 0,
   vocabEntries = {},
   language,
-  pageTranslations = {},
   onWordClick,
   onSelectionTranslate,
   showWordStatus = false,
@@ -133,7 +132,7 @@ const TranscriptRoller = ({
 
           const normalised = normaliseExpression(token)
           const entry = vocabEntries[normalised]
-          const status = getDisplayStatus(entry?.status || pageTranslations[normalised]?.status)
+          const status = getDisplayStatus(entry?.status)
 
           elements.push(
             <WordTokenListening
@@ -158,7 +157,7 @@ const TranscriptRoller = ({
       content: renderWordSegments(segment.text || ''),
       isActive: index === activeIndex,
     }))
-  }, [activeIndex, language, onSelectionTranslate, onWordClick, pageTranslations, segments, showWordStatus, vocabEntries])
+  }, [activeIndex, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
 
   const scrollToActive = useCallback(() => {
     const container = containerRef.current

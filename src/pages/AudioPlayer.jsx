@@ -57,7 +57,7 @@ const AudioPlayer = () => {
   const [pages, setPages] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [pageTranslations, setPageTranslations] = useState({})
+  const [voiceGender, setVoiceGender] = useState('male')
   const [transcriptDoc, setTranscriptDoc] = useState({ sentenceSegments: [], segments: [] })
   const [spotifyTranscriptSegments, setSpotifyTranscriptSegments] = useState([])
   const [popup, setPopup] = useState(null)
@@ -381,6 +381,7 @@ const AudioPlayer = () => {
           type: data.type || '',
           mediaType: 'audio',
         })
+        setVoiceGender(data.voiceGender || 'male')
       } catch (err) {
         console.error('Failed to load audiobook metadata', err)
         setError('Unable to load audiobook right now.')
@@ -733,7 +734,7 @@ const AudioPlayer = () => {
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    const translation = pageTranslations[clean] || pageTranslations[selection] || 'No translation found'
+    const translation = 'No translation found'
 
     const selectionObj = window.getSelection()
     if (!selectionObj || selectionObj.rangeCount === 0) return
@@ -1490,7 +1491,7 @@ const AudioPlayer = () => {
                         vocabEntries={vocabEntries}
                         language={storyLanguage}
                         nativeLanguage={profile?.nativeLanguage}
-                        pageTranslations={pageTranslations}
+                        voiceGender={voiceGender}
                         setPopup={setPopup}
                       />
                     </div>
@@ -1659,7 +1660,7 @@ const AudioPlayer = () => {
         nativeLanguage={profile?.nativeLanguage}
         vocabEntries={vocabEntries}
         setVocabEntries={setVocabEntries}
-        pageTranslations={pageTranslations}
+        voiceGender={voiceGender}
         setPopup={setPopup}
         intensiveSentenceIndex={intensiveSentenceIndex}
         setIntensiveSentenceIndex={setIntensiveSentenceIndex}

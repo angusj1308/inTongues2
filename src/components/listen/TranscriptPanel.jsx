@@ -5,7 +5,6 @@ const TranscriptPanel = ({
   activeIndex = 0,
   vocabEntries = {},
   language,
-  pageTranslations = {},
   onWordClick,
   onSelectionTranslate,
   showWordStatus = false,
@@ -23,7 +22,6 @@ const TranscriptPanel = ({
         activeIndex={activeIndex}
         vocabEntries={vocabEntries}
         language={language}
-        pageTranslations={pageTranslations}
         onWordClick={onWordClick}
         onSelectionTranslate={onSelectionTranslate}
         showWordStatus={showWordStatus}

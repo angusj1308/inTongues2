@@ -1581,33 +1581,69 @@ const Reader = ({ initialMode }) => {
                   Aa
                 </button>
                 <button
-                  className="reader-header-button ui-text reader-theme-trigger"
+                  className="reader-header-button icon-button reader-theme-trigger"
                   type="button"
-                  aria-label="Reader lighting"
+                  aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   onClick={cycleTheme}
                 >
-                  Lighting
+                  {activeTheme.tone === 'dark' ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                  )}
                 </button>
 
                 <button
-                  className="reader-header-button ui-text"
+                  className="reader-header-button icon-button"
                   type="button"
                   onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
                   aria-pressed={isFullscreen}
                 >
-                  {isFullscreen ? 'Exit full screen' : 'Full screen'}
+                  {isFullscreen ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="4 14 4 20 10 20" />
+                      <polyline points="20 10 20 4 14 4" />
+                      <polyline points="14 20 20 20 20 14" />
+                      <polyline points="10 4 4 4 4 10" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 3 21 3 21 9" />
+                      <polyline points="9 21 3 21 3 15" />
+                      <polyline points="21 15 21 21 15 21" />
+                      <polyline points="3 9 3 3 9 3" />
+                    </svg>
+                  )}
                 </button>
                 <button
-                  className="reader-header-button ui-text"
+                  className="reader-header-button icon-button"
                   type="button"
                   onClick={() => persistBookmark()}
                   disabled={isSavingBookmark}
+                  aria-label={bookmarkIndex === currentIndex ? 'Bookmark saved' : 'Save bookmark'}
                 >
-                  {isSavingBookmark
-                    ? 'Saving...'
-                    : bookmarkIndex === currentIndex
-                      ? 'Bookmark saved'
-                      : 'Save bookmark'}
+                  {bookmarkIndex === currentIndex ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>

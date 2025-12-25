@@ -3902,24 +3902,15 @@ pre {
 }
 
 .active-stage--pass-1 .player-stack {
-  height: clamp(520px, 72vh, 640px);
   max-width: 560px;
 }
 
-.active-stage--pass-1 .active-pass-stack {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
 .active-stage--pass-1 .active-pass-header {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  min-height: clamp(280px, 40vh, 380px);
 }
 
-.active-stage--pass-1 .player-surface {
-  margin-top: auto;
+.active-stage--pass-1 .active-pass-hero {
+  margin: auto 0;
 }
 
 .active-stage--pass-1 .active-stage-transcript {

@@ -3420,8 +3420,6 @@ pre {
   max-width: 1200px;
   margin: 0 auto;
   padding: clamp(10px, 2vh, 18px) clamp(10px, 2.4vw, 18px) clamp(16px, 3.4vh, 22px);
-  height: 100vh;
-  max-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3898,13 +3896,13 @@ pre {
 }
 
 .active-stage--pass-1 .extensive-player-shell {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 
 .active-stage--pass-1 .player-stack {
-  flex: 1;
+  min-height: clamp(480px, 68vh, 600px);
   max-width: 560px;
 }
 

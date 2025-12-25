@@ -3419,7 +3419,7 @@ pre {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: clamp(10px, 2vh, 18px) clamp(10px, 2.4vw, 18px) clamp(16px, 3.4vh, 22px);
   height: 100vh;
   max-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;

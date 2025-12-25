@@ -3412,15 +3412,15 @@ pre {
 }
 
 .active-flow {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 24px 24px 0 24px;
-  height: calc(100vh - 96px - 24px);
-  max-height: calc(100vh - 96px - 24px);
+  padding: 24px;
+  min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
@@ -3487,22 +3487,27 @@ pre {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 0.75rem 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   color: #0f172a;
+}
+
+/* Pass navigation inside player card */
+.player-stack .active-pass-footer {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 .active-pass-nav-dock {
   position: static;
-  grid-row: 2;
   display: flex;
   justify-content: center;
   width: 100%;
   transform: none;
   z-index: 40;
   pointer-events: auto;
-  align-self: center;
-  justify-self: center;
-  min-height: var(--active-pass-nav-height, 16px);
+  margin-top: auto;
+  padding: 1rem 0;
 }
 
 .listening-mode-panel:not(.is-active) .active-pass-nav-dock {
@@ -3817,16 +3822,12 @@ pre {
 }
 
 .active-stage {
-  grid-row: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto 1fr;
+  display: flex;
   align-items: flex-start;
+  justify-content: center;
   width: 100%;
-  overflow: auto;
+  overflow: visible;
   position: relative;
-  min-height: 0;
-  align-self: stretch;
 }
 
 .active-stage-inner {
@@ -4403,7 +4404,7 @@ body.active-pass-locked {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: clamp(12px, 2.4vw, 18px);
+  gap: clamp(16px, 3vw, 24px);
 }
 
 .active-pass-context {
@@ -4440,7 +4441,6 @@ body.active-pass-locked {
   font-weight: 600;
   color: #1f2937;
   line-height: 1.3;
-  max-width: min(100%, 360px);
 }
 
 .active-story-title {

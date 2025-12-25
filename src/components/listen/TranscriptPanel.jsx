@@ -9,6 +9,7 @@ const TranscriptPanel = ({
   onSelectionTranslate,
   showWordStatus = false,
   showWordStatusToggle = true,
+  wordStatusDisabled = false,
   onToggleWordStatus,
   isSynced = true,
   onUserScroll,
@@ -39,12 +40,14 @@ const TranscriptPanel = ({
       >
         {isSynced ? 'Synced' : 'Sync'}
       </button>
-      {showWordStatusToggle ? (
+      {showWordStatusToggle || wordStatusDisabled ? (
         <button
           type="button"
-          className="word-status-toggle"
-          onClick={onToggleWordStatus}
+          className={`word-status-toggle ${wordStatusDisabled ? 'word-status-toggle--disabled' : ''}`}
+          onClick={wordStatusDisabled ? undefined : onToggleWordStatus}
           aria-pressed={showWordStatus}
+          disabled={wordStatusDisabled}
+          title={wordStatusDisabled ? 'Word status available in Pass 3' : undefined}
         >
           {showWordStatus ? 'Hide word status' : 'Show word status'}
         </button>

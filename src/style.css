@@ -4194,20 +4194,21 @@ body.active-pass-locked {
   width: 100%;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: clamp(12px, 2.4vw, 18px);
 }
 
 .active-pass-context {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  align-self: flex-start;
+  gap: 16px;
 }
 
 .active-pass-cover {
-  width: clamp(44px, 6vw, 56px);
+  width: clamp(148px, 28vw, 184px);
   aspect-ratio: 1 / 1;
-  border-radius: 12px;
+  border-radius: 16px;
   background: linear-gradient(145deg, #0f172a10, #0f172a05);
   display: flex;
   align-items: center;
@@ -4220,18 +4221,18 @@ body.active-pass-locked {
   height: 100%;
   display: grid;
   place-items: center;
-  font-size: clamp(20px, 4vw, 28px);
+  font-size: clamp(48px, 10vw, 72px);
   font-weight: 700;
   color: #0f172a;
   background: radial-gradient(circle at 20% 20%, #e0f2fe, #bfdbfe);
 }
 
 .active-pass-title {
-  font-size: 0.95rem;
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
   font-weight: 600;
   color: #1f2937;
   line-height: 1.3;
-  max-width: min(100%, 360px);
+  text-align: center;
 }
 
 .active-story-title {
@@ -4269,7 +4270,11 @@ body.active-pass-locked {
 @media (max-width: 560px) {
   .active-pass-context {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+  }
+
+  .active-pass-cover {
+    width: clamp(120px, 40vw, 160px);
   }
 }
 

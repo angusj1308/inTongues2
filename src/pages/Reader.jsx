@@ -1562,7 +1562,10 @@ const Reader = ({ initialMode }) => {
                         readerMode === mode.id ? 'active' : ''
                       }`}
                       type="button"
-                      onClick={() => handleModeSelect(mode.id)}
+                      onClick={(e) => {
+                        handleModeSelect(mode.id)
+                        e.currentTarget.blur()
+                      }}
                     >
                       {mode.label.toUpperCase()}
                     </button>
@@ -1576,7 +1579,10 @@ const Reader = ({ initialMode }) => {
                   className="reader-header-button ui-text"
                   type="button"
                   aria-label={`Font: ${activeFont.label}`}
-                  onClick={cycleFont}
+                  onClick={(e) => {
+                    cycleFont()
+                    e.currentTarget.blur()
+                  }}
                 >
                   Aa
                 </button>
@@ -1584,7 +1590,10 @@ const Reader = ({ initialMode }) => {
                   className="reader-header-button icon-button reader-theme-trigger"
                   type="button"
                   aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                  onClick={cycleTheme}
+                  onClick={(e) => {
+                    cycleTheme()
+                    e.currentTarget.blur()
+                  }}
                 >
                   {activeTheme.tone === 'dark' ? (
                     <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1608,7 +1617,10 @@ const Reader = ({ initialMode }) => {
                 <button
                   className="reader-header-button icon-button"
                   type="button"
-                  onClick={toggleFullscreen}
+                  onClick={(e) => {
+                    toggleFullscreen()
+                    e.currentTarget.blur()
+                  }}
                   aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
                   aria-pressed={isFullscreen}
                 >
@@ -1631,7 +1643,10 @@ const Reader = ({ initialMode }) => {
                 <button
                   className="reader-header-button icon-button"
                   type="button"
-                  onClick={() => persistBookmark()}
+                  onClick={(e) => {
+                    persistBookmark()
+                    e.currentTarget.blur()
+                  }}
                   disabled={isSavingBookmark}
                   aria-label={bookmarkIndex === currentIndex ? 'Bookmark saved' : 'Save bookmark'}
                 >

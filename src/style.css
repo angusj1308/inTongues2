@@ -3905,11 +3905,12 @@ pre {
   max-width: 560px;
 }
 
-.active-stage--pass-1 .active-pass-header {
+/* Consistent player layout for all passes */
+.active-stage .active-pass-header {
   min-height: clamp(200px, 28vh, 280px);
 }
 
-.active-stage--pass-1 .active-pass-hero {
+.active-stage .active-pass-hero {
   margin: auto 0;
 }
 
@@ -3947,7 +3948,8 @@ body.active-pass-locked {
 }
 
 .active-stage--pass-2 .active-stage-player {
-  flex: 1 1 0;
+  flex: 0 0 auto;
+  width: min(560px, 100%);
   max-width: 560px;
   transform: translateX(-6%);
   opacity: 1;
@@ -3974,7 +3976,14 @@ body.active-pass-locked {
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {
-  max-width: none;
+  max-width: 560px;
+  width: 100%;
+}
+
+.active-stage--pass-2 .extensive-player-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .active-stage--pass-3 .active-stage-inner {

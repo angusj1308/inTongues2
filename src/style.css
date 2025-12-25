@@ -3906,7 +3906,7 @@ pre {
 }
 
 .active-stage--pass-1 .active-pass-header {
-  min-height: clamp(280px, 40vh, 380px);
+  min-height: clamp(200px, 28vh, 280px);
 }
 
 .active-stage--pass-1 .active-pass-hero {

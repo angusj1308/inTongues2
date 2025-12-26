@@ -2306,87 +2306,72 @@ textarea {
   user-select: none;
 }
 
-.reader-intensive-overlay {
+/* Full-page intensive listening layout */
+.intensive-page {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2.5rem 1.5rem;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
-  z-index: 40;
-  pointer-events: auto;
-}
-
-.reader-intensive-card {
+  flex-direction: column;
   background: #ffffff;
   color: #0f172a;
-  padding: clamp(1.5rem, 2vw + 1rem, 3rem);
-  padding-top: clamp(4rem, 5vw + 2rem, 6rem);
-  border-radius: 18px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
-  max-width: min(1100px, 96vw);
-  width: 100%;
-  height: clamp(520px, 70vh, 760px);
-  min-height: 520px;
+  z-index: 40;
+  overflow: hidden;
+}
+
+.intensive-page-header {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  text-align: center;
-  pointer-events: auto;
-  position: relative;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.intensive-page-nav {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.reader-intensive-header {
-  position: absolute;
-  top: 1.25rem;
-  right: 1.5rem;
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-/* Sentence navigation buttons */
-.intensive-nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+.intensive-page-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
   background: transparent;
   border: none;
-  cursor: pointer;
-  padding: 1rem;
-  color: #c4cdd5;
-  transition: color 200ms ease, transform 200ms ease;
-}
-
-.intensive-nav-btn:hover:not(:disabled) {
   color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
 }
 
-.intensive-nav-btn:disabled {
-  opacity: 0.25;
+.intensive-page-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.intensive-page-nav-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.intensive-nav-btn-prev {
-  left: 1.5rem;
+.intensive-page-nav-counter {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+  min-width: 60px;
+  text-align: center;
 }
 
-.intensive-nav-btn-next {
-  right: 1.5rem;
-}
-
-.intensive-nav-chevron {
-  width: 32px;
-  height: 32px;
-  stroke-width: 1.5;
-  transition: stroke-width 200ms ease;
+.intensive-page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  overflow-y: auto;
+  gap: 1.5rem;
 }
 
 /* Transcribe mode toggle container */
@@ -2444,17 +2429,64 @@ textarea {
   transform: translateX(20px);
 }
 
-/* Intensive player controls */
-.intensive-player {
+/* Text zone - transcript and translation */
+.intensive-text-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 800px;
+}
+
+.intensive-transcript {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.6rem);
+  font-weight: 600;
+  line-height: 1.6;
+  color: #0f172a;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.intensive-translation {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: clamp(1rem, 0.8vw + 0.75rem, 1.25rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.intensive-reveal-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  text-align: left;
+  transition: color 150ms ease;
+}
+
+.intensive-reveal-btn:hover:not(:disabled) {
+  color: #0f172a;
+}
+
+.intensive-reveal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Player zone */
+.intensive-player-zone {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
   width: 100%;
-  max-width: 320px;
-  margin-inline: auto;
-  padding-top: 8px; /* Room for pins */
+  max-width: 400px;
+  padding-top: 8px;
 }
 
 .intensive-player-progress {
@@ -2560,50 +2592,13 @@ textarea {
   color: #ffffff;
 }
 
-.reader-intensive-label {
-  font-size: 0.9rem;
-  letter-spacing: 0.2em;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #475569;
-}
-
-.reader-intensive-sentence,
-.reader-intensive-translation {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  line-height: 1.5;
-  margin: 0;
-  max-width: 720px;
-  width: calc(100% - 4rem);
-  padding: 0 2rem;
-}
-
-.reader-intensive-sentence {
-  position: absolute;
-  top: 12%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  justify-content: flex-start;
-  font-size: clamp(1.4rem, 1.1vw + 1rem, 1.9rem);
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.reader-intensive-placeholder {
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: #64748b;
-}
-
+/* Transcription input */
 .reader-intensive-input-row {
-  width: min(720px, 100%);
+  width: 100%;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  margin-bottom: 1rem;
 }
 
 .reader-intensive-input.intensive-input {
@@ -2624,81 +2619,14 @@ textarea {
   margin: 0;
 }
 
-/* Translation as clickable button (replaces toggle when visible) */
-button.reader-intensive-translation {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: clamp(1rem, 0.8vw + 0.75rem, 1.25rem);
-  font-weight: 400;
-  font-style: italic;
-  color: #94a3b8;
-  text-align: left;
-  line-height: 1.5;
-  max-width: 720px;
-  width: calc(100% - 4rem);
-  padding: 0.5rem 2rem;
-  transition: color 150ms ease;
-}
-
-button.reader-intensive-translation:hover {
-  color: #64748b;
-}
-
-.reader-intensive-controls {
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  max-width: 720px;
-  width: calc(100% - 4rem);
-}
-
-.intensive-translation-toggle {
-  background: transparent;
-  color: #64748b;
-  border: none;
-  padding: 0.25rem 2rem;
-  font-weight: 500;
-  font-size: 0.95rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  cursor: pointer;
-  transition: color 150ms ease, font-weight 150ms ease;
-}
-
-.intensive-translation-toggle:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.intensive-translation-toggle:hover {
-  color: #334155;
-  font-weight: 600;
-}
-
-.intensive-translation-toggle:focus-visible {
-  outline: 2px solid #64748b;
-  outline-offset: 2px;
-}
-
-.reader-intensive-helper {
-  margin-top: 0.5rem;
-  color: #475569;
-  font-size: 0.95rem;
-}
-
 /* Word pairs list */
 .intensive-word-pairs {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 1.25rem;
-  padding: 0 2rem;
-  max-width: 100%;
+  max-width: 600px;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 .intensive-word-pair {

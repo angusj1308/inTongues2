@@ -95,6 +95,7 @@ const AudioPlayer = () => {
   const [committedPass3ByChunk, setCommittedPass3ByChunk] = useState(new Set())
   const [transitionDirection, setTransitionDirection] = useState('left')
   const [activeWordTranslations, setActiveWordTranslations] = useState({})
+  const fetchedWordsRef = useRef(new Set())
   const completedPassKeyRef = useRef(new Set())
   const passProgressRef = useRef(new Map())
   const lastSpotifyTickRef = useRef(0)
@@ -858,17 +859,24 @@ const AudioPlayer = () => {
   // Pre-fetch word translations with audio for Active Mode Pass 3
   useEffect(() => {
     if (listeningMode !== 'active' || activeStep !== 3) return undefined
+    if (!storyLanguage || !profile?.nativeLanguage) return undefined
 
     const currentChunk = activeChunks[activeChunkIndex]
     if (!currentChunk) return undefined
 
-    // Get transcript segments for this chunk
-    const chunkSegments = transcriptSegments.filter((segment) => {
-      if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return false
-      return segment.start >= currentChunk.start && segment.end <= currentChunk.end
-    })
+    const chunkStart = Number.isFinite(currentChunk.start) ? currentChunk.start : 0
+    const chunkEnd = Number.isFinite(currentChunk.end) ? currentChunk.end : 0
 
-    // Extract unique words from chunk that are not already known
+    // Get transcript segments for this chunk (match ActiveMode logic)
+    const hasValidChunkBounds = Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart
+    const chunkSegments = hasValidChunkBounds
+      ? transcriptSegments.filter((segment) => {
+          if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return true
+          return segment.start >= chunkStart && segment.start < chunkEnd
+        })
+      : transcriptSegments
+
+    // Extract unique words from chunk that need translation
     const wordsToTranslate = []
     const seenWords = new Set()
 
@@ -879,18 +887,24 @@ const AudioPlayer = () => {
         if (seenWords.has(normalised)) return
         seenWords.add(normalised)
 
+        // Skip if already fetched
+        if (fetchedWordsRef.current.has(normalised)) return
+
         const entry = vocabEntries[normalised]
         const status = entry?.status || 'unknown'
         // Skip words already marked as known
         if (status === 'known') return
-        // Skip words we already have translations for
-        if (activeWordTranslations[normalised]?.translation) return
 
         wordsToTranslate.push({ word: token, normalised })
       })
     })
 
     if (wordsToTranslate.length === 0) return undefined
+
+    // Mark words as being fetched
+    wordsToTranslate.forEach(({ normalised }) => {
+      fetchedWordsRef.current.add(normalised)
+    })
 
     const controller = new AbortController()
 
@@ -924,6 +938,8 @@ const AudioPlayer = () => {
                 audioBase64: data.audioBase64 || null,
                 audioUrl: data.audioUrl || null,
               }
+            } else {
+              console.error(`Translation failed for "${word}":`, await response.text())
             }
           } catch (err) {
             if (err.name !== 'AbortError') {
@@ -952,7 +968,6 @@ const AudioPlayer = () => {
     activeChunks,
     transcriptSegments,
     vocabEntries,
-    activeWordTranslations,
     storyLanguage,
     profile?.nativeLanguage,
     voiceGender,

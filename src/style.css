@@ -196,22 +196,6 @@ textarea {
   transition: background-color 0.15s ease;
 }
 
-/* Highlight unknown words that have word pair translations */
-.reader-word--word-pair-match {
-  text-decoration: underline;
-  text-decoration-color: #f59e0b;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-
-/* Highlight corresponding words in translation */
-.translation-word-match {
-  text-decoration: underline;
-  text-decoration-color: #f59e0b;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-
 .reader-sentence {
   display: inline;
   transition: opacity 0.2s ease, filter 0.2s ease;
@@ -2710,21 +2694,30 @@ button.reader-intensive-translation:hover {
 /* Word pairs list */
 .intensive-word-pairs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 1.25rem;
   padding: 0 2rem;
+  max-width: 100%;
 }
 
 .intensive-word-pair {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.9rem;
+}
+
+.intensive-word-pair-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .intensive-word-pair-speaker {
@@ -2738,6 +2731,7 @@ button.reader-intensive-translation:hover {
   padding: 0.25rem;
   border-radius: 4px;
   transition: color 150ms ease, background 150ms ease;
+  flex-shrink: 0;
 }
 
 .intensive-word-pair-speaker:hover:not(:disabled) {
@@ -2758,11 +2752,45 @@ button.reader-intensive-translation:hover {
 .intensive-word-pair-arrow {
   color: #94a3b8;
   font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
 .intensive-word-pair-target {
   color: #64748b;
   font-style: italic;
+}
+
+.intensive-word-pair-status {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.intensive-word-pair-status-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.intensive-word-pair-status-btn:hover {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.intensive-word-pair-status-btn.is-active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
 }
 
 .translate-popup {

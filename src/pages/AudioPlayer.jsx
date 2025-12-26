@@ -803,57 +803,6 @@ const AudioPlayer = () => {
     }
   }
 
-  useEffect(() => {
-    if (!transcriptText || typeof transcriptText !== 'string') return
-
-    const words = Array.from(
-      new Set(
-        transcriptText
-          .replace(/[^\p{L}\p{N}]+/gu, ' ')
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean),
-      ),
-    )
-
-    if (words.length === 0) return
-
-    const controller = new AbortController()
-
-    async function prefetch() {
-      try {
-        const response = await fetch('http://localhost:4000/api/prefetchTranslations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            languageCode: storyLanguage || 'es',
-            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            words,
-          }),
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          console.error('Failed to prefetch translations', await response.text())
-          return
-        }
-
-        const data = await response.json()
-        setPageTranslations(data.translations || {})
-      } catch (prefetchError) {
-        if (prefetchError.name !== 'AbortError') {
-          console.error('Error prefetching translations', prefetchError)
-        }
-      }
-    }
-
-    prefetch()
-
-    return () => {
-      controller.abort()
-    }
-  }, [profile?.nativeLanguage, storyLanguage, transcriptText])
-
   // Pre-fetch word translations with audio for Active Mode Pass 3
   useEffect(() => {
     if (listeningMode !== 'active' || activeStep !== 3) return undefined

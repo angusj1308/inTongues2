@@ -5431,7 +5431,7 @@ body.active-pass-locked {
   gap: 8px;
   transition: transform 520ms ease;
   will-change: transform;
-  padding: 10px 6px 14px;
+  padding: 10px 6px 50vh;
 }
 
 .transcript-line {

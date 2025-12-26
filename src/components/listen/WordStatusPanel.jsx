@@ -38,17 +38,19 @@ const WordRow = ({
 
   return (
     <div className="word-status-row">
-      <span className="word-status-row-word">{word}</span>
-      <span className="word-status-row-translation">{translation || '...'}</span>
-      <button
-        type="button"
-        className={`word-status-row-audio ${hasAudio ? '' : 'word-status-row-audio--disabled'}`}
-        onClick={handlePlayClick}
-        disabled={!hasAudio}
-        aria-label={`Play pronunciation of ${word}`}
-      >
-        <PlayIcon />
-      </button>
+      <div className="word-status-row-left">
+        <button
+          type="button"
+          className={`word-status-row-audio ${hasAudio ? '' : 'word-status-row-audio--disabled'}`}
+          onClick={handlePlayClick}
+          disabled={!hasAudio}
+          aria-label={`Play pronunciation of ${word}`}
+        >
+          <PlayIcon />
+        </button>
+        <span className="word-status-row-word">{word}</span>
+        <span className="word-status-row-translation">{translation || '...'}</span>
+      </div>
       <div className="word-status-row-slider">
         <input
           type="range"

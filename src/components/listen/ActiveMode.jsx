@@ -591,10 +591,11 @@ const ActiveMode = ({
     1: 'Just listen',
     2: 'Listen + Read',
     3: 'Read + Adjust',
+    4: 'Final Listen',
   }
 
   const isTranscriptLockedOn = activeStep >= 2
-  const heroStep = activeStep <= 3 ? activeStep : 1
+  const heroStep = activeStep
   const heroTitle = heroTitles[heroStep] || heroTitles[1]
 
   const activeFlowStyle = {
@@ -606,7 +607,7 @@ const ActiveMode = ({
   return (
     <div className={`active-flow active-step-${activeStep}`} style={activeFlowStyle}>
       <>
-        {activeStep !== 1 && activeStep !== 2 && (
+        {activeStep === 3 && (
           <header className="active-topbar">
             <div className="active-topbar-context">
               <div className="active-topbar-title">
@@ -633,7 +634,7 @@ const ActiveMode = ({
           </header>
         )}
 
-        {activeStep <= 3 && (
+        {activeStep <= 4 && (
           <section className={`active-stage active-stage--pass-${activeStep}`} aria-live="polite">
             <div className="active-stage-inner">
               <div className="active-stage-player" ref={playerBoundsRef}>
@@ -770,81 +771,6 @@ const ActiveMode = ({
           </section>
         )}
 
-        {activeStep === 4 && (
-          <section className={`active-pass-layout ${activeStep === 1 ? 'is-pass-1' : ''}`} aria-live="polite">
-            <div className="active-pass-main">
-              <div
-                className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}
-                ref={playerBoundsRef}
-              >
-                <div className="active-player-surface">
-                  {renderProgressBar()}
-                  <div className="player-transport-shell">{renderTransportButtons()}</div>
-                  <div
-                    className="player-secondary-row secondary-controls"
-                    role="group"
-                    aria-label="Secondary controls"
-                  >
-                    <span className="secondary-spacer" aria-hidden />
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={handleChunkToggle}
-                      disabled={!hasChunks}
-                      aria-label="Chunks"
-                      title="Chunks"
-                    >
-                      <span className="secondary-glyph">
-                        <Icon name="list" className="secondary-icon" />
-                      </span>
-                      <span className="secondary-label">Chunks</span>
-                    </button>
-                    <div className="secondary-btn-popover-wrap">
-                      <button
-                        ref={speedButtonRef}
-                        type="button"
-                        className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                        onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                        aria-label={`Playback speed ${playbackRate || 1}x`}
-                        title="Change playback speed"
-                      >
-                        <span className="secondary-glyph">
-                          <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                        </span>
-                        <span className="secondary-label">Speed</span>
-                      </button>
-                      {speedMenuOpen ? (
-                        <div
-                          ref={speedMenuRef}
-                          className="scrub-popover speed-popover"
-                          role="dialog"
-                          aria-label="Playback speed"
-                        >
-                          <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                            {speedPresets.map((rate) => (
-                              <button
-                                key={rate}
-                                type="button"
-                                className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                                onClick={() => handlePlaybackRateChange(rate)}
-                              >
-                                <span className="speed-option-indicator" aria-hidden="true" />
-                                <span className="speed-option-label">x{formatRate(rate)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                    <span className="secondary-spacer" aria-hidden />
-                    <span className="secondary-spacer" aria-hidden />
-                  </div>
-                </div>
-                {chunkOverlay}
-              </div>
-            </div>
-          </section>
-        )}
         {/* Dock only shown for Pass 4 - for Pass 1-3, navigation is inside player card */}
         {activeStep === 4 && (
           <div

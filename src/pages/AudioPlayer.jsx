@@ -856,13 +856,12 @@ const AudioPlayer = () => {
     }
   }, [profile?.nativeLanguage, storyLanguage, transcriptText])
 
-  // Pre-fetch word translations with audio for Active Mode Pass 3
-  useEffect(() => {
-    if (listeningMode !== 'active' || activeStep !== 3) return undefined
-    if (!storyLanguage || !profile?.nativeLanguage) return undefined
+  // Pre-fetch word translations with audio for Active Mode (called when user starts Pass 2)
+  const prefetchChunkTranslations = useCallback(() => {
+    if (!storyLanguage || !profile?.nativeLanguage) return
 
     const currentChunk = activeChunks[activeChunkIndex]
-    if (!currentChunk) return undefined
+    if (!currentChunk) return
 
     const chunkStart = Number.isFinite(currentChunk.start) ? currentChunk.start : 0
     const chunkEnd = Number.isFinite(currentChunk.end) ? currentChunk.end : 0
@@ -899,14 +898,12 @@ const AudioPlayer = () => {
       })
     })
 
-    if (wordsToTranslate.length === 0) return undefined
+    if (wordsToTranslate.length === 0) return
 
     // Mark words as being fetched
     wordsToTranslate.forEach(({ normalised }) => {
       fetchedWordsRef.current.add(normalised)
     })
-
-    const controller = new AbortController()
 
     async function fetchWordTranslations() {
       const newTranslations = {}
@@ -914,8 +911,6 @@ const AudioPlayer = () => {
       // Fetch translations in parallel with concurrency limit
       const batchSize = 5
       for (let i = 0; i < wordsToTranslate.length; i += batchSize) {
-        if (controller.signal.aborted) break
-
         const batch = wordsToTranslate.slice(i, i + batchSize)
         const promises = batch.map(async ({ word, normalised }) => {
           try {
@@ -928,7 +923,6 @@ const AudioPlayer = () => {
                 targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
                 voiceGender,
               }),
-              signal: controller.signal,
             })
 
             if (response.ok) {
@@ -942,28 +936,20 @@ const AudioPlayer = () => {
               console.error(`Translation failed for "${word}":`, await response.text())
             }
           } catch (err) {
-            if (err.name !== 'AbortError') {
-              console.error(`Error translating word "${word}":`, err)
-            }
+            console.error(`Error translating word "${word}":`, err)
           }
         })
 
         await Promise.all(promises)
       }
 
-      if (!controller.signal.aborted && Object.keys(newTranslations).length > 0) {
+      if (Object.keys(newTranslations).length > 0) {
         setActiveWordTranslations((prev) => ({ ...prev, ...newTranslations }))
       }
     }
 
     fetchWordTranslations()
-
-    return () => {
-      controller.abort()
-    }
   }, [
-    listeningMode,
-    activeStep,
     activeChunkIndex,
     activeChunks,
     transcriptSegments,
@@ -1119,6 +1105,11 @@ const AudioPlayer = () => {
       const chunk = activeChunks[activeChunkIndex]
       if (chunk && (progressSeconds < chunk.start || progressSeconds > chunk.end)) {
         handleSeekTo(chunk.start)
+      }
+
+      // Pre-fetch translations when starting playback in Pass 2
+      if (activeStep === 2 && !isPlaying) {
+        prefetchChunkTranslations()
       }
     }
 

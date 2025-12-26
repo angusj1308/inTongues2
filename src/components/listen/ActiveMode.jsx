@@ -258,6 +258,62 @@ const ActiveMode = ({
     setSyncToken((prev) => prev + 1)
   }, [])
 
+  // Handler for WordStatusPanel - must be before early return
+  const handleWordStatusChange = useCallback((word, newStatus) => {
+    if (onWordStatusChange) {
+      onWordStatusChange(word, newStatus)
+    }
+  }, [onWordStatusChange])
+
+  // Extract unique words from chunk for Pass 3 Word Status Panel
+  // Must be before early return to maintain hook order
+  const chunkWords = useMemo(() => {
+    if (!hasChunks) return []
+
+    const currentChunk = chunks[safeChunkIndex]
+    const chunkStart = Number.isFinite(currentChunk?.start) ? currentChunk.start : 0
+    const rawChunkEnd = Number.isFinite(currentChunk?.end) ? currentChunk.end : safePlaybackDuration
+    const chunkEnd = Math.max(rawChunkEnd, chunkStart)
+
+    const hasValidChunkBounds = Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart
+    const segments = hasValidChunkBounds
+      ? transcriptSegments.filter((segment) => {
+          if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return true
+          return segment.start >= chunkStart && segment.start < chunkEnd
+        })
+      : transcriptSegments
+
+    const wordSet = new Map()
+
+    segments.forEach((segment) => {
+      const text = segment.text || ''
+      const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+      tokens.forEach((token) => {
+        if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+        const normalised = normaliseExpression(token)
+        if (wordSet.has(normalised)) return
+
+        const entry = vocabEntries[normalised]
+        const status = entry?.status || 'new'
+
+        const translationData = wordTranslations[normalised] || {}
+
+        wordSet.set(normalised, {
+          word: token,
+          normalised,
+          status: status === 'unknown' ? 'new' : status,
+          translation: translationData.translation || entry?.translation || null,
+          audioBase64: translationData.audioBase64 || null,
+          audioUrl: translationData.audioUrl || null,
+        })
+      })
+    })
+
+    return Array.from(wordSet.values())
+  }, [hasChunks, chunks, safeChunkIndex, safePlaybackDuration, transcriptSegments, vocabEntries, wordTranslations])
+
   const scheduleChunkDrawerUnmount = () => {
     clearChunkDrawerTimeout()
     chunkDrawerCloseTimeoutRef.current = setTimeout(() => {
@@ -294,47 +350,6 @@ const ActiveMode = ({
         return segment.start >= chunkStart && segment.start < chunkEnd
       })
     : transcriptSegments
-
-  // Extract unique words from chunk for Pass 3 Word Status Panel
-  const chunkWords = useMemo(() => {
-    const wordSet = new Map()
-
-    filteredSegments.forEach((segment) => {
-      const text = segment.text || ''
-      // Split into words
-      const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
-
-      tokens.forEach((token) => {
-        if (!token || !/[\p{L}\p{N}]/u.test(token)) return
-
-        const normalised = normaliseExpression(token)
-        if (wordSet.has(normalised)) return
-
-        const entry = vocabEntries[normalised]
-        const status = entry?.status || 'new'
-
-        // Get translation from wordTranslations prop if available
-        const translationData = wordTranslations[normalised] || {}
-
-        wordSet.set(normalised, {
-          word: token,
-          normalised,
-          status: status === 'unknown' ? 'new' : status,
-          translation: translationData.translation || entry?.translation || null,
-          audioBase64: translationData.audioBase64 || null,
-          audioUrl: translationData.audioUrl || null,
-        })
-      })
-    })
-
-    return Array.from(wordSet.values())
-  }, [filteredSegments, vocabEntries, wordTranslations])
-
-  const handleWordStatusChange = useCallback((word, newStatus) => {
-    if (onWordStatusChange) {
-      onWordStatusChange(word, newStatus)
-    }
-  }, [onWordStatusChange])
 
   const handleSeek = (nextTime) => {
     if (!onSeek) return

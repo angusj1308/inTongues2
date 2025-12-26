@@ -782,8 +782,8 @@ const ActiveMode = ({
                     activeIndex={activeTranscriptIndex}
                     vocabEntries={vocabEntries}
                     language={language}
-                    showWordStatus={activeStep === 3}
-                    showWordStatusToggle={activeStep !== 3}
+                    showWordStatus={activeStep >= 3}
+                    showWordStatusToggle={activeStep >= 2}
                     wordStatusDisabled={activeStep === 2}
                     isSynced={isTranscriptSynced}
                     onUserScroll={handleTranscriptUnsync}

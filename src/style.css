@@ -4083,7 +4083,9 @@ body.active-pass-locked {
   grid-template-columns: minmax(0, 560px) minmax(0, 560px);
   gap: 24px;
   justify-content: center;
-  align-items: stretch;
+  align-items: start;
+  /* Use same height as Pass 2 player */
+  --pass3-panel-height: clamp(420px, 60vh, 600px);
 }
 
 .active-stage--pass-3 .active-stage-player {
@@ -4097,6 +4099,7 @@ body.active-pass-locked {
 .active-stage--pass-3 .active-stage-transcript {
   width: 100%;
   max-width: 560px;
+  height: var(--pass3-panel-height);
   overflow: hidden;
   opacity: 1;
   pointer-events: auto;
@@ -4125,13 +4128,15 @@ body.active-pass-locked {
   overflow: hidden;
 }
 
-.active-stage--pass-3 .transcript-panel-footer {
-  display: none;
+/* Word status toggle shows as locked-on in Pass 3 */
+.active-stage--pass-3 .word-status-toggle {
+  pointer-events: none;
 }
 
 .active-stage--pass-3 .active-stage-word-status {
   width: 100%;
   max-width: 560px;
+  height: var(--pass3-panel-height);
   opacity: 1;
   transform: translateX(0);
   transition: transform 400ms ease, opacity 300ms ease;
@@ -5856,6 +5861,17 @@ body.active-pass-locked {
   color: #94a3b8;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.word-status-toggle--locked-on {
+  color: #3b82f6;
+  cursor: default;
+  font-weight: 500;
+}
+
+.word-status-toggle--locked-on:hover,
+.word-status-toggle--locked-on:focus-visible {
+  color: #3b82f6;
 }
 
 .transcript-panel-footer {

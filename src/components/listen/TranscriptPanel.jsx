@@ -43,13 +43,19 @@ const TranscriptPanel = ({
       {showWordStatusToggle || wordStatusDisabled ? (
         <button
           type="button"
-          className={`word-status-toggle ${wordStatusDisabled ? 'word-status-toggle--disabled' : ''}`}
-          onClick={wordStatusDisabled ? undefined : onToggleWordStatus}
+          className={`word-status-toggle ${wordStatusDisabled ? 'word-status-toggle--disabled' : ''} ${showWordStatus && !onToggleWordStatus ? 'word-status-toggle--locked-on' : ''}`}
+          onClick={wordStatusDisabled || !onToggleWordStatus ? undefined : onToggleWordStatus}
           aria-pressed={showWordStatus}
           disabled={wordStatusDisabled}
           title={wordStatusDisabled ? 'Word status available in Pass 3' : undefined}
         >
-          {showWordStatus ? 'Hide word status' : 'Show word status'}
+          {wordStatusDisabled
+            ? 'Show word status'
+            : showWordStatus && !onToggleWordStatus
+              ? 'Word status (on)'
+              : showWordStatus
+                ? 'Hide word status'
+                : 'Show word status'}
         </button>
       ) : (
         <span className="transcript-panel-footer-spacer" aria-hidden="true" />

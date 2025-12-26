@@ -1092,8 +1092,9 @@ const IntensiveListeningMode = ({
               disabled={intensiveSentenceIndex === 0}
               aria-label="Previous sentence"
             >
-              <span className="intensive-nav-arrow">&lt;</span>
-              <span className="intensive-nav-label">previous sentence</span>
+              <svg className="intensive-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
             </button>
 
             <button
@@ -1103,8 +1104,9 @@ const IntensiveListeningMode = ({
               disabled={intensiveSentenceIndex >= intensiveSentences.length - 1}
               aria-label="Next sentence"
             >
-              <span className="intensive-nav-arrow">&gt;</span>
-              <span className="intensive-nav-label">next sentence</span>
+              <svg className="intensive-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 6 15 12 9 18" />
+              </svg>
             </button>
 
             {isTranscriptVisible && (

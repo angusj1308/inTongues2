@@ -1191,21 +1191,8 @@ const IntensiveListeningMode = ({
       {listeningMode === 'intensive' && (
         <div className="intensive-overlay">
           <div className="intensive-card">
-            {/* Header: Transcribe toggle + Sentence navigation */}
+            {/* Header: Sentence navigation + Transcribe toggle */}
             <div className="intensive-card-header">
-              <div className="transcribe-mode-toggle">
-                <span className="transcribe-mode-label">Transcribe</span>
-                <button
-                  type="button"
-                  className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
-                  onClick={handleTranscriptionToggle}
-                  aria-pressed={isTranscriptionMode}
-                  aria-label="Toggle transcribe mode"
-                >
-                  <span className="toggle-switch-slider" />
-                </button>
-              </div>
-
               <div className="intensive-card-nav">
                 <button
                   type="button"
@@ -1233,58 +1220,74 @@ const IntensiveListeningMode = ({
                   </svg>
                 </button>
               </div>
+
+              <div className="transcribe-mode-toggle">
+                <span className="transcribe-mode-label">Transcribe</span>
+                <button
+                  type="button"
+                  className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
+                  onClick={handleTranscriptionToggle}
+                  aria-pressed={isTranscriptionMode}
+                  aria-label="Toggle transcribe mode"
+                >
+                  <span className="toggle-switch-slider" />
+                </button>
+              </div>
             </div>
 
             {/* Main content */}
             <div className="intensive-card-content">
-              {/* Transcription input (when in transcribe mode) */}
-              {isTranscriptionMode && !isTranscriptRevealed && (
-                <div className="intensive-input-row">
-                  <input
-                    type="text"
-                    className="intensive-input"
-                    placeholder="Type what you hear, then press Enter to reveal."
-                    value={transcriptionDraft}
-                    onChange={(event) => setTranscriptionDraft(event.target.value)}
-                    onKeyDown={handleTranscriptionKeyDown}
-                    readOnly={isTranscriptRevealed}
-                  />
-                </div>
-              )}
+              {/* Upper zone: Text content */}
+              <div className="intensive-upper-zone">
+                {/* Transcription input (when in transcribe mode) */}
+                {isTranscriptionMode && !isTranscriptRevealed && (
+                  <div className="intensive-input-row">
+                    <input
+                      type="text"
+                      className="intensive-input"
+                      placeholder="Type what you hear, then press Enter to reveal."
+                      value={transcriptionDraft}
+                      onChange={(event) => setTranscriptionDraft(event.target.value)}
+                      onKeyDown={handleTranscriptionKeyDown}
+                      readOnly={isTranscriptRevealed}
+                    />
+                  </div>
+                )}
 
-              {/* Transcript */}
-              {isTranscriptVisible && (
-                <div className="intensive-transcript" onMouseUp={handleWordClick}>
-                  {currentIntensiveSentence ? (
-                    renderWordSegments(currentIntensiveSentence)
-                  ) : (
-                    'No text available for this transcript.'
-                  )}
-                </div>
-              )}
+                {/* Transcript */}
+                {isTranscriptVisible && (
+                  <div className="intensive-transcript" onMouseUp={handleWordClick}>
+                    {currentIntensiveSentence ? (
+                      renderWordSegments(currentIntensiveSentence)
+                    ) : (
+                      'No text available for this transcript.'
+                    )}
+                  </div>
+                )}
 
-              {/* Translation */}
-              {isTranslationVisible && (
-                <div className="intensive-translation">
-                  {isLoadingTranslation
-                    ? 'Loading translation...'
-                    : renderTranslationWithHighlights(intensiveTranslation) || 'Translation will appear here.'}
-                </div>
-              )}
+                {/* Translation */}
+                {isTranslationVisible && (
+                  <div className="intensive-translation">
+                    {isLoadingTranslation
+                      ? 'Loading translation...'
+                      : renderTranslationWithHighlights(intensiveTranslation) || 'Translation will appear here.'}
+                  </div>
+                )}
 
-              {/* Reveal button (when not fully revealed) */}
-              {!isTranslationVisible && (
-                <button
-                  type="button"
-                  className="intensive-reveal-btn"
-                  onClick={toggleIntensiveRevealStep}
-                  disabled={isTranscriptionMode && !isTranscriptRevealed}
-                >
-                  {toggleLabel}
-                </button>
-              )}
+                {/* Reveal button (when not fully revealed) */}
+                {!isTranslationVisible && (
+                  <button
+                    type="button"
+                    className="intensive-reveal-btn"
+                    onClick={toggleIntensiveRevealStep}
+                    disabled={isTranscriptionMode && !isTranscriptRevealed}
+                  >
+                    {toggleLabel}
+                  </button>
+                )}
+              </div>
 
-              {/* Player */}
+              {/* Player - center anchor */}
               <div className="intensive-player">
                 <div className="intensive-player-progress" ref={progressBarRef}>
                   <div
@@ -1402,48 +1405,50 @@ const IntensiveListeningMode = ({
                 </div>
               </div>
 
-              {/* Word pairs */}
-              {isTranslationVisible && currentWordPairs.length > 0 && (
-                <div className="intensive-word-pairs">
-                  {currentWordPairs.map((pair, index) => {
-                    const wordKey = normaliseExpression(pair.source)
-                    const currentStatus = vocabEntries[wordKey]?.status || 'unknown'
+              {/* Lower zone: Word pairs */}
+              <div className="intensive-lower-zone">
+                {isTranslationVisible && currentWordPairs.length > 0 && (
+                  <div className="intensive-word-pairs">
+                    {currentWordPairs.map((pair, index) => {
+                      const wordKey = normaliseExpression(pair.source)
+                      const currentStatus = vocabEntries[wordKey]?.status || 'unknown'
 
-                    return (
-                      <div key={index} className="intensive-word-pair">
-                        <div className="intensive-word-pair-content">
-                          <button
-                            type="button"
-                            className="intensive-word-pair-speaker"
-                            onClick={() => playWordAudio(pair.audioBase64)}
-                            disabled={!pair.audioBase64}
-                            aria-label={`Play pronunciation of ${pair.source}`}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-                            </svg>
-                          </button>
-                          <span className="intensive-word-pair-source">{pair.source}</span>
-                          <span className="intensive-word-pair-arrow">→</span>
-                          <span className="intensive-word-pair-target">{pair.target}</span>
-                        </div>
-                        <div className="intensive-word-pair-status">
-                          {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
+                      return (
+                        <div key={index} className="intensive-word-pair">
+                          <div className="intensive-word-pair-content">
                             <button
-                              key={status}
                               type="button"
-                              className={`intensive-word-pair-status-btn ${currentStatus === status ? 'is-active' : ''}`}
-                              onClick={() => handleSetWordPairStatus(pair.source, pair.target, status)}
+                              className="intensive-word-pair-speaker"
+                              onClick={() => playWordAudio(pair.audioBase64)}
+                              disabled={!pair.audioBase64}
+                              aria-label={`Play pronunciation of ${pair.source}`}
                             >
-                              {status.charAt(0).toUpperCase()}
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                              </svg>
                             </button>
-                          ))}
+                            <span className="intensive-word-pair-source">{pair.source}</span>
+                            <span className="intensive-word-pair-arrow">→</span>
+                            <span className="intensive-word-pair-target">{pair.target}</span>
+                          </div>
+                          <div className="intensive-word-pair-status">
+                            {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                className={`intensive-word-pair-status-btn ${currentStatus === status ? 'is-active' : ''}`}
+                                onClick={() => handleSetWordPairStatus(pair.source, pair.target, status)}
+                              >
+                                {status.charAt(0).toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -2637,10 +2637,10 @@ textarea {
   padding: 1rem 0;
 }
 
-/* Word pairs list */
+/* Word pairs list - auto 2-column when needed */
 .intensive-word-pairs {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.5rem;
   width: 100%;
   max-width: 700px;

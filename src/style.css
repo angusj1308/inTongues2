@@ -2392,12 +2392,12 @@ textarea {
   gap: 1.25rem;
 }
 
-/* Upper zone: text content above player - content stays in place */
+/* Upper zone: text content above player - positioned near player */
 .intensive-upper-zone {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: 0.75rem;
   width: 100%;
   padding: 0 clamp(2rem, 10vw, 8rem);
@@ -2497,13 +2497,16 @@ textarea {
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 0.5rem 1rem;
   align-self: center;
-  transition: color 150ms ease;
+  border-radius: 6px;
+  transition: all 150ms ease;
 }
 
 .intensive-reveal-btn:hover:not(:disabled) {
   color: #0f172a;
+  font-weight: 600;
+  background: #f1f5f9;
 }
 
 .intensive-reveal-btn:disabled {

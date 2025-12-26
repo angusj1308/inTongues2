@@ -3992,18 +3992,21 @@ body.active-pass-locked {
   align-items: center;
 }
 
-/* Pass 3: Same layout as Pass 2, but controls disabled */
+/* Pass 3: Transcript on left, Word Status Panel on right */
 .active-stage--pass-3 .active-stage-inner {
   display: grid;
   grid-template-columns: minmax(0, 560px) minmax(0, 560px);
-  align-items: start;
+  gap: 24px;
+  justify-content: center;
+  align-items: stretch;
 }
 
 .active-stage--pass-3 .active-stage-player {
-  width: 100%;
-  max-width: 560px;
-  transform: none;
-  opacity: 1;
+  position: absolute;
+  left: -100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: left 400ms ease, opacity 300ms ease;
 }
 
 .active-stage--pass-3 .active-stage-transcript {
@@ -4013,7 +4016,6 @@ body.active-pass-locked {
   opacity: 1;
   pointer-events: auto;
   transform: none;
-  align-self: stretch;
   position: relative;
 }
 
@@ -4026,6 +4028,10 @@ body.active-pass-locked {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .active-stage--pass-3 .transcript-panel {
@@ -4034,10 +4040,232 @@ body.active-pass-locked {
   overflow: hidden;
 }
 
-.active-stage--pass-3 .extensive-player-shell {
+.active-stage--pass-3 .transcript-panel-footer {
+  display: none;
+}
+
+.active-stage--pass-3 .active-stage-word-status {
+  width: 100%;
+  max-width: 560px;
+  opacity: 1;
+  transform: translateX(0);
+  transition: transform 400ms ease, opacity 300ms ease;
+}
+
+/* Word Status Panel */
+.word-status-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.word-status-panel-header {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafbfc;
+}
+
+.word-status-panel-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.word-status-panel-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-top: 4px;
+}
+
+.word-status-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(51, 65, 85, 0.2) transparent;
+}
+
+.word-status-panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.word-status-panel-body::-webkit-scrollbar-thumb {
+  background-color: rgba(51, 65, 85, 0.2);
+  border-radius: 3px;
+}
+
+.word-status-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #64748b;
+  padding: 24px;
+}
+
+.word-status-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.word-status-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.word-status-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.word-status-card--expanded {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.word-status-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.word-status-card-word {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.word-status-card-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.word-status-card-audio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #e2e8f0;
+  border-radius: 50%;
+  color: #475569;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.word-status-card-audio:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.word-status-card-translation {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.word-status-card-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.word-status-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.word-status-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 150ms ease;
+}
+
+.word-status-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.word-status-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.word-status-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.word-status-slider-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: color 150ms ease;
+}
+
+.word-status-slider-label.active {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.word-status-panel-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  background: #fafbfc;
+}
+
+.word-status-save-btn {
+  width: 100%;
+}
+
+.word-status-panel-footer .active-pass-footer {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
 }
 
 /* Pass 4: Player centered, transcript hidden */
@@ -4069,17 +4297,6 @@ body.active-pass-locked {
 
 .active-stage--pass-4 .player-stack {
   max-width: 560px;
-}
-
-/* Disabled controls state for Pass 3 */
-.active-stage--pass-3 .player-surface {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.active-stage--pass-3 .transport-btn,
-.active-stage--pass-3 .secondary-btn {
-  cursor: not-allowed;
 }
 
 .active-stage-warning-actions {

@@ -776,6 +776,31 @@ const AudioPlayer = () => {
     }
   }
 
+  // Handler for WordStatusPanel status changes
+  const handleWordStatusChange = async (word, status) => {
+    if (!user || !storyLanguage || !word) return
+    const mappedStatus = status === 'new' ? 'unknown' : status
+    if (!VOCAB_STATUSES.includes(mappedStatus)) return
+
+    try {
+      const key = normaliseExpression(word)
+      const existingEntry = vocabEntries[key]
+      const translation = existingEntry?.translation || null
+
+      await upsertVocabEntry(user.uid, storyLanguage, word, translation, mappedStatus)
+
+      setVocabEntries((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || { text: word, language: storyLanguage }),
+          status: mappedStatus,
+        },
+      }))
+    } catch (err) {
+      console.error('Failed to update word status', err)
+    }
+  }
+
   useEffect(() => {
     if (!transcriptText || typeof transcriptText !== 'string') return
 
@@ -1555,6 +1580,9 @@ const AudioPlayer = () => {
                         onPlaybackRateChange={handlePlaybackRateChange}
                         transcriptSegments={chunkTranscriptSegments}
                         activeTranscriptIndex={chunkActiveTranscriptIndex}
+                        vocabEntries={vocabEntries}
+                        language={storyLanguage}
+                        onWordStatusChange={handleWordStatusChange}
                         onBeginFinalListen={handleBeginFinalListen}
                         onRestartChunk={handleRestartChunk}
                         onSelectChunk={handleSelectChunk}

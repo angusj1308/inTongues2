@@ -1265,9 +1265,9 @@ const IntensiveListeningMode = ({
                   </div>
                 )}
 
-                {/* Translation */}
-                {isTranslationVisible && (
-                  <div className="intensive-translation">
+                {/* Translation - always rendered to reserve space, visibility controlled */}
+                {isTranscriptVisible && (
+                  <div className={`intensive-translation ${isTranslationVisible ? '' : 'is-hidden'}`}>
                     {isLoadingTranslation
                       ? 'Loading translation...'
                       : renderTranslationWithHighlights(intensiveTranslation) || 'Translation will appear here.'}

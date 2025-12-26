@@ -68,6 +68,7 @@ const IntensiveListeningMode = ({
   const [loopStart, setLoopStart] = useState(0)
   const [loopEnd, setLoopEnd] = useState(100)
   const [isDragging, setIsDragging] = useState(null) // 'start' | 'end' | null
+  const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
   const sentenceAudioStopRef = useRef(null)
   const fallbackAudioRef = useRef(null)
   const progressIntervalRef = useRef(null)
@@ -89,76 +90,112 @@ const IntensiveListeningMode = ({
       ? intensiveSentences[intensiveSentenceIndex]?.trim() || ''
       : ''
 
+  // Fetch a single sentence translation (no audio for intensive mode)
+  const fetchSentenceTranslation = useCallback(
+    async (sentence) => {
+      if (!sentence) return null
+
+      const ttsLanguage = normalizeLanguageCode(language)
+      if (!ttsLanguage) return null
+
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: sentence,
+            sourceLang: language || 'es',
+            targetLang: resolveSupportedLanguageLabel(nativeLanguage),
+            ttsLanguage,
+            skipAudio: true, // No pronunciation needed - audio already available via player
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Sentence translation failed:', await response.text())
+          return 'Unable to fetch translation right now.'
+        }
+
+        const data = await response.json()
+        return data.translation || 'No translation found.'
+      } catch (error) {
+        console.error('Error translating sentence:', error)
+        return 'Unable to fetch translation right now.'
+      }
+    },
+    [language, nativeLanguage]
+  )
+
+  // Lazy-load translations: current sentence + next 2
   useEffect(() => {
     if (listeningMode !== 'intensive') return undefined
+    if (intensiveSentences.length === 0) return undefined
 
     const ttsLanguage = normalizeLanguageCode(language)
-
     if (!ttsLanguage) return undefined
-
-    const untranslatedSentences = intensiveSentences.filter(
-      (sentence) => !sentenceTranslations[sentence]
-    )
-
-    if (untranslatedSentences.length === 0) return undefined
 
     let isCancelled = false
 
-    const preloadTranslations = async () => {
-      try {
-        const results = await Promise.all(
-          untranslatedSentences.map(async (sentence) => {
-            try {
-              const response = await fetch('http://localhost:4000/api/translatePhrase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  phrase: sentence,
-                  sourceLang: language || 'es',
-                  targetLang: resolveSupportedLanguageLabel(nativeLanguage),
-                  voiceGender,
-                }),
-              })
+    const loadTranslations = async () => {
+      // Get current and next 2 sentences
+      const indicesToFetch = [
+        intensiveSentenceIndex,
+        intensiveSentenceIndex + 1,
+        intensiveSentenceIndex + 2,
+      ].filter((i) => i >= 0 && i < intensiveSentences.length)
 
-              if (!response.ok) {
-                console.error('Sentence translation failed:', await response.text())
-                return [sentence, 'Unable to fetch translation right now.']
-              }
+      const sentencesToFetch = indicesToFetch
+        .map((i) => intensiveSentences[i])
+        .filter((sentence) => sentence && !sentenceTranslations[sentence])
 
-              const data = await response.json()
-              return [sentence, data.translation || 'No translation found.']
-            } catch (error) {
-              console.error('Error translating sentence:', error)
-              return [sentence, 'Unable to fetch translation right now.']
-            }
-          })
-        )
+      if (sentencesToFetch.length === 0) return
 
-        if (isCancelled) return
+      // Show loading only for current sentence if not cached
+      const currentSentence = intensiveSentences[intensiveSentenceIndex]
+      const needsLoadingIndicator = currentSentence && !sentenceTranslations[currentSentence]
 
-        setSentenceTranslations((prev) => {
-          const next = { ...prev }
-          results.forEach(([sentence, translation]) => {
-            if (!sentence) return
-            if (!next[sentence]) {
-              next[sentence] = translation || 'Translation will appear here.'
-            }
-          })
-          return next
-        })
-      } catch (error) {
-        if (!isCancelled) {
-          console.error('Error preloading intensive translations', error)
+      if (needsLoadingIndicator) {
+        setIsLoadingTranslation(true)
+      }
+
+      // Fetch sentences (current first, then prefetch next ones)
+      for (const sentence of sentencesToFetch) {
+        if (isCancelled) break
+
+        const translation = await fetchSentenceTranslation(sentence)
+
+        if (isCancelled) break
+
+        if (translation) {
+          setSentenceTranslations((prev) => ({
+            ...prev,
+            [sentence]: translation,
+          }))
+        }
+
+        // Turn off loading after current sentence is fetched
+        if (sentence === currentSentence) {
+          setIsLoadingTranslation(false)
         }
       }
+
+      setIsLoadingTranslation(false)
     }
 
-    preloadTranslations()
+    loadTranslations()
 
     return () => {
       isCancelled = true
+      setIsLoadingTranslation(false)
     }
-  }, [intensiveSentences, language, nativeLanguage, listeningMode, sentenceTranslations])
+  }, [
+    intensiveSentenceIndex,
+    intensiveSentences,
+    language,
+    listeningMode,
+    fetchSentenceTranslation,
+    sentenceTranslations,
+  ])
 
   useEffect(() => {
     setIntensiveRevealStep('hidden')
@@ -810,13 +847,16 @@ const IntensiveListeningMode = ({
     const handleIntensiveShortcuts = (event) => {
       const activeElement = document.activeElement
       const activeTag = activeElement?.tagName
-      const isEditable =
-        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(activeTag)) ||
+      const isTextInput =
+        (activeTag && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) ||
         activeElement?.isContentEditable
+      const isButton = activeTag === 'BUTTON'
       const isArrowLeft = event.key === 'ArrowLeft'
       const isArrowRight = event.key === 'ArrowRight'
+      const isSpace = event.code === 'Space' || event.key === ' '
 
-      if (isEditable) {
+      // For text inputs, only handle arrow keys on intensive-input
+      if (isTextInput) {
         if (
           activeTag === 'INPUT' &&
           activeElement?.classList?.contains('intensive-input') &&
@@ -829,7 +869,13 @@ const IntensiveListeningMode = ({
         return
       }
 
-      if (event.code === 'Space' || event.key === ' ') {
+      // For buttons, blur and handle shortcuts (don't let space/arrows trigger button)
+      if (isButton && (isSpace || isArrowLeft || isArrowRight)) {
+        event.preventDefault()
+        activeElement.blur()
+      }
+
+      if (isSpace) {
         if (!transcriptSegments.length) return
         event.preventDefault()
         playSentenceAudio(intensiveSentenceIndex)
@@ -861,6 +907,50 @@ const IntensiveListeningMode = ({
     playSentenceAudio,
     scrubAudio,
   ])
+
+  // Swipe gesture for sentence navigation (two-finger trackpad swipe via wheel events)
+  const lastSwipeTimeRef = useRef(0)
+  useEffect(() => {
+    if (listeningMode !== 'intensive') return undefined
+
+    const SWIPE_THRESHOLD = 50
+    const SWIPE_COOLDOWN = 400 // ms between swipes
+
+    const handleWheel = (event) => {
+      // Only handle horizontal swipes
+      const absX = Math.abs(event.deltaX)
+      const absY = Math.abs(event.deltaY)
+
+      // Must be primarily horizontal
+      if (absX <= absY) return
+
+      // Must exceed threshold
+      if (absX < SWIPE_THRESHOLD) return
+
+      // Debounce to prevent rapid-fire navigation
+      const now = Date.now()
+      if (now - lastSwipeTimeRef.current < SWIPE_COOLDOWN) return
+      lastSwipeTimeRef.current = now
+
+      // Prevent browser back/forward navigation
+      event.preventDefault()
+
+      if (event.deltaX > 0) {
+        // Swipe left (deltaX positive) = next sentence
+        handleSentenceNavigation('next')
+      } else {
+        // Swipe right (deltaX negative) = previous sentence
+        handleSentenceNavigation('previous')
+      }
+    }
+
+    // Use non-passive to allow preventDefault
+    window.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+    }
+  }, [listeningMode, handleSentenceNavigation])
 
   const handleWordClick = async (e) => {
     e.stopPropagation()
@@ -1186,7 +1276,9 @@ const IntensiveListeningMode = ({
 
             {isTranslationVisible && (
               <p className="reader-intensive-translation">
-                {intensiveTranslation || 'Translation will appear here.'}
+                {isLoadingTranslation
+                  ? 'Loading translation...'
+                  : intensiveTranslation || 'Translation will appear here.'}
               </p>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   collection,
@@ -97,6 +97,7 @@ const Reader = ({ initialMode }) => {
   const [sentenceSegments, setSentenceSegments] = useState([])
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] =
     useState(false)
+  const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
   const [bookmarkIndex, setBookmarkIndex] = useState(null)
   const [isSavingBookmark, setIsSavingBookmark] = useState(false)
   const audioRef = useRef(null)
@@ -1406,74 +1407,112 @@ const Reader = ({ initialMode }) => {
     [allVisibleSentences.join('|')]
   )
 
-  useEffect(() => {
-    const untranslatedSentences = intensiveSentences.filter(
-      (sentence) => !sentenceTranslations[sentence]
-    )
+  // Fetch a single sentence translation (no audio for intensive mode)
+  const fetchSentenceTranslation = useCallback(
+    async (sentence) => {
+      if (!sentence) return null
 
-    if (untranslatedSentences.length === 0) return undefined
+      const ttsLanguage = normalizeLanguageCode(language)
+      if (!ttsLanguage) return null
+
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: sentence,
+            sourceLang: language || 'es',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+            ttsLanguage,
+            skipAudio: true, // No pronunciation needed for intensive reading
+          }),
+        })
+
+        if (!response.ok) {
+          console.error('Sentence translation failed:', await response.text())
+          return 'Unable to fetch translation right now.'
+        }
+
+        const data = await response.json()
+        return data.translation || 'No translation found.'
+      } catch (error) {
+        console.error('Error translating sentence:', error)
+        return 'Unable to fetch translation right now.'
+      }
+    },
+    [language, profile?.nativeLanguage]
+  )
+
+  // Lazy-load translations: current sentence + next 2
+  useEffect(() => {
+    if (readerMode !== 'intensive') return undefined
+    if (intensiveSentences.length === 0) return undefined
 
     const ttsLanguage = normalizeLanguageCode(language)
-
     if (!ttsLanguage) return undefined
 
     let isCancelled = false
 
-    const preloadTranslations = async () => {
-      try {
-        const results = await Promise.all(
-          untranslatedSentences.map(async (sentence) => {
-            try {
-              const response = await fetch('http://localhost:4000/api/translatePhrase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  phrase: sentence,
-                  sourceLang: language || 'es',
-                  targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-                  voiceGender,
-                }),
-              })
+    const loadTranslations = async () => {
+      // Get current and next 2 sentences
+      const indicesToFetch = [
+        currentSentenceIndex,
+        currentSentenceIndex + 1,
+        currentSentenceIndex + 2,
+      ].filter((i) => i >= 0 && i < intensiveSentences.length)
 
-              if (!response.ok) {
-                console.error('Sentence translation failed:', await response.text())
-                return [sentence, 'Unable to fetch translation right now.']
-              }
+      const sentencesToFetch = indicesToFetch
+        .map((i) => intensiveSentences[i])
+        .filter((sentence) => sentence && !sentenceTranslations[sentence])
 
-              const data = await response.json()
-              return [sentence, data.translation || 'No translation found.']
-            } catch (error) {
-              console.error('Error translating sentence:', error)
-              return [sentence, 'Unable to fetch translation right now.']
-            }
-          })
-        )
+      if (sentencesToFetch.length === 0) return
 
-        if (isCancelled) return
+      // Show loading only for current sentence if not cached
+      const currentSentence = intensiveSentences[currentSentenceIndex]
+      const needsLoadingIndicator = currentSentence && !sentenceTranslations[currentSentence]
 
-        setSentenceTranslations((prev) => {
-          const next = { ...prev }
-          results.forEach(([sentence, translation]) => {
-            if (!sentence) return
-            if (!next[sentence]) {
-              next[sentence] = translation || 'Translation will appear here.'
-            }
-          })
-          return next
-        })
-      } catch (error) {
-        if (!isCancelled) {
-          console.error('Error preloading intensive translations', error)
+      if (needsLoadingIndicator) {
+        setIsLoadingTranslation(true)
+      }
+
+      // Fetch sentences (current first, then prefetch next ones)
+      for (const sentence of sentencesToFetch) {
+        if (isCancelled) break
+
+        const translation = await fetchSentenceTranslation(sentence)
+
+        if (isCancelled) break
+
+        if (translation) {
+          setSentenceTranslations((prev) => ({
+            ...prev,
+            [sentence]: translation,
+          }))
+        }
+
+        // Turn off loading after current sentence is fetched
+        if (sentence === currentSentence) {
+          setIsLoadingTranslation(false)
         }
       }
+
+      setIsLoadingTranslation(false)
     }
 
-    preloadTranslations()
+    loadTranslations()
 
     return () => {
       isCancelled = true
+      setIsLoadingTranslation(false)
     }
-  }, [intensiveSentences, language, nativeLanguage, sentenceTranslations])
+  }, [
+    currentSentenceIndex,
+    intensiveSentences,
+    language,
+    readerMode,
+    fetchSentenceTranslation,
+    sentenceTranslations,
+  ])
 
   const toggleIntensiveTranslation = () => {
     setIsIntensiveTranslationVisible((prev) => !prev)
@@ -1523,7 +1562,10 @@ const Reader = ({ initialMode }) => {
                         readerMode === mode.id ? 'active' : ''
                       }`}
                       type="button"
-                      onClick={() => handleModeSelect(mode.id)}
+                      onClick={(e) => {
+                        handleModeSelect(mode.id)
+                        e.currentTarget.blur()
+                      }}
                     >
                       {mode.label.toUpperCase()}
                     </button>
@@ -1537,38 +1579,86 @@ const Reader = ({ initialMode }) => {
                   className="reader-header-button ui-text"
                   type="button"
                   aria-label={`Font: ${activeFont.label}`}
-                  onClick={cycleFont}
+                  onClick={(e) => {
+                    cycleFont()
+                    e.currentTarget.blur()
+                  }}
                 >
                   Aa
                 </button>
                 <button
-                  className="reader-header-button ui-text reader-theme-trigger"
+                  className="reader-header-button icon-button reader-theme-trigger"
                   type="button"
-                  aria-label="Reader lighting"
-                  onClick={cycleTheme}
+                  aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  onClick={(e) => {
+                    cycleTheme()
+                    e.currentTarget.blur()
+                  }}
                 >
-                  Lighting
+                  {activeTheme.tone === 'dark' ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                  )}
                 </button>
 
                 <button
-                  className="reader-header-button ui-text"
+                  className="reader-header-button icon-button"
                   type="button"
-                  onClick={toggleFullscreen}
+                  onClick={(e) => {
+                    toggleFullscreen()
+                    e.currentTarget.blur()
+                  }}
+                  aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
                   aria-pressed={isFullscreen}
                 >
-                  {isFullscreen ? 'Exit full screen' : 'Full screen'}
+                  {isFullscreen ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="4 14 4 20 10 20" />
+                      <polyline points="20 10 20 4 14 4" />
+                      <polyline points="14 20 20 20 20 14" />
+                      <polyline points="10 4 4 4 4 10" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 3 21 3 21 9" />
+                      <polyline points="9 21 3 21 3 15" />
+                      <polyline points="21 15 21 21 15 21" />
+                      <polyline points="3 9 3 3 9 3" />
+                    </svg>
+                  )}
                 </button>
                 <button
-                  className="reader-header-button ui-text"
+                  className="reader-header-button icon-button"
                   type="button"
-                  onClick={() => persistBookmark()}
+                  onClick={(e) => {
+                    persistBookmark()
+                    e.currentTarget.blur()
+                  }}
                   disabled={isSavingBookmark}
+                  aria-label={bookmarkIndex === currentIndex ? 'Bookmark saved' : 'Save bookmark'}
                 >
-                  {isSavingBookmark
-                    ? 'Saving...'
-                    : bookmarkIndex === currentIndex
-                      ? 'Bookmark saved'
-                      : 'Save bookmark'}
+                  {bookmarkIndex === currentIndex ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -1671,7 +1761,9 @@ const Reader = ({ initialMode }) => {
                   isIntensiveTranslationVisible ? 'is-visible' : 'is-hidden'
                 }`}
               >
-                {intensiveTranslation || 'Translation will appear here.'}
+                {isLoadingTranslation
+                  ? 'Loading translation...'
+                  : intensiveTranslation || 'Translation will appear here.'}
               </p>
             </div>
 

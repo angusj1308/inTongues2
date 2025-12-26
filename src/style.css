@@ -1889,7 +1889,6 @@ textarea {
 }
 
 .reader-hover-shell:hover .reader-hover-header,
-.reader-hover-shell:focus-within .reader-hover-header,
 .reader-hover-hitbox:hover + .reader-hover-header,
 .reader-hover-header:hover {
   opacity: 1;
@@ -1934,27 +1933,43 @@ textarea {
 
 .reader-header-band {
   font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 1rem;
 }
 
 .reader-header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-end;
+  gap: 0.5rem;
   flex-shrink: 0;
 }
 
 .reader-header-left {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   flex-shrink: 0;
 }
 
 .reader-mode-nav {
-  flex: 1;
   justify-content: center;
   min-width: 0;
+}
+
+.reader-header-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.reader-header-button.icon-button {
+  padding: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reader-mode-nav .dashboard-nav-button {
@@ -3092,6 +3107,11 @@ pre {
   color: #0f172a;
 }
 
+/* Prevent browser back/forward gesture on horizontal swipe in intensive mode */
+.listening-lab-page.listening-mode-intensive {
+  overscroll-behavior-x: none;
+}
+
 .listening-lab-main {
   padding: 96px 1.5rem 2.5rem;
   width: 100%;
@@ -3979,7 +3999,7 @@ body.active-pass-locked {
 .active-stage--pass-2 .transcript-panel {
   min-height: 0;
   flex: 1;
-  overflow: hidden;
+  height: 0;
 }
 
 .active-stage--pass-2 .active-stage-player .player-stack {

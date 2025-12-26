@@ -2392,16 +2392,15 @@ textarea {
   gap: 1.25rem;
 }
 
-/* Upper zone: text content above player - aligns to bottom of its space */
+/* Upper zone: text content above player - content stays in place */
 .intensive-upper-zone {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.75rem;
   width: 100%;
   padding: 0 clamp(2rem, 10vw, 8rem);
-  min-height: 120px; /* Reserve space so transcript doesn't shift when translation appears */
 }
 
 /* Lower zone: word pairs below player - aligns to top of its space */
@@ -2499,7 +2498,7 @@ textarea {
   font-weight: 500;
   cursor: pointer;
   padding: 0.5rem 0;
-  text-align: left;
+  align-self: center;
   transition: color 150ms ease;
 }
 

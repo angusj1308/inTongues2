@@ -4001,28 +4001,94 @@ body.active-pass-locked {
   align-items: center;
 }
 
+/* Pass 3: Same layout as Pass 2, but controls disabled */
 .active-stage--pass-3 .active-stage-inner {
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 560px) minmax(0, 560px);
+  align-items: start;
 }
 
 .active-stage--pass-3 .active-stage-player {
+  width: 100%;
+  max-width: 560px;
+  transform: none;
+  opacity: 1;
+}
+
+.active-stage--pass-3 .active-stage-transcript {
+  width: 100%;
+  max-width: 560px;
+  overflow: hidden;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+  align-self: stretch;
+  position: relative;
+}
+
+.active-stage--pass-3 .active-stage-transcript-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.active-stage--pass-3 .transcript-panel {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.active-stage--pass-3 .extensive-player-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Pass 4: Player centered, transcript hidden */
+.active-stage--pass-4 .active-stage-inner {
+  justify-content: center;
+}
+
+.active-stage--pass-4 .active-stage-player {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  transform: none;
+  opacity: 1;
+}
+
+.active-stage--pass-4 .active-stage-transcript {
   flex: 0 1 0;
   max-width: 0;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-120%);
+  transform: translateX(120%);
 }
 
-.active-stage--pass-3 .active-stage-transcript {
-  flex: 0 1 760px;
-  max-width: 760px;
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
+.active-stage--pass-4 .extensive-player-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.active-stage--pass-3 .active-stage-transcript-card {
-  max-width: 760px;
+.active-stage--pass-4 .player-stack {
+  max-width: 560px;
+}
+
+/* Disabled controls state for Pass 3 */
+.active-stage--pass-3 .player-surface {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.active-stage--pass-3 .transport-btn,
+.active-stage--pass-3 .secondary-btn {
+  cursor: not-allowed;
 }
 
 .active-stage-warning-actions {

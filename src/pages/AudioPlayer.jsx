@@ -93,6 +93,7 @@ const AudioPlayer = () => {
   const [completedPassesByChunk, setCompletedPassesByChunk] = useState(() => new Map())
   const [committedPass3ByChunk, setCommittedPass3ByChunk] = useState(new Set())
   const [transitionDirection, setTransitionDirection] = useState('left')
+  const [activeWordTranslations, setActiveWordTranslations] = useState({})
   const completedPassKeyRef = useRef(new Set())
   const passProgressRef = useRef(new Map())
   const lastSpotifyTickRef = useRef(0)
@@ -852,6 +853,109 @@ const AudioPlayer = () => {
     }
   }, [profile?.nativeLanguage, storyLanguage, transcriptText])
 
+  // Pre-fetch word translations with audio for Active Mode Pass 3
+  useEffect(() => {
+    if (listeningMode !== 'active' || activeStep !== 3) return undefined
+
+    const currentChunk = activeChunks[activeChunkIndex]
+    if (!currentChunk) return undefined
+
+    // Get transcript segments for this chunk
+    const chunkSegments = transcriptSegments.filter((segment) => {
+      if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return false
+      return segment.start >= currentChunk.start && segment.end <= currentChunk.end
+    })
+
+    // Extract unique words from chunk that are not already known
+    const wordsToTranslate = []
+    const seenWords = new Set()
+
+    chunkSegments.forEach((segment) => {
+      const tokens = (segment.text || '').match(/[\p{L}\p{N}]+/gu) || []
+      tokens.forEach((token) => {
+        const normalised = normaliseExpression(token)
+        if (seenWords.has(normalised)) return
+        seenWords.add(normalised)
+
+        const entry = vocabEntries[normalised]
+        const status = entry?.status || 'unknown'
+        // Skip words already marked as known
+        if (status === 'known') return
+        // Skip words we already have translations for
+        if (activeWordTranslations[normalised]?.translation) return
+
+        wordsToTranslate.push({ word: token, normalised })
+      })
+    })
+
+    if (wordsToTranslate.length === 0) return undefined
+
+    const controller = new AbortController()
+
+    async function fetchWordTranslations() {
+      const newTranslations = {}
+
+      // Fetch translations in parallel with concurrency limit
+      const batchSize = 5
+      for (let i = 0; i < wordsToTranslate.length; i += batchSize) {
+        if (controller.signal.aborted) break
+
+        const batch = wordsToTranslate.slice(i, i + batchSize)
+        const promises = batch.map(async ({ word, normalised }) => {
+          try {
+            const response = await fetch('http://localhost:4000/api/translatePhrase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phrase: word,
+                sourceLang: storyLanguage || 'es',
+                targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+                voiceGender,
+              }),
+              signal: controller.signal,
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              newTranslations[normalised] = {
+                translation: data.translation || null,
+                audioBase64: data.audioBase64 || null,
+                audioUrl: data.audioUrl || null,
+              }
+            }
+          } catch (err) {
+            if (err.name !== 'AbortError') {
+              console.error(`Error translating word "${word}":`, err)
+            }
+          }
+        })
+
+        await Promise.all(promises)
+      }
+
+      if (!controller.signal.aborted && Object.keys(newTranslations).length > 0) {
+        setActiveWordTranslations((prev) => ({ ...prev, ...newTranslations }))
+      }
+    }
+
+    fetchWordTranslations()
+
+    return () => {
+      controller.abort()
+    }
+  }, [
+    listeningMode,
+    activeStep,
+    activeChunkIndex,
+    activeChunks,
+    transcriptSegments,
+    vocabEntries,
+    activeWordTranslations,
+    storyLanguage,
+    profile?.nativeLanguage,
+    voiceGender,
+  ])
+
   useEffect(() => {
     function handleGlobalClick(event) {
       if (event.target.closest('.page-text') || event.target.closest('.translate-popup')) {
@@ -1582,6 +1686,7 @@ const AudioPlayer = () => {
                         activeTranscriptIndex={chunkActiveTranscriptIndex}
                         vocabEntries={vocabEntries}
                         language={storyLanguage}
+                        wordTranslations={activeWordTranslations}
                         onWordStatusChange={handleWordStatusChange}
                         onBeginFinalListen={handleBeginFinalListen}
                         onRestartChunk={handleRestartChunk}

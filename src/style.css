@@ -4142,136 +4142,132 @@ body.active-pass-locked {
   padding: 24px;
 }
 
-.word-status-card-list {
+/* Word Status Row Layout */
+.word-status-row-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.word-status-card {
+.word-status-row {
+  display: grid;
+  grid-template-columns: minmax(60px, 1fr) minmax(60px, 1.2fr) 28px 90px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: all 200ms ease;
+  border-radius: 8px;
+  transition: background 150ms ease;
 }
 
-.word-status-card:hover {
+.word-status-row:hover {
   background: #f1f5f9;
-  border-color: #cbd5e1;
 }
 
-.word-status-card--expanded {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
-}
-
-.word-status-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.word-status-card-word {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.word-status-card-text {
-  font-size: 1rem;
+.word-status-row-word {
+  font-size: 0.95rem;
   font-weight: 600;
   color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.word-status-card-audio {
+.word-status-row-translation {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-status-row-audio {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: #e2e8f0;
   border-radius: 50%;
   color: #475569;
   cursor: pointer;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
-.word-status-card-audio:hover {
+.word-status-row-audio:hover:not(:disabled) {
   background: #3b82f6;
   color: #fff;
 }
 
-.word-status-card-translation {
-  font-size: 0.9rem;
-  color: #64748b;
-  font-style: italic;
+.word-status-row-audio--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.word-status-card-slider {
+.word-status-row-slider {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-width: 90px;
 }
 
-.word-status-slider {
+.word-status-slider-input {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 5px;
   background: #e2e8f0;
   border-radius: 3px;
   outline: none;
   cursor: pointer;
 }
 
-.word-status-slider::-webkit-slider-thumb {
+.word-status-slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   background: #3b82f6;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   transition: transform 150ms ease;
 }
 
-.word-status-slider::-webkit-slider-thumb:hover {
+.word-status-slider-input::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
 
-.word-status-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+.word-status-slider-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
   background: #3b82f6;
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.word-status-slider-labels {
+.word-status-slider-ticks {
   display: flex;
   justify-content: space-between;
   padding: 0 2px;
 }
 
-.word-status-slider-label {
-  font-size: 0.65rem;
+.word-status-slider-tick {
+  font-size: 0.6rem;
+  font-weight: 500;
   color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   transition: color 150ms ease;
 }
 
-.word-status-slider-label.active {
+.word-status-slider-tick.active {
   color: #3b82f6;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .word-status-panel-footer {

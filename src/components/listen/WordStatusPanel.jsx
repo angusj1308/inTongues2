@@ -1,32 +1,26 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 
 const STATUS_LEVELS = ['new', 'recognised', 'familiar', 'known']
-const STATUS_LABELS = {
-  new: 'New',
-  recognised: 'Recognised',
-  familiar: 'Familiar',
-  known: 'Known',
-}
+const STATUS_ABBREV = ['N', 'R', 'F', 'K']
 
 const PlayIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
     <path d="M8 5v14l11-7z" />
   </svg>
 )
 
-const WordCard = ({
+const WordRow = ({
   word,
   translation,
   status = 'new',
   audioBase64,
   audioUrl,
-  isExpanded,
   onStatusChange,
   onPlayAudio,
-  onClick,
 }) => {
   const statusIndex = STATUS_LEVELS.indexOf(status)
   const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
+  const hasAudio = Boolean(audioBase64 || audioUrl)
 
   const handleSliderChange = (e) => {
     const newIndex = parseInt(e.target.value, 10)
@@ -36,38 +30,26 @@ const WordCard = ({
     }
   }
 
-  const handlePlayClick = (e) => {
-    e.stopPropagation()
-    if (onPlayAudio && (audioBase64 || audioUrl)) {
+  const handlePlayClick = () => {
+    if (onPlayAudio && hasAudio) {
       onPlayAudio(audioBase64, audioUrl)
     }
   }
 
   return (
-    <div
-      className={`word-status-card ${isExpanded ? 'word-status-card--expanded' : ''}`}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
-    >
-      <div className="word-status-card-header">
-        <div className="word-status-card-word">
-          <span className="word-status-card-text">{word}</span>
-          {(audioBase64 || audioUrl) && (
-            <button
-              type="button"
-              className="word-status-card-audio"
-              onClick={handlePlayClick}
-              aria-label={`Play pronunciation of ${word}`}
-            >
-              <PlayIcon />
-            </button>
-          )}
-        </div>
-        <span className="word-status-card-translation">{translation || '...'}</span>
-      </div>
-      <div className="word-status-card-slider">
+    <div className="word-status-row">
+      <span className="word-status-row-word">{word}</span>
+      <span className="word-status-row-translation">{translation || '...'}</span>
+      <button
+        type="button"
+        className={`word-status-row-audio ${hasAudio ? '' : 'word-status-row-audio--disabled'}`}
+        onClick={handlePlayClick}
+        disabled={!hasAudio}
+        aria-label={`Play pronunciation of ${word}`}
+      >
+        <PlayIcon />
+      </button>
+      <div className="word-status-row-slider">
         <input
           type="range"
           min="0"
@@ -75,17 +57,16 @@ const WordCard = ({
           step="1"
           value={validStatusIndex}
           onChange={handleSliderChange}
-          className="word-status-slider"
+          className="word-status-slider-input"
           aria-label={`Status for ${word}`}
-          onClick={(e) => e.stopPropagation()}
         />
-        <div className="word-status-slider-labels">
-          {STATUS_LEVELS.map((level, i) => (
+        <div className="word-status-slider-ticks">
+          {STATUS_ABBREV.map((abbrev, i) => (
             <span
-              key={level}
-              className={`word-status-slider-label ${i === validStatusIndex ? 'active' : ''}`}
+              key={abbrev}
+              className={`word-status-slider-tick ${i === validStatusIndex ? 'active' : ''}`}
             >
-              {STATUS_LABELS[level]}
+              {abbrev}
             </span>
           ))}
         </div>
@@ -99,12 +80,8 @@ const WordStatusPanel = ({
   onStatusChange,
   onSaveAndContinue,
   passNavigation,
-  highlightedWord,
-  onWordClick,
 }) => {
-  const [expandedWord, setExpandedWord] = useState(null)
   const audioRef = useRef(null)
-  const listRef = useRef(null)
 
   const handlePlayAudio = useCallback((audioBase64, audioUrl) => {
     if (audioRef.current) {
@@ -121,13 +98,6 @@ const WordStatusPanel = ({
     audioRef.current = audio
   }, [])
 
-  const handleCardClick = useCallback((word) => {
-    setExpandedWord((prev) => (prev === word ? null : word))
-    if (onWordClick) {
-      onWordClick(word)
-    }
-  }, [onWordClick])
-
   const filteredWords = words.filter((w) => w.status !== 'known')
 
   return (
@@ -137,26 +107,24 @@ const WordStatusPanel = ({
         <span className="word-status-panel-title">Read + Adjust</span>
       </div>
 
-      <div className="word-status-panel-body" ref={listRef}>
+      <div className="word-status-panel-body">
         {filteredWords.length === 0 ? (
           <div className="word-status-panel-empty">
             <p>No new words to review in this chunk.</p>
             <p className="muted small">All words are already marked as known.</p>
           </div>
         ) : (
-          <div className="word-status-card-list">
+          <div className="word-status-row-list">
             {filteredWords.map((wordData) => (
-              <WordCard
-                key={wordData.word}
+              <WordRow
+                key={wordData.normalised || wordData.word}
                 word={wordData.word}
                 translation={wordData.translation}
                 status={wordData.status}
                 audioBase64={wordData.audioBase64}
                 audioUrl={wordData.audioUrl}
-                isExpanded={expandedWord === wordData.word || highlightedWord === wordData.word}
                 onStatusChange={onStatusChange}
                 onPlayAudio={handlePlayAudio}
-                onClick={() => handleCardClick(wordData.word)}
               />
             ))}
           </div>

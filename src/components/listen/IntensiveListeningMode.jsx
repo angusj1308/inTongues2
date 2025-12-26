@@ -1235,10 +1235,10 @@ const IntensiveListeningMode = ({
               </div>
             </div>
 
-            {/* Main content */}
+            {/* Main content - 4 row grid */}
             <div className="intensive-card-content">
-              {/* Upper zone: Text content */}
-              <div className="intensive-upper-zone">
+              {/* Row 1: Transcript zone */}
+              <div className="intensive-transcript-zone">
                 {/* Transcription input (when in transcribe mode) */}
                 {isTranscriptionMode && !isTranscriptRevealed && (
                   <div className="intensive-input-row">
@@ -1264,18 +1264,17 @@ const IntensiveListeningMode = ({
                     )}
                   </div>
                 )}
+              </div>
 
-                {/* Translation - always rendered to reserve space, visibility controlled */}
-                {isTranscriptVisible && (
-                  <div className={`intensive-translation ${isTranslationVisible ? '' : 'is-hidden'}`}>
+              {/* Row 2: Translation zone (button lives here until translation appears) */}
+              <div className="intensive-translation-zone">
+                {isTranslationVisible ? (
+                  <div className="intensive-translation">
                     {isLoadingTranslation
                       ? 'Loading translation...'
                       : renderTranslationWithHighlights(intensiveTranslation) || 'Translation will appear here.'}
                   </div>
-                )}
-
-                {/* Reveal button (when not fully revealed) */}
-                {!isTranslationVisible && (
+                ) : (
                   <button
                     type="button"
                     className="intensive-reveal-btn"
@@ -1405,8 +1404,8 @@ const IntensiveListeningMode = ({
                 </div>
               </div>
 
-              {/* Lower zone: Word pairs */}
-              <div className="intensive-lower-zone">
+              {/* Row 4: Vocab zone */}
+              <div className="intensive-vocab-zone">
                 {isTranslationVisible && currentWordPairs.length > 0 && (
                   <div className="intensive-word-pairs">
                     {currentWordPairs.map((pair, index) => {

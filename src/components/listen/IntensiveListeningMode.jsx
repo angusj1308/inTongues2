@@ -49,6 +49,7 @@ const IntensiveListeningMode = ({
   vocabEntries,
   setVocabEntries,
   voiceGender,
+  voiceId,
   setPopup,
   intensiveSentenceIndex,
   setIntensiveSentenceIndex,
@@ -57,6 +58,7 @@ const IntensiveListeningMode = ({
   user,
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
+  const [sentenceWordPairs, setSentenceWordPairs] = useState({}) // { sentence: [{source, target, audioBase64}] }
   const [intensiveRevealStep, setIntensiveRevealStep] = useState('hidden')
   const [isTranscriptionMode, setIsTranscriptionMode] = useState(false)
   const [transcriptionDraft, setTranscriptionDraft] = useState('')
@@ -74,6 +76,7 @@ const IntensiveListeningMode = ({
   const progressIntervalRef = useRef(null)
   const currentSegmentRef = useRef(null)
   const progressBarRef = useRef(null)
+  const wordAudioRef = useRef(null)
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -90,13 +93,93 @@ const IntensiveListeningMode = ({
       ? intensiveSentences[intensiveSentenceIndex]?.trim() || ''
       : ''
 
-  // Fetch a single sentence translation (no audio for intensive mode)
+  // Get word pairs for current sentence (unknown words with translations and audio)
+  const currentWordPairs = useMemo(
+    () => sentenceWordPairs[currentIntensiveSentence] || [],
+    [sentenceWordPairs, currentIntensiveSentence]
+  )
+
+  // Set of source words that should be highlighted (from word pairs)
+  const highlightedSourceWords = useMemo(
+    () => new Set(currentWordPairs.map((pair) => pair.source.toLowerCase())),
+    [currentWordPairs]
+  )
+
+  // Set of target words that should be highlighted (from word pairs)
+  const highlightedTargetWords = useMemo(
+    () => new Set(currentWordPairs.map((pair) => pair.target.toLowerCase())),
+    [currentWordPairs]
+  )
+
+  // Render translation text with highlighted target words
+  const renderTranslationWithHighlights = (text) => {
+    if (!text || highlightedTargetWords.size === 0) return text
+
+    const tokens = text.split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+
+    return tokens.map((token, index) => {
+      if (!token) return null
+      const isWord = /[\p{L}\p{N}]/u.test(token)
+      if (!isWord) return <span key={index}>{token}</span>
+
+      const isMatch = highlightedTargetWords.has(token.toLowerCase())
+      if (isMatch) {
+        return (
+          <span key={index} className="translation-word-match">
+            {token}
+          </span>
+        )
+      }
+      return <span key={index}>{token}</span>
+    })
+  }
+
+  // Play word audio from base64
+  const playWordAudio = useCallback((audioBase64) => {
+    if (!audioBase64) return
+
+    // Stop any currently playing word audio
+    if (wordAudioRef.current) {
+      wordAudioRef.current.pause()
+      wordAudioRef.current = null
+    }
+
+    try {
+      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`)
+      wordAudioRef.current = audio
+      audio.play().catch((err) => console.error('Word audio playback failed', err))
+    } catch (error) {
+      console.error('Error creating audio from base64:', error)
+    }
+  }, [])
+
+  // Extract unknown/new words from a sentence based on vocabEntries
+  const getUnknownWordsFromSentence = useCallback(
+    (sentence) => {
+      if (!sentence) return []
+      // Split sentence into words, normalize, and check status
+      const words = sentence.split(/\s+/).map((w) => w.replace(/[.,!?;:'"()]/g, '').toLowerCase()).filter(Boolean)
+      const uniqueWords = [...new Set(words)]
+      return uniqueWords.filter((word) => {
+        const key = normaliseExpression(word)
+        const status = vocabEntries[key]?.status
+        // Include words that are unknown/new or not in vocab at all
+        return !status || status === 'unknown'
+      })
+    },
+    [vocabEntries]
+  )
+
+  // Fetch a single sentence translation with word pairs for unknown words
   const fetchSentenceTranslation = useCallback(
     async (sentence) => {
       if (!sentence) return null
 
       const ttsLanguage = normalizeLanguageCode(language)
       if (!ttsLanguage) return null
+
+      // Get unknown words from this sentence
+      const unknownWords = getUnknownWordsFromSentence(sentence)
 
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
@@ -107,23 +190,28 @@ const IntensiveListeningMode = ({
             sourceLang: language || 'es',
             targetLang: resolveSupportedLanguageLabel(nativeLanguage),
             ttsLanguage,
-            skipAudio: true, // No pronunciation needed - audio already available via player
+            skipAudio: false, // We want audio for word pairs
+            unknownWords: unknownWords.length > 0 ? unknownWords : undefined,
+            voiceId, // Use same ElevenLabs voice as story
           }),
         })
 
         if (!response.ok) {
           console.error('Sentence translation failed:', await response.text())
-          return 'Unable to fetch translation right now.'
+          return { translation: 'Unable to fetch translation right now.', wordPairs: [] }
         }
 
         const data = await response.json()
-        return data.translation || 'No translation found.'
+        return {
+          translation: data.translation || 'No translation found.',
+          wordPairs: data.wordPairs || []
+        }
       } catch (error) {
         console.error('Error translating sentence:', error)
-        return 'Unable to fetch translation right now.'
+        return { translation: 'Unable to fetch translation right now.', wordPairs: [] }
       }
     },
-    [language, nativeLanguage]
+    [language, nativeLanguage, getUnknownWordsFromSentence, voiceId]
   )
 
   // Lazy-load translations: current sentence + next 2
@@ -162,15 +250,22 @@ const IntensiveListeningMode = ({
       for (const sentence of sentencesToFetch) {
         if (isCancelled) break
 
-        const translation = await fetchSentenceTranslation(sentence)
+        const result = await fetchSentenceTranslation(sentence)
 
         if (isCancelled) break
 
-        if (translation) {
+        if (result) {
           setSentenceTranslations((prev) => ({
             ...prev,
-            [sentence]: translation,
+            [sentence]: result.translation,
           }))
+          // Store word pairs if available
+          if (result.wordPairs && result.wordPairs.length > 0) {
+            setSentenceWordPairs((prev) => ({
+              ...prev,
+              [sentence]: result.wordPairs,
+            }))
+          }
         }
 
         // Turn off loading after current sentence is fetched
@@ -393,6 +488,7 @@ const IntensiveListeningMode = ({
         const normalised = normaliseExpression(token)
         const entry = vocabEntries[normalised]
         const status = getDisplayStatus(entry?.status)
+        const isWordPairMatch = highlightedSourceWords.has(token.toLowerCase())
 
         elements.push(
           <WordTokenListening
@@ -402,6 +498,7 @@ const IntensiveListeningMode = ({
             language={language}
             listeningMode={listeningMode}
             onWordClick={handleSingleWordClick}
+            isWordPairMatch={isWordPairMatch}
           />
         )
       })
@@ -1265,23 +1362,52 @@ const IntensiveListeningMode = ({
               </div>
             )}
 
+            {/* Translation toggle - shows button OR translation (not both) */}
             <div className="reader-intensive-controls">
-              <button
-                type="button"
-                className="intensive-translation-toggle"
-                onClick={toggleIntensiveRevealStep}
-                disabled={isTranscriptionMode && !isTranscriptRevealed}
-              >
-                {toggleLabel}
-              </button>
+              {!isTranslationVisible ? (
+                <button
+                  type="button"
+                  className="intensive-translation-toggle"
+                  onClick={toggleIntensiveRevealStep}
+                  disabled={isTranscriptionMode && !isTranscriptRevealed}
+                >
+                  {toggleLabel}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="reader-intensive-translation"
+                  onClick={toggleIntensiveRevealStep}
+                >
+                  {isLoadingTranslation
+                    ? 'Loading translation...'
+                    : renderTranslationWithHighlights(intensiveTranslation) || 'Translation will appear here.'}
+                </button>
+              )}
             </div>
 
-            {isTranslationVisible && (
-              <p className="reader-intensive-translation">
-                {isLoadingTranslation
-                  ? 'Loading translation...'
-                  : intensiveTranslation || 'Translation will appear here.'}
-              </p>
+            {/* Word pairs list - shows when translation visible and has word pairs */}
+            {isTranslationVisible && currentWordPairs.length > 0 && (
+              <div className="intensive-word-pairs">
+                {currentWordPairs.map((pair, index) => (
+                  <div key={index} className="intensive-word-pair">
+                    <button
+                      type="button"
+                      className="intensive-word-pair-speaker"
+                      onClick={() => playWordAudio(pair.audioBase64)}
+                      disabled={!pair.audioBase64}
+                      aria-label={`Play pronunciation of ${pair.source}`}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                      </svg>
+                    </button>
+                    <span className="intensive-word-pair-source">{pair.source}</span>
+                    <span className="intensive-word-pair-arrow">→</span>
+                    <span className="intensive-word-pair-target">{pair.target}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

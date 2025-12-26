@@ -196,6 +196,22 @@ textarea {
   transition: background-color 0.15s ease;
 }
 
+/* Highlight unknown words that have word pair translations */
+.reader-word--word-pair-match {
+  text-decoration: underline;
+  text-decoration-color: #f59e0b;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Highlight corresponding words in translation */
+.translation-word-match {
+  text-decoration: underline;
+  text-decoration-color: #f59e0b;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .reader-sentence {
   display: inline;
   transition: opacity 0.2s ease, filter 0.2s ease;
@@ -2624,34 +2640,45 @@ textarea {
   margin: 0;
 }
 
-.reader-intensive-translation {
-  position: absolute;
-  bottom: 12%;
-  left: 50%;
-  transform: translateX(-50%);
+/* Translation as clickable button (replaces toggle when visible) */
+button.reader-intensive-translation {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-size: clamp(1rem, 0.8vw + 0.75rem, 1.25rem);
   font-weight: 400;
   font-style: italic;
   color: #94a3b8;
   text-align: left;
+  line-height: 1.5;
+  max-width: 720px;
+  width: calc(100% - 4rem);
+  padding: 0.5rem 2rem;
+  transition: color 150ms ease;
+}
+
+button.reader-intensive-translation:hover {
+  color: #64748b;
 }
 
 .reader-intensive-controls {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  width: 100%;
+  align-items: flex-start;
+  max-width: 720px;
+  width: calc(100% - 4rem);
 }
 
 .intensive-translation-toggle {
-  position: absolute;
-  top: 32%;
-  left: 50%;
-  transform: translateX(-50%);
   background: transparent;
   color: #64748b;
   border: none;
-  padding: 0.25rem 0;
+  padding: 0.25rem 2rem;
   font-weight: 500;
   font-size: 0.95rem;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
@@ -2678,6 +2705,64 @@ textarea {
   margin-top: 0.5rem;
   color: #475569;
   font-size: 0.95rem;
+}
+
+/* Word pairs list */
+.intensive-word-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0 2rem;
+}
+
+.intensive-word-pair {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.intensive-word-pair-speaker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.intensive-word-pair-speaker:hover:not(:disabled) {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.intensive-word-pair-speaker:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.intensive-word-pair-source {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.intensive-word-pair-arrow {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.intensive-word-pair-target {
+  color: #64748b;
+  font-style: italic;
 }
 
 .translate-popup {

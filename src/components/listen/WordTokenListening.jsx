@@ -35,6 +35,7 @@ const WordTokenListening = ({
   onWordClick,
   onSelectionTranslate,
   enableHighlight = false,
+  isWordPairMatch = false,
 }) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
@@ -72,9 +73,13 @@ const WordTokenListening = ({
     }
   }
 
+  const classNames = ['reader-word']
+  if (highlighted) classNames.push('reader-word--highlighted')
+  if (isWordPairMatch) classNames.push('reader-word--word-pair-match')
+
   return (
     <span
-      className={highlighted ? 'reader-word reader-word--highlighted' : 'reader-word'}
+      className={classNames.join(' ')}
       style={style}
       onMouseUp={handleMouseUp}
       onClick={handleClick}

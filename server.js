@@ -1802,7 +1802,7 @@ app.post('/api/generate', async (req, res) => {
 
 app.post('/api/translatePhrase', async (req, res) => {
   try {
-    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender } = req.body || {}
+    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender, unknownWords, voiceId: requestedVoiceId } = req.body || {}
     const rawTtsLanguage = req.body?.ttsLanguage
 
     if (!phrase || typeof phrase !== 'string') {
@@ -1820,77 +1820,137 @@ app.post('/api/translatePhrase', async (req, res) => {
     const sourceLabel = sourceLang || 'auto-detected'
     const targetLabel = targetLang || 'English'
 
-    const prompt = `
+    // Build prompt - if unknownWords provided, ask for word pairs too
+    const hasUnknownWords = Array.isArray(unknownWords) && unknownWords.length > 0
+
+    let prompt
+    if (hasUnknownWords) {
+      prompt = `
+Translate the following sentence from ${sourceLabel} to ${targetLabel}.
+Also provide translations for these specific words: ${unknownWords.join(', ')}
+
+Return JSON in this exact format:
+{
+  "translation": "the full sentence translation",
+  "wordPairs": [
+    {"source": "word1", "target": "translation1"},
+    {"source": "word2", "target": "translation2"}
+  ]
+}
+
+Sentence: ${phrase}
+`.trim()
+    } else {
+      prompt = `
 Translate the following phrase from ${sourceLabel} to ${targetLabel}.
 Return only the translated phrase, with no extra commentary.
 
 ${phrase}
 `.trim()
+    }
 
     const translationPromise = (async () => {
       let translation = phrase
       let targetText = phrase
+      let wordPairs = []
 
       try {
         const response = await client.responses.create({
           model: 'gpt-4o-mini',
           input: prompt,
         })
-        translation = response.output_text?.trim() || translation
-        targetText = translation
+
+        if (hasUnknownWords) {
+          // Parse JSON response
+          try {
+            const jsonStr = response.output_text?.trim() || '{}'
+            // Extract JSON from markdown code blocks if present
+            const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, jsonStr]
+            const parsed = JSON.parse(jsonMatch[1] || jsonStr)
+            translation = parsed.translation || translation
+            targetText = translation
+            wordPairs = parsed.wordPairs || []
+          } catch (parseErr) {
+            console.error('Error parsing word pairs JSON:', parseErr)
+            translation = response.output_text?.trim() || translation
+            targetText = translation
+          }
+        } else {
+          translation = response.output_text?.trim() || translation
+          targetText = translation
+        }
       } catch (innerErr) {
         console.error('Error translating phrase with OpenAI:', innerErr)
       }
 
-      return { translation, targetText }
+      return { translation, targetText, wordPairs }
     })()
-
-    const pronunciationPromise = translationPromise.then(async ({
-      translation,
-      targetText,
-    }) => {
-      // Always pronounce the learner's target-language text (i.e., the text they selected),
-      // not the translated/native-language output. This keeps audio aligned with the
-      // on-page content when learners are translating into their native language.
-      const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
-
-      if (!phraseForAudio || !phraseForAudio.trim()) return null
-
-      const phraseForAudioSafe =
-        phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
-
-      // Use ElevenLabs TTS with language-specific voice to avoid cognate mispronunciation
-      const resolvedGender = voiceGender || 'male'
-
-      try {
-        const { voiceId } = resolveElevenLabsVoiceId(sourceLang, resolvedGender)
-
-        if (process.env.TTS_DEBUG === '1') {
-          console.log(
-            `TTS_TRANSLATE_PHRASE (ElevenLabs) len=${phraseForAudioSafe.length} lang=${sourceLang} gender=${resolvedGender} voiceId=${voiceId}`
-          )
-        }
-
-        const audioBuffer = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
-        return audioBuffer.toString('base64')
-      } catch (ttsError) {
-        console.error('Error generating pronunciation audio (ElevenLabs):', ttsError)
-        return null
-      }
-    })
 
     // Skip audio generation if requested (e.g., for intensive mode sentence preloading)
     if (skipAudio) {
-      const { translation, targetText } = await translationPromise
-      return res.json({ phrase, translation, targetText, audioBase64: null })
+      const { translation, targetText, wordPairs } = await translationPromise
+      return res.json({ phrase, translation, targetText, audioBase64: null, wordPairs })
     }
 
-    const [{ translation, targetText }, audioBase64] = await Promise.all([
-      translationPromise,
-      pronunciationPromise,
-    ])
+    // Generate pronunciation audio using ElevenLabs
+    const resolvedGender = voiceGender || 'male'
+    const { translation, targetText, wordPairs } = await translationPromise
 
-    return res.json({ phrase, translation, targetText, audioBase64 })
+    // Use requested voiceId if provided, otherwise resolve by language
+    let voiceId = requestedVoiceId
+    if (!voiceId) {
+      try {
+        const resolved = resolveElevenLabsVoiceId(sourceLang, resolvedGender)
+        voiceId = resolved.voiceId
+      } catch (voiceErr) {
+        console.error('Error resolving ElevenLabs voice:', voiceErr)
+      }
+    }
+
+    // Generate audio for the phrase
+    let audioBase64 = null
+    const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
+    if (phraseForAudio && voiceId) {
+      const phraseForAudioSafe = phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
+      try {
+        const audioBuffer = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
+        audioBase64 = audioBuffer.toString('base64')
+      } catch (ttsError) {
+        console.error('Error generating pronunciation audio (ElevenLabs):', ttsError)
+      }
+    }
+
+    // Generate audio for each word pair (sequentially to avoid rate limits)
+    const wordPairsWithAudio = []
+    if (wordPairs && wordPairs.length > 0 && voiceId) {
+      for (const pair of wordPairs) {
+        let wordAudio = null
+        try {
+          const audioBuffer = await requestElevenLabsTts(pair.source, voiceId)
+          wordAudio = audioBuffer.toString('base64')
+        } catch (wordTtsErr) {
+          console.error(`Error generating audio for word "${pair.source}":`, wordTtsErr)
+        }
+        wordPairsWithAudio.push({
+          source: pair.source,
+          target: pair.target,
+          audioBase64: wordAudio
+        })
+      }
+    } else if (wordPairs && wordPairs.length > 0) {
+      // No voiceId available, return pairs without audio
+      wordPairs.forEach(pair => {
+        wordPairsWithAudio.push({ source: pair.source, target: pair.target, audioBase64: null })
+      })
+    }
+
+    return res.json({
+      phrase,
+      translation,
+      targetText,
+      audioBase64,
+      wordPairs: wordPairsWithAudio.length > 0 ? wordPairsWithAudio : wordPairs
+    })
   } catch (error) {
     console.error('Error translating phrase:', error)
     return res.status(500).json({ error: 'Internal server error' })

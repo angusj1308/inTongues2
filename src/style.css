@@ -2495,6 +2495,10 @@ textarea {
   color: #64748b;
 }
 
+.intensive-translation.is-hidden {
+  visibility: hidden;
+}
+
 .intensive-reveal-btn {
   background: transparent;
   border: none;
@@ -2510,7 +2514,6 @@ textarea {
 
 .intensive-reveal-btn:hover:not(:disabled) {
   color: #0f172a;
-  font-weight: 600;
   background: #f1f5f9;
 }
 

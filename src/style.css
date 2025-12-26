@@ -2404,19 +2404,22 @@ textarea {
   padding: 0 clamp(2rem, 10vw, 8rem);
 }
 
-/* Row 2: Translation zone - translation left-aligned, button centered */
+/* Row 2: Translation zone - reserves space for translation text */
 .intensive-translation-zone {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
   width: 100%;
   padding: 0 clamp(2rem, 10vw, 8rem);
-  min-height: 2.5rem;
+  min-height: 5rem; /* Reserve space for 2-3 lines of translation */
 }
 
 .intensive-translation-zone .intensive-reveal-btn {
-  align-self: center;
   margin: 0 auto;
+}
+
+.intensive-translation-zone .intensive-translation {
+  align-self: flex-start;
 }
 
 /* Row 4: Vocab zone - content aligns to top */

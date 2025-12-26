@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TranscriptPanel from './TranscriptPanel'
+import WordStatusPanel from './WordStatusPanel'
 import ChunkTimeline from './ChunkTimeline'
 import { calculatePassNavLayout } from './passNavLayout'
+import { normaliseExpression } from '../../services/vocab'
 
 const PASS_LABELS = {
   1: 'Listen',
@@ -91,6 +93,10 @@ const ActiveMode = ({
   onPlaybackRateChange,
   transcriptSegments = [],
   activeTranscriptIndex = -1,
+  vocabEntries = {},
+  language,
+  wordTranslations = {},
+  onWordStatusChange,
   onBeginFinalListen,
   onRestartChunk,
   onSelectChunk,
@@ -288,6 +294,47 @@ const ActiveMode = ({
         return segment.start >= chunkStart && segment.start < chunkEnd
       })
     : transcriptSegments
+
+  // Extract unique words from chunk for Pass 3 Word Status Panel
+  const chunkWords = useMemo(() => {
+    const wordSet = new Map()
+
+    filteredSegments.forEach((segment) => {
+      const text = segment.text || ''
+      // Split into words
+      const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+      tokens.forEach((token) => {
+        if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+        const normalised = normaliseExpression(token)
+        if (wordSet.has(normalised)) return
+
+        const entry = vocabEntries[normalised]
+        const status = entry?.status || 'new'
+
+        // Get translation from wordTranslations prop if available
+        const translationData = wordTranslations[normalised] || {}
+
+        wordSet.set(normalised, {
+          word: token,
+          normalised,
+          status: status === 'unknown' ? 'new' : status,
+          translation: translationData.translation || entry?.translation || null,
+          audioBase64: translationData.audioBase64 || null,
+          audioUrl: translationData.audioUrl || null,
+        })
+      })
+    })
+
+    return Array.from(wordSet.values())
+  }, [filteredSegments, vocabEntries, wordTranslations])
+
+  const handleWordStatusChange = useCallback((word, newStatus) => {
+    if (onWordStatusChange) {
+      onWordStatusChange(word, newStatus)
+    }
+  }, [onWordStatusChange])
 
   const handleSeek = (nextTime) => {
     if (!onSeek) return
@@ -607,33 +654,6 @@ const ActiveMode = ({
   return (
     <div className={`active-flow active-step-${activeStep}`} style={activeFlowStyle}>
       <>
-        {activeStep === 3 && (
-          <header className="active-topbar">
-            <div className="active-topbar-context">
-              <div className="active-topbar-title">
-                <span className="active-story-title">{storyTitle}</span>
-                <span className="active-title-divider" aria-hidden="true">
-                  {' '}
-                  —{' '}
-                </span>
-                <span className="active-chunk-suffix">{chunkSuffix}</span>
-              </div>
-              <div className="active-topbar-meta">
-                <span className="active-topbar-chunk">Chunk {chunkLabel}</span>
-                <span className="active-topbar-divider" aria-hidden="true">
-                  ·
-                </span>
-                <span className="active-topbar-range">
-                  {formatTime(chunkStart)} → {formatTime(chunkEnd)}
-                </span>
-              </div>
-            </div>
-            <div className="active-pass-label">
-              Pass {activeStep} · {passLabel}
-            </div>
-          </header>
-        )}
-
         {activeStep <= 4 && (
           <section className={`active-stage active-stage--pass-${activeStep}`} aria-live="polite">
             <div className="active-stage-inner">
@@ -742,31 +762,31 @@ const ActiveMode = ({
               </div>
               <div className="active-stage-transcript">
                 <div className="active-stage-transcript-card">
-                  {activeStep === 3 && (
-                    <div className="active-stage-transcript-header">
-                      PASS 3 OF 4 <span aria-hidden="true">·</span> Read + Adjust
-                    </div>
-                  )}
                   <TranscriptPanel
                     segments={filteredSegments}
                     activeIndex={activeTranscriptIndex}
+                    vocabEntries={vocabEntries}
+                    language={language}
                     showWordStatus={activeStep === 3}
-                    showWordStatusToggle={activeStep === 3}
+                    showWordStatusToggle={activeStep !== 3}
                     wordStatusDisabled={activeStep === 2}
                     isSynced={isTranscriptSynced}
                     onUserScroll={handleTranscriptUnsync}
                     onResync={handleTranscriptResync}
                     syncToken={syncToken}
                   />
-                  {activeStep === 3 && (
-                    <div className="active-stage-transcript-cta">
-                      <button type="button" className="button" onClick={handlePassThreeContinue}>
-                        Save and continue
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
+              {activeStep === 3 && (
+                <div className="active-stage-word-status">
+                  <WordStatusPanel
+                    words={chunkWords}
+                    onStatusChange={handleWordStatusChange}
+                    onSaveAndContinue={handlePassThreeContinue}
+                    passNavigation={passNavigation}
+                  />
+                </div>
+              )}
             </div>
           </section>
         )}

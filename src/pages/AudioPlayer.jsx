@@ -84,6 +84,7 @@ const AudioPlayer = () => {
     spotifyUri: '',
     type: '',
     mediaType: 'audio',
+    voiceId: '',
   })
   const [spotifyDeviceId, setSpotifyDeviceId] = useState('')
   const [spotifyPlayerState, setSpotifyPlayerState] = useState(null)
@@ -380,6 +381,7 @@ const AudioPlayer = () => {
           spotifyUri: '',
           type: data.type || '',
           mediaType: 'audio',
+          voiceId: data.voiceId || '',
         })
         setVoiceGender(data.voiceGender || 'male')
       } catch (err) {
@@ -1721,6 +1723,7 @@ const AudioPlayer = () => {
         vocabEntries={vocabEntries}
         setVocabEntries={setVocabEntries}
         voiceGender={voiceGender}
+        voiceId={storyMeta.voiceId}
         setPopup={setPopup}
         intensiveSentenceIndex={intensiveSentenceIndex}
         setIntensiveSentenceIndex={setIntensiveSentenceIndex}

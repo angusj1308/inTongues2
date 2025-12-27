@@ -3691,15 +3691,18 @@ pre {
 }
 
 .active-pass-arrow--complete {
-  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: color 200ms ease, transform 200ms ease;
 }
 
 .active-pass-arrow--complete.is-ready {
-  color: #22c55e;
+  color: color-mix(in srgb, #22c55e 80%, white);
 }
 
 .active-pass-arrow--complete.is-ready:hover {
+  color: #22c55e;
   transform: scale(1.15);
 }
 

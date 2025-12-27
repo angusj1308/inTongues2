@@ -1,15 +1,8 @@
 import { useCallback, useRef } from 'react'
-import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
-
-// Opacity values for language-colored statuses
-const STATUS_OPACITY = {
-  unknown: 0.4,
-  recognised: 0.28,
-  familiar: 0.16,
-}
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -18,26 +11,37 @@ const PlayIcon = () => (
 )
 
 // Get background style for a status button when active
+// Uses exact same opacity values as the word highlighting system
 const getStatusStyle = (statusLevel, isActive, languageColor) => {
   if (!isActive) return {}
 
   switch (statusLevel) {
     case 'new':
-      // Always orange for new
-      return { background: '#F97316', color: 'white' }
-    case 'unknown':
-      return { background: languageColor, color: 'white' }
-    case 'recognised':
+      // Always orange - using same opacity as highlight system's "new"
       return {
-        background: `color-mix(in srgb, ${languageColor} 70%, transparent)`,
-        color: 'white'
+        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, transparent)`,
+        color: '#9a3412'
       }
-    case 'familiar':
+    case 'unknown':
+      // Unknown takes over old "new" opacity (40%)
       return {
-        background: `color-mix(in srgb, ${languageColor} 40%, transparent)`,
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.new * 100}%, transparent)`,
         color: '#1e293b'
       }
+    case 'recognised':
+      // 28% opacity
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, transparent)`,
+        color: '#1e293b'
+      }
+    case 'familiar':
+      // 16% opacity
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, transparent)`,
+        color: '#64748b'
+      }
     case 'known':
+      // Transparent - subtle indicator only
       return { background: '#e2e8f0', color: '#64748b' }
     default:
       return {}

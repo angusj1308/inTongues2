@@ -3661,9 +3661,9 @@ pre {
 }
 
 .active-pass-footer-step.is-completed .active-pass-footer-button {
-  background: #22c55e;
-  color: #fff;
-  border-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 45%, white);
+  color: #166534;
+  border-color: color-mix(in srgb, #22c55e 45%, white);
 }
 
 .active-pass-footer-step.is-locked .active-pass-footer-button {
@@ -3741,9 +3741,9 @@ pre {
 }
 
 .active-pass-step.is-completed .active-pass-dot {
-  background: #22c55e;
-  color: #fff;
-  border-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 45%, white);
+  color: #166534;
+  border-color: color-mix(in srgb, #22c55e 45%, white);
 }
 
 .active-pass-step.is-upcoming .active-pass-dot {

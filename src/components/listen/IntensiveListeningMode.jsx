@@ -1426,21 +1426,31 @@ const IntensiveListeningMode = ({
 
                       return (
                         <div key={index} className="intensive-word-pair">
-                          <div className="intensive-word-pair-content">
-                            <button
-                              type="button"
-                              className="intensive-word-pair-speaker"
-                              onClick={() => playWordAudio(pair.audioBase64)}
-                              disabled={!pair.audioBase64}
-                              aria-label={`Play pronunciation of ${pair.source}`}
-                            >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-                              </svg>
-                            </button>
-                            <span className="intensive-word-pair-source">{pair.source}</span>
-                            <span className="intensive-word-pair-arrow">→</span>
-                            <span className="intensive-word-pair-target">{pair.target}</span>
+                          <div className="intensive-word-pair-body">
+                            <div className="intensive-word-pair-column">
+                              <p className="intensive-word-pair-label">{language || 'Target'}</p>
+                              <p className="intensive-word-pair-text intensive-word-pair-source">
+                                <span>{pair.source}</span>
+                                {pair.audioBase64 && (
+                                  <button
+                                    type="button"
+                                    className="intensive-word-pair-audio"
+                                    onClick={() => playWordAudio(pair.audioBase64)}
+                                    aria-label={`Play pronunciation of ${pair.source}`}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M5 9v6h3.8L14 19V5l-5.2 4H5z" fill="currentColor" />
+                                      <path d="M16 9.5c1.25 1 1.25 4 0 5" />
+                                      <path d="M18.5 7c2 2 2 8 0 10" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </p>
+                            </div>
+                            <div className="intensive-word-pair-column">
+                              <p className="intensive-word-pair-label">{nativeLanguage || 'Native'}</p>
+                              <p className="intensive-word-pair-text">{pair.target}</p>
+                            </div>
                           </div>
                           <div className="intensive-word-pair-status">
                             {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
@@ -1450,7 +1460,7 @@ const IntensiveListeningMode = ({
                                 className={`intensive-word-pair-status-btn ${currentStatus === status ? 'is-active' : ''}`}
                                 onClick={() => handleSetWordPairStatus(pair.source, pair.target, status)}
                               >
-                                {status.charAt(0).toUpperCase()}
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
                               </button>
                             ))}
                           </div>

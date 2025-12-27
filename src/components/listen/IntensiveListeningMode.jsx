@@ -1434,12 +1434,12 @@ const IntensiveListeningMode = ({
                             disabled={!pair.audioBase64}
                             aria-label={`Play pronunciation of ${pair.source}`}
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M8 5v14l11-7z" />
                             </svg>
                           </button>
                           <span className="intensive-word-text">{pair.source}</span>
-                          <span className="intensive-word-ellipsis">...</span>
+                          <span className="intensive-word-translation">{pair.target}</span>
                           <div className="intensive-word-status-pills">
                             {['new', 'unknown', 'recognised', 'familiar', 'known'].map((status) => (
                               <button

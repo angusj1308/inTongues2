@@ -18,8 +18,8 @@ function getHighlightStyle({ language, status, mode }) {
 }
 
 const normaliseStatus = (status) => {
-  if (!status || status === 'unknown') return 'new'
-  if (status === 'recognised' || status === 'familiar' || status === 'known') {
+  if (!status) return 'new'
+  if (status === 'unknown' || status === 'recognised' || status === 'familiar' || status === 'known') {
     return status
   }
   return 'new'

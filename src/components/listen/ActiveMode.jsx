@@ -303,7 +303,7 @@ const ActiveMode = ({
         wordSet.set(normalised, {
           word: token,
           normalised,
-          status: status === 'unknown' ? 'new' : status,
+          status,
           translation: translationData.translation || entry?.translation || null,
           audioBase64: translationData.audioBase64 || null,
           audioUrl: translationData.audioUrl || null,

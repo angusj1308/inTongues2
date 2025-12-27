@@ -40,6 +40,117 @@ const getDisplayStatus = (status) => {
   return 'new'
 }
 
+// Normalize text for comparison: lowercase, remove punctuation (but keep accents/apostrophes in words)
+const normalizeForComparison = (text) => {
+  return text
+    .toLowerCase()
+    .replace(/[.,!?;:"""''()[\]{}—–-]/g, ' ') // Remove punctuation except apostrophes within words
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Tokenize text into words
+const tokenizeWords = (text) => {
+  return normalizeForComparison(text)
+    .split(' ')
+    .filter(Boolean)
+}
+
+// Compute Longest Common Subsequence for word alignment
+const computeLCS = (words1, words2) => {
+  const m = words1.length
+  const n = words2.length
+  const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (words1[i - 1] === words2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+      }
+    }
+  }
+
+  // Backtrack to find LCS words
+  const lcsSet = new Set()
+  let i = m
+  let j = n
+  while (i > 0 && j > 0) {
+    if (words1[i - 1] === words2[j - 1]) {
+      lcsSet.add(`${i - 1}:${words1[i - 1]}`)
+      i--
+      j--
+    } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      i--
+    } else {
+      j--
+    }
+  }
+
+  return lcsSet
+}
+
+// Levenshtein distance for fuzzy matching
+const levenshteinDistance = (a, b) => {
+  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(0))
+
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j
+
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + cost
+      )
+    }
+  }
+
+  return matrix[b.length][a.length]
+}
+
+// Check if two words are "close enough" (likely same word, just misspelled)
+const isFuzzyMatch = (word1, word2) => {
+  const distance = levenshteinDistance(word1, word2)
+  const maxLen = Math.max(word1.length, word2.length)
+  // Allow ~20% error rate, minimum 1 edit for short words
+  const threshold = Math.max(1, Math.floor(maxLen * 0.25))
+  return distance > 0 && distance <= threshold
+}
+
+// Compare user's transcription to actual transcript
+// Returns array of { word, status: 'correct' | 'close' | 'wrong' } for the user's attempt
+const compareTranscriptions = (userText, actualText) => {
+  const userWords = tokenizeWords(userText)
+  const actualWords = tokenizeWords(actualText)
+
+  if (userWords.length === 0) {
+    return []
+  }
+
+  // Find LCS between user words and actual words (exact matches)
+  const lcsSet = computeLCS(userWords, actualWords)
+
+  // Mark each user word
+  return userWords.map((word, index) => {
+    // Check for exact match in LCS
+    if (lcsSet.has(`${index}:${word}`)) {
+      return { word, status: 'correct' }
+    }
+
+    // Check for fuzzy match against any actual word
+    const hasFuzzyMatch = actualWords.some(actualWord => isFuzzyMatch(word, actualWord))
+    if (hasFuzzyMatch) {
+      return { word, status: 'close' }
+    }
+
+    return { word, status: 'wrong' }
+  })
+}
+
 const IntensiveListeningMode = ({
   listeningMode,
   transcriptSentences,
@@ -62,6 +173,7 @@ const IntensiveListeningMode = ({
   const [intensiveRevealStep, setIntensiveRevealStep] = useState('hidden')
   const [isTranscriptionMode, setIsTranscriptionMode] = useState(false)
   const [transcriptionDraft, setTranscriptionDraft] = useState('')
+  const [submittedTranscription, setSubmittedTranscription] = useState('')
   const [isTranscriptRevealed, setIsTranscriptRevealed] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLooping, setIsLooping] = useState(false)
@@ -110,6 +222,27 @@ const IntensiveListeningMode = ({
     () => new Set(currentWordPairs.map((pair) => pair.target.toLowerCase())),
     [currentWordPairs]
   )
+
+  // Compare user's transcription attempt to actual transcript
+  const transcriptionComparison = useMemo(() => {
+    if (!submittedTranscription || !currentIntensiveSentence) return []
+    return compareTranscriptions(submittedTranscription, currentIntensiveSentence)
+  }, [submittedTranscription, currentIntensiveSentence])
+
+  // Render the user's transcription attempt with color coding
+  const renderColoredTranscription = () => {
+    if (transcriptionComparison.length === 0) return null
+
+    return transcriptionComparison.map((item, index) => (
+      <span
+        key={index}
+        className={`transcription-word transcription-word--${item.status}`}
+      >
+        {item.word}
+        {index < transcriptionComparison.length - 1 ? ' ' : ''}
+      </span>
+    ))
+  }
 
   // Render translation text with highlighted target words
   const renderTranslationWithHighlights = (text) => {
@@ -296,6 +429,7 @@ const IntensiveListeningMode = ({
     setIntensiveRevealStep('hidden')
     setIsTranscriptRevealed(false)
     setTranscriptionDraft('')
+    setSubmittedTranscription('')
   }, [listeningMode, currentIntensiveSentence])
 
   useEffect(() => {
@@ -523,6 +657,7 @@ const IntensiveListeningMode = ({
       setIntensiveRevealStep('hidden')
       setIsTranscriptRevealed(false)
       setTranscriptionDraft('')
+      setSubmittedTranscription('')
       return next
     })
   }
@@ -555,7 +690,16 @@ const IntensiveListeningMode = ({
     if (event.key !== 'Enter') return
     event.preventDefault()
 
-    if (!isTranscriptRevealed) {
+    if (!isTranscriptRevealed && transcriptionDraft.trim()) {
+      setSubmittedTranscription(transcriptionDraft.trim())
+      setIsTranscriptRevealed(true)
+      setIntensiveRevealStep('transcript')
+    }
+  }
+
+  const handleTranscriptionSubmit = () => {
+    if (!isTranscriptRevealed && transcriptionDraft.trim()) {
+      setSubmittedTranscription(transcriptionDraft.trim())
       setIsTranscriptRevealed(true)
       setIntensiveRevealStep('transcript')
     }
@@ -1251,22 +1395,36 @@ const IntensiveListeningMode = ({
             <div className="intensive-card-content">
               {/* Row 1: Transcript zone */}
               <div className="intensive-transcript-zone">
-                {/* Transcription input (when in transcribe mode) */}
+                {/* Transcription input (when in transcribe mode, not yet submitted) */}
                 {isTranscriptionMode && !isTranscriptRevealed && (
-                  <div className="intensive-input-row">
+                  <div className="intensive-transcribe-input-container">
                     <input
                       type="text"
                       className="intensive-input"
-                      placeholder="Type what you hear, then press Enter to reveal."
+                      placeholder="Type what you hear..."
                       value={transcriptionDraft}
                       onChange={(event) => setTranscriptionDraft(event.target.value)}
                       onKeyDown={handleTranscriptionKeyDown}
-                      readOnly={isTranscriptRevealed}
                     />
+                    <button
+                      type="button"
+                      className="intensive-submit-btn"
+                      onClick={handleTranscriptionSubmit}
+                      disabled={!transcriptionDraft.trim()}
+                    >
+                      Submit
+                    </button>
                   </div>
                 )}
 
-                {/* Transcript */}
+                {/* User's colored transcription attempt (transcribe mode, after submit) */}
+                {isTranscriptionMode && isTranscriptRevealed && submittedTranscription && (
+                  <div className="intensive-user-attempt">
+                    {renderColoredTranscription()}
+                  </div>
+                )}
+
+                {/* Actual transcript (non-transcribe mode, or transcribe mode after reveal) */}
                 {isTranscriptVisible && (
                   <div className="intensive-transcript" onMouseUp={handleWordClick}>
                     {currentIntensiveSentence ? (
@@ -1278,24 +1436,23 @@ const IntensiveListeningMode = ({
                 )}
               </div>
 
-              {/* Row 2: Translation zone (button lives here until translation appears) */}
+              {/* Row 2: Translation zone (only in non-transcribe mode) */}
               <div className="intensive-translation-zone">
-                {isTranslationVisible ? (
+                {!isTranscriptionMode && isTranslationVisible ? (
                   <div className="intensive-translation">
                     {isLoadingTranslation
                       ? 'Loading translation...'
                       : renderTranslationWithHighlights(intensiveTranslation) || 'Translation will appear here.'}
                   </div>
-                ) : (
+                ) : !isTranscriptionMode ? (
                   <button
                     type="button"
                     className="intensive-reveal-btn"
                     onClick={toggleIntensiveRevealStep}
-                    disabled={isTranscriptionMode && !isTranscriptRevealed}
                   >
                     {toggleLabel}
                   </button>
-                )}
+                ) : null}
               </div>
 
               {/* Player - center anchor */}

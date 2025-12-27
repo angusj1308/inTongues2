@@ -49,6 +49,31 @@ const AudioPlayer = () => {
   const popupRef = useRef(null)
   const listeningShellRef = useRef(null)
   const lastSwipeRef = useRef(0)
+  const hasRestoredPositionRef = useRef(false)
+
+  // localStorage helpers for position persistence
+  const getStorageKey = (storyId) => `inTongues-position-${storyId}`
+
+  const getStoredPosition = useCallback((storyId) => {
+    try {
+      const stored = localStorage.getItem(getStorageKey(storyId))
+      if (!stored) return null
+      return JSON.parse(stored)
+    } catch {
+      return null
+    }
+  }, [])
+
+  const savePosition = useCallback((storyId, position) => {
+    try {
+      localStorage.setItem(getStorageKey(storyId), JSON.stringify({
+        timestamp: position,
+        savedAt: Date.now()
+      }))
+    } catch {
+      // Storage might be full or disabled
+    }
+  }, [])
 
   const searchParams = new URLSearchParams(location.search)
   const source = searchParams.get('source')
@@ -1077,6 +1102,56 @@ const AudioPlayer = () => {
     setActiveChunkIndex((prev) => Math.min(prev, activeChunks.length - 1))
   }, [activeChunks.length])
 
+  // Restore position from localStorage on mount (once audio duration is available)
+  useEffect(() => {
+    if (hasRestoredPositionRef.current) return
+    if (!id || !durationSeconds || durationSeconds <= 0) return
+
+    const stored = getStoredPosition(id)
+    if (!stored?.timestamp || !Number.isFinite(stored.timestamp)) return
+
+    // Clamp to valid range
+    const restoredTime = Math.min(Math.max(stored.timestamp, 0), durationSeconds)
+
+    hasRestoredPositionRef.current = true
+
+    // Seek to restored position
+    if (isSpotify) {
+      seekSpotify(restoredTime * 1000)
+    } else {
+      const audio = audioRef.current
+      if (audio) {
+        audio.currentTime = restoredTime
+      }
+    }
+
+    setProgressSeconds(restoredTime)
+  }, [durationSeconds, getStoredPosition, id, isSpotify])
+
+  // Save position to localStorage when it changes (debounced)
+  useEffect(() => {
+    if (!id || !durationSeconds || durationSeconds <= 0) return undefined
+    if (!hasRestoredPositionRef.current) return undefined // Wait for restore first
+
+    const timeoutId = setTimeout(() => {
+      savePosition(id, progressSeconds)
+    }, 1000) // Debounce 1 second
+
+    return () => clearTimeout(timeoutId)
+  }, [durationSeconds, id, progressSeconds, savePosition])
+
+  // Sync global position when intensive sentence changes
+  useEffect(() => {
+    if (listeningMode !== 'intensive') return
+    if (!transcriptSegments.length) return
+
+    const segment = transcriptSegments[intensiveSentenceIndex]
+    if (!segment || !Number.isFinite(segment.start)) return
+
+    // Update global position to sentence start time
+    setProgressSeconds(segment.start)
+  }, [intensiveSentenceIndex, listeningMode, transcriptSegments])
+
   const startSpotifyPlayback = async () => {
     if (!user || !spotifyDeviceId || !storyMeta.spotifyUri) return
 
@@ -1182,11 +1257,52 @@ const AudioPlayer = () => {
     setTransitionDirection(nextIndex > currentIndex ? 'left' : 'right')
     setListeningMode(mode)
     setSubtitlesEnabled(false)
-    if (mode !== 'active') {
+
+    // Sync position when switching modes
+    if (mode === 'intensive') {
+      // Find sentence index for current playback position
+      const timestampedSegments = transcriptSegments
+        .map((segment, index) => ({ segment, index }))
+        .filter(({ segment }) =>
+          Number.isFinite(segment.start) && Number.isFinite(segment.end) && segment.end > segment.start
+        )
+
+      if (timestampedSegments.length > 0) {
+        const match = timestampedSegments.find(
+          ({ segment }) => progressSeconds >= segment.start && progressSeconds < segment.end
+        )
+        if (match) {
+          setIntensiveSentenceIndex(match.index)
+        } else {
+          // Find nearest segment by start time
+          const sorted = [...timestampedSegments].sort(
+            (a, b) => Math.abs(a.segment.start - progressSeconds) - Math.abs(b.segment.start - progressSeconds)
+          )
+          if (sorted.length > 0) {
+            setIntensiveSentenceIndex(sorted[0].index)
+          }
+        }
+      } else if (transcriptSegments.length > 0 && durationSeconds > 0) {
+        // Fallback: scale by progress ratio
+        const progressRatio = Math.min(Math.max(progressSeconds / durationSeconds, 0), 1)
+        const scaledIndex = Math.floor(progressRatio * transcriptSegments.length)
+        setIntensiveSentenceIndex(Math.min(scaledIndex, transcriptSegments.length - 1))
+      }
+    } else if (mode === 'active') {
+      // Find chunk containing current playback position
+      const chunkIndex = activeChunks.findIndex(
+        (chunk) => progressSeconds >= chunk.start && progressSeconds <= chunk.end
+      )
+      if (chunkIndex >= 0) {
+        setActiveChunkIndex(chunkIndex)
+      }
+      setActiveStep(1)
+    } else {
+      // Extensive mode - no special handling needed, audio position is already correct
       setActiveStep(1)
       setActiveChunkIndex(0)
     }
-  }, [listeningMode])
+  }, [activeChunks, durationSeconds, listeningMode, progressSeconds, transcriptSegments])
 
   const activePage = pages[activePageIndex]
   const currentChunk = activeChunks[activeChunkIndex]

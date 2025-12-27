@@ -48,6 +48,7 @@ export const LANGUAGE_HIGHLIGHT_COLORS = {
 // Fading intensity: darkest → invisible
 export const STATUS_OPACITY = {
   new: 0.4,
+  unknown: 0.4,
   recognised: 0.28,
   familiar: 0.16,
   known: 0.0,

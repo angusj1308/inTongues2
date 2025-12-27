@@ -119,6 +119,8 @@ const AudioPlayer = () => {
   const [completedPassesByChunk, setCompletedPassesByChunk] = useState(() => new Map())
   const [committedPass3ByChunk, setCommittedPass3ByChunk] = useState(new Set())
   const [transitionDirection, setTransitionDirection] = useState('left')
+  const [activeWordTranslations, setActiveWordTranslations] = useState({})
+  const fetchedWordsRef = useRef(new Set())
   const completedPassKeyRef = useRef(new Set())
   const passProgressRef = useRef(new Map())
   const lastSpotifyTickRef = useRef(0)
@@ -803,6 +805,31 @@ const AudioPlayer = () => {
     }
   }
 
+  // Handler for WordStatusPanel status changes
+  const handleWordStatusChange = async (word, status) => {
+    if (!user || !storyLanguage || !word) return
+    const mappedStatus = status === 'new' ? 'unknown' : status
+    if (!VOCAB_STATUSES.includes(mappedStatus)) return
+
+    try {
+      const key = normaliseExpression(word)
+      const existingEntry = vocabEntries[key]
+      const translation = existingEntry?.translation || null
+
+      await upsertVocabEntry(user.uid, storyLanguage, word, translation, mappedStatus)
+
+      setVocabEntries((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || { text: word, language: storyLanguage }),
+          status: mappedStatus,
+        },
+      }))
+    } catch (err) {
+      console.error('Failed to update word status', err)
+    }
+  }
+
   useEffect(() => {
     if (!transcriptText || typeof transcriptText !== 'string') return
 
@@ -853,6 +880,109 @@ const AudioPlayer = () => {
       controller.abort()
     }
   }, [profile?.nativeLanguage, storyLanguage, transcriptText])
+
+  // Pre-fetch word translations with audio for Active Mode (called when user starts Pass 2)
+  const prefetchChunkTranslations = useCallback(() => {
+    if (!storyLanguage || !profile?.nativeLanguage) return
+
+    const currentChunk = activeChunks[activeChunkIndex]
+    if (!currentChunk) return
+
+    const chunkStart = Number.isFinite(currentChunk.start) ? currentChunk.start : 0
+    const chunkEnd = Number.isFinite(currentChunk.end) ? currentChunk.end : 0
+
+    // Get transcript segments for this chunk (match ActiveMode logic)
+    const hasValidChunkBounds = Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart
+    const chunkSegments = hasValidChunkBounds
+      ? transcriptSegments.filter((segment) => {
+          if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return true
+          return segment.start >= chunkStart && segment.start < chunkEnd
+        })
+      : transcriptSegments
+
+    // Extract unique words from chunk that need translation
+    const wordsToTranslate = []
+    const seenWords = new Set()
+
+    chunkSegments.forEach((segment) => {
+      const tokens = (segment.text || '').match(/[\p{L}\p{N}]+/gu) || []
+      tokens.forEach((token) => {
+        const normalised = normaliseExpression(token)
+        if (seenWords.has(normalised)) return
+        seenWords.add(normalised)
+
+        // Skip if already fetched
+        if (fetchedWordsRef.current.has(normalised)) return
+
+        const entry = vocabEntries[normalised]
+        const status = entry?.status || 'unknown'
+        // Skip words already marked as known
+        if (status === 'known') return
+
+        wordsToTranslate.push({ word: token, normalised })
+      })
+    })
+
+    if (wordsToTranslate.length === 0) return
+
+    // Mark words as being fetched
+    wordsToTranslate.forEach(({ normalised }) => {
+      fetchedWordsRef.current.add(normalised)
+    })
+
+    async function fetchWordTranslations() {
+      const newTranslations = {}
+
+      // Fetch translations in parallel with concurrency limit
+      const batchSize = 5
+      for (let i = 0; i < wordsToTranslate.length; i += batchSize) {
+        const batch = wordsToTranslate.slice(i, i + batchSize)
+        const promises = batch.map(async ({ word, normalised }) => {
+          try {
+            const response = await fetch('http://localhost:4000/api/translatePhrase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phrase: word,
+                sourceLang: storyLanguage || 'es',
+                targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+                voiceGender,
+              }),
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              newTranslations[normalised] = {
+                translation: data.translation || null,
+                audioBase64: data.audioBase64 || null,
+                audioUrl: data.audioUrl || null,
+              }
+            } else {
+              console.error(`Translation failed for "${word}":`, await response.text())
+            }
+          } catch (err) {
+            console.error(`Error translating word "${word}":`, err)
+          }
+        })
+
+        await Promise.all(promises)
+      }
+
+      if (Object.keys(newTranslations).length > 0) {
+        setActiveWordTranslations((prev) => ({ ...prev, ...newTranslations }))
+      }
+    }
+
+    fetchWordTranslations()
+  }, [
+    activeChunkIndex,
+    activeChunks,
+    transcriptSegments,
+    vocabEntries,
+    storyLanguage,
+    profile?.nativeLanguage,
+    voiceGender,
+  ])
 
   useEffect(() => {
     function handleGlobalClick(event) {
@@ -1050,6 +1180,11 @@ const AudioPlayer = () => {
       const chunk = activeChunks[activeChunkIndex]
       if (chunk && (progressSeconds < chunk.start || progressSeconds > chunk.end)) {
         handleSeekTo(chunk.start)
+      }
+
+      // Pre-fetch translations when starting playback in Pass 2
+      if (activeStep === 2 && !isPlaying) {
+        prefetchChunkTranslations()
       }
     }
 
@@ -1269,8 +1404,42 @@ const AudioPlayer = () => {
     handleSeekTo(currentChunk.start)
   }
 
-  const handleBeginFinalListen = () => {
+  const handleBeginFinalListen = async () => {
     if (!currentChunk) return
+
+    // Mark all untouched "new" words as "known"
+    // "New" words are those with no entry in vocabEntries
+    if (user && storyLanguage && chunkTranscriptSegments.length > 0) {
+      const seenWords = new Set()
+      const wordsToMarkKnown = []
+
+      chunkTranscriptSegments.forEach((segment) => {
+        const text = segment.text || ''
+        const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+        tokens.forEach((token) => {
+          if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+          const normalised = normaliseExpression(token)
+          if (seenWords.has(normalised)) return
+          seenWords.add(normalised)
+
+          const entry = vocabEntries[normalised]
+          // If no entry exists, word is "new" and untouched - mark as known
+          if (!entry) {
+            wordsToMarkKnown.push({ word: token, normalised })
+          }
+        })
+      })
+
+      // Batch mark all untouched new words as known
+      await Promise.all(
+        wordsToMarkKnown.map((w) =>
+          upsertVocabEntry(user.uid, storyLanguage, w.word, null, 'known')
+        )
+      )
+    }
+
     setCommittedPass3ByChunk((prev) => {
       if (prev.has(activeChunkIndex)) return prev
       const next = new Set(prev)
@@ -1673,6 +1842,10 @@ const AudioPlayer = () => {
                         onPlaybackRateChange={handlePlaybackRateChange}
                         transcriptSegments={chunkTranscriptSegments}
                         activeTranscriptIndex={chunkActiveTranscriptIndex}
+                        vocabEntries={vocabEntries}
+                        language={storyLanguage}
+                        wordTranslations={activeWordTranslations}
+                        onWordStatusChange={handleWordStatusChange}
                         onBeginFinalListen={handleBeginFinalListen}
                         onRestartChunk={handleRestartChunk}
                         onSelectChunk={handleSelectChunk}

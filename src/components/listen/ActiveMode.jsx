@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TranscriptPanel from './TranscriptPanel'
+import WordStatusPanel from './WordStatusPanel'
 import ChunkTimeline from './ChunkTimeline'
 import { calculatePassNavLayout } from './passNavLayout'
+import { normaliseExpression } from '../../services/vocab'
 
 const PASS_LABELS = {
   1: 'Listen',
@@ -91,6 +93,10 @@ const ActiveMode = ({
   onPlaybackRateChange,
   transcriptSegments = [],
   activeTranscriptIndex = -1,
+  vocabEntries = {},
+  language,
+  wordTranslations = {},
+  onWordStatusChange,
   onBeginFinalListen,
   onRestartChunk,
   onSelectChunk,
@@ -113,6 +119,11 @@ const ActiveMode = ({
   const [syncToken, setSyncToken] = useState(0)
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
+
+  // Debug: log when warning state changes
+  useEffect(() => {
+    console.log('showPassThreeWarning changed:', showPassThreeWarning)
+  }, [showPassThreeWarning])
   const playerBoundsRef = useRef(null)
   const passNavDockRef = useRef(null)
   const resizeLogRef = useRef(false)
@@ -252,6 +263,62 @@ const ActiveMode = ({
     setSyncToken((prev) => prev + 1)
   }, [])
 
+  // Handler for WordStatusPanel - must be before early return
+  const handleWordStatusChange = useCallback((word, newStatus) => {
+    if (onWordStatusChange) {
+      onWordStatusChange(word, newStatus)
+    }
+  }, [onWordStatusChange])
+
+  // Extract unique words from chunk for Pass 3 Word Status Panel
+  // Must be before early return to maintain hook order
+  const chunkWords = useMemo(() => {
+    if (!hasChunks) return []
+
+    const currentChunk = chunks[safeChunkIndex]
+    const chunkStart = Number.isFinite(currentChunk?.start) ? currentChunk.start : 0
+    const rawChunkEnd = Number.isFinite(currentChunk?.end) ? currentChunk.end : safePlaybackDuration
+    const chunkEnd = Math.max(rawChunkEnd, chunkStart)
+
+    const hasValidChunkBounds = Number.isFinite(chunkStart) && Number.isFinite(chunkEnd) && chunkEnd > chunkStart
+    const segments = hasValidChunkBounds
+      ? transcriptSegments.filter((segment) => {
+          if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return true
+          return segment.start >= chunkStart && segment.start < chunkEnd
+        })
+      : transcriptSegments
+
+    const wordSet = new Map()
+
+    segments.forEach((segment) => {
+      const text = segment.text || ''
+      const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+      tokens.forEach((token) => {
+        if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+        const normalised = normaliseExpression(token)
+        if (wordSet.has(normalised)) return
+
+        const entry = vocabEntries[normalised]
+        const status = entry?.status || 'new'
+
+        const translationData = wordTranslations[normalised] || {}
+
+        wordSet.set(normalised, {
+          word: token,
+          normalised,
+          status,
+          translation: translationData.translation || entry?.translation || null,
+          audioBase64: translationData.audioBase64 || null,
+          audioUrl: translationData.audioUrl || null,
+        })
+      })
+    })
+
+    return Array.from(wordSet.values())
+  }, [hasChunks, chunks, safeChunkIndex, safePlaybackDuration, transcriptSegments, vocabEntries, wordTranslations])
+
   const scheduleChunkDrawerUnmount = () => {
     clearChunkDrawerTimeout()
     chunkDrawerCloseTimeoutRef.current = setTimeout(() => {
@@ -386,6 +453,7 @@ const ActiveMode = ({
   }
 
   const handlePassThreeContinue = () => {
+    console.log('handlePassThreeContinue called', { passThreeWarningAcknowledged })
     if (!passThreeWarningAcknowledged) {
       setShowPassThreeWarning(true)
       return
@@ -591,10 +659,11 @@ const ActiveMode = ({
     1: 'Just listen',
     2: 'Listen + Read',
     3: 'Read + Adjust',
+    4: 'Final Listen',
   }
 
   const isTranscriptLockedOn = activeStep >= 2
-  const heroStep = activeStep <= 3 ? activeStep : 1
+  const heroStep = activeStep
   const heroTitle = heroTitles[heroStep] || heroTitles[1]
 
   const activeFlowStyle = {
@@ -606,34 +675,7 @@ const ActiveMode = ({
   return (
     <div className={`active-flow active-step-${activeStep}`} style={activeFlowStyle}>
       <>
-        {activeStep !== 1 && activeStep !== 2 && (
-          <header className="active-topbar">
-            <div className="active-topbar-context">
-              <div className="active-topbar-title">
-                <span className="active-story-title">{storyTitle}</span>
-                <span className="active-title-divider" aria-hidden="true">
-                  {' '}
-                  —{' '}
-                </span>
-                <span className="active-chunk-suffix">{chunkSuffix}</span>
-              </div>
-              <div className="active-topbar-meta">
-                <span className="active-topbar-chunk">Chunk {chunkLabel}</span>
-                <span className="active-topbar-divider" aria-hidden="true">
-                  ·
-                </span>
-                <span className="active-topbar-range">
-                  {formatTime(chunkStart)} → {formatTime(chunkEnd)}
-                </span>
-              </div>
-            </div>
-            <div className="active-pass-label">
-              Pass {activeStep} · {passLabel}
-            </div>
-          </header>
-        )}
-
-        {activeStep <= 3 && (
+        {activeStep <= 4 && (
           <section className={`active-stage active-stage--pass-${activeStep}`} aria-live="polite">
             <div className="active-stage-inner">
               <div className="active-stage-player" ref={playerBoundsRef}>
@@ -741,109 +783,36 @@ const ActiveMode = ({
               </div>
               <div className="active-stage-transcript">
                 <div className="active-stage-transcript-card">
-                  {activeStep === 3 && (
-                    <div className="active-stage-transcript-header">
-                      PASS 3 OF 4 <span aria-hidden="true">·</span> Read + Adjust
-                    </div>
-                  )}
                   <TranscriptPanel
                     segments={filteredSegments}
                     activeIndex={activeTranscriptIndex}
-                    showWordStatus={activeStep === 3}
-                    showWordStatusToggle={false}
+                    vocabEntries={vocabEntries}
+                    language={language}
+                    showWordStatus={activeStep >= 3}
+                    showWordStatusToggle={activeStep >= 2}
+                    wordStatusDisabled={activeStep === 2}
                     isSynced={isTranscriptSynced}
                     onUserScroll={handleTranscriptUnsync}
                     onResync={handleTranscriptResync}
                     syncToken={syncToken}
                   />
-                  {activeStep === 3 && (
-                    <div className="active-stage-transcript-cta">
-                      <button type="button" className="button" onClick={handlePassThreeContinue}>
-                        Save and continue
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
+              {activeStep === 3 && (
+                <div className="active-stage-word-status">
+                  <WordStatusPanel
+                    words={chunkWords}
+                    language={language}
+                    onStatusChange={handleWordStatusChange}
+                    onSaveAndContinue={handlePassThreeContinue}
+                    passNavigation={passNavigation}
+                  />
+                </div>
+              )}
             </div>
           </section>
         )}
 
-        {activeStep === 4 && (
-          <section className={`active-pass-layout ${activeStep === 1 ? 'is-pass-1' : ''}`} aria-live="polite">
-            <div className="active-pass-main">
-              <div
-                className={`active-pass-block active-chunk-host ${chunkDrawerOpen ? 'is-chunk-open' : ''}`}
-                ref={playerBoundsRef}
-              >
-                <div className="active-player-surface">
-                  {renderProgressBar()}
-                  <div className="player-transport-shell">{renderTransportButtons()}</div>
-                  <div
-                    className="player-secondary-row secondary-controls"
-                    role="group"
-                    aria-label="Secondary controls"
-                  >
-                    <span className="secondary-spacer" aria-hidden />
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={handleChunkToggle}
-                      disabled={!hasChunks}
-                      aria-label="Chunks"
-                      title="Chunks"
-                    >
-                      <span className="secondary-glyph">
-                        <Icon name="list" className="secondary-icon" />
-                      </span>
-                      <span className="secondary-label">Chunks</span>
-                    </button>
-                    <div className="secondary-btn-popover-wrap">
-                      <button
-                        ref={speedButtonRef}
-                        type="button"
-                        className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                        onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                        aria-label={`Playback speed ${playbackRate || 1}x`}
-                        title="Change playback speed"
-                      >
-                        <span className="secondary-glyph">
-                          <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                        </span>
-                        <span className="secondary-label">Speed</span>
-                      </button>
-                      {speedMenuOpen ? (
-                        <div
-                          ref={speedMenuRef}
-                          className="scrub-popover speed-popover"
-                          role="dialog"
-                          aria-label="Playback speed"
-                        >
-                          <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                            {speedPresets.map((rate) => (
-                              <button
-                                key={rate}
-                                type="button"
-                                className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                                onClick={() => handlePlaybackRateChange(rate)}
-                              >
-                                <span className="speed-option-indicator" aria-hidden="true" />
-                                <span className="speed-option-label">x{formatRate(rate)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                    <span className="secondary-spacer" aria-hidden />
-                    <span className="secondary-spacer" aria-hidden />
-                  </div>
-                </div>
-                {chunkOverlay}
-              </div>
-            </div>
-          </section>
-        )}
         {/* Dock only shown for Pass 4 - for Pass 1-3, navigation is inside player card */}
         {activeStep === 4 && (
           <div
@@ -854,6 +823,7 @@ const ActiveMode = ({
             {passNavigation}
           </div>
         )}
+        {console.log('Rendering modal check:', showPassThreeWarning)}
         {showPassThreeWarning && (
           <div className="modal-backdrop" role="presentation">
             <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">

@@ -796,6 +796,7 @@ const ActiveMode = ({
                 <div className="active-stage-word-status">
                   <WordStatusPanel
                     words={chunkWords}
+                    language={language}
                     onStatusChange={handleWordStatusChange}
                     onSaveAndContinue={handlePassThreeContinue}
                     passNavigation={passNavigation}

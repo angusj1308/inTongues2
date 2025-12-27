@@ -1,7 +1,15 @@
 import { useCallback, useRef } from 'react'
+import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+// Opacity values for language-colored statuses
+const STATUS_OPACITY = {
+  unknown: 0.4,
+  recognised: 0.28,
+  familiar: 0.16,
+}
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -9,12 +17,40 @@ const PlayIcon = () => (
   </svg>
 )
 
+// Get background style for a status button when active
+const getStatusStyle = (statusLevel, isActive, languageColor) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'new':
+      // Always orange for new
+      return { background: '#F97316', color: 'white' }
+    case 'unknown':
+      return { background: languageColor, color: 'white' }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${languageColor} 70%, transparent)`,
+        color: 'white'
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${languageColor} 40%, transparent)`,
+        color: '#1e293b'
+      }
+    case 'known':
+      return { background: '#e2e8f0', color: '#64748b' }
+    default:
+      return {}
+  }
+}
+
 const WordRow = ({
   word,
   translation,
   status = 'new',
   audioBase64,
   audioUrl,
+  languageColor,
   onStatusChange,
   onPlayAudio,
 }) => {
@@ -22,9 +58,7 @@ const WordRow = ({
   const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
   const hasAudio = Boolean(audioBase64 || audioUrl)
 
-  const handleSliderChange = (e) => {
-    const newIndex = parseInt(e.target.value, 10)
-    const newStatus = STATUS_LEVELS[newIndex]
+  const handleStatusClick = (newStatus) => {
     if (onStatusChange) {
       onStatusChange(word, newStatus)
     }
@@ -38,38 +72,38 @@ const WordRow = ({
 
   return (
     <div className="word-status-row">
-      <span className="word-status-row-word">{word}</span>
-      <span className="word-status-row-translation">{translation || '...'}</span>
-      <button
-        type="button"
-        className={`word-status-row-audio ${hasAudio ? '' : 'word-status-row-audio--disabled'}`}
-        onClick={handlePlayClick}
-        disabled={!hasAudio}
-        aria-label={`Play pronunciation of ${word}`}
-      >
-        <PlayIcon />
-      </button>
-      <div className="word-status-row-slider">
-        <input
-          type="range"
-          min="0"
-          max="4"
-          step="1"
-          value={validStatusIndex}
-          onChange={handleSliderChange}
-          className="word-status-slider-input"
-          aria-label={`Status for ${word}`}
-        />
-        <div className="word-status-slider-ticks">
-          {STATUS_ABBREV.map((abbrev, i) => (
-            <span
+      <div className="word-status-row-left">
+        <button
+          type="button"
+          className={`word-status-row-audio ${hasAudio ? '' : 'word-status-row-audio--disabled'}`}
+          onClick={handlePlayClick}
+          disabled={!hasAudio}
+          aria-label={`Play pronunciation of ${word}`}
+        >
+          <PlayIcon />
+        </button>
+        <span className="word-status-row-word">{word}</span>
+        <span className="word-status-row-translation">{translation || '...'}</span>
+      </div>
+      <div className="status-selector">
+        {STATUS_ABBREV.map((abbrev, i) => {
+          const isActive = i === validStatusIndex
+          const style = getStatusStyle(STATUS_LEVELS[i], isActive, languageColor)
+
+          return (
+            <button
               key={abbrev}
-              className={`word-status-slider-tick ${i === validStatusIndex ? 'active' : ''}`}
+              type="button"
+              className={`status-selector-option ${isActive ? 'active' : ''}`}
+              style={style}
+              onClick={() => handleStatusClick(STATUS_LEVELS[i])}
+              aria-label={`Set status to ${STATUS_LEVELS[i]}`}
+              aria-pressed={isActive}
             >
               {abbrev}
-            </span>
-          ))}
-        </div>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -77,11 +111,13 @@ const WordRow = ({
 
 const WordStatusPanel = ({
   words = [],
+  language,
   onStatusChange,
   onSaveAndContinue,
   passNavigation,
 }) => {
   const audioRef = useRef(null)
+  const languageColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
 
   const handlePlayAudio = useCallback((audioBase64, audioUrl) => {
     if (audioRef.current) {
@@ -123,6 +159,7 @@ const WordStatusPanel = ({
                 status={wordData.status}
                 audioBase64={wordData.audioBase64}
                 audioUrl={wordData.audioUrl}
+                languageColor={languageColor}
                 onStatusChange={onStatusChange}
                 onPlayAudio={handlePlayAudio}
               />

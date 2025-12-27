@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
 
-const STATUS_LEVELS = ['new', 'recognised', 'familiar', 'known']
-const STATUS_ABBREV = ['N', 'R', 'F', 'K']
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -22,9 +22,7 @@ const WordRow = ({
   const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
   const hasAudio = Boolean(audioBase64 || audioUrl)
 
-  const handleSliderChange = (e) => {
-    const newIndex = parseInt(e.target.value, 10)
-    const newStatus = STATUS_LEVELS[newIndex]
+  const handleStatusClick = (newStatus) => {
     if (onStatusChange) {
       onStatusChange(word, newStatus)
     }
@@ -51,27 +49,19 @@ const WordRow = ({
         <span className="word-status-row-word">{word}</span>
         <span className="word-status-row-translation">{translation || '...'}</span>
       </div>
-      <div className="word-status-row-slider">
-        <input
-          type="range"
-          min="0"
-          max="3"
-          step="1"
-          value={validStatusIndex}
-          onChange={handleSliderChange}
-          className="word-status-slider-input"
-          aria-label={`Status for ${word}`}
-        />
-        <div className="word-status-slider-ticks">
-          {STATUS_ABBREV.map((abbrev, i) => (
-            <span
-              key={abbrev}
-              className={`word-status-slider-tick ${i === validStatusIndex ? 'active' : ''}`}
-            >
-              {abbrev}
-            </span>
-          ))}
-        </div>
+      <div className="status-selector">
+        {STATUS_ABBREV.map((abbrev, i) => (
+          <button
+            key={abbrev}
+            type="button"
+            className={`status-selector-option status-selector-option--${STATUS_LEVELS[i]} ${i === validStatusIndex ? 'active' : ''}`}
+            onClick={() => handleStatusClick(STATUS_LEVELS[i])}
+            aria-label={`Set status to ${STATUS_LEVELS[i]}`}
+            aria-pressed={i === validStatusIndex}
+          >
+            {abbrev}
+          </button>
+        ))}
       </div>
     </div>
   )

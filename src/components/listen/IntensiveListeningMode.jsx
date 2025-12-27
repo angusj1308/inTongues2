@@ -630,13 +630,22 @@ const IntensiveListeningMode = ({
       const atLastSentence = intensiveSentenceIndex >= intensiveSentences.length - 1
       const atFirstSentence = intensiveSentenceIndex === 0
 
-      await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
+      // Check if transcript has been revealed (required for forward navigation)
+      const transcriptRevealed = isTranscriptionMode
+        ? isTranscriptRevealed
+        : intensiveRevealStep !== 'hidden'
 
       if (movingForward && !atLastSentence) {
+        // Must reveal transcript before moving forward
+        if (!transcriptRevealed) return
+
+        // Only auto-mark words as known when moving forward
+        await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
         setIntensiveSentenceIndex((prev) => prev + 1)
         return
       }
 
+      // Backward navigation always allowed (no auto-mark)
       if (movingBackward && !atFirstSentence) {
         setIntensiveSentenceIndex((prev) => Math.max(prev - 1, 0))
       }
@@ -646,6 +655,9 @@ const IntensiveListeningMode = ({
       currentIntensiveSentence,
       intensiveSentenceIndex,
       intensiveSentences.length,
+      intensiveRevealStep,
+      isTranscriptionMode,
+      isTranscriptRevealed,
       listeningMode,
       setIntensiveSentenceIndex,
     ]
@@ -1404,9 +1416,9 @@ const IntensiveListeningMode = ({
                 </div>
               </div>
 
-              {/* Row 4: Vocab zone */}
+              {/* Row 4: Vocab zone - shows with transcript, not translation */}
               <div className="intensive-vocab-zone">
-                {isTranslationVisible && currentWordPairs.length > 0 && (
+                {isTranscriptVisible && currentWordPairs.length > 0 && (
                   <div className="intensive-word-pairs">
                     {currentWordPairs.map((pair, index) => {
                       const wordKey = normaliseExpression(pair.source)

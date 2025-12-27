@@ -630,11 +630,12 @@ const ActiveMode = ({
       {activeStep === 4 ? (
         <button
           type="button"
-          className="button active-pass-next-chunk"
+          className={`active-pass-arrow active-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
           onClick={onAdvanceChunk}
           disabled={!canMoveToNextChunk}
+          aria-label="Next chunk"
         >
-          Move to next chunk
+          ✓
         </button>
       ) : (
         <button
@@ -820,16 +821,12 @@ const ActiveMode = ({
         )}
         {showPassThreeWarning && createPortal(
           <div className="modal-backdrop" role="presentation">
-            <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">
-              <div className="section-header" style={{ alignItems: 'flex-start' }}>
-                <div>
-                  <h3>Save word status changes?</h3>
-                  <p className="muted small">
-                    Continuing will mark all untouched new words as Known.
-                  </p>
-                </div>
-              </div>
-              <div className="active-stage-warning-actions">
+            <div className="modal-card pass-three-warning-modal" role="dialog" aria-modal="true" aria-label="Confirm word status changes">
+              <h3 className="pass-three-warning-title">Save word status changes?</h3>
+              <p className="pass-three-warning-message">
+                Continuing will mark all untouched new words as Known.
+              </p>
+              <div className="pass-three-warning-actions">
                 <button type="button" className="button ghost" onClick={() => setShowPassThreeWarning(false)}>
                   Cancel
                 </button>

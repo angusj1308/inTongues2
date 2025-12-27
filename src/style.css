@@ -4130,10 +4130,6 @@ body.active-pass-locked {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .active-stage--pass-3 .transcript-panel {
@@ -5853,14 +5849,14 @@ body.active-pass-locked {
 }
 
 .word-status-toggle--locked-on {
-  color: #3b82f6;
+  color: #475569;
   cursor: default;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .word-status-toggle--locked-on:hover,
 .word-status-toggle--locked-on:focus-visible {
-  color: #3b82f6;
+  color: #475569;
 }
 
 .transcript-panel-footer {

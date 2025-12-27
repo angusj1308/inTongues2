@@ -2690,7 +2690,25 @@ textarea {
   max-width: 500px;
   max-height: 220px;
   overflow-y: auto;
+  padding-right: 0.75rem;
   font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+}
+
+.intensive-word-pairs::-webkit-scrollbar {
+  width: 4px;
+}
+
+.intensive-word-pairs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.intensive-word-pairs::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.intensive-word-pairs::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .intensive-word-row {

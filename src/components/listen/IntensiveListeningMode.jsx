@@ -192,7 +192,7 @@ const IntensiveListeningMode = ({
             ttsLanguage,
             skipAudio: false, // We want audio for word pairs
             unknownWords: unknownWords.length > 0 ? unknownWords : undefined,
-            voiceId, // Use same ElevenLabs voice as story
+            voiceGender, // Use voiceGender for consistent voice resolution like Active mode
           }),
         })
 
@@ -211,7 +211,7 @@ const IntensiveListeningMode = ({
         return { translation: 'Unable to fetch translation right now.', wordPairs: [] }
       }
     },
-    [language, nativeLanguage, getUnknownWordsFromSentence, voiceId]
+    [language, nativeLanguage, getUnknownWordsFromSentence, voiceGender]
   )
 
   // Lazy-load translations: current sentence + next 2

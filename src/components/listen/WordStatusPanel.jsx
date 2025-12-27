@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
@@ -125,7 +125,23 @@ const WordStatusPanel = ({
   passNavigation,
 }) => {
   const audioRef = useRef(null)
+  const initialWordsRef = useRef(null)
   const languageColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+
+  // Capture initial non-known words on first render
+  // Words that start as 'known' are excluded, but words moved to 'known' during session stay visible
+  if (initialWordsRef.current === null) {
+    initialWordsRef.current = new Set(
+      words
+        .filter((w) => w.status !== 'known')
+        .map((w) => w.normalised || w.word)
+    )
+  }
+
+  // Filter to show only words that were initially not-known
+  const visibleWords = useMemo(() => {
+    return words.filter((w) => initialWordsRef.current.has(w.normalised || w.word))
+  }, [words])
 
   const handlePlayAudio = useCallback((audioBase64, audioUrl) => {
     if (audioRef.current) {
@@ -150,13 +166,13 @@ const WordStatusPanel = ({
       </div>
 
       <div className="word-status-panel-body">
-        {words.length === 0 ? (
+        {visibleWords.length === 0 ? (
           <div className="word-status-panel-empty">
             <p>No words to review in this chunk.</p>
           </div>
         ) : (
           <div className="word-status-row-list">
-            {words.map((wordData) => (
+            {visibleWords.map((wordData) => (
               <WordRow
                 key={wordData.normalised || wordData.word}
                 word={wordData.word}

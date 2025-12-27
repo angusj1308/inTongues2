@@ -42,8 +42,11 @@ const getStatusStyle = (statusLevel, isActive, languageColor) => {
         color: '#64748b'
       }
     case 'known':
-      // No color - subtle gray indicator
-      return { background: '#e2e8f0', color: '#64748b' }
+      // Soft green - "mastered" indicator (UI control only, not text highlighting)
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534'
+      }
     default:
       return {}
   }

@@ -2688,6 +2688,7 @@ textarea {
   gap: 0.25rem;
   width: 100%;
   max-width: 500px;
+  font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
 }
 
 .intensive-word-row {
@@ -2701,23 +2702,25 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: #1e293b;
+  width: 32px;
+  height: 32px;
+  background: #f1f5f9;
   border: none;
   border-radius: 50%;
-  color: #ffffff;
+  color: #64748b;
   cursor: pointer;
   transition: all 150ms ease;
   flex-shrink: 0;
 }
 
 .intensive-word-play:hover:not(:disabled) {
-  background: #0f172a;
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .intensive-word-play:disabled {
-  background: #cbd5e1;
+  background: #f8fafc;
+  color: #cbd5e1;
   cursor: not-allowed;
 }
 

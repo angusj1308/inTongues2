@@ -2688,6 +2688,8 @@ textarea {
   gap: 0.25rem;
   width: 100%;
   max-width: 500px;
+  max-height: 220px;
+  overflow-y: auto;
   font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
 }
 

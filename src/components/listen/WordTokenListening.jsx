@@ -11,7 +11,10 @@ function getHighlightStyle({ language, status, mode, enableHighlight }) {
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
 
-  const base = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+  // New words are always orange, others use language color
+  const base = status === 'new'
+    ? '#F97316'
+    : (LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default)
 
   return {
     '--hlt-base': base,

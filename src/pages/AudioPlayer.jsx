@@ -1404,8 +1404,42 @@ const AudioPlayer = () => {
     handleSeekTo(currentChunk.start)
   }
 
-  const handleBeginFinalListen = () => {
+  const handleBeginFinalListen = async () => {
     if (!currentChunk) return
+
+    // Mark all untouched "new" words as "known"
+    // "New" words are those with no entry in vocabEntries
+    if (user && storyLanguage && chunkTranscriptSegments.length > 0) {
+      const seenWords = new Set()
+      const wordsToMarkKnown = []
+
+      chunkTranscriptSegments.forEach((segment) => {
+        const text = segment.text || ''
+        const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+        tokens.forEach((token) => {
+          if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+          const normalised = normaliseExpression(token)
+          if (seenWords.has(normalised)) return
+          seenWords.add(normalised)
+
+          const entry = vocabEntries[normalised]
+          // If no entry exists, word is "new" and untouched - mark as known
+          if (!entry) {
+            wordsToMarkKnown.push({ word: token, normalised })
+          }
+        })
+      })
+
+      // Batch mark all untouched new words as known
+      await Promise.all(
+        wordsToMarkKnown.map((w) =>
+          upsertVocabEntry(user.uid, storyLanguage, w.word, null, 'known')
+        )
+      )
+    }
+
     setCommittedPass3ByChunk((prev) => {
       if (prev.has(activeChunkIndex)) return prev
       const next = new Set(prev)

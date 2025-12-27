@@ -4245,38 +4245,8 @@ body.active-pass-locked {
   color: #64748b;
 }
 
-/* New - Orange */
-.status-selector-option--new.active {
-  background: #f97316;
-  color: white;
-  box-shadow: 0 1px 3px rgba(249, 115, 22, 0.3);
-}
-
-/* Unknown - Language color full opacity (using blue as default) */
-.status-selector-option--unknown.active {
-  background: #3b82f6;
-  color: white;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
-}
-
-/* Recognised - Language color ~70% */
-.status-selector-option--recognised.active {
-  background: rgba(59, 130, 246, 0.7);
-  color: white;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
-}
-
-/* Familiar - Language color ~40% */
-.status-selector-option--familiar.active {
-  background: rgba(59, 130, 246, 0.4);
-  color: #1e40af;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.15);
-}
-
-/* Known - Transparent/subtle */
-.status-selector-option--known.active {
-  background: #e2e8f0;
-  color: #64748b;
+.status-selector-option.active {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .word-status-panel-footer {

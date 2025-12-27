@@ -2671,6 +2671,76 @@ textarea {
   color: #94a3b8;
 }
 
+/* Transcribe mode input container */
+.intensive-transcribe-input-container {
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.intensive-transcribe-input-container .intensive-input {
+  flex: 1;
+}
+
+.intensive-submit-btn {
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 150ms ease, opacity 150ms ease;
+  white-space: nowrap;
+}
+
+.intensive-submit-btn:hover:not(:disabled) {
+  background: #1e293b;
+}
+
+.intensive-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* User's transcription attempt (colored result) */
+.intensive-user-attempt {
+  width: 100%;
+  max-width: 700px;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.6;
+  text-align: center;
+  padding: 0 clamp(1rem, 5vw, 3rem);
+  margin-bottom: 0.5rem;
+}
+
+/* Transcription word coloring */
+.transcription-word {
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  margin: 0 0.125rem;
+}
+
+.transcription-word--correct {
+  background: color-mix(in srgb, #22c55e 35%, white);
+  color: #166534;
+}
+
+.transcription-word--close {
+  background: color-mix(in srgb, #eab308 35%, white);
+  color: #854d0e;
+}
+
+.transcription-word--wrong {
+  background: color-mix(in srgb, #ef4444 35%, white);
+  color: #991b1b;
+}
+
 /* Player wrapper - no width:100% so justify-items:center works */
 .intensive-player {
   display: flex;

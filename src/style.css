@@ -4227,23 +4227,15 @@ body.active-pass-locked {
 .word-status-row-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .word-status-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  transition: background 150ms ease;
+  padding: 6px 4px;
   gap: 12px;
-}
-
-.word-status-row:hover {
-  background: #f1f5f9;
 }
 
 .word-status-row-left {

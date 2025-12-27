@@ -2681,91 +2681,83 @@ textarea {
   padding: 1rem 0;
 }
 
-/* Word pairs list - auto 2-column when needed */
+/* Word status panel - matches Pass 3 Active mode design */
 .intensive-word-pairs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   width: 100%;
-  max-width: 700px;
-  padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-.intensive-word-pair {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  max-width: 400px;
+  padding: 1rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  border-radius: 18px;
 }
 
-.intensive-word-pair-content {
+.intensive-word-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-width: 0;
+  padding: 0.25rem 0;
 }
 
-.intensive-word-pair-speaker {
+.intensive-word-play {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
   background: transparent;
-  border: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
   color: #64748b;
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: color 150ms ease, background 150ms ease;
+  transition: all 150ms ease;
   flex-shrink: 0;
 }
 
-.intensive-word-pair-speaker:hover:not(:disabled) {
-  color: #0f172a;
+.intensive-word-play:hover:not(:disabled) {
   background: #e2e8f0;
+  color: #0f172a;
 }
 
-.intensive-word-pair-speaker:disabled {
+.intensive-word-play:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.intensive-word-pair-source {
+.intensive-word-text {
   font-weight: 600;
   color: #0f172a;
+  font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
-.intensive-word-pair-arrow {
+.intensive-word-ellipsis {
   color: #94a3b8;
-  font-size: 0.85rem;
-  flex-shrink: 0;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.intensive-word-pair-target {
-  color: #64748b;
-  font-style: italic;
-}
-
-.intensive-word-pair-status {
+.intensive-word-status-pills {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.35rem;
   flex-shrink: 0;
 }
 
-.intensive-word-pair-status-btn {
-  width: 24px;
-  height: 24px;
+.intensive-status-pill {
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border-radius: 50%;
   color: #94a3b8;
   font-size: 0.7rem;
   font-weight: 600;
@@ -2773,14 +2765,43 @@ textarea {
   transition: all 120ms ease;
 }
 
-.intensive-word-pair-status-btn:hover {
-  background: #e2e8f0;
+.intensive-status-pill:hover {
+  background: #f1f5f9;
   color: #64748b;
 }
 
-.intensive-word-pair-status-btn.is-active {
-  background: #0f172a;
-  border-color: #0f172a;
+/* N - New (orange) */
+.intensive-status-pill--new.is-active {
+  background: #F97316;
+  border-color: #F97316;
+  color: #ffffff;
+}
+
+/* U - Unknown (dark red) */
+.intensive-status-pill--unknown.is-active {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #ffffff;
+}
+
+/* R - Recognised (medium) */
+.intensive-status-pill--recognised.is-active {
+  background: #F87171;
+  border-color: #F87171;
+  color: #ffffff;
+}
+
+/* F - Familiar (light) */
+.intensive-status-pill--familiar.is-active {
+  background: #FCA5A5;
+  border-color: #FCA5A5;
+  color: #0f172a;
+}
+
+/* K - Known (green) */
+.intensive-status-pill--known.is-active {
+  background: #22c55e;
+  border-color: #22c55e;
   color: #ffffff;
 }
 

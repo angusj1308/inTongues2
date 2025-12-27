@@ -448,6 +448,7 @@ const ActiveMode = ({
   }
 
   const handlePassThreeContinue = () => {
+    console.log('handlePassThreeContinue called', { passThreeWarningAcknowledged })
     if (!passThreeWarningAcknowledged) {
       setShowPassThreeWarning(true)
       return

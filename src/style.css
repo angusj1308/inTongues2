@@ -4373,11 +4373,34 @@ body.active-pass-locked {
   max-width: 560px;
 }
 
-.active-stage-warning-actions {
+/* Pass 3 Warning Modal */
+.pass-three-warning-modal {
+  max-width: 400px;
+  text-align: center;
+  padding: 2rem;
+}
+
+.pass-three-warning-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.75rem;
+}
+
+.pass-three-warning-message {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #64748b;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.pass-three-warning-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 1.5rem;
 }
 
 @media (max-width: 900px) {

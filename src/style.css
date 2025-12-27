@@ -4151,13 +4151,19 @@ body.active-pass-locked {
   transform: translateX(0);
   transition: transform 400ms ease, opacity 300ms ease;
   align-self: stretch;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Word Status Panel */
+/* Word Status Panel - positioned absolute to fill container without affecting grid height */
 .word-status-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
   background: #fff;
   border-radius: 16px;
   border: 1px solid #e2e8f0;

@@ -3690,9 +3690,17 @@ pre {
   cursor: not-allowed;
 }
 
-.active-pass-next-chunk {
-  padding: 0.45rem 1rem;
-  font-size: 0.9rem;
+.active-pass-arrow--complete {
+  font-size: 1.2rem;
+  transition: color 200ms ease, transform 200ms ease;
+}
+
+.active-pass-arrow--complete.is-ready {
+  color: #22c55e;
+}
+
+.active-pass-arrow--complete.is-ready:hover {
+  transform: scale(1.15);
 }
 
 .active-pass-steps {

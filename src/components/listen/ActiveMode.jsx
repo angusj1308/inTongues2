@@ -630,11 +630,12 @@ const ActiveMode = ({
       {activeStep === 4 ? (
         <button
           type="button"
-          className="button active-pass-next-chunk"
+          className={`active-pass-arrow active-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
           onClick={onAdvanceChunk}
           disabled={!canMoveToNextChunk}
+          aria-label="Next chunk"
         >
-          Move to next chunk
+          ✓
         </button>
       ) : (
         <button

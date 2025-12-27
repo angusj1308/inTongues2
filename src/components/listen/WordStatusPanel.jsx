@@ -142,8 +142,6 @@ const WordStatusPanel = ({
     audioRef.current = audio
   }, [])
 
-  const filteredWords = words.filter((w) => w.status !== 'known')
-
   return (
     <div className="word-status-panel">
       <div className="word-status-panel-header">
@@ -152,14 +150,13 @@ const WordStatusPanel = ({
       </div>
 
       <div className="word-status-panel-body">
-        {filteredWords.length === 0 ? (
+        {words.length === 0 ? (
           <div className="word-status-panel-empty">
-            <p>No new words to review in this chunk.</p>
-            <p className="muted small">All words are already marked as known.</p>
+            <p>No words to review in this chunk.</p>
           </div>
         ) : (
           <div className="word-status-row-list">
-            {filteredWords.map((wordData) => (
+            {words.map((wordData) => (
               <WordRow
                 key={wordData.normalised || wordData.word}
                 word={wordData.word}

@@ -3,8 +3,8 @@ import { normaliseExpression } from '../../services/vocab'
 import WordTokenListening from './WordTokenListening'
 
 const getDisplayStatus = (status) => {
-  if (!status || status === 'unknown') return 'new'
-  if (status === 'recognised' || status === 'familiar' || status === 'known') return status
+  if (!status) return 'new'
+  if (status === 'unknown' || status === 'recognised' || status === 'familiar' || status === 'known') return status
   return 'new'
 }
 

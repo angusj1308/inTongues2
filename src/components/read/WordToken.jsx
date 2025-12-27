@@ -9,7 +9,10 @@ function getHighlightStyle({ language, status, mode }) {
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
 
-  const base = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+  // New words are always orange, others use language color
+  const base = status === 'new'
+    ? '#F97316'
+    : (LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default)
 
   return {
     '--hlt-base': base,
@@ -18,8 +21,8 @@ function getHighlightStyle({ language, status, mode }) {
 }
 
 const normaliseStatus = (status) => {
-  if (!status || status === 'unknown') return 'new'
-  if (status === 'recognised' || status === 'familiar' || status === 'known') {
+  if (!status) return 'new'
+  if (status === 'unknown' || status === 'recognised' || status === 'familiar' || status === 'known') {
     return status
   }
   return 'new'

@@ -33,8 +33,8 @@ const getPopupPosition = (rect) => {
 }
 
 const getDisplayStatus = (status) => {
-  if (!status || status === 'unknown') return 'new'
-  if (status === 'recognised' || status === 'familiar' || status === 'known') {
+  if (!status) return 'new'
+  if (status === 'unknown' || status === 'recognised' || status === 'familiar' || status === 'known') {
     return status
   }
   return 'new'
@@ -1410,7 +1410,7 @@ const IntensiveListeningMode = ({
                   <div className="intensive-word-pairs">
                     {currentWordPairs.map((pair, index) => {
                       const wordKey = normaliseExpression(pair.source)
-                      const currentStatus = vocabEntries[wordKey]?.status || 'unknown'
+                      const currentStatus = getDisplayStatus(vocabEntries[wordKey]?.status)
 
                       return (
                         <div key={index} className="intensive-word-pair">
@@ -1431,6 +1431,14 @@ const IntensiveListeningMode = ({
                             <span className="intensive-word-pair-target">{pair.target}</span>
                           </div>
                           <div className="intensive-word-pair-status">
+                            <button
+                              type="button"
+                              className={`intensive-word-pair-status-btn ${currentStatus === 'new' ? 'is-active' : ''}`}
+                              disabled
+                              title="New - no status yet"
+                            >
+                              N
+                            </button>
                             {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
                               <button
                                 key={status}

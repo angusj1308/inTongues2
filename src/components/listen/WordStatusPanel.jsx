@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
 
-const STATUS_LEVELS = ['new', 'recognised', 'familiar', 'known']
-const STATUS_ABBREV = ['N', 'R', 'F', 'K']
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -53,7 +53,7 @@ const WordRow = ({
         <input
           type="range"
           min="0"
-          max="3"
+          max="4"
           step="1"
           value={validStatusIndex}
           onChange={handleSliderChange}

@@ -193,7 +193,10 @@ const WordStatusPanel = ({
         <button
           type="button"
           className="button word-status-save-btn"
-          onClick={onSaveAndContinue}
+          onClick={() => {
+            console.log('Save and continue clicked', { onSaveAndContinue })
+            onSaveAndContinue?.()
+          }}
         >
           Save and continue
         </button>

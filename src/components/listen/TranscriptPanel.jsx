@@ -51,11 +51,9 @@ const TranscriptPanel = ({
         >
           {wordStatusDisabled
             ? 'Show word status'
-            : showWordStatus && !onToggleWordStatus
-              ? 'Word status (on)'
-              : showWordStatus
-                ? 'Hide word status'
-                : 'Show word status'}
+            : showWordStatus
+              ? 'Hide word status'
+              : 'Show word status'}
         </button>
       ) : (
         <span className="transcript-panel-footer-spacer" aria-hidden="true" />

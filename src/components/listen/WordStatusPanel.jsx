@@ -11,37 +11,38 @@ const PlayIcon = () => (
 )
 
 // Get background style for a status button when active
-// Uses exact same opacity values as the word highlighting system
+// Uses exact same color codes and opacity values as the word highlighting system
+// Mixes with white (not transparent) to match highlight appearance on white text background
 const getStatusStyle = (statusLevel, isActive, languageColor) => {
   if (!isActive) return {}
 
   switch (statusLevel) {
     case 'new':
-      // Always orange - using same opacity as highlight system's "new"
+      // Always orange #F97316 at STATUS_OPACITY.new
       return {
-        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, transparent)`,
+        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
         color: '#9a3412'
       }
     case 'unknown':
-      // Unknown takes over old "new" opacity (40%)
+      // Language color at STATUS_OPACITY.unknown
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.new * 100}%, transparent)`,
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
         color: '#1e293b'
       }
     case 'recognised':
-      // 28% opacity
+      // Language color at STATUS_OPACITY.recognised
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, transparent)`,
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
         color: '#1e293b'
       }
     case 'familiar':
-      // 16% opacity
+      // Language color at STATUS_OPACITY.familiar
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, transparent)`,
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
         color: '#64748b'
       }
     case 'known':
-      // Transparent - subtle indicator only
+      // No color - subtle gray indicator
       return { background: '#e2e8f0', color: '#64748b' }
     default:
       return {}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import TranscriptPanel from './TranscriptPanel'
 import WordStatusPanel from './WordStatusPanel'
 import ChunkTimeline from './ChunkTimeline'
@@ -119,11 +120,6 @@ const ActiveMode = ({
   const [syncToken, setSyncToken] = useState(0)
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
-
-  // Debug: log when warning state changes
-  useEffect(() => {
-    console.log('showPassThreeWarning changed:', showPassThreeWarning)
-  }, [showPassThreeWarning])
   const playerBoundsRef = useRef(null)
   const passNavDockRef = useRef(null)
   const resizeLogRef = useRef(false)
@@ -453,7 +449,6 @@ const ActiveMode = ({
   }
 
   const handlePassThreeContinue = () => {
-    console.log('handlePassThreeContinue called', { passThreeWarningAcknowledged })
     if (!passThreeWarningAcknowledged) {
       setShowPassThreeWarning(true)
       return
@@ -823,8 +818,7 @@ const ActiveMode = ({
             {passNavigation}
           </div>
         )}
-        {console.log('Rendering modal check:', showPassThreeWarning)}
-        {showPassThreeWarning && (
+        {showPassThreeWarning && createPortal(
           <div className="modal-backdrop" role="presentation">
             <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">
               <div className="section-header" style={{ alignItems: 'flex-start' }}>
@@ -844,7 +838,8 @@ const ActiveMode = ({
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </>
     </div>

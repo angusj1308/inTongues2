@@ -119,6 +119,11 @@ const ActiveMode = ({
   const [syncToken, setSyncToken] = useState(0)
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
+
+  // Debug: log when warning state changes
+  useEffect(() => {
+    console.log('showPassThreeWarning changed:', showPassThreeWarning)
+  }, [showPassThreeWarning])
   const playerBoundsRef = useRef(null)
   const passNavDockRef = useRef(null)
   const resizeLogRef = useRef(false)
@@ -818,6 +823,7 @@ const ActiveMode = ({
             {passNavigation}
           </div>
         )}
+        {console.log('Rendering modal check:', showPassThreeWarning)}
         {showPassThreeWarning && (
           <div className="modal-backdrop" role="presentation">
             <div className="modal-card" role="dialog" aria-modal="true" aria-label="Confirm word status changes">

@@ -1248,7 +1248,7 @@ const normalisePagesToSegments = (pages = []) =>
               title={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               <span className="material-symbols-outlined">
-                {cinemaDarkMode ? 'light_mode' : 'dark_mode'}
+                {cinemaDarkMode ? 'dark_mode' : 'light_mode'}
               </span>
             </button>
             {isExtensive && (

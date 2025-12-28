@@ -7055,7 +7055,7 @@ body.active-pass-locked {
 }
 
 .is-dark .floating-panel-content .transcript-line.active {
-  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .is-dark .floating-panel-content .transcript-panel-footer {
@@ -7092,7 +7092,7 @@ body.active-pass-locked {
 }
 
 .is-light .floating-panel-content .transcript-line.active {
-  background: rgba(0, 0, 0, 0.04);
+  color: #0f172a;
 }
 
 .is-light .floating-panel-content .transcript-panel-footer {

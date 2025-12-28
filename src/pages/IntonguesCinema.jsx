@@ -110,13 +110,13 @@ const IntonguesCinema = () => {
 
   // Focus YouTube iframe when header hides so keyboard shortcuts work
   useEffect(() => {
-    if (!headerVisible && isExtensive) {
+    if (!headerVisible && cinemaMode === 'extensive') {
       const iframe = playerRef.current?.getIframe?.()
       if (iframe) {
         iframe.focus()
       }
     }
-  }, [headerVisible, isExtensive])
+  }, [headerVisible, cinemaMode])
 
   // Cycle through text display modes: off → subtitles → transcript → off
   const cycleTextDisplayMode = useCallback(() => {

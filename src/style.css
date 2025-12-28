@@ -2880,34 +2880,34 @@ textarea {
   color: #64748b;
 }
 
-/* N - New (soft orange with white behind) */
+/* N - New: orange at 40% opacity (matches STATUS_OPACITY.new) */
 .intensive-status-pill--new.is-active {
-  background: rgba(249, 115, 22, 0.25);
-  color: #c2410c;
+  background: color-mix(in srgb, #F97316 40%, white);
+  color: #9a3412;
 }
 
-/* U - Unknown (soft red) */
+/* U - Unknown: language color at 40% (matches STATUS_OPACITY.unknown) */
 .intensive-status-pill--unknown.is-active {
-  background: rgba(220, 38, 38, 0.2);
+  background: color-mix(in srgb, #DC2626 40%, white);
+  color: #991b1b;
+}
+
+/* R - Recognised: language color at 28% (matches STATUS_OPACITY.recognised) */
+.intensive-status-pill--recognised.is-active {
+  background: color-mix(in srgb, #DC2626 28%, white);
   color: #b91c1c;
 }
 
-/* R - Recognised (soft pink) */
-.intensive-status-pill--recognised.is-active {
-  background: rgba(248, 113, 113, 0.3);
+/* F - Familiar: language color at 16% (matches STATUS_OPACITY.familiar) */
+.intensive-status-pill--familiar.is-active {
+  background: color-mix(in srgb, #DC2626 16%, white);
   color: #dc2626;
 }
 
-/* F - Familiar (very soft pink) */
-.intensive-status-pill--familiar.is-active {
-  background: rgba(252, 165, 165, 0.4);
-  color: #b91c1c;
-}
-
-/* K - Known (soft green) */
+/* K - Known: green at 40% (matches WordStatusPanel known style) */
 .intensive-status-pill--known.is-active {
-  background: rgba(34, 197, 94, 0.2);
-  color: #15803d;
+  background: color-mix(in srgb, #22c55e 40%, white);
+  color: #166534;
 }
 
 .translate-popup {

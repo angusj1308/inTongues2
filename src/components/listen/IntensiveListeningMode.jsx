@@ -1132,17 +1132,8 @@ const IntensiveListeningMode = ({
       const isArrowRight = event.key === 'ArrowRight'
       const isSpace = event.code === 'Space' || event.key === ' '
 
-      // For text inputs, only handle arrow keys on intensive-input
+      // When focused on text input, let all keys work normally (typing, cursor navigation)
       if (isTextInput) {
-        if (
-          activeTag === 'INPUT' &&
-          activeElement?.classList?.contains('intensive-input') &&
-          (isArrowLeft || isArrowRight)
-        ) {
-          event.preventDefault()
-          activeElement.blur()
-          handleSentenceNavigation(isArrowLeft ? 'previous' : 'next')
-        }
         return
       }
 

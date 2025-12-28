@@ -2690,6 +2690,10 @@ textarea {
   border: 1px solid #cbd5e1 !important;
 }
 
+.intensive-transcribe-input-container .intensive-input::placeholder {
+  color: #64748b !important;
+}
+
 .intensive-submit-btn {
   padding: 0.875rem 1.5rem;
   border-radius: 12px;
@@ -2713,16 +2717,18 @@ textarea {
   cursor: not-allowed;
 }
 
-/* User's transcription attempt (colored result) */
+/* User's transcription attempt (colored result) - matches .intensive-transcript */
 .intensive-user-attempt {
-  width: 100%;
-  max-width: 700px;
-  font-size: 1.5rem;
-  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.6rem);
+  font-weight: 600;
   line-height: 1.6;
-  text-align: center;
-  padding: 0 clamp(1rem, 5vw, 3rem);
-  margin-bottom: 0.5rem;
+  color: #0f172a;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 100%;
+  margin-bottom: 1rem;
 }
 
 /* Transcription word coloring */

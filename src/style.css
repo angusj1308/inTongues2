@@ -6450,11 +6450,46 @@ body.active-pass-locked {
   background: #f8fafc;
 }
 
+/* Fullscreen mode for extensive viewing */
+.cinema-fullscreen-mode {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 100;
+  overflow: hidden;
+}
+
+/* Top hover zone - invisible trigger area */
+.cinema-top-hover-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 200;
+}
+
 .cinema-hover-header {
   backdrop-filter: blur(12px);
   background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   position: relative;
+  z-index: 150;
+}
+
+/* Hideable header for extensive mode */
+.cinema-header-hideable {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(-100%);
+  transition: transform 300ms ease;
+  z-index: 201;
+}
+
+.cinema-header-hideable.is-visible {
+  transform: translateY(0);
 }
 
 .cinema-header-band {
@@ -6485,10 +6520,132 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Toggle buttons in header */
+.cinema-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.cinema-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1e293b;
+}
+
+.cinema-toggle-btn.active {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #2563eb;
+}
+
+.cinema-toggle-btn .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+
+.cinema-toggle-label {
+  font-weight: 500;
 }
 
 .cinema-loading-message,
 .cinema-error-message {
   padding: 12px 24px;
   text-align: center;
+}
+
+/* Extensive fullscreen layout */
+.cinema-extensive-fullscreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.cinema-extensive-fullscreen--split {
+  /* When transcript panel is open */
+}
+
+.cinema-extensive-video-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.cinema-extensive-video-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinema-extensive-video-wrapper iframe,
+.cinema-extensive-video-wrapper video {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Subtitle overlay on video */
+.cinema-subtitle-overlay {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 800px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.cinema-subtitle-overlay > * {
+  pointer-events: auto;
+}
+
+/* Transcript side panel in fullscreen */
+.cinema-extensive-transcript-panel {
+  width: 400px;
+  max-width: 35vw;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cinema-extensive-transcript-panel .transcript-panel {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+/* When transcript is open, shrink video area */
+.cinema-extensive-fullscreen--split .cinema-extensive-video-zone {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .cinema-toggle-label {
+    display: none;
+  }
+
+  .cinema-extensive-transcript-panel {
+    width: 320px;
+    max-width: 45vw;
+  }
 }

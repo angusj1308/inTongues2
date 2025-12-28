@@ -1249,9 +1249,9 @@ const normalisePagesToSegments = (pages = []) =>
                   className={`dashboard-control ui-text cinema-text-toggle ${textDisplayMode === 'off' ? 'cinema-toggle-disabled' : ''}`}
                   onClick={() => textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
                   disabled={textDisplayMode === 'off'}
-                  title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word colors' : 'Show word colors')}
+                  title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
                 >
-                  {showWordStatus ? 'Words' : 'Words off'}
+                  {showWordStatus ? 'Hide word status' : 'Show word status'}
                 </button>
               </>
             )}

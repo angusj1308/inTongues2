@@ -6592,7 +6592,7 @@ body.active-pass-locked {
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 800px;
+  max-width: 900px;
   text-align: center;
   pointer-events: none;
   z-index: 10;
@@ -6600,6 +6600,67 @@ body.active-pass-locked {
 
 .cinema-subtitle-overlay > * {
   pointer-events: auto;
+}
+
+/* Cinema subtitle text styling */
+.cinema-subtitle-overlay .page-text {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #ffffff;
+  max-width: 100%;
+}
+
+/* Word status colors for cinema subtitles - text color on dark background */
+.cinema-subtitle-overlay .word-known {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-familiar {
+  color: #86efac;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-recognised {
+  color: #fcd34d;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-unknown {
+  color: #fb923c;
+  font-weight: 600;
+}
+
+.cinema-subtitle-overlay .word-new {
+  color: #f97316;
+  font-weight: 600;
+}
+
+/* Phrase status colors for cinema subtitles */
+.cinema-subtitle-overlay .phrase-known {
+  color: #ffffff;
+}
+
+.cinema-subtitle-overlay .phrase-familiar {
+  color: #86efac;
+}
+
+.cinema-subtitle-overlay .phrase-recognised {
+  color: #fcd34d;
+}
+
+.cinema-subtitle-overlay .phrase-unknown {
+  color: #fb923c;
+}
+
+.cinema-subtitle-overlay .phrase-new {
+  color: #f97316;
 }
 
 /* Transcript side panel in fullscreen */

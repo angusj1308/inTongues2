@@ -102,6 +102,11 @@ const IntonguesCinema = () => {
   const subtitlesEnabled = textDisplayMode === 'subtitles'
   const transcriptPanelOpen = textDisplayMode === 'transcript'
 
+  // Close transcript handler - cycles back to subtitles
+  const handleCloseTranscript = useCallback(() => {
+    setTextDisplayMode('subtitles')
+  }, [])
+
   // Cycle through text display modes: off → subtitles → transcript → off
   const cycleTextDisplayMode = useCallback(() => {
     setTextDisplayMode((prev) => {
@@ -1105,6 +1110,7 @@ const normalisePagesToSegments = (pages = []) =>
           subtitlesEnabled={subtitlesEnabled}
           showWordStatus={textDisplayMode !== 'off' && showWordStatus}
           transcriptPanelOpen={transcriptPanelOpen}
+          onCloseTranscript={handleCloseTranscript}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>

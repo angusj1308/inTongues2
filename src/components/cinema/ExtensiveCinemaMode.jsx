@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import TranscriptPanel from '../listen/TranscriptPanel'
+import FloatingTranscriptPanel from './FloatingTranscriptPanel'
 import CinemaSubtitles from '../CinemaSubtitles'
 import { normaliseExpression } from '../../services/vocab'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
@@ -41,6 +42,7 @@ const ExtensiveCinemaMode = ({
   subtitlesEnabled = true,
   showWordStatus = true,
   transcriptPanelOpen = false,
+  onCloseTranscript,
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
@@ -290,8 +292,8 @@ const ExtensiveCinemaMode = ({
   )
 
   return (
-    <div className={`cinema-extensive-fullscreen ${transcriptPanelOpen ? 'cinema-extensive-fullscreen--split' : ''}`}>
-      {/* Main video area */}
+    <div className="cinema-extensive-fullscreen">
+      {/* Main video area - always fullscreen */}
       <div className="cinema-extensive-video-zone">
         <div className="cinema-extensive-video-wrapper">
           {videoPlayer}
@@ -310,24 +312,25 @@ const ExtensiveCinemaMode = ({
         </div>
       </div>
 
-      {/* Transcript side panel - only when open */}
-      {transcriptPanelOpen && (
-        <div className="cinema-extensive-transcript-panel">
-          <TranscriptPanel
-            segments={transcriptSegments}
-            activeIndex={activeTranscriptIndex}
-            vocabEntries={vocabEntries}
-            language={language}
-            onWordClick={handleTranscriptWordClick}
-            onSelectionTranslate={handleTranscriptSelection}
-            showWordStatus={showWordStatus}
-            isSynced={isTranscriptSynced}
-            onUserScroll={handleTranscriptUnsync}
-            onResync={handleTranscriptResync}
-            syncToken={syncToken}
-          />
-        </div>
-      )}
+      {/* Floating transcript panel - can be dragged anywhere, even to second monitor */}
+      <FloatingTranscriptPanel
+        isOpen={transcriptPanelOpen}
+        onClose={onCloseTranscript}
+      >
+        <TranscriptPanel
+          segments={transcriptSegments}
+          activeIndex={activeTranscriptIndex}
+          vocabEntries={vocabEntries}
+          language={language}
+          onWordClick={handleTranscriptWordClick}
+          onSelectionTranslate={handleTranscriptSelection}
+          showWordStatus={showWordStatus}
+          isSynced={isTranscriptSynced}
+          onUserScroll={handleTranscriptUnsync}
+          onResync={handleTranscriptResync}
+          syncToken={syncToken}
+        />
+      </FloatingTranscriptPanel>
     </div>
   )
 }

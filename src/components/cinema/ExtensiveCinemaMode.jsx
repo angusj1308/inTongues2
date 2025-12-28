@@ -37,13 +37,10 @@ const ExtensiveCinemaMode = ({
   renderHighlightedText,
   onSubtitleWordClick,
   children: videoPlayer,
-  // New props for simplified mode
+  // Props for text display mode
   subtitlesEnabled = true,
-  onToggleSubtitles,
   showWordStatus = true,
-  onToggleWordStatus,
   transcriptPanelOpen = false,
-  onToggleTranscriptPanel,
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)

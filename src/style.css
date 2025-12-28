@@ -6553,7 +6553,6 @@ body.active-pass-locked {
 }
 
 .cinema-header-icon-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
   color: #0f172a;
 }
 
@@ -6612,7 +6611,6 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
 
@@ -6762,8 +6760,7 @@ body.active-pass-locked {
 .floating-transcript-panel {
   border-radius: 12px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
+  position: relative;
   overflow: hidden;
   backdrop-filter: blur(12px);
 }
@@ -6790,21 +6787,30 @@ body.active-pass-locked {
   user-select: none;
 }
 
+/* Floating header - positioned over content */
 .floating-panel-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 8px 10px;
+  padding: 10px 12px;
   cursor: grab;
-  flex-shrink: 0;
+  z-index: 10;
 }
 
+/* Dark mode header with gradient fade */
 .is-dark .floating-panel-header {
-  background: transparent;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.9) 60%, rgba(15, 23, 42, 0) 100%);
+  padding-bottom: 20px;
 }
 
+/* Light mode header with gradient fade */
 .is-light .floating-panel-header {
-  background: transparent;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.9) 60%, rgba(255, 255, 255, 0) 100%);
+  padding-bottom: 20px;
 }
 
 .floating-panel-header:active {
@@ -6857,7 +6863,8 @@ body.active-pass-locked {
 }
 
 .floating-panel-content {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -6868,10 +6875,27 @@ body.active-pass-locked {
   background: transparent;
   border: none;
   border-radius: 0;
+  position: relative;
+}
+
+/* Make transcript panel footer float over content */
+.floating-panel-content .transcript-panel-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 12px 16px;
 }
 
 .floating-panel-content .transcript-panel .transcript-list {
   background: transparent;
+}
+
+/* Add padding to transcript body for floating header/footer */
+.floating-panel-content .transcript-panel-body {
+  padding-top: 40px;
+  padding-bottom: 50px;
 }
 
 /* Dark mode fade gradients */
@@ -6903,8 +6927,10 @@ body.active-pass-locked {
   color: #fff;
 }
 
+/* Dark mode footer with gradient fade */
 .is-dark .floating-panel-content .transcript-panel-footer {
-  background: transparent;
+  background: linear-gradient(0deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.9) 60%, rgba(15, 23, 42, 0) 100%);
+  padding-top: 24px;
 }
 
 .is-dark .floating-panel-content .transcript-sync-btn,
@@ -6940,8 +6966,10 @@ body.active-pass-locked {
   color: #0f172a;
 }
 
+/* Light mode footer with gradient fade */
 .is-light .floating-panel-content .transcript-panel-footer {
-  background: transparent;
+  background: linear-gradient(0deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.9) 60%, rgba(255, 255, 255, 0) 100%);
+  padding-top: 24px;
 }
 
 .is-light .floating-panel-content .transcript-sync-btn,

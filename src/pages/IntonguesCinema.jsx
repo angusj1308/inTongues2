@@ -309,7 +309,7 @@ const normalisePagesToSegments = (pages = []) =>
 
   const videoId = useMemo(() => extractVideoId(video), [video])
   const transcriptLanguage = useMemo(
-    () => (video?.language || profile?.lastUsedLanguage || 'auto').toLowerCase(),
+    () => video?.language || profile?.lastUsedLanguage || 'auto',
     [profile?.lastUsedLanguage, video?.language]
   )
   const transcriptTtsLanguage = normalizeLanguageCode(transcriptLanguage)

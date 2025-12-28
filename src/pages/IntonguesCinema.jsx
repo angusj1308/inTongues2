@@ -85,10 +85,15 @@ const IntonguesCinema = () => {
 
   // Cinema mode state
   const [cinemaMode, setCinemaMode] = useState('extensive')
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
   const [scrubSeconds, setScrubSeconds] = useState(5)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [wordTranslations, setWordTranslations] = useState({})
+
+  // Extensive mode state - defaults ON for immediate value
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true)
+  const [showWordStatus, setShowWordStatus] = useState(true)
+  const [transcriptPanelOpen, setTranscriptPanelOpen] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(false)
 
   // Active mode state
   const [activeChunkIndex, setActiveChunkIndex] = useState(0)
@@ -1010,18 +1015,7 @@ const normalisePagesToSegments = (pages = []) =>
     if (cinemaMode === 'extensive') {
       return (
         <ExtensiveCinemaMode
-          videoTitle={video.title || 'Untitled video'}
-          isPlaying={playbackStatus.isPlaying}
           currentTime={safeCurrentTime}
-          duration={safeDuration}
-          onPlayPause={handlePlayPause}
-          onSeek={handleSeek}
-          playbackRate={playbackRate}
-          onPlaybackRateChange={handlePlaybackRateChange}
-          subtitlesEnabled={subtitlesEnabled}
-          onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
-          scrubSeconds={scrubSeconds}
-          onScrubChange={setScrubSeconds}
           transcriptSegments={displaySegments}
           activeTranscriptIndex={activeTranscriptIndex}
           vocabEntries={vocabEntries}
@@ -1031,6 +1025,12 @@ const normalisePagesToSegments = (pages = []) =>
           setPopup={setPopup}
           renderHighlightedText={renderHighlightedText}
           onSubtitleWordClick={handleSubtitleWordClick}
+          subtitlesEnabled={subtitlesEnabled}
+          onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
+          showWordStatus={showWordStatus}
+          onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
+          transcriptPanelOpen={transcriptPanelOpen}
+          onToggleTranscriptPanel={() => setTranscriptPanelOpen((prev) => !prev)}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>
@@ -1103,9 +1103,25 @@ const normalisePagesToSegments = (pages = []) =>
     return null
   }
 
+  const isExtensive = cinemaMode === 'extensive'
+
   return (
-    <div className={`cinema-page cinema-mode-${cinemaMode}`}>
-      <header className="dashboard-header cinema-hover-header">
+    <div className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''}`}>
+      {/* Top hover zone for header reveal in extensive mode */}
+      {isExtensive && (
+        <div
+          className="cinema-top-hover-zone"
+          onMouseEnter={() => setHeaderVisible(true)}
+          onMouseLeave={() => setHeaderVisible(false)}
+        />
+      )}
+
+      {/* Header - always visible in active/intensive, hover-reveal in extensive */}
+      <header
+        className={`dashboard-header cinema-hover-header ${isExtensive ? 'cinema-header-hideable' : ''} ${headerVisible ? 'is-visible' : ''}`}
+        onMouseEnter={() => isExtensive && setHeaderVisible(true)}
+        onMouseLeave={() => isExtensive && setHeaderVisible(false)}
+      >
         <div className="dashboard-brand-band cinema-header-band">
           <div className="cinema-header-left">
             <button
@@ -1136,7 +1152,40 @@ const normalisePagesToSegments = (pages = []) =>
               </div>
             ))}
           </nav>
-          <div className="cinema-header-actions" />
+          {/* Toggle controls on the right - only in extensive mode */}
+          <div className="cinema-header-actions">
+            {isExtensive && (
+              <>
+                <button
+                  type="button"
+                  className={`cinema-toggle-btn ${subtitlesEnabled ? 'active' : ''}`}
+                  onClick={() => setSubtitlesEnabled((prev) => !prev)}
+                  title={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
+                >
+                  <span className="material-symbols-outlined">{subtitlesEnabled ? 'subtitles' : 'subtitles_off'}</span>
+                  <span className="cinema-toggle-label">Subtitles</span>
+                </button>
+                <button
+                  type="button"
+                  className={`cinema-toggle-btn ${showWordStatus ? 'active' : ''}`}
+                  onClick={() => setShowWordStatus((prev) => !prev)}
+                  title={showWordStatus ? 'Hide word colors' : 'Show word colors'}
+                >
+                  <span className="material-symbols-outlined">format_color_text</span>
+                  <span className="cinema-toggle-label">Words</span>
+                </button>
+                <button
+                  type="button"
+                  className={`cinema-toggle-btn ${transcriptPanelOpen ? 'active' : ''}`}
+                  onClick={() => setTranscriptPanelOpen((prev) => !prev)}
+                  title={transcriptPanelOpen ? 'Hide transcript panel' : 'Show transcript panel'}
+                >
+                  <span className="material-symbols-outlined">description</span>
+                  <span className="cinema-toggle-label">Transcript</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 

@@ -167,6 +167,8 @@ const IntensiveListeningMode = ({
   audioRef,
   fullAudioUrl,
   user,
+  preloadedTranslations = {},
+  preloadedPronunciations = {},
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceWordPairs, setSentenceWordPairs] = useState({}) // { sentence: [{source, target, audioBase64}] }
@@ -476,6 +478,33 @@ const IntensiveListeningMode = ({
       return
     }
 
+    // Check preloaded data first
+    const preloadedTranslation = preloadedTranslations[key]
+    const preloadedPronunciation = preloadedPronunciations[key]
+
+    if (preloadedTranslation || preloadedPronunciation) {
+      const selectionObj = window.getSelection()
+      if (!selectionObj || selectionObj.rangeCount === 0) return
+
+      const range = selectionObj.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      const { x, y } = getPopupPosition(rect)
+
+      setPopup({
+        x,
+        y,
+        word: text,
+        displayText: text,
+        translation: preloadedTranslation?.translation || 'No translation found',
+        targetText: preloadedTranslation?.translation || 'No translation found',
+        audioBase64: null,
+        audioUrl: preloadedPronunciation?.audioUrl || null,
+      })
+
+      return
+    }
+
+    // Fetch from API if not preloaded
     try {
       const response = await fetch('http://localhost:4000/api/translatePhrase', {
         method: 'POST',
@@ -485,6 +514,7 @@ const IntensiveListeningMode = ({
           sourceLang: language || 'es',
           targetLang: resolveSupportedLanguageLabel(nativeLanguage),
           voiceGender,
+          voiceId,
         }),
       })
 

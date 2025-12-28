@@ -241,6 +241,219 @@ async function requestElevenLabsTts(text, voiceId) {
   return Buffer.from(await response.arrayBuffer())
 }
 
+// Default voice IDs for imported content (YouTube, Spotify, etc.)
+// Uses male voice as default per language
+const DEFAULT_IMPORT_VOICE_IDS = {
+  english: 'NFG5qt843uXKj4pFvR7C',
+  spanish: 'kulszILr6ees0ArU8miO',
+  french: 'UBXZKOKbt62aLQHhc1Jm',
+  italian: 'W71zT1VwIFFx3mMGH2uZ',
+}
+
+// Normalize word for use in Firestore document keys
+function normalizeWordForKey(word) {
+  if (!word || typeof word !== 'string') return ''
+  return word
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+}
+
+// Generate key for pronunciation document
+function getPronunciationKey(word, targetLanguage, voiceId) {
+  const normalizedWord = normalizeWordForKey(word)
+  const normalizedLang = (targetLanguage || '').toLowerCase().trim()
+  return `${normalizedLang}_${voiceId}_${normalizedWord}`
+}
+
+// Generate key for translation document
+function getTranslationKey(word, targetLanguage, nativeLanguage) {
+  const normalizedWord = normalizeWordForKey(word)
+  const normalizedTargetLang = (targetLanguage || '').toLowerCase().trim()
+  const normalizedNativeLang = (nativeLanguage || '').toLowerCase().trim()
+  return `${normalizedTargetLang}_${normalizedNativeLang}_${normalizedWord}`
+}
+
+// Get pronunciation from cache
+async function getPronunciation(word, targetLanguage, voiceId) {
+  const key = getPronunciationKey(word, targetLanguage, voiceId)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('pronunciations').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching pronunciation:', err)
+    return null
+  }
+}
+
+// Get translation from cache
+async function getTranslation(word, targetLanguage, nativeLanguage) {
+  const key = getTranslationKey(word, targetLanguage, nativeLanguage)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('translations').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching translation:', err)
+    return null
+  }
+}
+
+// Save pronunciation to Firestore + Cloud Storage
+async function savePronunciation(word, targetLanguage, voiceId, audioBuffer) {
+  const key = getPronunciationKey(word, targetLanguage, voiceId)
+  if (!key || !audioBuffer) return null
+
+  try {
+    // Upload to Cloud Storage
+    const storagePath = `pronunciations/${key}.mp3`
+    const file = bucket.file(storagePath)
+    await file.save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: { cacheControl: 'public, max-age=31536000' },
+    })
+    await file.makePublic()
+    const audioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+
+    // Save reference to Firestore
+    const docRef = firestore.collection('pronunciations').doc(key)
+    await docRef.set({
+      word: word.trim().toLowerCase(),
+      targetLanguage: targetLanguage.toLowerCase().trim(),
+      voiceId,
+      audioUrl,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    return audioUrl
+  } catch (err) {
+    console.error('Error saving pronunciation:', err)
+    return null
+  }
+}
+
+// Save translation to Firestore
+async function saveTranslation(word, targetLanguage, nativeLanguage, translationText) {
+  const key = getTranslationKey(word, targetLanguage, nativeLanguage)
+  if (!key || !translationText) return false
+
+  try {
+    const docRef = firestore.collection('translations').doc(key)
+    await docRef.set({
+      word: word.trim().toLowerCase(),
+      targetLanguage: targetLanguage.toLowerCase().trim(),
+      nativeLanguage: nativeLanguage.toLowerCase().trim(),
+      translation: translationText,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+    return true
+  } catch (err) {
+    console.error('Error saving translation:', err)
+    return false
+  }
+}
+
+// Batch check which pronunciations are missing from cache
+async function getMissingPronunciations(words, targetLanguage, voiceId) {
+  if (!words || !words.length) return []
+
+  const missing = []
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const checks = await Promise.all(
+      batch.map(async (word) => {
+        const exists = await getPronunciation(word, targetLanguage, voiceId)
+        return { word, exists: !!exists }
+      })
+    )
+    checks.forEach(({ word, exists }) => {
+      if (!exists) missing.push(word)
+    })
+  }
+
+  return missing
+}
+
+// Batch check which translations are missing from cache
+async function getMissingTranslations(words, targetLanguage, nativeLanguage) {
+  if (!words || !words.length) return []
+
+  const missing = []
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const checks = await Promise.all(
+      batch.map(async (word) => {
+        const exists = await getTranslation(word, targetLanguage, nativeLanguage)
+        return { word, exists: !!exists }
+      })
+    )
+    checks.forEach(({ word, exists }) => {
+      if (!exists) missing.push(word)
+    })
+  }
+
+  return missing
+}
+
+// Batch fetch pronunciations from cache
+async function batchGetPronunciations(words, targetLanguage, voiceId) {
+  if (!words || !words.length) return {}
+
+  const results = {}
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const fetched = await Promise.all(
+      batch.map(async (word) => {
+        const data = await getPronunciation(word, targetLanguage, voiceId)
+        return { word: word.trim().toLowerCase(), data }
+      })
+    )
+    fetched.forEach(({ word, data }) => {
+      if (data) results[word] = data
+    })
+  }
+
+  return results
+}
+
+// Batch fetch translations from cache
+async function batchGetTranslations(words, targetLanguage, nativeLanguage) {
+  if (!words || !words.length) return {}
+
+  const results = {}
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const fetched = await Promise.all(
+      batch.map(async (word) => {
+        const data = await getTranslation(word, targetLanguage, nativeLanguage)
+        return { word: word.trim().toLowerCase(), data }
+      })
+    )
+    fetched.forEach(({ word, data }) => {
+      if (data) results[word] = data
+    })
+  }
+
+  return results
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, os.tmpdir())
@@ -1268,6 +1481,29 @@ app.post('/api/spotify/library/add', async (req, res) => {
       await batch.commit()
     }
 
+    // Trigger content preparation (pronunciation caching) if we have lyrics and language
+    const transcriptLang = basePayload.transcriptLanguage || basePayload.language
+    const normalizedLang = transcriptLang ? normalizeLanguageLabel(transcriptLang)?.toLowerCase() : null
+    const hasContent = basePayload.transcriptStatus === 'ready' || lyricsPages.length > 0
+
+    if (hasContent && normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      try {
+        // Set initial preparation status
+        await itemRef.update({
+          preparationStatus: 'pending',
+          preparationProgress: 0,
+        })
+
+        // Trigger preparation asynchronously (don't await)
+        prepareContentPronunciations(uid, spotifyId, 'spotify', normalizedLang, null)
+          .catch((prepErr) => {
+            console.error('Background Spotify preparation failed:', prepErr)
+          })
+      } catch (prepInitError) {
+        console.error('Failed to initialize Spotify preparation:', prepInitError)
+      }
+    }
+
     res.json({ ok: true, lyricsFetched: lyricsPages.length > 0 })
   } catch (err) {
     console.error('Spotify library add error', err)
@@ -1618,6 +1854,27 @@ app.post('/api/youtube/transcript', async (req, res) => {
 
     await transcriptRef.set(transcriptPayload, { merge: true })
 
+    // Trigger content preparation (pronunciation caching) for known languages
+    const normalizedLang = normalizeLanguageLabel(languageCode)?.toLowerCase()
+    if (normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      try {
+        // Set initial preparation status
+        await videoRef.update({
+          preparationStatus: 'pending',
+          preparationProgress: 0,
+          language: normalizedLang,
+        })
+
+        // Trigger preparation asynchronously (don't await)
+        prepareContentPronunciations(uid, videoDocId, 'youtube', normalizedLang, null)
+          .catch((prepErr) => {
+            console.error('Background YouTube preparation failed:', prepErr)
+          })
+      } catch (prepInitError) {
+        console.error('Failed to initialize YouTube preparation:', prepInitError)
+      }
+    }
+
     return res.json({
       text: transcriptPayload.text,
       segments: transcriptPayload.segments,
@@ -1803,7 +2060,6 @@ app.post('/api/generate', async (req, res) => {
 app.post('/api/translatePhrase', async (req, res) => {
   try {
     const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender, unknownWords, voiceId: requestedVoiceId } = req.body || {}
-    const rawTtsLanguage = req.body?.ttsLanguage
 
     if (!phrase || typeof phrase !== 'string') {
       return res.status(400).json({ error: 'phrase is required' })
@@ -1819,10 +2075,52 @@ app.post('/api/translatePhrase', async (req, res) => {
 
     const sourceLabel = sourceLang || 'auto-detected'
     const targetLabel = targetLang || 'English'
+    const normalizedSourceLang = sourceLang.toLowerCase().trim()
+    const normalizedTargetLang = targetLang.toLowerCase().trim()
+
+    // Resolve voice ID early for cache lookups
+    const resolvedGender = voiceGender || 'male'
+    let voiceId = requestedVoiceId
+    if (!voiceId) {
+      try {
+        const resolved = resolveElevenLabsVoiceId(sourceLang, resolvedGender)
+        voiceId = resolved.voiceId
+      } catch (voiceErr) {
+        console.error('Error resolving ElevenLabs voice:', voiceErr)
+      }
+    }
+
+    // Check if this is a single word (for cache lookup)
+    const isSingleWord = !phrase.includes(' ') && phrase.length < 50
 
     // Build prompt - if unknownWords provided, ask for word pairs too
     const hasUnknownWords = Array.isArray(unknownWords) && unknownWords.length > 0
 
+    // Try to get cached translation for single words
+    let cachedTranslation = null
+    if (isSingleWord && !hasUnknownWords) {
+      cachedTranslation = await getTranslation(phrase, normalizedSourceLang, normalizedTargetLang)
+    }
+
+    // Try to get cached pronunciation for single words
+    let cachedPronunciation = null
+    if (isSingleWord && !skipAudio && voiceId) {
+      cachedPronunciation = await getPronunciation(phrase, normalizedSourceLang, voiceId)
+    }
+
+    // If we have both cached, return immediately
+    if (cachedTranslation && (skipAudio || cachedPronunciation)) {
+      return res.json({
+        phrase,
+        translation: cachedTranslation.translation,
+        targetText: cachedTranslation.translation,
+        audioBase64: null,
+        audioUrl: cachedPronunciation?.audioUrl || null,
+        wordPairs: []
+      })
+    }
+
+    // Build translation prompt
     let prompt
     if (hasUnknownWords) {
       prompt = `
@@ -1849,11 +2147,12 @@ ${phrase}
 `.trim()
     }
 
-    const translationPromise = (async () => {
-      let translation = phrase
-      let targetText = phrase
-      let wordPairs = []
+    // Get translation (from cache or API)
+    let translation = cachedTranslation?.translation || phrase
+    let targetText = translation
+    let wordPairs = []
 
+    if (!cachedTranslation) {
       try {
         const response = await client.responses.create({
           model: 'gpt-4o-mini',
@@ -1861,10 +2160,8 @@ ${phrase}
         })
 
         if (hasUnknownWords) {
-          // Parse JSON response
           try {
             const jsonStr = response.output_text?.trim() || '{}'
-            // Extract JSON from markdown code blocks if present
             const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, jsonStr]
             const parsed = JSON.parse(jsonMatch[1] || jsonStr)
             translation = parsed.translation || translation
@@ -1879,68 +2176,91 @@ ${phrase}
           translation = response.output_text?.trim() || translation
           targetText = translation
         }
+
+        // Cache the translation for single words
+        if (isSingleWord && !hasUnknownWords && translation !== phrase) {
+          saveTranslation(phrase, normalizedSourceLang, normalizedTargetLang, translation).catch((err) => {
+            console.error('Failed to cache translation:', err)
+          })
+        }
       } catch (innerErr) {
         console.error('Error translating phrase with OpenAI:', innerErr)
       }
+    }
 
-      return { translation, targetText, wordPairs }
-    })()
-
-    // Skip audio generation if requested (e.g., for intensive mode sentence preloading)
+    // Skip audio generation if requested
     if (skipAudio) {
-      const { translation, targetText, wordPairs } = await translationPromise
       return res.json({ phrase, translation, targetText, audioBase64: null, wordPairs })
     }
 
-    // Generate pronunciation audio using ElevenLabs
-    const resolvedGender = voiceGender || 'male'
-    const { translation, targetText, wordPairs } = await translationPromise
-
-    // Use requested voiceId if provided, otherwise resolve by language
-    let voiceId = requestedVoiceId
-    if (!voiceId) {
-      try {
-        const resolved = resolveElevenLabsVoiceId(sourceLang, resolvedGender)
-        voiceId = resolved.voiceId
-      } catch (voiceErr) {
-        console.error('Error resolving ElevenLabs voice:', voiceErr)
-      }
-    }
-
-    // Generate audio for the phrase
+    // Get pronunciation (from cache or API)
     let audioBase64 = null
+    let audioUrl = cachedPronunciation?.audioUrl || null
+
     const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
-    if (phraseForAudio && voiceId) {
+    if (phraseForAudio && voiceId && !cachedPronunciation) {
       const phraseForAudioSafe = phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
       try {
         const audioBuffer = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
         audioBase64 = audioBuffer.toString('base64')
+
+        // Cache pronunciation for single words
+        if (isSingleWord) {
+          savePronunciation(phrase, normalizedSourceLang, voiceId, audioBuffer)
+            .then((url) => {
+              if (url) console.log(`Cached pronunciation for "${phrase}"`)
+            })
+            .catch((err) => {
+              console.error('Failed to cache pronunciation:', err)
+            })
+        }
       } catch (ttsError) {
         console.error('Error generating pronunciation audio (ElevenLabs):', ttsError)
       }
     }
 
-    // Generate audio for each word pair (sequentially to avoid rate limits)
+    // Generate audio for each word pair (check cache first)
     const wordPairsWithAudio = []
     if (wordPairs && wordPairs.length > 0 && voiceId) {
       for (const pair of wordPairs) {
         let wordAudio = null
-        try {
-          const audioBuffer = await requestElevenLabsTts(pair.source, voiceId)
-          wordAudio = audioBuffer.toString('base64')
-        } catch (wordTtsErr) {
-          console.error(`Error generating audio for word "${pair.source}":`, wordTtsErr)
+        let wordAudioUrl = null
+
+        // Check cache first
+        const cachedWordPronunciation = await getPronunciation(pair.source, normalizedSourceLang, voiceId)
+        if (cachedWordPronunciation?.audioUrl) {
+          wordAudioUrl = cachedWordPronunciation.audioUrl
+        } else {
+          // Fetch from ElevenLabs and cache
+          try {
+            const audioBuffer = await requestElevenLabsTts(pair.source, voiceId)
+            wordAudio = audioBuffer.toString('base64')
+            // Cache in background
+            savePronunciation(pair.source, normalizedSourceLang, voiceId, audioBuffer).catch((err) => {
+              console.error(`Failed to cache pronunciation for "${pair.source}":`, err)
+            })
+          } catch (wordTtsErr) {
+            console.error(`Error generating audio for word "${pair.source}":`, wordTtsErr)
+          }
         }
+
+        // Also cache the translation for word pairs
+        if (pair.source && pair.target) {
+          saveTranslation(pair.source, normalizedSourceLang, normalizedTargetLang, pair.target).catch((err) => {
+            console.error(`Failed to cache translation for "${pair.source}":`, err)
+          })
+        }
+
         wordPairsWithAudio.push({
           source: pair.source,
           target: pair.target,
-          audioBase64: wordAudio
+          audioBase64: wordAudio,
+          audioUrl: wordAudioUrl
         })
       }
     } else if (wordPairs && wordPairs.length > 0) {
-      // No voiceId available, return pairs without audio
       wordPairs.forEach(pair => {
-        wordPairsWithAudio.push({ source: pair.source, target: pair.target, audioBase64: null })
+        wordPairsWithAudio.push({ source: pair.source, target: pair.target, audioBase64: null, audioUrl: null })
       })
     }
 
@@ -1949,6 +2269,7 @@ ${phrase}
       translation,
       targetText,
       audioBase64,
+      audioUrl,
       wordPairs: wordPairsWithAudio.length > 0 ? wordPairsWithAudio : wordPairs
     })
   } catch (error) {
@@ -2094,9 +2415,24 @@ async function saveImportedBookToFirestore({
   level,
   isPublicDomain,
   pages,
+  voiceGender,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID for the imported book
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    // Fall back to default import voice
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
   }
 
   const storyRef = firestore
@@ -2122,6 +2458,8 @@ async function saveImportedBookToFirestore({
     hasFullAudio: false,
     audioStatus: 'none',
     fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
   })
 
@@ -2281,6 +2619,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       title,
       isPublicDomain,
       userId,
+      voiceGender,
     } = req.body || {}
 
     const metadata = {
@@ -2292,6 +2631,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       title,
       isPublicDomain,
       userId,
+      voiceGender,
     }
 
     console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
@@ -2307,6 +2647,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       level,
       isPublicDomain,
       pages,
+      voiceGender,
     })
     console.log('Stub extracted pages count:', pages.length)
 
@@ -2768,6 +3109,24 @@ app.post('/api/generate-audio-book', async (req, res) => {
         console.error('Failed to generate Whisper transcript for story', transcriptError)
       }
 
+      // Trigger content preparation (pronunciation caching) - runs in background
+      try {
+        // Set initial preparation status
+        await storyRef.update({
+          preparationStatus: 'pending',
+          preparationProgress: 0,
+        })
+
+        // Trigger preparation asynchronously (don't await)
+        prepareContentPronunciations(uid, storyId, 'story', storyLanguage, storyVoiceId)
+          .catch((prepErr) => {
+            console.error('Background preparation failed:', prepErr)
+          })
+      } catch (prepInitError) {
+        console.error('Failed to initialize preparation:', prepInitError)
+        // Don't fail the whole request if preparation init fails
+      }
+
       return res.json({
         success: true,
         audioStatus: 'ready',
@@ -2796,6 +3155,288 @@ app.post('/api/generate-audio-book', async (req, res) => {
       })
     }
     return res.status(500).json({ error: 'Failed to generate audiobook' })
+  }
+})
+
+// Extract unique words from text content
+function extractUniqueWords(text) {
+  if (!text || typeof text !== 'string') return []
+  const words = text.match(/[\p{L}]+/gu) || []
+  const uniqueWords = [...new Set(words.map((w) => w.toLowerCase().trim()).filter((w) => w.length > 0))]
+  return uniqueWords
+}
+
+// Internal function to prepare content pronunciations (can be called from other endpoints)
+async function prepareContentPronunciations(uid, contentId, contentType, targetLanguage, voiceId) {
+  const normalizedLang = targetLanguage.toLowerCase().trim()
+
+  // Determine voice ID if not provided
+  let finalVoiceId = voiceId
+  if (!finalVoiceId) {
+    finalVoiceId = DEFAULT_IMPORT_VOICE_IDS[normalizedLang]
+    if (!finalVoiceId) {
+      throw new Error(`No default voice available for language: ${targetLanguage}`)
+    }
+  }
+
+  // Get content reference based on type
+  let contentRef
+  if (contentType === 'story') {
+    contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+  } else if (contentType === 'youtube') {
+    contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+  } else if (contentType === 'spotify') {
+    contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+  } else {
+    throw new Error(`Unknown content type: ${contentType}`)
+  }
+
+  // Check content exists
+  const contentSnap = await contentRef.get()
+  if (!contentSnap.exists) {
+    throw new Error('Content not found')
+  }
+
+  // Update status to preparing
+  await contentRef.update({
+    preparationStatus: 'preparing',
+    preparationProgress: 0,
+  })
+
+  // Extract all text from content
+  let allText = ''
+
+  if (contentType === 'story') {
+    const pagesSnap = await contentRef.collection('pages').get()
+    pagesSnap.docs.forEach((doc) => {
+      const data = doc.data() || {}
+      allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
+    })
+  } else if (contentType === 'youtube') {
+    const transcriptsSnap = await contentRef.collection('transcripts').get()
+    transcriptsSnap.docs.forEach((doc) => {
+      const data = doc.data() || {}
+      allText += ' ' + (data.text || '')
+      if (Array.isArray(data.segments)) {
+        data.segments.forEach((seg) => {
+          allText += ' ' + (seg.text || '')
+        })
+      }
+    })
+  } else if (contentType === 'spotify') {
+    const contentData = contentSnap.data() || {}
+    if (Array.isArray(contentData.transcriptSegments)) {
+      contentData.transcriptSegments.forEach((seg) => {
+        allText += ' ' + (seg.text || seg.words || '')
+      })
+    }
+    const pagesSnap = await contentRef.collection('pages').get()
+    pagesSnap.docs.forEach((doc) => {
+      const data = doc.data() || {}
+      allText += ' ' + (data.text || data.originalText || '')
+    })
+  }
+
+  // Extract unique words
+  const uniqueWords = extractUniqueWords(allText)
+
+  if (uniqueWords.length === 0) {
+    await contentRef.update({
+      preparationStatus: 'ready',
+      preparationProgress: 100,
+      voiceId: finalVoiceId,
+    })
+    return { success: true, wordsProcessed: 0, wordsFetched: 0 }
+  }
+
+  // Load user's vocab to identify non-KNOWN words
+  const vocabSnap = await firestore
+    .collection('users')
+    .doc(uid)
+    .collection('vocab')
+    .where('language', '==', normalizedLang)
+    .get()
+
+  const knownWords = new Set()
+  vocabSnap.docs.forEach((doc) => {
+    const data = doc.data() || {}
+    if (data.status === 'known') {
+      knownWords.add((data.text || '').toLowerCase().trim())
+    }
+  })
+
+  // Filter to non-KNOWN words (new, unknown, recognised, familiar)
+  const wordsToProcess = uniqueWords.filter((word) => !knownWords.has(word))
+
+  if (wordsToProcess.length === 0) {
+    await contentRef.update({
+      preparationStatus: 'ready',
+      preparationProgress: 100,
+      voiceId: finalVoiceId,
+    })
+    return { success: true, wordsProcessed: 0, wordsFetched: 0 }
+  }
+
+  // Check which pronunciations are missing
+  const missingWords = await getMissingPronunciations(wordsToProcess, normalizedLang, finalVoiceId)
+
+  if (missingWords.length === 0) {
+    await contentRef.update({
+      preparationStatus: 'ready',
+      preparationProgress: 100,
+      voiceId: finalVoiceId,
+    })
+    return { success: true, wordsProcessed: wordsToProcess.length, wordsFetched: 0 }
+  }
+
+  // Fetch missing pronunciations from ElevenLabs (with rate limiting)
+  let wordsFetched = 0
+  const concurrencyLimit = 3
+  const totalMissing = missingWords.length
+
+  for (let i = 0; i < missingWords.length; i += concurrencyLimit) {
+    const batch = missingWords.slice(i, i + concurrencyLimit)
+
+    await Promise.all(
+      batch.map(async (word) => {
+        try {
+          const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
+          if (audioBuffer) {
+            await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
+            wordsFetched++
+          }
+        } catch (ttsError) {
+          console.error(`Failed to fetch pronunciation for "${word}":`, ttsError.message)
+          // Continue - pronunciation failures shouldn't block content
+        }
+      })
+    )
+
+    // Update progress
+    const progress = Math.round(((i + batch.length) / totalMissing) * 100)
+    await contentRef.update({ preparationProgress: progress })
+
+    // Small delay between batches to avoid rate limiting
+    if (i + concurrencyLimit < missingWords.length) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+  }
+
+  // Mark as ready
+  await contentRef.update({
+    preparationStatus: 'ready',
+    preparationProgress: 100,
+    voiceId: finalVoiceId,
+  })
+
+  return {
+    success: true,
+    wordsProcessed: wordsToProcess.length,
+    wordsFetched,
+    wordsMissing: missingWords.length,
+  }
+}
+
+// Prepare content pronunciations - API endpoint wrapper
+app.post('/api/prepare-content', async (req, res) => {
+  const { uid, contentId, contentType, targetLanguage, voiceId } = req.body || {}
+
+  if (!uid || !contentId || !contentType || !targetLanguage) {
+    return res.status(400).json({
+      error: 'uid, contentId, contentType, and targetLanguage are required',
+    })
+  }
+
+  try {
+    const result = await prepareContentPronunciations(uid, contentId, contentType, targetLanguage, voiceId)
+    return res.json(result)
+  } catch (error) {
+    console.error('Error preparing content:', error)
+    return res.status(500).json({ error: error.message || 'Failed to prepare content' })
+  }
+})
+
+// Preload cached translations and pronunciations for content
+app.post('/api/content/preload', async (req, res) => {
+  const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId } = req.body || {}
+
+  if (!uid || !contentId || !contentType || !targetLanguage || !voiceId) {
+    return res.status(400).json({
+      error: 'uid, contentId, contentType, targetLanguage, and voiceId are required',
+    })
+  }
+
+  const normalizedTargetLang = targetLanguage.toLowerCase().trim()
+  const normalizedNativeLang = (nativeLanguage || 'english').toLowerCase().trim()
+
+  try {
+    // Get content reference based on type
+    let contentRef
+    if (contentType === 'story') {
+      contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+    } else if (contentType === 'youtube') {
+      contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+    } else if (contentType === 'spotify') {
+      contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+    } else {
+      return res.status(400).json({ error: `Unknown content type: ${contentType}` })
+    }
+
+    // Extract all text from content (same as prepare-content)
+    let allText = ''
+    const contentSnap = await contentRef.get()
+    if (!contentSnap.exists) {
+      return res.status(404).json({ error: 'Content not found' })
+    }
+
+    if (contentType === 'story') {
+      const pagesSnap = await contentRef.collection('pages').get()
+      pagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
+      })
+    } else if (contentType === 'youtube') {
+      const transcriptsSnap = await contentRef.collection('transcripts').get()
+      transcriptsSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || '')
+        if (Array.isArray(data.segments)) {
+          data.segments.forEach((seg) => {
+            allText += ' ' + (seg.text || '')
+          })
+        }
+      })
+    } else if (contentType === 'spotify') {
+      const contentData = contentSnap.data() || {}
+      if (Array.isArray(contentData.transcriptSegments)) {
+        contentData.transcriptSegments.forEach((seg) => {
+          allText += ' ' + (seg.text || seg.words || '')
+        })
+      }
+      const pagesSnap = await contentRef.collection('pages').get()
+      pagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || data.originalText || '')
+      })
+    }
+
+    // Extract unique words
+    const uniqueWords = extractUniqueWords(allText)
+
+    if (uniqueWords.length === 0) {
+      return res.json({ translations: {}, pronunciations: {} })
+    }
+
+    // Batch fetch cached data
+    const [translations, pronunciations] = await Promise.all([
+      batchGetTranslations(uniqueWords, normalizedTargetLang, normalizedNativeLang),
+      batchGetPronunciations(uniqueWords, normalizedTargetLang, voiceId),
+    ])
+
+    return res.json({ translations, pronunciations })
+  } catch (error) {
+    console.error('Error preloading content data:', error)
+    return res.status(500).json({ error: 'Failed to preload content data' })
   }
 })
 

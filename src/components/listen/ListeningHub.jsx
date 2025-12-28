@@ -564,6 +564,8 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                     onDelete={() => handleDeleteStory(item.id)}
                     progress={item.progress ?? 0}
                     actionLabel="Play →"
+                    preparationStatus={item.preparationStatus}
+                    preparationProgress={item.preparationProgress}
                   />
                 )
               })}
@@ -592,6 +594,8 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                   onPlay={() => navigate(`/cinema/${video.id}`)}
                   onDelete={() => handleDeleteVideo(video.id)}
                   progress={video.progress ?? 0}
+                  preparationStatus={video.preparationStatus}
+                  preparationProgress={video.preparationProgress}
                 />
               ))}
             </div>

@@ -9,6 +9,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
   const [levelIndex, setLevelIndex] = useState(0)
   const [author, setAuthor] = useState('')
   const [title, setTitle] = useState('')
+  const [voiceGender, setVoiceGender] = useState('male')
   const [isPublicDomain, setIsPublicDomain] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -45,6 +46,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
       formData.append('title', title)
       formData.append('isPublicDomain', isPublicDomain ? 'true' : 'false')
       formData.append('userId', user?.uid || '')
+      formData.append('voiceGender', voiceGender)
 
       const response = await fetch('http://localhost:4000/api/import-upload', {
         method: 'POST',
@@ -171,6 +173,28 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Book title"
           />
+        </label>
+
+        <label className="ui-text">
+          Voice gender
+          <div className="voice-gender-toggle" role="radiogroup" aria-label="Voice gender">
+            <button
+              className={`voice-gender-option${voiceGender === 'male' ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => setVoiceGender('male')}
+              aria-pressed={voiceGender === 'male'}
+            >
+              Male
+            </button>
+            <button
+              className={`voice-gender-option${voiceGender === 'female' ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => setVoiceGender('female')}
+              aria-pressed={voiceGender === 'female'}
+            >
+              Female
+            </button>
+          </div>
         </label>
 
         <label className="checkbox ui-text public-domain-checkbox">

@@ -16,12 +16,27 @@ const ListeningMediaCard = ({
   actionLabel,
   tags = [],
   placeholder,
+  preparationStatus,
+  preparationProgress = 0,
 }) => {
-  const cardActionLabel = actionLabel || (type === 'youtube' ? 'Watch →' : 'Play →')
   const isYouTube = type === 'youtube'
   const progressPercent = normaliseProgress(progress)
+  const prepProgress = normaliseProgress(preparationProgress)
+
+  // Content is preparing when status is 'pending' or 'preparing'
+  const isPreparing = preparationStatus === 'pending' || preparationStatus === 'preparing'
+  const isReady = !preparationStatus || preparationStatus === 'ready'
+  const prepFailed = preparationStatus === 'error'
+
+  // Determine action label and disabled state
+  let cardActionLabel = actionLabel || (isYouTube ? 'Watch →' : 'Play →')
+  if (isPreparing) {
+    cardActionLabel = prepProgress > 0 ? `Preparing ${Math.round(prepProgress)}%` : 'Preparing...'
+  } else if (prepFailed) {
+    cardActionLabel = 'Retry'
+  }
   const handleKeyDown = (event) => {
-    if (!onPlay) return
+    if (!onPlay || isPreparing) return
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
@@ -29,13 +44,19 @@ const ListeningMediaCard = ({
     }
   }
 
+  const handleCardClick = () => {
+    if (isPreparing || !onPlay) return
+    onPlay()
+  }
+
   return (
     <div
-      className={`preview-card listen-card media-card media-card-${type} listening-media-card listening-media-card-${type}`}
-      onClick={onPlay}
+      className={`preview-card listen-card media-card media-card-${type} listening-media-card listening-media-card-${type}${isPreparing ? ' is-preparing' : ''}`}
+      onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       role="button"
-      tabIndex={0}
+      tabIndex={isPreparing ? -1 : 0}
+      aria-disabled={isPreparing}
     >
       <div className="media-card-main">
         {isYouTube ? (
@@ -71,16 +92,17 @@ const ListeningMediaCard = ({
                   {onPlay && (
                     <button
                       type="button"
-                      className="button media-card-primary"
+                      className={`button media-card-primary${isPreparing ? ' is-loading' : ''}`}
+                      disabled={isPreparing}
                       onClick={(event) => {
                         event.stopPropagation()
-                        onPlay()
+                        if (!isPreparing) onPlay()
                       }}
                     >
                       {cardActionLabel}
                     </button>
                   )}
-                  {onDelete && (
+                  {onDelete && !isPreparing && (
                     <button
                       type="button"
                       className="media-card-delete ui-text"
@@ -129,16 +151,17 @@ const ListeningMediaCard = ({
                   {onPlay && (
                     <button
                       type="button"
-                      className="button media-card-primary"
+                      className={`button media-card-primary${isPreparing ? ' is-loading' : ''}`}
+                      disabled={isPreparing}
                       onClick={(event) => {
                         event.stopPropagation()
-                        onPlay()
+                        if (!isPreparing) onPlay()
                       }}
                     >
                       {cardActionLabel}
                     </button>
                   )}
-                  {onDelete && (
+                  {onDelete && !isPreparing && (
                     <button
                       type="button"
                       className="media-card-delete ui-text"
@@ -157,11 +180,16 @@ const ListeningMediaCard = ({
         )}
       </div>
 
-      {progressPercent > 0 && (
+      {/* Show preparation progress when preparing, otherwise show playback progress */}
+      {isPreparing && prepProgress > 0 ? (
+        <div className="media-card-progress media-card-progress-preparing">
+          <div className="media-card-progress-bar" style={{ width: `${prepProgress}%` }} />
+        </div>
+      ) : progressPercent > 0 ? (
         <div className="media-card-progress">
           <div className="media-card-progress-bar" style={{ width: `${progressPercent}%` }} />
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

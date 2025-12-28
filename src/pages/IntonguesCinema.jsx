@@ -1242,7 +1242,7 @@ const normalisePagesToSegments = (pages = []) =>
             {/* Dark mode toggle - always visible */}
             <button
               type="button"
-              className="cinema-theme-toggle"
+              className="cinema-header-icon-btn"
               onClick={() => setCinemaDarkMode((prev) => !prev)}
               aria-label={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               title={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -1253,26 +1253,28 @@ const normalisePagesToSegments = (pages = []) =>
             </button>
             {isExtensive && (
               <>
-                <span className="dashboard-nav-divider">|</span>
                 {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
                 <button
                   type="button"
-                  className="dashboard-control ui-text cinema-text-toggle"
+                  className={`cinema-header-icon-btn ${textDisplayMode === 'off' ? 'cinema-header-icon-btn--muted' : ''}`}
                   onClick={cycleTextDisplayMode}
+                  aria-label={`Text: ${getTextModeLabel()} (click to change)`}
                   title={`Text: ${getTextModeLabel()} (click to change)`}
                 >
-                  {getTextModeLabel()}
+                  <span className="material-symbols-outlined">
+                    {textDisplayMode === 'off' ? 'closed_caption_off' : textDisplayMode === 'subtitles' ? 'closed_caption' : 'description'}
+                  </span>
                 </button>
-                <span className="dashboard-nav-divider">|</span>
                 {/* Word status button - disabled when text mode is off */}
                 <button
                   type="button"
-                  className={`dashboard-control ui-text cinema-text-toggle ${textDisplayMode === 'off' ? 'cinema-toggle-disabled' : ''}`}
+                  className={`cinema-header-icon-btn ${textDisplayMode === 'off' ? 'cinema-header-icon-btn--disabled' : ''} ${showWordStatus && textDisplayMode !== 'off' ? 'cinema-header-icon-btn--active' : ''}`}
                   onClick={() => textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
                   disabled={textDisplayMode === 'off'}
+                  aria-label={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
                   title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
                 >
-                  {showWordStatus ? 'Hide word status' : 'Show word status'}
+                  <span className="cinema-header-icon-aa">Aa</span>
                 </button>
               </>
             )}

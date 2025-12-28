@@ -120,10 +120,13 @@ function isValidLanguageCode(language) {
 }
 
 function resolveTargetCode(targetLang) {
-  if (!targetLang) return 'en'
+  if (!targetLang || targetLang === 'auto') return null  // Let Whisper auto-detect
   if (LANGUAGE_NAME_TO_CODE[targetLang]) return LANGUAGE_NAME_TO_CODE[targetLang]
   if (SUPPORTED_LANGUAGE_CODES.has(targetLang)) return targetLang
-  return 'en'
+  // Try lowercase match
+  const lowered = targetLang.toLowerCase()
+  if (SUPPORTED_LANGUAGE_CODES.has(lowered)) return lowered
+  return null  // Unknown language - let Whisper auto-detect
 }
 
 function resolveElevenLabsVoiceId(language, voiceGender) {
@@ -1344,13 +1347,41 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 
   if (!tracks.length) return []
 
-  const normalisedLang = (languageCode || 'auto').toLowerCase()
+  // Convert language name to code (e.g., 'Spanish' → 'es')
+  const requestedLang = (languageCode || '').trim()
+  const langCode = LANGUAGE_NAME_TO_CODE[requestedLang] || requestedLang.toLowerCase()
 
-  const matchByLangCode = tracks.find((track) => track.languageCode?.toLowerCase() === normalisedLang)
-  const autoTrack = tracks.find((track) => track.kind === 'asr')
+  console.log('REQUESTED LANGUAGE:', requestedLang, '→ CODE:', langCode)
+
+  // 1. Try exact match on language code (e.g., 'es')
+  const matchByLangCode = tracks.find((track) => track.languageCode?.toLowerCase() === langCode)
+
+  // 2. Try matching by language name in track name (e.g., 'Spanish' in track.name)
+  const matchByName = tracks.find((track) =>
+    track.name?.languageCode?.toLowerCase() === langCode ||
+    track.languageCode?.toLowerCase().startsWith(langCode.split('-')[0])
+  )
+
+  // 3. For target language, prefer manual captions over ASR
+  const manualTrackForLang = tracks.find((track) =>
+    track.languageCode?.toLowerCase() === langCode && track.kind !== 'asr'
+  )
+
+  // 4. ASR track for target language (auto-generated in that language)
+  const asrTrackForLang = tracks.find((track) =>
+    track.languageCode?.toLowerCase() === langCode && track.kind === 'asr'
+  )
+
+  // 5. Any ASR track (usually English) - only as last resort
+  const anyAsrTrack = tracks.find((track) => track.kind === 'asr')
+
+  // 6. First available track
   const fallbackTrack = tracks[0]
 
-  const selectedTrack = matchByLangCode || autoTrack || fallbackTrack
+  // Priority: manual target lang > ASR target lang > any match > ASR (any) > first track
+  const selectedTrack = manualTrackForLang || matchByLangCode || matchByName || asrTrackForLang || anyAsrTrack || fallbackTrack
+
+  console.log('SELECTED TRACK:', selectedTrack?.languageCode, selectedTrack?.kind, selectedTrack?.name)
 
   if (!selectedTrack?.baseUrl) return []
 
@@ -1504,8 +1535,11 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
       throw new Error('No audio source provided for Whisper transcription')
     }
 
-    const resolvedLanguage = resolveTargetCode(languageCode || 'auto')
-    const whisperLanguage = resolvedLanguage === 'auto' ? null : resolvedLanguage
+    // Convert language name to code for Whisper (e.g., 'Spanish' → 'es')
+    // Returns null if auto or unknown - Whisper will auto-detect
+    const whisperLanguage = resolveTargetCode(languageCode)
+
+    console.log('WHISPER LANGUAGE:', languageCode, '→', whisperLanguage || 'auto-detect')
 
     const transcription = await client.audio.transcriptions.create({
       file: createReadStream(audioPath),
@@ -1630,9 +1664,10 @@ app.post('/api/youtube/transcript', async (req, res) => {
 })
 
 app.post('/api/youtube/import', async (req, res) => {
-  const { title, youtubeUrl, uid } = req.body || {}
+  const { title, youtubeUrl, uid, language } = req.body || {}
   const trimmedTitle = (title || '').trim()
   const trimmedUrl = (youtubeUrl || '').trim()
+  const trimmedLanguage = (language || '').trim()
 
   if (!trimmedTitle || !trimmedUrl || !uid) {
     return res.status(400).json({ error: 'title, youtubeUrl, and uid are required' })
@@ -1656,6 +1691,7 @@ app.post('/api/youtube/import', async (req, res) => {
     videoId,
     channelTitle: metadata.channelTitle || 'Unknown channel',
     ...(Number.isFinite(metadata.durationSeconds) && { durationSeconds: metadata.durationSeconds }),
+    ...(trimmedLanguage && { language: trimmedLanguage }),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     source: 'youtube',
   }

@@ -108,15 +108,42 @@ const IntonguesCinema = () => {
     setTextDisplayMode('subtitles')
   }, [])
 
-  // Focus YouTube iframe when header hides so keyboard shortcuts work
+  // Custom keyboard shortcuts for extensive mode (bypasses YouTube iframe focus requirement)
   useEffect(() => {
-    if (!headerVisible && cinemaMode === 'extensive') {
-      const iframe = playerRef.current?.getIframe?.()
-      if (iframe) {
-        iframe.focus()
+    if (cinemaMode !== 'extensive') return
+
+    const handleKeyDown = (e) => {
+      // Don't intercept if user is typing in an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault()
+          if (playbackStatus.isPlaying) {
+            playerRef.current?.pauseVideo?.()
+          } else {
+            playerRef.current?.playVideo?.()
+          }
+          break
+        case 'ArrowLeft':
+          e.preventDefault()
+          const currentTime = playerRef.current?.getCurrentTime?.() ?? 0
+          playerRef.current?.seekTo?.(Math.max(0, currentTime - scrubSeconds))
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          const current = playerRef.current?.getCurrentTime?.() ?? 0
+          const duration = playerRef.current?.getDuration?.() ?? 0
+          playerRef.current?.seekTo?.(Math.min(duration, current + scrubSeconds))
+          break
+        default:
+          break
       }
     }
-  }, [headerVisible, cinemaMode])
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [cinemaMode, playbackStatus.isPlaying, scrubSeconds])
 
   // Cycle through text display modes: off → subtitles → transcript → off
   const cycleTextDisplayMode = useCallback(() => {

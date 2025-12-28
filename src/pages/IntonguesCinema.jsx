@@ -108,6 +108,13 @@ const IntonguesCinema = () => {
     setTextDisplayMode('subtitles')
   }, [])
 
+  // Blur focus when header hides so keyboard shortcuts return to video player
+  useEffect(() => {
+    if (!headerVisible && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, [headerVisible])
+
   // Cycle through text display modes: off → subtitles → transcript → off
   const cycleTextDisplayMode = useCallback(() => {
     setTextDisplayMode((prev) => {

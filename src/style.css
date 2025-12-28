@@ -6582,6 +6582,19 @@ body.active-pass-locked {
   max-height: 100%;
 }
 
+/* Cover YouTube's "More videos" suggestions panel at bottom */
+.cinema-extensive-video-wrapper::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 85px;
+  background: linear-gradient(to top, #000 0%, #000 40%, transparent 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
 /* Subtitle overlay on video */
 .cinema-subtitle-overlay {
   position: absolute;

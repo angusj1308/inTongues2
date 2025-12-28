@@ -6747,7 +6747,7 @@ body.active-pass-locked {
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 800px;
+  max-width: 900px;
   text-align: center;
   pointer-events: none;
   z-index: 10;
@@ -6755,6 +6755,76 @@ body.active-pass-locked {
 
 .cinema-subtitle-overlay > * {
   pointer-events: auto;
+}
+
+/* Cinema subtitle text styling */
+.cinema-subtitle-overlay .page-text {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #ffffff;
+  max-width: 100%;
+}
+
+/* Word status colors for cinema subtitles - text color on dark background
+   Matches the app's established color system:
+   - New words: Always orange #F97316
+   - Unknown/Recognised/Familiar: Language color (e.g. red #DC2626 for Spanish)
+     shown as light tints matching the highlight opacity levels (40%, 28%, 16%)
+   - Known: White (mastered, blends in) */
+.cinema-subtitle-overlay .word-known {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-familiar {
+  /* Language color at 16% opacity equivalent - very light tint */
+  color: #F9DCDC;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-recognised {
+  /* Language color at 28% opacity equivalent - light tint */
+  color: #F0AFAF;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-unknown {
+  /* Language color at 40% opacity equivalent - medium tint */
+  color: #E88A8A;
+  font-weight: 500;
+}
+
+.cinema-subtitle-overlay .word-new {
+  /* Always orange - stands out most */
+  color: #F97316;
+  font-weight: 600;
+}
+
+/* Phrase status colors for cinema subtitles */
+.cinema-subtitle-overlay .phrase-known {
+  color: #ffffff;
+}
+
+.cinema-subtitle-overlay .phrase-familiar {
+  color: #F9DCDC;
+}
+
+.cinema-subtitle-overlay .phrase-recognised {
+  color: #F0AFAF;
+}
+
+.cinema-subtitle-overlay .phrase-unknown {
+  color: #E88A8A;
+}
+
+.cinema-subtitle-overlay .phrase-new {
+  color: #F97316;
 }
 
 /* Transcript side panel in fullscreen */

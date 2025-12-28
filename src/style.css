@@ -7255,3 +7255,149 @@ body.active-pass-locked {
 .floating-panel-restore-btn .material-symbols-outlined {
   font-size: 22px;
 }
+
+/* Cinema Word Popup - Compact translation popup */
+.cinema-word-popup {
+  position: absolute;
+  z-index: 1001;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 180px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.cinema-word-popup.is-light {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.cinema-word-popup.is-dark {
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.cinema-word-popup-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cinema-word-popup-audio {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.is-light .cinema-word-popup-audio {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.is-light .cinema-word-popup-audio:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.is-dark .cinema-word-popup-audio {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.is-dark .cinema-word-popup-audio:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cinema-word-popup-audio--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cinema-word-popup-word {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.is-light .cinema-word-popup-word {
+  color: #0f172a;
+}
+
+.is-dark .cinema-word-popup-word {
+  color: #fff;
+}
+
+.cinema-word-popup-translation {
+  font-size: 0.85rem;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-light .cinema-word-popup-translation {
+  color: #64748b;
+}
+
+.is-dark .cinema-word-popup-translation {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Status selector row */
+.cinema-word-popup-status {
+  display: flex;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.is-light .cinema-word-popup-status {
+  background: #f1f5f9;
+}
+
+.is-dark .cinema-word-popup-status {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cinema-word-popup-status-btn {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms ease;
+  background: transparent;
+}
+
+.is-light .cinema-word-popup-status-btn {
+  color: #94a3b8;
+}
+
+.is-light .cinema-word-popup-status-btn:hover:not(.is-active) {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.is-dark .cinema-word-popup-status-btn {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.is-dark .cinema-word-popup-status-btn:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}

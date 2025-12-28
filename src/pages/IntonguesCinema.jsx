@@ -108,12 +108,15 @@ const IntonguesCinema = () => {
     setTextDisplayMode('subtitles')
   }, [])
 
-  // Blur focus when header hides so keyboard shortcuts return to video player
+  // Focus YouTube iframe when header hides so keyboard shortcuts work
   useEffect(() => {
-    if (!headerVisible && document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur()
+    if (!headerVisible && isExtensive) {
+      const iframe = playerRef.current?.getIframe?.()
+      if (iframe) {
+        iframe.focus()
+      }
     }
-  }, [headerVisible])
+  }, [headerVisible, isExtensive])
 
   // Cycle through text display modes: off → subtitles → transcript → off
   const cycleTextDisplayMode = useCallback(() => {

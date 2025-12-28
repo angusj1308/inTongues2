@@ -6537,34 +6537,50 @@ body.active-pass-locked {
   /* Inherits from .dashboard-control */
 }
 
-.cinema-toggle-disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-/* Cinema theme toggle button */
-.cinema-theme-toggle {
+/* Cinema header icon buttons */
+.cinema-header-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 150ms ease;
   color: #64748b;
 }
 
-.cinema-theme-toggle:hover {
+.cinema-header-icon-btn:hover {
   background: rgba(0, 0, 0, 0.06);
   color: #0f172a;
 }
 
-.cinema-theme-toggle .material-symbols-outlined {
-  font-size: 20px;
+.cinema-header-icon-btn .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.cinema-header-icon-btn--muted {
+  opacity: 0.5;
+}
+
+.cinema-header-icon-btn--disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Aa icon for word status */
+.cinema-header-icon-aa {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Word status active - orange */
+.cinema-header-icon-btn--active .cinema-header-icon-aa {
+  color: #F97316;
 }
 
 /* Dark mode cinema header */
@@ -6574,14 +6590,12 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-back-button,
-.cinema-dark .dashboard-nav-button,
-.cinema-dark .cinema-text-toggle {
+.cinema-dark .dashboard-nav-button {
   color: rgba(255, 255, 255, 0.85);
 }
 
 .cinema-dark .cinema-back-button:hover,
-.cinema-dark .dashboard-nav-button:hover,
-.cinema-dark .cinema-text-toggle:hover {
+.cinema-dark .dashboard-nav-button:hover {
   color: #fff;
 }
 
@@ -6593,13 +6607,17 @@ body.active-pass-locked {
   color: rgba(255, 255, 255, 0.2);
 }
 
-.cinema-dark .cinema-theme-toggle {
-  color: rgba(255, 255, 255, 0.6);
+.cinema-dark .cinema-header-icon-btn {
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.cinema-dark .cinema-theme-toggle:hover {
+.cinema-dark .cinema-header-icon-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+.cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
+  color: #F97316;
 }
 
 .cinema-loading-message,

@@ -6452,11 +6452,20 @@ body.active-pass-locked {
 
 /* Fullscreen mode for extensive viewing */
 .cinema-fullscreen-mode {
-  position: fixed;
-  inset: 0;
   background: #000;
-  z-index: 100;
   overflow: hidden;
+}
+
+/* When in actual browser fullscreen */
+.cinema-page:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+}
+
+.cinema-page:fullscreen .cinema-extensive-fullscreen {
+  width: 100vw;
+  height: 100vh;
 }
 
 /* Top hover zone - invisible trigger area */

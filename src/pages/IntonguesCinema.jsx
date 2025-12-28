@@ -94,6 +94,9 @@ const IntonguesCinema = () => {
   const [showWordStatus, setShowWordStatus] = useState(true)
   const [transcriptPanelOpen, setTranscriptPanelOpen] = useState(false)
   const [headerVisible, setHeaderVisible] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const cinemaContainerRef = useRef(null)
 
   // Active mode state
   const [activeChunkIndex, setActiveChunkIndex] = useState(0)
@@ -587,6 +590,53 @@ const normalisePagesToSegments = (pages = []) =>
 
     return undefined
   }, [isSpotify, spotifyState])
+
+  // Fullscreen API handling for extensive mode
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement
+      setIsFullscreen(isNowFullscreen)
+
+      // If user exits fullscreen via Esc, switch to active mode
+      if (!isNowFullscreen && cinemaMode === 'extensive') {
+        setCinemaMode('active')
+      }
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [cinemaMode])
+
+  // Enter/exit fullscreen when switching to/from extensive mode
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      if (cinemaMode === 'extensive' && cinemaContainerRef.current && !document.fullscreenElement) {
+        try {
+          await cinemaContainerRef.current.requestFullscreen()
+          setIsFullscreen(true)
+        } catch (err) {
+          console.error('Failed to enter fullscreen:', err)
+        }
+      }
+    }
+
+    const exitFullscreen = async () => {
+      if (cinemaMode !== 'extensive' && document.fullscreenElement) {
+        try {
+          await document.exitFullscreen()
+          setIsFullscreen(false)
+        } catch (err) {
+          console.error('Failed to exit fullscreen:', err)
+        }
+      }
+    }
+
+    if (cinemaMode === 'extensive') {
+      enterFullscreen()
+    } else {
+      exitFullscreen()
+    }
+  }, [cinemaMode])
 
   // Reset active mode state when changing modes or chunks
   useEffect(() => {
@@ -1106,7 +1156,10 @@ const normalisePagesToSegments = (pages = []) =>
   const isExtensive = cinemaMode === 'extensive'
 
   return (
-    <div className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''}`}>
+    <div
+      ref={cinemaContainerRef}
+      className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''}`}
+    >
       {/* Top hover zone for header reveal in extensive mode */}
       {isExtensive && (
         <div

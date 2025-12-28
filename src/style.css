@@ -6955,13 +6955,13 @@ body.active-pass-locked {
 }
 
 /* Dark mode transcript styles */
-.is-dark .floating-panel-content .transcript-segment {
+.is-dark .floating-panel-content .transcript-line {
   color: rgba(255, 255, 255, 0.85);
   font-size: 1.05rem;
   line-height: 1.7;
 }
 
-.is-dark .floating-panel-content .transcript-segment.is-active {
+.is-dark .floating-panel-content .transcript-line.active {
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -6981,35 +6981,25 @@ body.active-pass-locked {
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Dark mode word status - colored text like subtitles */
-.is-dark .floating-panel-content .word-known {
+/* Dark mode word status - colored text like subtitles (uses .reader-word) */
+.is-dark .floating-panel-content .reader-word {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.is-dark .floating-panel-content .word-familiar {
-  color: #F9DCDC;
-}
-
-.is-dark .floating-panel-content .word-recognised {
-  color: #F0AFAF;
-}
-
-.is-dark .floating-panel-content .word-unknown {
-  color: #E88A8A;
-}
-
-.is-dark .floating-panel-content .word-new {
-  color: #F97316;
+/* In dark mode, highlighted words use the color variable as text color */
+.is-dark .floating-panel-content .reader-word--highlighted {
+  color: var(--hlt-base, rgba(255, 255, 255, 0.85));
+  background: none;
 }
 
 /* Light mode transcript styles */
-.is-light .floating-panel-content .transcript-segment {
+.is-light .floating-panel-content .transcript-line {
   color: #0f172a;
   font-size: 1.05rem;
   line-height: 1.7;
 }
 
-.is-light .floating-panel-content .transcript-segment.is-active {
+.is-light .floating-panel-content .transcript-line.active {
   background: rgba(0, 0, 0, 0.04);
 }
 
@@ -7030,32 +7020,19 @@ body.active-pass-locked {
 }
 
 /* Light mode word status - use highlight backgrounds like reader */
-.is-light .floating-panel-content .word-known {
+.is-light .floating-panel-content .reader-word {
   color: #0f172a;
 }
 
-.is-light .floating-panel-content .word-familiar {
-  background-color: rgba(220, 38, 38, 0.12);
+/* Light mode keeps the background highlight */
+.is-light .floating-panel-content .reader-word--highlighted {
+  background-color: color-mix(
+    in srgb,
+    var(--hlt-base) calc(var(--hlt-opacity, 0) * 100%),
+    transparent
+  );
   border-radius: 0.15em;
-  padding: 0 0.1em;
-}
-
-.is-light .floating-panel-content .word-recognised {
-  background-color: rgba(220, 38, 38, 0.22);
-  border-radius: 0.15em;
-  padding: 0 0.1em;
-}
-
-.is-light .floating-panel-content .word-unknown {
-  background-color: rgba(220, 38, 38, 0.32);
-  border-radius: 0.15em;
-  padding: 0 0.1em;
-}
-
-.is-light .floating-panel-content .word-new {
-  background-color: rgba(249, 115, 22, 0.25);
-  border-radius: 0.15em;
-  padding: 0 0.1em;
+  padding: 0 0.05em;
 }
 
 /* Resize handles - larger for easier grabbing */

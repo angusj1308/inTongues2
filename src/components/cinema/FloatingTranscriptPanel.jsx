@@ -5,7 +5,7 @@ const MIN_HEIGHT = 280
 const DEFAULT_WIDTH = 480
 const DEFAULT_HEIGHT = 520
 
-const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
+const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true }) => {
   const panelRef = useRef(null)
   const [position, setPosition] = useState({ x: null, y: null })
   const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
@@ -13,7 +13,6 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState(null)
   const [isMinimized, setIsMinimized] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(true) // Default dark in cinema
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 })
 
@@ -134,7 +133,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   if (isMinimized) {
     return (
       <div
-        className="floating-panel-minimized"
+        className={`floating-panel-minimized ${darkMode ? 'is-dark' : 'is-light'}`}
         style={{
           position: 'fixed',
           right: 20,
@@ -155,12 +154,12 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   }
 
   // Clone children to pass darkMode prop
-  const childrenWithProps = cloneElement(children, { darkMode: isDarkMode })
+  const childrenWithProps = cloneElement(children, { darkMode })
 
   return (
     <div
       ref={panelRef}
-      className={`floating-transcript-panel ${isDarkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
+      className={`floating-transcript-panel ${darkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
       style={{
         position: 'fixed',
         left: position.x,
@@ -177,16 +176,6 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
       >
         <div className="floating-panel-drag-area" />
         <div className="floating-panel-controls">
-          <button
-            type="button"
-            className="floating-panel-btn"
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            <span className="material-symbols-outlined">
-              {isDarkMode ? 'light_mode' : 'dark_mode'}
-            </span>
-          </button>
           <button
             type="button"
             className="floating-panel-btn"

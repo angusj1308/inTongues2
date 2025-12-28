@@ -6698,6 +6698,65 @@ body.active-pass-locked {
   pointer-events: none;
 }
 
+/* Cinema theme toggle button */
+.cinema-theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  color: #64748b;
+}
+
+.cinema-theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+
+.cinema-theme-toggle .material-symbols-outlined {
+  font-size: 20px;
+}
+
+/* Dark mode cinema header */
+.cinema-dark .cinema-hover-header {
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cinema-dark .cinema-back-button,
+.cinema-dark .dashboard-nav-button,
+.cinema-dark .cinema-text-toggle {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cinema-dark .cinema-back-button:hover,
+.cinema-dark .dashboard-nav-button:hover,
+.cinema-dark .cinema-text-toggle:hover {
+  color: #fff;
+}
+
+.cinema-dark .dashboard-nav-button.active {
+  color: #fff;
+}
+
+.cinema-dark .dashboard-nav-divider {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-dark .cinema-theme-toggle {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cinema-dark .cinema-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .cinema-loading-message,
 .cinema-error-message {
   padding: 12px 24px;
@@ -6878,13 +6937,11 @@ body.active-pass-locked {
 }
 
 .is-dark .floating-panel-header {
-  background: rgba(0, 0, 0, 0.25);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
 }
 
 .is-light .floating-panel-header {
-  background: rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: transparent;
 }
 
 .floating-panel-header:active {
@@ -6984,8 +7041,7 @@ body.active-pass-locked {
 }
 
 .is-dark .floating-panel-content .transcript-panel-footer {
-  background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
 }
 
 .is-dark .floating-panel-content .transcript-sync-btn,
@@ -7022,8 +7078,7 @@ body.active-pass-locked {
 }
 
 .is-light .floating-panel-content .transcript-panel-footer {
-  background: rgba(0, 0, 0, 0.02);
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: transparent;
 }
 
 .is-light .floating-panel-content .transcript-sync-btn,

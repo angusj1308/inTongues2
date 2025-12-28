@@ -95,6 +95,7 @@ const IntonguesCinema = () => {
   const [showWordStatus, setShowWordStatus] = useState(true)
   const [headerVisible, setHeaderVisible] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [cinemaDarkMode, setCinemaDarkMode] = useState(true) // Default dark for cinema
 
   const cinemaContainerRef = useRef(null)
 
@@ -1111,6 +1112,7 @@ const normalisePagesToSegments = (pages = []) =>
           showWordStatus={textDisplayMode !== 'off' && showWordStatus}
           transcriptPanelOpen={transcriptPanelOpen}
           onCloseTranscript={handleCloseTranscript}
+          darkMode={cinemaDarkMode}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>
@@ -1188,7 +1190,7 @@ const normalisePagesToSegments = (pages = []) =>
   return (
     <div
       ref={cinemaContainerRef}
-      className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''}`}
+      className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
       {/* Top hover zone for header reveal in extensive mode */}
       {isExtensive && (
@@ -1235,10 +1237,23 @@ const normalisePagesToSegments = (pages = []) =>
               </div>
             ))}
           </nav>
-          {/* Toggle controls on the right - only in extensive mode */}
+          {/* Toggle controls on the right */}
           <div className="cinema-header-actions">
+            {/* Dark mode toggle - always visible */}
+            <button
+              type="button"
+              className="cinema-theme-toggle"
+              onClick={() => setCinemaDarkMode((prev) => !prev)}
+              aria-label={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <span className="material-symbols-outlined">
+                {cinemaDarkMode ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
             {isExtensive && (
               <>
+                <span className="dashboard-nav-divider">|</span>
                 {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
                 <button
                   type="button"

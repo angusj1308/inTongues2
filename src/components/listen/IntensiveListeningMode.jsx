@@ -1601,7 +1601,7 @@ const IntensiveListeningMode = ({
                     {currentWordPairs.map((pair, index) => {
                       const wordKey = normaliseExpression(pair.source)
                       const currentStatus = vocabEntries[wordKey]?.status || 'new'
-                      const displayStatus = !currentStatus || currentStatus === 'unknown' ? 'new' : currentStatus
+                      const displayStatus = currentStatus || 'new'
 
                       return (
                         <div key={index} className="intensive-word-row">

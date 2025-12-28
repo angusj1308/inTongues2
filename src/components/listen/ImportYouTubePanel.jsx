@@ -2,8 +2,11 @@ import { useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { extractYouTubeId } from '../../utils/youtube'
 
-const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess }) => {
-  const { user } = useAuth()
+const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess, language }) => {
+  const { user, profile } = useAuth()
+
+  // Use passed language prop, or fall back to profile's lastUsedLanguage
+  const targetLanguage = language || profile?.lastUsedLanguage || ''
 
   const [title, setTitle] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
@@ -45,6 +48,7 @@ const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess })
           title: trimmedTitle,
           youtubeUrl: trimmedUrl,
           uid: user.uid,
+          language: targetLanguage,
         }),
       })
 

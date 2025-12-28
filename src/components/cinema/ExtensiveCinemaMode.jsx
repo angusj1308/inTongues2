@@ -43,6 +43,7 @@ const ExtensiveCinemaMode = ({
   showWordStatus = true,
   transcriptPanelOpen = false,
   onCloseTranscript,
+  darkMode = true,
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
@@ -316,6 +317,7 @@ const ExtensiveCinemaMode = ({
       <FloatingTranscriptPanel
         isOpen={transcriptPanelOpen}
         onClose={onCloseTranscript}
+        darkMode={darkMode}
       >
         <TranscriptPanel
           segments={transcriptSegments}

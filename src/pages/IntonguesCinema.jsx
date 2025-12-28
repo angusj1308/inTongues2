@@ -1001,22 +1001,6 @@ const normalisePagesToSegments = (pages = []) =>
   const safeCurrentTime = Number.isFinite(playbackStatus.currentTime) ? playbackStatus.currentTime : 0
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0
 
-  // Mode selector component
-  const modeSelector = (
-    <div className="cinema-mode-selector">
-      {cinemaViewingModes.map((mode) => (
-        <button
-          key={mode.id}
-          type="button"
-          className={`cinema-mode-btn ${cinemaMode === mode.id ? 'active' : ''}`}
-          onClick={() => setCinemaMode(mode.id)}
-        >
-          {mode.label}
-        </button>
-      ))}
-    </div>
-  )
-
   // Render appropriate mode component
   const renderModeContent = () => {
     if (loading) return <p className="muted">Loading video…</p>
@@ -1120,23 +1104,41 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   return (
-    <div className="page cinema-page">
-      <div className="cinema-header">
-        <div className="cinema-header-left">
-          <h1>inTongues Cinema</h1>
-          <p className="muted small">
-            {isSpotify
-              ? 'Watch your Spotify podcasts with subtitles and vocabulary support.'
-              : 'Watch your imported YouTube videos with subtitles.'}
-          </p>
+    <div className={`cinema-page cinema-mode-${cinemaMode}`}>
+      <header className="dashboard-header cinema-hover-header">
+        <div className="dashboard-brand-band cinema-header-band">
+          <div className="cinema-header-left">
+            <button
+              className="dashboard-control ui-text cinema-back-button"
+              onClick={() => navigate('/listening')}
+              type="button"
+            >
+              Back to library
+            </button>
+          </div>
+          <nav className="dashboard-nav cinema-mode-nav" aria-label="Cinema mode">
+            {cinemaViewingModes.map((mode, index) => (
+              <div
+                key={mode.id}
+                className={`dashboard-nav-item ${cinemaMode === mode.id ? 'active' : ''}`}
+              >
+                <button
+                  className={`dashboard-nav-button ui-text ${cinemaMode === mode.id ? 'active' : ''}`}
+                  type="button"
+                  onClick={(e) => {
+                    setCinemaMode(mode.id)
+                    e.currentTarget.blur()
+                  }}
+                >
+                  {mode.label.toUpperCase()}
+                </button>
+                {index < cinemaViewingModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
+              </div>
+            ))}
+          </nav>
+          <div className="cinema-header-actions" />
         </div>
-        <div className="cinema-header-right">
-          {modeSelector}
-          <button className="button ghost" onClick={() => navigate('/listening')}>
-            Back to library
-          </button>
-        </div>
-      </div>
+      </header>
 
       {transcriptLoading && (
         <p className="muted small cinema-loading-message">

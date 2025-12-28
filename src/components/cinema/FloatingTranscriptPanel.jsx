@@ -2,13 +2,33 @@ import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 
 const MIN_WIDTH = 320
 const MIN_HEIGHT = 280
+const MAX_WIDTH_RATIO = 0.9
+const MAX_HEIGHT_RATIO = 0.9
 const DEFAULT_WIDTH = 480
 const DEFAULT_HEIGHT = 520
+const MIN_VISIBLE_PX = 50
+
+// Map resize direction to cursor style
+const CURSOR_MAP = {
+  n: 'ns-resize',
+  s: 'ns-resize',
+  e: 'ew-resize',
+  w: 'ew-resize',
+  ne: 'nesw-resize',
+  sw: 'nesw-resize',
+  nw: 'nwse-resize',
+  se: 'nwse-resize',
+}
 
 const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true }) => {
   const panelRef = useRef(null)
-  const [position, setPosition] = useState({ x: null, y: null })
-  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
+  // Combined state to prevent micro-jitter
+  const [bounds, setBounds] = useState({
+    x: null,
+    y: null,
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
+  })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState(null)
@@ -16,58 +36,110 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 })
 
+  // Clamp position to keep panel visible on screen
+  const clampPosition = useCallback((x, y, width, height) => {
+    const maxX = window.innerWidth - MIN_VISIBLE_PX
+    const maxY = window.innerHeight - MIN_VISIBLE_PX
+    const minX = MIN_VISIBLE_PX - width
+    const minY = 0 // Don't allow hiding above viewport
+
+    return {
+      x: Math.max(minX, Math.min(maxX, x)),
+      y: Math.max(minY, Math.min(maxY, y)),
+    }
+  }, [])
+
   // Initialize position on first open (bottom-right corner)
   useEffect(() => {
-    if (isOpen && position.x === null) {
+    if (isOpen && bounds.x === null) {
       const padding = 24
-      setPosition({
-        x: window.innerWidth - DEFAULT_WIDTH - padding,
-        y: window.innerHeight - DEFAULT_HEIGHT - padding - 60,
+      setBounds((prev) => ({
+        ...prev,
+        x: window.innerWidth - prev.width - padding,
+        y: window.innerHeight - prev.height - padding - 60,
+      }))
+    }
+  }, [isOpen, bounds.x])
+
+  // Handle window resize - clamp panel to stay visible
+  useEffect(() => {
+    const handleWindowResize = () => {
+      setBounds((prev) => {
+        if (prev.x === null) return prev
+        const clamped = clampPosition(prev.x, prev.y, prev.width, prev.height)
+        return { ...prev, ...clamped }
       })
     }
-  }, [isOpen, position.x])
 
-  // Handle drag start
+    window.addEventListener('resize', handleWindowResize)
+    return () => window.removeEventListener('resize', handleWindowResize)
+  }, [clampPosition])
+
+  // Reset position on double-click header
+  const handleHeaderDoubleClick = useCallback(() => {
+    const padding = 24
+    setBounds((prev) => ({
+      ...prev,
+      x: window.innerWidth - prev.width - padding,
+      y: window.innerHeight - prev.height - padding - 60,
+    }))
+  }, [])
+
+  // Handle drag start (pointer events for mouse + touch)
   const handleDragStart = useCallback((e) => {
     // Don't start drag if clicking on buttons or resize handles
     if (e.target.closest('button') || e.target.closest('.floating-panel-resize-handle')) return
     e.preventDefault()
+    e.target.setPointerCapture(e.pointerId)
     setIsDragging(true)
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      posX: position.x,
-      posY: position.y,
-    }
-  }, [position])
+    setBounds((prev) => {
+      dragStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        posX: prev.x,
+        posY: prev.y,
+      }
+      return prev
+    })
+  }, [])
 
-  // Handle resize start
+  // Handle resize start (pointer events for mouse + touch)
   const handleResizeStart = useCallback((e, direction) => {
     e.preventDefault()
     e.stopPropagation()
+    e.target.setPointerCapture(e.pointerId)
     setIsResizing(true)
     setResizeDirection(direction)
-    resizeStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      width: size.width,
-      height: size.height,
-      posX: position.x,
-      posY: position.y,
-    }
-  }, [size, position])
+    setBounds((prev) => {
+      resizeStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        width: prev.width,
+        height: prev.height,
+        posX: prev.x,
+        posY: prev.y,
+      }
+      return prev
+    })
+  }, [])
 
-  // Handle mouse move for drag and resize
+  // Handle pointer move for drag and resize
   useEffect(() => {
     if (!isDragging && !isResizing) return
 
-    const handleMouseMove = (e) => {
+    const maxWidth = window.innerWidth * MAX_WIDTH_RATIO
+    const maxHeight = window.innerHeight * MAX_HEIGHT_RATIO
+
+    const handlePointerMove = (e) => {
       if (isDragging) {
         const deltaX = e.clientX - dragStartRef.current.x
         const deltaY = e.clientY - dragStartRef.current.y
-        setPosition({
-          x: dragStartRef.current.posX + deltaX,
-          y: dragStartRef.current.posY + deltaY,
+        const newX = dragStartRef.current.posX + deltaX
+        const newY = dragStartRef.current.posY + deltaY
+
+        setBounds((prev) => {
+          const clamped = clampPosition(newX, newY, prev.width, prev.height)
+          return { ...prev, x: clamped.x, y: clamped.y }
         })
       } else if (isResizing && resizeDirection) {
         const deltaX = e.clientX - resizeStartRef.current.x
@@ -79,54 +151,54 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
         let newX = posX
         let newY = posY
 
-        // Handle different resize directions
+        // Handle different resize directions with max constraints
         if (resizeDirection.includes('e')) {
-          newWidth = Math.max(MIN_WIDTH, startWidth + deltaX)
+          newWidth = Math.min(maxWidth, Math.max(MIN_WIDTH, startWidth + deltaX))
         }
         if (resizeDirection.includes('w')) {
           const potentialWidth = startWidth - deltaX
-          if (potentialWidth >= MIN_WIDTH) {
+          if (potentialWidth >= MIN_WIDTH && potentialWidth <= maxWidth) {
             newWidth = potentialWidth
             newX = posX + deltaX
           }
         }
         if (resizeDirection.includes('s')) {
-          newHeight = Math.max(MIN_HEIGHT, startHeight + deltaY)
+          newHeight = Math.min(maxHeight, Math.max(MIN_HEIGHT, startHeight + deltaY))
         }
         if (resizeDirection.includes('n')) {
           const potentialHeight = startHeight - deltaY
-          if (potentialHeight >= MIN_HEIGHT) {
+          if (potentialHeight >= MIN_HEIGHT && potentialHeight <= maxHeight) {
             newHeight = potentialHeight
             newY = posY + deltaY
           }
         }
 
-        setSize({ width: newWidth, height: newHeight })
-        setPosition({ x: newX, y: newY })
+        const clamped = clampPosition(newX, newY, newWidth, newHeight)
+        setBounds({ x: clamped.x, y: clamped.y, width: newWidth, height: newHeight })
       }
     }
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsDragging(false)
       setIsResizing(false)
       setResizeDirection(null)
     }
 
-    // Add listeners to document to capture mouse events outside panel
-    document.addEventListener('mousemove', handleMouseMove, { passive: true })
-    document.addEventListener('mouseup', handleMouseUp)
+    // Add listeners to document to capture pointer events outside panel
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
 
     // Add class to body to prevent text selection while dragging/resizing
     document.body.style.userSelect = 'none'
-    document.body.style.cursor = isDragging ? 'grabbing' : 'nwse-resize'
+    document.body.style.cursor = isDragging ? 'grabbing' : CURSOR_MAP[resizeDirection] || 'nwse-resize'
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
     }
-  }, [isDragging, isResizing, resizeDirection])
+  }, [isDragging, isResizing, resizeDirection, clampPosition])
 
   if (!isOpen) return null
 
@@ -162,17 +234,19 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
       className={`floating-transcript-panel ${darkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
       style={{
         position: 'fixed',
-        left: position.x,
-        top: position.y,
-        width: size.width,
-        height: size.height,
+        left: bounds.x,
+        top: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
         zIndex: 1000,
+        touchAction: 'none', // Prevent browser touch gestures during drag/resize
       }}
     >
       {/* Drag handle / header */}
       <div
         className="floating-panel-header"
-        onMouseDown={handleDragStart}
+        onPointerDown={handleDragStart}
+        onDoubleClick={handleHeaderDoubleClick}
       >
         <div className="floating-panel-drag-area" />
         <div className="floating-panel-controls">
@@ -203,35 +277,35 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
       {/* Resize handles - larger hit areas */}
       <div
         className="floating-panel-resize-handle floating-panel-resize-n"
-        onMouseDown={(e) => handleResizeStart(e, 'n')}
+        onPointerDown={(e) => handleResizeStart(e, 'n')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-s"
-        onMouseDown={(e) => handleResizeStart(e, 's')}
+        onPointerDown={(e) => handleResizeStart(e, 's')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-e"
-        onMouseDown={(e) => handleResizeStart(e, 'e')}
+        onPointerDown={(e) => handleResizeStart(e, 'e')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-w"
-        onMouseDown={(e) => handleResizeStart(e, 'w')}
+        onPointerDown={(e) => handleResizeStart(e, 'w')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-ne"
-        onMouseDown={(e) => handleResizeStart(e, 'ne')}
+        onPointerDown={(e) => handleResizeStart(e, 'ne')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-nw"
-        onMouseDown={(e) => handleResizeStart(e, 'nw')}
+        onPointerDown={(e) => handleResizeStart(e, 'nw')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-se"
-        onMouseDown={(e) => handleResizeStart(e, 'se')}
+        onPointerDown={(e) => handleResizeStart(e, 'se')}
       />
       <div
         className="floating-panel-resize-handle floating-panel-resize-sw"
-        onMouseDown={(e) => handleResizeStart(e, 'sw')}
+        onPointerDown={(e) => handleResizeStart(e, 'sw')}
       />
     </div>
   )

@@ -1213,6 +1213,7 @@ const normalisePagesToSegments = (pages = []) =>
         className={`dashboard-header cinema-hover-header ${isExtensive ? 'cinema-header-hideable' : ''} ${headerVisible ? 'is-visible' : ''}`}
         onMouseEnter={() => isExtensive && setHeaderVisible(true)}
         onMouseLeave={() => isExtensive && setHeaderVisible(false)}
+        inert={isExtensive && !headerVisible ? '' : undefined}
       >
         <div className="dashboard-brand-band cinema-header-band">
           <div className="cinema-header-left">

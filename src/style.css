@@ -6799,6 +6799,24 @@ body.active-pass-locked {
   background: transparent;
 }
 
+/* Dark mode fade gradients */
+.is-dark .floating-panel-content .transcript-roller-window::before {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.65) 55%, rgba(15, 23, 42, 0) 100%);
+}
+
+.is-dark .floating-panel-content .transcript-roller-window::after {
+  background: linear-gradient(0deg, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.65) 55%, rgba(15, 23, 42, 0) 100%);
+}
+
+/* Light mode fade gradients */
+.is-light .floating-panel-content .transcript-roller-window::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.65) 55%, rgba(255, 255, 255, 0) 100%);
+}
+
+.is-light .floating-panel-content .transcript-roller-window::after {
+  background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.65) 55%, rgba(255, 255, 255, 0) 100%);
+}
+
 /* Dark mode transcript styles */
 .is-dark .floating-panel-content .transcript-line {
   color: rgba(255, 255, 255, 0.85);

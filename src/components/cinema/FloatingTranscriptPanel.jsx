@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
 
-const MIN_WIDTH = 280
-const MIN_HEIGHT = 200
-const DEFAULT_WIDTH = 380
-const DEFAULT_HEIGHT = 400
+const MIN_WIDTH = 320
+const MIN_HEIGHT = 280
+const DEFAULT_WIDTH = 480
+const DEFAULT_HEIGHT = 520
 
 const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   const panelRef = useRef(null)
@@ -13,23 +13,25 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState(null)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(true) // Default dark in cinema
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 })
 
   // Initialize position on first open (bottom-right corner)
   useEffect(() => {
     if (isOpen && position.x === null) {
-      const padding = 20
+      const padding = 24
       setPosition({
         x: window.innerWidth - DEFAULT_WIDTH - padding,
-        y: window.innerHeight - DEFAULT_HEIGHT - padding - 60, // Account for header
+        y: window.innerHeight - DEFAULT_HEIGHT - padding - 60,
       })
     }
   }, [isOpen, position.x])
 
   // Handle drag start
   const handleDragStart = useCallback((e) => {
-    if (e.target.closest('.floating-panel-resize-handle')) return
+    // Don't start drag if clicking on buttons or resize handles
+    if (e.target.closest('button') || e.target.closest('.floating-panel-resize-handle')) return
     e.preventDefault()
     setIsDragging(true)
     dragStartRef.current = {
@@ -58,6 +60,8 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
 
   // Handle mouse move for drag and resize
   useEffect(() => {
+    if (!isDragging && !isResizing) return
+
     const handleMouseMove = (e) => {
       if (isDragging) {
         const deltaX = e.clientX - dragStartRef.current.x
@@ -66,7 +70,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
           x: dragStartRef.current.posX + deltaX,
           y: dragStartRef.current.posY + deltaY,
         })
-      } else if (isResizing) {
+      } else if (isResizing && resizeDirection) {
         const deltaX = e.clientX - resizeStartRef.current.x
         const deltaY = e.clientY - resizeStartRef.current.y
         const { width: startWidth, height: startHeight, posX, posY } = resizeStartRef.current
@@ -109,13 +113,19 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
       setResizeDirection(null)
     }
 
-    if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
+    // Add listeners to document to capture mouse events outside panel
+    document.addEventListener('mousemove', handleMouseMove, { passive: true })
+    document.addEventListener('mouseup', handleMouseUp)
+
+    // Add class to body to prevent text selection while dragging/resizing
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = isDragging ? 'grabbing' : 'nwse-resize'
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
     }
   }, [isDragging, isResizing, resizeDirection])
 
@@ -139,16 +149,18 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
           title="Restore transcript"
         >
           <span className="material-symbols-outlined">description</span>
-          <span>Transcript</span>
         </button>
       </div>
     )
   }
 
+  // Clone children to pass darkMode prop
+  const childrenWithProps = cloneElement(children, { darkMode: isDarkMode })
+
   return (
     <div
       ref={panelRef}
-      className={`floating-transcript-panel ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
+      className={`floating-transcript-panel ${isDarkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
       style={{
         position: 'fixed',
         left: position.x,
@@ -163,8 +175,18 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
         className="floating-panel-header"
         onMouseDown={handleDragStart}
       >
-        <span className="floating-panel-title">Transcript</span>
+        <div className="floating-panel-drag-area" />
         <div className="floating-panel-controls">
+          <button
+            type="button"
+            className="floating-panel-btn"
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <span className="material-symbols-outlined">
+              {isDarkMode ? 'light_mode' : 'dark_mode'}
+            </span>
+          </button>
           <button
             type="button"
             className="floating-panel-btn"
@@ -186,10 +208,10 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
 
       {/* Content */}
       <div className="floating-panel-content">
-        {children}
+        {childrenWithProps}
       </div>
 
-      {/* Resize handles */}
+      {/* Resize handles - larger hit areas */}
       <div
         className="floating-panel-resize-handle floating-panel-resize-n"
         onMouseDown={(e) => handleResizeStart(e, 'n')}

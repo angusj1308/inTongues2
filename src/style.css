@@ -6838,14 +6838,25 @@ body.active-pass-locked {
 
 /* Floating Transcript Panel */
 .floating-transcript-panel {
-  background: rgba(15, 23, 42, 0.92);
   border-radius: 12px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+}
+
+/* Dark mode (default in cinema) */
+.floating-transcript-panel.is-dark {
+  background: rgba(15, 23, 42, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Light mode */
+.floating-transcript-panel.is-light {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
 }
 
 .floating-transcript-panel.is-dragging {
@@ -6860,28 +6871,34 @@ body.active-pass-locked {
 .floating-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
+  justify-content: flex-end;
+  padding: 8px 10px;
   cursor: grab;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.is-dark .floating-panel-header {
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.is-light .floating-panel-header {
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .floating-panel-header:active {
   cursor: grabbing;
 }
 
-.floating-panel-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  letter-spacing: 0.02em;
+.floating-panel-drag-area {
+  flex: 1;
+  height: 100%;
 }
 
 .floating-panel-controls {
   display: flex;
-  gap: 4px;
+  gap: 2px;
 }
 
 .floating-panel-btn {
@@ -6892,15 +6909,27 @@ body.active-pass-locked {
   justify-content: center;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
   border-radius: 6px;
   cursor: pointer;
   transition: all 150ms ease;
 }
 
-.floating-panel-btn:hover {
+.is-dark .floating-panel-btn {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.is-dark .floating-panel-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.9);
+}
+
+.is-light .floating-panel-btn {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.is-light .floating-panel-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.8);
 }
 
 .floating-panel-btn .material-symbols-outlined {
@@ -6921,55 +6950,115 @@ body.active-pass-locked {
   border-radius: 0;
 }
 
-/* Override transcript panel styles inside floating panel */
 .floating-panel-content .transcript-panel .transcript-list {
   background: transparent;
 }
 
-.floating-panel-content .transcript-segment {
+/* Dark mode transcript styles */
+.is-dark .floating-panel-content .transcript-segment {
   color: rgba(255, 255, 255, 0.85);
+  font-size: 1.05rem;
+  line-height: 1.7;
 }
 
-.floating-panel-content .transcript-segment.is-active {
-  background: rgba(255, 255, 255, 0.1);
+.is-dark .floating-panel-content .transcript-segment.is-active {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.floating-panel-content .transcript-panel-footer {
+.is-dark .floating-panel-content .transcript-panel-footer {
   background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.floating-panel-content .transcript-sync-btn {
-  color: rgba(255, 255, 255, 0.7);
+.is-dark .floating-panel-content .transcript-sync-btn,
+.is-dark .floating-panel-content .word-status-toggle {
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.floating-panel-content .transcript-sync-btn:hover {
+.is-dark .floating-panel-content .transcript-sync-btn:hover,
+.is-dark .floating-panel-content .word-status-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Word status colors in floating transcript */
-.floating-panel-content .word-known {
+/* Dark mode word status - colored text like subtitles */
+.is-dark .floating-panel-content .word-known {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.floating-panel-content .word-familiar {
+.is-dark .floating-panel-content .word-familiar {
   color: #F9DCDC;
 }
 
-.floating-panel-content .word-recognised {
+.is-dark .floating-panel-content .word-recognised {
   color: #F0AFAF;
 }
 
-.floating-panel-content .word-unknown {
+.is-dark .floating-panel-content .word-unknown {
   color: #E88A8A;
 }
 
-.floating-panel-content .word-new {
+.is-dark .floating-panel-content .word-new {
   color: #F97316;
 }
 
-/* Resize handles */
+/* Light mode transcript styles */
+.is-light .floating-panel-content .transcript-segment {
+  color: #0f172a;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.is-light .floating-panel-content .transcript-segment.is-active {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.is-light .floating-panel-content .transcript-panel-footer {
+  background: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.is-light .floating-panel-content .transcript-sync-btn,
+.is-light .floating-panel-content .word-status-toggle {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.is-light .floating-panel-content .transcript-sync-btn:hover,
+.is-light .floating-panel-content .word-status-toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+/* Light mode word status - use highlight backgrounds like reader */
+.is-light .floating-panel-content .word-known {
+  color: #0f172a;
+}
+
+.is-light .floating-panel-content .word-familiar {
+  background-color: rgba(220, 38, 38, 0.12);
+  border-radius: 0.15em;
+  padding: 0 0.1em;
+}
+
+.is-light .floating-panel-content .word-recognised {
+  background-color: rgba(220, 38, 38, 0.22);
+  border-radius: 0.15em;
+  padding: 0 0.1em;
+}
+
+.is-light .floating-panel-content .word-unknown {
+  background-color: rgba(220, 38, 38, 0.32);
+  border-radius: 0.15em;
+  padding: 0 0.1em;
+}
+
+.is-light .floating-panel-content .word-new {
+  background-color: rgba(249, 115, 22, 0.25);
+  border-radius: 0.15em;
+  padding: 0 0.1em;
+}
+
+/* Resize handles - larger for easier grabbing */
 .floating-panel-resize-handle {
   position: absolute;
   z-index: 10;
@@ -6977,65 +7066,65 @@ body.active-pass-locked {
 
 .floating-panel-resize-n,
 .floating-panel-resize-s {
-  left: 8px;
-  right: 8px;
-  height: 6px;
+  left: 12px;
+  right: 12px;
+  height: 10px;
   cursor: ns-resize;
 }
 
 .floating-panel-resize-n {
-  top: -3px;
+  top: -5px;
 }
 
 .floating-panel-resize-s {
-  bottom: -3px;
+  bottom: -5px;
 }
 
 .floating-panel-resize-e,
 .floating-panel-resize-w {
-  top: 8px;
-  bottom: 8px;
-  width: 6px;
+  top: 12px;
+  bottom: 12px;
+  width: 10px;
   cursor: ew-resize;
 }
 
 .floating-panel-resize-e {
-  right: -3px;
+  right: -5px;
 }
 
 .floating-panel-resize-w {
-  left: -3px;
+  left: -5px;
 }
 
 .floating-panel-resize-ne,
 .floating-panel-resize-nw,
 .floating-panel-resize-se,
 .floating-panel-resize-sw {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
 }
 
 .floating-panel-resize-ne {
-  top: -3px;
-  right: -3px;
+  top: -5px;
+  right: -5px;
   cursor: nesw-resize;
 }
 
 .floating-panel-resize-nw {
-  top: -3px;
-  left: -3px;
+  top: -5px;
+  left: -5px;
   cursor: nwse-resize;
 }
 
 .floating-panel-resize-se {
-  bottom: -3px;
-  right: -3px;
+  bottom: -5px;
+  right: -5px;
   cursor: nwse-resize;
 }
 
 .floating-panel-resize-sw {
-  bottom: -3px;
-  left: -3px;
+  bottom: -5px;
+  left: -5px;
   cursor: nesw-resize;
 }
 
@@ -7047,14 +7136,13 @@ body.active-pass-locked {
 .floating-panel-restore-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   background: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 10px;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
-  font-weight: 500;
   cursor: pointer;
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -7068,5 +7156,5 @@ body.active-pass-locked {
 }
 
 .floating-panel-restore-btn .material-symbols-outlined {
-  font-size: 20px;
+  font-size: 22px;
 }

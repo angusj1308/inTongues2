@@ -121,11 +121,19 @@ function isValidLanguageCode(language) {
 
 function resolveTargetCode(targetLang) {
   if (!targetLang || targetLang === 'auto') return null  // Let Whisper auto-detect
-  if (LANGUAGE_NAME_TO_CODE[targetLang]) return LANGUAGE_NAME_TO_CODE[targetLang]
-  if (SUPPORTED_LANGUAGE_CODES.has(targetLang)) return targetLang
-  // Try lowercase match
+
+  // Case-insensitive lookup for language names
   const lowered = targetLang.toLowerCase()
+  for (const [name, code] of Object.entries(LANGUAGE_NAME_TO_CODE)) {
+    if (name.toLowerCase() === lowered) {
+      return code
+    }
+  }
+
+  // Check if it's already a valid language code
+  if (SUPPORTED_LANGUAGE_CODES.has(targetLang)) return targetLang
   if (SUPPORTED_LANGUAGE_CODES.has(lowered)) return lowered
+
   return null  // Unknown language - let Whisper auto-detect
 }
 
@@ -1348,8 +1356,20 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
   if (!tracks.length) return []
 
   // Convert language name to code (e.g., 'Spanish' → 'es')
+  // Case-insensitive lookup to handle 'Spanish', 'spanish', 'SPANISH', etc.
   const requestedLang = (languageCode || '').trim()
-  const langCode = LANGUAGE_NAME_TO_CODE[requestedLang] || requestedLang.toLowerCase()
+  const lowerRequested = requestedLang.toLowerCase()
+
+  // Find matching language code (case-insensitive)
+  let langCode = null
+  for (const [name, code] of Object.entries(LANGUAGE_NAME_TO_CODE)) {
+    if (name.toLowerCase() === lowerRequested) {
+      langCode = code
+      break
+    }
+  }
+  // If not found as a language name, assume it's already a code
+  langCode = langCode || lowerRequested
 
   console.log('REQUESTED LANGUAGE:', requestedLang, '→ CODE:', langCode)
 

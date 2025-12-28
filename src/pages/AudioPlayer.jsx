@@ -120,6 +120,8 @@ const AudioPlayer = () => {
   const [committedPass3ByChunk, setCommittedPass3ByChunk] = useState(new Set())
   const [transitionDirection, setTransitionDirection] = useState('left')
   const [activeWordTranslations, setActiveWordTranslations] = useState({})
+  const [preloadedTranslations, setPreloadedTranslations] = useState({})
+  const [preloadedPronunciations, setPreloadedPronunciations] = useState({})
   const fetchedWordsRef = useRef(new Set())
   const completedPassKeyRef = useRef(new Set())
   const passProgressRef = useRef(new Map())
@@ -419,6 +421,41 @@ const AudioPlayer = () => {
 
     loadStoryMeta()
   }, [id, isSpotify, user])
+
+  // Preload cached translations and pronunciations for this content
+  useEffect(() => {
+    if (!user || !id || !storyMeta.language || !storyMeta.voiceId) return
+
+    const preloadContentData = async () => {
+      try {
+        const contentType = isSpotify ? 'spotify' : 'story'
+        const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage) || 'English'
+
+        const response = await fetch('http://localhost:4000/api/content/preload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: user.uid,
+            contentId: id,
+            contentType,
+            targetLanguage: storyMeta.language,
+            nativeLanguage,
+            voiceId: storyMeta.voiceId,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setPreloadedTranslations(data.translations || {})
+          setPreloadedPronunciations(data.pronunciations || {})
+        }
+      } catch (err) {
+        console.error('Failed to preload content data:', err)
+      }
+    }
+
+    preloadContentData()
+  }, [id, isSpotify, user, storyMeta.language, storyMeta.voiceId, profile?.nativeLanguage])
 
   useEffect(() => {
     if (!isSpotify || !user) return undefined
@@ -763,21 +800,79 @@ const AudioPlayer = () => {
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    const translation = 'No translation found'
-
     const selectionObj = window.getSelection()
     if (!selectionObj || selectionObj.rangeCount === 0) return
 
     const range = selectionObj.getRangeAt(0)
     const rect = range.getBoundingClientRect()
 
+    const ttsLanguage = normalizeLanguageCode(storyLanguage)
+
+    if (!ttsLanguage) {
+      setPopup({
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY + 8,
+        word: clean,
+        translation: missingLanguageMessage,
+        audioBase64: null,
+        audioUrl: null,
+      })
+      return
+    }
+
+    // Check preloaded data first
+    const preloadedTranslation = preloadedTranslations[clean]
+    const preloadedPronunciation = preloadedPronunciations[clean]
+
+    if (preloadedTranslation || preloadedPronunciation) {
+      setPopup({
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY + 8,
+        word: clean,
+        translation: preloadedTranslation?.translation || 'No translation found',
+        audioBase64: null,
+        audioUrl: preloadedPronunciation?.audioUrl || null,
+      })
+      return
+    }
+
+    // Fetch from API if not preloaded
+    let translation = 'No translation found'
+    let audioBase64 = null
+    let audioUrl = null
+
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: clean,
+          sourceLang: storyLanguage || 'es',
+          targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+          ttsLanguage,
+          voiceId: storyMeta.voiceId,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        translation = data.translation || translation
+        audioBase64 = data.audioBase64 || null
+        audioUrl = data.audioUrl || null
+      } else {
+        console.error('Word translation failed:', await response.text())
+      }
+    } catch (err) {
+      console.error('Error translating word:', err)
+    }
+
     setPopup({
       x: rect.left + window.scrollX,
       y: rect.bottom + window.scrollY + 8,
       word: clean,
       translation,
-      audioBase64: null,
-      audioUrl: null,
+      audioBase64,
+      audioUrl,
     })
   }
 
@@ -1991,6 +2086,8 @@ const AudioPlayer = () => {
         audioRef={audioRef}
         fullAudioUrl={storyMeta.fullAudioUrl}
         user={user}
+        preloadedTranslations={preloadedTranslations}
+        preloadedPronunciations={preloadedPronunciations}
       />
 
       {popup && (

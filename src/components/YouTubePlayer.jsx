@@ -112,6 +112,7 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
       setPlaybackRate: (rate) => playerRef.current?.setPlaybackRate?.(rate),
       getPlaybackRate: () => playerRef.current?.getPlaybackRate?.() ?? 1,
       getPlayer: () => playerRef.current,
+      getIframe: () => playerRef.current?.getIframe?.(),
     }),
     []
   )

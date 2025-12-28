@@ -10,20 +10,26 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase'
+import { resolveSupportedLanguageLabel } from '../constants/languages'
 
 export const VOCAB_STATUSES = ['unknown', 'recognised', 'familiar', 'known']
 
 export const normaliseExpression = (text) => text.trim().toLowerCase()
 
+// Normalize language to canonical label format (e.g., 'Spanish', 'French')
+const normaliseLanguage = (language) => resolveSupportedLanguageLabel(language, language)
+
 export const getVocabDocRef = (userId, language, text) => {
   const normalisedText = normaliseExpression(text)
-  const id = `${language.toLowerCase()}_${normalisedText.replace(/\s+/g, '_')}`
+  const normalisedLang = normaliseLanguage(language)
+  const id = `${normalisedLang.toLowerCase()}_${normalisedText.replace(/\s+/g, '_')}`
   return doc(collection(doc(collection(db, 'users'), userId), 'vocab'), id)
 }
 
 export const loadUserVocab = async (userId, language) => {
+  const normalisedLang = normaliseLanguage(language)
   const vocabCollection = collection(doc(collection(db, 'users'), userId), 'vocab')
-  const vocabQuery = query(vocabCollection, where('language', '==', language))
+  const vocabQuery = query(vocabCollection, where('language', '==', normalisedLang))
   const snapshot = await getDocs(vocabQuery)
 
   const vocabEntries = {}
@@ -52,7 +58,8 @@ export const upsertVocabEntry = async (
     throw new Error(`Invalid vocab status: ${status}`)
   }
 
-  const ref = getVocabDocRef(userId, language, text)
+  const normalisedLang = normaliseLanguage(language)
+  const ref = getVocabDocRef(userId, normalisedLang, text)
   const existingDoc = await getDoc(ref)
 
   const initialSRS = {}
@@ -85,7 +92,7 @@ export const upsertVocabEntry = async (
     {
       text,
       translation,
-      language,
+      language: normalisedLang,
       status,
       ...initialSRS,
       updatedAt: serverTimestamp(),

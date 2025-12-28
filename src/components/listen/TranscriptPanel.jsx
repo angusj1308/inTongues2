@@ -15,8 +15,9 @@ const TranscriptPanel = ({
   onUserScroll,
   onResync,
   syncToken = 0,
+  darkMode = false,
 }) => (
-  <div className="transcript-panel">
+  <div className={`transcript-panel ${darkMode ? 'transcript-panel--dark' : ''}`}>
     <div className="transcript-panel-body" onMouseUp={onSelectionTranslate}>
       <TranscriptRoller
         segments={segments}

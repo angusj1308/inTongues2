@@ -89,14 +89,41 @@ const IntonguesCinema = () => {
   const [playbackRate, setPlaybackRate] = useState(1)
   const [wordTranslations, setWordTranslations] = useState({})
 
-  // Extensive mode state - defaults ON for immediate value
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true)
+  // Extensive mode state - defaults to subtitles for immediate value
+  // textDisplayMode: 'off' | 'subtitles' | 'transcript'
+  const [textDisplayMode, setTextDisplayMode] = useState('subtitles')
   const [showWordStatus, setShowWordStatus] = useState(true)
-  const [transcriptPanelOpen, setTranscriptPanelOpen] = useState(false)
   const [headerVisible, setHeaderVisible] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const cinemaContainerRef = useRef(null)
+
+  // Derive subtitles/transcript state from textDisplayMode
+  const subtitlesEnabled = textDisplayMode === 'subtitles'
+  const transcriptPanelOpen = textDisplayMode === 'transcript'
+
+  // Cycle through text display modes: off → subtitles → transcript → off
+  const cycleTextDisplayMode = useCallback(() => {
+    setTextDisplayMode((prev) => {
+      if (prev === 'off') return 'subtitles'
+      if (prev === 'subtitles') return 'transcript'
+      return 'off'
+    })
+  }, [])
+
+  // Get display label for current text mode
+  const getTextModeLabel = () => {
+    if (textDisplayMode === 'off') return 'Off'
+    if (textDisplayMode === 'subtitles') return 'Subtitles'
+    return 'Transcript'
+  }
+
+  // Get icon for current text mode
+  const getTextModeIcon = () => {
+    if (textDisplayMode === 'off') return 'subtitles_off'
+    if (textDisplayMode === 'subtitles') return 'subtitles'
+    return 'description'
+  }
 
   // Active mode state
   const [activeChunkIndex, setActiveChunkIndex] = useState(0)
@@ -1076,11 +1103,8 @@ const normalisePagesToSegments = (pages = []) =>
           renderHighlightedText={renderHighlightedText}
           onSubtitleWordClick={handleSubtitleWordClick}
           subtitlesEnabled={subtitlesEnabled}
-          onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
-          showWordStatus={showWordStatus}
-          onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
+          showWordStatus={textDisplayMode !== 'off' && showWordStatus}
           transcriptPanelOpen={transcriptPanelOpen}
-          onToggleTranscriptPanel={() => setTranscriptPanelOpen((prev) => !prev)}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>
@@ -1209,32 +1233,26 @@ const normalisePagesToSegments = (pages = []) =>
           <div className="cinema-header-actions">
             {isExtensive && (
               <>
+                {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
                 <button
                   type="button"
-                  className={`cinema-toggle-btn ${subtitlesEnabled ? 'active' : ''}`}
-                  onClick={() => setSubtitlesEnabled((prev) => !prev)}
-                  title={subtitlesEnabled ? 'Hide subtitles' : 'Show subtitles'}
+                  className={`cinema-toggle-btn ${textDisplayMode !== 'off' ? 'active' : ''}`}
+                  onClick={cycleTextDisplayMode}
+                  title={`Text: ${getTextModeLabel()} (click to change)`}
                 >
-                  <span className="material-symbols-outlined">{subtitlesEnabled ? 'subtitles' : 'subtitles_off'}</span>
-                  <span className="cinema-toggle-label">Subtitles</span>
+                  <span className="material-symbols-outlined">{getTextModeIcon()}</span>
+                  <span className="cinema-toggle-label">{getTextModeLabel()}</span>
                 </button>
+                {/* Word status button - disabled when text mode is off */}
                 <button
                   type="button"
-                  className={`cinema-toggle-btn ${showWordStatus ? 'active' : ''}`}
-                  onClick={() => setShowWordStatus((prev) => !prev)}
-                  title={showWordStatus ? 'Hide word colors' : 'Show word colors'}
+                  className={`cinema-toggle-btn ${showWordStatus ? 'active' : ''} ${textDisplayMode === 'off' ? 'disabled' : ''}`}
+                  onClick={() => textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
+                  disabled={textDisplayMode === 'off'}
+                  title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word colors' : 'Show word colors')}
                 >
                   <span className="material-symbols-outlined">format_color_text</span>
                   <span className="cinema-toggle-label">Words</span>
-                </button>
-                <button
-                  type="button"
-                  className={`cinema-toggle-btn ${transcriptPanelOpen ? 'active' : ''}`}
-                  onClick={() => setTranscriptPanelOpen((prev) => !prev)}
-                  title={transcriptPanelOpen ? 'Hide transcript panel' : 'Show transcript panel'}
-                >
-                  <span className="material-symbols-outlined">description</span>
-                  <span className="cinema-toggle-label">Transcript</span>
                 </button>
               </>
             )}

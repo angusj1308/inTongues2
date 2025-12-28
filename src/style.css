@@ -6558,6 +6558,13 @@ body.active-pass-locked {
   color: #2563eb;
 }
 
+.cinema-toggle-btn.disabled,
+.cinema-toggle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .cinema-toggle-btn .material-symbols-outlined {
   font-size: 1.25rem;
 }

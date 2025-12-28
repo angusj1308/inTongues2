@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -8,6 +8,10 @@ import CinemaSubtitles from '../components/CinemaSubtitles'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
+import { cinemaViewingModes } from '../constants/cinemaViewingModes'
+import ExtensiveCinemaMode from '../components/cinema/ExtensiveCinemaMode'
+import ActiveCinemaMode from '../components/cinema/ActiveCinemaMode'
+import IntensiveCinemaMode from '../components/cinema/IntensiveCinemaMode'
 
 const extractVideoId = (video) => {
   if (!video) return ''
@@ -25,6 +29,37 @@ const extractVideoId = (video) => {
   }
 
   return ''
+}
+
+// Generate ~60 second chunks aligned to segment boundaries
+const generateChunks = (segments, targetDuration = 60) => {
+  if (!segments || segments.length === 0) return []
+
+  const chunks = []
+  let chunkStart = 0
+  let chunkStartIndex = 0
+
+  segments.forEach((segment, index) => {
+    const segmentEnd = segment.end || segment.start + 5
+
+    if (segmentEnd - chunkStart >= targetDuration || index === segments.length - 1) {
+      chunks.push({
+        index: chunks.length,
+        start: chunkStart,
+        end: segmentEnd,
+        startSegmentIndex: chunkStartIndex,
+        endSegmentIndex: index,
+      })
+
+      if (index < segments.length - 1) {
+        const nextSegment = segments[index + 1]
+        chunkStart = nextSegment.start
+        chunkStartIndex = index + 1
+      }
+    }
+  })
+
+  return chunks
 }
 
 const IntonguesCinema = () => {
@@ -47,6 +82,23 @@ const IntonguesCinema = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
   const [popup, setPopup] = useState(null)
+
+  // Cinema mode state
+  const [cinemaMode, setCinemaMode] = useState('extensive')
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
+  const [scrubSeconds, setScrubSeconds] = useState(5)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [wordTranslations, setWordTranslations] = useState({})
+
+  // Active mode state
+  const [activeChunkIndex, setActiveChunkIndex] = useState(0)
+  const [activeStep, setActiveStep] = useState(1)
+  const [completedChunks, setCompletedChunks] = useState(new Set())
+  const [completedPasses, setCompletedPasses] = useState(new Set())
+
+  // Intensive mode state
+  const [intensiveSegmentIndex, setIntensiveSegmentIndex] = useState(0)
+
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
@@ -160,6 +212,31 @@ const normalisePagesToSegments = (pages = []) =>
     if (sentenceSegments.length) return sentenceSegments
     return normaliseSegments(transcript?.segments)
   }, [transcript])
+
+  // Generate chunks for active mode
+  const chunks = useMemo(() => generateChunks(displaySegments), [displaySegments])
+
+  // Calculate active transcript index based on current time
+  const activeTranscriptIndex = useMemo(() => {
+    if (!displaySegments.length) return -1
+    const currentTime = playbackStatus.currentTime || 0
+
+    for (let i = 0; i < displaySegments.length; i++) {
+      const segment = displaySegments[i]
+      if (currentTime >= segment.start && currentTime < segment.end) {
+        return i
+      }
+    }
+
+    // Find closest segment if not within any
+    for (let i = displaySegments.length - 1; i >= 0; i--) {
+      if (currentTime >= displaySegments[i].start) {
+        return i
+      }
+    }
+
+    return 0
+  }, [displaySegments, playbackStatus.currentTime])
 
   useEffect(() => {
     if (!user || !id) {
@@ -506,6 +583,13 @@ const normalisePagesToSegments = (pages = []) =>
     return undefined
   }, [isSpotify, spotifyState])
 
+  // Reset active mode state when changing modes or chunks
+  useEffect(() => {
+    if (cinemaMode !== 'active') return
+    setActiveStep(1)
+    setCompletedPasses(new Set())
+  }, [activeChunkIndex, cinemaMode])
+
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)
   }
@@ -536,31 +620,21 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }
 
-  const handlePlay = () => {
+  const handlePlayPause = useCallback(() => {
     if (isSpotify) {
       spotifyPlayer?.togglePlay()
       return
     }
 
     const player = playerRef.current
-
-    player?.playVideo?.()
-  }
-
-  const handlePause = () => {
-    if (isSpotify) {
-      if (spotifyPlayer && spotifyState && !spotifyState.paused) {
-        spotifyPlayer.togglePlay()
-      }
-      return
+    if (playbackStatus.isPlaying) {
+      player?.pauseVideo?.()
+    } else {
+      player?.playVideo?.()
     }
+  }, [isSpotify, playbackStatus.isPlaying, spotifyPlayer])
 
-    const player = playerRef.current
-
-    player?.pauseVideo?.()
-  }
-
-  const handleSeek = (newTime) => {
+  const handleSeek = useCallback((newTime) => {
     const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
     if (isSpotify) {
       spotifyPlayer?.seek(target * 1000)
@@ -572,7 +646,14 @@ const normalisePagesToSegments = (pages = []) =>
 
     player?.seekTo?.(target, true)
     setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
-  }
+  }, [isSpotify, spotifyPlayer])
+
+  const handlePlaybackRateChange = useCallback((rate) => {
+    setPlaybackRate(rate)
+    if (!isSpotify && playerRef.current?.setPlaybackRate) {
+      playerRef.current.setPlaybackRate(rate)
+    }
+  }, [isSpotify])
 
   const isWordChar = (ch) => {
     if (!ch) return false
@@ -634,7 +715,7 @@ const normalisePagesToSegments = (pages = []) =>
     return segments
   }
 
-  const renderHighlightedText = (text) => {
+  const renderHighlightedText = useCallback((text) => {
     const expressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
@@ -696,7 +777,7 @@ const normalisePagesToSegments = (pages = []) =>
     })
 
     return elements
-  }
+  }, [vocabEntries])
 
   async function handleSubtitleWordClick(e) {
     e.stopPropagation()
@@ -813,170 +894,264 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }
 
-  const formatTime = (seconds) => {
-    if (!Number.isFinite(seconds) || seconds < 0) return '0:00'
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = Math.floor(seconds % 60)
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-  }
+  // Active mode handlers
+  const handleWordStatusChange = useCallback(async (word, newStatus) => {
+    if (!user || !transcriptLanguage) return
+
+    try {
+      const normalised = normaliseExpression(word)
+      const existingTranslation = vocabEntries[normalised]?.translation || wordTranslations[normalised]?.translation || ''
+
+      await upsertVocabEntry(user.uid, transcriptLanguage, word, existingTranslation, newStatus)
+
+      setVocabEntries((prev) => ({
+        ...prev,
+        [normalised]: {
+          ...(prev[normalised] || {}),
+          text: word,
+          language: transcriptLanguage,
+          status: newStatus,
+        },
+      }))
+    } catch (err) {
+      console.error('Failed to update word status', err)
+    }
+  }, [user, transcriptLanguage, vocabEntries, wordTranslations])
+
+  const handleSelectChunk = useCallback((index) => {
+    if (index < 0 || index >= chunks.length) return
+    setActiveChunkIndex(index)
+  }, [chunks.length])
+
+  const handleSelectStep = useCallback((step) => {
+    if (step < 1 || step > 4) return
+    setActiveStep(step)
+    if (step > 1) {
+      setCompletedPasses((prev) => new Set([...prev, step - 1]))
+    }
+  }, [])
+
+  const handleAdvanceChunk = useCallback(() => {
+    if (activeChunkIndex >= chunks.length - 1) return
+
+    setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))
+    setActiveChunkIndex((prev) => prev + 1)
+  }, [activeChunkIndex, chunks.length])
+
+  const handleBeginFinalWatch = useCallback(() => {
+    // Mark all new words as known before final watch
+    setCompletedPasses((prev) => new Set([...prev, 3]))
+  }, [])
+
+  const handleRestartChunk = useCallback(() => {
+    if (!chunks[activeChunkIndex]) return
+    handleSeek(chunks[activeChunkIndex].start)
+  }, [activeChunkIndex, chunks, handleSeek])
+
+  // Calculate if can advance to next step
+  const canAdvanceToNextStep = useMemo(() => {
+    if (activeStep >= 4) return false
+    return completedPasses.has(activeStep) || true // Allow step navigation for now
+  }, [activeStep, completedPasses])
+
+  const canMoveToNextChunk = useMemo(() => {
+    return activeChunkIndex < chunks.length - 1 && activeStep === 4
+  }, [activeChunkIndex, chunks.length, activeStep])
+
+  // Video player component
+  const videoPlayer = useMemo(() => {
+    if (isSpotify) {
+      return (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            background: '#0f172a',
+            color: '#e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '1rem',
+          }}
+        >
+          <div>
+            <p style={{ marginBottom: '0.25rem' }}>Spotify playback active</p>
+            <p className="muted small">Use the controls below to manage playback.</p>
+          </div>
+        </div>
+      )
+    }
+
+    if (!videoId) {
+      return <p className="error">This video cannot be embedded.</p>
+    }
+
+    return (
+      <YouTubePlayer
+        ref={playerRef}
+        videoId={videoId}
+        onStatus={handleVideoStatus}
+        onPlayerReady={handlePlayerReady}
+        onPlayerStateChange={handlePlayerStateChange}
+      />
+    )
+  }, [isSpotify, videoId])
 
   const safeCurrentTime = Number.isFinite(playbackStatus.currentTime) ? playbackStatus.currentTime : 0
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0
-  const sliderMax = safeDuration > 0 ? safeDuration : Math.max(safeCurrentTime, 0.1)
+
+  // Mode selector component
+  const modeSelector = (
+    <div className="cinema-mode-selector">
+      {cinemaViewingModes.map((mode) => (
+        <button
+          key={mode.id}
+          type="button"
+          className={`cinema-mode-btn ${cinemaMode === mode.id ? 'active' : ''}`}
+          onClick={() => setCinemaMode(mode.id)}
+        >
+          {mode.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  // Render appropriate mode component
+  const renderModeContent = () => {
+    if (loading) return <p className="muted">Loading video…</p>
+    if (error) return <p className="error">{error}</p>
+    if (!video) return <p className="muted">Video unavailable.</p>
+
+    if (cinemaMode === 'extensive') {
+      return (
+        <ExtensiveCinemaMode
+          videoTitle={video.title || 'Untitled video'}
+          isPlaying={playbackStatus.isPlaying}
+          currentTime={safeCurrentTime}
+          duration={safeDuration}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+          playbackRate={playbackRate}
+          onPlaybackRateChange={handlePlaybackRateChange}
+          subtitlesEnabled={subtitlesEnabled}
+          onToggleSubtitles={() => setSubtitlesEnabled((prev) => !prev)}
+          scrubSeconds={scrubSeconds}
+          onScrubChange={setScrubSeconds}
+          transcriptSegments={displaySegments}
+          activeTranscriptIndex={activeTranscriptIndex}
+          vocabEntries={vocabEntries}
+          language={transcriptLanguage}
+          nativeLanguage={profile?.nativeLanguage}
+          voiceGender={profile?.voiceGender || 'male'}
+          setPopup={setPopup}
+          renderHighlightedText={renderHighlightedText}
+          onSubtitleWordClick={handleSubtitleWordClick}
+        >
+          {videoPlayer}
+        </ExtensiveCinemaMode>
+      )
+    }
+
+    if (cinemaMode === 'active') {
+      return (
+        <ActiveCinemaMode
+          videoTitle={video.title || 'Untitled video'}
+          chunks={chunks}
+          activeChunkIndex={activeChunkIndex}
+          completedChunks={completedChunks}
+          activeStep={activeStep}
+          completedPasses={completedPasses}
+          canAdvanceToNextStep={canAdvanceToNextStep}
+          canMoveToNextChunk={canMoveToNextChunk}
+          isPlaying={playbackStatus.isPlaying}
+          currentTime={safeCurrentTime}
+          duration={safeDuration}
+          scrubSeconds={scrubSeconds}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+          playbackRate={playbackRate}
+          onPlaybackRateChange={handlePlaybackRateChange}
+          transcriptSegments={displaySegments}
+          activeTranscriptIndex={activeTranscriptIndex}
+          vocabEntries={vocabEntries}
+          language={transcriptLanguage}
+          wordTranslations={wordTranslations}
+          onWordStatusChange={handleWordStatusChange}
+          onBeginFinalWatch={handleBeginFinalWatch}
+          onRestartChunk={handleRestartChunk}
+          onSelectChunk={handleSelectChunk}
+          onSelectStep={handleSelectStep}
+          onScrubChange={setScrubSeconds}
+          onAdvanceChunk={handleAdvanceChunk}
+          renderHighlightedText={renderHighlightedText}
+          onSubtitleWordClick={handleSubtitleWordClick}
+        >
+          {videoPlayer}
+        </ActiveCinemaMode>
+      )
+    }
+
+    if (cinemaMode === 'intensive') {
+      return (
+        <IntensiveCinemaMode
+          cinemaMode={cinemaMode}
+          transcriptSegments={displaySegments}
+          language={transcriptLanguage}
+          nativeLanguage={profile?.nativeLanguage}
+          vocabEntries={vocabEntries}
+          setVocabEntries={setVocabEntries}
+          voiceGender={profile?.voiceGender || 'male'}
+          setPopup={setPopup}
+          intensiveSegmentIndex={intensiveSegmentIndex}
+          setIntensiveSegmentIndex={setIntensiveSegmentIndex}
+          currentTime={safeCurrentTime}
+          duration={safeDuration}
+          onSeek={handleSeek}
+          onPlayPause={handlePlayPause}
+          isPlaying={playbackStatus.isPlaying}
+          user={user}
+          videoPlayer={videoPlayer}
+        />
+      )
+    }
+
+    return null
+  }
 
   return (
-    <div className="page">
-      <div className="card dashboard-card">
-        <div className="page-header">
-          <div>
-            <h1>inTongues Cinema</h1>
-            <p className="muted small">
-              {isSpotify
-                ? 'Watch your Spotify podcasts with subtitles and vocabulary support.'
-                : 'Watch your imported YouTube videos with subtitles.'}
-            </p>
-          </div>
+    <div className="page cinema-page">
+      <div className="cinema-header">
+        <div className="cinema-header-left">
+          <h1>inTongues Cinema</h1>
+          <p className="muted small">
+            {isSpotify
+              ? 'Watch your Spotify podcasts with subtitles and vocabulary support.'
+              : 'Watch your imported YouTube videos with subtitles.'}
+          </p>
+        </div>
+        <div className="cinema-header-right">
+          {modeSelector}
           <button className="button ghost" onClick={() => navigate('/listening')}>
-            Back to listening library
+            Back to library
           </button>
         </div>
-
-        {loading ? (
-          <p className="muted">Loading video…</p>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : !video ? (
-          <p className="muted">Video unavailable.</p>
-        ) : (
-          <div className="section">
-            <div className="section-header">
-              <div>
-                <h3>{video.title || 'Untitled video'}</h3>
-                <p className="muted small">{isSpotify ? 'Sourced from Spotify' : 'Sourced from YouTube'}</p>
-              </div>
-              {video.youtubeUrl && !isSpotify && (
-                <a className="button ghost" href={video.youtubeUrl} target="_blank" rel="noreferrer">
-                  Open on YouTube
-                </a>
-              )}
-            </div>
-
-            {isSpotify ? (
-              <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    background: '#0f172a',
-                    color: '#e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    padding: '1rem',
-                  }}
-                >
-                  <div>
-                    <p style={{ marginBottom: '0.25rem' }}>Spotify playback active</p>
-                    <p className="muted small">Use the controls below to manage playback.</p>
-                  </div>
-                </div>
-                <div className="subtitle-overlay">
-                  <CinemaSubtitles
-                    transcript={transcript}
-                    currentTime={safeCurrentTime}
-                    renderHighlightedText={renderHighlightedText}
-                    onWordSelect={handleSubtitleWordClick}
-                  />
-                </div>
-              </div>
-            ) : videoId ? (
-              <div className="video-frame" style={{ position: 'relative', paddingTop: '56.25%' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
-                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                    <YouTubePlayer
-                      ref={playerRef}
-                      videoId={videoId}
-                      onStatus={handleVideoStatus}
-                      onPlayerReady={handlePlayerReady}
-                      onPlayerStateChange={handlePlayerStateChange}
-                    />
-
-                    <div className="subtitle-overlay">
-                      <CinemaSubtitles
-                        transcript={transcript}
-                        currentTime={safeCurrentTime}
-                        renderHighlightedText={renderHighlightedText}
-                        onWordSelect={handleSubtitleWordClick}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="error">This video cannot be embedded.</p>
-            )}
-
-            <div
-              className="card"
-              style={{
-                marginTop: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button className="button" onClick={handlePlay}>
-                  Play
-                </button>
-                <button className="button ghost" onClick={handlePause}>
-                  Pause
-                </button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-                <input
-                  type="range"
-                  min="0"
-                  max={sliderMax}
-                  step="0.01"
-                  value={Math.min(safeCurrentTime, sliderMax)}
-                  onChange={(e) => handleSeek(Number(e.target.value))}
-                  style={{ flex: 1 }}
-                />
-                <p className="muted small" style={{ margin: 0, whiteSpace: 'nowrap' }}>
-                  {formatTime(safeCurrentTime)} / {formatTime(safeDuration)}
-                </p>
-              </div>
-            </div>
-            {transcriptLoading && (
-              <p className="muted small" style={{ marginTop: '1rem' }}>
-                Preparing subtitles for this video…
-              </p>
-            )}
-
-            {transcriptError && (
-              <p className="error" style={{ marginTop: '1rem' }}>
-                {transcriptError}
-              </p>
-            )}
-
-            <p className="muted small" style={{ marginTop: '0.25rem' }}>
-              {isSpotify
-                ? 'Spotify playback uses the Web Playback SDK with subtitles displayed here.'
-                : 'For best experience, leave YouTube CC off and use the subtitles displayed here.'}
-            </p>
-
-            <p className="muted small">
-              Current time: {safeCurrentTime.toFixed(1)}s / {safeDuration.toFixed(1)}s —{' '}
-              {playbackStatus.isPlaying ? 'Playing' : 'Paused'}
-            </p>
-          </div>
-        )}
       </div>
+
+      {transcriptLoading && (
+        <p className="muted small cinema-loading-message">
+          Preparing subtitles for this video…
+        </p>
+      )}
+
+      {transcriptError && (
+        <p className="error cinema-error-message">
+          {transcriptError}
+        </p>
+      )}
+
+      {renderModeContent()}
+
       {popup && (
         <div
           className="translate-popup"

@@ -12,6 +12,7 @@ import { cinemaViewingModes } from '../constants/cinemaViewingModes'
 import ExtensiveCinemaMode from '../components/cinema/ExtensiveCinemaMode'
 import ActiveCinemaMode from '../components/cinema/ActiveCinemaMode'
 import IntensiveCinemaMode from '../components/cinema/IntensiveCinemaMode'
+import CinemaWordPopup from '../components/cinema/CinemaWordPopup'
 
 const extractVideoId = (video) => {
   if (!video) return ''
@@ -1335,120 +1336,21 @@ const normalisePagesToSegments = (pages = []) =>
       {renderModeContent()}
 
       {popup && (
-        <div
-          className="translate-popup"
+        <CinemaWordPopup
+          word={popup.word}
+          translation={popup.translation}
+          status={vocabEntries[normaliseExpression(popup.word)]?.status || 'new'}
+          audioBase64={popup.audioBase64}
+          audioUrl={popup.audioUrl}
+          language={transcriptLanguage}
+          darkMode={cinemaDarkMode}
+          onStatusChange={(word, status) => handleSetWordStatus(status)}
+          onClose={() => setPopup(null)}
           style={{
-            position: 'absolute',
             top: popup.y,
             left: popup.x,
-            background: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            zIndex: 1000,
-            maxWidth: '260px',
           }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <strong>{popup.word}</strong>
-          <div
-            style={{
-              marginTop: '4px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-            }}
-          >
-            <span>{popup.translation}</span>
-            {(popup.audioBase64 || popup.audioUrl) && (
-              <button
-                type="button"
-                aria-label="Play pronunciation"
-                onClick={() => playPronunciationAudio(popup)}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  padding: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                }}
-              >
-                🔊
-              </button>
-            )}
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '6px',
-              marginTop: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('unknown')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#001f3f',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Unknown
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('recognised')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#800000',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Recognised
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('familiar')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#0b3d0b',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Familiar
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetWordStatus('known')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: '#000000',
-                color: 'white',
-                fontSize: '0.75rem',
-              }}
-            >
-              Known
-            </button>
-          </div>
-        </div>
+        />
       )}
     </div>
   )

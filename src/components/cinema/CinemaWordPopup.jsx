@@ -1,0 +1,138 @@
+import { useCallback, useRef } from 'react'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
+
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+)
+
+// Get background style for a status button when active
+// Light mode: mix with white, Dark mode: mix with black
+const getStatusStyle = (statusLevel, isActive, languageColor, darkMode) => {
+  if (!isActive) return {}
+
+  const mixBase = darkMode ? 'black' : 'white'
+  const textLight = darkMode ? '#f8fafc' : '#1e293b'
+  const textMuted = darkMode ? '#94a3b8' : '#64748b'
+
+  switch (statusLevel) {
+    case 'new':
+      return {
+        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, ${mixBase})`,
+        color: darkMode ? '#fdba74' : '#9a3412',
+      }
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, ${mixBase})`,
+        color: textLight,
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, ${mixBase})`,
+        color: textLight,
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, ${mixBase})`,
+        color: textMuted,
+      }
+    case 'known':
+      return {
+        background: darkMode ? '#374151' : '#e2e8f0',
+        color: textMuted,
+      }
+    default:
+      return {}
+  }
+}
+
+const CinemaWordPopup = ({
+  word,
+  translation,
+  status = 'new',
+  audioBase64,
+  audioUrl,
+  language,
+  darkMode = true,
+  onStatusChange,
+  onClose,
+  style = {},
+}) => {
+  const audioRef = useRef(null)
+  const languageColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+  const statusIndex = STATUS_LEVELS.indexOf(status)
+  const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
+  const hasAudio = Boolean(audioBase64 || audioUrl)
+
+  const handlePlayAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+
+    const audio = new Audio()
+    if (audioBase64) {
+      audio.src = `data:audio/mp3;base64,${audioBase64}`
+    } else if (audioUrl) {
+      audio.src = audioUrl
+    }
+    audio.play().catch((err) => console.error('Audio playback failed:', err))
+    audioRef.current = audio
+  }, [audioBase64, audioUrl])
+
+  const handleStatusClick = (newStatus) => {
+    if (onStatusChange) {
+      onStatusChange(word, newStatus)
+    }
+  }
+
+  return (
+    <div
+      className={`cinema-word-popup ${darkMode ? 'is-dark' : 'is-light'}`}
+      style={style}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Word and translation row */}
+      <div className="cinema-word-popup-content">
+        <button
+          type="button"
+          className={`cinema-word-popup-audio ${hasAudio ? '' : 'cinema-word-popup-audio--disabled'}`}
+          onClick={handlePlayAudio}
+          disabled={!hasAudio}
+          aria-label={`Play pronunciation of ${word}`}
+        >
+          <PlayIcon />
+        </button>
+        <span className="cinema-word-popup-word">{word}</span>
+        <span className="cinema-word-popup-translation">{translation || '...'}</span>
+      </div>
+
+      {/* Status selector row */}
+      <div className="cinema-word-popup-status">
+        {STATUS_ABBREV.map((abbrev, i) => {
+          const isActive = i === validStatusIndex
+          const statusStyle = getStatusStyle(STATUS_LEVELS[i], isActive, languageColor, darkMode)
+
+          return (
+            <button
+              key={abbrev}
+              type="button"
+              className={`cinema-word-popup-status-btn ${isActive ? 'is-active' : ''}`}
+              style={statusStyle}
+              onClick={() => handleStatusClick(STATUS_LEVELS[i])}
+              aria-label={`Set status to ${STATUS_LEVELS[i]}`}
+              aria-pressed={isActive}
+            >
+              {abbrev}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default CinemaWordPopup

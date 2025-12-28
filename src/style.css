@@ -7043,6 +7043,7 @@ body.active-pass-locked {
 .floating-panel-resize-sw {
   width: 16px;
   height: 16px;
+  z-index: 11; /* Higher than edge handles to take priority */
 }
 
 .floating-panel-resize-ne {

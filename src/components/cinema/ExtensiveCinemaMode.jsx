@@ -321,7 +321,6 @@ const ExtensiveCinemaMode = ({
             onWordClick={handleTranscriptWordClick}
             onSelectionTranslate={handleTranscriptSelection}
             showWordStatus={showWordStatus}
-            onToggleWordStatus={onToggleWordStatus}
             isSynced={isTranscriptSynced}
             onUserScroll={handleTranscriptUnsync}
             onResync={handleTranscriptResync}

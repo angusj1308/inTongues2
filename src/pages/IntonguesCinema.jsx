@@ -1236,23 +1236,22 @@ const normalisePagesToSegments = (pages = []) =>
                 {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
                 <button
                   type="button"
-                  className={`cinema-toggle-btn ${textDisplayMode !== 'off' ? 'active' : ''}`}
+                  className="dashboard-control ui-text cinema-text-toggle"
                   onClick={cycleTextDisplayMode}
                   title={`Text: ${getTextModeLabel()} (click to change)`}
                 >
-                  <span className="material-symbols-outlined">{getTextModeIcon()}</span>
-                  <span className="cinema-toggle-label">{getTextModeLabel()}</span>
+                  {getTextModeLabel()}
                 </button>
+                <span className="dashboard-nav-divider">|</span>
                 {/* Word status button - disabled when text mode is off */}
                 <button
                   type="button"
-                  className={`cinema-toggle-btn ${showWordStatus ? 'active' : ''} ${textDisplayMode === 'off' ? 'disabled' : ''}`}
+                  className={`dashboard-control ui-text cinema-text-toggle ${textDisplayMode === 'off' ? 'cinema-toggle-disabled' : ''}`}
                   onClick={() => textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
                   disabled={textDisplayMode === 'off'}
                   title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word colors' : 'Show word colors')}
                 >
-                  <span className="material-symbols-outlined">format_color_text</span>
-                  <span className="cinema-toggle-label">Words</span>
+                  {showWordStatus ? 'Words' : 'Words off'}
                 </button>
               </>
             )}

@@ -6532,45 +6532,15 @@ body.active-pass-locked {
   gap: 0.5rem;
 }
 
-/* Toggle buttons in header */
-.cinema-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.5rem 0.75rem;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 150ms ease;
+/* Text toggle buttons in header - match dashboard-control style */
+.cinema-text-toggle {
+  /* Inherits from .dashboard-control */
 }
 
-.cinema-toggle-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: #1e293b;
-}
-
-.cinema-toggle-btn.active {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #2563eb;
-}
-
-.cinema-toggle-btn.disabled,
-.cinema-toggle-btn:disabled {
+.cinema-toggle-disabled {
   opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
-}
-
-.cinema-toggle-btn .material-symbols-outlined {
-  font-size: 1.25rem;
-}
-
-.cinema-toggle-label {
-  font-weight: 500;
 }
 
 .cinema-loading-message,

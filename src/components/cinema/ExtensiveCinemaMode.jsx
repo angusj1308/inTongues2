@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TranscriptPanel from '../listen/TranscriptPanel'
 import FloatingTranscriptPanel from './FloatingTranscriptPanel'
-import CinemaSubtitles from '../CinemaSubtitles'
+import KaraokeSubtitles from './KaraokeSubtitles'
 import { normaliseExpression } from '../../services/vocab'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
@@ -361,10 +361,13 @@ const ExtensiveCinemaMode = ({
           {/* Subtitle overlay - always rendered, visibility controlled by subtitlesEnabled */}
           {subtitlesEnabled && (
             <div className="cinema-subtitle-overlay">
-              <CinemaSubtitles
-                transcript={{ segments: transcriptSegments }}
+              <KaraokeSubtitles
+                segments={transcriptSegments}
                 currentTime={currentTime}
-                renderHighlightedText={renderSubtitleText}
+                language={language}
+                vocabEntries={vocabEntries}
+                showWordStatus={showWordStatus}
+                onWordClick={handleWordClick}
                 onWordSelect={onSubtitleWordClick}
               />
             </div>

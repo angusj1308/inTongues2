@@ -6899,6 +6899,70 @@ body.active-pass-locked {
   color: #F97316;
 }
 
+/* Karaoke Subtitles - word-by-word reveal */
+.karaoke-subtitles {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 16px 28px;
+  border-radius: 12px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.4);
+  max-width: 100%;
+  text-align: center;
+}
+
+.karaoke-subtitles--empty,
+.karaoke-subtitles--waiting {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1rem;
+}
+
+.karaoke-line {
+  display: inline;
+}
+
+.karaoke-word {
+  cursor: pointer;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+/* Words not yet spoken - dimmed */
+.karaoke-word {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Words already spoken - full brightness */
+.karaoke-word--past {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Currently spoken word - highlighted */
+.karaoke-word--active {
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
+/* Word status highlighting with background */
+.karaoke-word--highlighted {
+  background: color-mix(in srgb, var(--hlt-base) calc(var(--hlt-opacity) * 100%), transparent);
+}
+
+.karaoke-word--highlighted.karaoke-word--active {
+  background: color-mix(in srgb, var(--hlt-base) calc(var(--hlt-opacity) * 150%), transparent);
+}
+
+/* Hover effect */
+.karaoke-word:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+}
 
 @media (max-width: 900px) {
   .cinema-toggle-label {

@@ -17,7 +17,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import { spawn } from 'child_process'
 import { createRequire } from 'module'
-import ytdl from 'ytdl-core'
+import ytdl from '@distube/ytdl-core'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')

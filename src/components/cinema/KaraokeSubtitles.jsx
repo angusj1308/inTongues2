@@ -32,16 +32,6 @@ const KaraokeWord = ({
 }) => {
   const color = getWordColor({ language, status })
 
-  // DEBUG: Log color calculation for first few words
-  if (isActive) {
-    console.log('[KaraokeWord] Color calculation:', {
-      text: word.text,
-      status,
-      language,
-      calculatedColor: color,
-    })
-  }
-
   const classNames = ['karaoke-word']
   if (isActive) classNames.push('karaoke-word--active')
   if (isPast) classNames.push('karaoke-word--past')
@@ -126,19 +116,6 @@ const KaraokeSubtitles = ({
             const entry = vocabEntries[normalised]
             const status = entry?.status || 'new'
 
-            // DEBUG: Log word status lookup
-            if (index === 0 || status !== 'new') {
-              console.log('[KaraokeSubtitles] Word lookup:', {
-                raw: word.text,
-                normalised,
-                entryFound: !!entry,
-                entryStatus: entry?.status,
-                derivedStatus: status,
-                vocabKeysCount: Object.keys(vocabEntries).length,
-                sampleKeys: Object.keys(vocabEntries).slice(0, 5),
-              })
-            }
-
             return (
               <KaraokeWord
                 key={`${word.start}-${index}`}
@@ -156,7 +133,9 @@ const KaraokeSubtitles = ({
     )
   }
 
-  // Fallback: no word-level timing, just show the segment text
+  // Fallback: no word-level timing - tokenize text and apply word status colors
+  const tokens = (activeSegment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+
   return (
     <div
       className="karaoke-subtitles"
@@ -164,7 +143,32 @@ const KaraokeSubtitles = ({
       style={{ cursor: 'pointer', userSelect: 'text' }}
     >
       <div className="karaoke-line karaoke-line--no-words">
-        {activeSegment.text}
+        {tokens.map((token, index) => {
+          if (!token) return null
+
+          const isWord = /[\p{L}\p{N}]/u.test(token)
+          if (!isWord) {
+            // Punctuation/whitespace - render as-is
+            return <span key={index}>{token}</span>
+          }
+
+          // Word token - look up status and apply color
+          const normalised = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+          const entry = vocabEntries[normalised]
+          const status = entry?.status || 'new'
+          const color = getWordColor({ language, status })
+
+          return (
+            <span
+              key={index}
+              className="karaoke-word"
+              style={{ color }}
+              onClick={(e) => onWordClick?.(token, e)}
+            >
+              {token}
+            </span>
+          )
+        })}
       </div>
     </div>
   )

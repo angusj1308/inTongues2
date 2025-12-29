@@ -457,6 +457,31 @@ const AudioPlayer = () => {
     preloadContentData()
   }, [id, isSpotify, user, storyMeta.language, storyMeta.voiceId, profile?.nativeLanguage])
 
+  // Initialize activeWordTranslations from preloaded data when it becomes available
+  useEffect(() => {
+    if (Object.keys(preloadedTranslations).length === 0 && Object.keys(preloadedPronunciations).length === 0) {
+      return
+    }
+
+    // Build initial translations from preloaded data
+    const initialTranslations = {}
+    const allWords = new Set([...Object.keys(preloadedTranslations), ...Object.keys(preloadedPronunciations)])
+
+    allWords.forEach((word) => {
+      initialTranslations[word] = {
+        translation: preloadedTranslations[word] || null,
+        audioBase64: null,
+        audioUrl: preloadedPronunciations[word] || null,
+      }
+      // Mark as already fetched so we don't re-fetch
+      fetchedWordsRef.current.add(word)
+    })
+
+    if (Object.keys(initialTranslations).length > 0) {
+      setActiveWordTranslations((prev) => ({ ...initialTranslations, ...prev }))
+    }
+  }, [preloadedTranslations, preloadedPronunciations])
+
   useEffect(() => {
     if (!isSpotify || !user) return undefined
 
@@ -1027,44 +1052,71 @@ const AudioPlayer = () => {
 
     async function fetchWordTranslations() {
       const newTranslations = {}
+      const wordsNeedingFetch = []
 
-      // Fetch translations in parallel with concurrency limit
-      const batchSize = 5
-      for (let i = 0; i < wordsToTranslate.length; i += batchSize) {
-        const batch = wordsToTranslate.slice(i, i + batchSize)
-        const promises = batch.map(async ({ word, normalised }) => {
-          try {
-            const response = await fetch('http://localhost:4000/api/translatePhrase', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                phrase: word,
-                sourceLang: storyLanguage || 'es',
-                targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-                voiceGender,
-              }),
-            })
+      // First, check preloaded data for each word
+      wordsToTranslate.forEach(({ word, normalised }) => {
+        const preloadedTranslation = preloadedTranslations[normalised]
+        const preloadedPronunciation = preloadedPronunciations[normalised]
 
-            if (response.ok) {
-              const data = await response.json()
-              newTranslations[normalised] = {
-                translation: data.translation || null,
-                audioBase64: data.audioBase64 || null,
-                audioUrl: data.audioUrl || null,
-              }
-            } else {
-              console.error(`Translation failed for "${word}":`, await response.text())
-            }
-          } catch (err) {
-            console.error(`Error translating word "${word}":`, err)
+        if (preloadedTranslation || preloadedPronunciation) {
+          // Use preloaded data - instant!
+          newTranslations[normalised] = {
+            translation: preloadedTranslation || null,
+            audioBase64: null,
+            audioUrl: preloadedPronunciation || null,
           }
-        })
+        } else {
+          // Need to fetch from API
+          wordsNeedingFetch.push({ word, normalised })
+        }
+      })
 
-        await Promise.all(promises)
-      }
-
+      // If we found preloaded data, add it immediately
       if (Object.keys(newTranslations).length > 0) {
         setActiveWordTranslations((prev) => ({ ...prev, ...newTranslations }))
+      }
+
+      // Fetch remaining words from API (if any)
+      if (wordsNeedingFetch.length > 0) {
+        const batchSize = 5
+        for (let i = 0; i < wordsNeedingFetch.length; i += batchSize) {
+          const batch = wordsNeedingFetch.slice(i, i + batchSize)
+          const promises = batch.map(async ({ word, normalised }) => {
+            try {
+              const response = await fetch('http://localhost:4000/api/translatePhrase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  phrase: word,
+                  sourceLang: storyLanguage || 'es',
+                  targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+                  voiceGender,
+                }),
+              })
+
+              if (response.ok) {
+                const data = await response.json()
+                newTranslations[normalised] = {
+                  translation: data.translation || null,
+                  audioBase64: data.audioBase64 || null,
+                  audioUrl: data.audioUrl || null,
+                }
+              } else {
+                console.error(`Translation failed for "${word}":`, await response.text())
+              }
+            } catch (err) {
+              console.error(`Error translating word "${word}":`, err)
+            }
+          })
+
+          await Promise.all(promises)
+        }
+
+        // Update with API-fetched translations
+        if (Object.keys(newTranslations).length > 0) {
+          setActiveWordTranslations((prev) => ({ ...prev, ...newTranslations }))
+        }
       }
     }
 
@@ -1077,6 +1129,8 @@ const AudioPlayer = () => {
     storyLanguage,
     profile?.nativeLanguage,
     voiceGender,
+    preloadedTranslations,
+    preloadedPronunciations,
   ])
 
   useEffect(() => {

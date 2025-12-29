@@ -913,6 +913,7 @@ const normalisePagesToSegments = (pages = []) =>
     if (!selection) return
 
     const parts = selection.split(/\s+/).filter(Boolean)
+    const popupHeight = 80 // Estimated popup height for positioning above
 
     if (parts.length > 1) {
       const phrase = selection
@@ -927,10 +928,13 @@ const normalisePagesToSegments = (pages = []) =>
       let audioBase64 = null
       let audioUrl = null
 
+      // Position popup ABOVE the subtitle
+      const popupY = Math.max(10, rect.top + window.scrollY - popupHeight - 12)
+
       if (!transcriptTtsLanguage) {
         setPopup({
-          x: rect.left + window.scrollX,
-          y: rect.bottom + window.scrollY + 8,
+          x: rect.left + rect.width / 2 + window.scrollX,
+          y: popupY,
           word: phrase,
           translation: missingLanguageMessage,
           audioBase64: null,
@@ -944,13 +948,13 @@ const normalisePagesToSegments = (pages = []) =>
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phrase,
-              sourceLang: transcriptLanguage || 'auto',
-              targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-              ttsLanguage: transcriptTtsLanguage,
-            }),
-          })
+          body: JSON.stringify({
+            phrase,
+            sourceLang: transcriptLanguage || 'auto',
+            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+            ttsLanguage: transcriptTtsLanguage,
+          }),
+        })
 
         if (response.ok) {
           const data = await response.json()
@@ -965,8 +969,8 @@ const normalisePagesToSegments = (pages = []) =>
       }
 
       setPopup({
-        x: rect.left + window.scrollX,
-        y: rect.bottom + window.scrollY + 8,
+        x: rect.left + rect.width / 2 + window.scrollX,
+        y: popupY,
         word: phrase,
         translation,
         audioBase64,
@@ -979,7 +983,21 @@ const normalisePagesToSegments = (pages = []) =>
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    const translation = translations[clean] || translations[selection] || 'No translation found'
+    // Check pre-fetched translations - can be object with audio or plain string
+    const prefetched = translations[clean] || translations[selection]
+    let translation = 'No translation found'
+    let audioBase64 = null
+    let audioUrl = null
+
+    if (prefetched) {
+      if (typeof prefetched === 'object') {
+        translation = prefetched.translation || 'No translation found'
+        audioBase64 = prefetched.audioBase64 || null
+        audioUrl = prefetched.audioUrl || null
+      } else {
+        translation = prefetched
+      }
+    }
 
     const selectionObj = window.getSelection()
     if (!selectionObj || selectionObj.rangeCount === 0) return
@@ -987,13 +1005,16 @@ const normalisePagesToSegments = (pages = []) =>
     const range = selectionObj.getRangeAt(0)
     const rect = range.getBoundingClientRect()
 
+    // Position popup ABOVE the subtitle
+    const popupY = Math.max(10, rect.top + window.scrollY - popupHeight - 12)
+
     setPopup({
-      x: rect.left + window.scrollX,
-      y: rect.bottom + window.scrollY + 8,
+      x: rect.left + rect.width / 2 + window.scrollX,
+      y: popupY,
       word: clean,
       translation,
-      audioBase64: null,
-      audioUrl: null,
+      audioBase64,
+      audioUrl,
     })
   }
 
@@ -1151,6 +1172,7 @@ const normalisePagesToSegments = (pages = []) =>
           transcriptPanelOpen={transcriptPanelOpen}
           onCloseTranscript={handleCloseTranscript}
           darkMode={cinemaDarkMode}
+          translations={translations}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>

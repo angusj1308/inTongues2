@@ -6954,8 +6954,8 @@ body.active-pass-locked {
 /* Highlighted words use CSS variable for language-specific color
    - New words: orange (#F97316)
    - Unknown/Recognised/Familiar: language color (e.g. red for Spanish)
-   This matches the WordTokenListening approach used in transcript panel */
-.cinema-subtitle-overlay .karaoke-word--highlighted {
+   Higher specificity (0,3,0) ensures this overrides the base .karaoke-word rule */
+.cinema-subtitle-overlay .karaoke-word.karaoke-word--highlighted {
   color: var(--hlt-base, #ffffff);
   font-weight: 600;
 }

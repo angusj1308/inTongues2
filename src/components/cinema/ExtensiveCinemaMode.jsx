@@ -54,6 +54,7 @@ const ExtensiveCinemaMode = ({
   onCloseTranscript,
   darkMode = true,
   translations = {},
+  pronunciations = {},
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
@@ -123,23 +124,48 @@ const ExtensiveCinemaMode = ({
         height: targetRect.height ?? 0,
       }
 
-      // Check pre-fetched translations first (single word lookup)
+      // Check pre-fetched translations and pronunciations first (single word lookup)
       const normalised = normaliseExpression(text)
-      const prefetched = translations[normalised] || translations[text]
+      const prefetchedTranslation = translations[normalised] || translations[text]
+      const prefetchedPronunciation = pronunciations[normalised] || pronunciations[text]
 
-      if (prefetched) {
-        // Use pre-fetched translation - no API call needed
+      if (prefetchedTranslation || prefetchedPronunciation) {
+        // Handle translation (can be string or object)
+        let translation = 'No translation found'
+        let audioBase64 = null
+        let audioUrl = null
+
+        if (prefetchedTranslation) {
+          if (typeof prefetchedTranslation === 'string') {
+            translation = prefetchedTranslation
+          } else {
+            translation = prefetchedTranslation.translation || 'No translation found'
+            audioBase64 = prefetchedTranslation.audioBase64 || null
+            audioUrl = prefetchedTranslation.audioUrl || null
+          }
+        }
+
+        // Handle pronunciation (can be string URL or object)
+        if (prefetchedPronunciation && !audioUrl) {
+          if (typeof prefetchedPronunciation === 'string') {
+            audioUrl = prefetchedPronunciation
+          } else if (prefetchedPronunciation.audioUrl) {
+            audioUrl = prefetchedPronunciation.audioUrl
+          }
+        }
+
+        // Use pre-fetched data - no API call needed
         setPopup({
           x,
           y,
           anchorRect,
           anchorX: anchorRect.left + anchorRect.width / 2,
           word: text,
-          displayText: prefetched.targetText || text,
-          translation: prefetched.translation || 'No translation found',
-          targetText: prefetched.targetText || prefetched.translation || text,
-          audioBase64: prefetched.audioBase64 || null,
-          audioUrl: prefetched.audioUrl || null,
+          displayText: text,
+          translation,
+          targetText: translation,
+          audioBase64,
+          audioUrl,
           requestId,
         })
         return
@@ -222,7 +248,7 @@ const ExtensiveCinemaMode = ({
           : prev
       )
     },
-    [language, nativeLanguage, voiceGender, setPopup, translations]
+    [language, nativeLanguage, voiceGender, setPopup, translations, pronunciations]
   )
 
   const handleTranscriptSelection = useCallback(

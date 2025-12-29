@@ -1177,6 +1177,7 @@ const normalisePagesToSegments = (pages = []) =>
           onCloseTranscript={handleCloseTranscript}
           darkMode={cinemaDarkMode}
           translations={translations}
+          pronunciations={pronunciations}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>

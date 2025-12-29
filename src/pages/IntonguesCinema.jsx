@@ -726,6 +726,27 @@ const normalisePagesToSegments = (pages = []) =>
     setCompletedPasses(new Set())
   }, [activeChunkIndex, cinemaMode])
 
+  // Enforce chunk boundaries in Active mode - pause at chunk end, snap to chunk start
+  useEffect(() => {
+    if (cinemaMode !== 'active') return
+    const chunk = chunks[activeChunkIndex]
+    if (!chunk) return
+
+    const currentTime = playbackStatus.currentTime
+
+    // Past chunk end → pause and hold at end
+    if (currentTime > chunk.end + 0.2) {
+      playerRef.current?.pauseVideo?.()
+      handleSeek(chunk.end)
+      return
+    }
+
+    // Before chunk start → snap to start
+    if (currentTime < chunk.start - 0.2) {
+      handleSeek(chunk.start)
+    }
+  }, [cinemaMode, activeChunkIndex, chunks, playbackStatus.currentTime, handleSeek])
+
   // Dismiss popup when clicking outside
   useEffect(() => {
     if (!popup) return undefined
@@ -1183,16 +1204,20 @@ const normalisePagesToSegments = (pages = []) =>
       return <p className="error">This video cannot be embedded.</p>
     }
 
+    // Hide YouTube controls in Active mode for controlled chunk-based experience
+    const showControls = cinemaMode !== 'active'
+
     return (
       <YouTubePlayer
         ref={playerRef}
         videoId={videoId}
+        controls={showControls}
         onStatus={handleVideoStatus}
         onPlayerReady={handlePlayerReady}
         onPlayerStateChange={handlePlayerStateChange}
       />
     )
-  }, [isSpotify, videoId])
+  }, [isSpotify, videoId, cinemaMode])
 
   const safeCurrentTime = Number.isFinite(playbackStatus.currentTime) ? playbackStatus.currentTime : 0
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0

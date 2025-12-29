@@ -6944,6 +6944,10 @@ body.active-pass-locked {
   opacity: 1;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
   font-weight: 600;
+  transform: scale(1.08);
+  display: inline-block;
+  border-bottom: 2px solid currentColor;
+  padding-bottom: 1px;
 }
 
 /* Hover effect */

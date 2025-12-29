@@ -236,6 +236,47 @@ const normaliseSegments = (segments = []) =>
     })
     .filter((segment) => segment.text)
 
+// Merge choppy segments into complete sentences while preserving word-level timing
+const mergeSegmentsIntoSentences = (segments = []) => {
+  if (!segments.length) return []
+
+  const sentences = []
+  let currentSentence = null
+
+  for (const segment of segments) {
+    if (!currentSentence) {
+      // Start a new sentence
+      currentSentence = {
+        start: segment.start,
+        end: segment.end,
+        text: segment.text,
+        words: segment.words ? [...segment.words] : [],
+      }
+    } else {
+      // Append to current sentence
+      currentSentence.end = segment.end
+      currentSentence.text = `${currentSentence.text} ${segment.text}`.trim()
+      if (segment.words) {
+        currentSentence.words.push(...segment.words)
+      }
+    }
+
+    // Check if segment ends with sentence-ending punctuation
+    const trimmedText = segment.text.trim()
+    if (/[.!?]$/.test(trimmedText)) {
+      sentences.push(currentSentence)
+      currentSentence = null
+    }
+  }
+
+  // Push any remaining partial sentence
+  if (currentSentence) {
+    sentences.push(currentSentence)
+  }
+
+  return sentences
+}
+
 const normalisePagesToSegments = (pages = []) =>
   (Array.isArray(pages) ? pages : [])
     .map((page, index) => {
@@ -302,9 +343,12 @@ const normalisePagesToSegments = (pages = []) =>
     const rawSegments = normaliseSegments(transcript?.segments)
     const sentenceSegments = normaliseSegments(transcript?.sentenceSegments)
 
-    // Prefer raw segments if they have word-level timing (YouTube caraoke)
+    // If raw segments have word-level timing, merge them into sentences
+    // This preserves word timing while giving clean sentence-based display
     const hasWordData = rawSegments.some((seg) => seg.words?.length > 0)
-    if (hasWordData) return rawSegments
+    if (hasWordData) {
+      return mergeSegmentsIntoSentences(rawSegments)
+    }
 
     // Fall back to sentence segments for Whisper transcripts
     if (sentenceSegments.length) return sentenceSegments

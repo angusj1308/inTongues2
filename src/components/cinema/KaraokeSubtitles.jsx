@@ -136,16 +136,6 @@ const KaraokeSubtitles = ({
   // Fallback: no word-level timing - tokenize text and apply word status colors
   const tokens = (activeSegment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
 
-  // DEBUG: Log fallback path data
-  console.log('[KaraokeSubtitles FALLBACK]', {
-    text: activeSegment.text,
-    tokenCount: tokens.length,
-    tokens: tokens.slice(0, 10),
-    vocabKeysCount: Object.keys(vocabEntries).length,
-    sampleVocabKeys: Object.keys(vocabEntries).slice(0, 10),
-    language,
-  })
-
   return (
     <div
       className="karaoke-subtitles"
@@ -167,18 +157,6 @@ const KaraokeSubtitles = ({
           const entry = vocabEntries[normalised]
           const status = entry?.status || 'new'
           const color = getWordColor({ language, status })
-
-          // DEBUG: Log first few word lookups
-          if (index < 6) {
-            console.log('[KaraokeSubtitles WORD]', {
-              token,
-              normalised,
-              entryFound: !!entry,
-              entryStatus: entry?.status,
-              status,
-              color,
-            })
-          }
 
           return (
             <span

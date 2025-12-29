@@ -6,13 +6,22 @@ import { normaliseExpression } from '../../services/vocab'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
 
-const getPopupPosition = (rect) => {
+const getPopupPosition = (rect, positionAbove = false) => {
   const padding = 10
+  const popupHeight = 80 // Estimated popup height for positioning above
   const viewportWidth = window.innerWidth || 0
   const viewportHeight = window.innerHeight || 0
 
   const x = Math.min(Math.max(rect.x + rect.width / 2, padding), viewportWidth - padding)
-  const y = Math.min(rect.y + rect.height + 12, viewportHeight - padding)
+
+  let y
+  if (positionAbove) {
+    // Position above the word with enough room for the popup
+    y = Math.max(rect.top - popupHeight - 12, padding)
+  } else {
+    // Position below the word
+    y = Math.min(rect.y + rect.height + 12, viewportHeight - padding)
+  }
 
   return { x, y }
 }
@@ -44,6 +53,7 @@ const ExtensiveCinemaMode = ({
   transcriptPanelOpen = false,
   onCloseTranscript,
   darkMode = true,
+  translations = {},
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
@@ -113,6 +123,29 @@ const ExtensiveCinemaMode = ({
         height: targetRect.height ?? 0,
       }
 
+      // Check pre-fetched translations first (single word lookup)
+      const normalised = normaliseExpression(text)
+      const prefetched = translations[normalised] || translations[text]
+
+      if (prefetched) {
+        // Use pre-fetched translation - no API call needed
+        setPopup({
+          x,
+          y,
+          anchorRect,
+          anchorX: anchorRect.left + anchorRect.width / 2,
+          word: text,
+          displayText: prefetched.targetText || text,
+          translation: prefetched.translation || 'No translation found',
+          targetText: prefetched.targetText || prefetched.translation || text,
+          audioBase64: prefetched.audioBase64 || null,
+          audioUrl: prefetched.audioUrl || null,
+          requestId,
+        })
+        return
+      }
+
+      // No pre-fetched translation - show loading and make on-demand API call
       setPopup({
         x,
         y,
@@ -189,7 +222,7 @@ const ExtensiveCinemaMode = ({
           : prev
       )
     },
-    [language, nativeLanguage, voiceGender, setPopup]
+    [language, nativeLanguage, voiceGender, setPopup, translations]
   )
 
   const handleTranscriptSelection = useCallback(

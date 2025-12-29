@@ -6924,16 +6924,15 @@ body.active-pass-locked {
   display: inline;
 }
 
+/* Karaoke word base styles */
 .karaoke-word {
   cursor: pointer;
   transition: opacity 0.15s ease;
   padding: 0 2px;
   border-radius: 4px;
-  /* Default: white for known words (no highlight) */
-  color: #ffffff;
 }
 
-/* Words already spoken - full brightness */
+/* Words already spoken - slightly dimmed */
 .karaoke-word--past {
   opacity: 0.85;
 }
@@ -6945,17 +6944,23 @@ body.active-pass-locked {
   font-weight: 600;
 }
 
+/* Karaoke subtitle colors - scoped to cinema overlay for proper specificity
+   This overrides any inherited colors from :root or parent elements */
+.cinema-subtitle-overlay .karaoke-word {
+  color: #ffffff;
+}
+
 /* Highlighted words use CSS variable for language-specific color
    - New words: orange (#F97316)
    - Unknown/Recognised/Familiar: language color (e.g. red for Spanish)
    This matches the WordTokenListening approach used in transcript panel */
-.karaoke-word--highlighted {
+.cinema-subtitle-overlay .karaoke-word--highlighted {
   color: var(--hlt-base, #ffffff);
   font-weight: 600;
 }
 
 /* Hover effect */
-.karaoke-word:hover {
+.cinema-subtitle-overlay .karaoke-word:hover {
   color: #ffffff !important;
   background: rgba(255, 255, 255, 0.15);
 }

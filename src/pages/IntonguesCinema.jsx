@@ -599,56 +599,46 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }, [transcriptLanguage, user])
 
+  // Preload translations from cache when content opens
   useEffect(() => {
-    if (!displaySegments.length) return
-
-    const words = Array.from(
-      new Set(
-        displaySegments
-          .map((segment) => segment.text || '')
-          .join(' ')
-          .replace(/[^\p{L}\p{N}]+/gu, ' ')
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean)
-      )
-    )
-
-    if (words.length === 0) return
+    if (!id || !user || !transcriptLanguage) return
 
     const controller = new AbortController()
+    const contentType = isSpotify ? 'spotify' : 'youtube'
 
-    async function prefetch() {
+    async function preloadTranslations() {
       try {
-        const response = await fetch('http://localhost:4000/api/prefetchTranslations', {
+        const response = await fetch('http://localhost:4000/api/content/preload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            languageCode: transcriptLanguage || 'auto',
-            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            words,
+            uid: user.uid,
+            contentId: id,
+            contentType,
+            targetLanguage: transcriptLanguage,
+            nativeLanguage: resolveSupportedLanguageLabel(profile?.nativeLanguage),
           }),
           signal: controller.signal,
         })
 
         if (!response.ok) {
-          console.error('Failed to prefetch subtitle translations', await response.text())
+          console.error('Failed to preload translations', await response.text())
           return
         }
 
         const data = await response.json()
         setTranslations(data.translations || {})
-      } catch (prefetchError) {
-        if (prefetchError.name !== 'AbortError') {
-          console.error('Error prefetching subtitle translations', prefetchError)
+      } catch (preloadError) {
+        if (preloadError.name !== 'AbortError') {
+          console.error('Error preloading translations', preloadError)
         }
       }
     }
 
-    prefetch()
+    preloadTranslations()
 
     return () => controller.abort()
-  }, [displaySegments, profile?.nativeLanguage, transcriptLanguage])
+  }, [id, isSpotify, user, transcriptLanguage, profile?.nativeLanguage])
 
   useEffect(() => {
     if (!isSpotify) return undefined

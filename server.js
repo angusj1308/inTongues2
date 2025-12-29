@@ -3222,9 +3222,21 @@ function extractUniqueWords(text) {
   return uniqueWords
 }
 
-// Internal function to prepare content pronunciations (can be called from other endpoints)
+// Internal function to prepare content pronunciations AND translations (can be called from other endpoints)
 async function prepareContentPronunciations(uid, contentId, contentType, targetLanguage, voiceId) {
   const normalizedLang = targetLanguage.toLowerCase().trim()
+
+  // Get user's native language from their profile (default to english)
+  let nativeLanguage = 'english'
+  try {
+    const userDoc = await firestore.collection('users').doc(uid).get()
+    if (userDoc.exists) {
+      const userData = userDoc.data() || {}
+      nativeLanguage = (userData.nativeLanguage || 'english').toLowerCase().trim()
+    }
+  } catch (err) {
+    console.error('Failed to fetch user native language, defaulting to english:', err)
+  }
 
   // Determine voice ID if not provided
   let finalVoiceId = voiceId
@@ -3333,37 +3345,68 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     return { success: true, wordsProcessed: 0, wordsFetched: 0 }
   }
 
-  // Check which pronunciations are missing
-  const missingWords = await getMissingPronunciations(wordsToProcess, normalizedLang, finalVoiceId)
+  // Check which pronunciations and translations are missing
+  const [missingPronunciations, missingTranslations] = await Promise.all([
+    getMissingPronunciations(wordsToProcess, normalizedLang, finalVoiceId),
+    getMissingTranslations(wordsToProcess, normalizedLang, nativeLanguage),
+  ])
 
-  if (missingWords.length === 0) {
+  // Combine into unique set of words that need fetching
+  const allMissingWords = [...new Set([...missingPronunciations, ...missingTranslations])]
+  const missingPronunciationsSet = new Set(missingPronunciations)
+  const missingTranslationsSet = new Set(missingTranslations)
+
+  if (allMissingWords.length === 0) {
     await contentRef.update({
       preparationStatus: 'ready',
       preparationProgress: 100,
       voiceId: finalVoiceId,
     })
-    return { success: true, wordsProcessed: wordsToProcess.length, wordsFetched: 0 }
+    return { success: true, wordsProcessed: wordsToProcess.length, pronunciationsFetched: 0, translationsFetched: 0 }
   }
 
-  // Fetch missing pronunciations from ElevenLabs (with rate limiting)
-  let wordsFetched = 0
+  // Fetch missing pronunciations AND translations (with rate limiting)
+  let pronunciationsFetched = 0
+  let translationsFetched = 0
   const concurrencyLimit = 3
-  const totalMissing = missingWords.length
+  const totalMissing = allMissingWords.length
 
-  for (let i = 0; i < missingWords.length; i += concurrencyLimit) {
-    const batch = missingWords.slice(i, i + concurrencyLimit)
+  for (let i = 0; i < allMissingWords.length; i += concurrencyLimit) {
+    const batch = allMissingWords.slice(i, i + concurrencyLimit)
 
     await Promise.all(
       batch.map(async (word) => {
-        try {
-          const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
-          if (audioBuffer) {
-            await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
-            wordsFetched++
+        // Fetch pronunciation if missing
+        if (missingPronunciationsSet.has(word)) {
+          try {
+            const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
+            if (audioBuffer) {
+              await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
+              pronunciationsFetched++
+            }
+          } catch (ttsError) {
+            console.error(`Failed to fetch pronunciation for "${word}":`, ttsError.message)
+            // Continue - pronunciation failures shouldn't block content
           }
-        } catch (ttsError) {
-          console.error(`Failed to fetch pronunciation for "${word}":`, ttsError.message)
-          // Continue - pronunciation failures shouldn't block content
+        }
+
+        // Fetch translation if missing
+        if (missingTranslationsSet.has(word)) {
+          try {
+            const prompt = `Translate the following word from ${normalizedLang} to ${nativeLanguage}. Return only the translated word or short phrase, with no extra commentary.\n\n${word}`
+            const response = await client.responses.create({
+              model: 'gpt-4o-mini',
+              input: prompt,
+            })
+            const translation = response.output_text?.trim()
+            if (translation && translation !== word) {
+              await saveTranslation(word, normalizedLang, nativeLanguage, translation)
+              translationsFetched++
+            }
+          } catch (translateError) {
+            console.error(`Failed to fetch translation for "${word}":`, translateError.message)
+            // Continue - translation failures shouldn't block content
+          }
         }
       })
     )
@@ -3373,7 +3416,7 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     await contentRef.update({ preparationProgress: progress })
 
     // Small delay between batches to avoid rate limiting
-    if (i + concurrencyLimit < missingWords.length) {
+    if (i + concurrencyLimit < allMissingWords.length) {
       await new Promise((resolve) => setTimeout(resolve, 200))
     }
   }
@@ -3388,8 +3431,9 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
   return {
     success: true,
     wordsProcessed: wordsToProcess.length,
-    wordsFetched,
-    wordsMissing: missingWords.length,
+    pronunciationsFetched,
+    translationsFetched,
+    totalMissing: allMissingWords.length,
   }
 }
 

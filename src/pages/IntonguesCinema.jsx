@@ -212,16 +212,27 @@ const normaliseSegments = (segments = []) =>
     .map((segment) => {
       const start = Number.isFinite(segment.start)
         ? Number(segment.start)
-          : Number(segment.startMs) / 1000 || 0
-        const end = Number.isFinite(segment.end)
-          ? Number(segment.end)
-          : Number(segment.endMs) / 1000 || start
+        : Number(segment.startMs) / 1000 || 0
+      const end = Number.isFinite(segment.end)
+        ? Number(segment.end)
+        : Number(segment.endMs) / 1000 || start
 
-        return {
-          start,
-          end: end > start ? end : start,
-          text: segment.text || '',
+      const result = {
+        start,
+        end: end > start ? end : start,
+        text: segment.text || '',
       }
+
+      // Preserve word-level timing if present
+      if (Array.isArray(segment.words) && segment.words.length > 0) {
+        result.words = segment.words.map((w) => ({
+          text: (w.text || '').trim(),
+          start: Number(w.start) || start,
+          end: Number(w.end) || end,
+        }))
+      }
+
+      return result
     })
     .filter((segment) => segment.text)
 
@@ -288,9 +299,16 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   const displaySegments = useMemo(() => {
+    const rawSegments = normaliseSegments(transcript?.segments)
     const sentenceSegments = normaliseSegments(transcript?.sentenceSegments)
+
+    // Prefer raw segments if they have word-level timing (YouTube caraoke)
+    const hasWordData = rawSegments.some((seg) => seg.words?.length > 0)
+    if (hasWordData) return rawSegments
+
+    // Fall back to sentence segments for Whisper transcripts
     if (sentenceSegments.length) return sentenceSegments
-    return normaliseSegments(transcript?.segments)
+    return rawSegments
   }, [transcript])
 
   // Generate chunks for active mode
@@ -707,6 +725,33 @@ const normalisePagesToSegments = (pages = []) =>
     setActiveStep(1)
     setCompletedPasses(new Set())
   }, [activeChunkIndex, cinemaMode])
+
+  // Dismiss popup when clicking outside
+  useEffect(() => {
+    if (!popup) return undefined
+
+    const handleClickOutside = (event) => {
+      // Check if click is inside the popup
+      const popupElement = event.target.closest('.cinema-word-popup')
+      if (popupElement) return
+
+      // Check if click is on a word (which would trigger a new popup)
+      const wordElement = event.target.closest('.reader-word, .page-text span')
+      if (wordElement) return
+
+      setPopup(null)
+    }
+
+    // Use setTimeout to avoid immediate dismissal from the click that opened it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside)
+    }, 0)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [popup])
 
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)

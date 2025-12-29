@@ -975,12 +975,23 @@ const normaliseTranscriptSegments = (segments = []) =>
         ? Number(segment.end)
         : Number(segment.endMs) / 1000 || start
 
-      return {
+      const result = {
         start,
         end: end > start ? end : start,
         text: (segment.text || '').trim(),
       }
-  })
+
+      // Preserve word-level timing if present
+      if (Array.isArray(segment.words) && segment.words.length > 0) {
+        result.words = segment.words.map((w) => ({
+          text: (w.text || '').trim(),
+          start: Number(w.start) || start,
+          end: Number(w.end) || end,
+        }))
+      }
+
+      return result
+    })
   .filter((segment) => segment.text)
 
 app.get('/api/spotify/status', async (req, res) => {
@@ -1655,22 +1666,49 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 
   const segments = events
     .map((event) => {
-      const start = Number(event.tStartMs || event.startMs || 0) / 1000
-      const durationMs =
-        Number(event.dDurationMs ?? event.dur ?? event.segs?.[0]?.tDurMs ?? 0)
-      const end = start + durationMs / 1000
-      const text = (event.segs || [])
-        .map((seg) => (seg.utf8 || '').replace('\n', ' '))
-        .join('')
-        .replace(/\s+/g, ' ')
-        .trim()
+      const eventStartMs = Number(event.tStartMs || event.startMs || 0)
+      const eventStart = eventStartMs / 1000
+      const durationMs = Number(event.dDurationMs ?? event.dur ?? event.segs?.[0]?.tDurMs ?? 0)
+      const eventEnd = eventStart + durationMs / 1000
 
-      if (!text) return null
+      const segs = event.segs || []
+      if (!segs.length) return null
+
+      // Extract word-level timing from segs array
+      const words = []
+      for (let i = 0; i < segs.length; i++) {
+        const seg = segs[i]
+        const wordText = (seg.utf8 || '').replace('\n', ' ').trim()
+        if (!wordText) continue
+
+        const wordOffsetMs = Number(seg.tOffsetMs || 0)
+        const wordStart = (eventStartMs + wordOffsetMs) / 1000
+
+        // Word end is either next word's start or segment end
+        let wordEnd
+        if (i < segs.length - 1) {
+          const nextOffsetMs = Number(segs[i + 1].tOffsetMs || wordOffsetMs)
+          wordEnd = (eventStartMs + nextOffsetMs) / 1000
+        } else {
+          wordEnd = eventEnd
+        }
+
+        words.push({
+          text: wordText,
+          start: wordStart,
+          end: wordEnd > wordStart ? wordEnd : wordStart + 0.1,
+        })
+      }
+
+      if (!words.length) return null
+
+      const text = words.map((w) => w.text).join(' ').replace(/\s+/g, ' ').trim()
 
       return {
-        start,
-        end: end > start ? end : start,
+        start: eventStart,
+        end: eventEnd > eventStart ? eventEnd : eventStart,
         text,
+        words,
       }
     })
     .filter(Boolean)

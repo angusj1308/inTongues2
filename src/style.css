@@ -6911,6 +6911,7 @@ body.active-pass-locked {
   line-height: 1.6;
   max-width: 100%;
   text-align: center;
+  color: #ffffff;  /* WHITE TEXT - breaks inheritance from :root #0f172a */
 }
 
 .karaoke-subtitles--empty,

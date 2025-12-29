@@ -127,9 +127,14 @@ const IntensiveCinemaMode = ({
       setProgress(Math.min(100, Math.max(0, prog)))
     }
 
-    // Handle looping
-    if (isLooping && isPlaying && currentTime >= actualLoopEnd) {
-      onSeek?.(actualLoopStart)
+    // Handle segment boundary - loop or pause at end
+    if (isPlaying && currentTime >= actualLoopEnd) {
+      if (isLooping) {
+        onSeek?.(actualLoopStart)
+      } else {
+        // Pause video when reaching segment end
+        onPlayPause?.()
+      }
     }
   }, [
     cinemaMode,
@@ -143,6 +148,7 @@ const IntensiveCinemaMode = ({
     actualLoopEnd,
     actualLoopStart,
     onSeek,
+    onPlayPause,
   ])
 
   // Render translation with highlights

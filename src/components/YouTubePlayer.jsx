@@ -30,7 +30,7 @@ const loadYouTubeApi = () => {
   return youtubeApiPromise
 }
 
-const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerStateChange }, ref) => {
+const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerStateChange, hideControls = false }, ref) => {
   const containerRef = useRef(null)
   const playerRef = useRef(null)
   const statusIntervalRef = useRef(null)
@@ -57,7 +57,7 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
         playerRef.current = new YT.Player(containerRef.current, {
           videoId,
           playerVars: {
-            controls: 1,
+            controls: hideControls ? 0 : 1,
             rel: 0,
             cc_load_policy: 0,
             modestbranding: 1,
@@ -93,7 +93,7 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
         playerRef.current = null
       }
     }
-  }, [videoId])
+  }, [videoId, hideControls])
 
   useImperativeHandle(
     ref,

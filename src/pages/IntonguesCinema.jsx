@@ -672,14 +672,14 @@ const normalisePagesToSegments = (pages = []) =>
     return undefined
   }, [isSpotify, spotifyState])
 
-  // Fullscreen API handling for extensive mode
+  // Fullscreen API handling for extensive and intensive modes
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isNowFullscreen = !!document.fullscreenElement
       setIsFullscreen(isNowFullscreen)
 
       // If user exits fullscreen via Esc, switch to active mode
-      if (!isNowFullscreen && cinemaMode === 'extensive') {
+      if (!isNowFullscreen && (cinemaMode === 'extensive' || cinemaMode === 'intensive')) {
         setCinemaMode('active')
       }
     }
@@ -688,10 +688,12 @@ const normalisePagesToSegments = (pages = []) =>
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [cinemaMode])
 
-  // Enter/exit fullscreen when switching to/from extensive mode
+  // Enter/exit fullscreen when switching to/from extensive or intensive mode
   useEffect(() => {
+    const isFullscreenMode = cinemaMode === 'extensive' || cinemaMode === 'intensive'
+
     const enterFullscreen = async () => {
-      if (cinemaMode === 'extensive' && cinemaContainerRef.current && !document.fullscreenElement) {
+      if (isFullscreenMode && cinemaContainerRef.current && !document.fullscreenElement) {
         try {
           await cinemaContainerRef.current.requestFullscreen()
           setIsFullscreen(true)
@@ -702,7 +704,7 @@ const normalisePagesToSegments = (pages = []) =>
     }
 
     const exitFullscreen = async () => {
-      if (cinemaMode !== 'extensive' && document.fullscreenElement) {
+      if (!isFullscreenMode && document.fullscreenElement) {
         try {
           await document.exitFullscreen()
           setIsFullscreen(false)
@@ -712,7 +714,7 @@ const normalisePagesToSegments = (pages = []) =>
       }
     }
 
-    if (cinemaMode === 'extensive') {
+    if (isFullscreenMode) {
       enterFullscreen()
     } else {
       exitFullscreen()
@@ -1190,9 +1192,10 @@ const normalisePagesToSegments = (pages = []) =>
         onStatus={handleVideoStatus}
         onPlayerReady={handlePlayerReady}
         onPlayerStateChange={handlePlayerStateChange}
+        hideControls={cinemaMode === 'intensive'}
       />
     )
-  }, [isSpotify, videoId])
+  }, [isSpotify, videoId, cinemaMode])
 
   const safeCurrentTime = Number.isFinite(playbackStatus.currentTime) ? playbackStatus.currentTime : 0
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0

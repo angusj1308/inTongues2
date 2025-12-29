@@ -32,6 +32,16 @@ const KaraokeWord = ({
 }) => {
   const color = getWordColor({ language, status })
 
+  // DEBUG: Log color calculation for first few words
+  if (isActive) {
+    console.log('[KaraokeWord] Color calculation:', {
+      text: word.text,
+      status,
+      language,
+      calculatedColor: color,
+    })
+  }
+
   const classNames = ['karaoke-word']
   if (isActive) classNames.push('karaoke-word--active')
   if (isPast) classNames.push('karaoke-word--past')
@@ -115,6 +125,19 @@ const KaraokeSubtitles = ({
             const normalised = word.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
             const entry = vocabEntries[normalised]
             const status = entry?.status || 'new'
+
+            // DEBUG: Log word status lookup
+            if (index === 0 || status !== 'new') {
+              console.log('[KaraokeSubtitles] Word lookup:', {
+                raw: word.text,
+                normalised,
+                entryFound: !!entry,
+                entryStatus: entry?.status,
+                derivedStatus: status,
+                vocabKeysCount: Object.keys(vocabEntries).length,
+                sampleKeys: Object.keys(vocabEntries).slice(0, 5),
+              })
+            }
 
             return (
               <KaraokeWord

@@ -13,25 +13,17 @@ const getLanguageColor = (language) => {
   return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
 }
 
-// Get highlight style with CSS variables (matching WordTokenListening approach)
-function getHighlightStyle({ language, status, showWordStatus }) {
-  if (!showWordStatus) return {}
-
-  // Known words have no highlight (white text, blends in)
-  if (status === 'known') return {}
+// Get highlight color directly based on word status
+function getWordColor({ language, status, showWordStatus }) {
+  // Default to white
+  if (!showWordStatus) return '#ffffff'
+  if (status === 'known') return '#ffffff'
 
   const opacity = STATUS_OPACITY[status]
-  if (!opacity || opacity === 0) return {}
+  if (!opacity || opacity === 0) return '#ffffff'
 
   // New words are always orange, others use language color
-  const base = status === 'new'
-    ? '#F97316'
-    : getLanguageColor(language)
-
-  return {
-    '--hlt-base': base,
-    '--hlt-opacity': opacity,
-  }
+  return status === 'new' ? '#F97316' : getLanguageColor(language)
 }
 
 const KaraokeWord = ({
@@ -43,13 +35,11 @@ const KaraokeWord = ({
   showWordStatus,
   onWordClick,
 }) => {
-  const style = getHighlightStyle({ language, status, showWordStatus })
-  const isHighlighted = Boolean(style['--hlt-opacity'])
+  const color = getWordColor({ language, status, showWordStatus })
 
   const classNames = ['karaoke-word']
   if (isActive) classNames.push('karaoke-word--active')
   if (isPast) classNames.push('karaoke-word--past')
-  if (isHighlighted) classNames.push('karaoke-word--highlighted')
 
   const handleClick = (event) => {
     if (onWordClick) {
@@ -60,7 +50,7 @@ const KaraokeWord = ({
   return (
     <span
       className={classNames.join(' ')}
-      style={style}
+      style={{ color }}
       onClick={handleClick}
     >
       {word.text}

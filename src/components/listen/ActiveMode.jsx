@@ -301,25 +301,11 @@ const ActiveMode = ({
 
         const translationData = wordTranslations[normalised] || {}
 
-        // Safely extract translation string - handle both string and object formats
-        let translationValue = null
-        if (translationData.translation) {
-          // If translation is an object with a .translation property, extract it
-          translationValue = typeof translationData.translation === 'object'
-            ? translationData.translation.translation
-            : translationData.translation
-        }
-        if (!translationValue && entry?.translation) {
-          translationValue = typeof entry.translation === 'object'
-            ? entry.translation.translation
-            : entry.translation
-        }
-
         wordSet.set(normalised, {
           word: token,
           normalised,
           status,
-          translation: translationValue || null,
+          translation: translationData.translation || entry?.translation || null,
           audioBase64: translationData.audioBase64 || null,
           audioUrl: translationData.audioUrl || null,
         })

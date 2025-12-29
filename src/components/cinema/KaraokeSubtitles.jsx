@@ -1,46 +1,23 @@
 import { useMemo } from 'react'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
-
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
 
 const KaraokeWord = ({
   word,
   isActive,
   isPast,
   status,
-  language,
   showWordStatus,
   onWordClick,
 }) => {
-  const languageColor = getLanguageColor(language)
-
-  const getWordStyle = () => {
-    const style = {}
-
-    // Word status highlighting (background tint)
-    if (showWordStatus && status && status !== 'known') {
-      const opacity = STATUS_OPACITY[status]
-      if (opacity && opacity > 0) {
-        const baseColor = status === 'new' ? '#F97316' : languageColor
-        style['--hlt-base'] = baseColor
-        style['--hlt-opacity'] = opacity
-      }
-    }
-
-    return style
-  }
-
   const classNames = ['karaoke-word']
   if (isActive) classNames.push('karaoke-word--active')
   if (isPast) classNames.push('karaoke-word--past')
-  if (showWordStatus && status && status !== 'known') {
-    classNames.push('karaoke-word--highlighted')
+
+  // Add word status class for text coloring
+  if (showWordStatus && status) {
+    classNames.push(`word-${status}`)
+  } else {
+    // Default to white (known) when word status is off
+    classNames.push('word-known')
   }
 
   const handleClick = (event) => {
@@ -52,7 +29,6 @@ const KaraokeWord = ({
   return (
     <span
       className={classNames.join(' ')}
-      style={getWordStyle()}
       onClick={handleClick}
     >
       {word.text}
@@ -130,7 +106,6 @@ const KaraokeSubtitles = ({
                 isActive={index === activeWordIndex}
                 isPast={index < activeWordIndex}
                 status={status}
-                language={language}
                 showWordStatus={showWordStatus}
                 onWordClick={onWordClick}
               />

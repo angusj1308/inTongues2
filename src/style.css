@@ -6909,7 +6909,6 @@ body.active-pass-locked {
   font-size: 1.75rem;
   font-weight: 500;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.4);
   max-width: 100%;
   text-align: center;
 }
@@ -6930,37 +6929,46 @@ body.active-pass-locked {
   transition: color 0.15s ease, opacity 0.15s ease;
   padding: 0 2px;
   border-radius: 4px;
-}
-
-/* Words not yet spoken - dimmed */
-.karaoke-word {
   color: rgba(255, 255, 255, 0.35);
 }
 
-/* Words already spoken - full brightness */
+/* Words already spoken - full brightness, inherit status color */
 .karaoke-word--past {
-  color: rgba(255, 255, 255, 0.85);
+  opacity: 0.85;
 }
 
-/* Currently spoken word - highlighted */
+/* Currently spoken word - full brightness with glow */
 .karaoke-word--active {
-  color: #ffffff;
+  opacity: 1;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
   font-weight: 600;
 }
 
-/* Word status highlighting with background */
-.karaoke-word--highlighted {
-  background: color-mix(in srgb, var(--hlt-base) calc(var(--hlt-opacity) * 100%), transparent);
+/* Word status colors - text color matches cinema subtitle system */
+.karaoke-word.word-known {
+  color: #ffffff;
 }
 
-.karaoke-word--highlighted.karaoke-word--active {
-  background: color-mix(in srgb, var(--hlt-base) calc(var(--hlt-opacity) * 150%), transparent);
+.karaoke-word.word-familiar {
+  color: #F9DCDC;
+}
+
+.karaoke-word.word-recognised {
+  color: #F0AFAF;
+}
+
+.karaoke-word.word-unknown {
+  color: #E88A8A;
+}
+
+.karaoke-word.word-new {
+  color: #F97316;
+  font-weight: 600;
 }
 
 /* Hover effect */
 .karaoke-word:hover {
-  color: #ffffff;
+  color: #ffffff !important;
   background: rgba(255, 255, 255, 0.15);
 }
 

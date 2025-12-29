@@ -6911,7 +6911,6 @@ body.active-pass-locked {
   line-height: 1.6;
   max-width: 100%;
   text-align: center;
-  color: #ffffff;  /* WHITE TEXT - breaks inheritance from :root #0f172a */
 }
 
 .karaoke-subtitles--empty,
@@ -6925,8 +6924,9 @@ body.active-pass-locked {
   display: inline;
 }
 
-/* Karaoke word base styles */
+/* Karaoke word - color comes ONLY from CSS variable (set by word status) */
 .karaoke-word {
+  color: var(--hlt-base, #ffffff);
   cursor: pointer;
   transition: opacity 0.15s ease;
   padding: 0 2px;
@@ -6945,24 +6945,8 @@ body.active-pass-locked {
   font-weight: 600;
 }
 
-/* Karaoke subtitle colors - scoped to cinema overlay for proper specificity
-   This overrides any inherited colors from :root or parent elements */
-.cinema-subtitle-overlay .karaoke-word {
-  color: #ffffff;
-}
-
-/* Highlighted words use CSS variable for language-specific color
-   - New words: orange (#F97316)
-   - Unknown/Recognised/Familiar: language color (e.g. red for Spanish)
-   Higher specificity (0,3,0) ensures this overrides the base .karaoke-word rule */
-.cinema-subtitle-overlay .karaoke-word.karaoke-word--highlighted {
-  color: var(--hlt-base, #ffffff);
-  font-weight: 600;
-}
-
 /* Hover effect */
-.cinema-subtitle-overlay .karaoke-word:hover {
-  color: #ffffff !important;
+.karaoke-word:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 

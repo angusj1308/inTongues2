@@ -468,10 +468,21 @@ const AudioPlayer = () => {
     const allWords = new Set([...Object.keys(preloadedTranslations), ...Object.keys(preloadedPronunciations)])
 
     allWords.forEach((word) => {
+      const preloadedTranslation = preloadedTranslations[word]
+      const preloadedPronunciation = preloadedPronunciations[word]
+
+      // Handle both string and object formats
+      const translationValue = typeof preloadedTranslation === 'string'
+        ? preloadedTranslation
+        : preloadedTranslation?.translation || null
+      const audioUrlValue = typeof preloadedPronunciation === 'string'
+        ? preloadedPronunciation
+        : preloadedPronunciation?.audioUrl || null
+
       initialTranslations[word] = {
-        translation: preloadedTranslations[word] || null,
+        translation: translationValue,
         audioBase64: null,
-        audioUrl: preloadedPronunciations[word] || null,
+        audioUrl: audioUrlValue,
       }
       // Mark as already fetched so we don't re-fetch
       fetchedWordsRef.current.add(word)
@@ -850,13 +861,22 @@ const AudioPlayer = () => {
     const preloadedPronunciation = preloadedPronunciations[clean]
 
     if (preloadedTranslation || preloadedPronunciation) {
+      // Handle both string and object formats for translations
+      const translationText = typeof preloadedTranslation === 'string'
+        ? preloadedTranslation
+        : preloadedTranslation?.translation || 'No translation found'
+      // Handle both string and object formats for pronunciations
+      const audioUrlValue = typeof preloadedPronunciation === 'string'
+        ? preloadedPronunciation
+        : preloadedPronunciation?.audioUrl || null
+
       setPopup({
         x: rect.left + window.scrollX,
         y: rect.bottom + window.scrollY + 8,
         word: clean,
-        translation: preloadedTranslation?.translation || 'No translation found',
+        translation: translationText,
         audioBase64: null,
-        audioUrl: preloadedPronunciation?.audioUrl || null,
+        audioUrl: audioUrlValue,
       })
       return
     }
@@ -1009,11 +1029,19 @@ const AudioPlayer = () => {
         const preloadedPronunciation = preloadedPronunciations[normalised]
 
         if (preloadedTranslation || preloadedPronunciation) {
+          // Handle both string and object formats
+          const translationValue = typeof preloadedTranslation === 'string'
+            ? preloadedTranslation
+            : preloadedTranslation?.translation || null
+          const audioUrlValue = typeof preloadedPronunciation === 'string'
+            ? preloadedPronunciation
+            : preloadedPronunciation?.audioUrl || null
+
           // Use preloaded data - instant!
           newTranslations[normalised] = {
-            translation: preloadedTranslation || null,
+            translation: translationValue,
             audioBase64: null,
-            audioUrl: preloadedPronunciation || null,
+            audioUrl: audioUrlValue,
           }
         } else {
           // Need to fetch from API

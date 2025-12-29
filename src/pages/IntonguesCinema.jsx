@@ -708,6 +708,33 @@ const normalisePagesToSegments = (pages = []) =>
     setCompletedPasses(new Set())
   }, [activeChunkIndex, cinemaMode])
 
+  // Dismiss popup when clicking outside
+  useEffect(() => {
+    if (!popup) return undefined
+
+    const handleClickOutside = (event) => {
+      // Check if click is inside the popup
+      const popupElement = event.target.closest('.cinema-word-popup')
+      if (popupElement) return
+
+      // Check if click is on a word (which would trigger a new popup)
+      const wordElement = event.target.closest('.reader-word, .page-text span')
+      if (wordElement) return
+
+      setPopup(null)
+    }
+
+    // Use setTimeout to avoid immediate dismissal from the click that opened it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside)
+    }, 0)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [popup])
+
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)
   }

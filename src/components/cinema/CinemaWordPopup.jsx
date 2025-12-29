@@ -1,6 +1,15 @@
 import { useCallback, useRef } from 'react'
 import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
+}
+
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
@@ -63,7 +72,7 @@ const CinemaWordPopup = ({
   style = {},
 }) => {
   const audioRef = useRef(null)
-  const languageColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+  const languageColor = getLanguageColor(language)
   const statusIndex = STATUS_LEVELS.indexOf(status)
   const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
   const hasAudio = Boolean(audioBase64 || audioUrl)

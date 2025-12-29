@@ -82,6 +82,7 @@ const IntonguesCinema = () => {
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
+  const [pronunciations, setPronunciations] = useState({})
   const [popup, setPopup] = useState(null)
 
   // Cinema mode state
@@ -628,6 +629,7 @@ const normalisePagesToSegments = (pages = []) =>
 
         const data = await response.json()
         setTranslations(data.translations || {})
+        setPronunciations(data.pronunciations || {})
       } catch (preloadError) {
         if (preloadError.name !== 'AbortError') {
           console.error('Error preloading translations', preloadError)
@@ -943,6 +945,7 @@ const normalisePagesToSegments = (pages = []) =>
             sourceLang: transcriptLanguage || 'auto',
             targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             ttsLanguage: transcriptTtsLanguage,
+            voiceGender: 'male',
           }),
         })
 
@@ -973,19 +976,30 @@ const normalisePagesToSegments = (pages = []) =>
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    // Check pre-fetched translations - can be object with audio or plain string
-    const prefetched = translations[clean] || translations[selection]
+    // Check pre-fetched translations and pronunciations
+    const prefetchedTranslation = translations[clean] || translations[selection]
+    const prefetchedPronunciation = pronunciations[clean] || pronunciations[selection]
     let translation = 'No translation found'
     let audioBase64 = null
     let audioUrl = null
 
-    if (prefetched) {
-      if (typeof prefetched === 'object') {
-        translation = prefetched.translation || 'No translation found'
-        audioBase64 = prefetched.audioBase64 || null
-        audioUrl = prefetched.audioUrl || null
+    // Handle translation (can be string or object)
+    if (prefetchedTranslation) {
+      if (typeof prefetchedTranslation === 'object') {
+        translation = prefetchedTranslation.translation || 'No translation found'
+        audioBase64 = prefetchedTranslation.audioBase64 || null
+        audioUrl = prefetchedTranslation.audioUrl || null
       } else {
-        translation = prefetched
+        translation = prefetchedTranslation
+      }
+    }
+
+    // Handle pronunciation (can be string URL or object)
+    if (prefetchedPronunciation && !audioUrl) {
+      if (typeof prefetchedPronunciation === 'string') {
+        audioUrl = prefetchedPronunciation
+      } else if (prefetchedPronunciation.audioUrl) {
+        audioUrl = prefetchedPronunciation.audioUrl
       }
     }
 

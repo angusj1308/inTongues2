@@ -435,7 +435,8 @@ async function batchGetPronunciations(words, targetLanguage, voiceId) {
       })
     )
     fetched.forEach(({ word, data }) => {
-      if (data) results[word] = data
+      // Return just the audioUrl string, not the full object
+      if (data && data.audioUrl) results[word] = data.audioUrl
     })
   }
 
@@ -458,7 +459,8 @@ async function batchGetTranslations(words, targetLanguage, nativeLanguage) {
       })
     )
     fetched.forEach(({ word, data }) => {
-      if (data) results[word] = data
+      // Return just the translation string, not the full object
+      if (data && data.translation) results[word] = data.translation
     })
   }
 
@@ -3523,16 +3525,23 @@ app.post('/api/prepare-content', async (req, res) => {
 
 // Preload cached translations and pronunciations for content
 app.post('/api/content/preload', async (req, res) => {
-  const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId } = req.body || {}
+  const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId: requestedVoiceId } = req.body || {}
 
-  if (!uid || !contentId || !contentType || !targetLanguage || !voiceId) {
+  if (!uid || !contentId || !contentType || !targetLanguage) {
     return res.status(400).json({
-      error: 'uid, contentId, contentType, targetLanguage, and voiceId are required',
+      error: 'uid, contentId, contentType, and targetLanguage are required',
     })
   }
 
   const normalizedTargetLang = targetLanguage.toLowerCase().trim()
   const normalizedNativeLang = (nativeLanguage || 'english').toLowerCase().trim()
+
+  // Use provided voiceId or default for the language
+  const voiceId = requestedVoiceId || DEFAULT_IMPORT_VOICE_IDS[normalizedTargetLang]
+  if (!voiceId) {
+    // No voice available, return translations only (no pronunciations)
+    console.log(`No voice ID available for language ${targetLanguage}, returning translations only`)
+  }
 
   try {
     // Get content reference based on type
@@ -3595,7 +3604,7 @@ app.post('/api/content/preload', async (req, res) => {
     // Batch fetch cached data
     const [translations, pronunciations] = await Promise.all([
       batchGetTranslations(uniqueWords, normalizedTargetLang, normalizedNativeLang),
-      batchGetPronunciations(uniqueWords, normalizedTargetLang, voiceId),
+      voiceId ? batchGetPronunciations(uniqueWords, normalizedTargetLang, voiceId) : Promise.resolve({}),
     ])
 
     return res.json({ translations, pronunciations })

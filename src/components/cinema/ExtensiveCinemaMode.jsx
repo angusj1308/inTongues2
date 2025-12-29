@@ -367,7 +367,7 @@ const ExtensiveCinemaMode = ({
                 language={language}
                 vocabEntries={vocabEntries}
                 showWordStatus={showWordStatus}
-                onWordClick={handleWordClick}
+                onWordClick={handleTranscriptWordClick}
                 onWordSelect={onSubtitleWordClick}
               />
             </div>

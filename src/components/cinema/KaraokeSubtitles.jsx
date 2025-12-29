@@ -14,16 +14,12 @@ const getLanguageColor = (language) => {
 }
 
 // Get highlight color directly based on word status
-function getWordColor({ language, status, showWordStatus }) {
-  // Default to white
-  if (!showWordStatus) return '#ffffff'
+function getWordColor({ language, status }) {
+  // Known words are white, everything else gets color
   if (status === 'known') return '#ffffff'
-
-  const opacity = STATUS_OPACITY[status]
-  if (!opacity || opacity === 0) return '#ffffff'
-
-  // New words are always orange, others use language color
-  return status === 'new' ? '#F97316' : getLanguageColor(language)
+  if (status === 'new') return '#F97316'
+  // Learning words use language color
+  return getLanguageColor(language)
 }
 
 const KaraokeWord = ({
@@ -32,10 +28,9 @@ const KaraokeWord = ({
   isPast,
   status,
   language,
-  showWordStatus,
   onWordClick,
 }) => {
-  const color = getWordColor({ language, status, showWordStatus })
+  const color = getWordColor({ language, status })
 
   const classNames = ['karaoke-word']
   if (isActive) classNames.push('karaoke-word--active')
@@ -129,7 +124,6 @@ const KaraokeSubtitles = ({
                 isPast={index < activeWordIndex}
                 status={status}
                 language={language}
-                showWordStatus={showWordStatus}
                 onWordClick={onWordClick}
               />
             )

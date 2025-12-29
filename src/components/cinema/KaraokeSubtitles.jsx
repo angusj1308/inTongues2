@@ -73,7 +73,7 @@ const KaraokeSubtitles = ({
   currentTime = 0,
   language,
   vocabEntries = {},
-  showWordStatus = false,
+  showWordStatus = true,
   onWordClick,
   onWordSelect,
 }) => {

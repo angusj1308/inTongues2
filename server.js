@@ -2334,6 +2334,71 @@ ${phrase}
   }
 })
 
+// Batch prefetch translations for multiple words (no audio, text only)
+app.post('/api/prefetchTranslations', async (req, res) => {
+  try {
+    const { languageCode, targetLang, words } = req.body || {}
+
+    if (!Array.isArray(words) || words.length === 0) {
+      return res.json({ translations: {} })
+    }
+
+    if (!targetLang) {
+      return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    const sourceLabel = languageCode || 'auto-detected'
+    const targetLabel = targetLang || 'English'
+
+    // Deduplicate and limit words to prevent token overflow
+    const uniqueWords = [...new Set(words.map(w => w.toLowerCase().trim()).filter(Boolean))]
+    const maxWords = 200 // Limit batch size
+    const wordsToTranslate = uniqueWords.slice(0, maxWords)
+
+    if (wordsToTranslate.length === 0) {
+      return res.json({ translations: {} })
+    }
+
+    const prompt = `
+Translate the following words from ${sourceLabel} to ${targetLabel}.
+Return a JSON object where each key is the original word (lowercase) and the value is its translation.
+Only return the JSON object, no other text.
+
+Words: ${wordsToTranslate.join(', ')}
+`.trim()
+
+    let translations = {}
+
+    try {
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: prompt,
+      })
+
+      const outputText = response.output_text?.trim() || '{}'
+      // Extract JSON from markdown code blocks if present
+      const jsonMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, outputText]
+      const parsed = JSON.parse(jsonMatch[1] || outputText)
+
+      // Convert to expected format: { word: { translation: "..." } }
+      for (const [word, translation] of Object.entries(parsed)) {
+        if (typeof translation === 'string') {
+          translations[word.toLowerCase()] = { translation }
+        } else if (translation && typeof translation === 'object') {
+          translations[word.toLowerCase()] = translation
+        }
+      }
+    } catch (parseErr) {
+      console.error('Error parsing prefetch translations:', parseErr)
+    }
+
+    return res.json({ translations })
+  } catch (error) {
+    console.error('Error prefetching translations:', error)
+    return res.status(500).json({ error: 'Internal server error', translations: {} })
+  }
+})
+
 function detectFileType(originalName = '') {
   const lower = originalName.toLowerCase()
   if (lower.endsWith('.txt')) return 'txt'

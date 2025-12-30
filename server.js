@@ -1841,20 +1841,25 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
       file: createReadStream(audioPath),
       model: 'whisper-1',
       response_format: 'verbose_json',
+      timestamp_granularities: ['word'],
       ...(whisperLanguage ? { language: whisperLanguage } : {}),
     })
 
     console.log('Whisper verbose_json response keys:', Object.keys(transcription || {}))
-    console.log('First segment sample:', transcription?.segments?.[0])
+    console.log('Words count:', transcription?.words?.length || 0)
+    console.log('First word sample:', transcription?.words?.[0])
 
-    const segments = normaliseTranscriptSegments(transcription?.segments || [])
-    const sentenceSegments = buildSentenceSegmentsFromWhisper(segments)
+    // Build sentences from words using punctuation + pause detection
+    const segments = buildSentencesFromWords(transcription?.words || [])
+
+    console.log('Built sentences count:', segments.length)
+    console.log('First sentence sample:', segments[0])
 
     if (!segments.length) {
-      console.warn('Whisper verbose_json has no segments, falling back to text-only')
+      console.warn('No sentences built from words, falling back to text-only')
     }
 
-    return { text: transcription?.text || '', segments, sentenceSegments }
+    return { text: transcription?.text || '', segments, sentenceSegments: segments }
   } finally {
     if (audioPath) {
       try {
@@ -1866,6 +1871,52 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
       }
     }
   }
+}
+
+// Build sentences from Whisper word-level timestamps
+// Sentence breaks on: punctuation (. ? !) OR pause > 0.5s OR max 25 words
+function buildSentencesFromWords(words = []) {
+  if (!words.length) return []
+
+  const sentences = []
+  let currentWords = []
+
+  const PAUSE_THRESHOLD = 0.5 // seconds
+  const MAX_WORDS = 25
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
+    const nextWord = words[i + 1]
+
+    // Add word to current sentence
+    currentWords.push({
+      text: word.word || '',
+      start: word.start || 0,
+      end: word.end || 0,
+    })
+
+    // Check for sentence break
+    const hasPunctuation = /[.?!]$/.test(word.word || '')
+    const gap = nextWord ? nextWord.start - word.end : 999
+    const hasLongPause = gap > PAUSE_THRESHOLD
+    const atMaxWords = currentWords.length >= MAX_WORDS
+
+    if (hasPunctuation || hasLongPause || atMaxWords || !nextWord) {
+      // Close current sentence
+      if (currentWords.length > 0) {
+        const text = currentWords.map(w => w.text).join(' ')
+        sentences.push({
+          start: currentWords[0].start,
+          end: currentWords[currentWords.length - 1].end,
+          text,
+          words: currentWords,
+        })
+        currentWords = []
+      }
+    }
+  }
+
+  return sentences
 }
 
 app.post('/api/youtube/transcript', async (req, res) => {

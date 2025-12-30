@@ -5891,7 +5891,9 @@ body.active-pass-locked {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 0.98rem;
   color: #475569;
-  transition: color 240ms ease, font-weight 240ms ease, opacity 240ms ease;
+  border-radius: 6px;
+  background-color: transparent;
+  transition: color 300ms ease-out, font-weight 200ms ease, opacity 300ms ease-out, background-color 300ms ease-out, transform 200ms ease-out;
 }
 
 .transcript-line.active {
@@ -5899,6 +5901,7 @@ body.active-pass-locked {
   font-weight: 600;
   opacity: 1;
   line-height: 1.38;
+  background-color: rgba(15, 23, 42, 0.04);
 }
 
 .mini-controls-bar {
@@ -6902,6 +6905,7 @@ body.active-pass-locked {
 /* Karaoke Subtitles - word-by-word reveal */
 .karaoke-subtitles {
   display: inline-block;
+  position: relative;
   background: rgba(0, 0, 0, 0.85);
   padding: 16px 28px;
   border-radius: 12px;
@@ -6940,6 +6944,50 @@ body.active-pass-locked {
 /* Hover effect */
 .karaoke-word:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* Word tracking states - only applied when tracking enabled */
+.karaoke-word--active {
+  opacity: 1;
+}
+
+.karaoke-word--past {
+  opacity: 0.5;
+}
+
+.karaoke-word--future {
+  opacity: 0.7;
+}
+
+/* Tracking toggle button */
+.karaoke-tracking-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.15s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.karaoke-tracking-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.karaoke-tracking-toggle--active {
+  color: #F97316;
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.karaoke-tracking-toggle--active:hover {
+  background: rgba(249, 115, 22, 0.25);
 }
 
 @media (max-width: 900px) {
@@ -7115,13 +7163,14 @@ body.active-pass-locked {
 
 /* Dark mode transcript styles */
 .is-dark .floating-panel-content .transcript-line {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 1.05rem;
   line-height: 1.7;
 }
 
 .is-dark .floating-panel-content .transcript-line.active {
   color: #fff;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Dark mode footer with gradient fade */

@@ -594,6 +594,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
                   onPlay={() => navigate(`/cinema/${video.id}`)}
                   onDelete={() => handleDeleteVideo(video.id)}
                   progress={video.progress ?? 0}
+                  status={video.status}
                   preparationStatus={video.preparationStatus}
                   preparationProgress={video.preparationProgress}
                 />

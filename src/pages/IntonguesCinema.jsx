@@ -837,6 +837,27 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }
 
+  // Poll current time frequently while playing for word-by-word subtitle sync
+  useEffect(() => {
+    if (!playbackStatus.isPlaying || isSpotify) return
+
+    const interval = setInterval(() => {
+      const player = playerRef.current
+      if (!player?.getCurrentTime) return
+
+      const currentTime = player.getCurrentTime() ?? 0
+      const duration = player.getDuration?.() ?? playbackStatus.duration
+
+      setPlaybackStatus((prev) => ({
+        ...prev,
+        currentTime,
+        duration,
+      }))
+    }, 100) // Update every 100ms for smooth word highlighting
+
+    return () => clearInterval(interval)
+  }, [playbackStatus.isPlaying, isSpotify])
+
   const handlePlayPause = useCallback(() => {
     if (isSpotify) {
       spotifyPlayer?.togglePlay()

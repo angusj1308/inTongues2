@@ -50,9 +50,12 @@ const getStatusStyle = (statusLevel, isActive, languageColor, darkMode) => {
         color: textMuted,
       }
     case 'known':
+      // Soft green - "mastered" indicator, matches WordStatusPanel
       return {
-        background: darkMode ? '#374151' : '#e2e8f0',
-        color: textMuted,
+        background: darkMode
+          ? 'color-mix(in srgb, #22c55e 40%, black)'
+          : 'color-mix(in srgb, #22c55e 40%, white)',
+        color: darkMode ? '#86efac' : '#166534',
       }
     default:
       return {}

@@ -6982,12 +6982,12 @@ body.active-pass-locked {
 }
 
 .karaoke-tracking-toggle--active {
-  color: #F97316;
-  background: rgba(249, 115, 22, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .karaoke-tracking-toggle--active:hover {
-  background: rgba(249, 115, 22, 0.25);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 @media (max-width: 900px) {

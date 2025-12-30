@@ -1,7 +1,25 @@
-import { useMemo, memo } from 'react'
+import { useMemo, memo, useState } from 'react'
 import {
   LANGUAGE_HIGHLIGHT_COLORS,
 } from '../../constants/highlightColors'
+
+// Eye icon for tracking toggle
+const EyeIcon = ({ open }) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+    {open ? (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ) : (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    )}
+  </svg>
+)
 
 // Helper to get language color with case-insensitive lookup
 const getLanguageColor = (language) => {
@@ -28,12 +46,14 @@ const KaraokeWord = memo(({
   status,
   language,
   onWordClick,
+  trackingEnabled,
 }) => {
   const color = getWordColor({ language, status })
 
   const classNames = ['karaoke-word']
-  if (isActive) classNames.push('karaoke-word--active')
-  if (isPast) classNames.push('karaoke-word--past')
+  if (trackingEnabled && isActive) classNames.push('karaoke-word--active')
+  if (trackingEnabled && isPast) classNames.push('karaoke-word--past')
+  if (trackingEnabled && !isActive && !isPast) classNames.push('karaoke-word--future')
 
   const handleClick = (event) => {
     if (onWordClick) {
@@ -61,6 +81,8 @@ const KaraokeSubtitles = ({
   onWordClick,
   onWordSelect,
 }) => {
+  const [trackingEnabled, setTrackingEnabled] = useState(false)
+
   // Find active segment based on current time
   const activeSegment = useMemo(() => {
     if (!segments.length) return null
@@ -113,6 +135,13 @@ const KaraokeSubtitles = ({
         onMouseUp={onWordSelect}
         style={{ cursor: 'pointer', userSelect: 'text' }}
       >
+        <button
+          className={`karaoke-tracking-toggle${trackingEnabled ? ' karaoke-tracking-toggle--active' : ''}`}
+          onClick={() => setTrackingEnabled(!trackingEnabled)}
+          title={trackingEnabled ? 'Disable word tracking' : 'Enable word tracking'}
+        >
+          <EyeIcon open={trackingEnabled} />
+        </button>
         <div className={`karaoke-line${isInGap ? ' karaoke-line--gap' : ''}`}>
           {activeSegment.words.map((word, index) => {
             const normalised = word.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
@@ -128,6 +157,7 @@ const KaraokeSubtitles = ({
                 status={status}
                 language={language}
                 onWordClick={onWordClick}
+                trackingEnabled={trackingEnabled}
               />
             )
           })}

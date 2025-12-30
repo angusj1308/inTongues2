@@ -6942,6 +6942,55 @@ body.active-pass-locked {
   background: rgba(255, 255, 255, 0.15);
 }
 
+/* Word tracking states - only applied when tracking enabled */
+.karaoke-word--active {
+  opacity: 1;
+}
+
+.karaoke-word--past {
+  opacity: 0.5;
+}
+
+.karaoke-word--future {
+  opacity: 0.7;
+}
+
+/* Tracking toggle button */
+.karaoke-tracking-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.15s ease, background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.karaoke-tracking-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.karaoke-tracking-toggle--active {
+  color: #F97316;
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.karaoke-tracking-toggle--active:hover {
+  background: rgba(249, 115, 22, 0.25);
+}
+
+/* Make subtitles container relative for toggle positioning */
+.karaoke-subtitles {
+  position: relative;
+}
+
 @media (max-width: 900px) {
   .cinema-toggle-label {
     display: none;

@@ -2087,6 +2087,78 @@ app.post('/api/youtube/transcript', async (req, res) => {
   }
 })
 
+// Background processor for YouTube transcript generation
+// Called from import to prepare video before user opens it
+async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode = 'auto') {
+  const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
+
+  try {
+    const transcriptRef = videoRef.collection('transcripts').doc(languageCode.toLowerCase())
+
+    let transcriptResult = { text: '', segments: [], sentenceSegments: [] }
+
+    // Try YouTube captions first
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+      transcriptResult = { text: captionSegments.map((seg) => seg.text).join(' '), segments: captionSegments }
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback', captionError)
+    }
+
+    // Fall back to Whisper if no captions
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      const whisperResult = await transcribeWithWhisper({ videoId, languageCode })
+      transcriptResult = {
+        text: whisperResult?.text || '',
+        segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        sentenceSegments: Array.isArray(whisperResult?.sentenceSegments) ? whisperResult.sentenceSegments : [],
+      }
+    }
+
+    const normalisedSegments = normaliseTranscriptSegments(transcriptResult.segments)
+    const resolvedSentenceSegments = (() => {
+      const cached = normaliseTranscriptSegments(transcriptResult.sentenceSegments)
+      if (cached.length) return cached
+      return buildSentenceSegmentsFromWhisper(normalisedSegments)
+    })()
+    const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
+
+    const transcriptPayload = {
+      videoId,
+      language: languageCode.toLowerCase(),
+      segments: normalisedSegments,
+      text: transcriptText,
+      sentenceSegments: resolvedSentenceSegments,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+
+    await transcriptRef.set(transcriptPayload, { merge: true })
+
+    // Trigger pronunciation preparation if language supports it
+    const normalizedLang = normalizeLanguageLabel(languageCode)?.toLowerCase()
+    if (normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      await videoRef.update({
+        preparationStatus: 'pending',
+        preparationProgress: 0,
+        language: normalizedLang,
+      })
+
+      prepareContentPronunciations(uid, videoDocId, 'youtube', normalizedLang, null)
+        .catch((prepErr) => {
+          console.error('Background YouTube preparation failed:', prepErr)
+        })
+    }
+
+    // Mark video as ready
+    await videoRef.update({ status: 'ready' })
+  } catch (error) {
+    console.error('processYouTubeTranscript failed:', error)
+    // Mark as failed so user knows something went wrong
+    await videoRef.update({ status: 'failed' }).catch(() => {})
+    throw error
+  }
+}
+
 app.post('/api/youtube/import', async (req, res) => {
   const { title, youtubeUrl, uid, language } = req.body || {}
   const trimmedTitle = (title || '').trim()
@@ -2118,6 +2190,7 @@ app.post('/api/youtube/import', async (req, res) => {
     ...(trimmedLanguage && { language: trimmedLanguage }),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     source: 'youtube',
+    status: 'importing',
   }
 
   try {
@@ -2127,7 +2200,18 @@ app.post('/api/youtube/import', async (req, res) => {
       .collection('youtubeVideos')
       .add(payload)
 
-    return res.json({ id: videoRef.id, ...payload })
+    const videoDocId = videoRef.id
+
+    // Trigger background transcription (don't await - let it run async)
+    processYouTubeTranscript(uid, videoDocId, videoId, trimmedLanguage || 'auto')
+      .then(() => {
+        console.log(`YouTube import ready: ${videoDocId}`)
+      })
+      .catch((err) => {
+        console.error(`YouTube import failed: ${videoDocId}`, err)
+      })
+
+    return res.json({ id: videoDocId, ...payload })
   } catch (error) {
     console.error('Failed to save YouTube import', error)
     return res.status(500).json({ error: 'Failed to import YouTube video' })

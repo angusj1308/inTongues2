@@ -6909,9 +6909,11 @@ body.active-pass-locked {
   font-size: 1.75rem;
   font-weight: 500;
   line-height: 1.6;
-  max-width: 100%;
+  max-width: 85%;
   text-align: center;
   color: #ffffff;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .karaoke-subtitles--empty,
@@ -6922,7 +6924,7 @@ body.active-pass-locked {
 }
 
 .karaoke-line {
-  display: inline;
+  display: block;
 }
 
 /* Karaoke word - color comes ONLY from CSS variable (set by word status) */

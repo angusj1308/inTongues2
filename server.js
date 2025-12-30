@@ -1850,7 +1850,7 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
     console.log('First word sample:', transcription?.words?.[0])
 
     // Build sentences from words using punctuation + pause detection
-    const segments = buildSentencesFromWords(transcription?.words || [])
+    const segments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
 
     console.log('Built sentences count:', segments.length)
     console.log('First sentence sample:', segments[0])
@@ -1873,10 +1873,59 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
   }
 }
 
+// Align punctuation from full text to word-level timestamps
+// Whisper's words[] don't include punctuation, but text does
+function alignPunctuationToWords(fullText = '', words = []) {
+  if (!words.length || !fullText) return words
+
+  const enrichedWords = []
+  let textPos = 0
+
+  for (const word of words) {
+    const rawWord = word.word || ''
+
+    // Skip whitespace and leading punctuation in text
+    let leadingPunct = ''
+    while (textPos < fullText.length && /[\s¿¡"'«([]/.test(fullText[textPos])) {
+      if (!/\s/.test(fullText[textPos])) {
+        leadingPunct += fullText[textPos]
+      }
+      textPos++
+    }
+
+    // Find the word in text (case-insensitive match)
+    const wordStart = fullText.toLowerCase().indexOf(rawWord.toLowerCase(), textPos)
+    if (wordStart !== -1 && wordStart - textPos < 10) {
+      // Capture any punctuation between last position and word
+      textPos = wordStart + rawWord.length
+    } else {
+      // Word not found at expected position, just advance
+      textPos += rawWord.length
+    }
+
+    // Capture trailing punctuation
+    let trailingPunct = ''
+    while (textPos < fullText.length && /[.,;:!?)"'\]»—]/.test(fullText[textPos])) {
+      trailingPunct += fullText[textPos]
+      textPos++
+    }
+
+    enrichedWords.push({
+      ...word,
+      word: leadingPunct + rawWord + trailingPunct,
+    })
+  }
+
+  return enrichedWords
+}
+
 // Build sentences from Whisper word-level timestamps
 // Sentence breaks on: punctuation (. ? !) OR pause > 0.5s OR max 25 words
-function buildSentencesFromWords(words = []) {
+function buildSentencesFromWords(words = [], fullText = '') {
   if (!words.length) return []
+
+  // Enrich words with punctuation from full text
+  const enrichedWords = alignPunctuationToWords(fullText, words)
 
   const sentences = []
   let currentWords = []
@@ -1884,9 +1933,9 @@ function buildSentencesFromWords(words = []) {
   const PAUSE_THRESHOLD = 0.5 // seconds
   const MAX_WORDS = 25
 
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i]
-    const nextWord = words[i + 1]
+  for (let i = 0; i < enrichedWords.length; i++) {
+    const word = enrichedWords[i]
+    const nextWord = enrichedWords[i + 1]
 
     // Add word to current sentence
     currentWords.push({

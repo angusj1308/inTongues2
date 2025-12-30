@@ -343,14 +343,24 @@ const normalisePagesToSegments = (pages = []) =>
     const rawSegments = normaliseSegments(transcript?.segments)
     const sentenceSegments = normaliseSegments(transcript?.sentenceSegments)
 
-    // If raw segments have word-level timing, merge them into sentences
-    // This preserves word timing while giving clean sentence-based display
     const hasWordData = rawSegments.some((seg) => seg.words?.length > 0)
+
     if (hasWordData) {
+      // Check if segments are already well-formed sentences (from Whisper)
+      // by seeing if average words per segment is reasonable (> 3)
+      const totalWords = rawSegments.reduce((sum, seg) => sum + (seg.words?.length || 0), 0)
+      const avgWordsPerSegment = totalWords / rawSegments.length
+
+      if (avgWordsPerSegment > 3) {
+        // Already well-formed sentences with word timing - use directly
+        return rawSegments
+      }
+
+      // Choppy segments (like YouTube captions) - merge into sentences
       return mergeSegmentsIntoSentences(rawSegments)
     }
 
-    // Fall back to sentence segments for Whisper transcripts
+    // Fall back to sentence segments for transcripts without word timing
     if (sentenceSegments.length) return sentenceSegments
     return rawSegments
   }, [transcript])

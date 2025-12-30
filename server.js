@@ -1886,9 +1886,15 @@ function alignPunctuationToWords(fullText = '', words = []) {
 
     // Skip whitespace and leading punctuation in text
     let leadingPunct = ''
-    while (textPos < fullText.length && /[\s¿¡"'«([]/.test(fullText[textPos])) {
-      if (!/\s/.test(fullText[textPos])) {
-        leadingPunct += fullText[textPos]
+    while (textPos < fullText.length && /[\s¿¡"'«([—]/.test(fullText[textPos])) {
+      const char = fullText[textPos]
+      // Only add non-whitespace, and avoid duplicates of ¿ or ¡
+      if (!/\s/.test(char)) {
+        if ((char === '¿' || char === '¡') && leadingPunct.includes(char)) {
+          // Skip duplicate opening punctuation
+        } else {
+          leadingPunct += char
+        }
       }
       textPos++
     }
@@ -1896,10 +1902,8 @@ function alignPunctuationToWords(fullText = '', words = []) {
     // Find the word in text (case-insensitive match)
     const wordStart = fullText.toLowerCase().indexOf(rawWord.toLowerCase(), textPos)
     if (wordStart !== -1 && wordStart - textPos < 10) {
-      // Capture any punctuation between last position and word
       textPos = wordStart + rawWord.length
     } else {
-      // Word not found at expected position, just advance
       textPos += rawWord.length
     }
 
@@ -1920,7 +1924,7 @@ function alignPunctuationToWords(fullText = '', words = []) {
 }
 
 // Build sentences from Whisper word-level timestamps
-// Sentence breaks on: punctuation (. ? !) OR pause > 0.5s OR max 25 words
+// Sentence breaks on: punctuation (. ? !) OR pause > threshold OR approaching max words with punctuation
 function buildSentencesFromWords(words = [], fullText = '') {
   if (!words.length) return []
 
@@ -1930,8 +1934,9 @@ function buildSentencesFromWords(words = [], fullText = '') {
   const sentences = []
   let currentWords = []
 
-  const PAUSE_THRESHOLD = 0.5 // seconds
-  const MAX_WORDS = 25
+  const PAUSE_THRESHOLD = 0.8 // seconds - increased from 0.5
+  const SOFT_MAX_WORDS = 15 // start looking for break point
+  const HARD_MAX_WORDS = 30 // force break if no punctuation found
 
   for (let i = 0; i < enrichedWords.length; i++) {
     const word = enrichedWords[i]
@@ -1944,24 +1949,26 @@ function buildSentencesFromWords(words = [], fullText = '') {
       end: word.end || 0,
     })
 
-    // Check for sentence break
-    const hasPunctuation = /[.?!]$/.test(word.word || '')
+    // Check for sentence break conditions
+    const hasSentenceEnd = /[.?!]$/.test(word.word || '')
     const gap = nextWord ? nextWord.start - word.end : 999
     const hasLongPause = gap > PAUSE_THRESHOLD
-    const atMaxWords = currentWords.length >= MAX_WORDS
+    const atSoftMax = currentWords.length >= SOFT_MAX_WORDS
+    const atHardMax = currentWords.length >= HARD_MAX_WORDS
+    const hasAnyPunctuation = /[.,;:?!]$/.test(word.word || '')
 
-    if (hasPunctuation || hasLongPause || atMaxWords || !nextWord) {
-      // Close current sentence
-      if (currentWords.length > 0) {
-        const text = currentWords.map(w => w.text).join(' ')
-        sentences.push({
-          start: currentWords[0].start,
-          end: currentWords[currentWords.length - 1].end,
-          text,
-          words: currentWords,
-        })
-        currentWords = []
-      }
+    // Break on: sentence end, long pause, hard max, or soft max with any punctuation
+    const shouldBreak = hasSentenceEnd || hasLongPause || atHardMax || (atSoftMax && hasAnyPunctuation) || !nextWord
+
+    if (shouldBreak && currentWords.length > 0) {
+      const text = currentWords.map(w => w.text).join(' ')
+      sentences.push({
+        start: currentWords[0].start,
+        end: currentWords[currentWords.length - 1].end,
+        text,
+        words: currentWords,
+      })
+      currentWords = []
     }
   }
 

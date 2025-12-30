@@ -18,50 +18,19 @@ const EyeIcon = ({ open }) => (
   </svg>
 )
 
-// Soft pastel colors for subtitles (better on dark backgrounds)
-const SOFT_SUBTITLE_COLORS = {
-  new: '#FFB088', // soft peach/coral instead of harsh orange
-  // Soft versions of language colors (mixed with white)
-  blue: '#93B5F5',    // soft blue
-  red: '#F5A3A3',     // soft red/pink
-  green: '#8ED5A8',   // soft green
-  orange: '#FFCC99',  // soft orange
-  grey: '#B8BCC2',    // soft grey
+// Soft pastel colors for subtitles by status (better on dark backgrounds)
+// Progression: warm (needs attention) → cool (progressing) → white (mastered)
+const SOFT_STATUS_COLORS = {
+  new: '#FFB088',        // soft peach - never seen this word
+  unknown: '#F5A3A3',    // soft red/pink - seen but don't know
+  recognised: '#C4A3F5', // soft purple - starting to recognize
+  familiar: '#93B5F5',   // soft blue - almost there
+  known: '#ffffff',      // white - mastered
 }
 
-// Helper to get soft language color for subtitles
-const getSoftLanguageColor = (language) => {
-  if (!language) return SOFT_SUBTITLE_COLORS.blue
-  const lang = language.toLowerCase()
-
-  // Blue languages
-  if (['english', 'french', 'swedish', 'norwegian', 'finnish', 'greek', 'ukrainian', 'romanian', 'malay', 'filipino'].includes(lang)) {
-    return SOFT_SUBTITLE_COLORS.blue
-  }
-  // Red languages
-  if (['spanish', 'mandarin', 'japanese', 'korean', 'russian', 'polish', 'vietnamese', 'czech', 'thai', 'turkish', 'danish', 'indonesian'].includes(lang)) {
-    return SOFT_SUBTITLE_COLORS.red
-  }
-  // Green languages
-  if (['italian', 'portuguese', 'arabic', 'hindi', 'swahili', 'zulu', 'hungarian'].includes(lang)) {
-    return SOFT_SUBTITLE_COLORS.green
-  }
-  // Orange
-  if (lang === 'dutch') return SOFT_SUBTITLE_COLORS.orange
-  // Grey
-  if (['german', 'hebrew'].includes(lang)) return SOFT_SUBTITLE_COLORS.grey
-
-  return SOFT_SUBTITLE_COLORS.blue
-}
-
-// Get highlight color directly based on word status (soft colors for subtitles)
-function getWordColor({ language, status }) {
-  // Known words are white
-  if (status === 'known') return '#ffffff'
-  // New words get soft peach
-  if (status === 'new') return SOFT_SUBTITLE_COLORS.new
-  // Learning words use soft language color
-  return getSoftLanguageColor(language)
+// Get highlight color based on word status
+function getWordColor({ status }) {
+  return SOFT_STATUS_COLORS[status] || SOFT_STATUS_COLORS.new
 }
 
 const KaraokeWord = memo(({
@@ -73,7 +42,7 @@ const KaraokeWord = memo(({
   onWordClick,
   trackingEnabled,
 }) => {
-  const color = getWordColor({ language, status })
+  const color = getWordColor({ status })
 
   const classNames = ['karaoke-word']
   if (trackingEnabled && isActive) classNames.push('karaoke-word--active')
@@ -214,7 +183,7 @@ const KaraokeSubtitles = ({
           const normalised = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
           const entry = vocabEntries[normalised]
           const status = entry?.status || 'new'
-          const color = getWordColor({ language, status })
+          const color = getWordColor({ status })
 
           return (
             <span

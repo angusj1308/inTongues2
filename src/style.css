@@ -6935,6 +6935,8 @@ body.active-pass-locked {
   padding: 0 2px;
   border-radius: 4px;
   border-bottom: 2px solid transparent;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* Words already spoken - dimmed */

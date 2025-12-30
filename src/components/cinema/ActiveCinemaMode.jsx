@@ -639,12 +639,6 @@ const ActiveCinemaMode = ({
           <div className="cinema-overlay-gradient" />
 
           <div className="cinema-overlay-inner">
-            {/* Top row: Title and chunk info */}
-            <div className="cinema-overlay-header">
-              <span className="cinema-overlay-title">{videoTitle || 'Video'}</span>
-              <span className="cinema-overlay-chunk">Chunk {chunkPosition} of {totalChunks}</span>
-            </div>
-
             {/* Progress bar */}
             <div className="cinema-overlay-progress">
               <span className="cinema-overlay-time">{formatTime(clampedPosition)}</span>
@@ -777,40 +771,51 @@ const ActiveCinemaMode = ({
                 </button>
               </div>
 
-              {/* Right: Pass navigation */}
-              <div className="cinema-overlay-right">
-                <div className="cinema-overlay-pass-nav">
-                  {[1, 2, 3, 4].map((step) => {
-                    const isCurrent = step === activeStep
-                    const isCompleted = completedPasses.has(step)
-                    const isNext = step === activeStep + 1
-                    const isBeyondNext = step > activeStep + 1
-                    const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
-                    return (
-                      <button
-                        key={step}
-                        type="button"
-                        className={`cinema-overlay-pass-btn ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${isDisabled ? 'is-disabled' : ''}`}
-                        onClick={() => handleSelectStep(step)}
-                        disabled={isDisabled}
-                        aria-label={`Pass ${step}`}
-                      >
-                        {step}
-                      </button>
-                    )
-                  })}
-                </div>
-                <button
-                  type="button"
-                  className="cinema-overlay-btn cinema-overlay-next"
-                  onClick={handleNextPass}
-                  disabled={!canAdvanceToNextStep}
-                  aria-label="Next pass"
-                  title="Next pass"
-                >
-                  <Icon name="arrow_forward" />
-                </button>
+              {/* Right: Spacer for balance */}
+              <div className="cinema-overlay-right" />
+            </div>
+
+            {/* Pass navigation - centered at bottom */}
+            <div className="cinema-overlay-pass-row">
+              <button
+                type="button"
+                className="cinema-overlay-pass-arrow"
+                onClick={handlePreviousPass}
+                disabled={activeStep === 1}
+                aria-label="Previous pass"
+              >
+                <Icon name="chevron_left" />
+              </button>
+              <div className="cinema-overlay-pass-nav">
+                {[1, 2, 3, 4].map((step) => {
+                  const isCurrent = step === activeStep
+                  const isCompleted = completedPasses.has(step)
+                  const isNext = step === activeStep + 1
+                  const isBeyondNext = step > activeStep + 1
+                  const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
+                  return (
+                    <button
+                      key={step}
+                      type="button"
+                      className={`cinema-overlay-pass-btn ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${isDisabled ? 'is-disabled' : ''}`}
+                      onClick={() => handleSelectStep(step)}
+                      disabled={isDisabled}
+                      aria-label={`Pass ${step}`}
+                    >
+                      {step}
+                    </button>
+                  )
+                })}
               </div>
+              <button
+                type="button"
+                className="cinema-overlay-pass-arrow"
+                onClick={handleNextPass}
+                disabled={!canAdvanceToNextStep}
+                aria-label="Next pass"
+              >
+                <Icon name="chevron_right" />
+              </button>
             </div>
           </div>
         </div>

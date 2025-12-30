@@ -6312,25 +6312,6 @@ body.active-pass-locked {
   gap: 12px;
 }
 
-/* Header row */
-.cinema-overlay-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.cinema-overlay-title {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.cinema-overlay-chunk {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-
 /* Progress bar */
 .cinema-overlay-progress {
   display: flex;
@@ -6569,7 +6550,43 @@ body.active-pass-locked {
   color: #60a5fa;
 }
 
-/* Pass navigation */
+/* Pass navigation row - centered at bottom */
+.cinema-overlay-pass-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cinema-overlay-pass-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.cinema-overlay-pass-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cinema-overlay-pass-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cinema-overlay-pass-arrow .material-symbols-outlined {
+  font-size: 20px;
+}
+
 .cinema-overlay-pass-nav {
   display: flex;
   align-items: center;
@@ -6580,12 +6597,12 @@ body.active-pass-locked {
 }
 
 .cinema-overlay-pass-btn {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.5);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
   border-radius: 50%;
   cursor: pointer;
@@ -6609,22 +6626,6 @@ body.active-pass-locked {
 .cinema-overlay-pass-btn.is-disabled {
   opacity: 0.3;
   cursor: not-allowed;
-}
-
-.cinema-overlay-next {
-  width: 36px;
-  height: 36px;
-  background: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
-}
-
-.cinema-overlay-next:hover:not(:disabled) {
-  background: rgba(96, 165, 250, 0.3);
-}
-
-.cinema-overlay-next:disabled {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.3);
 }
 
 /* Chunk drawer in fullscreen mode */

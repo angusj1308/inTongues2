@@ -6929,25 +6929,26 @@ body.active-pass-locked {
 .karaoke-word {
   color: var(--hlt-base, #ffffff);
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.1s ease, border-color 0.1s ease;
   padding: 0 2px;
   border-radius: 4px;
+  border-bottom: 2px solid transparent;
 }
 
-/* Words already spoken - slightly dimmed */
+/* Words already spoken - dimmed */
 .karaoke-word--past {
-  opacity: 0.85;
+  opacity: 0.5;
 }
 
-/* Currently spoken word */
+/* Currently spoken word - clean underline only */
 .karaoke-word--active {
   opacity: 1;
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-  font-weight: 600;
-  transform: scale(1.08);
-  display: inline-block;
-  border-bottom: 2px solid currentColor;
-  padding-bottom: 1px;
+  border-bottom-color: currentColor;
+}
+
+/* Gap between segments - all words dim */
+.karaoke-line--gap .karaoke-word {
+  opacity: 0.4;
 }
 
 /* Hover effect */

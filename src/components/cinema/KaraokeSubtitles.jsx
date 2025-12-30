@@ -1,7 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import {
   LANGUAGE_HIGHLIGHT_COLORS,
-  STATUS_OPACITY,
 } from '../../constants/highlightColors'
 
 // Helper to get language color with case-insensitive lookup
@@ -22,7 +21,7 @@ function getWordColor({ language, status }) {
   return getLanguageColor(language)
 }
 
-const KaraokeWord = ({
+const KaraokeWord = memo(({
   word,
   isActive,
   isPast,
@@ -51,7 +50,7 @@ const KaraokeWord = ({
       {word.text}
     </span>
   )
-}
+})
 
 const KaraokeSubtitles = ({
   segments = [],
@@ -104,13 +103,17 @@ const KaraokeSubtitles = ({
 
   // If segment has word-level timing, render karaoke style
   if (activeSegment.words?.length > 0) {
+    const time = Math.max(0, Number(currentTime) || 0)
+    const lastWord = activeSegment.words[activeSegment.words.length - 1]
+    const isInGap = activeWordIndex === -1 && time > lastWord?.end
+
     return (
       <div
         className="karaoke-subtitles"
         onMouseUp={onWordSelect}
         style={{ cursor: 'pointer', userSelect: 'text' }}
       >
-        <div className="karaoke-line">
+        <div className={`karaoke-line${isInGap ? ' karaoke-line--gap' : ''}`}>
           {activeSegment.words.map((word, index) => {
             const normalised = word.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
             const entry = vocabEntries[normalised]
@@ -121,7 +124,7 @@ const KaraokeSubtitles = ({
                 key={`${word.start}-${index}`}
                 word={word}
                 isActive={index === activeWordIndex}
-                isPast={index < activeWordIndex}
+                isPast={index < activeWordIndex || isInGap}
                 status={status}
                 language={language}
                 onWordClick={onWordClick}

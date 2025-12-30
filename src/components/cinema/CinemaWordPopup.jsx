@@ -70,6 +70,7 @@ const CinemaWordPopup = ({
   audioUrl,
   language,
   darkMode = true,
+  isClosing = false,
   onStatusChange,
   onClose,
   style = {},
@@ -103,7 +104,7 @@ const CinemaWordPopup = ({
 
   return (
     <div
-      className={`cinema-word-popup ${darkMode ? 'is-dark' : 'is-light'}`}
+      className={`cinema-word-popup ${darkMode ? 'is-dark' : 'is-light'}${isClosing ? ' is-closing' : ''}`}
       style={style}
       onClick={(e) => e.stopPropagation()}
     >

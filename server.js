@@ -1914,9 +1914,14 @@ function alignPunctuationToWords(fullText = '', words = []) {
       textPos++
     }
 
+    // Clean up any duplicate opening punctuation (¿¿ → ¿, ¡¡ → ¡)
+    const cleanedWord = (leadingPunct + rawWord + trailingPunct)
+      .replace(/¿+/g, '¿')
+      .replace(/¡+/g, '¡')
+
     enrichedWords.push({
       ...word,
-      word: leadingPunct + rawWord + trailingPunct,
+      word: cleanedWord,
     })
   }
 

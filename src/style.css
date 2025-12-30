@@ -6902,6 +6902,7 @@ body.active-pass-locked {
 /* Karaoke Subtitles - word-by-word reveal */
 .karaoke-subtitles {
   display: inline-block;
+  position: relative;
   background: rgba(0, 0, 0, 0.85);
   padding: 16px 28px;
   border-radius: 12px;
@@ -6984,11 +6985,6 @@ body.active-pass-locked {
 
 .karaoke-tracking-toggle--active:hover {
   background: rgba(249, 115, 22, 0.25);
-}
-
-/* Make subtitles container relative for toggle positioning */
-.karaoke-subtitles {
-  position: relative;
 }
 
 @media (max-width: 900px) {

@@ -43,6 +43,7 @@ const ExtensiveCinemaMode = ({
   language,
   nativeLanguage,
   voiceGender = 'male',
+  popup,
   setPopup,
   renderHighlightedText,
   onSubtitleWordClick,
@@ -75,6 +76,15 @@ const ExtensiveCinemaMode = ({
   const handleTranscriptWordClick = useCallback(
     async (text, event) => {
       if (!setPopup) return
+
+      // Clean the word for comparison
+      const cleanWord = text.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
+
+      // Toggle behavior: if clicking the same word, dismiss the popup
+      if (popup?.word === cleanWord) {
+        setPopup(null)
+        return
+      }
 
       const selection = window.getSelection()?.toString()?.trim() || ''
       const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
@@ -112,7 +122,7 @@ const ExtensiveCinemaMode = ({
         }
       }
 
-      const { x, y } = getPopupPosition(targetRect)
+      const { x, y } = getPopupPosition(targetRect, true)
       const requestId = ++reqIdRef.current
 
       const anchorRect = {
@@ -125,9 +135,8 @@ const ExtensiveCinemaMode = ({
       }
 
       // Check pre-fetched translations and pronunciations first (single word lookup)
-      const normalised = normaliseExpression(text)
-      const prefetchedTranslation = translations[normalised] || translations[text]
-      const prefetchedPronunciation = pronunciations[normalised] || pronunciations[text]
+      const prefetchedTranslation = translations[cleanWord] || translations[text]
+      const prefetchedPronunciation = pronunciations[cleanWord] || pronunciations[text]
 
       if (prefetchedTranslation || prefetchedPronunciation) {
         // Handle translation (can be string or object)
@@ -160,7 +169,7 @@ const ExtensiveCinemaMode = ({
           y,
           anchorRect,
           anchorX: anchorRect.left + anchorRect.width / 2,
-          word: text,
+          word: cleanWord,
           displayText: text,
           translation,
           targetText: translation,
@@ -177,7 +186,7 @@ const ExtensiveCinemaMode = ({
         y,
         anchorRect,
         anchorX: anchorRect.left + anchorRect.width / 2,
-        word: text,
+        word: cleanWord,
         displayText: text,
         translation: 'Loading…',
         targetText: text,
@@ -248,7 +257,7 @@ const ExtensiveCinemaMode = ({
           : prev
       )
     },
-    [language, nativeLanguage, voiceGender, setPopup, translations, pronunciations]
+    [language, nativeLanguage, voiceGender, popup, setPopup, translations, pronunciations]
   )
 
   const handleTranscriptSelection = useCallback(
@@ -284,7 +293,7 @@ const ExtensiveCinemaMode = ({
       const ttsLanguage = normalizeLanguageCode(language)
 
       if (!ttsLanguage) {
-        const { x, y } = getPopupPosition(rect)
+        const { x, y } = getPopupPosition(rect, true)
         setPopup({
           x,
           y,
@@ -323,7 +332,7 @@ const ExtensiveCinemaMode = ({
         console.error('Error translating phrase:', err)
       }
 
-      const { x, y } = getPopupPosition(rect)
+      const { x, y } = getPopupPosition(rect, true)
       setPopup({
         x,
         y,

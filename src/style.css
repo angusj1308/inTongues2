@@ -5891,7 +5891,9 @@ body.active-pass-locked {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 0.98rem;
   color: #475569;
-  transition: color 240ms ease, font-weight 240ms ease, opacity 240ms ease;
+  border-radius: 6px;
+  background-color: transparent;
+  transition: color 300ms ease-out, font-weight 200ms ease, opacity 300ms ease-out, background-color 300ms ease-out, transform 200ms ease-out;
 }
 
 .transcript-line.active {
@@ -5899,6 +5901,7 @@ body.active-pass-locked {
   font-weight: 600;
   opacity: 1;
   line-height: 1.38;
+  background-color: rgba(15, 23, 42, 0.04);
 }
 
 .mini-controls-bar {
@@ -7160,13 +7163,14 @@ body.active-pass-locked {
 
 /* Dark mode transcript styles */
 .is-dark .floating-panel-content .transcript-line {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 1.05rem;
   line-height: 1.7;
 }
 
 .is-dark .floating-panel-content .transcript-line.active {
   color: #fff;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Dark mode footer with gradient fade */

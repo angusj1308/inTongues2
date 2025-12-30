@@ -169,7 +169,7 @@ const TranscriptRoller = ({
     const containerHeight = container.clientHeight
     const trackHeight = track.scrollHeight
     const itemCenter = activeItem.offsetTop + activeItem.offsetHeight / 2
-    const targetCenter = containerHeight * 0.35
+    const targetCenter = containerHeight * 0.40
     const desiredScrollTop = itemCenter - targetCenter
 
     const maxScroll = Math.max(0, trackHeight - containerHeight)
@@ -201,7 +201,9 @@ const TranscriptRoller = ({
 
   useEffect(() => {
     if (isSynced) {
-      scrollToActive()
+      // Small delay so active highlight appears before scroll starts
+      const timer = setTimeout(scrollToActive, 50)
+      return () => clearTimeout(timer)
     }
   }, [activeIndex, isSynced, scrollToActive, segments, syncToken])
 

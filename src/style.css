@@ -6235,6 +6235,420 @@ body.active-pass-locked {
   padding: clamp(10px, 2vh, 18px) clamp(10px, 2.4vw, 18px) clamp(16px, 3.4vh, 22px);
 }
 
+/* ========================================
+   PASS 1: Fullscreen Video with Overlay Controls
+   ======================================== */
+
+.cinema-active-fullscreen {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  background: #000;
+  z-index: 100;
+}
+
+.cinema-active-video-fullscreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.cinema-active-video-fullscreen iframe,
+.cinema-active-video-fullscreen video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Ensure YouTube player container and wrapper fill the space */
+.cinema-active-video-fullscreen > div {
+  width: 100%;
+  height: 100%;
+}
+
+.cinema-active-video-fullscreen > div > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Overlay control bar */
+.cinema-overlay-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 300ms ease, transform 300ms ease;
+  pointer-events: none;
+}
+
+.cinema-overlay-controls.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cinema-overlay-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  pointer-events: none;
+}
+
+.cinema-overlay-inner {
+  position: relative;
+  z-index: 1;
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header row */
+.cinema-overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.cinema-overlay-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cinema-overlay-chunk {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Progress bar */
+.cinema-overlay-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cinema-overlay-time {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  min-width: 42px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cinema-overlay-time:last-child {
+  text-align: right;
+}
+
+.cinema-overlay-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+}
+
+.cinema-overlay-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.9) var(--progress, 0%),
+    rgba(255, 255, 255, 0.2) var(--progress, 0%),
+    rgba(255, 255, 255, 0.2) 100%
+  );
+}
+
+.cinema-overlay-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  margin-top: -5px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 150ms ease;
+}
+
+.cinema-overlay-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.cinema-overlay-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-overlay-slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.cinema-overlay-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Transport row */
+.cinema-overlay-transport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cinema-overlay-left,
+.cinema-overlay-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.cinema-overlay-right {
+  justify-content: flex-end;
+}
+
+.cinema-overlay-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Overlay buttons */
+.cinema-overlay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.cinema-overlay-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-overlay-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.cinema-overlay-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cinema-overlay-btn .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.cinema-overlay-btn .scrub-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cinema-overlay-btn .scrub-arc {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+  stroke-dasharray: 50 100;
+  stroke-linecap: round;
+}
+
+.cinema-overlay-btn .scrub-arrowhead {
+  fill: currentColor;
+}
+
+.cinema-overlay-btn .scrub-text {
+  font-size: 9px;
+  font-weight: 600;
+  fill: currentColor;
+}
+
+/* Play button - larger */
+.cinema-overlay-play {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+}
+
+.cinema-overlay-play:hover:not(:disabled) {
+  background: #fff;
+  transform: scale(1.05);
+}
+
+.cinema-overlay-play .playpause-icon {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+/* Speed display */
+.cinema-overlay-speed {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.cinema-overlay-btn.active .cinema-overlay-speed {
+  color: #60a5fa;
+}
+
+/* Button wrapper for popovers */
+.cinema-overlay-btn-wrap {
+  position: relative;
+}
+
+/* Popover */
+.cinema-overlay-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 120;
+}
+
+.cinema-overlay-popover-option {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 150ms ease;
+}
+
+.cinema-overlay-popover-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cinema-overlay-popover-option.active {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+/* Pass navigation */
+.cinema-overlay-pass-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 4px;
+}
+
+.cinema-overlay-pass-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.cinema-overlay-pass-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cinema-overlay-pass-btn.is-current {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+}
+
+.cinema-overlay-pass-btn.is-completed {
+  color: #22c55e;
+}
+
+.cinema-overlay-pass-btn.is-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cinema-overlay-next {
+  width: 36px;
+  height: 36px;
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+.cinema-overlay-next:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.3);
+}
+
+.cinema-overlay-next:disabled {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Chunk drawer in fullscreen mode */
+.cinema-active-fullscreen .cinema-active-chunk-shell {
+  position: fixed;
+  bottom: 140px;
+  left: 24px;
+  right: 24px;
+  max-width: 600px;
+  z-index: 115;
+}
+
+.cinema-active-fullscreen .cinema-active-chunk-drawer {
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================
+   END PASS 1 Fullscreen Styles
+   ======================================== */
+
 .cinema-active-stage {
   width: 100%;
   max-width: 1400px;

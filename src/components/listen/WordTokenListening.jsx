@@ -1,16 +1,19 @@
-import { STATUS_OPACITY } from '../../constants/highlightColors'
+import {
+  LANGUAGE_HIGHLIGHT_COLORS,
+  STATUS_OPACITY,
+} from '../../constants/highlightColors'
 
-// Soft pastel colors for transcript by status
-// Matches the subtitle color scheme for consistency
-const SOFT_STATUS_COLORS = {
-  new: '#FFB088',        // soft peach - never seen this word
-  unknown: '#F5A3A3',    // soft red/pink - seen but don't know
-  recognised: '#C4A3F5', // soft purple - starting to recognize
-  familiar: '#93B5F5',   // soft blue - almost there
-  known: '#ffffff',      // white - mastered (but opacity 0 so invisible)
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  // Try exact match first, then capitalized version
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
 }
 
-function getHighlightStyle({ status, mode, enableHighlight }) {
+function getHighlightStyle({ language, status, mode, enableHighlight }) {
   const shouldHighlight = enableHighlight || mode !== 'extensive'
 
   if (!shouldHighlight) return {}
@@ -18,8 +21,10 @@ function getHighlightStyle({ status, mode, enableHighlight }) {
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
 
-  // Use status-based soft colors
-  const base = SOFT_STATUS_COLORS[status] || SOFT_STATUS_COLORS.new
+  // New words are always orange, others use language color
+  const base = status === 'new'
+    ? '#F97316'
+    : getLanguageColor(language)
 
   return {
     '--hlt-base': base,
@@ -47,6 +52,7 @@ const WordTokenListening = ({
 }) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
+    language,
     status: normalisedStatus,
     mode: listeningMode,
     enableHighlight,

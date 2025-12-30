@@ -6274,6 +6274,46 @@ body.active-pass-locked {
   height: 100% !important;
 }
 
+/* Fullscreen subtitles overlay (Pass 2 and 4) */
+.cinema-fullscreen-subtitles {
+  position: absolute;
+  bottom: 140px; /* Above the control bar */
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+  pointer-events: auto;
+  z-index: 105;
+}
+
+.cinema-fullscreen-subtitles .cinema-subtitles {
+  max-width: 900px;
+  text-align: center;
+}
+
+.cinema-fullscreen-subtitles .cinema-subtitle-line {
+  background: rgba(0, 0, 0, 0.75);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.cinema-fullscreen-subtitles .cinema-subtitle-word {
+  cursor: pointer;
+  transition: background 150ms ease;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 0 1px;
+}
+
+.cinema-fullscreen-subtitles .cinema-subtitle-word:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 /* Overlay control bar */
 .cinema-overlay-controls {
   position: absolute;

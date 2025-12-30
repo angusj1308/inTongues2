@@ -1313,6 +1313,7 @@ const normalisePagesToSegments = (pages = []) =>
           language={transcriptLanguage}
           nativeLanguage={profile?.nativeLanguage}
           voiceGender={profile?.voiceGender || 'male'}
+          popup={popup}
           setPopup={setPopup}
           renderHighlightedText={renderHighlightedText}
           onSubtitleWordClick={handleSubtitleWordClick}
@@ -1401,6 +1402,7 @@ const normalisePagesToSegments = (pages = []) =>
     <div
       ref={cinemaContainerRef}
       className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
+      onClick={() => popup && setPopup(null)}
     >
       {/* Top hover zone for header reveal in extensive mode */}
       {isExtensive && (
@@ -1509,9 +1511,9 @@ const normalisePagesToSegments = (pages = []) =>
 
       {popup && (
         <CinemaWordPopup
-          word={popup.word}
+          word={popup.displayText || popup.word}
           translation={popup.translation}
-          status={vocabEntries[normaliseExpression(popup.word)]?.status || 'new'}
+          status={vocabEntries[popup.word]?.status || 'new'}
           audioBase64={popup.audioBase64}
           audioUrl={popup.audioUrl}
           language={transcriptLanguage}

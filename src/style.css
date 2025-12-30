@@ -6936,6 +6936,7 @@ body.active-pass-locked {
   color: var(--hlt-base, #ffffff);
   cursor: pointer;
   padding: 0 2px;
+  margin: 0 3px;
   border-radius: 4px;
   display: inline-block;
   white-space: nowrap;
@@ -7356,6 +7357,17 @@ body.active-pass-locked {
   }
 }
 
+@keyframes popup-close {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.95);
+  }
+}
+
 .cinema-word-popup {
   position: absolute;
   z-index: 1001;
@@ -7369,6 +7381,11 @@ body.active-pass-locked {
   transform: translateX(-50%);
   transform-origin: bottom center;
   animation: popup-open 0.15s ease-out forwards;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.cinema-word-popup.is-closing {
+  animation: popup-close 0.12s ease-in forwards;
 }
 
 .cinema-word-popup.is-light {

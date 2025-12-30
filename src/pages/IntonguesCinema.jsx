@@ -84,6 +84,7 @@ const IntonguesCinema = () => {
   const [translations, setTranslations] = useState({})
   const [pronunciations, setPronunciations] = useState({})
   const [popup, setPopup] = useState(null)
+  const [popupClosing, setPopupClosing] = useState(false)
 
   // Cinema mode state
   const [cinemaMode, setCinemaMode] = useState('extensive')
@@ -109,6 +110,16 @@ const IntonguesCinema = () => {
   const handleCloseTranscript = useCallback(() => {
     setTextDisplayMode('subtitles')
   }, [])
+
+  // Close popup with animation
+  const closePopupAnimated = useCallback(() => {
+    if (!popup) return
+    setPopupClosing(true)
+    setTimeout(() => {
+      setPopup(null)
+      setPopupClosing(false)
+    }, 120) // Match animation duration
+  }, [popup])
 
   // Custom keyboard shortcuts for extensive mode (bypasses YouTube iframe focus requirement)
   useEffect(() => {
@@ -782,7 +793,7 @@ const normalisePagesToSegments = (pages = []) =>
 
   // Dismiss popup when clicking outside
   useEffect(() => {
-    if (!popup) return undefined
+    if (!popup || popupClosing) return undefined
 
     const handleClickOutside = (event) => {
       // Check if click is inside the popup
@@ -790,10 +801,15 @@ const normalisePagesToSegments = (pages = []) =>
       if (popupElement) return
 
       // Check if click is on a word (which would trigger a new popup)
-      const wordElement = event.target.closest('.reader-word, .page-text span')
+      const wordElement = event.target.closest('.reader-word, .page-text span, .karaoke-word')
       if (wordElement) return
 
-      setPopup(null)
+      // Animate close
+      setPopupClosing(true)
+      setTimeout(() => {
+        setPopup(null)
+        setPopupClosing(false)
+      }, 120)
     }
 
     // Use setTimeout to avoid immediate dismissal from the click that opened it
@@ -805,7 +821,7 @@ const normalisePagesToSegments = (pages = []) =>
       clearTimeout(timeoutId)
       document.removeEventListener('click', handleClickOutside)
     }
-  }, [popup])
+  }, [popup, popupClosing])
 
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)
@@ -1180,7 +1196,12 @@ const normalisePagesToSegments = (pages = []) =>
         },
       }))
 
-      setPopup(null)
+      // Animate close
+      setPopupClosing(true)
+      setTimeout(() => {
+        setPopup(null)
+        setPopupClosing(false)
+      }, 120)
     } catch (err) {
       console.error('Failed to update vocab status', err)
     }
@@ -1402,7 +1423,6 @@ const normalisePagesToSegments = (pages = []) =>
     <div
       ref={cinemaContainerRef}
       className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
-      onClick={() => popup && setPopup(null)}
     >
       {/* Top hover zone for header reveal in extensive mode */}
       {isExtensive && (
@@ -1518,8 +1538,9 @@ const normalisePagesToSegments = (pages = []) =>
           audioUrl={popup.audioUrl}
           language={transcriptLanguage}
           darkMode={cinemaDarkMode}
+          isClosing={popupClosing}
           onStatusChange={(word, status) => handleSetWordStatus(status)}
-          onClose={() => setPopup(null)}
+          onClose={closePopupAnimated}
           style={{
             top: popup.y,
             left: popup.x,

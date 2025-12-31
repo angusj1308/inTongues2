@@ -6420,11 +6420,10 @@ body.active-pass-locked {
   position: relative;
   background: #111;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .cinema-pass-three-transcript {
-  /* Remove the hard border, now using card styling */
+  /* No border on transcript panel */
 }
 
 /* Dark mode overrides for transcript panel */
@@ -6437,6 +6436,39 @@ body.active-pass-locked {
 
 .cinema-pass-three-transcript .transcript-segment {
   color: #e5e5e5;
+}
+
+/* Dark mode word status colors for transcript - use text color not backgrounds */
+.cinema-pass-three-transcript .word-new {
+  color: #F97316;
+  background: transparent;
+  font-weight: 600;
+}
+
+.cinema-pass-three-transcript .word-unknown {
+  color: #E88A8A;
+  background: transparent;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.cinema-pass-three-transcript .word-recognised {
+  color: #F0AFAF;
+  background: transparent;
+  font-weight: 500;
+}
+
+.cinema-pass-three-transcript .word-familiar {
+  color: #F9DCDC;
+  background: transparent;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.cinema-pass-three-transcript .word-known {
+  color: #e5e5e5;
+  background: transparent;
+  font-weight: 400;
 }
 
 .cinema-pass-three-transcript .transcript-segment.active {
@@ -6463,9 +6495,7 @@ body.active-pass-locked {
 }
 
 .cinema-pass-three-words .word-status-panel-header {
-  background: #111;
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-  border-radius: 12px 12px 0 0;
+  display: none; /* Hide header - instruction already given at pass start */
 }
 
 .cinema-pass-three-words .word-status-panel-label {
@@ -6501,6 +6531,8 @@ body.active-pass-locked {
 .cinema-pass-three-words .word-status-footer .button {
   background: #fff;
   color: #0a0a0a;
+  border: none;
+  outline: none;
 }
 
 /* Dark mode for transcript roller gradient fade */
@@ -6669,14 +6701,23 @@ body.active-pass-locked {
   background: linear-gradient(to top, rgba(248, 250, 252, 0.95) 0%, rgba(248, 250, 252, 0.6) 60%, transparent 100%);
 }
 
-/* Pass 3 specific hover zone - needs higher z-index to be above content panels */
+/* Pass 3 specific hover zone - fixed at bottom of viewport */
 .cinema-pass-three-fullscreen .cinema-overlay-hover-zone {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
   z-index: 120;
 }
 
-/* Pass 3 nav - just the pass navigation, no player controls */
+/* Pass 3 nav - fixed at bottom of viewport */
 .cinema-pass-three-nav {
-  z-index: 130; /* Above hover zone and content */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 130;
 }
 
 .cinema-pass-three-nav .cinema-overlay-inner {

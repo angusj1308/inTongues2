@@ -133,19 +133,19 @@ const KaraokeSubtitles = ({
   }, [activeSegment, currentTime])
 
   if (!segments.length) {
-    return (
-      <div className="karaoke-subtitles karaoke-subtitles--empty">
-        <span className="muted small">Subtitles will appear here once available.</span>
-      </div>
-    )
+    // Don't show anything when no segments - prevents empty black box
+    return null
   }
 
   if (!activeSegment) {
-    return (
-      <div className="karaoke-subtitles karaoke-subtitles--waiting">
-        <span className="muted small">...</span>
-      </div>
-    )
+    // Don't show anything when waiting - no black box
+    return null
+  }
+
+  // If segment has no text content, don't show the box
+  const hasContent = activeSegment.text?.trim() || activeSegment.words?.length > 0
+  if (!hasContent) {
+    return null
   }
 
   // If segment has word-level timing, render karaoke style

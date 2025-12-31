@@ -123,6 +123,7 @@ const ActiveCinemaMode = ({
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(true) // For Pass 1 overlay controls
+  const [showPassIntro, setShowPassIntro] = useState(true) // Show pass intro at start only
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safeDuration = Number.isFinite(duration) ? duration : 0
@@ -207,6 +208,16 @@ const ActiveCinemaMode = ({
       }, 3000)
       return () => clearTimeout(timer)
     }
+  }, [activeStep])
+
+  // Show pass intro when entering a new pass (auto-dismiss after 2.5s)
+  useEffect(() => {
+    if (activeStep === 3) return // Pass 3 has its own layout
+    setShowPassIntro(true)
+    const timer = setTimeout(() => {
+      setShowPassIntro(false)
+    }, 2500)
+    return () => clearTimeout(timer)
   }, [activeStep])
 
   // Reset transcript sync on pass/chunk change
@@ -443,13 +454,6 @@ const ActiveCinemaMode = ({
     4: 'Final Watch',
   }
 
-  const passInstructions = {
-    1: 'Focus on the visuals and audio. No subtitles - absorb the content naturally.',
-    2: 'Follow along with subtitles. Words highlight as they\'re spoken.',
-    3: 'Review the transcript and adjust word statuses.',
-    4: 'Final watch with subtitles. Click any word to mark its status.',
-  }
-
   const isSubtitlesVisible = activeStep >= 2
   const heroTitle = heroTitles[activeStep] || heroTitles[1]
 
@@ -658,16 +662,14 @@ const ActiveCinemaMode = ({
           )}
         </div>
 
-        {/* Pass info header - appears at top when overlay is visible */}
-        <div className={`cinema-overlay-header ${overlayVisible ? 'is-visible' : ''}`}>
-          <div className="cinema-overlay-header-inner">
-            <div className="cinema-overlay-pass-info">
-              <span className="cinema-overlay-pass-label">PASS {activeStep}</span>
-              <span className="cinema-overlay-pass-title">{heroTitle}</span>
-            </div>
-            <p className="cinema-overlay-pass-hint">{passInstructions[activeStep]}</p>
+        {/* Pass intro - appears centered when entering a new pass */}
+        {showPassIntro && (
+          <div className="cinema-pass-intro">
+            <span className="cinema-pass-intro-text">
+              PASS {activeStep} of 4 — {heroTitle}
+            </span>
           </div>
-        </div>
+        )}
 
         {/* Overlay control bar */}
         <div className={`cinema-overlay-controls ${overlayVisible ? 'is-visible' : ''}`}>

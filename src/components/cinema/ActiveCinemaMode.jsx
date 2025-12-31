@@ -528,7 +528,7 @@ const ActiveCinemaMode = ({
           )
         })}
       </ol>
-      {activeStep === 4 ? (
+      {activeStep === 4 && completedChunks.has(safeChunkIndex) ? (
         <button
           type="button"
           className={`active-pass-arrow active-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
@@ -545,7 +545,7 @@ const ActiveCinemaMode = ({
           type="button"
           className="active-pass-arrow"
           onClick={handleNextPass}
-          disabled={!canAdvanceToNextStep || activeStep === 4}
+          disabled={activeStep === 4 || !canAdvanceToNextStep}
           aria-label="Next pass"
         >
           {'>'}
@@ -863,7 +863,7 @@ const ActiveCinemaMode = ({
                   )
                 })}
               </div>
-              {activeStep === 4 ? (
+              {activeStep === 4 && completedChunks.has(safeChunkIndex) ? (
                 <button
                   type="button"
                   className={`cinema-overlay-pass-arrow cinema-overlay-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
@@ -880,7 +880,7 @@ const ActiveCinemaMode = ({
                   type="button"
                   className="cinema-overlay-pass-arrow"
                   onClick={handleNextPass}
-                  disabled={!canAdvanceToNextStep}
+                  disabled={activeStep === 4 || !canAdvanceToNextStep}
                   aria-label="Next pass"
                 >
                   <Icon name="chevron_right" />

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -241,7 +240,6 @@ const IntonguesCinema = () => {
   const [activeStep, setActiveStep] = useState(1)
   const [completedChunks, setCompletedChunks] = useState(new Set())
   const [completedPasses, setCompletedPasses] = useState(new Set())
-  const [showAdvanceChunkModal, setShowAdvanceChunkModal] = useState(false)
   const pass4CompletedRef = useRef(new Set())
 
   // Intensive mode state
@@ -975,14 +973,10 @@ const normalisePagesToSegments = (pages = []) =>
       playerRef.current?.pauseVideo?.()
       handleSeek(chunk.end)
 
-      // If on pass 4 and chunk completes, mark as completed and show advance modal
+      // If on pass 4 and chunk completes, mark as completed
       if (activeStep === 4 && !pass4CompletedRef.current.has(activeChunkIndex)) {
         pass4CompletedRef.current.add(activeChunkIndex)
         setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))
-        // Show advance modal if there are more chunks
-        if (activeChunkIndex < chunks.length - 1) {
-          setShowAdvanceChunkModal(true)
-        }
       }
       return
     }
@@ -1326,12 +1320,7 @@ const normalisePagesToSegments = (pages = []) =>
     setActiveChunkIndex((prev) => prev + 1)
     setActiveStep(1)
     setCompletedPasses(new Set())
-    setShowAdvanceChunkModal(false)
   }, [activeChunkIndex, chunks.length])
-
-  const handleDismissAdvanceModal = useCallback(() => {
-    setShowAdvanceChunkModal(false)
-  }, [])
 
   const handleBeginFinalWatch = useCallback(async () => {
     // Mark all untouched "new" words as "known" before final watch
@@ -1687,25 +1676,6 @@ const normalisePagesToSegments = (pages = []) =>
         />
       )}
 
-      {showAdvanceChunkModal && createPortal(
-        <div className="modal-backdrop cinema-advance-modal-backdrop" role="presentation">
-          <div className="modal-card cinema-advance-modal" role="dialog" aria-modal="true" aria-label="Advance to next chunk">
-            <h3 className="cinema-advance-modal-title">Chunk complete!</h3>
-            <p className="cinema-advance-modal-message">
-              Ready to move on to the next chunk?
-            </p>
-            <div className="cinema-advance-modal-actions">
-              <button type="button" className="button ghost" onClick={handleDismissAdvanceModal}>
-                Stay here
-              </button>
-              <button type="button" className="button" onClick={handleAdvanceChunk}>
-                Next chunk
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   )
 }

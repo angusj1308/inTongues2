@@ -1361,8 +1361,8 @@ const normalisePagesToSegments = (pages = []) =>
       return <p className="error">This video cannot be embedded.</p>
     }
 
-    // Hide YouTube controls in Active mode for controlled chunk-based experience
-    const showControls = cinemaMode !== 'active'
+    // Hide YouTube controls in Active and Intensive modes for controlled experience
+    const showControls = cinemaMode !== 'active' && cinemaMode !== 'intensive'
 
     return (
       <YouTubePlayer
@@ -1483,11 +1483,12 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   const isExtensive = cinemaMode === 'extensive'
+  const isFullscreenMode = cinemaMode === 'extensive' || cinemaMode === 'intensive'
 
   return (
     <div
       ref={cinemaContainerRef}
-      className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
+      className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
       {/* Top hover zone for header reveal in extensive mode */}
       {isExtensive && (

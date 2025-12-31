@@ -7201,40 +7201,29 @@ body.active-pass-locked {
   object-fit: contain;
 }
 
-/* Controls overlay at bottom */
-.cinema-intensive-controls-overlay {
+/* Top bar: Nav (left) + Transcribe toggle (right) */
+.cinema-intensive-top-bar {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem 1.5rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 60%, transparent 100%);
-  z-index: 110;
-  pointer-events: none; /* Allow clicks to pass through to YouTube player */
-}
-
-/* Header with navigation and transcribe toggle */
-.cinema-intensive-header {
-  display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  max-width: 700px;
-  padding: 0.5rem 0;
-  pointer-events: auto; /* Re-enable clicks for interactive elements */
+  padding: 1rem 1.5rem;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  z-index: 120;
+  pointer-events: none;
 }
 
-.cinema-intensive-header .intensive-card-nav {
+.cinema-intensive-top-bar .intensive-card-nav {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  pointer-events: auto;
 }
 
-.cinema-intensive-header .intensive-card-nav-btn {
+.cinema-intensive-top-bar .intensive-card-nav-btn {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fff;
@@ -7244,16 +7233,16 @@ body.active-pass-locked {
   transition: all 0.15s ease;
 }
 
-.cinema-intensive-header .intensive-card-nav-btn:hover:not(:disabled) {
+.cinema-intensive-top-bar .intensive-card-nav-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.cinema-intensive-header .intensive-card-nav-btn:disabled {
+.cinema-intensive-top-bar .intensive-card-nav-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-.cinema-intensive-header .intensive-card-nav-counter {
+.cinema-intensive-top-bar .intensive-card-nav-counter {
   color: #fff;
   font-size: 0.875rem;
   font-weight: 500;
@@ -7261,32 +7250,204 @@ body.active-pass-locked {
   text-align: center;
 }
 
-.cinema-intensive-header .transcribe-mode-toggle {
+.cinema-intensive-top-bar .transcribe-mode-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  pointer-events: auto;
 }
 
-.cinema-intensive-header .transcribe-mode-label {
+.cinema-intensive-top-bar .transcribe-mode-label {
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.875rem;
 }
 
-/* Transcript zone */
-.cinema-intensive-transcript-zone {
-  width: 100%;
-  max-width: 700px;
-  text-align: center;
-  pointer-events: auto; /* Re-enable clicks for interactive elements */
+/* Right sliding vocab panel */
+.cinema-intensive-vocab-panel {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  bottom: 180px;
+  width: 320px;
+  background: rgba(0, 0, 0, 0.9);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 115;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.cinema-intensive-transcript-zone .intensive-transcribe-input-container {
+.cinema-intensive-vocab-panel.is-open {
+  transform: translateX(0);
+}
+
+.cinema-intensive-vocab-panel-header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.vocab-panel-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  transition: color 0.15s ease;
+}
+
+.vocab-panel-close:hover {
+  color: #fff;
+}
+
+.cinema-intensive-vocab-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
+}
+
+.intensive-vocab-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.intensive-vocab-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.intensive-vocab-item-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.intensive-vocab-item .intensive-word-text {
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.intensive-vocab-item .intensive-word-translation {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.intensive-vocab-empty {
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Bottom controls */
+.cinema-intensive-bottom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 1.5rem 1.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 60%, transparent 100%);
+  z-index: 110;
+  pointer-events: none;
+}
+
+/* Subtitle zone */
+.cinema-intensive-subtitle-zone {
+  width: 100%;
+  max-width: 800px;
+  text-align: center;
+  margin-bottom: 1rem;
+  pointer-events: auto;
+}
+
+.cinema-intensive-subtitle {
+  color: #fff;
+  font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+  font-weight: 500;
+  line-height: 1.5;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 0, 0, 0.8);
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.cinema-intensive-subtitle-translation {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: clamp(0.9rem, 1.8vw, 1.1rem);
+  font-style: italic;
+  margin-top: 0.5rem;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* Player controls row */
+.cinema-intensive-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 900px;
+  pointer-events: auto;
+}
+
+.cinema-intensive-reveal-area {
+  min-width: 150px;
+  display: flex;
   justify-content: center;
 }
 
-.cinema-intensive-transcript-zone .intensive-input {
+.intensive-reveal-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.intensive-reveal-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.intensive-reveal-placeholder {
+  width: 150px;
+}
+
+/* Transcription input in subtitle zone */
+.cinema-intensive-subtitle-zone .intensive-transcribe-input-container {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.cinema-intensive-subtitle-zone .intensive-input {
   flex: 1;
   max-width: 500px;
   padding: 0.75rem 1rem;
@@ -7297,11 +7458,11 @@ body.active-pass-locked {
   font-size: 1rem;
 }
 
-.cinema-intensive-transcript-zone .intensive-input::placeholder {
+.cinema-intensive-subtitle-zone .intensive-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
 
-.cinema-intensive-transcript-zone .intensive-submit-btn {
+.cinema-intensive-subtitle-zone .intensive-submit-btn {
   padding: 0.75rem 1.25rem;
   border-radius: 8px;
   border: none;
@@ -7312,57 +7473,23 @@ body.active-pass-locked {
   transition: background 0.15s ease;
 }
 
-.cinema-intensive-transcript-zone .intensive-submit-btn:hover:not(:disabled) {
+.cinema-intensive-subtitle-zone .intensive-submit-btn:hover:not(:disabled) {
   background: #2563eb;
 }
 
-.cinema-intensive-transcript-zone .intensive-submit-btn:disabled {
+.cinema-intensive-subtitle-zone .intensive-submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.cinema-intensive-transcript-zone .intensive-user-attempt {
+.cinema-intensive-subtitle-zone .intensive-user-attempt {
   color: #fff;
   font-size: clamp(1rem, 2vw, 1.25rem);
   margin-bottom: 0.5rem;
-}
-
-.cinema-intensive-transcript {
-  color: #fff;
-  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-  font-weight: 500;
-  line-height: 1.6;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-}
-
-/* Translation zone */
-.cinema-intensive-translation-zone {
-  width: 100%;
-  max-width: 700px;
-  text-align: center;
-  pointer-events: auto; /* Re-enable clicks for interactive elements */
-}
-
-.cinema-intensive-translation {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-  font-style: italic;
-  line-height: 1.5;
-}
-
-.cinema-intensive-translation-zone .intensive-reveal-btn {
-  padding: 0.6rem 1.25rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.5);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.cinema-intensive-translation-zone .intensive-reveal-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  display: inline-block;
 }
 
 /* Player controls */
@@ -7469,67 +7596,33 @@ body.active-pass-locked {
   font-weight: 600;
 }
 
-/* Vocab zone */
-.cinema-intensive-vocab-zone {
-  width: 100%;
-  max-width: 700px;
-  max-height: 120px;
-  overflow-y: auto;
-  pointer-events: auto; /* Re-enable clicks for interactive elements */
-}
-
-.cinema-intensive-vocab-zone .intensive-word-pairs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.cinema-intensive-vocab-zone .intensive-word-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.6rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 0.8rem;
-}
-
-.cinema-intensive-vocab-zone .intensive-word-play {
+/* Vocab panel item styles */
+.intensive-vocab-item .intensive-word-play {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  padding: 0.2rem;
+  padding: 0.25rem;
   display: flex;
+  flex-shrink: 0;
 }
 
-.cinema-intensive-vocab-zone .intensive-word-play:hover:not(:disabled) {
+.intensive-vocab-item .intensive-word-play:hover:not(:disabled) {
   color: #fff;
 }
 
-.cinema-intensive-vocab-zone .intensive-word-play:disabled {
+.intensive-vocab-item .intensive-word-play:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-.cinema-intensive-vocab-zone .intensive-word-text {
-  color: #fff;
-  font-weight: 500;
-}
-
-.cinema-intensive-vocab-zone .intensive-word-translation {
-  color: rgba(255, 255, 255, 0.6);
-  font-style: italic;
-}
-
-.cinema-intensive-vocab-zone .intensive-word-status-pills {
+.intensive-vocab-item .intensive-word-status-pills {
   display: flex;
   gap: 2px;
-  margin-left: 0.25rem;
+  flex-shrink: 0;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill {
+.intensive-vocab-item .intensive-status-pill {
   width: 18px;
   height: 18px;
   border: none;
@@ -7543,31 +7636,31 @@ body.active-pass-locked {
   color: #fff;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill:hover {
+.intensive-vocab-item .intensive-status-pill:hover {
   opacity: 0.7;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill.is-active {
+.intensive-vocab-item .intensive-status-pill.is-active {
   opacity: 1;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill--new.is-active {
+.intensive-vocab-item .intensive-status-pill--new.is-active {
   background: #6b7280;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill--unknown.is-active {
+.intensive-vocab-item .intensive-status-pill--unknown.is-active {
   background: #ef4444;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill--recognised.is-active {
+.intensive-vocab-item .intensive-status-pill--recognised.is-active {
   background: #f97316;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill--familiar.is-active {
+.intensive-vocab-item .intensive-status-pill--familiar.is-active {
   background: #eab308;
 }
 
-.cinema-intensive-vocab-zone .intensive-status-pill--known.is-active {
+.intensive-vocab-item .intensive-status-pill--known.is-active {
   background: #22c55e;
 }
 

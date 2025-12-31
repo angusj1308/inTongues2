@@ -531,11 +531,14 @@ const ActiveCinemaMode = ({
       {activeStep === 4 ? (
         <button
           type="button"
-          className="button active-pass-next-chunk"
+          className={`active-pass-arrow active-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
           onClick={onAdvanceChunk}
           disabled={!canMoveToNextChunk}
+          aria-label="Next chunk"
         >
-          Move to next chunk
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8.5L6.5 12L13 4" />
+          </svg>
         </button>
       ) : (
         <button
@@ -860,15 +863,29 @@ const ActiveCinemaMode = ({
                   )
                 })}
               </div>
-              <button
-                type="button"
-                className="cinema-overlay-pass-arrow"
-                onClick={handleNextPass}
-                disabled={!canAdvanceToNextStep}
-                aria-label="Next pass"
-              >
-                <Icon name="chevron_right" />
-              </button>
+              {activeStep === 4 ? (
+                <button
+                  type="button"
+                  className={`cinema-overlay-pass-arrow cinema-overlay-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
+                  onClick={onAdvanceChunk}
+                  disabled={!canMoveToNextChunk}
+                  aria-label="Next chunk"
+                >
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8.5L6.5 12L13 4" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="cinema-overlay-pass-arrow"
+                  onClick={handleNextPass}
+                  disabled={!canAdvanceToNextStep}
+                  aria-label="Next pass"
+                >
+                  <Icon name="chevron_right" />
+                </button>
+              )}
             </div>
           </div>
         </div>

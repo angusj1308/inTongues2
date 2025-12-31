@@ -9067,6 +9067,8 @@ body.active-pass-locked {
 .review-deck-card-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
 .writing-piece-snippet {
   font-size: 0.85rem;
   color: #64748b;

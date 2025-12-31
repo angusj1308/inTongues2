@@ -8913,6 +8913,25 @@ body.active-pass-locked {
   margin: 0;
 }
 
+/* Review deck cards - styled to match listen/media cards */
+.review-deck-card {
+  flex: 0 0 320px;
+  min-width: 280px;
+  scroll-snap-align: start;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.review-deck-card:hover:not(.is-disabled) {
 .writing-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -8933,8 +8952,24 @@ body.active-pass-locked {
   border-color: #cbd5e1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
+.review-deck-card.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-deck-card-inner {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  align-items: flex-start;
+}
+
+.review-deck-card-icon {
+  width: 44px;
+  height: 44px;
 .writing-piece-card:focus {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
@@ -8944,6 +8979,9 @@ body.active-pass-locked {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  border-radius: 12px;
   margin-bottom: 8px;
 }
 
@@ -8953,8 +8991,20 @@ body.active-pass-locked {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #64748b;
+  flex-shrink: 0;
 }
 
+.review-deck-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.review-deck-card-title {
+  font-family: 'Garamond', serif;
+  font-size: 1.15rem;
 .writing-piece-status {
   font-size: 0.65rem;
   font-weight: 500;
@@ -8985,8 +9035,38 @@ body.active-pass-locked {
   margin: 0 0 8px 0;
   color: #0f172a;
   line-height: 1.3;
+  color: #0f172a;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
+.review-deck-card-meta {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.review-deck-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0 1.1rem 1rem;
+}
+
+.review-deck-card-primary {
+  padding: 0.5rem 1.1rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.review-deck-card-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 .writing-piece-snippet {
   font-size: 0.85rem;
   color: #64748b;

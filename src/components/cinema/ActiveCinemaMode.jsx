@@ -215,12 +215,12 @@ const ActiveCinemaMode = ({
     setShowPassIntro(true)
   }, [activeStep])
 
-  // Hide pass intro when playback starts
+  // Hide pass intro when playback starts (only for video passes, not Pass 3)
   useEffect(() => {
-    if (isPlaying && showPassIntro) {
+    if (activeStep !== 3 && isPlaying && showPassIntro) {
       setShowPassIntro(false)
     }
-  }, [isPlaying, showPassIntro])
+  }, [activeStep, isPlaying, showPassIntro])
 
   // Reset transcript sync on pass/chunk change
   useEffect(() => {

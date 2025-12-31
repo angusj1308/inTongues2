@@ -123,6 +123,7 @@ const ActiveCinemaMode = ({
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(true) // For Pass 1 overlay controls
+  const [showPassIntro, setShowPassIntro] = useState(true) // Show pass intro until user plays
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safeDuration = Number.isFinite(duration) ? duration : 0
@@ -201,14 +202,28 @@ const ActiveCinemaMode = ({
   useEffect(() => {
     if (activeStep !== 3) {
       setOverlayVisible(true)
-      // Auto-hide after initial display
+      // Auto-hide after initial display (only if pass intro is not showing)
       const timer = setTimeout(() => {
-        setOverlayVisible(false)
+        if (!showPassIntro) {
+          setOverlayVisible(false)
+        }
       }, 3000)
       return () => clearTimeout(timer)
     }
+  }, [activeStep, showPassIntro])
+
+  // Show pass intro when entering a new pass - stays until user plays
+  useEffect(() => {
+    if (activeStep === 3) return // Pass 3 has its own layout
+    setShowPassIntro(true)
   }, [activeStep])
 
+  // Hide pass intro when playback starts
+  useEffect(() => {
+    if (isPlaying && showPassIntro) {
+      setShowPassIntro(false)
+    }
+  }, [isPlaying, showPassIntro])
 
   // Reset transcript sync on pass/chunk change
   useEffect(() => {
@@ -650,6 +665,15 @@ const ActiveCinemaMode = ({
           )}
         </div>
 
+        {/* Pass intro overlay - shows pass label/title until user plays */}
+        {showPassIntro && (
+          <div className="cinema-pass-intro">
+            <div className="cinema-pass-intro-content">
+              <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
+              <span className="cinema-pass-intro-title">{heroTitle}</span>
+            </div>
+          </div>
+        )}
 
         {/* Hover detection zone - positioned below subtitles to avoid interference */}
         <div

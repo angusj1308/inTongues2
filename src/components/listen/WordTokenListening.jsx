@@ -3,6 +3,16 @@ import {
   STATUS_OPACITY,
 } from '../../constants/highlightColors'
 
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  // Try exact match first, then capitalized version
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
+}
+
 function getHighlightStyle({ language, status, mode, enableHighlight }) {
   const shouldHighlight = enableHighlight || mode !== 'extensive'
 
@@ -14,7 +24,7 @@ function getHighlightStyle({ language, status, mode, enableHighlight }) {
   // New words are always orange, others use language color
   const base = status === 'new'
     ? '#F97316'
-    : (LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default)
+    : getLanguageColor(language)
 
   return {
     '--hlt-base': base,

@@ -1171,6 +1171,7 @@ textarea {
   max-height: calc(100vh - 2rem);
   overflow: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 @media (max-width: 900px) {
@@ -5891,7 +5892,9 @@ body.active-pass-locked {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 0.98rem;
   color: #475569;
-  transition: color 240ms ease, font-weight 240ms ease, opacity 240ms ease;
+  border-radius: 6px;
+  background-color: transparent;
+  transition: color 300ms ease-out, font-weight 200ms ease, opacity 300ms ease-out, background-color 300ms ease-out, transform 200ms ease-out;
 }
 
 .transcript-line.active {
@@ -5899,6 +5902,7 @@ body.active-pass-locked {
   font-weight: 600;
   opacity: 1;
   line-height: 1.38;
+  background-color: rgba(15, 23, 42, 0.04);
 }
 
 .mini-controls-bar {
@@ -6232,6 +6236,929 @@ body.active-pass-locked {
   padding: clamp(10px, 2vh, 18px) clamp(10px, 2.4vw, 18px) clamp(16px, 3.4vh, 22px);
 }
 
+/* ========================================
+   PASS 1: Fullscreen Video with Overlay Controls
+   ======================================== */
+
+.cinema-active-fullscreen {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  background: #000;
+  z-index: 100;
+}
+
+.cinema-active-video-fullscreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.cinema-active-video-fullscreen iframe,
+.cinema-active-video-fullscreen video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Ensure YouTube player container and wrapper fill the space */
+/* Exclude subtitle overlay and pass intro from this rule */
+.cinema-active-video-fullscreen > div:not(.cinema-fullscreen-subtitles):not(.cinema-pass-intro) {
+  width: 100%;
+  height: 100%;
+}
+
+.cinema-active-video-fullscreen > div:not(.cinema-fullscreen-subtitles):not(.cinema-pass-intro) > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fullscreen subtitles overlay (Pass 2 and 4) */
+.cinema-fullscreen-subtitles {
+  position: absolute;
+  bottom: 160px; /* Above the control bar */
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+  pointer-events: auto;
+  z-index: 105;
+}
+
+/* Style karaoke subtitles in fullscreen context */
+.cinema-fullscreen-subtitles .karaoke-subtitles {
+  max-width: 800px;
+  font-size: 1.5rem;
+  padding: 12px 24px;
+}
+
+.cinema-fullscreen-subtitles .karaoke-subtitles--empty,
+.cinema-fullscreen-subtitles .karaoke-subtitles--waiting {
+  background: transparent;
+}
+
+/* Tracking toggle position adjustment for fullscreen */
+.cinema-fullscreen-subtitles .karaoke-tracking-toggle {
+  top: 4px;
+  right: 4px;
+}
+
+/* Pass intro - shows pass label/title, controls appear on top */
+.cinema-pass-intro {
+  position: absolute;
+  inset: 0; /* Cover full screen */
+  z-index: 106; /* Below controls (110) so they appear on top */
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.cinema-pass-intro-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto; /* Re-enable clicks for content/buttons */
+}
+
+.cinema-pass-intro-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cinema-pass-intro-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 24px;
+}
+
+.cinema-pass-intro-play {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.cinema-pass-intro-play:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.cinema-pass-intro-play .playpause-icon {
+  width: 32px;
+  height: 32px;
+  fill: #fff;
+}
+
+/* Okay button for Pass 3 intro */
+.cinema-pass-intro-okay {
+  padding: 12px 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.cinema-pass-intro-okay:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============ PASS 3 FULLSCREEN DARK MODE ============ */
+.cinema-pass-three-fullscreen {
+  position: fixed;
+  inset: 0;
+  top: 65px; /* Below header */
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  padding: 24px;
+  padding-bottom: 100px; /* Space for hover nav */
+}
+
+.cinema-pass-three-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  min-height: 0;
+  height: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.cinema-pass-three-transcript,
+.cinema-pass-three-words {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: #111;
+  border-radius: 12px;
+}
+
+.cinema-pass-three-transcript {
+  /* No border on transcript panel */
+}
+
+/* Dark mode overrides for transcript panel */
+.cinema-pass-three-transcript .transcript-panel {
+  background: #111;
+  color: #e5e5e5;
+  height: 100%;
+  border-radius: 12px;
+  border: none;
+}
+
+.cinema-pass-three-transcript .transcript-segment {
+  color: #e5e5e5;
+}
+
+/* Dark mode word status colors for transcript - use text color with opacity-based intensity */
+.cinema-pass-three-transcript .reader-word {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cinema-pass-three-transcript .reader-word--highlighted {
+  /* Blend highlight color with white based on opacity (U=0.4, R=0.28, F=0.16, K=0) */
+  /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
+  color: color-mix(
+    in srgb,
+    var(--hlt-base, #DC2626) calc(var(--hlt-opacity, 0) * 250%),
+    rgba(255, 255, 255, 0.85)
+  );
+  background: none;
+}
+
+.cinema-pass-three-transcript .transcript-segment.active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cinema-pass-three-transcript .transcript-footer {
+  background: #111;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 12px 12px;
+}
+
+.cinema-pass-three-transcript .transcript-footer button {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Dark mode overrides for word status panel */
+.cinema-pass-three-words .word-status-panel {
+  background: #111;
+  color: #e5e5e5;
+  border: none;
+  box-shadow: none;
+  border-radius: 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.cinema-pass-three-words .word-status-panel-header {
+  display: none; /* Hide header - instruction already given at pass start */
+}
+
+.cinema-pass-three-words .word-status-panel-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cinema-pass-three-words .word-status-panel-title {
+  color: #e5e5e5;
+}
+
+.cinema-pass-three-words .word-status-list {
+  background: #0a0a0a;
+}
+
+.cinema-pass-three-words .word-status-item {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.cinema-pass-three-words .word-status-word {
+  color: #e5e5e5;
+}
+
+.cinema-pass-three-words .word-status-translation {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cinema-pass-three-words .word-status-panel-footer {
+  background: #111;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 12px 12px;
+}
+
+.cinema-pass-three-words .word-status-panel-footer .button,
+.cinema-pass-three-words .word-status-save-btn {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Dark mode for transcript roller gradient fade */
+.cinema-pass-three-transcript .transcript-roller-window {
+  --transcript-roller-bg: #111;
+}
+
+.cinema-pass-three-transcript .transcript-roller-window::before {
+  background: linear-gradient(180deg, #111 0%, rgba(17, 17, 17, 0.65) 55%, rgba(17, 17, 17, 0) 100%);
+}
+
+.cinema-pass-three-transcript .transcript-roller-window::after {
+  background: linear-gradient(0deg, #111 0%, rgba(17, 17, 17, 0.65) 55%, rgba(17, 17, 17, 0) 100%);
+}
+
+/* Dark mode for word status row */
+.cinema-pass-three-words .word-status-row {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.cinema-pass-three-words .word-status-row-word {
+  color: #e5e5e5;
+}
+
+.cinema-pass-three-words .word-status-row-translation {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cinema-pass-three-words .word-status-row-audio {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cinema-pass-three-words .word-status-row-audio:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Dark mode for NURFK status selector buttons */
+.cinema-pass-three-words .status-selector {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cinema-pass-three-words .status-selector-option {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.cinema-pass-three-words .status-selector-option:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Dark mode for word status panel body/scrollbar */
+.cinema-pass-three-words .word-status-panel-body {
+  background: #111;
+}
+
+.cinema-pass-three-words .word-status-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-pass-three-words .word-status-panel-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============ PASS 3 LIGHT MODE OVERRIDES ============ */
+.is-light .cinema-pass-three-fullscreen {
+  background: #f1f5f9;
+}
+
+.is-light .cinema-pass-three-transcript,
+.is-light .cinema-pass-three-words {
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.is-light .cinema-pass-three-transcript .transcript-panel {
+  background: #fff;
+  color: #1e293b;
+}
+
+.is-light .cinema-pass-three-transcript .transcript-segment {
+  color: #1e293b;
+}
+
+.is-light .cinema-pass-three-transcript .transcript-segment.active {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.is-light .cinema-pass-three-transcript .transcript-footer {
+  background: #fff;
+  border-top-color: #e2e8f0;
+}
+
+.is-light .cinema-pass-three-transcript .transcript-footer button {
+  color: #64748b;
+}
+
+.is-light .cinema-pass-three-transcript .transcript-roller-window {
+  --transcript-roller-bg: #fff;
+}
+
+.is-light .cinema-pass-three-transcript .transcript-roller-window::before {
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.65) 55%, rgba(255, 255, 255, 0) 100%);
+}
+
+.is-light .cinema-pass-three-transcript .transcript-roller-window::after {
+  background: linear-gradient(0deg, #fff 0%, rgba(255, 255, 255, 0.65) 55%, rgba(255, 255, 255, 0) 100%);
+}
+
+.is-light .cinema-pass-three-words .word-status-panel {
+  background: #fff;
+  color: #1e293b;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.is-light .cinema-pass-three-words .word-status-panel-header {
+  background: #fafbfc;
+  border-bottom-color: #e2e8f0;
+}
+
+.is-light .cinema-pass-three-words .word-status-panel-label {
+  color: #94a3b8;
+}
+
+.is-light .cinema-pass-three-words .word-status-panel-title {
+  color: #1e293b;
+}
+
+.is-light .cinema-pass-three-words .word-status-panel-body {
+  background: #fff;
+}
+
+.is-light .cinema-pass-three-words .word-status-row-word {
+  color: #1e293b;
+}
+
+.is-light .cinema-pass-three-words .word-status-row-translation {
+  color: #64748b;
+}
+
+.is-light .cinema-pass-three-words .word-status-row-audio {
+  color: #94a3b8;
+}
+
+.is-light .cinema-pass-three-words .status-selector {
+  background: #f1f5f9;
+}
+
+.is-light .cinema-pass-three-words .status-selector-option {
+  color: #94a3b8;
+}
+
+.is-light .cinema-pass-three-words .word-status-footer {
+  background: #fafbfc;
+  border-top-color: #e2e8f0;
+}
+
+.is-light .cinema-pass-three-words .word-status-footer .button {
+  background: #0f172a;
+  color: #fff;
+}
+
+.is-light .cinema-pass-three-nav .cinema-overlay-gradient {
+  background: linear-gradient(to top, rgba(248, 250, 252, 0.95) 0%, rgba(248, 250, 252, 0.6) 60%, transparent 100%);
+}
+
+/* Pass 3 specific hover zone - fixed at bottom of viewport */
+.cinema-pass-three-fullscreen .cinema-overlay-hover-zone {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  z-index: 120;
+}
+
+/* Pass 3 nav - fixed at bottom of viewport */
+.cinema-pass-three-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 130;
+}
+
+.cinema-pass-three-nav .cinema-overlay-inner {
+  padding: 16px 24px;
+}
+
+.cinema-pass-three-nav .cinema-overlay-gradient {
+  height: 100px;
+}
+
+/* Hover detection zone - below subtitles to avoid interference */
+.cinema-overlay-hover-zone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 150px; /* Below the subtitles which are at bottom: 160px */
+  z-index: 104; /* Below subtitles (105) but captures hover */
+  pointer-events: auto;
+}
+
+/* Overlay control bar */
+.cinema-overlay-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 300ms ease, transform 300ms ease;
+  pointer-events: none;
+}
+
+.cinema-overlay-controls.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cinema-overlay-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  pointer-events: none;
+}
+
+.cinema-overlay-inner {
+  position: relative;
+  z-index: 1;
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Narrow controls to middle portion of screen */
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Progress bar */
+.cinema-overlay-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cinema-overlay-time {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 42px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cinema-overlay-time:last-child {
+  text-align: right;
+}
+
+.cinema-overlay-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.cinema-overlay-slider:focus,
+.cinema-overlay-slider:focus-visible,
+.cinema-overlay-slider:focus-within,
+.cinema-overlay-slider:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.cinema-overlay-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.9) var(--progress, 0%),
+    rgba(255, 255, 255, 0.2) var(--progress, 0%),
+    rgba(255, 255, 255, 0.2) 100%
+  );
+}
+
+.cinema-overlay-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  margin-top: -5px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 150ms ease;
+}
+
+.cinema-overlay-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.cinema-overlay-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-overlay-slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.cinema-overlay-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Transport row */
+.cinema-overlay-transport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cinema-overlay-left,
+.cinema-overlay-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.cinema-overlay-right {
+  justify-content: flex-end;
+}
+
+.cinema-overlay-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Overlay buttons */
+.cinema-overlay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.cinema-overlay-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-overlay-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.cinema-overlay-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cinema-overlay-btn .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.cinema-overlay-btn .scrub-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cinema-overlay-btn .scrub-arc {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+  stroke-dasharray: 50 100;
+  stroke-linecap: round;
+}
+
+.cinema-overlay-btn .scrub-arrowhead {
+  fill: currentColor;
+}
+
+.cinema-overlay-btn .scrub-text {
+  font-size: 9px;
+  font-weight: 600;
+  fill: currentColor;
+}
+
+/* Play button - larger */
+.cinema-overlay-play {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  outline: none;
+}
+
+.cinema-overlay-play:hover:not(:disabled) {
+  background: #fff;
+  transform: scale(1.05);
+}
+
+.cinema-overlay-play .playpause-icon {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+/* Speed display */
+.cinema-overlay-speed {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.cinema-overlay-btn.active .cinema-overlay-speed {
+  color: #60a5fa;
+}
+
+/* Button wrapper for popovers */
+.cinema-overlay-btn-wrap {
+  position: relative;
+}
+
+/* Popover */
+.cinema-overlay-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 120;
+}
+
+.cinema-overlay-popover-option {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 150ms ease;
+}
+
+.cinema-overlay-popover-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cinema-overlay-popover-option.active {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+/* Pass navigation row - centered at bottom */
+.cinema-overlay-pass-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cinema-overlay-pass-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.cinema-overlay-pass-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cinema-overlay-pass-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cinema-overlay-pass-arrow .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.cinema-overlay-pass-arrow--complete {
+  transition: color 200ms ease, transform 200ms ease, background 150ms ease;
+}
+
+.cinema-overlay-pass-arrow--complete.is-ready {
+  color: #22c55e;
+}
+
+.cinema-overlay-pass-arrow--complete.is-ready:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  transform: scale(1.1);
+}
+
+.cinema-overlay-pass-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 4px;
+}
+
+.cinema-overlay-pass-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.cinema-overlay-pass-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cinema-overlay-pass-btn.is-current {
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+}
+
+.cinema-overlay-pass-btn.is-completed {
+  color: #22c55e;
+}
+
+.cinema-overlay-pass-btn.is-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Chunk drawer in fullscreen mode */
+.cinema-active-fullscreen .cinema-active-chunk-shell {
+  position: fixed;
+  bottom: 140px;
+  left: 24px;
+  right: 24px;
+  max-width: 600px;
+  z-index: 115;
+}
+
+.cinema-active-fullscreen .cinema-active-chunk-drawer {
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Dark mode chunk list styling for cinema */
+.cinema-active-fullscreen .chunk-line {
+  color: #ffffff;
+}
+
+.cinema-active-fullscreen .chunk-list-item.is-future .chunk-line {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.cinema-active-fullscreen .chunk-button:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cinema-active-fullscreen .chunk-status {
+  color: #22c55e;
+}
+
+.cinema-active-fullscreen .chunk-chevron {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ========================================
+   END PASS 1 Fullscreen Styles
+   ======================================== */
+
 .cinema-active-stage {
   width: 100%;
   max-width: 1400px;
@@ -6500,80 +7427,489 @@ body.active-pass-locked {
   }
 }
 
-/* Intensive Cinema Mode - Sentence-by-sentence deep comprehension */
-.cinema-intensive-overlay {
+/* Intensive Cinema Mode - Fullscreen immersive learning */
+.cinema-intensive-fullscreen {
   position: fixed;
-  top: 56px;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
+  background: #000;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fullscreen video background */
+.cinema-intensive-video-fullscreen {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  z-index: 40;
+  background: #000;
 }
 
-.cinema-intensive-card {
-  background: #ffffff;
-  color: #0f172a;
-  border-radius: 20px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
-  width: min(1200px, 94vw);
-  height: min(850px, calc(100% - 2rem));
+.cinema-intensive-video-fullscreen iframe,
+.cinema-intensive-video-fullscreen video {
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+}
+
+/* Top bar: Nav (left) + Transcribe toggle (right) - positioned below YouTube watermarks */
+.cinema-intensive-top-bar {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  z-index: 120;
+  pointer-events: none;
+}
+
+/* Dark pill containers for control groups */
+.cinema-intensive-top-bar .intensive-card-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  pointer-events: auto;
+}
+
+.cinema-intensive-top-bar .intensive-card-nav-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cinema-intensive-top-bar .intensive-card-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-intensive-top-bar .intensive-card-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cinema-intensive-top-bar .intensive-card-nav-counter {
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 60px;
+  text-align: center;
+}
+
+.cinema-intensive-top-bar .transcribe-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  pointer-events: auto;
+}
+
+.cinema-intensive-top-bar .transcribe-mode-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+/* Right sliding vocab panel */
+.cinema-intensive-vocab-panel {
+  position: absolute;
+  top: 140px;
+  right: 0;
+  bottom: 220px;
+  width: 320px;
+  background: rgba(0, 0, 0, 0.9);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 115;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.cinema-intensive-card-content {
-  flex: 1;
-  display: grid;
-  grid-template-rows: auto 1fr auto auto auto;
-  justify-items: center;
-  padding: 1.5rem 2rem;
-  overflow-y: auto;
-  gap: 0.75rem;
+.cinema-intensive-vocab-panel.is-open {
+  transform: translateX(0);
 }
 
-.cinema-intensive-video-zone {
-  width: 100%;
-  max-width: 560px;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+.cinema-intensive-vocab-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.5rem 0.75rem;
 }
 
-.cinema-intensive-video-zone iframe,
-.cinema-intensive-video-zone video {
-  width: 100%;
-  height: 100%;
+.vocab-panel-close {
+  background: none;
   border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  transition: color 0.15s ease;
 }
 
-/* Intensive mode uses existing intensive-* classes for the rest */
-.cinema-intensive-card .intensive-card-header {
-  border-bottom: 1px solid #e2e8f0;
+.vocab-panel-close:hover {
+  color: #fff;
 }
 
-.cinema-intensive-card .intensive-transcript-zone {
-  padding: 0 clamp(1rem, 5vw, 4rem);
+.cinema-intensive-vocab-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.cinema-intensive-card .intensive-translation-zone {
-  padding: 0 clamp(1rem, 5vw, 4rem);
+.intensive-vocab-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
-.cinema-intensive-card .intensive-vocab-zone {
-  padding: 0 clamp(1rem, 5vw, 4rem);
+.intensive-vocab-item:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.cinema-intensive-card .intensive-player {
-  width: min(400px, 100%);
+.intensive-vocab-item-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.intensive-vocab-item .intensive-word-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.intensive-vocab-item .intensive-word-translation {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.intensive-vocab-empty {
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Bottom controls */
+.cinema-intensive-bottom-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem 2.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 60%, transparent 100%);
+  z-index: 110;
+  pointer-events: none;
+}
+
+/* Subtitle zone */
+.cinema-intensive-subtitle-zone {
+  width: 100%;
+  max-width: 800px;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  pointer-events: auto;
+}
+
+.cinema-intensive-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #fff;
+  font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+  font-weight: 500;
+  line-height: 1.5;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 0, 0, 0.8);
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.cinema-intensive-subtitle-translation {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-style: italic;
+  margin-top: 0.5rem;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* Centered reveal button above player */
+.cinema-intensive-reveal-center {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  pointer-events: auto;
+}
+
+.intensive-reveal-btn {
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.intensive-reveal-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Transcription input in subtitle zone */
+.cinema-intensive-subtitle-zone .intensive-transcribe-input-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: fit-content;
+  margin: 0 auto 2.5rem auto;
+}
+
+.cinema-intensive-subtitle-zone .intensive-input {
+  flex: 0 0 auto;
+  width: 500px;
+  max-width: 80vw;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 1rem;
+}
+
+.cinema-intensive-subtitle-zone .intensive-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cinema-intensive-subtitle-zone .intensive-submit-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #1a1a1a;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cinema-intensive-subtitle-zone .intensive-submit-btn:hover:not(:disabled) {
+  background: #333;
+}
+
+.cinema-intensive-subtitle-zone .intensive-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cinema-intensive-subtitle-zone .intensive-user-attempt {
+  color: #fff;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+/* Player controls */
+.cinema-intensive-player {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  pointer-events: auto;
+}
+
+.cinema-intensive-player .intensive-player-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+}
+
+.cinema-intensive-player .intensive-player-progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.cinema-intensive-player .intensive-player-loop-region {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 3px;
+}
+
+.cinema-intensive-player .intensive-player-pin {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease;
+}
+
+.cinema-intensive-player .intensive-player-pin:hover,
+.cinema-intensive-player .intensive-player-pin.is-dragging {
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+.cinema-intensive-player .intensive-player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.cinema-intensive-player .intensive-player-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  padding: 0.6rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinema-intensive-player .intensive-player-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cinema-intensive-player .intensive-player-btn.is-active {
+  background: #3b82f6;
+}
+
+.cinema-intensive-player .intensive-player-btn-play {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.cinema-intensive-player .intensive-player-btn-play:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.cinema-intensive-player .scrub-svg .scrub-arc {
+  stroke: currentColor;
+  stroke-width: 3;
+  fill: none;
+}
+
+.cinema-intensive-player .scrub-svg .scrub-arrowhead {
+  fill: currentColor;
+}
+
+.cinema-intensive-player .scrub-svg .scrub-text {
+  fill: currentColor;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Vocab panel item styles */
+.intensive-vocab-item .intensive-word-play {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.intensive-vocab-item .intensive-word-play:hover:not(:disabled) {
+  color: #fff;
+}
+
+.intensive-vocab-item .intensive-word-play:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.intensive-vocab-item .intensive-word-status-pills {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.intensive-vocab-item .intensive-status-pill {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.intensive-vocab-item .intensive-status-pill:hover {
+  opacity: 0.7;
+}
+
+.intensive-vocab-item .intensive-status-pill.is-active {
+  opacity: 1;
+}
+
+.intensive-vocab-item .intensive-status-pill--new.is-active {
+  background: #F97316;
+}
+
+.intensive-vocab-item .intensive-status-pill--unknown.is-active {
+  background: #DC2626;
+}
+
+.intensive-vocab-item .intensive-status-pill--recognised.is-active {
+  background: #ef4444;
+}
+
+.intensive-vocab-item .intensive-status-pill--familiar.is-active {
+  background: #fca5a5;
+}
+
+.intensive-vocab-item .intensive-status-pill--known.is-active {
+  background: #22c55e;
 }
 
 /* Translation word match highlighting */
@@ -6721,6 +8057,11 @@ body.active-pass-locked {
 
 .cinema-header-icon-btn--disabled {
   opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cinema-header-icon-btn--locked {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -6899,6 +8240,91 @@ body.active-pass-locked {
   color: #F97316;
 }
 
+/* Karaoke Subtitles - word-by-word reveal */
+.karaoke-subtitles {
+  display: inline-block;
+  position: relative;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 16px 28px;
+  border-radius: 12px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.6;
+  max-width: 85%;
+  text-align: center;
+  color: #ffffff;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.karaoke-subtitles--empty,
+.karaoke-subtitles--waiting {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1rem;
+}
+
+.karaoke-line {
+  display: block;
+}
+
+/* Karaoke word - color comes ONLY from CSS variable (set by word status) */
+.karaoke-word {
+  color: var(--hlt-base, #ffffff);
+  cursor: pointer;
+  padding: 0 2px;
+  margin: 0 3px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Hover effect */
+.karaoke-word:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Word tracking states - only applied when tracking enabled */
+.karaoke-word--active {
+  opacity: 1;
+}
+
+.karaoke-word--past {
+  opacity: 0.5;
+}
+
+.karaoke-word--future {
+  opacity: 0.7;
+}
+
+/* Tracking toggle button */
+.karaoke-tracking-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.karaoke-tracking-toggle:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.karaoke-tracking-toggle--active {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.karaoke-tracking-toggle--active:hover {
+  color: rgba(255, 255, 255, 1);
+}
 
 @media (max-width: 900px) {
   .cinema-toggle-label {
@@ -7073,13 +8499,14 @@ body.active-pass-locked {
 
 /* Dark mode transcript styles */
 .is-dark .floating-panel-content .transcript-line {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 1.05rem;
   line-height: 1.7;
 }
 
 .is-dark .floating-panel-content .transcript-line.active {
   color: #fff;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Dark mode footer with gradient fade */
@@ -7257,6 +8684,28 @@ body.active-pass-locked {
 }
 
 /* Cinema Word Popup - Compact translation popup */
+@keyframes popup-open {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes popup-close {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.95);
+  }
+}
+
 .cinema-word-popup {
   position: absolute;
   z-index: 1001;
@@ -7268,6 +8717,13 @@ body.active-pass-locked {
   flex-direction: column;
   gap: 8px;
   transform: translateX(-50%);
+  transform-origin: bottom center;
+  animation: popup-open 0.15s ease-out forwards;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.cinema-word-popup.is-closing {
+  animation: popup-close 0.12s ease-in forwards;
 }
 
 .cinema-word-popup.is-light {

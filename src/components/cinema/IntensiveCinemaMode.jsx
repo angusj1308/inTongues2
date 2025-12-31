@@ -5,29 +5,15 @@ import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
 
 const getPopupPosition = (rect) => {
-  const margin = 12
-  const estimatedPopupHeight = 280
-  const estimatedPopupWidth = 360
+  const padding = 10
+  const popupHeight = 80
+  const viewportWidth = window.innerWidth || 0
 
-  const viewportWidth = window.innerWidth
-  const spaceAbove = rect.top
-  const spaceBelow = window.innerHeight - rect.bottom
+  // Center horizontally on the word
+  const x = Math.min(Math.max(rect.x + rect.width / 2, padding), viewportWidth - padding)
 
-  const shouldRenderAbove =
-    spaceBelow < estimatedPopupHeight + margin && spaceAbove > spaceBelow
-
-  const y = shouldRenderAbove
-    ? Math.max(window.scrollY + rect.top - estimatedPopupHeight - margin, window.scrollY + margin)
-    : Math.min(
-        window.scrollY + rect.bottom + margin,
-        window.scrollY + window.innerHeight - estimatedPopupHeight - margin
-      )
-
-  const centerX = rect.left + rect.width / 2 + window.scrollX
-  const x = Math.min(
-    Math.max(centerX - estimatedPopupWidth / 2, window.scrollX + margin),
-    window.scrollX + viewportWidth - estimatedPopupWidth - margin
-  )
+  // Always position above the word
+  const y = Math.max(rect.top - popupHeight - 12, padding)
 
   return { x, y }
 }
@@ -40,6 +26,117 @@ const getDisplayStatus = (status) => {
   return 'new'
 }
 
+// Normalize text for comparison: lowercase, remove punctuation (but keep accents/apostrophes in words)
+const normalizeForComparison = (text) => {
+  return text
+    .toLowerCase()
+    .replace(/[.,!?;:"""''()[\]{}—–-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Tokenize text into words
+const tokenizeWords = (text) => {
+  return normalizeForComparison(text)
+    .split(' ')
+    .filter(Boolean)
+}
+
+// Compute Longest Common Subsequence for word alignment
+const computeLCS = (words1, words2) => {
+  const m = words1.length
+  const n = words2.length
+  const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (words1[i - 1] === words2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+      }
+    }
+  }
+
+  // Backtrack to find LCS words
+  const lcsSet = new Set()
+  let i = m
+  let j = n
+  while (i > 0 && j > 0) {
+    if (words1[i - 1] === words2[j - 1]) {
+      lcsSet.add(`${i - 1}:${words1[i - 1]}`)
+      i--
+      j--
+    } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      i--
+    } else {
+      j--
+    }
+  }
+
+  return lcsSet
+}
+
+// Levenshtein distance for fuzzy matching
+const levenshteinDistance = (a, b) => {
+  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(0))
+
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j
+
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + cost
+      )
+    }
+  }
+
+  return matrix[b.length][a.length]
+}
+
+// Check if two words are "close enough" (likely same word, just misspelled)
+const isFuzzyMatch = (word1, word2) => {
+  const distance = levenshteinDistance(word1, word2)
+  const maxLen = Math.max(word1.length, word2.length)
+  // Allow ~20% error rate, minimum 1 edit for short words
+  const threshold = Math.max(1, Math.floor(maxLen * 0.25))
+  return distance > 0 && distance <= threshold
+}
+
+// Compare user's transcription to actual transcript
+// Returns array of { word, status: 'correct' | 'close' | 'wrong' } for the user's attempt
+const compareTranscriptions = (userText, actualText) => {
+  const userWords = tokenizeWords(userText)
+  const actualWords = tokenizeWords(actualText)
+
+  if (userWords.length === 0) {
+    return []
+  }
+
+  // Find LCS between user words and actual words (exact matches)
+  const lcsSet = computeLCS(userWords, actualWords)
+
+  // Mark each user word
+  return userWords.map((word, index) => {
+    // Check for exact match in LCS
+    if (lcsSet.has(`${index}:${word}`)) {
+      return { word, status: 'correct' }
+    }
+
+    // Check for fuzzy match against any actual word
+    const hasFuzzyMatch = actualWords.some(actualWord => isFuzzyMatch(word, actualWord))
+    if (hasFuzzyMatch) {
+      return { word, status: 'close' }
+    }
+
+    return { word, status: 'wrong' }
+  })
+}
+
 const IntensiveCinemaMode = ({
   cinemaMode,
   transcriptSegments = [],
@@ -48,6 +145,7 @@ const IntensiveCinemaMode = ({
   vocabEntries,
   setVocabEntries,
   voiceGender,
+  voiceId,
   setPopup,
   intensiveSegmentIndex,
   setIntensiveSegmentIndex,
@@ -55,16 +153,20 @@ const IntensiveCinemaMode = ({
   duration,
   onSeek,
   onPlayPause,
+  onPlaybackRateChange,
   isPlaying,
   user,
   videoPlayer,
   contentId,
+  preloadedTranslations = {},
+  preloadedPronunciations = {},
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceWordPairs, setSentenceWordPairs] = useState({})
   const [intensiveRevealStep, setIntensiveRevealStep] = useState('hidden')
   const [isTranscriptionMode, setIsTranscriptionMode] = useState(false)
   const [transcriptionDraft, setTranscriptionDraft] = useState('')
+  const [submittedTranscription, setSubmittedTranscription] = useState('')
   const [isTranscriptRevealed, setIsTranscriptRevealed] = useState(false)
   const [isLooping, setIsLooping] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
@@ -73,6 +175,8 @@ const IntensiveCinemaMode = ({
   const [loopEnd, setLoopEnd] = useState(100)
   const [isDragging, setIsDragging] = useState(null)
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
+
+  const [isVocabPanelOpen, setIsVocabPanelOpen] = useState(false)
 
   const progressBarRef = useRef(null)
   const wordAudioRef = useRef(null)
@@ -112,6 +216,27 @@ const IntensiveCinemaMode = ({
     [currentWordPairs]
   )
 
+  // Compare user's transcription attempt to actual transcript
+  const transcriptionComparison = useMemo(() => {
+    if (!submittedTranscription || !currentIntensiveSentence) return []
+    return compareTranscriptions(submittedTranscription, currentIntensiveSentence)
+  }, [submittedTranscription, currentIntensiveSentence])
+
+  // Render the user's transcription attempt with color coding
+  const renderColoredTranscription = () => {
+    if (transcriptionComparison.length === 0) return null
+
+    return transcriptionComparison.map((item, index) => (
+      <span
+        key={index}
+        className={`transcription-word transcription-word--${item.status}`}
+      >
+        {item.word}
+        {index < transcriptionComparison.length - 1 ? ' ' : ''}
+      </span>
+    ))
+  }
+
   // Calculate actual loop bounds
   const actualLoopStart = segmentStart + (segmentDuration * loopStart) / 100
   const actualLoopEnd = segmentStart + (segmentDuration * loopEnd) / 100
@@ -128,9 +253,16 @@ const IntensiveCinemaMode = ({
       setProgress(Math.min(100, Math.max(0, prog)))
     }
 
-    // Handle looping
-    if (isLooping && isPlaying && currentTime >= actualLoopEnd) {
-      onSeek?.(actualLoopStart)
+    // Handle looping or pause at segment end
+    if (isPlaying && currentTime >= actualLoopEnd) {
+      if (isLooping) {
+        // Loop back to start
+        onSeek?.(actualLoopStart)
+      } else {
+        // Pause at segment end and reset to start for easy replay
+        onPlayPause?.()
+        onSeek?.(actualLoopStart)
+      }
     }
   }, [
     cinemaMode,
@@ -144,6 +276,7 @@ const IntensiveCinemaMode = ({
     actualLoopEnd,
     actualLoopStart,
     onSeek,
+    onPlayPause,
   ])
 
   // Render translation with highlights
@@ -169,9 +302,9 @@ const IntensiveCinemaMode = ({
     })
   }
 
-  // Play word audio
-  const playWordAudio = useCallback((audioBase64) => {
-    if (!audioBase64) return
+  // Play word audio - supports both audioBase64 and audioUrl
+  const playWordAudio = useCallback((audioBase64, audioUrl) => {
+    if (!audioBase64 && !audioUrl) return
 
     if (wordAudioRef.current) {
       wordAudioRef.current.pause()
@@ -179,11 +312,16 @@ const IntensiveCinemaMode = ({
     }
 
     try {
-      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`)
+      const audio = new Audio()
+      if (audioBase64) {
+        audio.src = `data:audio/mpeg;base64,${audioBase64}`
+      } else if (audioUrl) {
+        audio.src = audioUrl
+      }
       wordAudioRef.current = audio
       audio.play().catch((err) => console.error('Word audio playback failed', err))
     } catch (error) {
-      console.error('Error creating audio from base64:', error)
+      console.error('Error creating audio:', error)
     }
   }, [])
 
@@ -226,6 +364,7 @@ const IntensiveCinemaMode = ({
             ttsLanguage,
             skipAudio: false,
             unknownWords: unknownWords.length > 0 ? unknownWords : undefined,
+            voiceGender,
           }),
         })
 
@@ -244,7 +383,7 @@ const IntensiveCinemaMode = ({
         return { translation: 'Unable to fetch translation right now.', wordPairs: [] }
       }
     },
-    [language, nativeLanguage, getUnknownWordsFromSentence]
+    [language, nativeLanguage, getUnknownWordsFromSentence, voiceGender]
   )
 
   // Lazy-load translations
@@ -325,9 +464,11 @@ const IntensiveCinemaMode = ({
     setIntensiveRevealStep('hidden')
     setIsTranscriptRevealed(false)
     setTranscriptionDraft('')
+    setSubmittedTranscription('')
     setProgress(0)
     setLoopStart(0)
     setLoopEnd(100)
+    setIsVocabPanelOpen(false)
   }, [intensiveSegmentIndex])
 
   // Clamp segment index
@@ -373,6 +514,32 @@ const IntensiveCinemaMode = ({
     let audioUrl = null
     let targetText = 'No translation found'
 
+    // Check preloaded data first
+    const key = normaliseExpression(text)
+    const preloadedTranslation = preloadedTranslations[key]
+    const preloadedPronunciation = preloadedPronunciations[key]
+
+    if (preloadedTranslation || preloadedPronunciation) {
+      const selectionObj = window.getSelection()
+      if (!selectionObj || selectionObj.rangeCount === 0) return
+
+      const range = selectionObj.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      const { x, y } = getPopupPosition(rect)
+
+      setPopup({
+        x,
+        y,
+        word: text,
+        displayText: text,
+        translation: preloadedTranslation?.translation || 'No translation found',
+        targetText: preloadedTranslation?.translation || 'No translation found',
+        audioBase64: null,
+        audioUrl: preloadedPronunciation?.audioUrl || null,
+      })
+      return
+    }
+
     try {
       const response = await fetch('http://localhost:4000/api/translatePhrase', {
         method: 'POST',
@@ -382,6 +549,7 @@ const IntensiveCinemaMode = ({
           sourceLang: language || 'es',
           targetLang: resolveSupportedLanguageLabel(nativeLanguage),
           voiceGender,
+          voiceId,
         }),
       })
 
@@ -519,6 +687,26 @@ const IntensiveCinemaMode = ({
     return elements
   }
 
+  // Handle "Show Transcript" button - plays audio, reveals transcript + vocab
+  const handleShowTranscript = () => {
+    if (isTranscriptionMode && !isTranscriptRevealed) return
+
+    // Seek to segment start and play
+    onSeek?.(segmentStart)
+    if (!isPlaying) {
+      onPlayPause?.()
+    }
+
+    // Reveal transcript and open vocab panel
+    setIntensiveRevealStep('transcript')
+    setIsVocabPanelOpen(true)
+  }
+
+  // Handle "Show Translation" button
+  const handleShowTranslation = () => {
+    setIntensiveRevealStep('translation')
+  }
+
   const toggleIntensiveRevealStep = () => {
     if (isTranscriptionMode && !isTranscriptRevealed) return
 
@@ -535,6 +723,7 @@ const IntensiveCinemaMode = ({
       setIntensiveRevealStep('hidden')
       setIsTranscriptRevealed(false)
       setTranscriptionDraft('')
+      setSubmittedTranscription('')
       return next
     })
   }
@@ -566,7 +755,16 @@ const IntensiveCinemaMode = ({
     if (event.key !== 'Enter') return
     event.preventDefault()
 
-    if (!isTranscriptRevealed) {
+    if (!isTranscriptRevealed && transcriptionDraft.trim()) {
+      setSubmittedTranscription(transcriptionDraft.trim())
+      setIsTranscriptRevealed(true)
+      setIntensiveRevealStep('transcript')
+    }
+  }
+
+  const handleTranscriptionSubmit = () => {
+    if (!isTranscriptRevealed && transcriptionDraft.trim()) {
+      setSubmittedTranscription(transcriptionDraft.trim())
       setIsTranscriptRevealed(true)
       setIntensiveRevealStep('transcript')
     }
@@ -681,8 +879,8 @@ const IntensiveCinemaMode = ({
   const togglePlaybackRate = useCallback(() => {
     const newRate = playbackRate === 1 ? 0.75 : 1
     setPlaybackRate(newRate)
-    // Note: Video playback rate would need to be set on the player
-  }, [playbackRate])
+    onPlaybackRateChange?.(newRate)
+  }, [playbackRate, onPlaybackRateChange])
 
   // Pin dragging
   const handlePinDrag = useCallback(
@@ -857,6 +1055,7 @@ const IntensiveCinemaMode = ({
             sourceLang: language || 'es',
             targetLang: resolveSupportedLanguageLabel(nativeLanguage),
             voiceGender,
+            voiceId,
           }),
         })
 
@@ -923,125 +1122,214 @@ const IntensiveCinemaMode = ({
   if (cinemaMode !== 'intensive') return null
 
   return (
-    <div className="cinema-intensive-overlay">
-      <div className="cinema-intensive-card">
-        {/* Header: Segment navigation + Transcribe toggle */}
-        <div className="intensive-card-header">
-          <div className="intensive-card-nav">
-            <button
-              type="button"
-              className="intensive-card-nav-btn"
-              onClick={() => handleSegmentNavigation('previous')}
-              disabled={intensiveSegmentIndex === 0}
-              aria-label="Previous segment"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <span className="intensive-card-nav-counter">
-              {intensiveSegmentIndex + 1} / {intensiveSegments.length}
-            </span>
-            <button
-              type="button"
-              className="intensive-card-nav-btn"
-              onClick={() => handleSegmentNavigation('next')}
-              disabled={intensiveSegmentIndex >= intensiveSegments.length - 1}
-              aria-label="Next segment"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 6 15 12 9 18" />
-              </svg>
-            </button>
-          </div>
+    <div className="cinema-intensive-fullscreen">
+      {/* Fullscreen video background */}
+      <div className="cinema-intensive-video-fullscreen">
+        {videoPlayer}
+      </div>
 
-          <div className="transcribe-mode-toggle">
-            <span className="transcribe-mode-label">Transcribe</span>
-            <button
-              type="button"
-              className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
-              onClick={handleTranscriptionToggle}
-              aria-pressed={isTranscriptionMode}
-              aria-label="Toggle transcribe mode"
+      {/* Top bar: Nav (left) + Transcribe toggle (right) */}
+      <div className="cinema-intensive-top-bar">
+        <div className="intensive-card-nav">
+          <button
+            type="button"
+            className="intensive-card-nav-btn"
+            onClick={() => handleSegmentNavigation('previous')}
+            disabled={intensiveSegmentIndex === 0}
+            aria-label="Previous segment"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <span className="toggle-switch-slider" />
-            </button>
-          </div>
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <span className="intensive-card-nav-counter">
+            {intensiveSegmentIndex + 1} / {intensiveSegments.length}
+          </span>
+          <button
+            type="button"
+            className="intensive-card-nav-btn"
+            onClick={() => handleSegmentNavigation('next')}
+            disabled={intensiveSegmentIndex >= intensiveSegments.length - 1}
+            aria-label="Next segment"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="9 6 15 12 9 18" />
+            </svg>
+          </button>
         </div>
 
-        {/* Main content */}
-        <div className="cinema-intensive-card-content">
-          {/* Video player embedded in card */}
-          <div className="cinema-intensive-video-zone">{videoPlayer}</div>
+        <div className="transcribe-mode-toggle">
+          <span className="transcribe-mode-label">Transcribe</span>
+          <button
+            type="button"
+            className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
+            onClick={handleTranscriptionToggle}
+            aria-pressed={isTranscriptionMode}
+            aria-label="Toggle transcribe mode"
+          >
+            <span className="toggle-switch-slider" />
+          </button>
+        </div>
+      </div>
 
-          {/* Transcript zone */}
-          <div className="intensive-transcript-zone">
-            {isTranscriptionMode && !isTranscriptRevealed && (
-              <div className="intensive-input-row">
-                <input
-                  type="text"
-                  className="intensive-input"
-                  placeholder="Type what you hear, then press Enter to reveal."
-                  value={transcriptionDraft}
-                  onChange={(event) => setTranscriptionDraft(event.target.value)}
-                  onKeyDown={handleTranscriptionKeyDown}
-                  readOnly={isTranscriptRevealed}
-                />
-              </div>
-            )}
+      {/* Right sliding vocab panel */}
+      <div className={`cinema-intensive-vocab-panel ${isVocabPanelOpen ? 'is-open' : ''}`}>
+        <div className="cinema-intensive-vocab-panel-header">
+          <button
+            type="button"
+            className="vocab-panel-close"
+            onClick={() => setIsVocabPanelOpen(false)}
+            aria-label="Close vocabulary panel"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="cinema-intensive-vocab-list">
+          {currentWordPairs.length > 0 ? (
+            currentWordPairs.map((pair, index) => {
+              const wordKey = normaliseExpression(pair.source)
+              const currentStatus = vocabEntries[wordKey]?.status || 'new'
+              const displayStatus = currentStatus || 'new'
 
-            {isTranscriptVisible && (
-              <div className="intensive-transcript" onMouseUp={handleWordClick}>
-                {currentIntensiveSentence ? (
-                  renderWordSegments(currentIntensiveSentence)
-                ) : (
-                  'No text available for this segment.'
-                )}
-              </div>
-            )}
-          </div>
+              return (
+                <div key={index} className="intensive-vocab-item">
+                  <button
+                    type="button"
+                    className="intensive-word-play"
+                    onClick={() => playWordAudio(pair.audioBase64, pair.audioUrl)}
+                    disabled={!pair.audioBase64 && !pair.audioUrl}
+                    aria-label={`Play pronunciation of ${pair.source}`}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </button>
+                  <div className="intensive-vocab-item-text">
+                    <span className="intensive-word-text">{pair.source}</span>
+                    <span className="intensive-word-translation">{pair.target}</span>
+                  </div>
+                  <div className="intensive-word-status-pills">
+                    {['new', 'unknown', 'recognised', 'familiar', 'known'].map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        className={`intensive-status-pill intensive-status-pill--${status} ${displayStatus === status ? 'is-active' : ''}`}
+                        onClick={() => handleSetWordPairStatus(pair.source, pair.target, status === 'new' ? 'unknown' : status)}
+                      >
+                        {status.charAt(0).toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="intensive-vocab-empty">No vocabulary for this segment</div>
+          )}
+        </div>
+      </div>
 
-          {/* Translation zone */}
-          <div className="intensive-translation-zone">
-            {isTranslationVisible ? (
-              <div className="intensive-translation">
-                {isLoadingTranslation
-                  ? 'Loading translation...'
-                  : renderTranslationWithHighlights(intensiveTranslation) ||
-                    'Translation will appear here.'}
-              </div>
-            ) : (
+      {/* Bottom controls overlay */}
+      <div className="cinema-intensive-bottom-controls">
+        {/* Subtitle zone - transcript appears here */}
+        <div className="cinema-intensive-subtitle-zone">
+          {/* Transcription input (when in transcribe mode, not yet submitted) */}
+          {isTranscriptionMode && !isTranscriptRevealed && (
+            <div className="intensive-transcribe-input-container">
+              <input
+                type="text"
+                className="intensive-input"
+                placeholder="Type what you hear..."
+                value={transcriptionDraft}
+                onChange={(event) => setTranscriptionDraft(event.target.value)}
+                onKeyDown={handleTranscriptionKeyDown}
+              />
+              <button
+                type="button"
+                className="intensive-submit-btn"
+                onClick={handleTranscriptionSubmit}
+                disabled={!transcriptionDraft.trim()}
+              >
+                Submit
+              </button>
+            </div>
+          )}
+
+          {/* User's colored transcription attempt (transcribe mode, after submit) */}
+          {isTranscriptionMode && isTranscriptRevealed && submittedTranscription && (
+            <div className="intensive-user-attempt">
+              {renderColoredTranscription()}
+            </div>
+          )}
+
+          {/* Actual transcript as subtitle */}
+          {isTranscriptVisible && (
+            <div className="cinema-intensive-subtitle" onMouseUp={handleWordClick}>
+              {currentIntensiveSentence ? (
+                renderWordSegments(currentIntensiveSentence)
+              ) : (
+                'No text available for this segment.'
+              )}
+            </div>
+          )}
+
+          {/* Translation below subtitle */}
+          {isTranslationVisible && (
+            <div className="cinema-intensive-subtitle-translation">
+              {isLoadingTranslation
+                ? 'Loading translation...'
+                : renderTranslationWithHighlights(intensiveTranslation) ||
+                  'Translation will appear here.'}
+            </div>
+          )}
+        </div>
+
+        {/* Reveal button - centered above player */}
+        {!isTranscriptionMode && (
+          <div className="cinema-intensive-reveal-center">
+            {intensiveRevealStep === 'hidden' && (
               <button
                 type="button"
                 className="intensive-reveal-btn"
-                onClick={toggleIntensiveRevealStep}
-                disabled={isTranscriptionMode && !isTranscriptRevealed}
+                onClick={handleShowTranscript}
               >
-                {toggleLabel}
+                Show Transcript
+              </button>
+            )}
+            {intensiveRevealStep === 'transcript' && (
+              <button
+                type="button"
+                className="intensive-reveal-btn"
+                onClick={handleShowTranslation}
+              >
+                Show Translation
               </button>
             )}
           </div>
+        )}
 
-          {/* Player controls */}
-          <div className="intensive-player">
+        {/* Player controls */}
+        <div className="cinema-intensive-player">
             <div className="intensive-player-progress" ref={progressBarRef}>
               <div
                 className="intensive-player-loop-region"
@@ -1189,60 +1477,6 @@ const IntensiveCinemaMode = ({
               </button>
             </div>
           </div>
-
-          {/* Vocab zone */}
-          <div className="intensive-vocab-zone">
-            {isTranscriptVisible && currentWordPairs.length > 0 && (
-              <div className="intensive-word-pairs">
-                {currentWordPairs.map((pair, index) => {
-                  const wordKey = normaliseExpression(pair.source)
-                  const currentStatus = getDisplayStatus(vocabEntries[wordKey]?.status)
-
-                  return (
-                    <div key={index} className="intensive-word-pair">
-                      <div className="intensive-word-pair-content">
-                        <button
-                          type="button"
-                          className="intensive-word-pair-speaker"
-                          onClick={() => playWordAudio(pair.audioBase64)}
-                          disabled={!pair.audioBase64}
-                          aria-label={`Play pronunciation of ${pair.source}`}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-                          </svg>
-                        </button>
-                        <span className="intensive-word-pair-source">{pair.source}</span>
-                        <span className="intensive-word-pair-arrow">→</span>
-                        <span className="intensive-word-pair-target">{pair.target}</span>
-                      </div>
-                      <div className="intensive-word-pair-status">
-                        <button
-                          type="button"
-                          className={`intensive-word-pair-status-btn ${currentStatus === 'new' ? 'is-active' : ''}`}
-                          disabled
-                          title="New - no status yet"
-                        >
-                          N
-                        </button>
-                        {['unknown', 'recognised', 'familiar', 'known'].map((status) => (
-                          <button
-                            key={status}
-                            type="button"
-                            className={`intensive-word-pair-status-btn ${currentStatus === status ? 'is-active' : ''}`}
-                            onClick={() => handleSetWordPairStatus(pair.source, pair.target, status)}
-                          >
-                            {status.charAt(0).toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   )

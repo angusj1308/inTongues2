@@ -16,6 +16,7 @@ const ListeningMediaCard = ({
   actionLabel,
   tags = [],
   placeholder,
+  status,
   preparationStatus,
   preparationProgress = 0,
 }) => {
@@ -23,20 +24,30 @@ const ListeningMediaCard = ({
   const progressPercent = normaliseProgress(progress)
   const prepProgress = normaliseProgress(preparationProgress)
 
-  // Content is preparing when status is 'pending' or 'preparing'
+  // Video is importing (transcript being generated)
+  const isImporting = status === 'importing'
+  const importFailed = status === 'failed'
+
+  // Content is preparing when status is 'pending' or 'preparing' (pronunciation caching)
   const isPreparing = preparationStatus === 'pending' || preparationStatus === 'preparing'
-  const isReady = !preparationStatus || preparationStatus === 'ready'
   const prepFailed = preparationStatus === 'error'
+
+  // Overall: blocked if importing OR preparing
+  const isBlocked = isImporting || isPreparing
 
   // Determine action label and disabled state
   let cardActionLabel = actionLabel || (isYouTube ? 'Watch →' : 'Play →')
-  if (isPreparing) {
+  if (isImporting) {
+    cardActionLabel = 'Importing...'
+  } else if (importFailed) {
+    cardActionLabel = 'Import failed'
+  } else if (isPreparing) {
     cardActionLabel = prepProgress > 0 ? `Preparing ${Math.round(prepProgress)}%` : 'Preparing...'
   } else if (prepFailed) {
     cardActionLabel = 'Retry'
   }
   const handleKeyDown = (event) => {
-    if (!onPlay || isPreparing) return
+    if (!onPlay || isBlocked) return
 
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
@@ -45,18 +56,18 @@ const ListeningMediaCard = ({
   }
 
   const handleCardClick = () => {
-    if (isPreparing || !onPlay) return
+    if (isBlocked || !onPlay) return
     onPlay()
   }
 
   return (
     <div
-      className={`preview-card listen-card media-card media-card-${type} listening-media-card listening-media-card-${type}${isPreparing ? ' is-preparing' : ''}`}
+      className={`preview-card listen-card media-card media-card-${type} listening-media-card listening-media-card-${type}${isBlocked ? ' is-preparing' : ''}`}
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       role="button"
-      tabIndex={isPreparing ? -1 : 0}
-      aria-disabled={isPreparing}
+      tabIndex={isBlocked ? -1 : 0}
+      aria-disabled={isBlocked}
     >
       <div className="media-card-main">
         {isYouTube ? (
@@ -92,17 +103,17 @@ const ListeningMediaCard = ({
                   {onPlay && (
                     <button
                       type="button"
-                      className={`button media-card-primary${isPreparing ? ' is-loading' : ''}`}
-                      disabled={isPreparing}
+                      className={`button media-card-primary${isBlocked ? ' is-loading' : ''}`}
+                      disabled={isBlocked}
                       onClick={(event) => {
                         event.stopPropagation()
-                        if (!isPreparing) onPlay()
+                        if (!isBlocked) onPlay()
                       }}
                     >
                       {cardActionLabel}
                     </button>
                   )}
-                  {onDelete && !isPreparing && (
+                  {onDelete && !isBlocked && (
                     <button
                       type="button"
                       className="media-card-delete ui-text"
@@ -151,17 +162,17 @@ const ListeningMediaCard = ({
                   {onPlay && (
                     <button
                       type="button"
-                      className={`button media-card-primary${isPreparing ? ' is-loading' : ''}`}
-                      disabled={isPreparing}
+                      className={`button media-card-primary${isBlocked ? ' is-loading' : ''}`}
+                      disabled={isBlocked}
                       onClick={(event) => {
                         event.stopPropagation()
-                        if (!isPreparing) onPlay()
+                        if (!isBlocked) onPlay()
                       }}
                     >
                       {cardActionLabel}
                     </button>
                   )}
-                  {onDelete && !isPreparing && (
+                  {onDelete && !isBlocked && (
                     <button
                       type="button"
                       className="media-card-delete ui-text"

@@ -32,7 +32,14 @@ const extractVideoId = (video) => {
   return ''
 }
 
-// Generate ~60 second chunks aligned to segment boundaries
+// Check if text ends with sentence-ending punctuation
+const endsWithSentence = (text) => {
+  if (!text) return false
+  const trimmed = text.trim()
+  return /[.!?。！？]$/.test(trimmed) || /[.!?。！？]["'»」』]$/.test(trimmed)
+}
+
+// Generate ~60 second chunks aligned to sentence boundaries
 const generateChunks = (segments, targetDuration = 60) => {
   if (!segments || segments.length === 0) return []
 
@@ -40,25 +47,72 @@ const generateChunks = (segments, targetDuration = 60) => {
   let chunkStart = 0
   let chunkStartIndex = 0
 
-  segments.forEach((segment, index) => {
-    const segmentEnd = segment.end || segment.start + 5
+  // Find best segment to end chunk (nearest sentence ending to target)
+  const findBestEndSegment = (fromIndex, targetTime) => {
+    const minTime = targetTime - 15 // Allow up to 15s before target
+    const maxTime = targetTime + 15 // Allow up to 15s after target
 
-    if (segmentEnd - chunkStart >= targetDuration || index === segments.length - 1) {
-      chunks.push({
-        index: chunks.length,
-        start: chunkStart,
-        end: segmentEnd,
-        startSegmentIndex: chunkStartIndex,
-        endSegmentIndex: index,
-      })
+    let bestIndex = fromIndex
+    let bestTimeDiff = Infinity
 
-      if (index < segments.length - 1) {
-        const nextSegment = segments[index + 1]
-        chunkStart = nextSegment.start
-        chunkStartIndex = index + 1
+    // Search for segments near the target time that end with sentence punctuation
+    for (let i = fromIndex; i < segments.length; i++) {
+      const seg = segments[i]
+      const segEnd = seg.end || seg.start + 5
+
+      // Stop if we're too far past target
+      if (segEnd > maxTime && i > fromIndex) break
+
+      // Check if this segment ends with a sentence
+      if (endsWithSentence(seg.text)) {
+        const timeDiff = Math.abs(segEnd - targetTime)
+
+        // Prefer segments closer to target time
+        if (segEnd >= minTime && timeDiff < bestTimeDiff) {
+          bestTimeDiff = timeDiff
+          bestIndex = i
+        }
       }
     }
-  })
+
+    // If no sentence ending found, fall back to closest segment to target
+    if (bestIndex === fromIndex && fromIndex < segments.length - 1) {
+      for (let i = fromIndex; i < segments.length; i++) {
+        const segEnd = segments[i].end || segments[i].start + 5
+        if (segEnd >= targetTime) {
+          bestIndex = i
+          break
+        }
+      }
+    }
+
+    return bestIndex
+  }
+
+  let currentIndex = 0
+  while (currentIndex < segments.length) {
+    const targetEndTime = chunkStart + targetDuration
+    const endIndex = findBestEndSegment(currentIndex, targetEndTime)
+    const endSegment = segments[endIndex]
+    const segmentEnd = endSegment.end || endSegment.start + 5
+
+    chunks.push({
+      index: chunks.length,
+      start: chunkStart,
+      end: segmentEnd,
+      startSegmentIndex: chunkStartIndex,
+      endSegmentIndex: endIndex,
+    })
+
+    if (endIndex < segments.length - 1) {
+      const nextSegment = segments[endIndex + 1]
+      chunkStart = nextSegment.start
+      chunkStartIndex = endIndex + 1
+      currentIndex = endIndex + 1
+    } else {
+      break
+    }
+  }
 
   return chunks
 }
@@ -82,7 +136,9 @@ const IntonguesCinema = () => {
   const [transcriptLoading, setTranscriptLoading] = useState(false)
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
+  const [pronunciations, setPronunciations] = useState({})
   const [popup, setPopup] = useState(null)
+  const [popupClosing, setPopupClosing] = useState(false)
 
   // Cinema mode state
   const [cinemaMode, setCinemaMode] = useState('extensive')
@@ -108,6 +164,16 @@ const IntonguesCinema = () => {
   const handleCloseTranscript = useCallback(() => {
     setTextDisplayMode('subtitles')
   }, [])
+
+  // Close popup with animation
+  const closePopupAnimated = useCallback(() => {
+    if (!popup) return
+    setPopupClosing(true)
+    setTimeout(() => {
+      setPopup(null)
+      setPopupClosing(false)
+    }, 120) // Match animation duration
+  }, [popup])
 
   // Custom keyboard shortcuts for extensive mode (bypasses YouTube iframe focus requirement)
   useEffect(() => {
@@ -174,6 +240,7 @@ const IntonguesCinema = () => {
   const [activeStep, setActiveStep] = useState(1)
   const [completedChunks, setCompletedChunks] = useState(new Set())
   const [completedPasses, setCompletedPasses] = useState(new Set())
+  const pass4CompletedRef = useRef(new Set())
 
   // Intensive mode state
   const [intensiveSegmentIndex, setIntensiveSegmentIndex] = useState(0)
@@ -211,18 +278,70 @@ const normaliseSegments = (segments = []) =>
     .map((segment) => {
       const start = Number.isFinite(segment.start)
         ? Number(segment.start)
-          : Number(segment.startMs) / 1000 || 0
-        const end = Number.isFinite(segment.end)
-          ? Number(segment.end)
-          : Number(segment.endMs) / 1000 || start
+        : Number(segment.startMs) / 1000 || 0
+      const end = Number.isFinite(segment.end)
+        ? Number(segment.end)
+        : Number(segment.endMs) / 1000 || start
 
-        return {
-          start,
-          end: end > start ? end : start,
-          text: segment.text || '',
+      const result = {
+        start,
+        end: end > start ? end : start,
+        text: segment.text || '',
       }
+
+      // Preserve word-level timing if present
+      if (Array.isArray(segment.words) && segment.words.length > 0) {
+        result.words = segment.words.map((w) => ({
+          text: (w.text || '').trim(),
+          start: Number(w.start) || start,
+          end: Number(w.end) || end,
+        }))
+      }
+
+      return result
     })
     .filter((segment) => segment.text)
+
+// Merge choppy segments into complete sentences while preserving word-level timing
+const mergeSegmentsIntoSentences = (segments = []) => {
+  if (!segments.length) return []
+
+  const sentences = []
+  let currentSentence = null
+
+  for (const segment of segments) {
+    if (!currentSentence) {
+      // Start a new sentence
+      currentSentence = {
+        start: segment.start,
+        end: segment.end,
+        text: segment.text,
+        words: segment.words ? [...segment.words] : [],
+      }
+    } else {
+      // Append to current sentence
+      currentSentence.end = segment.end
+      currentSentence.text = `${currentSentence.text} ${segment.text}`.trim()
+      if (segment.words) {
+        currentSentence.words.push(...segment.words)
+      }
+    }
+
+    // Check if segment ends with sentence-ending punctuation
+    const trimmedText = segment.text.trim()
+    if (/[.!?]$/.test(trimmedText)) {
+      sentences.push(currentSentence)
+      currentSentence = null
+    }
+  }
+
+  // Push any remaining partial sentence
+  if (currentSentence) {
+    sentences.push(currentSentence)
+  }
+
+  return sentences
+}
 
 const normalisePagesToSegments = (pages = []) =>
   (Array.isArray(pages) ? pages : [])
@@ -287,9 +406,29 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   const displaySegments = useMemo(() => {
+    const rawSegments = normaliseSegments(transcript?.segments)
     const sentenceSegments = normaliseSegments(transcript?.sentenceSegments)
+
+    const hasWordData = rawSegments.some((seg) => seg.words?.length > 0)
+
+    if (hasWordData) {
+      // Check if segments are already well-formed sentences (from Whisper)
+      // by seeing if average words per segment is reasonable (> 3)
+      const totalWords = rawSegments.reduce((sum, seg) => sum + (seg.words?.length || 0), 0)
+      const avgWordsPerSegment = totalWords / rawSegments.length
+
+      if (avgWordsPerSegment > 3) {
+        // Already well-formed sentences with word timing - use directly
+        return rawSegments
+      }
+
+      // Choppy segments (like YouTube captions) - merge into sentences
+      return mergeSegmentsIntoSentences(rawSegments)
+    }
+
+    // Fall back to sentence segments for transcripts without word timing
     if (sentenceSegments.length) return sentenceSegments
-    return normaliseSegments(transcript?.segments)
+    return rawSegments
   }, [transcript])
 
   // Generate chunks for active mode
@@ -599,56 +738,63 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }, [transcriptLanguage, user])
 
+  // Preload translations from cache when content opens
   useEffect(() => {
-    if (!displaySegments.length) return
-
-    const words = Array.from(
-      new Set(
-        displaySegments
-          .map((segment) => segment.text || '')
-          .join(' ')
-          .replace(/[^\p{L}\p{N}]+/gu, ' ')
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean)
-      )
-    )
-
-    if (words.length === 0) return
+    if (!id || !user || !transcriptLanguage) return
 
     const controller = new AbortController()
+    const contentType = isSpotify ? 'spotify' : 'youtube'
 
-    async function prefetch() {
+    async function preloadTranslations() {
       try {
-        const response = await fetch('http://localhost:4000/api/prefetchTranslations', {
+        const response = await fetch('http://localhost:4000/api/content/preload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            languageCode: transcriptLanguage || 'auto',
-            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            words,
+            uid: user.uid,
+            contentId: id,
+            contentType,
+            targetLanguage: transcriptLanguage,
+            nativeLanguage: resolveSupportedLanguageLabel(profile?.nativeLanguage),
           }),
           signal: controller.signal,
         })
 
         if (!response.ok) {
-          console.error('Failed to prefetch subtitle translations', await response.text())
+          console.error('Failed to preload translations', await response.text())
           return
         }
 
         const data = await response.json()
         setTranslations(data.translations || {})
-      } catch (prefetchError) {
-        if (prefetchError.name !== 'AbortError') {
-          console.error('Error prefetching subtitle translations', prefetchError)
+        setPronunciations(data.pronunciations || {})
+      } catch (preloadError) {
+        if (preloadError.name !== 'AbortError') {
+          console.error('Error preloading translations', preloadError)
         }
       }
     }
 
-    prefetch()
+    preloadTranslations()
 
     return () => controller.abort()
-  }, [displaySegments, profile?.nativeLanguage, transcriptLanguage])
+  }, [id, isSpotify, user, transcriptLanguage, profile?.nativeLanguage])
+
+  // Combine preloaded translations and pronunciations into wordTranslations for Pass 3
+  useEffect(() => {
+    const combinedTranslations = {}
+    const allWords = new Set([...Object.keys(translations), ...Object.keys(pronunciations)])
+
+    allWords.forEach((word) => {
+      combinedTranslations[word] = {
+        translation: translations[word] || null,
+        audioUrl: pronunciations[word] || null,
+        audioBase64: null,
+      }
+    })
+
+    setWordTranslations(combinedTranslations)
+  }, [translations, pronunciations])
 
   useEffect(() => {
     if (!isSpotify) return undefined
@@ -678,10 +824,10 @@ const normalisePagesToSegments = (pages = []) =>
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [cinemaMode])
 
-  // Enter/exit fullscreen when switching to/from extensive mode
+  // Enter fullscreen when switching to immersive cinema modes
   useEffect(() => {
     const enterFullscreen = async () => {
-      if (cinemaMode === 'extensive' && cinemaContainerRef.current && !document.fullscreenElement) {
+      if ((cinemaMode === 'extensive' || cinemaMode === 'active' || cinemaMode === 'intensive') && cinemaContainerRef.current && !document.fullscreenElement) {
         try {
           await cinemaContainerRef.current.requestFullscreen()
           setIsFullscreen(true)
@@ -691,21 +837,8 @@ const normalisePagesToSegments = (pages = []) =>
       }
     }
 
-    const exitFullscreen = async () => {
-      if (cinemaMode !== 'extensive' && document.fullscreenElement) {
-        try {
-          await document.exitFullscreen()
-          setIsFullscreen(false)
-        } catch (err) {
-          console.error('Failed to exit fullscreen:', err)
-        }
-      }
-    }
-
-    if (cinemaMode === 'extensive') {
+    if (cinemaMode === 'extensive' || cinemaMode === 'active' || cinemaMode === 'intensive') {
       enterFullscreen()
-    } else {
-      exitFullscreen()
     }
   }, [cinemaMode])
 
@@ -715,6 +848,38 @@ const normalisePagesToSegments = (pages = []) =>
     setActiveStep(1)
     setCompletedPasses(new Set())
   }, [activeChunkIndex, cinemaMode])
+
+  // Dismiss popup when clicking outside
+  useEffect(() => {
+    if (!popup || popupClosing) return undefined
+
+    const handleClickOutside = (event) => {
+      // Check if click is inside the popup
+      const popupElement = event.target.closest('.cinema-word-popup')
+      if (popupElement) return
+
+      // Check if click is on a word (which would trigger a new popup)
+      const wordElement = event.target.closest('.reader-word, .page-text span, .karaoke-word')
+      if (wordElement) return
+
+      // Animate close
+      setPopupClosing(true)
+      setTimeout(() => {
+        setPopup(null)
+        setPopupClosing(false)
+      }, 120)
+    }
+
+    // Use setTimeout to avoid immediate dismissal from the click that opened it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside)
+    }, 0)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [popup, popupClosing])
 
   const handleVideoStatus = (status) => {
     setPlaybackStatus(status)
@@ -746,6 +911,27 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }
 
+  // Poll current time frequently while playing for word-by-word subtitle sync
+  useEffect(() => {
+    if (!playbackStatus.isPlaying || isSpotify) return
+
+    const interval = setInterval(() => {
+      const player = playerRef.current
+      if (!player?.getCurrentTime) return
+
+      const currentTime = player.getCurrentTime() ?? 0
+      const duration = player.getDuration?.() ?? playbackStatus.duration
+
+      setPlaybackStatus((prev) => ({
+        ...prev,
+        currentTime,
+        duration,
+      }))
+    }, 100) // Update every 100ms for smooth word highlighting
+
+    return () => clearInterval(interval)
+  }, [playbackStatus.isPlaying, isSpotify])
+
   const handlePlayPause = useCallback(() => {
     if (isSpotify) {
       spotifyPlayer?.togglePlay()
@@ -773,6 +959,33 @@ const normalisePagesToSegments = (pages = []) =>
     player?.seekTo?.(target, true)
     setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
   }, [isSpotify, spotifyPlayer])
+
+  // Enforce chunk boundaries in Active mode - pause at chunk end, snap to chunk start
+  useEffect(() => {
+    if (cinemaMode !== 'active') return
+    const chunk = chunks[activeChunkIndex]
+    if (!chunk) return
+
+    const currentTime = playbackStatus.currentTime
+
+    // Past chunk end → pause and hold at end
+    if (currentTime > chunk.end + 0.2) {
+      playerRef.current?.pauseVideo?.()
+      handleSeek(chunk.end)
+
+      // If on pass 4 and chunk completes, mark as completed
+      if (activeStep === 4 && !pass4CompletedRef.current.has(activeChunkIndex)) {
+        pass4CompletedRef.current.add(activeChunkIndex)
+        setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))
+      }
+      return
+    }
+
+    // Before chunk start → snap to start
+    if (currentTime < chunk.start - 0.2) {
+      handleSeek(chunk.start)
+    }
+  }, [cinemaMode, activeChunkIndex, activeStep, chunks, playbackStatus.currentTime, handleSeek])
 
   const handlePlaybackRateChange = useCallback((rate) => {
     setPlaybackRate(rate)
@@ -953,6 +1166,7 @@ const normalisePagesToSegments = (pages = []) =>
             sourceLang: transcriptLanguage || 'auto',
             targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
             ttsLanguage: transcriptTtsLanguage,
+            voiceGender: 'male',
           }),
         })
 
@@ -983,19 +1197,30 @@ const normalisePagesToSegments = (pages = []) =>
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
-    // Check pre-fetched translations - can be object with audio or plain string
-    const prefetched = translations[clean] || translations[selection]
+    // Check pre-fetched translations and pronunciations
+    const prefetchedTranslation = translations[clean] || translations[selection]
+    const prefetchedPronunciation = pronunciations[clean] || pronunciations[selection]
     let translation = 'No translation found'
     let audioBase64 = null
     let audioUrl = null
 
-    if (prefetched) {
-      if (typeof prefetched === 'object') {
-        translation = prefetched.translation || 'No translation found'
-        audioBase64 = prefetched.audioBase64 || null
-        audioUrl = prefetched.audioUrl || null
+    // Handle translation (can be string or object)
+    if (prefetchedTranslation) {
+      if (typeof prefetchedTranslation === 'object') {
+        translation = prefetchedTranslation.translation || 'No translation found'
+        audioBase64 = prefetchedTranslation.audioBase64 || null
+        audioUrl = prefetchedTranslation.audioUrl || null
       } else {
-        translation = prefetched
+        translation = prefetchedTranslation
+      }
+    }
+
+    // Handle pronunciation (can be string URL or object)
+    if (prefetchedPronunciation && !audioUrl) {
+      if (typeof prefetchedPronunciation === 'string') {
+        audioUrl = prefetchedPronunciation
+      } else if (prefetchedPronunciation.audioUrl) {
+        audioUrl = prefetchedPronunciation.audioUrl
       }
     }
 
@@ -1035,7 +1260,12 @@ const normalisePagesToSegments = (pages = []) =>
         },
       }))
 
-      setPopup(null)
+      // Animate close
+      setPopupClosing(true)
+      setTimeout(() => {
+        setPopup(null)
+        setPopupClosing(false)
+      }, 120)
     } catch (err) {
       console.error('Failed to update vocab status', err)
     }
@@ -1076,19 +1306,78 @@ const normalisePagesToSegments = (pages = []) =>
     if (step > 1) {
       setCompletedPasses((prev) => new Set([...prev, step - 1]))
     }
-  }, [])
+    // Reset to chunk start when switching passes
+    const chunk = chunks[activeChunkIndex]
+    if (chunk) {
+      handleSeek(chunk.start)
+    }
+  }, [chunks, activeChunkIndex, handleSeek])
 
   const handleAdvanceChunk = useCallback(() => {
     if (activeChunkIndex >= chunks.length - 1) return
 
     setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))
     setActiveChunkIndex((prev) => prev + 1)
+    setActiveStep(1)
+    setCompletedPasses(new Set())
   }, [activeChunkIndex, chunks.length])
 
-  const handleBeginFinalWatch = useCallback(() => {
-    // Mark all new words as known before final watch
+  const handleBeginFinalWatch = useCallback(async () => {
+    // Mark all untouched "new" words as "known" before final watch
+    const currentChunk = chunks[activeChunkIndex]
+    if (user && transcriptLanguage && currentChunk && displaySegments.length > 0) {
+      // Get segments within the current chunk
+      const chunkSegments = displaySegments.filter((segment) => {
+        if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return false
+        return segment.start >= currentChunk.start && segment.start < currentChunk.end
+      })
+
+      const seenWords = new Set()
+      const wordsToMarkKnown = []
+
+      chunkSegments.forEach((segment) => {
+        const text = segment.text || ''
+        const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+        tokens.forEach((token) => {
+          if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+          const normalised = normaliseExpression(token)
+          if (seenWords.has(normalised)) return
+          seenWords.add(normalised)
+
+          const entry = vocabEntries[normalised]
+          // If no entry exists, word is "new" and untouched - mark as known
+          if (!entry) {
+            wordsToMarkKnown.push({ word: token, normalised })
+          }
+        })
+      })
+
+      // Batch mark all untouched new words as known
+      if (wordsToMarkKnown.length > 0) {
+        await Promise.all(
+          wordsToMarkKnown.map((w) =>
+            upsertVocabEntry(user.uid, transcriptLanguage, w.word, null, 'known')
+          )
+        )
+
+        // Update local state
+        setVocabEntries((prev) => {
+          const next = { ...prev }
+          wordsToMarkKnown.forEach((w) => {
+            next[w.normalised] = {
+              ...(next[w.normalised] || { text: w.word, language: transcriptLanguage }),
+              status: 'known',
+            }
+          })
+          return next
+        })
+      }
+    }
+
     setCompletedPasses((prev) => new Set([...prev, 3]))
-  }, [])
+  }, [user, transcriptLanguage, chunks, activeChunkIndex, displaySegments, vocabEntries])
 
   const handleRestartChunk = useCallback(() => {
     if (!chunks[activeChunkIndex]) return
@@ -1134,16 +1423,20 @@ const normalisePagesToSegments = (pages = []) =>
       return <p className="error">This video cannot be embedded.</p>
     }
 
+    // Hide YouTube controls in Active and Intensive modes for controlled experience
+    const showControls = cinemaMode !== 'active' && cinemaMode !== 'intensive'
+
     return (
       <YouTubePlayer
         ref={playerRef}
         videoId={videoId}
+        controls={showControls}
         onStatus={handleVideoStatus}
         onPlayerReady={handlePlayerReady}
         onPlayerStateChange={handlePlayerStateChange}
       />
     )
-  }, [isSpotify, videoId])
+  }, [isSpotify, videoId, cinemaMode])
 
   const safeCurrentTime = Number.isFinite(playbackStatus.currentTime) ? playbackStatus.currentTime : 0
   const safeDuration = Number.isFinite(playbackStatus.duration) ? playbackStatus.duration : 0
@@ -1164,6 +1457,7 @@ const normalisePagesToSegments = (pages = []) =>
           language={transcriptLanguage}
           nativeLanguage={profile?.nativeLanguage}
           voiceGender={profile?.voiceGender || 'male'}
+          popup={popup}
           setPopup={setPopup}
           renderHighlightedText={renderHighlightedText}
           onSubtitleWordClick={handleSubtitleWordClick}
@@ -1173,6 +1467,7 @@ const normalisePagesToSegments = (pages = []) =>
           onCloseTranscript={handleCloseTranscript}
           darkMode={cinemaDarkMode}
           translations={translations}
+          pronunciations={pronunciations}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>
@@ -1228,6 +1523,7 @@ const normalisePagesToSegments = (pages = []) =>
           vocabEntries={vocabEntries}
           setVocabEntries={setVocabEntries}
           voiceGender={profile?.voiceGender || 'male'}
+          voiceId={profile?.voiceId}
           setPopup={setPopup}
           intensiveSegmentIndex={intensiveSegmentIndex}
           setIntensiveSegmentIndex={setIntensiveSegmentIndex}
@@ -1235,10 +1531,13 @@ const normalisePagesToSegments = (pages = []) =>
           duration={safeDuration}
           onSeek={handleSeek}
           onPlayPause={handlePlayPause}
+          onPlaybackRateChange={handlePlaybackRateChange}
           isPlaying={playbackStatus.isPlaying}
           user={user}
           videoPlayer={videoPlayer}
           contentId={id}
+          preloadedTranslations={translations}
+          preloadedPronunciations={pronunciations}
         />
       )
     }
@@ -1247,14 +1546,17 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   const isExtensive = cinemaMode === 'extensive'
+  const isIntensive = cinemaMode === 'intensive'
+  const isFullscreenMode = isExtensive || isIntensive
+  const isHeaderHideable = isExtensive || isIntensive
 
   return (
     <div
       ref={cinemaContainerRef}
-      className={`cinema-page cinema-mode-${cinemaMode} ${isExtensive ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
+      className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
-      {/* Top hover zone for header reveal in extensive mode */}
-      {isExtensive && (
+      {/* Top hover zone for header reveal in fullscreen modes */}
+      {isHeaderHideable && (
         <div
           className="cinema-top-hover-zone"
           onMouseEnter={() => setHeaderVisible(true)}
@@ -1262,12 +1564,12 @@ const normalisePagesToSegments = (pages = []) =>
         />
       )}
 
-      {/* Header - always visible in active/intensive, hover-reveal in extensive */}
+      {/* Header - always visible in active, hover-reveal in extensive/intensive */}
       <header
-        className={`dashboard-header cinema-hover-header ${isExtensive ? 'cinema-header-hideable' : ''} ${headerVisible ? 'is-visible' : ''}`}
-        onMouseEnter={() => isExtensive && setHeaderVisible(true)}
-        onMouseLeave={() => isExtensive && setHeaderVisible(false)}
-        inert={isExtensive && !headerVisible ? '' : undefined}
+        className={`dashboard-header cinema-hover-header ${isHeaderHideable ? 'cinema-header-hideable' : ''} ${headerVisible ? 'is-visible' : ''}`}
+        onMouseEnter={() => isHeaderHideable && setHeaderVisible(true)}
+        onMouseLeave={() => isHeaderHideable && setHeaderVisible(false)}
+        inert={isHeaderHideable && !headerVisible ? '' : undefined}
       >
         <div className="dashboard-brand-band cinema-header-band">
           <div className="cinema-header-left">
@@ -1313,33 +1615,31 @@ const normalisePagesToSegments = (pages = []) =>
                 {cinemaDarkMode ? 'dark_mode' : 'light_mode'}
               </span>
             </button>
-            {isExtensive && (
-              <>
-                {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
-                <button
-                  type="button"
-                  className={`cinema-header-icon-btn ${textDisplayMode === 'off' ? 'cinema-header-icon-btn--muted' : ''}`}
-                  onClick={cycleTextDisplayMode}
-                  aria-label={`Text: ${getTextModeLabel()} (click to change)`}
-                  title={`Text: ${getTextModeLabel()} (click to change)`}
-                >
-                  <span className="material-symbols-outlined">
-                    {textDisplayMode === 'off' ? 'closed_caption_off' : textDisplayMode === 'subtitles' ? 'closed_caption' : 'description'}
-                  </span>
-                </button>
-                {/* Word status button - disabled when text mode is off */}
-                <button
-                  type="button"
-                  className={`cinema-header-icon-btn ${textDisplayMode === 'off' ? 'cinema-header-icon-btn--disabled' : ''} ${showWordStatus && textDisplayMode !== 'off' ? 'cinema-header-icon-btn--active' : ''}`}
-                  onClick={() => textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
-                  disabled={textDisplayMode === 'off'}
-                  aria-label={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
-                  title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
-                >
-                  <span className="cinema-header-icon-aa">Aa</span>
-                </button>
-              </>
-            )}
+            {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
+            {/* In extensive mode: fully functional. In active mode: visible but locked */}
+            <button
+              type="button"
+              className={`cinema-header-icon-btn ${cinemaMode === 'active' ? 'cinema-header-icon-btn--locked' : ''} ${textDisplayMode === 'off' && isExtensive ? 'cinema-header-icon-btn--muted' : ''}`}
+              onClick={() => isExtensive && cycleTextDisplayMode()}
+              disabled={cinemaMode === 'active'}
+              aria-label={cinemaMode === 'active' ? 'Subtitles controlled by pass' : `Text: ${getTextModeLabel()} (click to change)`}
+              title={cinemaMode === 'active' ? 'Subtitles controlled by pass' : `Text: ${getTextModeLabel()} (click to change)`}
+            >
+              <span className="material-symbols-outlined">
+                {cinemaMode === 'active' ? (activeStep >= 2 ? 'closed_caption' : 'closed_caption_off') : (textDisplayMode === 'off' ? 'closed_caption_off' : textDisplayMode === 'subtitles' ? 'closed_caption' : 'description')}
+              </span>
+            </button>
+            {/* Word status button - disabled when text mode is off or in active mode */}
+            <button
+              type="button"
+              className={`cinema-header-icon-btn ${cinemaMode === 'active' ? 'cinema-header-icon-btn--locked' : ''} ${textDisplayMode === 'off' && isExtensive ? 'cinema-header-icon-btn--disabled' : ''} ${showWordStatus && textDisplayMode !== 'off' && isExtensive ? 'cinema-header-icon-btn--active' : ''}`}
+              onClick={() => isExtensive && textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
+              disabled={cinemaMode === 'active' || textDisplayMode === 'off'}
+              aria-label={cinemaMode === 'active' ? 'Word status controlled by pass' : (textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status'))}
+              title={cinemaMode === 'active' ? 'Word status controlled by pass' : (textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status'))}
+            >
+              <span className="cinema-header-icon-aa">Aa</span>
+            </button>
           </div>
         </div>
       </header>
@@ -1360,21 +1660,23 @@ const normalisePagesToSegments = (pages = []) =>
 
       {popup && (
         <CinemaWordPopup
-          word={popup.word}
+          word={popup.displayText || popup.word}
           translation={popup.translation}
-          status={vocabEntries[normaliseExpression(popup.word)]?.status || 'new'}
+          status={vocabEntries[popup.word]?.status || 'new'}
           audioBase64={popup.audioBase64}
           audioUrl={popup.audioUrl}
           language={transcriptLanguage}
           darkMode={cinemaDarkMode}
+          isClosing={popupClosing}
           onStatusChange={(word, status) => handleSetWordStatus(status)}
-          onClose={() => setPopup(null)}
+          onClose={closePopupAnimated}
           style={{
             top: popup.y,
             left: popup.x,
           }}
         />
       )}
+
     </div>
   )
 }

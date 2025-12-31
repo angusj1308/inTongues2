@@ -30,10 +30,11 @@ const loadYouTubeApi = () => {
   return youtubeApiPromise
 }
 
-const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerStateChange }, ref) => {
+const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayerReady, onPlayerStateChange }, ref) => {
   const containerRef = useRef(null)
   const playerRef = useRef(null)
   const statusIntervalRef = useRef(null)
+  const savedPositionRef = useRef(null)
 
   const sendStatusUpdate = () => {
     if (!playerRef.current || !window.YT?.PlayerState) return
@@ -57,7 +58,7 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
         playerRef.current = new YT.Player(containerRef.current, {
           videoId,
           playerVars: {
-            controls: 1,
+            controls: controls ? 1 : 0,
             rel: 0,
             cc_load_policy: 0,
             modestbranding: 1,
@@ -65,6 +66,11 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
           },
           events: {
             onReady: (event) => {
+              // Restore position if player was recreated (e.g., controls changed)
+              if (savedPositionRef.current !== null) {
+                playerRef.current?.seekTo?.(savedPositionRef.current, true)
+                savedPositionRef.current = null
+              }
               sendStatusUpdate()
               onPlayerReady?.(playerRef.current, event)
             },
@@ -89,11 +95,13 @@ const YouTubePlayer = forwardRef(({ videoId, onStatus, onPlayerReady, onPlayerSt
         clearInterval(statusIntervalRef.current)
       }
       if (playerRef.current) {
+        // Save position before destroying so we can restore after recreate
+        savedPositionRef.current = playerRef.current.getCurrentTime?.() ?? null
         playerRef.current.destroy()
         playerRef.current = null
       }
     }
-  }, [videoId])
+  }, [videoId, controls])
 
   useImperativeHandle(
     ref,

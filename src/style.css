@@ -6440,13 +6440,19 @@ body.active-pass-locked {
   color: #e5e5e5;
 }
 
-/* Dark mode word status colors for transcript - use text color not backgrounds */
+/* Dark mode word status colors for transcript - use text color with opacity-based intensity */
 .cinema-pass-three-transcript .reader-word {
   color: rgba(255, 255, 255, 0.85);
 }
 
 .cinema-pass-three-transcript .reader-word--highlighted {
-  color: var(--hlt-base, rgba(255, 255, 255, 0.85));
+  /* Blend highlight color with white based on opacity (U=0.4, R=0.28, F=0.16, K=0) */
+  /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
+  color: color-mix(
+    in srgb,
+    var(--hlt-base, #DC2626) calc(var(--hlt-opacity, 0) * 250%),
+    rgba(255, 255, 255, 0.85)
+  );
   background: none;
 }
 

@@ -807,11 +807,10 @@ const normalisePagesToSegments = (pages = []) =>
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [cinemaMode])
 
-  // Enter/exit fullscreen when switching modes
-  // Fullscreen persists for extensive AND active modes
+  // Enter fullscreen when switching to immersive cinema modes
   useEffect(() => {
     const enterFullscreen = async () => {
-      if ((cinemaMode === 'extensive' || cinemaMode === 'active') && cinemaContainerRef.current && !document.fullscreenElement) {
+      if ((cinemaMode === 'extensive' || cinemaMode === 'active' || cinemaMode === 'intensive') && cinemaContainerRef.current && !document.fullscreenElement) {
         try {
           await cinemaContainerRef.current.requestFullscreen()
           setIsFullscreen(true)
@@ -821,22 +820,8 @@ const normalisePagesToSegments = (pages = []) =>
       }
     }
 
-    const exitFullscreen = async () => {
-      // Only exit fullscreen when switching to intensive mode
-      if (cinemaMode === 'intensive' && document.fullscreenElement) {
-        try {
-          await document.exitFullscreen()
-          setIsFullscreen(false)
-        } catch (err) {
-          console.error('Failed to exit fullscreen:', err)
-        }
-      }
-    }
-
-    if (cinemaMode === 'extensive' || cinemaMode === 'active') {
+    if (cinemaMode === 'extensive' || cinemaMode === 'active' || cinemaMode === 'intensive') {
       enterFullscreen()
-    } else {
-      exitFullscreen()
     }
   }, [cinemaMode])
 

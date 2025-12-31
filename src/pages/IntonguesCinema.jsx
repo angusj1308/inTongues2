@@ -1540,33 +1540,31 @@ const normalisePagesToSegments = (pages = []) =>
                 {cinemaDarkMode ? 'dark_mode' : 'light_mode'}
               </span>
             </button>
-            {isExtensive && (
-              <>
-                {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
-                <button
-                  type="button"
-                  className={`cinema-header-icon-btn ${textDisplayMode === 'off' ? 'cinema-header-icon-btn--muted' : ''}`}
-                  onClick={cycleTextDisplayMode}
-                  aria-label={`Text: ${getTextModeLabel()} (click to change)`}
-                  title={`Text: ${getTextModeLabel()} (click to change)`}
-                >
-                  <span className="material-symbols-outlined">
-                    {textDisplayMode === 'off' ? 'closed_caption_off' : textDisplayMode === 'subtitles' ? 'closed_caption' : 'description'}
-                  </span>
-                </button>
-                {/* Word status button - disabled when text mode is off */}
-                <button
-                  type="button"
-                  className={`cinema-header-icon-btn ${textDisplayMode === 'off' ? 'cinema-header-icon-btn--disabled' : ''} ${showWordStatus && textDisplayMode !== 'off' ? 'cinema-header-icon-btn--active' : ''}`}
-                  onClick={() => textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
-                  disabled={textDisplayMode === 'off'}
-                  aria-label={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
-                  title={textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status')}
-                >
-                  <span className="cinema-header-icon-aa">Aa</span>
-                </button>
-              </>
-            )}
+            {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
+            {/* In extensive mode: fully functional. In active mode: visible but locked */}
+            <button
+              type="button"
+              className={`cinema-header-icon-btn ${cinemaMode === 'active' ? 'cinema-header-icon-btn--locked' : ''} ${textDisplayMode === 'off' && isExtensive ? 'cinema-header-icon-btn--muted' : ''}`}
+              onClick={() => isExtensive && cycleTextDisplayMode()}
+              disabled={cinemaMode === 'active'}
+              aria-label={cinemaMode === 'active' ? 'Subtitles controlled by pass' : `Text: ${getTextModeLabel()} (click to change)`}
+              title={cinemaMode === 'active' ? 'Subtitles controlled by pass' : `Text: ${getTextModeLabel()} (click to change)`}
+            >
+              <span className="material-symbols-outlined">
+                {cinemaMode === 'active' ? (activeStep >= 2 ? 'closed_caption' : 'closed_caption_off') : (textDisplayMode === 'off' ? 'closed_caption_off' : textDisplayMode === 'subtitles' ? 'closed_caption' : 'description')}
+              </span>
+            </button>
+            {/* Word status button - disabled when text mode is off or in active mode */}
+            <button
+              type="button"
+              className={`cinema-header-icon-btn ${cinemaMode === 'active' ? 'cinema-header-icon-btn--locked' : ''} ${textDisplayMode === 'off' && isExtensive ? 'cinema-header-icon-btn--disabled' : ''} ${showWordStatus && textDisplayMode !== 'off' && isExtensive ? 'cinema-header-icon-btn--active' : ''}`}
+              onClick={() => isExtensive && textDisplayMode !== 'off' && setShowWordStatus((prev) => !prev)}
+              disabled={cinemaMode === 'active' || textDisplayMode === 'off'}
+              aria-label={cinemaMode === 'active' ? 'Word status controlled by pass' : (textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status'))}
+              title={cinemaMode === 'active' ? 'Word status controlled by pass' : (textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status'))}
+            >
+              <span className="cinema-header-icon-aa">Aa</span>
+            </button>
           </div>
         </div>
       </header>

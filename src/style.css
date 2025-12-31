@@ -6305,6 +6305,64 @@ body.active-pass-locked {
   right: 4px;
 }
 
+/* Pass info header - top of screen */
+.cinema-overlay-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  padding: 60px 24px 24px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 60%, transparent 100%);
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms ease, transform 300ms ease;
+  pointer-events: none;
+}
+
+.cinema-overlay-header.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cinema-overlay-header-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.cinema-overlay-pass-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cinema-overlay-pass-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.cinema-overlay-pass-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.cinema-overlay-pass-hint {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* Overlay control bar */
 .cinema-overlay-controls {
   position: absolute;
@@ -6375,11 +6433,21 @@ body.active-pass-locked {
   border-radius: 4px;
   cursor: pointer;
   position: relative;
+  border: none;
+  outline: none;
+}
+
+.cinema-overlay-slider:focus,
+.cinema-overlay-slider:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .cinema-overlay-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 4px;
+  border: none;
+  outline: none;
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0.9) 0%,
@@ -6396,6 +6464,7 @@ body.active-pass-locked {
   height: 14px;
   border-radius: 50%;
   background: #fff;
+  border: none;
   margin-top: -5px;
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -7175,6 +7244,25 @@ body.active-pass-locked {
 .cinema-header-icon-btn--disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+.cinema-header-icon-btn--locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.cinema-header-icon-btn--locked::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 50%;
+  opacity: 0.6;
 }
 
 /* Aa icon for word status */

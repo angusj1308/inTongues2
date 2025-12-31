@@ -6395,15 +6395,20 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   z-index: 100;
+  padding: 24px;
+  padding-bottom: 100px; /* Space for hover nav */
 }
 
 .cinema-pass-three-content {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0;
+  gap: 24px;
   min-height: 0;
   height: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .cinema-pass-three-transcript,
@@ -6413,18 +6418,21 @@ body.active-pass-locked {
   min-height: 0;
   overflow: hidden;
   position: relative;
-  height: 100%;
+  background: #111;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .cinema-pass-three-transcript {
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  /* Remove the hard border, now using card styling */
 }
 
 /* Dark mode overrides for transcript panel */
 .cinema-pass-three-transcript .transcript-panel {
-  background: #0a0a0a;
+  background: #111;
   color: #e5e5e5;
   height: 100%;
+  border-radius: 12px;
 }
 
 .cinema-pass-three-transcript .transcript-segment {
@@ -6436,8 +6444,9 @@ body.active-pass-locked {
 }
 
 .cinema-pass-three-transcript .transcript-footer {
-  background: #0a0a0a;
+  background: #111;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 12px 12px;
 }
 
 .cinema-pass-three-transcript .transcript-footer button {
@@ -6446,15 +6455,17 @@ body.active-pass-locked {
 
 /* Dark mode overrides for word status panel */
 .cinema-pass-three-words .word-status-panel {
-  background: #0a0a0a;
+  background: #111;
   color: #e5e5e5;
-  border-color: rgba(255, 255, 255, 0.1);
+  border: none;
   box-shadow: none;
+  border-radius: 12px;
 }
 
 .cinema-pass-three-words .word-status-panel-header {
-  background: #0a0a0a;
+  background: #111;
   border-bottom-color: rgba(255, 255, 255, 0.1);
+  border-radius: 12px 12px 0 0;
 }
 
 .cinema-pass-three-words .word-status-panel-label {
@@ -6482,8 +6493,9 @@ body.active-pass-locked {
 }
 
 .cinema-pass-three-words .word-status-footer {
-  background: #0a0a0a;
+  background: #111;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 12px 12px;
 }
 
 .cinema-pass-three-words .word-status-footer .button {
@@ -6493,15 +6505,15 @@ body.active-pass-locked {
 
 /* Dark mode for transcript roller gradient fade */
 .cinema-pass-three-transcript .transcript-roller-window {
-  --transcript-roller-bg: #0a0a0a;
+  --transcript-roller-bg: #111;
 }
 
 .cinema-pass-three-transcript .transcript-roller-window::before {
-  background: linear-gradient(180deg, #0a0a0a 0%, rgba(10, 10, 10, 0.65) 55%, rgba(10, 10, 10, 0) 100%);
+  background: linear-gradient(180deg, #111 0%, rgba(17, 17, 17, 0.65) 55%, rgba(17, 17, 17, 0) 100%);
 }
 
 .cinema-pass-three-transcript .transcript-roller-window::after {
-  background: linear-gradient(0deg, #0a0a0a 0%, rgba(10, 10, 10, 0.65) 55%, rgba(10, 10, 10, 0) 100%);
+  background: linear-gradient(0deg, #111 0%, rgba(17, 17, 17, 0.65) 55%, rgba(17, 17, 17, 0) 100%);
 }
 
 /* Dark mode for word status row */
@@ -6542,7 +6554,7 @@ body.active-pass-locked {
 
 /* Dark mode for word status panel body/scrollbar */
 .cinema-pass-three-words .word-status-panel-body {
-  background: #0a0a0a;
+  background: #111;
 }
 
 .cinema-pass-three-words .word-status-panel-body::-webkit-scrollbar-thumb {
@@ -6555,11 +6567,14 @@ body.active-pass-locked {
 
 /* ============ PASS 3 LIGHT MODE OVERRIDES ============ */
 .is-light .cinema-pass-three-fullscreen {
-  background: #f8fafc;
+  background: #f1f5f9;
 }
 
-.is-light .cinema-pass-three-transcript {
-  border-right-color: #e2e8f0;
+.is-light .cinema-pass-three-transcript,
+.is-light .cinema-pass-three-words {
+  background: #fff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .is-light .cinema-pass-three-transcript .transcript-panel {

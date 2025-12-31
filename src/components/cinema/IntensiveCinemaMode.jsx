@@ -315,9 +315,9 @@ const IntensiveCinemaMode = ({
     })
   }
 
-  // Play word audio
-  const playWordAudio = useCallback((audioBase64) => {
-    if (!audioBase64) return
+  // Play word audio - supports both audioBase64 and audioUrl
+  const playWordAudio = useCallback((audioBase64, audioUrl) => {
+    if (!audioBase64 && !audioUrl) return
 
     if (wordAudioRef.current) {
       wordAudioRef.current.pause()
@@ -325,11 +325,16 @@ const IntensiveCinemaMode = ({
     }
 
     try {
-      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`)
+      const audio = new Audio()
+      if (audioBase64) {
+        audio.src = `data:audio/mpeg;base64,${audioBase64}`
+      } else if (audioUrl) {
+        audio.src = audioUrl
+      }
       wordAudioRef.current = audio
       audio.play().catch((err) => console.error('Word audio playback failed', err))
     } catch (error) {
-      console.error('Error creating audio from base64:', error)
+      console.error('Error creating audio:', error)
     }
   }, [])
 
@@ -1224,8 +1229,8 @@ const IntensiveCinemaMode = ({
                   <button
                     type="button"
                     className="intensive-word-play"
-                    onClick={() => playWordAudio(pair.audioBase64)}
-                    disabled={!pair.audioBase64}
+                    onClick={() => playWordAudio(pair.audioBase64, pair.audioUrl)}
+                    disabled={!pair.audioBase64 && !pair.audioUrl}
                     aria-label={`Play pronunciation of ${pair.source}`}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

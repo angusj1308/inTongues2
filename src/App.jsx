@@ -18,6 +18,7 @@ import ImportAudioVideo from './pages/ImportAudioVideo'
 import IntonguesCinema from './pages/IntonguesCinema'
 import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 import JuanComprehension from './pages/JuanComprehension'
+import WritingEditor from './pages/WritingEditor'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -193,6 +194,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <Review />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/write/:id"
+        element={
+          <ProtectedRoute>
+            <WritingEditor />
           </ProtectedRoute>
         }
       />

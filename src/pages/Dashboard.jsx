@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
+import WritingHub from '../components/write/WritingHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
@@ -386,11 +387,7 @@ const Dashboard = () => {
             </div>
           )}
 
-          {activeTab === 'write' && (
-            <div className="coming-soon">
-              <p className="muted">Writing prompts and feedback are on the way.</p>
-            </div>
-          )}
+          {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}
 
           {activeTab === 'review' && (
             <div className="read-grid">

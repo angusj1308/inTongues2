@@ -189,6 +189,8 @@ const IntensiveCinemaMode = ({
   const [isDragging, setIsDragging] = useState(null)
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
 
+  const [isVocabPanelOpen, setIsVocabPanelOpen] = useState(false)
+
   const progressBarRef = useRef(null)
   const wordAudioRef = useRef(null)
   const lastSwipeTimeRef = useRef(0)
@@ -474,6 +476,7 @@ const IntensiveCinemaMode = ({
     setProgress(0)
     setLoopStart(0)
     setLoopEnd(100)
+    setIsVocabPanelOpen(false)
   }, [intensiveSegmentIndex])
 
   // Clamp segment index
@@ -690,6 +693,26 @@ const IntensiveCinemaMode = ({
     })
 
     return elements
+  }
+
+  // Handle "Show Transcript" button - plays audio, reveals transcript + vocab
+  const handleShowTranscript = () => {
+    if (isTranscriptionMode && !isTranscriptRevealed) return
+
+    // Seek to segment start and play
+    onSeek?.(segmentStart)
+    if (!isPlaying) {
+      onPlayPause?.()
+    }
+
+    // Reveal transcript and open vocab panel
+    setIntensiveRevealStep('transcript')
+    setIsVocabPanelOpen(true)
+  }
+
+  // Handle "Show Translation" button
+  const handleShowTranslation = () => {
+    setIntensiveRevealStep('translation')
   }
 
   const toggleIntensiveRevealStep = () => {
@@ -1113,72 +1136,132 @@ const IntensiveCinemaMode = ({
         {videoPlayer}
       </div>
 
-      {/* Overlay controls panel at bottom */}
-      <div className="cinema-intensive-controls-overlay">
-        {/* Header: Segment navigation + Transcribe toggle */}
-        <div className="cinema-intensive-header">
-          <div className="intensive-card-nav">
-            <button
-              type="button"
-              className="intensive-card-nav-btn"
-              onClick={() => handleSegmentNavigation('previous')}
-              disabled={intensiveSegmentIndex === 0}
-              aria-label="Previous segment"
+      {/* Top bar: Nav (left) + Transcribe toggle (right) */}
+      <div className="cinema-intensive-top-bar">
+        <div className="intensive-card-nav">
+          <button
+            type="button"
+            className="intensive-card-nav-btn"
+            onClick={() => handleSegmentNavigation('previous')}
+            disabled={intensiveSegmentIndex === 0}
+            aria-label="Previous segment"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <span className="intensive-card-nav-counter">
-              {intensiveSegmentIndex + 1} / {intensiveSegments.length}
-            </span>
-            <button
-              type="button"
-              className="intensive-card-nav-btn"
-              onClick={() => handleSegmentNavigation('next')}
-              disabled={intensiveSegmentIndex >= intensiveSegments.length - 1}
-              aria-label="Next segment"
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <span className="intensive-card-nav-counter">
+            {intensiveSegmentIndex + 1} / {intensiveSegments.length}
+          </span>
+          <button
+            type="button"
+            className="intensive-card-nav-btn"
+            onClick={() => handleSegmentNavigation('next')}
+            disabled={intensiveSegmentIndex >= intensiveSegments.length - 1}
+            aria-label="Next segment"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 6 15 12 9 18" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="transcribe-mode-toggle">
-            <span className="transcribe-mode-label">Transcribe</span>
-            <button
-              type="button"
-              className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
-              onClick={handleTranscriptionToggle}
-              aria-pressed={isTranscriptionMode}
-              aria-label="Toggle transcribe mode"
-            >
-              <span className="toggle-switch-slider" />
-            </button>
-          </div>
+              <polyline points="9 6 15 12 9 18" />
+            </svg>
+          </button>
         </div>
 
-        {/* Transcript zone */}
-        <div className="cinema-intensive-transcript-zone">
+        <div className="transcribe-mode-toggle">
+          <span className="transcribe-mode-label">Transcribe</span>
+          <button
+            type="button"
+            className={`toggle-switch ${isTranscriptionMode ? 'is-active' : ''}`}
+            onClick={handleTranscriptionToggle}
+            aria-pressed={isTranscriptionMode}
+            aria-label="Toggle transcribe mode"
+          >
+            <span className="toggle-switch-slider" />
+          </button>
+        </div>
+      </div>
+
+      {/* Right sliding vocab panel */}
+      <div className={`cinema-intensive-vocab-panel ${isVocabPanelOpen ? 'is-open' : ''}`}>
+        <div className="cinema-intensive-vocab-panel-header">
+          <span>Vocabulary</span>
+          <button
+            type="button"
+            className="vocab-panel-close"
+            onClick={() => setIsVocabPanelOpen(false)}
+            aria-label="Close vocabulary panel"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="cinema-intensive-vocab-list">
+          {currentWordPairs.length > 0 ? (
+            currentWordPairs.map((pair, index) => {
+              const wordKey = normaliseExpression(pair.source)
+              const currentStatus = vocabEntries[wordKey]?.status || 'new'
+              const displayStatus = currentStatus || 'new'
+
+              return (
+                <div key={index} className="intensive-vocab-item">
+                  <button
+                    type="button"
+                    className="intensive-word-play"
+                    onClick={() => playWordAudio(pair.audioBase64)}
+                    disabled={!pair.audioBase64}
+                    aria-label={`Play pronunciation of ${pair.source}`}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </button>
+                  <div className="intensive-vocab-item-text">
+                    <span className="intensive-word-text">{pair.source}</span>
+                    <span className="intensive-word-translation">{pair.target}</span>
+                  </div>
+                  <div className="intensive-word-status-pills">
+                    {['new', 'unknown', 'recognised', 'familiar', 'known'].map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        className={`intensive-status-pill intensive-status-pill--${status} ${displayStatus === status ? 'is-active' : ''}`}
+                        onClick={() => handleSetWordPairStatus(pair.source, pair.target, status === 'new' ? 'unknown' : status)}
+                      >
+                        {status.charAt(0).toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="intensive-vocab-empty">No vocabulary for this segment</div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom controls overlay */}
+      <div className="cinema-intensive-bottom-controls">
+        {/* Subtitle zone - transcript appears here */}
+        <div className="cinema-intensive-subtitle-zone">
           {/* Transcription input (when in transcribe mode, not yet submitted) */}
           {isTranscriptionMode && !isTranscriptRevealed && (
             <div className="intensive-transcribe-input-container">
@@ -1208,9 +1291,9 @@ const IntensiveCinemaMode = ({
             </div>
           )}
 
-          {/* Actual transcript (non-transcribe mode, or transcribe mode after reveal) */}
+          {/* Actual transcript as subtitle */}
           {isTranscriptVisible && (
-            <div className="cinema-intensive-transcript" onMouseUp={handleWordClick}>
+            <div className="cinema-intensive-subtitle" onMouseUp={handleWordClick}>
               {currentIntensiveSentence ? (
                 renderWordSegments(currentIntensiveSentence)
               ) : (
@@ -1218,219 +1301,197 @@ const IntensiveCinemaMode = ({
               )}
             </div>
           )}
-        </div>
 
-        {/* Translation zone (only show reveal button in non-transcribe mode) */}
-        <div className="cinema-intensive-translation-zone">
-          {!isTranscriptionMode && isTranslationVisible ? (
-            <div className="cinema-intensive-translation">
+          {/* Translation below subtitle */}
+          {isTranslationVisible && (
+            <div className="cinema-intensive-subtitle-translation">
               {isLoadingTranslation
                 ? 'Loading translation...'
                 : renderTranslationWithHighlights(intensiveTranslation) ||
                   'Translation will appear here.'}
             </div>
-          ) : !isTranscriptionMode ? (
-            <button
-              type="button"
-              className="intensive-reveal-btn"
-              onClick={toggleIntensiveRevealStep}
-            >
-              {toggleLabel}
-            </button>
-          ) : null}
+          )}
         </div>
 
-        {/* Player controls */}
-        <div className="cinema-intensive-player">
-          <div className="intensive-player-progress" ref={progressBarRef}>
-            <div
-              className="intensive-player-loop-region"
-              style={{
-                left: `${loopStart}%`,
-                width: `${loopEnd - loopStart}%`,
-                opacity: isLooping ? 1 : 0.3,
-              }}
-            />
-            <div className="intensive-player-progress-fill" style={{ width: `${progress}%` }} />
-            <div
-              className={`intensive-player-pin intensive-player-pin-start ${isDragging === 'start' ? 'is-dragging' : ''}`}
-              style={{ left: `${loopStart}%` }}
-              onMouseDown={(e) => {
-                e.preventDefault()
-                setIsDragging('start')
-              }}
-              role="slider"
-              aria-label="Loop start"
-              aria-valuenow={loopStart}
-              tabIndex={0}
-            />
-            <div
-              className={`intensive-player-pin intensive-player-pin-end ${isDragging === 'end' ? 'is-dragging' : ''}`}
-              style={{ left: `${loopEnd}%` }}
-              onMouseDown={(e) => {
-                e.preventDefault()
-                setIsDragging('end')
-              }}
-              role="slider"
-              aria-label="Loop end"
-              aria-valuenow={loopEnd}
-              tabIndex={0}
-            />
-          </div>
-          <div className="intensive-player-controls">
-            <button
-              type="button"
-              className={`intensive-player-btn ${playbackRate === 0.75 ? 'is-active' : ''}`}
-              onClick={togglePlaybackRate}
-              aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
-              title={playbackRate === 0.75 ? '0.75x' : '1x'}
-            >
-              <svg width="22" height="22" viewBox="0 0 100 100" fill="currentColor">
-                <ellipse cx="50" cy="50" rx="35" ry="25" />
-                <circle cx="90" cy="50" r="12" />
-                <ellipse cx="75" cy="72" rx="8" ry="12" />
-                <ellipse cx="75" cy="28" rx="8" ry="12" />
-                <ellipse cx="25" cy="72" rx="8" ry="12" />
-                <ellipse cx="25" cy="28" rx="8" ry="12" />
-                <ellipse cx="12" cy="50" rx="6" ry="4" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="intensive-player-btn"
-              onClick={() => scrubVideo(-2)}
-              aria-label="Back 2 seconds"
-            >
-              <svg
-                className="scrub-svg"
-                width="24"
-                height="24"
-                viewBox="-2 -2 40 40"
-                fill="none"
+        {/* Player controls row */}
+        <div className="cinema-intensive-player-row">
+          {/* Reveal button on the left */}
+          <div className="cinema-intensive-reveal-area">
+            {!isTranscriptionMode && intensiveRevealStep === 'hidden' && (
+              <button
+                type="button"
+                className="intensive-reveal-btn"
+                onClick={handleShowTranscript}
               >
-                <g transform="translate(36 0) scale(-1 1)">
+                Show Transcript
+              </button>
+            )}
+            {!isTranscriptionMode && intensiveRevealStep === 'transcript' && (
+              <button
+                type="button"
+                className="intensive-reveal-btn"
+                onClick={handleShowTranslation}
+              >
+                Show Translation
+              </button>
+            )}
+            {!isTranscriptionMode && intensiveRevealStep === 'translation' && (
+              <div className="intensive-reveal-placeholder" />
+            )}
+          </div>
+
+          {/* Center player controls */}
+          <div className="cinema-intensive-player">
+            <div className="intensive-player-progress" ref={progressBarRef}>
+              <div
+                className="intensive-player-loop-region"
+                style={{
+                  left: `${loopStart}%`,
+                  width: `${loopEnd - loopStart}%`,
+                  opacity: isLooping ? 1 : 0.3,
+                }}
+              />
+              <div className="intensive-player-progress-fill" style={{ width: `${progress}%` }} />
+              <div
+                className={`intensive-player-pin intensive-player-pin-start ${isDragging === 'start' ? 'is-dragging' : ''}`}
+                style={{ left: `${loopStart}%` }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setIsDragging('start')
+                }}
+                role="slider"
+                aria-label="Loop start"
+                aria-valuenow={loopStart}
+                tabIndex={0}
+              />
+              <div
+                className={`intensive-player-pin intensive-player-pin-end ${isDragging === 'end' ? 'is-dragging' : ''}`}
+                style={{ left: `${loopEnd}%` }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setIsDragging('end')
+                }}
+                role="slider"
+                aria-label="Loop end"
+                aria-valuenow={loopEnd}
+                tabIndex={0}
+              />
+            </div>
+            <div className="intensive-player-controls">
+              <button
+                type="button"
+                className={`intensive-player-btn ${playbackRate === 0.75 ? 'is-active' : ''}`}
+                onClick={togglePlaybackRate}
+                aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
+                title={playbackRate === 0.75 ? '0.75x' : '1x'}
+              >
+                <svg width="22" height="22" viewBox="0 0 100 100" fill="currentColor">
+                  <ellipse cx="50" cy="50" rx="35" ry="25" />
+                  <circle cx="90" cy="50" r="12" />
+                  <ellipse cx="75" cy="72" rx="8" ry="12" />
+                  <ellipse cx="75" cy="28" rx="8" ry="12" />
+                  <ellipse cx="25" cy="72" rx="8" ry="12" />
+                  <ellipse cx="25" cy="28" rx="8" ry="12" />
+                  <ellipse cx="12" cy="50" rx="6" ry="4" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="intensive-player-btn"
+                onClick={() => scrubVideo(-2)}
+                aria-label="Back 2 seconds"
+              >
+                <svg
+                  className="scrub-svg"
+                  width="24"
+                  height="24"
+                  viewBox="-2 -2 40 40"
+                  fill="none"
+                >
+                  <g transform="translate(36 0) scale(-1 1)">
+                    <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                    <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                  </g>
+                  <text
+                    className="scrub-text"
+                    x="18"
+                    y="19"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    2
+                  </text>
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="intensive-player-btn intensive-player-btn-play"
+                onClick={onPlayPause}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                className="intensive-player-btn"
+                onClick={() => scrubVideo(2)}
+                aria-label="Forward 2 seconds"
+              >
+                <svg
+                  className="scrub-svg"
+                  width="24"
+                  height="24"
+                  viewBox="-2 -2 40 40"
+                  fill="none"
+                >
                   <circle className="scrub-arc" cx="18" cy="18" r="12" />
                   <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
-                </g>
-                <text
-                  className="scrub-text"
-                  x="18"
-                  y="19"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                >
-                  2
-                </text>
-              </svg>
-            </button>
-            <button
-              type="button"
-              className="intensive-player-btn intensive-player-btn-play"
-              onClick={onPlayPause}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-            >
-              {isPlaying ? (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                  <text
+                    className="scrub-text"
+                    x="18"
+                    y="19"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    2
+                  </text>
                 </svg>
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              )}
-            </button>
-            <button
-              type="button"
-              className="intensive-player-btn"
-              onClick={() => scrubVideo(2)}
-              aria-label="Forward 2 seconds"
-            >
-              <svg
-                className="scrub-svg"
-                width="24"
-                height="24"
-                viewBox="-2 -2 40 40"
-                fill="none"
+              </button>
+              <button
+                type="button"
+                className={`intensive-player-btn ${isLooping ? 'is-active' : ''}`}
+                onClick={toggleLoop}
+                aria-label={isLooping ? 'Disable loop' : 'Enable loop'}
+                aria-pressed={isLooping}
               >
-                <circle className="scrub-arc" cx="18" cy="18" r="12" />
-                <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
-                <text
-                  className="scrub-text"
-                  x="18"
-                  y="19"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                 >
-                  2
-                </text>
-              </svg>
-            </button>
-            <button
-              type="button"
-              className={`intensive-player-btn ${isLooping ? 'is-active' : ''}`}
-              onClick={toggleLoop}
-              aria-label={isLooping ? 'Disable loop' : 'Enable loop'}
-              aria-pressed={isLooping}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M17 2l4 4-4 4" />
-                <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                <path d="M7 22l-4-4 4-4" />
-                <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Vocab zone - shows with transcript, not translation */}
-        <div className="cinema-intensive-vocab-zone">
-          {isTranscriptVisible && currentWordPairs.length > 0 && (
-            <div className="intensive-word-pairs">
-              {currentWordPairs.map((pair, index) => {
-                const wordKey = normaliseExpression(pair.source)
-                const currentStatus = vocabEntries[wordKey]?.status || 'new'
-                const displayStatus = currentStatus || 'new'
-
-                return (
-                  <div key={index} className="intensive-word-row">
-                    <button
-                      type="button"
-                      className="intensive-word-play"
-                      onClick={() => playWordAudio(pair.audioBase64)}
-                      disabled={!pair.audioBase64}
-                      aria-label={`Play pronunciation of ${pair.source}`}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
-                    <span className="intensive-word-text">{pair.source}</span>
-                    <span className="intensive-word-translation">{pair.target}</span>
-                    <div className="intensive-word-status-pills">
-                      {['new', 'unknown', 'recognised', 'familiar', 'known'].map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          className={`intensive-status-pill intensive-status-pill--${status} ${displayStatus === status ? 'is-active' : ''}`}
-                          onClick={() => handleSetWordPairStatus(pair.source, pair.target, status === 'new' ? 'unknown' : status)}
-                        >
-                          {status.charAt(0).toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
+                  <path d="M17 2l4 4-4 4" />
+                  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                  <path d="M7 22l-4-4 4-4" />
+                  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                </svg>
+              </button>
             </div>
-          )}
+          </div>
+
+          {/* Right side spacer for balance */}
+          <div className="cinema-intensive-reveal-area" />
         </div>
       </div>
     </div>

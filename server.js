@@ -3920,6 +3920,80 @@ app.post('/api/delete-story', async (req, res) => {
   }
 })
 
+// Practice Mode: Get AI feedback on user's translation attempt
+app.post('/api/practice/feedback', async (req, res) => {
+  try {
+    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel } = req.body || {}
+
+    if (!nativeSentence || !userAttempt || !targetLanguage) {
+      return res.status(400).json({ error: 'nativeSentence, userAttempt, and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const level = adaptationLevel || 'native'
+
+    // Build the prompt for the tutor
+    const prompt = `You are a language tutor helping a student learn ${targetLanguage}. The student is practicing expressing ideas from ${sourceLang} into ${targetLanguage}.
+
+Original sentence (in ${sourceLang}):
+"${nativeSentence}"
+
+Student's attempt (in ${targetLanguage}):
+"${userAttempt}"
+
+Adaptation level: ${level} (${level === 'beginner' ? 'use simple vocabulary and shorter sentences' : level === 'intermediate' ? 'natural expressions with moderate complexity' : 'natural, native-level expression'})
+
+Analyze the student's attempt and provide feedback. Return a JSON object with this structure:
+{
+  "modelSentence": "A natural ${targetLanguage} way to express the same idea, appropriate for the adaptation level",
+  "feedback": {
+    "naturalness": <1-5 score, where 5 is perfectly natural for a native speaker>,
+    "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
+    "explanation": "Brief explanation of your feedback in ${sourceLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.",
+    "grammarIssues": ["list of specific grammar issues if any, or empty array"],
+    "suggestions": ["list of alternative expressions or tips, or empty array"]
+  }
+}
+
+Return ONLY the JSON object, no additional text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    let result
+    try {
+      // Extract JSON from the response
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (parseErr) {
+      console.error('Parse error:', parseErr)
+      // Return a basic response if parsing fails
+      result = {
+        modelSentence: userAttempt,
+        feedback: {
+          naturalness: 3,
+          accuracy: 3,
+          explanation: 'I was unable to fully analyze your attempt. Please try again.',
+          grammarIssues: [],
+          suggestions: [],
+        },
+      }
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Practice feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get feedback' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

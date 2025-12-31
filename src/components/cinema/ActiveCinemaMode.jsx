@@ -235,6 +235,31 @@ const ActiveCinemaMode = ({
     setShowPassThreeWarning(false)
   }, [safeChunkIndex])
 
+  // Track previous completion state to detect when chunk becomes completed
+  const wasChunkCompletedRef = useRef(completedChunks.has(safeChunkIndex))
+  const prevChunkIndexRef = useRef(safeChunkIndex)
+
+  // Show overlay when pass 4 audio completes (chunk becomes completed)
+  useEffect(() => {
+    // Reset completion tracking when chunk changes
+    if (prevChunkIndexRef.current !== safeChunkIndex) {
+      wasChunkCompletedRef.current = completedChunks.has(safeChunkIndex)
+      prevChunkIndexRef.current = safeChunkIndex
+      return
+    }
+
+    const isNowCompleted = completedChunks.has(safeChunkIndex)
+    const wasCompleted = wasChunkCompletedRef.current
+
+    // If chunk just became completed while on pass 4, show the overlay
+    if (activeStep === 4 && isNowCompleted && !wasCompleted) {
+      setOverlayVisible(true)
+      // Keep it visible (don't auto-hide) so user can interact
+    }
+
+    wasChunkCompletedRef.current = isNowCompleted
+  }, [activeStep, completedChunks, safeChunkIndex])
+
   const handleTranscriptUnsync = useCallback(() => {
     setIsTranscriptSynced(false)
   }, [])

@@ -1298,7 +1298,12 @@ const normalisePagesToSegments = (pages = []) =>
     if (step > 1) {
       setCompletedPasses((prev) => new Set([...prev, step - 1]))
     }
-  }, [])
+    // Reset to chunk start when switching passes
+    const chunk = chunks[activeChunkIndex]
+    if (chunk) {
+      handleSeek(chunk.start)
+    }
+  }, [chunks, activeChunkIndex, handleSeek])
 
   const handleAdvanceChunk = useCallback(() => {
     if (activeChunkIndex >= chunks.length - 1) return

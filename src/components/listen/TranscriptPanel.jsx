@@ -1,13 +1,5 @@
+import { useState, useEffect, useRef } from 'react'
 import TranscriptRoller from './TranscriptRoller'
-
-// Compute a simple version string from vocab entries to force re-renders when status changes
-const computeVocabVersion = (entries) => {
-  if (!entries || typeof entries !== 'object') return ''
-  return Object.keys(entries)
-    .sort()
-    .map(k => `${k}:${entries[k]?.status || ''}`)
-    .join(',')
-}
 
 const TranscriptPanel = ({
   segments = [],
@@ -26,16 +18,25 @@ const TranscriptPanel = ({
   syncToken = 0,
   darkMode = false,
 }) => {
-  const vocabVersion = computeVocabVersion(vocabEntries)
+  // Track vocab version to force TranscriptRoller re-renders when status changes
+  const [vocabVersion, setVocabVersion] = useState(0)
+  const prevEntriesRef = useRef(vocabEntries)
+
+  useEffect(() => {
+    if (prevEntriesRef.current !== vocabEntries) {
+      setVocabVersion(v => v + 1)
+      prevEntriesRef.current = vocabEntries
+    }
+  }, [vocabEntries])
 
   return (
     <div className={`transcript-panel ${darkMode ? 'transcript-panel--dark' : ''}`}>
       <div className="transcript-panel-body" onMouseUp={onSelectionTranslate}>
         <TranscriptRoller
+          key={vocabVersion}
           segments={segments}
           activeIndex={activeIndex}
           vocabEntries={vocabEntries}
-          vocabVersion={vocabVersion}
           language={language}
           onWordClick={onWordClick}
           onSelectionTranslate={onSelectionTranslate}

@@ -270,8 +270,9 @@ const IntensiveCinemaMode = ({
         // Loop back to start
         onSeek?.(actualLoopStart)
       } else {
-        // Pause at segment end
+        // Pause at segment end and reset to start for easy replay
         onPlayPause?.()
+        onSeek?.(actualLoopStart)
       }
     }
   }, [

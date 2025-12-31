@@ -526,64 +526,96 @@ const Dashboard = () => {
           )}
 
           {activeTab === 'review' && (
-            <div className="review-shelves">
+            <div className="listening-hub">
               {!activeLanguage ? (
-                <p className="muted">Add a language first to review vocabulary.</p>
+                <p className="muted small" style={{ marginTop: '0.75rem' }}>
+                  Add a language first to review vocabulary.
+                </p>
               ) : (
                 <>
-                  {/* Core Shelf */}
-                  <section className="review-shelf">
-                    <h2 className="review-shelf-title">Core</h2>
-                    <div className="review-deck-grid">
+                  {/* Core Decks */}
+                  <div className="section">
+                    <div className="section-header">
+                      <h3>Core Decks</h3>
+                    </div>
+                    <div className="listen-shelf">
                       {CORE_DECKS.map((deck) => {
                         const count = deckCounts[deck.id] ?? 0
                         return (
-                          <button
+                          <div
                             key={deck.id}
-                            className="review-deck-card"
-                            onClick={() =>
-                              startReviewSession({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
-                            }
-                            disabled={countsLoading || count === 0}
+                            className={`preview-card listen-card review-deck-card${countsLoading || count === 0 ? ' is-disabled' : ''}`}
+                            onClick={() => {
+                              if (!countsLoading && count > 0) {
+                                startReviewSession({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
+                              }
+                            }}
+                            role="button"
+                            tabIndex={countsLoading || count === 0 ? -1 : 0}
                           >
-                            <div className="review-deck-icon">
-                              <CardsIcon />
+                            <div className="review-deck-card-inner">
+                              <div className="review-deck-card-icon">
+                                <CardsIcon />
+                              </div>
+                              <div className="review-deck-card-content">
+                                <div className="review-deck-card-title">{deck.label}</div>
+                                <div className="review-deck-card-meta ui-text">
+                                  {countsLoading ? 'Loading...' : `${count} cards due`}
+                                </div>
+                              </div>
                             </div>
-                            <div className="review-deck-label">{deck.label}</div>
-                            <div className="review-deck-count">
-                              {countsLoading ? '...' : `${count} due`}
+                            <div className="review-deck-card-actions">
+                              <button
+                                type="button"
+                                className="button review-deck-card-primary"
+                                disabled={countsLoading || count === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (!countsLoading && count > 0) {
+                                    startReviewSession({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
+                                  }
+                                }}
+                              >
+                                {count === 0 ? 'No cards due' : 'Review →'}
+                              </button>
                             </div>
-                          </button>
+                          </div>
                         )
                       })}
                     </div>
-                  </section>
+                  </div>
 
-                  {/* Favourites Shelf - Placeholder */}
-                  <section className="review-shelf">
-                    <h2 className="review-shelf-title">My Favourites</h2>
+                  {/* My Favourites - Placeholder */}
+                  <div className="section">
+                    <div className="section-header">
+                      <h3>My Favourites</h3>
+                    </div>
                     <p className="muted small">Favourite content decks will appear here.</p>
-                  </section>
+                  </div>
 
-                  {/* Recently Studied Shelf - Placeholder */}
-                  <section className="review-shelf">
-                    <h2 className="review-shelf-title">Recently Studied</h2>
+                  {/* Recently Studied - Placeholder */}
+                  <div className="section">
+                    <div className="section-header">
+                      <h3>Recently Studied</h3>
+                    </div>
                     <p className="muted small">Your last 10 studied content items will appear here.</p>
-                  </section>
+                  </div>
 
-                  {/* All Content Shelf */}
-                  <section className="review-shelf">
-                    <h2 className="review-shelf-title">All Content</h2>
+                  {/* All Content */}
+                  <div className="section">
+                    <div className="section-header">
+                      <h3>All Content</h3>
+                    </div>
                     {contentLoading ? (
                       <p className="muted small">Loading content...</p>
                     ) : contentItems.length === 0 ? (
                       <p className="muted small">No content yet. Add stories, videos, or podcasts to create decks.</p>
                     ) : (
-                      <div className="review-deck-grid">
+                      <div className="listen-shelf">
                         {contentItems.map((item) => (
-                          <button
+                          <div
                             key={item.id}
-                            className="review-deck-card"
+                            className="preview-card listen-card review-deck-card"
                             onClick={() =>
                               startReviewSession({
                                 type: 'content',
@@ -591,17 +623,39 @@ const Dashboard = () => {
                                 label: item.title,
                               })
                             }
+                            role="button"
+                            tabIndex={0}
                           >
-                            <div className="review-deck-icon">
-                              <CardsIcon />
+                            <div className="review-deck-card-inner">
+                              <div className="review-deck-card-icon">
+                                <CardsIcon />
+                              </div>
+                              <div className="review-deck-card-content">
+                                <div className="review-deck-card-title">{item.title}</div>
+                                <div className="review-deck-card-meta ui-text">{item.type}</div>
+                              </div>
                             </div>
-                            <div className="review-deck-label">{item.title}</div>
-                            <div className="review-deck-count">{item.type}</div>
-                          </button>
+                            <div className="review-deck-card-actions">
+                              <button
+                                type="button"
+                                className="button review-deck-card-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  startReviewSession({
+                                    type: 'content',
+                                    contentId: item.id,
+                                    label: item.title,
+                                  })
+                                }}
+                              >
+                                Review →
+                              </button>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     )}
-                  </section>
+                  </div>
                 </>
               )}
             </div>

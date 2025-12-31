@@ -6411,6 +6411,7 @@ body.active-pass-locked {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  position: relative; /* Required for absolutely positioned children */
 }
 
 .cinema-pass-three-transcript {
@@ -6445,33 +6446,47 @@ body.active-pass-locked {
 .cinema-pass-three-words .word-status-panel {
   background: #0a0a0a;
   color: #e5e5e5;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
 }
 
-.cinema-pass-three-words .word-status-header {
+.cinema-pass-three-words .word-status-panel-header {
+  background: #0a0a0a;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.cinema-pass-three-words .word-status-panel-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cinema-pass-three-words .word-status-panel-title {
   color: #e5e5e5;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .cinema-pass-three-words .word-status-list {
-  flex: 1;
-  overflow-y: auto;
+  background: #0a0a0a;
 }
 
 .cinema-pass-three-words .word-status-item {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 
 .cinema-pass-three-words .word-status-word {
   color: #e5e5e5;
 }
 
+.cinema-pass-three-words .word-status-translation {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .cinema-pass-three-words .word-status-footer {
   background: #0a0a0a;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 16px;
+}
+
+.cinema-pass-three-words .word-status-footer .button {
+  background: #fff;
+  color: #0a0a0a;
 }
 
 /* Pass 3 nav - just the pass navigation, no player controls */

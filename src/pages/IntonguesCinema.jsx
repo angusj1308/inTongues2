@@ -32,7 +32,14 @@ const extractVideoId = (video) => {
   return ''
 }
 
-// Generate ~60 second chunks aligned to segment boundaries
+// Check if text ends with sentence-ending punctuation
+const endsWithSentence = (text) => {
+  if (!text) return false
+  const trimmed = text.trim()
+  return /[.!?。！？]$/.test(trimmed) || /[.!?。！？]["'»」』]$/.test(trimmed)
+}
+
+// Generate ~60 second chunks aligned to sentence boundaries
 const generateChunks = (segments, targetDuration = 60) => {
   if (!segments || segments.length === 0) return []
 
@@ -40,25 +47,72 @@ const generateChunks = (segments, targetDuration = 60) => {
   let chunkStart = 0
   let chunkStartIndex = 0
 
-  segments.forEach((segment, index) => {
-    const segmentEnd = segment.end || segment.start + 5
+  // Find best segment to end chunk (nearest sentence ending to target)
+  const findBestEndSegment = (fromIndex, targetTime) => {
+    const minTime = targetTime - 15 // Allow up to 15s before target
+    const maxTime = targetTime + 15 // Allow up to 15s after target
 
-    if (segmentEnd - chunkStart >= targetDuration || index === segments.length - 1) {
-      chunks.push({
-        index: chunks.length,
-        start: chunkStart,
-        end: segmentEnd,
-        startSegmentIndex: chunkStartIndex,
-        endSegmentIndex: index,
-      })
+    let bestIndex = fromIndex
+    let bestTimeDiff = Infinity
 
-      if (index < segments.length - 1) {
-        const nextSegment = segments[index + 1]
-        chunkStart = nextSegment.start
-        chunkStartIndex = index + 1
+    // Search for segments near the target time that end with sentence punctuation
+    for (let i = fromIndex; i < segments.length; i++) {
+      const seg = segments[i]
+      const segEnd = seg.end || seg.start + 5
+
+      // Stop if we're too far past target
+      if (segEnd > maxTime && i > fromIndex) break
+
+      // Check if this segment ends with a sentence
+      if (endsWithSentence(seg.text)) {
+        const timeDiff = Math.abs(segEnd - targetTime)
+
+        // Prefer segments closer to target time
+        if (segEnd >= minTime && timeDiff < bestTimeDiff) {
+          bestTimeDiff = timeDiff
+          bestIndex = i
+        }
       }
     }
-  })
+
+    // If no sentence ending found, fall back to closest segment to target
+    if (bestIndex === fromIndex && fromIndex < segments.length - 1) {
+      for (let i = fromIndex; i < segments.length; i++) {
+        const segEnd = segments[i].end || segments[i].start + 5
+        if (segEnd >= targetTime) {
+          bestIndex = i
+          break
+        }
+      }
+    }
+
+    return bestIndex
+  }
+
+  let currentIndex = 0
+  while (currentIndex < segments.length) {
+    const targetEndTime = chunkStart + targetDuration
+    const endIndex = findBestEndSegment(currentIndex, targetEndTime)
+    const endSegment = segments[endIndex]
+    const segmentEnd = endSegment.end || endSegment.start + 5
+
+    chunks.push({
+      index: chunks.length,
+      start: chunkStart,
+      end: segmentEnd,
+      startSegmentIndex: chunkStartIndex,
+      endSegmentIndex: endIndex,
+    })
+
+    if (endIndex < segments.length - 1) {
+      const nextSegment = segments[endIndex + 1]
+      chunkStart = nextSegment.start
+      chunkStartIndex = endIndex + 1
+      currentIndex = endIndex + 1
+    } else {
+      break
+    }
+  }
 
   return chunks
 }
@@ -742,10 +796,11 @@ const normalisePagesToSegments = (pages = []) =>
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [cinemaMode])
 
-  // Enter/exit fullscreen when switching to/from extensive mode
+  // Enter/exit fullscreen when switching modes
+  // Fullscreen persists for extensive AND active modes
   useEffect(() => {
     const enterFullscreen = async () => {
-      if (cinemaMode === 'extensive' && cinemaContainerRef.current && !document.fullscreenElement) {
+      if ((cinemaMode === 'extensive' || cinemaMode === 'active') && cinemaContainerRef.current && !document.fullscreenElement) {
         try {
           await cinemaContainerRef.current.requestFullscreen()
           setIsFullscreen(true)
@@ -756,7 +811,8 @@ const normalisePagesToSegments = (pages = []) =>
     }
 
     const exitFullscreen = async () => {
-      if (cinemaMode !== 'extensive' && document.fullscreenElement) {
+      // Only exit fullscreen when switching to intensive mode
+      if (cinemaMode === 'intensive' && document.fullscreenElement) {
         try {
           await document.exitFullscreen()
           setIsFullscreen(false)
@@ -766,7 +822,7 @@ const normalisePagesToSegments = (pages = []) =>
       }
     }
 
-    if (cinemaMode === 'extensive') {
+    if (cinemaMode === 'extensive' || cinemaMode === 'active') {
       enterFullscreen()
     } else {
       exitFullscreen()

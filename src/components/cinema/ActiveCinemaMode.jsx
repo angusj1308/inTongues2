@@ -621,11 +621,9 @@ const ActiveCinemaMode = ({
     </div>
   )
 
-  // Handle overlay interaction for Passes 1, 2, 4
+  // Handle overlay interaction for all passes
   const handleOverlayInteraction = () => {
-    if (activeStep !== 3) {
-      showOverlay()
-    }
+    showOverlay()
   }
 
   const handleProgressChange = (event) => {

@@ -103,8 +103,10 @@ const KaraokeSubtitles = ({
   showWordStatus = true,
   onWordClick,
   onWordSelect,
+  defaultTrackingEnabled = false,
+  showTrackingToggle = true,
 }) => {
-  const [trackingEnabled, setTrackingEnabled] = useState(false)
+  const [trackingEnabled, setTrackingEnabled] = useState(defaultTrackingEnabled)
 
   // Find active segment based on current time
   const activeSegment = useMemo(() => {
@@ -158,13 +160,15 @@ const KaraokeSubtitles = ({
         onMouseUp={onWordSelect}
         style={{ cursor: 'pointer', userSelect: 'text' }}
       >
-        <button
-          className={`karaoke-tracking-toggle${trackingEnabled ? ' karaoke-tracking-toggle--active' : ''}`}
-          onClick={() => setTrackingEnabled(!trackingEnabled)}
-          title={trackingEnabled ? 'Disable word tracking' : 'Enable word tracking'}
-        >
-          <EyeIcon open={trackingEnabled} />
-        </button>
+        {showTrackingToggle && (
+          <button
+            className={`karaoke-tracking-toggle${trackingEnabled ? ' karaoke-tracking-toggle--active' : ''}`}
+            onClick={() => setTrackingEnabled(!trackingEnabled)}
+            title={trackingEnabled ? 'Disable word tracking' : 'Enable word tracking'}
+          >
+            <EyeIcon open={trackingEnabled} />
+          </button>
+        )}
         <div className={`karaoke-line${isInGap ? ' karaoke-line--gap' : ''}`}>
           {activeSegment.words.map((word, index) => {
             const normalised = word.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')

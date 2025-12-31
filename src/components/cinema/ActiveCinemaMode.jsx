@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TranscriptPanel from '../listen/TranscriptPanel'
 import WordStatusPanel from '../listen/WordStatusPanel'
 import ChunkTimeline from '../listen/ChunkTimeline'
-import CinemaSubtitles from '../CinemaSubtitles'
+import KaraokeSubtitles from './KaraokeSubtitles'
 import { normaliseExpression } from '../../services/vocab'
 
 const PASS_LABELS = {
@@ -637,11 +637,15 @@ const ActiveCinemaMode = ({
           {/* Subtitles overlay for Pass 2 and 4 */}
           {showSubtitlesOverlay && (
             <div className="cinema-fullscreen-subtitles">
-              <CinemaSubtitles
-                transcript={{ segments: filteredSegments }}
+              <KaraokeSubtitles
+                segments={filteredSegments}
                 currentTime={clampedPosition}
-                renderHighlightedText={renderHighlightedText}
-                onWordSelect={onSubtitleWordClick}
+                language={language}
+                vocabEntries={vocabEntries}
+                showWordStatus
+                onWordClick={activeStep === 4 ? onSubtitleWordClick : undefined}
+                defaultTrackingEnabled={activeStep === 2}
+                showTrackingToggle
               />
             </div>
           )}

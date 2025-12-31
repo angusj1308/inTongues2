@@ -779,6 +779,22 @@ const normalisePagesToSegments = (pages = []) =>
     return () => controller.abort()
   }, [id, isSpotify, user, transcriptLanguage, profile?.nativeLanguage])
 
+  // Combine preloaded translations and pronunciations into wordTranslations for Pass 3
+  useEffect(() => {
+    const combinedTranslations = {}
+    const allWords = new Set([...Object.keys(translations), ...Object.keys(pronunciations)])
+
+    allWords.forEach((word) => {
+      combinedTranslations[word] = {
+        translation: translations[word] || null,
+        audioUrl: pronunciations[word] || null,
+        audioBase64: null,
+      }
+    })
+
+    setWordTranslations(combinedTranslations)
+  }, [translations, pronunciations])
+
   useEffect(() => {
     if (!isSpotify) return undefined
 

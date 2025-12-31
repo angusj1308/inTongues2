@@ -1248,7 +1248,7 @@ const normalisePagesToSegments = (pages = []) =>
     if (!VOCAB_STATUSES.includes(status)) return
 
     try {
-      await upsertVocabEntry(user.uid, transcriptLanguage, popup.word, popup.translation, status)
+      await upsertVocabEntry(user.uid, transcriptLanguage, popup.word, popup.translation, status, id)
 
       setVocabEntries((prev) => ({
         ...prev,
@@ -1279,7 +1279,7 @@ const normalisePagesToSegments = (pages = []) =>
       const normalised = normaliseExpression(word)
       const existingTranslation = vocabEntries[normalised]?.translation || wordTranslations[normalised]?.translation || ''
 
-      await upsertVocabEntry(user.uid, transcriptLanguage, word, existingTranslation, newStatus)
+      await upsertVocabEntry(user.uid, transcriptLanguage, word, existingTranslation, newStatus, id)
 
       setVocabEntries((prev) => ({
         ...prev,
@@ -1535,6 +1535,7 @@ const normalisePagesToSegments = (pages = []) =>
           isPlaying={playbackStatus.isPlaying}
           user={user}
           videoPlayer={videoPlayer}
+          contentId={id}
           preloadedTranslations={translations}
           preloadedPronunciations={pronunciations}
         />

@@ -6306,15 +6306,19 @@ body.active-pass-locked {
   right: 4px;
 }
 
-/* Pass intro - full screen black overlay until user plays */
+/* Pass intro - shows pass label/title, lets controls show through at bottom */
 .cinema-pass-intro {
   position: absolute;
-  inset: 0;
-  z-index: 120;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 200px; /* Leave space for controls at bottom */
+  z-index: 115; /* Above video but below controls interaction */
   background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none; /* Allow clicks to pass through to controls */
 }
 
 .cinema-pass-intro-content {
@@ -6603,6 +6607,7 @@ body.active-pass-locked {
   height: 56px;
   background: rgba(255, 255, 255, 0.95);
   color: #0f172a;
+  outline: none;
 }
 
 .cinema-overlay-play:hover:not(:disabled) {

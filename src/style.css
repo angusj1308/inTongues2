@@ -8970,6 +8970,8 @@ body.active-pass-locked {
 .review-deck-card-icon {
   width: 44px;
   height: 44px;
+}
+
 .writing-piece-card:focus {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;

@@ -7431,19 +7431,6 @@ body.active-pass-locked {
   object-fit: contain;
 }
 
-/* Top vignette gradient - creates dark zone for controls */
-.cinema-intensive-fullscreen::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 180px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
-  z-index: 105;
-  pointer-events: none;
-}
-
 /* Top bar: Nav (left) + Transcribe toggle (right) - positioned below YouTube watermarks */
 .cinema-intensive-top-bar {
   position: absolute;
@@ -7458,10 +7445,14 @@ body.active-pass-locked {
   pointer-events: none;
 }
 
+/* Dark pill containers for control groups */
 .cinema-intensive-top-bar .intensive-card-nav {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
   pointer-events: auto;
 }
 
@@ -7496,6 +7487,9 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
   pointer-events: auto;
 }
 

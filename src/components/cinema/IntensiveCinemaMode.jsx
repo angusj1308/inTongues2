@@ -1201,7 +1201,6 @@ const IntensiveCinemaMode = ({
       {/* Right sliding vocab panel */}
       <div className={`cinema-intensive-vocab-panel ${isVocabPanelOpen ? 'is-open' : ''}`}>
         <div className="cinema-intensive-vocab-panel-header">
-          <span>Vocabulary</span>
           <button
             type="button"
             className="vocab-panel-close"

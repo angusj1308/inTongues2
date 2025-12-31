@@ -7484,9 +7484,9 @@ body.active-pass-locked {
 /* Right sliding vocab panel */
 .cinema-intensive-vocab-panel {
   position: absolute;
-  top: 60px;
+  top: 140px;
   right: 0;
-  bottom: 180px;
+  bottom: 220px;
   width: 320px;
   background: rgba(0, 0, 0, 0.9);
   border-left: 1px solid rgba(255, 255, 255, 0.1);
@@ -7505,12 +7505,8 @@ body.active-pass-locked {
 .cinema-intensive-vocab-panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.9rem;
+  justify-content: flex-end;
+  padding: 0.5rem 0.75rem;
 }
 
 .vocab-panel-close {
@@ -7602,6 +7598,7 @@ body.active-pass-locked {
 }
 
 .cinema-intensive-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #fff;
   font-size: clamp(1.2rem, 2.5vw, 1.6rem);
   font-weight: 500;
@@ -7614,8 +7611,9 @@ body.active-pass-locked {
 }
 
 .cinema-intensive-subtitle-translation {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: rgba(255, 255, 255, 0.85);
-  font-size: clamp(0.9rem, 1.8vw, 1.1rem);
+  font-size: clamp(1rem, 2vw, 1.2rem);
   font-style: italic;
   margin-top: 0.5rem;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);

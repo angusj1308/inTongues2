@@ -71,7 +71,6 @@ const TranscriptRoller = ({
   segments = [],
   activeIndex = 0,
   vocabEntries = {},
-  vocabVersion = '',
   language,
   onWordClick,
   onSelectionTranslate,
@@ -158,7 +157,7 @@ const TranscriptRoller = ({
       content: renderWordSegments(segment.text || ''),
       isActive: index === activeIndex,
     }))
-  }, [activeIndex, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries, vocabVersion])
+  }, [activeIndex, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
 
   const scrollToActive = useCallback(() => {
     const container = containerRef.current

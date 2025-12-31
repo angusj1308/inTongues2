@@ -1456,6 +1456,7 @@ const normalisePagesToSegments = (pages = []) =>
           vocabEntries={vocabEntries}
           setVocabEntries={setVocabEntries}
           voiceGender={profile?.voiceGender || 'male'}
+          voiceId={profile?.voiceId}
           setPopup={setPopup}
           intensiveSegmentIndex={intensiveSegmentIndex}
           setIntensiveSegmentIndex={setIntensiveSegmentIndex}
@@ -1463,9 +1464,12 @@ const normalisePagesToSegments = (pages = []) =>
           duration={safeDuration}
           onSeek={handleSeek}
           onPlayPause={handlePlayPause}
+          onPlaybackRateChange={handlePlaybackRateChange}
           isPlaying={playbackStatus.isPlaying}
           user={user}
           videoPlayer={videoPlayer}
+          preloadedTranslations={translations}
+          preloadedPronunciations={pronunciations}
         />
       )
     }

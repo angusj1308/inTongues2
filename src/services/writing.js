@@ -5,7 +5,6 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -123,10 +122,10 @@ export const deleteWritingPiece = async (userId, pieceId) => {
 export const subscribeToWritingPieces = (userId, language, callback, onError) => {
   const normalisedLang = normaliseLanguage(language)
   const writingRef = getWritingCollection(userId)
+  // Only filter by language - sort client-side to avoid requiring composite index
   const writingQuery = query(
     writingRef,
-    where('language', '==', normalisedLang),
-    orderBy('updatedAt', 'desc')
+    where('language', '==', normalisedLang)
   )
 
   return onSnapshot(
@@ -136,6 +135,12 @@ export const subscribeToWritingPieces = (userId, language, callback, onError) =>
         id: docSnap.id,
         ...docSnap.data(),
       }))
+      // Sort by updatedAt descending (client-side)
+      pieces.sort((a, b) => {
+        const aTime = a.updatedAt?.toMillis?.() || 0
+        const bTime = b.updatedAt?.toMillis?.() || 0
+        return bTime - aTime
+      })
       callback(pieces)
     },
     onError

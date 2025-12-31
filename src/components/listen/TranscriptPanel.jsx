@@ -32,6 +32,7 @@ const TranscriptPanel = ({
     <div className={`transcript-panel ${darkMode ? 'transcript-panel--dark' : ''}`}>
       <div className="transcript-panel-body" onMouseUp={onSelectionTranslate}>
         <TranscriptRoller
+          key={vocabVersion}
           segments={segments}
           activeIndex={activeIndex}
           vocabEntries={vocabEntries}

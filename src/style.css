@@ -7655,12 +7655,14 @@ body.active-pass-locked {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  margin-bottom: 2.5rem;
 }
 
 .cinema-intensive-subtitle-zone .intensive-input {
-  flex: 1;
-  max-width: 500px;
+  flex: 0 0 auto;
+  width: 500px;
+  max-width: 80vw;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);

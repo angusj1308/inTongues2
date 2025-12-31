@@ -6367,6 +6367,121 @@ body.active-pass-locked {
   fill: #fff;
 }
 
+/* Okay button for Pass 3 intro */
+.cinema-pass-intro-okay {
+  padding: 12px 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.cinema-pass-intro-okay:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============ PASS 3 FULLSCREEN DARK MODE ============ */
+.cinema-pass-three-fullscreen {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.cinema-pass-three-content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  min-height: 0;
+  padding-bottom: 80px; /* Space for hover nav */
+}
+
+.cinema-pass-three-transcript,
+.cinema-pass-three-words {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cinema-pass-three-transcript {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Dark mode overrides for transcript panel */
+.cinema-pass-three-transcript .transcript-panel {
+  background: #0a0a0a;
+  color: #e5e5e5;
+  height: 100%;
+}
+
+.cinema-pass-three-transcript .transcript-segment {
+  color: #e5e5e5;
+}
+
+.cinema-pass-three-transcript .transcript-segment.active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cinema-pass-three-transcript .transcript-footer {
+  background: #0a0a0a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cinema-pass-three-transcript .transcript-footer button {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Dark mode overrides for word status panel */
+.cinema-pass-three-words .word-status-panel {
+  background: #0a0a0a;
+  color: #e5e5e5;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cinema-pass-three-words .word-status-header {
+  color: #e5e5e5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cinema-pass-three-words .word-status-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.cinema-pass-three-words .word-status-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cinema-pass-three-words .word-status-word {
+  color: #e5e5e5;
+}
+
+.cinema-pass-three-words .word-status-footer {
+  background: #0a0a0a;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px;
+}
+
+/* Pass 3 nav - just the pass navigation, no player controls */
+.cinema-pass-three-nav .cinema-overlay-inner {
+  padding: 16px 24px;
+}
+
+.cinema-pass-three-nav .cinema-overlay-gradient {
+  height: 100px;
+}
+
 /* Hover detection zone - below subtitles to avoid interference */
 .cinema-overlay-hover-zone {
   position: absolute;

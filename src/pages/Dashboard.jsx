@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
@@ -8,6 +8,23 @@ import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
+import { loadDueCards } from '../services/vocab'
+
+// Icons for review decks
+const CardsIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 10h18" />
+  </svg>
+)
+
+// Core deck definitions
+const CORE_DECKS = [
+  { id: 'all', label: 'All Cards', filter: null },
+  { id: 'unknown', label: 'Unknown', filter: 'unknown' },
+  { id: 'recognised', label: 'Recognised', filter: 'recognised' },
+  { id: 'familiar', label: 'Familiar', filter: 'familiar' },
+]
 
 const BookGrid = ({
   title,
@@ -90,6 +107,12 @@ const Dashboard = () => {
   const generatePanelRef = useRef(null)
   const importPanelRef = useRef(null)
 
+  // Review tab state
+  const [deckCounts, setDeckCounts] = useState({})
+  const [countsLoading, setCountsLoading] = useState(true)
+  const [contentItems, setContentItems] = useState([])
+  const [contentLoading, setContentLoading] = useState(true)
+
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
     [profile?.myLanguages],
@@ -166,6 +189,116 @@ const Dashboard = () => {
 
     return unsubscribe
   }, [activeLanguage, user])
+
+  // Load review deck counts
+  useEffect(() => {
+    if (!user || !activeLanguage) {
+      setDeckCounts({})
+      setCountsLoading(false)
+      return
+    }
+
+    const loadCounts = async () => {
+      setCountsLoading(true)
+      try {
+        const allCards = await loadDueCards(user.uid, activeLanguage)
+        const counts = {
+          all: allCards.length,
+          unknown: allCards.filter((c) => c.status === 'unknown').length,
+          recognised: allCards.filter((c) => c.status === 'recognised').length,
+          familiar: allCards.filter((c) => c.status === 'familiar').length,
+        }
+        setDeckCounts(counts)
+      } catch (error) {
+        console.error('Error loading deck counts:', error)
+      } finally {
+        setCountsLoading(false)
+      }
+    }
+
+    loadCounts()
+  }, [user, activeLanguage])
+
+  // Load content items for All Content shelf
+  useEffect(() => {
+    if (!user || !activeLanguage) {
+      setContentItems([])
+      setContentLoading(false)
+      return
+    }
+
+    const loadContent = async () => {
+      setContentLoading(true)
+      try {
+        const allContent = []
+
+        // Load stories
+        const storiesRef = collection(db, 'users', user.uid, 'stories')
+        const storiesQuery = query(
+          storiesRef,
+          where('language', '==', activeLanguage),
+          orderBy('createdAt', 'desc')
+        )
+        const storiesSnap = await getDocs(storiesQuery)
+        storiesSnap.forEach((doc) => {
+          allContent.push({
+            id: doc.id,
+            type: 'story',
+            title: doc.data().title || 'Untitled Story',
+            ...doc.data(),
+          })
+        })
+
+        // Load YouTube videos
+        const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
+        const videosQuery = query(
+          videosRef,
+          where('language', '==', activeLanguage),
+          orderBy('createdAt', 'desc')
+        )
+        const videosSnap = await getDocs(videosQuery)
+        videosSnap.forEach((doc) => {
+          allContent.push({
+            id: doc.id,
+            type: 'video',
+            title: doc.data().title || 'Untitled Video',
+            ...doc.data(),
+          })
+        })
+
+        // Load Spotify items
+        const spotifyRef = collection(db, 'users', user.uid, 'spotifyItems')
+        const spotifyQuery = query(spotifyRef, where('language', '==', activeLanguage))
+        const spotifySnap = await getDocs(spotifyQuery)
+        spotifySnap.forEach((doc) => {
+          allContent.push({
+            id: doc.id,
+            type: 'spotify',
+            title: doc.data().title || doc.data().name || 'Untitled',
+            ...doc.data(),
+          })
+        })
+
+        setContentItems(allContent)
+      } catch (error) {
+        console.error('Error loading content items:', error)
+      } finally {
+        setContentLoading(false)
+      }
+    }
+
+    loadContent()
+  }, [user, activeLanguage])
+
+  // Navigate to review session with deck info
+  const startReviewSession = (deck) => {
+    const params = new URLSearchParams()
+    params.set('type', deck.type)
+    if (deck.filter) params.set('filter', deck.filter)
+    if (deck.contentId) params.set('contentId', deck.contentId)
+    if (deck.label) params.set('label', deck.label)
+    navigate(`/review?${params.toString()}`)
+  }
 
   const handleTabClick = (tab) => {
     if (tab === activeTab) return
@@ -393,28 +526,84 @@ const Dashboard = () => {
           )}
 
           {activeTab === 'review' && (
-            <div className="read-grid">
-              <div className="read-card">
-                <h3>Flashcard review</h3>
-                <p className="muted small">Keep vocabulary fresh with spaced repetition.</p>
-                <button className="button ghost" onClick={() => navigate('/review')} disabled={!activeLanguage}>
-                  Start reviewing
-                </button>
-              </div>
-              <div className="read-card">
-                <h3>Recent words</h3>
-                <p className="muted small">Quick access to the latest terms you saved.</p>
-                <button className="button ghost" onClick={() => navigate('/dashboard', { state: { initialTab: 'read' } })}>
-                  View words
-                </button>
-              </div>
-              <div className="read-card">
-                <h3>Progress</h3>
-                <p className="muted small">Review streaks and accuracy coming soon.</p>
-                <button className="button ghost" disabled>
-                  Tracking soon
-                </button>
-              </div>
+            <div className="review-shelves">
+              {!activeLanguage ? (
+                <p className="muted">Add a language first to review vocabulary.</p>
+              ) : (
+                <>
+                  {/* Core Shelf */}
+                  <section className="review-shelf">
+                    <h2 className="review-shelf-title">Core</h2>
+                    <div className="review-deck-grid">
+                      {CORE_DECKS.map((deck) => {
+                        const count = deckCounts[deck.id] ?? 0
+                        return (
+                          <button
+                            key={deck.id}
+                            className="review-deck-card"
+                            onClick={() =>
+                              startReviewSession({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
+                            }
+                            disabled={countsLoading || count === 0}
+                          >
+                            <div className="review-deck-icon">
+                              <CardsIcon />
+                            </div>
+                            <div className="review-deck-label">{deck.label}</div>
+                            <div className="review-deck-count">
+                              {countsLoading ? '...' : `${count} due`}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+
+                  {/* Favourites Shelf - Placeholder */}
+                  <section className="review-shelf">
+                    <h2 className="review-shelf-title">My Favourites</h2>
+                    <p className="muted small">Favourite content decks will appear here.</p>
+                  </section>
+
+                  {/* Recently Studied Shelf - Placeholder */}
+                  <section className="review-shelf">
+                    <h2 className="review-shelf-title">Recently Studied</h2>
+                    <p className="muted small">Your last 10 studied content items will appear here.</p>
+                  </section>
+
+                  {/* All Content Shelf */}
+                  <section className="review-shelf">
+                    <h2 className="review-shelf-title">All Content</h2>
+                    {contentLoading ? (
+                      <p className="muted small">Loading content...</p>
+                    ) : contentItems.length === 0 ? (
+                      <p className="muted small">No content yet. Add stories, videos, or podcasts to create decks.</p>
+                    ) : (
+                      <div className="review-deck-grid">
+                        {contentItems.map((item) => (
+                          <button
+                            key={item.id}
+                            className="review-deck-card"
+                            onClick={() =>
+                              startReviewSession({
+                                type: 'content',
+                                contentId: item.id,
+                                label: item.title,
+                              })
+                            }
+                          >
+                            <div className="review-deck-icon">
+                              <CardsIcon />
+                            </div>
+                            <div className="review-deck-label">{item.title}</div>
+                            <div className="review-deck-count">{item.type}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                </>
+              )}
             </div>
           )}
         </div>

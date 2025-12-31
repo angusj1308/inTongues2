@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
@@ -47,6 +47,18 @@ const CORE_DECKS = [
 const Review = () => {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Parse query params for auto-start
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    return {
+      type: params.get('type'),
+      filter: params.get('filter'),
+      contentId: params.get('contentId'),
+      label: params.get('label'),
+    }
+  }, [location.search])
 
   // Language selection
   const supportedLanguages = useMemo(
@@ -61,9 +73,19 @@ const Review = () => {
     return supportedLanguages.length ? supportedLanguages[0] : ''
   }, [profile?.lastUsedLanguage, supportedLanguages])
 
-  // View state
-  const [view, setView] = useState('shelves') // 'shelves' | 'session'
-  const [selectedDeck, setSelectedDeck] = useState(null)
+  // View state - start in session if query params provided
+  const [view, setView] = useState(queryParams.type ? 'session' : 'shelves')
+  const [selectedDeck, setSelectedDeck] = useState(
+    queryParams.type
+      ? {
+          type: queryParams.type,
+          filter: queryParams.filter,
+          contentId: queryParams.contentId,
+          label: queryParams.label || 'Review',
+        }
+      : null
+  )
+  const [hasAutoStarted, setHasAutoStarted] = useState(false)
 
   // Deck counts for display
   const [deckCounts, setDeckCounts] = useState({})
@@ -94,6 +116,40 @@ const Review = () => {
       navigate('/login')
     }
   }, [user, navigate])
+
+  // Auto-start session from query params (coming from Dashboard)
+  useEffect(() => {
+    if (!user || !activeLanguage || hasAutoStarted || !queryParams.type) return
+
+    const autoStartSession = async () => {
+      setSessionLoading(true)
+      setSessionError('')
+      setHasAutoStarted(true)
+
+      try {
+        let loadedCards = []
+
+        if (queryParams.type === 'core') {
+          if (queryParams.filter) {
+            loadedCards = await loadCardsByStatus(user.uid, activeLanguage, queryParams.filter)
+          } else {
+            loadedCards = await loadDueCards(user.uid, activeLanguage)
+          }
+        } else if (queryParams.type === 'content' && queryParams.contentId) {
+          loadedCards = await loadDueCardsByContentId(user.uid, activeLanguage, queryParams.contentId)
+        }
+
+        setCards(loadedCards)
+      } catch (error) {
+        console.error('Error loading cards:', error)
+        setSessionError('Failed to load cards. Please try again.')
+      } finally {
+        setSessionLoading(false)
+      }
+    }
+
+    autoStartSession()
+  }, [user, activeLanguage, queryParams, hasAutoStarted])
 
   // Load deck counts
   useEffect(() => {
@@ -349,124 +405,16 @@ const Review = () => {
 
   // Go back to shelves view
   const handleBack = () => {
-    setView('shelves')
-    setSelectedDeck(null)
-    setCards([])
-    setCurrentIndex(0)
-    setShowAnswer(false)
-    // Refresh counts
-    if (user && activeLanguage) {
-      loadDueCards(user.uid, activeLanguage).then((allCards) => {
-        setDeckCounts({
-          all: allCards.length,
-          unknown: allCards.filter((c) => c.status === 'unknown').length,
-          recognised: allCards.filter((c) => c.status === 'recognised').length,
-          familiar: allCards.filter((c) => c.status === 'familiar').length,
-        })
-      })
-    }
+    // Navigate back to Dashboard review tab
+    navigate('/dashboard', { state: { initialTab: 'review' } })
   }
 
   const currentCard = cards[currentIndex] || null
-  const hasLanguages = supportedLanguages.length > 0
 
-  // Render shelves view
-  if (view === 'shelves') {
-    return (
-      <div className="page review-page">
-        <div className="review-container">
-          <div className="page-header">
-            <div>
-              <h1>Review</h1>
-              <p className="muted small">Spaced repetition for your vocabulary</p>
-            </div>
-            <button className="button ghost" onClick={() => navigate(-1)}>
-              Back
-            </button>
-          </div>
-
-          {!hasLanguages ? (
-            <p className="muted">Add a language first to review vocabulary.</p>
-          ) : !activeLanguage ? (
-            <p className="muted">Select a language to review vocabulary.</p>
-          ) : (
-            <div className="review-shelves">
-              {/* Core Shelf */}
-              <section className="review-shelf">
-                <h2 className="review-shelf-title">Core</h2>
-                <div className="review-deck-grid">
-                  {CORE_DECKS.map((deck) => {
-                    const count = deckCounts[deck.id] ?? 0
-                    return (
-                      <button
-                        key={deck.id}
-                        className="review-deck-card"
-                        onClick={() =>
-                          startSession({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
-                        }
-                        disabled={countsLoading || count === 0}
-                      >
-                        <div className="review-deck-icon">
-                          <CardsIcon />
-                        </div>
-                        <div className="review-deck-label">{deck.label}</div>
-                        <div className="review-deck-count">
-                          {countsLoading ? '...' : `${count} due`}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-
-              {/* Favourites Shelf - Placeholder */}
-              <section className="review-shelf">
-                <h2 className="review-shelf-title">My Favourites</h2>
-                <p className="muted small">Favourite content decks will appear here.</p>
-              </section>
-
-              {/* Recently Studied Shelf - Placeholder */}
-              <section className="review-shelf">
-                <h2 className="review-shelf-title">Recently Studied</h2>
-                <p className="muted small">Your last 10 studied content items will appear here.</p>
-              </section>
-
-              {/* All Content Shelf */}
-              <section className="review-shelf">
-                <h2 className="review-shelf-title">All Content</h2>
-                {contentLoading ? (
-                  <p className="muted small">Loading content...</p>
-                ) : contentItems.length === 0 ? (
-                  <p className="muted small">No content yet. Add stories, videos, or podcasts to create decks.</p>
-                ) : (
-                  <div className="review-deck-grid">
-                    {contentItems.map((item) => (
-                      <button
-                        key={item.id}
-                        className="review-deck-card"
-                        onClick={() =>
-                          startSession({
-                            type: 'content',
-                            contentId: item.id,
-                            label: item.title,
-                          })
-                        }
-                      >
-                        <div className="review-deck-icon">
-                          <CardsIcon />
-                        </div>
-                        <div className="review-deck-label">{item.title}</div>
-                        <div className="review-deck-count">{item.type}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
-        </div>
-      </div>
-    )
+  // Redirect to Dashboard review tab if no deck selected
+  if (view === 'shelves' || !selectedDeck) {
+    navigate('/dashboard', { state: { initialTab: 'review' } })
+    return null
   }
 
   // Render review session view

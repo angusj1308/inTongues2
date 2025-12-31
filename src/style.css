@@ -8857,3 +8857,599 @@ body.active-pass-locked {
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
 }
+
+/* ============================== */
+/* WRITING HUB & EDITOR           */
+/* ============================== */
+
+.writing-hub {
+  width: 100%;
+  padding: 0;
+}
+
+.writing-empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 48px 24px;
+}
+
+.writing-empty-content {
+  text-align: center;
+  max-width: 420px;
+}
+
+.writing-empty-content h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.writing-empty-content p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.writing-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.writing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.writing-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.writing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* Writing Piece Card */
+.writing-piece-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.writing-piece-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.writing-piece-card:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.writing-piece-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.writing-piece-type {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.writing-piece-status {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.writing-piece-status.status-draft {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.writing-piece-status.status-submitted {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.writing-piece-status.status-complete {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.writing-piece-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.writing-piece-snippet {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.writing-piece-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Create Piece Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 150ms ease;
+}
+
+.modal-close:hover {
+  color: #0f172a;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.text-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.text-type-option {
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: left;
+}
+
+.text-type-option:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.text-type-option.selected {
+  border-color: #0f172a;
+  background: #0f172a;
+  color: #fff;
+}
+
+/* Writing Editor Page */
+.writing-editor-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+}
+
+.writing-editor-loading,
+.writing-editor-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+}
+
+.writing-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.writing-editor-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.writing-editor-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.writing-editor-type-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 6px;
+}
+
+.writing-editor-language {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.writing-editor-save-status {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.writing-editor-main {
+  flex: 1;
+  display: flex;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.writing-editor-main.with-feedback {
+  gap: 32px;
+}
+
+.writing-editor-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.writing-editor-main.with-feedback .writing-editor-content {
+  max-width: none;
+  margin: 0;
+}
+
+.writing-editor-title {
+  font-size: 2rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 24px;
+  color: #0f172a;
+  width: 100%;
+}
+
+.writing-editor-title:focus {
+  outline: none;
+}
+
+.writing-editor-title::placeholder {
+  color: #94a3b8;
+}
+
+.writing-editor-textarea {
+  flex: 1;
+  min-height: 400px;
+  font-size: 1.1rem;
+  line-height: 1.8;
+  border: none;
+  background: transparent;
+  padding: 0;
+  resize: none;
+  color: #1f2937;
+}
+
+.writing-editor-textarea:focus {
+  outline: none;
+}
+
+.writing-editor-textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Feedback Panel */
+.writing-feedback-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  height: fit-content;
+  position: sticky;
+  top: 80px;
+}
+
+.writing-feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.writing-feedback-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.writing-feedback-content {
+  padding: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.writing-feedback-item {
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.writing-feedback-item:last-child {
+  margin-bottom: 0;
+}
+
+.writing-feedback-item p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+}
+
+.writing-feedback-date {
+  font-size: 0.75rem;
+}
+
+/* Editor Footer */
+.writing-editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+}
+
+.writing-editor-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.writing-editor-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.writing-editor-word-count {
+  font-size: 0.8rem;
+}
+
+.writing-editor-status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.writing-editor-status-badge.complete {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.button.small {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .writing-editor-main {
+    padding: 24px 16px;
+  }
+
+  .writing-editor-main.with-feedback {
+    flex-direction: column;
+  }
+
+  .writing-feedback-panel {
+    width: 100%;
+    position: static;
+  }
+
+  .writing-editor-title {
+    font-size: 1.5rem;
+  }
+
+  .text-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .writing-editor-footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .writing-editor-footer-right {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* Dark mode support */
+[data-theme='dark'] .writing-piece-card,
+[data-theme='dark'] .modal-content,
+[data-theme='dark'] .writing-feedback-panel {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-piece-title,
+[data-theme='dark'] .modal-header h2,
+[data-theme='dark'] .writing-editor-title {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .writing-piece-snippet,
+[data-theme='dark'] .writing-piece-type {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-editor-page {
+  background: #0f172a;
+}
+
+[data-theme='dark'] .writing-editor-header,
+[data-theme='dark'] .writing-editor-footer {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-editor-textarea {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .text-type-option {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .text-type-option:hover {
+  background: #334155;
+}
+
+[data-theme='dark'] .text-type-option.selected {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .form-input {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-feedback-item {
+  background: #334155;
+}

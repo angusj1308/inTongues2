@@ -1313,11 +1313,10 @@ const IntensiveCinemaMode = ({
           )}
         </div>
 
-        {/* Player controls row */}
-        <div className="cinema-intensive-player-row">
-          {/* Reveal button on the left */}
-          <div className="cinema-intensive-reveal-area">
-            {!isTranscriptionMode && intensiveRevealStep === 'hidden' && (
+        {/* Reveal button - centered above player */}
+        {!isTranscriptionMode && (
+          <div className="cinema-intensive-reveal-center">
+            {intensiveRevealStep === 'hidden' && (
               <button
                 type="button"
                 className="intensive-reveal-btn"
@@ -1326,7 +1325,7 @@ const IntensiveCinemaMode = ({
                 Show Transcript
               </button>
             )}
-            {!isTranscriptionMode && intensiveRevealStep === 'transcript' && (
+            {intensiveRevealStep === 'transcript' && (
               <button
                 type="button"
                 className="intensive-reveal-btn"
@@ -1335,13 +1334,11 @@ const IntensiveCinemaMode = ({
                 Show Translation
               </button>
             )}
-            {!isTranscriptionMode && intensiveRevealStep === 'translation' && (
-              <div className="intensive-reveal-placeholder" />
-            )}
           </div>
+        )}
 
-          {/* Center player controls */}
-          <div className="cinema-intensive-player">
+        {/* Player controls */}
+        <div className="cinema-intensive-player">
             <div className="intensive-player-progress" ref={progressBarRef}>
               <div
                 className="intensive-player-loop-region"
@@ -1489,10 +1486,6 @@ const IntensiveCinemaMode = ({
               </button>
             </div>
           </div>
-
-          {/* Right side spacer for balance */}
-          <div className="cinema-intensive-reveal-area" />
-        </div>
       </div>
     </div>
   )

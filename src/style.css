@@ -7230,30 +7230,21 @@ body.active-pass-locked {
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
 }
 
-/* Player controls row */
-.cinema-intensive-player-row {
+/* Centered reveal button above player */
+.cinema-intensive-reveal-center {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 2rem;
-  width: 100%;
-  max-width: 900px;
+  margin-bottom: 0.75rem;
   pointer-events: auto;
 }
 
-.cinema-intensive-reveal-area {
-  min-width: 150px;
-  display: flex;
-  justify-content: center;
-}
-
 .intensive-reveal-btn {
-  padding: 0.6rem 1.25rem;
+  padding: 0.6rem 1.5rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
@@ -7261,10 +7252,6 @@ body.active-pass-locked {
 
 .intensive-reveal-btn:hover {
   background: rgba(255, 255, 255, 0.2);
-}
-
-.intensive-reveal-placeholder {
-  width: 150px;
 }
 
 /* Transcription input in subtitle zone */

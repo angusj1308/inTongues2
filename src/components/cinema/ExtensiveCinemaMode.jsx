@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TranscriptPanel from '../listen/TranscriptPanel'
 import FloatingTranscriptPanel from './FloatingTranscriptPanel'
-import CinemaSubtitles from '../CinemaSubtitles'
+import KaraokeSubtitles from './KaraokeSubtitles'
 import { normaliseExpression } from '../../services/vocab'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
@@ -43,6 +43,7 @@ const ExtensiveCinemaMode = ({
   language,
   nativeLanguage,
   voiceGender = 'male',
+  popup,
   setPopup,
   renderHighlightedText,
   onSubtitleWordClick,
@@ -54,6 +55,7 @@ const ExtensiveCinemaMode = ({
   onCloseTranscript,
   darkMode = true,
   translations = {},
+  pronunciations = {},
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
@@ -74,6 +76,15 @@ const ExtensiveCinemaMode = ({
   const handleTranscriptWordClick = useCallback(
     async (text, event) => {
       if (!setPopup) return
+
+      // Clean the word for comparison
+      const cleanWord = text.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
+
+      // Toggle behavior: if clicking the same word, dismiss the popup
+      if (popup?.word === cleanWord) {
+        setPopup(null)
+        return
+      }
 
       const selection = window.getSelection()?.toString()?.trim() || ''
       const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
@@ -111,7 +122,7 @@ const ExtensiveCinemaMode = ({
         }
       }
 
-      const { x, y } = getPopupPosition(targetRect)
+      const { x, y } = getPopupPosition(targetRect, true)
       const requestId = ++reqIdRef.current
 
       const anchorRect = {
@@ -123,23 +134,47 @@ const ExtensiveCinemaMode = ({
         height: targetRect.height ?? 0,
       }
 
-      // Check pre-fetched translations first (single word lookup)
-      const normalised = normaliseExpression(text)
-      const prefetched = translations[normalised] || translations[text]
+      // Check pre-fetched translations and pronunciations first (single word lookup)
+      const prefetchedTranslation = translations[cleanWord] || translations[text]
+      const prefetchedPronunciation = pronunciations[cleanWord] || pronunciations[text]
 
-      if (prefetched) {
-        // Use pre-fetched translation - no API call needed
+      if (prefetchedTranslation || prefetchedPronunciation) {
+        // Handle translation (can be string or object)
+        let translation = 'No translation found'
+        let audioBase64 = null
+        let audioUrl = null
+
+        if (prefetchedTranslation) {
+          if (typeof prefetchedTranslation === 'string') {
+            translation = prefetchedTranslation
+          } else {
+            translation = prefetchedTranslation.translation || 'No translation found'
+            audioBase64 = prefetchedTranslation.audioBase64 || null
+            audioUrl = prefetchedTranslation.audioUrl || null
+          }
+        }
+
+        // Handle pronunciation (can be string URL or object)
+        if (prefetchedPronunciation && !audioUrl) {
+          if (typeof prefetchedPronunciation === 'string') {
+            audioUrl = prefetchedPronunciation
+          } else if (prefetchedPronunciation.audioUrl) {
+            audioUrl = prefetchedPronunciation.audioUrl
+          }
+        }
+
+        // Use pre-fetched data - no API call needed
         setPopup({
           x,
           y,
           anchorRect,
           anchorX: anchorRect.left + anchorRect.width / 2,
-          word: text,
-          displayText: prefetched.targetText || text,
-          translation: prefetched.translation || 'No translation found',
-          targetText: prefetched.targetText || prefetched.translation || text,
-          audioBase64: prefetched.audioBase64 || null,
-          audioUrl: prefetched.audioUrl || null,
+          word: cleanWord,
+          displayText: text,
+          translation,
+          targetText: translation,
+          audioBase64,
+          audioUrl,
           requestId,
         })
         return
@@ -151,7 +186,7 @@ const ExtensiveCinemaMode = ({
         y,
         anchorRect,
         anchorX: anchorRect.left + anchorRect.width / 2,
-        word: text,
+        word: cleanWord,
         displayText: text,
         translation: 'Loading…',
         targetText: text,
@@ -222,7 +257,7 @@ const ExtensiveCinemaMode = ({
           : prev
       )
     },
-    [language, nativeLanguage, voiceGender, setPopup, translations]
+    [language, nativeLanguage, voiceGender, popup, setPopup, translations, pronunciations]
   )
 
   const handleTranscriptSelection = useCallback(
@@ -258,7 +293,7 @@ const ExtensiveCinemaMode = ({
       const ttsLanguage = normalizeLanguageCode(language)
 
       if (!ttsLanguage) {
-        const { x, y } = getPopupPosition(rect)
+        const { x, y } = getPopupPosition(rect, true)
         setPopup({
           x,
           y,
@@ -297,7 +332,7 @@ const ExtensiveCinemaMode = ({
         console.error('Error translating phrase:', err)
       }
 
-      const { x, y } = getPopupPosition(rect)
+      const { x, y } = getPopupPosition(rect, true)
       setPopup({
         x,
         y,
@@ -335,10 +370,13 @@ const ExtensiveCinemaMode = ({
           {/* Subtitle overlay - always rendered, visibility controlled by subtitlesEnabled */}
           {subtitlesEnabled && (
             <div className="cinema-subtitle-overlay">
-              <CinemaSubtitles
-                transcript={{ segments: transcriptSegments }}
+              <KaraokeSubtitles
+                segments={transcriptSegments}
                 currentTime={currentTime}
-                renderHighlightedText={renderSubtitleText}
+                language={language}
+                vocabEntries={vocabEntries}
+                showWordStatus={showWordStatus}
+                onWordClick={handleTranscriptWordClick}
                 onWordSelect={onSubtitleWordClick}
               />
             </div>

@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TranscriptPanel from '../listen/TranscriptPanel'
 import WordStatusPanel from '../listen/WordStatusPanel'
 import ChunkTimeline from '../listen/ChunkTimeline'
-import CinemaSubtitles from '../CinemaSubtitles'
+import KaraokeSubtitles from './KaraokeSubtitles'
 import { normaliseExpression } from '../../services/vocab'
 
 const PASS_LABELS = {
   1: 'Watch',
   2: 'Watch + Read',
   3: 'Read + Adjust',
-  4: 'Final Watch',
+  4: 'Watch Again',
 }
 
 const formatTime = (seconds) => {
@@ -111,6 +111,7 @@ const ActiveCinemaMode = ({
   const longPressTimeoutRef = useRef(null)
   const longPressTriggeredRef = useRef(false)
   const chunkDrawerCloseTimeoutRef = useRef(null)
+  const overlayTimeoutRef = useRef(null)
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const speedButtonRef = useRef(null)
   const speedMenuRef = useRef(null)
@@ -121,6 +122,8 @@ const ActiveCinemaMode = ({
   const [syncToken, setSyncToken] = useState(0)
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
+  const [overlayVisible, setOverlayVisible] = useState(true) // For Pass 1 overlay controls
+  const [showPassIntro, setShowPassIntro] = useState(true) // Show pass intro until user plays
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
   const safeDuration = Number.isFinite(duration) ? duration : 0
@@ -159,6 +162,66 @@ const ActiveCinemaMode = ({
   useEffect(() => () => clearLongPress(), [])
   useEffect(() => () => clearChunkDrawerTimeout(), [])
 
+  // Overlay visibility logic for Pass 1
+  const clearOverlayTimeout = useCallback(() => {
+    if (overlayTimeoutRef.current) {
+      clearTimeout(overlayTimeoutRef.current)
+      overlayTimeoutRef.current = null
+    }
+  }, [])
+
+  const showOverlay = useCallback(() => {
+    clearOverlayTimeout()
+    setOverlayVisible(true)
+    // Auto-hide after 3 seconds of inactivity
+    overlayTimeoutRef.current = setTimeout(() => {
+      setOverlayVisible(false)
+    }, 3000)
+  }, [clearOverlayTimeout])
+
+  // Show overlay on spacebar for Passes 1, 2, 4 (fullscreen video passes)
+  useEffect(() => {
+    if (activeStep === 3) return // Pass 3 is different (word editing)
+
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        showOverlay()
+        onPlayPause?.()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [activeStep, showOverlay, onPlayPause])
+
+  // Clear overlay timeout on unmount
+  useEffect(() => () => clearOverlayTimeout(), [clearOverlayTimeout])
+
+  // Show overlay initially when entering any pass
+  useEffect(() => {
+    setOverlayVisible(true)
+    // Auto-hide after initial display (only if pass intro is not showing)
+    const timer = setTimeout(() => {
+      if (!showPassIntro) {
+        setOverlayVisible(false)
+      }
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [activeStep, showPassIntro])
+
+  // Show pass intro when entering a new pass
+  useEffect(() => {
+    setShowPassIntro(true)
+  }, [activeStep])
+
+  // Hide pass intro when playback starts (only for video passes, not Pass 3)
+  useEffect(() => {
+    if (activeStep !== 3 && isPlaying && showPassIntro) {
+      setShowPassIntro(false)
+    }
+  }, [activeStep, isPlaying, showPassIntro])
+
   // Reset transcript sync on pass/chunk change
   useEffect(() => {
     if (activeStep !== 2 && activeStep !== 3) return
@@ -171,6 +234,31 @@ const ActiveCinemaMode = ({
     setPassThreeWarningAcknowledged(false)
     setShowPassThreeWarning(false)
   }, [safeChunkIndex])
+
+  // Track previous completion state to detect when chunk becomes completed
+  const wasChunkCompletedRef = useRef(completedChunks.has(safeChunkIndex))
+  const prevChunkIndexRef = useRef(safeChunkIndex)
+
+  // Show overlay when pass 4 audio completes (chunk becomes completed)
+  useEffect(() => {
+    // Reset completion tracking when chunk changes
+    if (prevChunkIndexRef.current !== safeChunkIndex) {
+      wasChunkCompletedRef.current = completedChunks.has(safeChunkIndex)
+      prevChunkIndexRef.current = safeChunkIndex
+      return
+    }
+
+    const isNowCompleted = completedChunks.has(safeChunkIndex)
+    const wasCompleted = wasChunkCompletedRef.current
+
+    // If chunk just became completed while on pass 4, show the overlay
+    if (activeStep === 4 && isNowCompleted && !wasCompleted) {
+      setOverlayVisible(true)
+      // Keep it visible (don't auto-hide) so user can interact
+    }
+
+    wasChunkCompletedRef.current = isNowCompleted
+  }, [activeStep, completedChunks, safeChunkIndex])
 
   const handleTranscriptUnsync = useCallback(() => {
     setIsTranscriptSynced(false)
@@ -340,7 +428,16 @@ const ActiveCinemaMode = ({
     setScrubMenuOpen((prev) => !prev)
   }
 
-  const isChunkLocked = (index) => index > safeChunkIndex
+  // A chunk is unlocked if it's the current chunk, a completed chunk, or the next chunk after a completed one
+  const isChunkLocked = (index) => {
+    // Current chunk is always unlocked
+    if (index <= safeChunkIndex) return false
+    // Completed chunks are unlocked
+    if (completedChunks.has(index)) return false
+    // Next chunk after a completed one is unlocked
+    if (completedChunks.has(index - 1)) return false
+    return true
+  }
   const handleSelectChunk = (index) => {
     if (typeof onSelectChunk === 'function') {
       onSelectChunk(index)
@@ -390,7 +487,7 @@ const ActiveCinemaMode = ({
     1: 'Just watch',
     2: 'Watch + Read',
     3: 'Read + Adjust',
-    4: 'Final Watch',
+    4: 'Watch Again',
   }
 
   const isSubtitlesVisible = activeStep >= 2
@@ -456,21 +553,24 @@ const ActiveCinemaMode = ({
           )
         })}
       </ol>
-      {activeStep === 4 ? (
+      {activeStep === 4 && completedChunks.has(safeChunkIndex) ? (
         <button
           type="button"
-          className="button active-pass-next-chunk"
+          className={`active-pass-arrow active-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
           onClick={onAdvanceChunk}
           disabled={!canMoveToNextChunk}
+          aria-label="Next chunk"
         >
-          Move to next chunk
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8.5L6.5 12L13 4" />
+          </svg>
         </button>
       ) : (
         <button
           type="button"
           className="active-pass-arrow"
           onClick={handleNextPass}
-          disabled={!canAdvanceToNextStep || activeStep === 4}
+          disabled={activeStep === 4 || !canAdvanceToNextStep}
           aria-label="Next pass"
         >
           {'>'}
@@ -558,176 +658,376 @@ const ActiveCinemaMode = ({
     </div>
   )
 
-  return (
-    <div className={`cinema-active-flow cinema-active-step-${activeStep}`}>
-      <section className={`cinema-active-stage cinema-active-stage--pass-${activeStep}`} aria-live="polite">
-        <div className="cinema-active-stage-inner">
-          {/* Video + Controls pane */}
-          <div className="cinema-active-stage-player">
-            {/* Pass header */}
-            <div className="cinema-active-pass-header">
-              <div className="cinema-active-pass-context">
-                <span className="cinema-active-title">{videoTitle || 'Video'}</span>
-                <span className="cinema-active-divider" aria-hidden="true"> — </span>
-                <span className="cinema-active-chunk-suffix">{chunkSuffix}</span>
-              </div>
-              <div className="cinema-active-pass-hero" aria-live="polite">
-                <span className="cinema-active-pass-hero-label">PASS {activeStep} OF 4</span>
-                <span className="cinema-active-pass-hero-title">{heroTitle}</span>
-              </div>
+  // Handle overlay interaction for all passes
+  const handleOverlayInteraction = () => {
+    showOverlay()
+  }
+
+  const handleProgressChange = (event) => {
+    handleOverlayInteraction()
+    handleSeek(Number(event.target.value))
+  }
+
+  // Determine if subtitles should show (Pass 2 and 4)
+  const showSubtitlesOverlay = activeStep === 2 || activeStep === 4
+
+  // ============ PASSES 1, 2, 4: Fullscreen video with overlay controls ============
+  if (activeStep !== 3) {
+    return (
+      <div
+        className={`cinema-active-flow cinema-active-step-${activeStep} cinema-active-fullscreen`}
+      >
+        {/* Fullscreen video */}
+        <div className="cinema-active-video-fullscreen">
+          {videoPlayer}
+          {/* Subtitles overlay for Pass 2 and 4 */}
+          {showSubtitlesOverlay && (
+            <div className="cinema-fullscreen-subtitles">
+              <KaraokeSubtitles
+                segments={transcriptSegments}
+                currentTime={currentTime}
+                language={language}
+                vocabEntries={vocabEntries}
+                showWordStatus
+                onWordClick={activeStep === 4 ? onSubtitleWordClick : undefined}
+                defaultTrackingEnabled={activeStep === 2}
+                showTrackingToggle
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Pass intro overlay - shows pass label/title until user plays */}
+        {showPassIntro && (
+          <div className="cinema-pass-intro">
+            <div className="cinema-pass-intro-content">
+              <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
+              <span className="cinema-pass-intro-title">{heroTitle}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Hover detection zone - positioned below subtitles to avoid interference */}
+        <div
+          className="cinema-overlay-hover-zone"
+          onMouseMove={handleOverlayInteraction}
+          onClick={handleOverlayInteraction}
+        />
+
+        {/* Overlay control bar */}
+        <div className={`cinema-overlay-controls ${overlayVisible ? 'is-visible' : ''}`}>
+          {/* Gradient fade background */}
+          <div className="cinema-overlay-gradient" />
+
+          <div className="cinema-overlay-inner">
+            {/* Progress bar */}
+            <div className="cinema-overlay-progress">
+              <span className="cinema-overlay-time">{formatTime(clampedPosition)}</span>
+              <input
+                className="cinema-overlay-slider"
+                type="range"
+                min={chunkStart}
+                max={chunkEnd}
+                step="0.1"
+                value={clampedPosition}
+                onChange={handleProgressChange}
+                aria-label="Playback position"
+                style={{ '--progress': `${chunkProgress}%` }}
+              />
+              <span className="cinema-overlay-time">{formatTime(chunkEnd)}</span>
             </div>
 
-            {/* Video container */}
-            <div className="cinema-active-video-container">
-              <div className="cinema-active-video-frame">
-                {videoPlayer}
-                {/* Show subtitles on video only in Pass 2 and 4 */}
-                {showVideoSubtitles && (
-                  <div className="subtitle-overlay">
-                    <CinemaSubtitles
-                      transcript={{ segments: filteredSegments }}
-                      currentTime={clampedPosition}
-                      renderHighlightedText={renderHighlightedText}
-                      onWordSelect={onSubtitleWordClick}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Player controls */}
-            <div className="cinema-active-player-surface">
-              {/* Progress bar */}
-              <div className="progress-shell audible-progress-shell">
-                <input
-                  className="audible-progress"
-                  type="range"
-                  min={chunkStart}
-                  max={chunkEnd}
-                  step="0.1"
-                  value={clampedPosition}
-                  onChange={(event) => handleSeek(Number(event.target.value))}
-                  aria-label="Playback position"
-                  style={{ '--progress': `${chunkProgress}%` }}
-                />
-                <div className="progress-times ui-text">
-                  <span className="muted tiny">{formatTime(clampedPosition)}</span>
-                  <span className="muted tiny">{formatTime(chunkEnd)}</span>
-                </div>
-              </div>
-
-              {/* Transport */}
-              <div className="player-transport-shell">{renderTransportButtons()}</div>
-
-              {/* Secondary controls */}
-              <div className="player-secondary-row secondary-controls" role="group" aria-label="Secondary controls">
-                <span className="secondary-spacer" aria-hidden />
+            {/* Transport row */}
+            <div className="cinema-overlay-transport">
+              {/* Left: Secondary controls */}
+              <div className="cinema-overlay-left">
                 <button
                   type="button"
-                  className="secondary-btn"
+                  className="cinema-overlay-btn"
                   onClick={handleChunkToggle}
                   disabled={!hasChunks}
                   aria-label="Chunks"
                   title="Chunks"
                 >
-                  <span className="secondary-glyph">
-                    <Icon name="list" className="secondary-icon" />
-                  </span>
-                  <span className="secondary-label">Chunks</span>
+                  <Icon name="list" />
                 </button>
-                <div className="secondary-btn-popover-wrap">
+                <div className="cinema-overlay-btn-wrap">
                   <button
                     ref={speedButtonRef}
                     type="button"
-                    className={`secondary-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
+                    className={`cinema-overlay-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
                     onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                    aria-label={`Playback speed ${playbackRate || 1}x`}
-                    title="Change playback speed"
+                    aria-label={`Speed ${playbackRate || 1}x`}
+                    title="Playback speed"
                   >
-                    <span className="secondary-glyph">
-                      <span className="secondary-speed-icon">x{formatRate(playbackRate || 1)}</span>
-                    </span>
-                    <span className="secondary-label">Speed</span>
+                    <span className="cinema-overlay-speed">x{formatRate(playbackRate || 1)}</span>
                   </button>
                   {speedMenuOpen && (
-                    <div ref={speedMenuRef} className="scrub-popover speed-popover" role="dialog" aria-label="Playback speed">
-                      <div className="speed-popover-options" role="group" aria-label="Choose playback speed">
-                        {speedPresets.map((rate) => (
-                          <button
-                            key={rate}
-                            type="button"
-                            className={`speed-option ${rate === playbackRate ? 'active' : ''}`}
-                            onClick={() => handlePlaybackRateChange(rate)}
-                          >
-                            <span className="speed-option-indicator" aria-hidden="true" />
-                            <span className="speed-option-label">x{formatRate(rate)}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div ref={speedMenuRef} className="cinema-overlay-popover" role="dialog" aria-label="Playback speed">
+                      {speedPresets.map((rate) => (
+                        <button
+                          key={rate}
+                          type="button"
+                          className={`cinema-overlay-popover-option ${rate === playbackRate ? 'active' : ''}`}
+                          onClick={() => handlePlaybackRateChange(rate)}
+                        >
+                          x{formatRate(rate)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Center: Main transport controls */}
+              <div className="cinema-overlay-center">
+                <button
+                  type="button"
+                  className="cinema-overlay-btn"
+                  onClick={handleStart}
+                  aria-label="Restart chunk"
+                  title="Restart chunk"
+                >
+                  <Icon name="skip_previous" />
+                </button>
+                <div className="cinema-overlay-btn-wrap">
+                  <button
+                    ref={rewindButtonRef}
+                    type="button"
+                    className="cinema-overlay-btn"
+                    onClick={handleRewindClick}
+                    onContextMenu={handleRewindContextMenu}
+                    onPointerDown={handleRewindPressStart}
+                    onPointerUp={handleRewindPressEnd}
+                    onPointerLeave={handleRewindPressEnd}
+                    aria-label={`Rewind ${scrubSeconds} seconds`}
+                    title="Long-press to change interval"
+                  >
+                    <ScrubIcon direction="back" seconds={scrubSeconds} />
+                  </button>
+                  {scrubMenuOpen && (
+                    <div ref={scrubMenuRef} className="cinema-overlay-popover" role="dialog" aria-label="Rewind interval">
+                      {[5, 10, 15, 30].map((seconds) => (
+                        <button
+                          key={seconds}
+                          type="button"
+                          className={`cinema-overlay-popover-option ${seconds === scrubSeconds ? 'active' : ''}`}
+                          onClick={() => {
+                            onScrubChange?.(seconds)
+                            setScrubMenuOpen(false)
+                          }}
+                        >
+                          {seconds}s
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
                 <button
                   type="button"
-                  className={`secondary-btn ${isSubtitlesVisible ? 'is-locked active' : 'is-disabled'}`}
-                  aria-label={isSubtitlesVisible ? 'Subtitles (locked on)' : 'Subtitles (available in Pass 2)'}
-                  title={isSubtitlesVisible ? 'Subtitles (locked on)' : 'Subtitles (available in Pass 2)'}
-                  disabled
+                  className={`cinema-overlay-btn cinema-overlay-play ${isPlaying ? 'is-playing' : ''}`}
+                  onClick={onPlayPause}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                  title={isPlaying ? 'Pause' : 'Play'}
                 >
-                  <span className="secondary-glyph">
-                    <Icon name="subtitles" className="secondary-icon" filled={isSubtitlesVisible} />
-                  </span>
-                  <span className="secondary-label">Subtitles</span>
+                  <PlayPauseIcon isPlaying={isPlaying} />
                 </button>
-                <span className="secondary-spacer" aria-hidden />
+                <button
+                  type="button"
+                  className="cinema-overlay-btn"
+                  onClick={handleForward}
+                  aria-label={`Forward ${scrubSeconds} seconds`}
+                  title={`Forward ${scrubSeconds} seconds`}
+                >
+                  <ScrubIcon direction="forward" seconds={scrubSeconds} />
+                </button>
+                <button
+                  type="button"
+                  className="cinema-overlay-btn"
+                  onClick={handleSkipToEnd}
+                  aria-label="Skip to end"
+                  title="Skip to end"
+                >
+                  <Icon name="skip_next" />
+                </button>
               </div>
 
-              {/* Pass navigation - inside card for Pass 1-3 */}
-              {activeStep < 4 && passNavigation}
+              {/* Right: Spacer for balance */}
+              <div className="cinema-overlay-right" />
             </div>
 
-            {/* Chunk drawer overlay */}
-            {chunkOverlay}
+            {/* Pass navigation - centered at bottom */}
+            <div className="cinema-overlay-pass-row">
+              <button
+                type="button"
+                className="cinema-overlay-pass-arrow"
+                onClick={handlePreviousPass}
+                disabled={activeStep === 1}
+                aria-label="Previous pass"
+              >
+                <Icon name="chevron_left" />
+              </button>
+              <div className="cinema-overlay-pass-nav">
+                {[1, 2, 3, 4].map((step) => {
+                  const isCurrent = step === activeStep
+                  const isCompleted = completedPasses.has(step)
+                  const isNext = step === activeStep + 1
+                  const isBeyondNext = step > activeStep + 1
+                  const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
+                  return (
+                    <button
+                      key={step}
+                      type="button"
+                      className={`cinema-overlay-pass-btn ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${isDisabled ? 'is-disabled' : ''}`}
+                      onClick={() => handleSelectStep(step)}
+                      disabled={isDisabled}
+                      aria-label={`Pass ${step}`}
+                    >
+                      {step}
+                    </button>
+                  )
+                })}
+              </div>
+              {activeStep === 4 && completedChunks.has(safeChunkIndex) ? (
+                <button
+                  type="button"
+                  className={`cinema-overlay-pass-arrow cinema-overlay-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
+                  onClick={onAdvanceChunk}
+                  disabled={!canMoveToNextChunk}
+                  aria-label="Next chunk"
+                >
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8.5L6.5 12L13 4" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="cinema-overlay-pass-arrow"
+                  onClick={handleNextPass}
+                  disabled={activeStep === 4 || !canAdvanceToNextStep}
+                  aria-label="Next pass"
+                >
+                  <Icon name="chevron_right" />
+                </button>
+              )}
+            </div>
           </div>
-
-          {/* Transcript pane - visible in Pass 2+ */}
-          {activeStep >= 2 && (
-            <div className="cinema-active-stage-transcript">
-              <div className="cinema-active-stage-transcript-card">
-                <TranscriptPanel
-                  segments={filteredSegments}
-                  activeIndex={activeTranscriptIndex}
-                  vocabEntries={vocabEntries}
-                  language={language}
-                  showWordStatus={activeStep >= 3}
-                  showWordStatusToggle={activeStep >= 2}
-                  wordStatusDisabled={activeStep === 2}
-                  isSynced={isTranscriptSynced}
-                  onUserScroll={handleTranscriptUnsync}
-                  onResync={handleTranscriptResync}
-                  syncToken={syncToken}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Word Status Panel - Pass 3 only */}
-          {activeStep === 3 && (
-            <div className="cinema-active-stage-word-status">
-              <WordStatusPanel
-                words={chunkWords}
-                language={language}
-                onStatusChange={handleWordStatusChangeInternal}
-                onSaveAndContinue={handlePassThreeContinue}
-                passNavigation={passNavigation}
-              />
-            </div>
-          )}
         </div>
-      </section>
 
-      {/* Dock for Pass 4 navigation */}
-      {activeStep === 4 && <div className="cinema-active-pass-nav-dock">{passNavigation}</div>}
+        {/* Chunk drawer overlay */}
+        {chunkOverlay}
+      </div>
+    )
+  }
+
+  // ============ PASS 3: Word Status Editing - Dark mode fullscreen ============
+  return (
+    <div
+      className={`cinema-active-flow cinema-active-step-${activeStep} cinema-pass-three-fullscreen`}
+      onMouseMove={handleOverlayInteraction}
+    >
+      {/* Pass intro overlay - shows until user clicks Okay */}
+      {showPassIntro && (
+        <div className="cinema-pass-intro">
+          <div className="cinema-pass-intro-content">
+            <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
+            <span className="cinema-pass-intro-title">{heroTitle}</span>
+            <button
+              type="button"
+              className="cinema-pass-intro-okay"
+              onClick={() => setShowPassIntro(false)}
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main content - two panels side by side */}
+      <div className="cinema-pass-three-content">
+        {/* Transcript pane */}
+        <div className="cinema-pass-three-transcript">
+          <TranscriptPanel
+            segments={filteredSegments}
+            activeIndex={activeTranscriptIndex}
+            vocabEntries={vocabEntries}
+            language={language}
+            showWordStatus
+            showWordStatusToggle
+            wordStatusDisabled={false}
+            isSynced={isTranscriptSynced}
+            onUserScroll={handleTranscriptUnsync}
+            onResync={handleTranscriptResync}
+            syncToken={syncToken}
+            darkMode
+          />
+        </div>
+
+        {/* Word Status Panel */}
+        <div className="cinema-pass-three-words">
+          <WordStatusPanel
+            words={chunkWords}
+            language={language}
+            onStatusChange={handleWordStatusChangeInternal}
+            onSaveAndContinue={handlePassThreeContinue}
+          />
+        </div>
+      </div>
+
+      {/* Hover zone for pass nav at bottom */}
+      <div
+        className="cinema-overlay-hover-zone"
+        onMouseMove={handleOverlayInteraction}
+      />
+
+      {/* Pass navigation overlay at bottom */}
+      <div className={`cinema-overlay-controls cinema-pass-three-nav ${overlayVisible ? 'is-visible' : ''}`}>
+        <div className="cinema-overlay-gradient" />
+        <div className="cinema-overlay-inner">
+          <div className="cinema-overlay-pass-row">
+            <button
+              type="button"
+              className="cinema-overlay-pass-arrow"
+              onClick={handlePreviousPass}
+              disabled={activeStep === 1}
+              aria-label="Previous pass"
+            >
+              <Icon name="chevron_left" />
+            </button>
+            <div className="cinema-overlay-pass-nav">
+              {[1, 2, 3, 4].map((step) => {
+                const isCurrent = step === activeStep
+                const isCompleted = completedPasses.has(step)
+                const isNext = step === activeStep + 1
+                const isBeyondNext = step > activeStep + 1
+                const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
+                return (
+                  <button
+                    key={step}
+                    type="button"
+                    className={`cinema-overlay-pass-btn ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${isDisabled ? 'is-disabled' : ''}`}
+                    onClick={() => handleSelectStep(step)}
+                    disabled={isDisabled}
+                    aria-label={`Pass ${step}`}
+                  >
+                    {step}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              className="cinema-overlay-pass-arrow"
+              onClick={handleNextPass}
+              disabled={!canAdvanceToNextStep}
+              aria-label="Next pass"
+            >
+              <Icon name="chevron_right" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Pass 3 Warning Modal */}
       {showPassThreeWarning && (

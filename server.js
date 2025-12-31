@@ -17,7 +17,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import { spawn } from 'child_process'
 import { createRequire } from 'module'
-import ytdl from 'ytdl-core'
+import ytdl from '@distube/ytdl-core'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
@@ -435,7 +435,8 @@ async function batchGetPronunciations(words, targetLanguage, voiceId) {
       })
     )
     fetched.forEach(({ word, data }) => {
-      if (data) results[word] = data
+      // Return just the audioUrl string, not the full object
+      if (data && data.audioUrl) results[word] = data.audioUrl
     })
   }
 
@@ -458,7 +459,8 @@ async function batchGetTranslations(words, targetLanguage, nativeLanguage) {
       })
     )
     fetched.forEach(({ word, data }) => {
-      if (data) results[word] = data
+      // Return just the translation string, not the full object
+      if (data && data.translation) results[word] = data.translation
     })
   }
 
@@ -973,12 +975,23 @@ const normaliseTranscriptSegments = (segments = []) =>
         ? Number(segment.end)
         : Number(segment.endMs) / 1000 || start
 
-      return {
+      const result = {
         start,
         end: end > start ? end : start,
         text: (segment.text || '').trim(),
       }
-  })
+
+      // Preserve word-level timing if present
+      if (Array.isArray(segment.words) && segment.words.length > 0) {
+        result.words = segment.words.map((w) => ({
+          text: (w.text || '').trim(),
+          start: Number(w.start) || start,
+          end: Number(w.end) || end,
+        }))
+      }
+
+      return result
+    })
   .filter((segment) => segment.text)
 
 app.get('/api/spotify/status', async (req, res) => {
@@ -1653,22 +1666,49 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 
   const segments = events
     .map((event) => {
-      const start = Number(event.tStartMs || event.startMs || 0) / 1000
-      const durationMs =
-        Number(event.dDurationMs ?? event.dur ?? event.segs?.[0]?.tDurMs ?? 0)
-      const end = start + durationMs / 1000
-      const text = (event.segs || [])
-        .map((seg) => (seg.utf8 || '').replace('\n', ' '))
-        .join('')
-        .replace(/\s+/g, ' ')
-        .trim()
+      const eventStartMs = Number(event.tStartMs || event.startMs || 0)
+      const eventStart = eventStartMs / 1000
+      const durationMs = Number(event.dDurationMs ?? event.dur ?? event.segs?.[0]?.tDurMs ?? 0)
+      const eventEnd = eventStart + durationMs / 1000
 
-      if (!text) return null
+      const segs = event.segs || []
+      if (!segs.length) return null
+
+      // Extract word-level timing from segs array
+      const words = []
+      for (let i = 0; i < segs.length; i++) {
+        const seg = segs[i]
+        const wordText = (seg.utf8 || '').replace('\n', ' ').trim()
+        if (!wordText) continue
+
+        const wordOffsetMs = Number(seg.tOffsetMs || 0)
+        const wordStart = (eventStartMs + wordOffsetMs) / 1000
+
+        // Word end is either next word's start or segment end
+        let wordEnd
+        if (i < segs.length - 1) {
+          const nextOffsetMs = Number(segs[i + 1].tOffsetMs || wordOffsetMs)
+          wordEnd = (eventStartMs + nextOffsetMs) / 1000
+        } else {
+          wordEnd = eventEnd
+        }
+
+        words.push({
+          text: wordText,
+          start: wordStart,
+          end: wordEnd > wordStart ? wordEnd : wordStart + 0.1,
+        })
+      }
+
+      if (!words.length) return null
+
+      const text = words.map((w) => w.text).join(' ').replace(/\s+/g, ' ').trim()
 
       return {
-        start,
-        end: end > start ? end : start,
+        start: eventStart,
+        end: eventEnd > eventStart ? eventEnd : eventStart,
         text,
+        words,
       }
     })
     .filter(Boolean)
@@ -1801,20 +1841,25 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
       file: createReadStream(audioPath),
       model: 'whisper-1',
       response_format: 'verbose_json',
+      timestamp_granularities: ['word'],
       ...(whisperLanguage ? { language: whisperLanguage } : {}),
     })
 
     console.log('Whisper verbose_json response keys:', Object.keys(transcription || {}))
-    console.log('First segment sample:', transcription?.segments?.[0])
+    console.log('Words count:', transcription?.words?.length || 0)
+    console.log('First word sample:', transcription?.words?.[0])
 
-    const segments = normaliseTranscriptSegments(transcription?.segments || [])
-    const sentenceSegments = buildSentenceSegmentsFromWhisper(segments)
+    // Build sentences from words using punctuation + pause detection
+    const segments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
+
+    console.log('Built sentences count:', segments.length)
+    console.log('First sentence sample:', segments[0])
 
     if (!segments.length) {
-      console.warn('Whisper verbose_json has no segments, falling back to text-only')
+      console.warn('No sentences built from words, falling back to text-only')
     }
 
-    return { text: transcription?.text || '', segments, sentenceSegments }
+    return { text: transcription?.text || '', segments, sentenceSegments: segments }
   } finally {
     if (audioPath) {
       try {
@@ -1826,6 +1871,113 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
       }
     }
   }
+}
+
+// Align punctuation from full text to word-level timestamps
+// Whisper's words[] don't include punctuation, but text does
+function alignPunctuationToWords(fullText = '', words = []) {
+  if (!words.length || !fullText) return words
+
+  const enrichedWords = []
+  let textPos = 0
+
+  for (const word of words) {
+    const rawWord = word.word || ''
+
+    // Skip whitespace and leading punctuation in text
+    let leadingPunct = ''
+    while (textPos < fullText.length && /[\s¿¡"'«([—]/.test(fullText[textPos])) {
+      const char = fullText[textPos]
+      // Only add non-whitespace, and avoid duplicates of ¿ or ¡
+      if (!/\s/.test(char)) {
+        if ((char === '¿' || char === '¡') && leadingPunct.includes(char)) {
+          // Skip duplicate opening punctuation
+        } else {
+          leadingPunct += char
+        }
+      }
+      textPos++
+    }
+
+    // Find the word in text (case-insensitive match)
+    const wordStart = fullText.toLowerCase().indexOf(rawWord.toLowerCase(), textPos)
+    if (wordStart !== -1 && wordStart - textPos < 10) {
+      textPos = wordStart + rawWord.length
+    } else {
+      textPos += rawWord.length
+    }
+
+    // Capture trailing punctuation
+    let trailingPunct = ''
+    while (textPos < fullText.length && /[.,;:!?)"'\]»—]/.test(fullText[textPos])) {
+      trailingPunct += fullText[textPos]
+      textPos++
+    }
+
+    // Clean up any duplicate opening punctuation (¿¿ → ¿, ¡¡ → ¡)
+    const cleanedWord = (leadingPunct + rawWord + trailingPunct)
+      .replace(/¿+/g, '¿')
+      .replace(/¡+/g, '¡')
+
+    enrichedWords.push({
+      ...word,
+      word: cleanedWord,
+    })
+  }
+
+  return enrichedWords
+}
+
+// Build sentences from Whisper word-level timestamps
+// Sentence breaks on: punctuation (. ? !) OR pause > threshold OR approaching max words with punctuation
+function buildSentencesFromWords(words = [], fullText = '') {
+  if (!words.length) return []
+
+  // Enrich words with punctuation from full text
+  const enrichedWords = alignPunctuationToWords(fullText, words)
+
+  const sentences = []
+  let currentWords = []
+
+  const PAUSE_THRESHOLD = 0.8 // seconds - increased from 0.5
+  const SOFT_MAX_WORDS = 15 // start looking for break point
+  const HARD_MAX_WORDS = 30 // force break if no punctuation found
+
+  for (let i = 0; i < enrichedWords.length; i++) {
+    const word = enrichedWords[i]
+    const nextWord = enrichedWords[i + 1]
+
+    // Add word to current sentence
+    currentWords.push({
+      text: word.word || '',
+      start: word.start || 0,
+      end: word.end || 0,
+    })
+
+    // Check for sentence break conditions
+    const hasSentenceEnd = /[.?!]$/.test(word.word || '')
+    const gap = nextWord ? nextWord.start - word.end : 999
+    const hasLongPause = gap > PAUSE_THRESHOLD
+    const atSoftMax = currentWords.length >= SOFT_MAX_WORDS
+    const atHardMax = currentWords.length >= HARD_MAX_WORDS
+    const hasAnyPunctuation = /[.,;:?!]$/.test(word.word || '')
+
+    // Break on: sentence end, long pause, hard max, or soft max with any punctuation
+    const shouldBreak = hasSentenceEnd || hasLongPause || atHardMax || (atSoftMax && hasAnyPunctuation) || !nextWord
+
+    if (shouldBreak && currentWords.length > 0) {
+      const text = currentWords.map(w => w.text).join(' ')
+      sentences.push({
+        start: currentWords[0].start,
+        end: currentWords[currentWords.length - 1].end,
+        text,
+        words: currentWords,
+      })
+      currentWords = []
+    }
+  }
+
+  return sentences
 }
 
 app.post('/api/youtube/transcript', async (req, res) => {
@@ -1940,6 +2092,78 @@ app.post('/api/youtube/transcript', async (req, res) => {
   }
 })
 
+// Background processor for YouTube transcript generation
+// Called from import to prepare video before user opens it
+async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode = 'auto') {
+  const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
+
+  try {
+    const transcriptRef = videoRef.collection('transcripts').doc(languageCode.toLowerCase())
+
+    let transcriptResult = { text: '', segments: [], sentenceSegments: [] }
+
+    // Try YouTube captions first
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+      transcriptResult = { text: captionSegments.map((seg) => seg.text).join(' '), segments: captionSegments }
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback', captionError)
+    }
+
+    // Fall back to Whisper if no captions
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      const whisperResult = await transcribeWithWhisper({ videoId, languageCode })
+      transcriptResult = {
+        text: whisperResult?.text || '',
+        segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        sentenceSegments: Array.isArray(whisperResult?.sentenceSegments) ? whisperResult.sentenceSegments : [],
+      }
+    }
+
+    const normalisedSegments = normaliseTranscriptSegments(transcriptResult.segments)
+    const resolvedSentenceSegments = (() => {
+      const cached = normaliseTranscriptSegments(transcriptResult.sentenceSegments)
+      if (cached.length) return cached
+      return buildSentenceSegmentsFromWhisper(normalisedSegments)
+    })()
+    const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
+
+    const transcriptPayload = {
+      videoId,
+      language: languageCode.toLowerCase(),
+      segments: normalisedSegments,
+      text: transcriptText,
+      sentenceSegments: resolvedSentenceSegments,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+
+    await transcriptRef.set(transcriptPayload, { merge: true })
+
+    // Trigger pronunciation preparation if language supports it
+    const normalizedLang = normalizeLanguageLabel(languageCode)?.toLowerCase()
+    if (normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      await videoRef.update({
+        preparationStatus: 'pending',
+        preparationProgress: 0,
+        language: normalizedLang,
+      })
+
+      prepareContentPronunciations(uid, videoDocId, 'youtube', normalizedLang, null)
+        .catch((prepErr) => {
+          console.error('Background YouTube preparation failed:', prepErr)
+        })
+    }
+
+    // Mark video as ready
+    await videoRef.update({ status: 'ready' })
+  } catch (error) {
+    console.error('processYouTubeTranscript failed:', error)
+    // Mark as failed so user knows something went wrong
+    await videoRef.update({ status: 'failed' }).catch(() => {})
+    throw error
+  }
+}
+
 app.post('/api/youtube/import', async (req, res) => {
   const { title, youtubeUrl, uid, language } = req.body || {}
   const trimmedTitle = (title || '').trim()
@@ -1971,6 +2195,7 @@ app.post('/api/youtube/import', async (req, res) => {
     ...(trimmedLanguage && { language: trimmedLanguage }),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     source: 'youtube',
+    status: 'importing',
   }
 
   try {
@@ -1980,7 +2205,18 @@ app.post('/api/youtube/import', async (req, res) => {
       .collection('youtubeVideos')
       .add(payload)
 
-    return res.json({ id: videoRef.id, ...payload })
+    const videoDocId = videoRef.id
+
+    // Trigger background transcription (don't await - let it run async)
+    processYouTubeTranscript(uid, videoDocId, videoId, trimmedLanguage || 'auto')
+      .then(() => {
+        console.log(`YouTube import ready: ${videoDocId}`)
+      })
+      .catch((err) => {
+        console.error(`YouTube import failed: ${videoDocId}`, err)
+      })
+
+    return res.json({ id: videoDocId, ...payload })
   } catch (error) {
     console.error('Failed to save YouTube import', error)
     return res.status(500).json({ error: 'Failed to import YouTube video' })
@@ -2331,6 +2567,71 @@ ${phrase}
   } catch (error) {
     console.error('Error translating phrase:', error)
     return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Batch prefetch translations for multiple words (no audio, text only)
+app.post('/api/prefetchTranslations', async (req, res) => {
+  try {
+    const { languageCode, targetLang, words } = req.body || {}
+
+    if (!Array.isArray(words) || words.length === 0) {
+      return res.json({ translations: {} })
+    }
+
+    if (!targetLang) {
+      return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    const sourceLabel = languageCode || 'auto-detected'
+    const targetLabel = targetLang || 'English'
+
+    // Deduplicate and limit words to prevent token overflow
+    const uniqueWords = [...new Set(words.map(w => w.toLowerCase().trim()).filter(Boolean))]
+    const maxWords = 200 // Limit batch size
+    const wordsToTranslate = uniqueWords.slice(0, maxWords)
+
+    if (wordsToTranslate.length === 0) {
+      return res.json({ translations: {} })
+    }
+
+    const prompt = `
+Translate the following words from ${sourceLabel} to ${targetLabel}.
+Return a JSON object where each key is the original word (lowercase) and the value is its translation.
+Only return the JSON object, no other text.
+
+Words: ${wordsToTranslate.join(', ')}
+`.trim()
+
+    let translations = {}
+
+    try {
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: prompt,
+      })
+
+      const outputText = response.output_text?.trim() || '{}'
+      // Extract JSON from markdown code blocks if present
+      const jsonMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, outputText]
+      const parsed = JSON.parse(jsonMatch[1] || outputText)
+
+      // Convert to expected format: { word: { translation: "..." } }
+      for (const [word, translation] of Object.entries(parsed)) {
+        if (typeof translation === 'string') {
+          translations[word.toLowerCase()] = { translation }
+        } else if (translation && typeof translation === 'object') {
+          translations[word.toLowerCase()] = translation
+        }
+      }
+    } catch (parseErr) {
+      console.error('Error parsing prefetch translations:', parseErr)
+    }
+
+    return res.json({ translations })
+  } catch (error) {
+    console.error('Error prefetching translations:', error)
+    return res.status(500).json({ error: 'Internal server error', translations: {} })
   }
 })
 
@@ -3222,9 +3523,21 @@ function extractUniqueWords(text) {
   return uniqueWords
 }
 
-// Internal function to prepare content pronunciations (can be called from other endpoints)
+// Internal function to prepare content pronunciations AND translations (can be called from other endpoints)
 async function prepareContentPronunciations(uid, contentId, contentType, targetLanguage, voiceId) {
   const normalizedLang = targetLanguage.toLowerCase().trim()
+
+  // Get user's native language from their profile (default to english)
+  let nativeLanguage = 'english'
+  try {
+    const userDoc = await firestore.collection('users').doc(uid).get()
+    if (userDoc.exists) {
+      const userData = userDoc.data() || {}
+      nativeLanguage = (userData.nativeLanguage || 'english').toLowerCase().trim()
+    }
+  } catch (err) {
+    console.error('Failed to fetch user native language, defaulting to english:', err)
+  }
 
   // Determine voice ID if not provided
   let finalVoiceId = voiceId
@@ -3333,37 +3646,68 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     return { success: true, wordsProcessed: 0, wordsFetched: 0 }
   }
 
-  // Check which pronunciations are missing
-  const missingWords = await getMissingPronunciations(wordsToProcess, normalizedLang, finalVoiceId)
+  // Check which pronunciations and translations are missing
+  const [missingPronunciations, missingTranslations] = await Promise.all([
+    getMissingPronunciations(wordsToProcess, normalizedLang, finalVoiceId),
+    getMissingTranslations(wordsToProcess, normalizedLang, nativeLanguage),
+  ])
 
-  if (missingWords.length === 0) {
+  // Combine into unique set of words that need fetching
+  const allMissingWords = [...new Set([...missingPronunciations, ...missingTranslations])]
+  const missingPronunciationsSet = new Set(missingPronunciations)
+  const missingTranslationsSet = new Set(missingTranslations)
+
+  if (allMissingWords.length === 0) {
     await contentRef.update({
       preparationStatus: 'ready',
       preparationProgress: 100,
       voiceId: finalVoiceId,
     })
-    return { success: true, wordsProcessed: wordsToProcess.length, wordsFetched: 0 }
+    return { success: true, wordsProcessed: wordsToProcess.length, pronunciationsFetched: 0, translationsFetched: 0 }
   }
 
-  // Fetch missing pronunciations from ElevenLabs (with rate limiting)
-  let wordsFetched = 0
+  // Fetch missing pronunciations AND translations (with rate limiting)
+  let pronunciationsFetched = 0
+  let translationsFetched = 0
   const concurrencyLimit = 3
-  const totalMissing = missingWords.length
+  const totalMissing = allMissingWords.length
 
-  for (let i = 0; i < missingWords.length; i += concurrencyLimit) {
-    const batch = missingWords.slice(i, i + concurrencyLimit)
+  for (let i = 0; i < allMissingWords.length; i += concurrencyLimit) {
+    const batch = allMissingWords.slice(i, i + concurrencyLimit)
 
     await Promise.all(
       batch.map(async (word) => {
-        try {
-          const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
-          if (audioBuffer) {
-            await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
-            wordsFetched++
+        // Fetch pronunciation if missing
+        if (missingPronunciationsSet.has(word)) {
+          try {
+            const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
+            if (audioBuffer) {
+              await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
+              pronunciationsFetched++
+            }
+          } catch (ttsError) {
+            console.error(`Failed to fetch pronunciation for "${word}":`, ttsError.message)
+            // Continue - pronunciation failures shouldn't block content
           }
-        } catch (ttsError) {
-          console.error(`Failed to fetch pronunciation for "${word}":`, ttsError.message)
-          // Continue - pronunciation failures shouldn't block content
+        }
+
+        // Fetch translation if missing
+        if (missingTranslationsSet.has(word)) {
+          try {
+            const prompt = `Translate the following word from ${normalizedLang} to ${nativeLanguage}. Return only the translated word or short phrase, with no extra commentary.\n\n${word}`
+            const response = await client.responses.create({
+              model: 'gpt-4o-mini',
+              input: prompt,
+            })
+            const translation = response.output_text?.trim()
+            if (translation && translation !== word) {
+              await saveTranslation(word, normalizedLang, nativeLanguage, translation)
+              translationsFetched++
+            }
+          } catch (translateError) {
+            console.error(`Failed to fetch translation for "${word}":`, translateError.message)
+            // Continue - translation failures shouldn't block content
+          }
         }
       })
     )
@@ -3373,7 +3717,7 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     await contentRef.update({ preparationProgress: progress })
 
     // Small delay between batches to avoid rate limiting
-    if (i + concurrencyLimit < missingWords.length) {
+    if (i + concurrencyLimit < allMissingWords.length) {
       await new Promise((resolve) => setTimeout(resolve, 200))
     }
   }
@@ -3388,8 +3732,9 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
   return {
     success: true,
     wordsProcessed: wordsToProcess.length,
-    wordsFetched,
-    wordsMissing: missingWords.length,
+    pronunciationsFetched,
+    translationsFetched,
+    totalMissing: allMissingWords.length,
   }
 }
 
@@ -3414,16 +3759,23 @@ app.post('/api/prepare-content', async (req, res) => {
 
 // Preload cached translations and pronunciations for content
 app.post('/api/content/preload', async (req, res) => {
-  const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId } = req.body || {}
+  const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId: requestedVoiceId } = req.body || {}
 
-  if (!uid || !contentId || !contentType || !targetLanguage || !voiceId) {
+  if (!uid || !contentId || !contentType || !targetLanguage) {
     return res.status(400).json({
-      error: 'uid, contentId, contentType, targetLanguage, and voiceId are required',
+      error: 'uid, contentId, contentType, and targetLanguage are required',
     })
   }
 
   const normalizedTargetLang = targetLanguage.toLowerCase().trim()
   const normalizedNativeLang = (nativeLanguage || 'english').toLowerCase().trim()
+
+  // Use provided voiceId or default for the language
+  const voiceId = requestedVoiceId || DEFAULT_IMPORT_VOICE_IDS[normalizedTargetLang]
+  if (!voiceId) {
+    // No voice available, return translations only (no pronunciations)
+    console.log(`No voice ID available for language ${targetLanguage}, returning translations only`)
+  }
 
   try {
     // Get content reference based on type
@@ -3486,7 +3838,7 @@ app.post('/api/content/preload', async (req, res) => {
     // Batch fetch cached data
     const [translations, pronunciations] = await Promise.all([
       batchGetTranslations(uniqueWords, normalizedTargetLang, normalizedNativeLang),
-      batchGetPronunciations(uniqueWords, normalizedTargetLang, voiceId),
+      voiceId ? batchGetPronunciations(uniqueWords, normalizedTargetLang, voiceId) : Promise.resolve({}),
     ])
 
     return res.json({ translations, pronunciations })

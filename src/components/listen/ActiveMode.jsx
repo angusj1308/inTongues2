@@ -10,7 +10,7 @@ const PASS_LABELS = {
   1: 'Listen',
   2: 'Listen + Read',
   3: 'Read + Adjust',
-  4: 'Final Listen',
+  4: 'Listen Again',
 }
 
 const formatTime = (seconds) => {
@@ -657,7 +657,7 @@ const ActiveMode = ({
     1: 'Just listen',
     2: 'Listen + Read',
     3: 'Read + Adjust',
-    4: 'Final Listen',
+    4: 'Listen Again',
   }
 
   const isTranscriptLockedOn = activeStep >= 2

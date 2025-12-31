@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react'
 import TranscriptRoller from './TranscriptRoller'
 
 const TranscriptPanel = ({
@@ -16,22 +17,35 @@ const TranscriptPanel = ({
   onResync,
   syncToken = 0,
   darkMode = false,
-}) => (
-  <div className={`transcript-panel ${darkMode ? 'transcript-panel--dark' : ''}`}>
-    <div className="transcript-panel-body" onMouseUp={onSelectionTranslate}>
-      <TranscriptRoller
-        segments={segments}
-        activeIndex={activeIndex}
-        vocabEntries={vocabEntries}
-        language={language}
-        onWordClick={onWordClick}
-        onSelectionTranslate={onSelectionTranslate}
-        showWordStatus={showWordStatus}
-        isSynced={isSynced}
-        onUserScroll={onUserScroll}
-        syncToken={syncToken}
-      />
-    </div>
+}) => {
+  // Track vocab version to force TranscriptRoller re-renders when status changes
+  const [vocabVersion, setVocabVersion] = useState(0)
+  const prevEntriesRef = useRef(vocabEntries)
+
+  useEffect(() => {
+    if (prevEntriesRef.current !== vocabEntries) {
+      setVocabVersion(v => v + 1)
+      prevEntriesRef.current = vocabEntries
+    }
+  }, [vocabEntries])
+
+  return (
+    <div className={`transcript-panel ${darkMode ? 'transcript-panel--dark' : ''}`}>
+      <div className="transcript-panel-body" onMouseUp={onSelectionTranslate}>
+        <TranscriptRoller
+          key={vocabVersion}
+          segments={segments}
+          activeIndex={activeIndex}
+          vocabEntries={vocabEntries}
+          language={language}
+          onWordClick={onWordClick}
+          onSelectionTranslate={onSelectionTranslate}
+          showWordStatus={showWordStatus}
+          isSynced={isSynced}
+          onUserScroll={onUserScroll}
+          syncToken={syncToken}
+        />
+      </div>
     <div className="transcript-panel-footer">
       <button
         type="button"
@@ -61,6 +75,7 @@ const TranscriptPanel = ({
       )}
     </div>
   </div>
-)
+  )
+}
 
 export default TranscriptPanel

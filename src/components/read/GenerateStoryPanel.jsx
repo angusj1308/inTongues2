@@ -44,7 +44,7 @@ const GenerateStoryPanel = ({
   const { profile, setLastUsedLanguage, user } = useAuth()
 
   const [levelIndex, setLevelIndex] = useState(2)
-  const [length, setLength] = useState(5)
+  const [length, setLength] = useState(1)
   const [genre, setGenre] = useState(GENRES[0])
   const [description, setDescription] = useState('')
   const [voiceGender, setVoiceGender] = useState('male')
@@ -116,13 +116,11 @@ const GenerateStoryPanel = ({
     setError('')
     setIsSubmitting(true)
 
-    const minimumPageCount = Math.max(5, length)
-
     const params = {
       level: CEFR_LEVELS[levelIndex],
       genre,
-      length: minimumPageCount,
-      pageCount: minimumPageCount,
+      length,
+      pageCount: length,
       description: description.trim(),
       language: activeLanguage,
       voiceGender,
@@ -254,11 +252,11 @@ const GenerateStoryPanel = ({
           <div className="slider-row">
             <input
               type="range"
-              min="5"
+              min="1"
               max="25"
               value={length}
-              onChange={(event) => setLength(Math.max(5, Number(event.target.value)))}
-              style={{ '--range-progress': `${((length - 5) / 20) * 100}%` }}
+              onChange={(event) => setLength(Number(event.target.value))}
+              style={{ '--range-progress': `${((length - 1) / 24) * 100}%` }}
             />
             <span className="pill">{length} page{length === 1 ? '' : 's'}</span>
           </div>

@@ -1,6 +1,15 @@
 import { useCallback, useRef } from 'react'
 import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
+}
+
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
@@ -41,9 +50,12 @@ const getStatusStyle = (statusLevel, isActive, languageColor, darkMode) => {
         color: textMuted,
       }
     case 'known':
+      // Soft green - "mastered" indicator, matches WordStatusPanel
       return {
-        background: darkMode ? '#374151' : '#e2e8f0',
-        color: textMuted,
+        background: darkMode
+          ? 'color-mix(in srgb, #22c55e 40%, black)'
+          : 'color-mix(in srgb, #22c55e 40%, white)',
+        color: darkMode ? '#86efac' : '#166534',
       }
     default:
       return {}
@@ -58,12 +70,13 @@ const CinemaWordPopup = ({
   audioUrl,
   language,
   darkMode = true,
+  isClosing = false,
   onStatusChange,
   onClose,
   style = {},
 }) => {
   const audioRef = useRef(null)
-  const languageColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+  const languageColor = getLanguageColor(language)
   const statusIndex = STATUS_LEVELS.indexOf(status)
   const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
   const hasAudio = Boolean(audioBase64 || audioUrl)
@@ -91,7 +104,7 @@ const CinemaWordPopup = ({
 
   return (
     <div
-      className={`cinema-word-popup ${darkMode ? 'is-dark' : 'is-light'}`}
+      className={`cinema-word-popup ${darkMode ? 'is-dark' : 'is-light'}${isClosing ? ' is-closing' : ''}`}
       style={style}
       onClick={(e) => e.stopPropagation()}
     >

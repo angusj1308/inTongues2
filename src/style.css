@@ -7390,17 +7390,16 @@ body.active-pass-locked {
   object-fit: contain;
 }
 
-/* Top bar: Nav (left) + Transcribe toggle (right) */
+/* Top bar: Nav (left) + Transcribe toggle (right) - positioned below YouTube watermarks */
 .cinema-intensive-top-bar {
   position: absolute;
-  top: 0;
+  top: 80px;
   left: 0;
   right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  padding: 0.75rem 1.5rem;
   z-index: 120;
   pointer-events: none;
 }

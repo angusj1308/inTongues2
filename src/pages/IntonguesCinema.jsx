@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -240,6 +241,8 @@ const IntonguesCinema = () => {
   const [activeStep, setActiveStep] = useState(1)
   const [completedChunks, setCompletedChunks] = useState(new Set())
   const [completedPasses, setCompletedPasses] = useState(new Set())
+  const [showAdvanceChunkModal, setShowAdvanceChunkModal] = useState(false)
+  const pass4CompletedRef = useRef(new Set())
 
   // Intensive mode state
   const [intensiveSegmentIndex, setIntensiveSegmentIndex] = useState(0)
@@ -971,6 +974,16 @@ const normalisePagesToSegments = (pages = []) =>
     if (currentTime > chunk.end + 0.2) {
       playerRef.current?.pauseVideo?.()
       handleSeek(chunk.end)
+
+      // If on pass 4 and chunk completes, mark as completed and show advance modal
+      if (activeStep === 4 && !pass4CompletedRef.current.has(activeChunkIndex)) {
+        pass4CompletedRef.current.add(activeChunkIndex)
+        setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))
+        // Show advance modal if there are more chunks
+        if (activeChunkIndex < chunks.length - 1) {
+          setShowAdvanceChunkModal(true)
+        }
+      }
       return
     }
 
@@ -978,7 +991,7 @@ const normalisePagesToSegments = (pages = []) =>
     if (currentTime < chunk.start - 0.2) {
       handleSeek(chunk.start)
     }
-  }, [cinemaMode, activeChunkIndex, chunks, playbackStatus.currentTime, handleSeek])
+  }, [cinemaMode, activeChunkIndex, activeStep, chunks, playbackStatus.currentTime, handleSeek])
 
   const handlePlaybackRateChange = useCallback((rate) => {
     setPlaybackRate(rate)
@@ -1311,12 +1324,71 @@ const normalisePagesToSegments = (pages = []) =>
 
     setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))
     setActiveChunkIndex((prev) => prev + 1)
+    setActiveStep(1)
+    setCompletedPasses(new Set())
+    setShowAdvanceChunkModal(false)
   }, [activeChunkIndex, chunks.length])
 
-  const handleBeginFinalWatch = useCallback(() => {
-    // Mark all new words as known before final watch
-    setCompletedPasses((prev) => new Set([...prev, 3]))
+  const handleDismissAdvanceModal = useCallback(() => {
+    setShowAdvanceChunkModal(false)
   }, [])
+
+  const handleBeginFinalWatch = useCallback(async () => {
+    // Mark all untouched "new" words as "known" before final watch
+    const currentChunk = chunks[activeChunkIndex]
+    if (user && transcriptLanguage && currentChunk && displaySegments.length > 0) {
+      // Get segments within the current chunk
+      const chunkSegments = displaySegments.filter((segment) => {
+        if (typeof segment.start !== 'number' || typeof segment.end !== 'number') return false
+        return segment.start >= currentChunk.start && segment.start < currentChunk.end
+      })
+
+      const seenWords = new Set()
+      const wordsToMarkKnown = []
+
+      chunkSegments.forEach((segment) => {
+        const text = segment.text || ''
+        const tokens = text.split(/([^\p{L}\p{N}]+)/gu)
+
+        tokens.forEach((token) => {
+          if (!token || !/[\p{L}\p{N}]/u.test(token)) return
+
+          const normalised = normaliseExpression(token)
+          if (seenWords.has(normalised)) return
+          seenWords.add(normalised)
+
+          const entry = vocabEntries[normalised]
+          // If no entry exists, word is "new" and untouched - mark as known
+          if (!entry) {
+            wordsToMarkKnown.push({ word: token, normalised })
+          }
+        })
+      })
+
+      // Batch mark all untouched new words as known
+      if (wordsToMarkKnown.length > 0) {
+        await Promise.all(
+          wordsToMarkKnown.map((w) =>
+            upsertVocabEntry(user.uid, transcriptLanguage, w.word, null, 'known')
+          )
+        )
+
+        // Update local state
+        setVocabEntries((prev) => {
+          const next = { ...prev }
+          wordsToMarkKnown.forEach((w) => {
+            next[w.normalised] = {
+              ...(next[w.normalised] || { text: w.word, language: transcriptLanguage }),
+              status: 'known',
+            }
+          })
+          return next
+        })
+      }
+    }
+
+    setCompletedPasses((prev) => new Set([...prev, 3]))
+  }, [user, transcriptLanguage, chunks, activeChunkIndex, displaySegments, vocabEntries])
 
   const handleRestartChunk = useCallback(() => {
     if (!chunks[activeChunkIndex]) return
@@ -1613,6 +1685,26 @@ const normalisePagesToSegments = (pages = []) =>
             left: popup.x,
           }}
         />
+      )}
+
+      {showAdvanceChunkModal && createPortal(
+        <div className="modal-backdrop cinema-advance-modal-backdrop" role="presentation">
+          <div className="modal-card cinema-advance-modal" role="dialog" aria-modal="true" aria-label="Advance to next chunk">
+            <h3 className="cinema-advance-modal-title">Chunk complete!</h3>
+            <p className="cinema-advance-modal-message">
+              Ready to move on to the next chunk?
+            </p>
+            <div className="cinema-advance-modal-actions">
+              <button type="button" className="button ghost" onClick={handleDismissAdvanceModal}>
+                Stay here
+              </button>
+              <button type="button" className="button" onClick={handleAdvanceChunk}>
+                Next chunk
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

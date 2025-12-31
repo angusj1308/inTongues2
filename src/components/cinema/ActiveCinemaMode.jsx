@@ -9,7 +9,7 @@ const PASS_LABELS = {
   1: 'Watch',
   2: 'Watch + Read',
   3: 'Read + Adjust',
-  4: 'Final Watch',
+  4: 'Watch Again',
 }
 
 const formatTime = (seconds) => {
@@ -403,7 +403,16 @@ const ActiveCinemaMode = ({
     setScrubMenuOpen((prev) => !prev)
   }
 
-  const isChunkLocked = (index) => index > safeChunkIndex
+  // A chunk is unlocked if it's the current chunk, a completed chunk, or the next chunk after a completed one
+  const isChunkLocked = (index) => {
+    // Current chunk is always unlocked
+    if (index <= safeChunkIndex) return false
+    // Completed chunks are unlocked
+    if (completedChunks.has(index)) return false
+    // Next chunk after a completed one is unlocked
+    if (completedChunks.has(index - 1)) return false
+    return true
+  }
   const handleSelectChunk = (index) => {
     if (typeof onSelectChunk === 'function') {
       onSelectChunk(index)
@@ -453,7 +462,7 @@ const ActiveCinemaMode = ({
     1: 'Just watch',
     2: 'Watch + Read',
     3: 'Read + Adjust',
-    4: 'Final Watch',
+    4: 'Watch Again',
   }
 
   const isSubtitlesVisible = activeStep >= 2

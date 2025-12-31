@@ -6508,8 +6508,8 @@ body.active-pass-locked {
 
 .cinema-pass-three-words .word-status-footer .button,
 .cinema-pass-three-words .word-status-save-btn {
-  background: #fff;
-  color: #0a0a0a;
+  background: #1a1a1a;
+  color: #fff;
   border: none;
   outline: none;
   box-shadow: none;

@@ -19,6 +19,19 @@ const CardsIcon = () => (
   </svg>
 )
 
+const PinIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 17v5M9 11l-6 6M15 11l6 6M9 3h6l1 8H8l1-8z" />
+  </svg>
+)
+
+const HideIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+)
+
 // Core deck definitions
 const CORE_DECKS = [
   { id: 'all', label: 'All Cards', filter: null },
@@ -561,21 +574,6 @@ const Dashboard = () => {
                                 </div>
                               </div>
                             </div>
-                            <div className="review-deck-card-actions">
-                              <button
-                                type="button"
-                                className="button review-deck-card-primary"
-                                disabled={countsLoading || count === 0}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (!countsLoading && count > 0) {
-                                    startReviewSession({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
-                                  }
-                                }}
-                              >
-                                {count === 0 ? 'No cards due' : 'Review →'}
-                              </button>
-                            </div>
                           </div>
                         )
                       })}
@@ -631,22 +629,30 @@ const Dashboard = () => {
                                 <div className="review-deck-card-title">{item.title}</div>
                                 <div className="review-deck-card-meta ui-text">{item.type}</div>
                               </div>
-                            </div>
-                            <div className="review-deck-card-actions">
-                              <button
-                                type="button"
-                                className="button review-deck-card-primary"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  startReviewSession({
-                                    type: 'content',
-                                    contentId: item.id,
-                                    label: item.title,
-                                  })
-                                }}
-                              >
-                                Review →
-                              </button>
+                              <div className="review-deck-card-icon-actions">
+                                <button
+                                  type="button"
+                                  className="review-deck-icon-btn"
+                                  title="Pin to favourites"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    // TODO: implement pin functionality
+                                  }}
+                                >
+                                  <PinIcon />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="review-deck-icon-btn"
+                                  title="Hide deck"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    // TODO: implement hide functionality
+                                  }}
+                                >
+                                  <HideIcon />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}

@@ -464,7 +464,8 @@ const Reader = ({ initialMode }) => {
         language,
         popup.word,
         popup.translation,
-        status
+        status,
+        id
       )
 
       const key = normaliseExpression(popup.word)
@@ -781,7 +782,7 @@ const Reader = ({ initialMode }) => {
           const key = normaliseExpression(word)
           const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', id)
         })
       )
 
@@ -837,7 +838,7 @@ const Reader = ({ initialMode }) => {
           const key = normaliseExpression(word)
           const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', id)
         })
       )
 

@@ -58,6 +58,7 @@ const IntensiveCinemaMode = ({
   isPlaying,
   user,
   videoPlayer,
+  contentId,
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceWordPairs, setSentenceWordPairs] = useState({})
@@ -543,7 +544,7 @@ const IntensiveCinemaMode = ({
       if (!user || !language) return
 
       try {
-        await upsertVocabEntry(user.uid, language, word, translation, newStatus)
+        await upsertVocabEntry(user.uid, language, word, translation, newStatus, contentId)
 
         const key = normaliseExpression(word)
         setVocabEntries((prev) => ({
@@ -558,7 +559,7 @@ const IntensiveCinemaMode = ({
         console.error('Failed to update word status:', error)
       }
     },
-    [user, language, setVocabEntries]
+    [user, language, setVocabEntries, contentId]
   )
 
   const handleTranscriptionKeyDown = (event) => {
@@ -603,7 +604,7 @@ const IntensiveCinemaMode = ({
         newWords.map((word) => {
           const key = normaliseExpression(word)
           const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
-          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', contentId)
         })
       )
 

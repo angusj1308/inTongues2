@@ -881,7 +881,7 @@ const AudioPlayer = () => {
     if (!VOCAB_STATUSES.includes(status)) return
 
     try {
-      await upsertVocabEntry(user.uid, storyLanguage, popup.word, popup.translation, status)
+      await upsertVocabEntry(user.uid, storyLanguage, popup.word, popup.translation, status, id)
 
       const key = normaliseExpression(popup.word)
 
@@ -911,7 +911,7 @@ const AudioPlayer = () => {
       const existingEntry = vocabEntries[key]
       const translation = existingEntry?.translation || null
 
-      await upsertVocabEntry(user.uid, storyLanguage, word, translation, mappedStatus)
+      await upsertVocabEntry(user.uid, storyLanguage, word, translation, mappedStatus, id)
 
       setVocabEntries((prev) => ({
         ...prev,
@@ -1530,7 +1530,7 @@ const AudioPlayer = () => {
       // Batch mark all untouched new words as known
       await Promise.all(
         wordsToMarkKnown.map((w) =>
-          upsertVocabEntry(user.uid, storyLanguage, w.word, null, 'known')
+          upsertVocabEntry(user.uid, storyLanguage, w.word, null, 'known', id)
         )
       )
     }
@@ -2088,6 +2088,7 @@ const AudioPlayer = () => {
         user={user}
         preloadedTranslations={preloadedTranslations}
         preloadedPronunciations={preloadedPronunciations}
+        contentId={id}
       />
 
       {popup && (

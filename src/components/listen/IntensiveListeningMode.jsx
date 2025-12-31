@@ -169,6 +169,7 @@ const IntensiveListeningMode = ({
   user,
   preloadedTranslations = {},
   preloadedPronunciations = {},
+  contentId,
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceWordPairs, setSentenceWordPairs] = useState({}) // { sentence: [{source, target, audioBase64}] }
@@ -698,7 +699,7 @@ const IntensiveListeningMode = ({
       if (!user || !language) return
 
       try {
-        await upsertVocabEntry(user.uid, language, word, translation, newStatus)
+        await upsertVocabEntry(user.uid, language, word, translation, newStatus, contentId)
 
         const key = normaliseExpression(word)
         setVocabEntries((prev) => ({
@@ -713,7 +714,7 @@ const IntensiveListeningMode = ({
         console.error('Failed to update word status:', error)
       }
     },
-    [user, language, setVocabEntries]
+    [user, language, setVocabEntries, contentId]
   )
 
   const handleTranscriptionKeyDown = (event) => {
@@ -768,7 +769,7 @@ const IntensiveListeningMode = ({
           const key = normaliseExpression(word)
           const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
 
-          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known')
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', contentId)
         })
       )
 

@@ -5,29 +5,15 @@ import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { normalizeLanguageCode } from '../../utils/language'
 
 const getPopupPosition = (rect) => {
-  const margin = 12
-  const estimatedPopupHeight = 280
-  const estimatedPopupWidth = 360
+  const padding = 10
+  const popupHeight = 80
+  const viewportWidth = window.innerWidth || 0
 
-  const viewportWidth = window.innerWidth
-  const spaceAbove = rect.top
-  const spaceBelow = window.innerHeight - rect.bottom
+  // Center horizontally on the word
+  const x = Math.min(Math.max(rect.x + rect.width / 2, padding), viewportWidth - padding)
 
-  const shouldRenderAbove =
-    spaceBelow < estimatedPopupHeight + margin && spaceAbove > spaceBelow
-
-  const y = shouldRenderAbove
-    ? Math.max(window.scrollY + rect.top - estimatedPopupHeight - margin, window.scrollY + margin)
-    : Math.min(
-        window.scrollY + rect.bottom + margin,
-        window.scrollY + window.innerHeight - estimatedPopupHeight - margin
-      )
-
-  const centerX = rect.left + rect.width / 2 + window.scrollX
-  const x = Math.min(
-    Math.max(centerX - estimatedPopupWidth / 2, window.scrollX + margin),
-    window.scrollX + viewportWidth - estimatedPopupWidth - margin
-  )
+  // Always position above the word
+  const y = Math.max(rect.top - popupHeight - 12, padding)
 
   return { x, y }
 }

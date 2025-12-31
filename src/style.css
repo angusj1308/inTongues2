@@ -7431,6 +7431,19 @@ body.active-pass-locked {
   object-fit: contain;
 }
 
+/* Top vignette gradient - creates dark zone for controls */
+.cinema-intensive-fullscreen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
+  z-index: 105;
+  pointer-events: none;
+}
+
 /* Top bar: Nav (left) + Transcribe toggle (right) - positioned below YouTube watermarks */
 .cinema-intensive-top-bar {
   position: absolute;

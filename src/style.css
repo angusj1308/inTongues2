@@ -6350,6 +6350,9 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Narrow controls to middle portion of screen */
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 /* Progress bar */
@@ -6360,9 +6363,10 @@ body.active-pass-locked {
 }
 
 .cinema-overlay-time {
-  font-size: 0.75rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
   min-width: 42px;
   font-variant-numeric: tabular-nums;
 }

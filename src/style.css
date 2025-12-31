@@ -6264,12 +6264,13 @@ body.active-pass-locked {
 }
 
 /* Ensure YouTube player container and wrapper fill the space */
-.cinema-active-video-fullscreen > div {
+/* Exclude subtitle overlay and pass intro from this rule */
+.cinema-active-video-fullscreen > div:not(.cinema-fullscreen-subtitles):not(.cinema-pass-intro) {
   width: 100%;
   height: 100%;
 }
 
-.cinema-active-video-fullscreen > div > div {
+.cinema-active-video-fullscreen > div:not(.cinema-fullscreen-subtitles):not(.cinema-pass-intro) > div {
   width: 100% !important;
   height: 100% !important;
 }
@@ -6305,31 +6306,64 @@ body.active-pass-locked {
   right: 4px;
 }
 
-/* Pass intro - centered on screen at pass start */
+/* Pass intro - full screen black overlay until user plays */
 .cinema-pass-intro {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
   z-index: 120;
-  pointer-events: none;
-  animation: passIntroFade 2.5s ease-out forwards;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes passIntroFade {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-  10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
+.cinema-pass-intro-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
-.cinema-pass-intro-text {
+.cinema-pass-intro-label {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-  font-size: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cinema-pass-intro-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font-size: 2rem;
   font-weight: 600;
   color: #fff;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-  letter-spacing: 0.02em;
+  margin-bottom: 24px;
+}
+
+.cinema-pass-intro-play {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.cinema-pass-intro-play:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.cinema-pass-intro-play .playpause-icon {
+  width: 32px;
+  height: 32px;
+  fill: #fff;
 }
 
 /* Overlay control bar */

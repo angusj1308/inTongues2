@@ -210,15 +210,18 @@ const ActiveCinemaMode = ({
     }
   }, [activeStep])
 
-  // Show pass intro when entering a new pass (auto-dismiss after 2.5s)
+  // Show pass intro when entering a new pass - stays until user plays
   useEffect(() => {
     if (activeStep === 3) return // Pass 3 has its own layout
     setShowPassIntro(true)
-    const timer = setTimeout(() => {
-      setShowPassIntro(false)
-    }, 2500)
-    return () => clearTimeout(timer)
   }, [activeStep])
+
+  // Hide pass intro when playback starts
+  useEffect(() => {
+    if (isPlaying && showPassIntro) {
+      setShowPassIntro(false)
+    }
+  }, [isPlaying, showPassIntro])
 
   // Reset transcript sync on pass/chunk change
   useEffect(() => {
@@ -662,12 +665,21 @@ const ActiveCinemaMode = ({
           )}
         </div>
 
-        {/* Pass intro - appears centered when entering a new pass */}
+        {/* Pass intro - full screen black overlay until user presses play */}
         {showPassIntro && (
           <div className="cinema-pass-intro">
-            <span className="cinema-pass-intro-text">
-              PASS {activeStep} of 4 — {heroTitle}
-            </span>
+            <div className="cinema-pass-intro-content">
+              <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
+              <span className="cinema-pass-intro-title">{heroTitle}</span>
+              <button
+                type="button"
+                className="cinema-pass-intro-play"
+                onClick={onPlayPause}
+                aria-label="Start pass"
+              >
+                <PlayPauseIcon isPlaying={false} />
+              </button>
+            </div>
           </div>
         )}
 

@@ -7555,8 +7555,9 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-word-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.9rem;
 }
 
@@ -7849,19 +7850,19 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-status-pill--new.is-active {
-  background: #6b7280;
+  background: #F97316;
 }
 
 .intensive-vocab-item .intensive-status-pill--unknown.is-active {
-  background: #ef4444;
+  background: #DC2626;
 }
 
 .intensive-vocab-item .intensive-status-pill--recognised.is-active {
-  background: #f97316;
+  background: #ef4444;
 }
 
 .intensive-vocab-item .intensive-status-pill--familiar.is-active {
-  background: #eab308;
+  background: #fca5a5;
 }
 
 .intensive-vocab-item .intensive-status-pill--known.is-active {

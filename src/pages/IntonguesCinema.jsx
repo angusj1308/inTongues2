@@ -1478,15 +1478,17 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   const isExtensive = cinemaMode === 'extensive'
-  const isFullscreenMode = cinemaMode === 'extensive' || cinemaMode === 'intensive'
+  const isIntensive = cinemaMode === 'intensive'
+  const isFullscreenMode = isExtensive || isIntensive
+  const isHeaderHideable = isExtensive || isIntensive
 
   return (
     <div
       ref={cinemaContainerRef}
       className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
-      {/* Top hover zone for header reveal in extensive mode */}
-      {isExtensive && (
+      {/* Top hover zone for header reveal in fullscreen modes */}
+      {isHeaderHideable && (
         <div
           className="cinema-top-hover-zone"
           onMouseEnter={() => setHeaderVisible(true)}
@@ -1494,12 +1496,12 @@ const normalisePagesToSegments = (pages = []) =>
         />
       )}
 
-      {/* Header - always visible in active/intensive, hover-reveal in extensive */}
+      {/* Header - always visible in active, hover-reveal in extensive/intensive */}
       <header
-        className={`dashboard-header cinema-hover-header ${isExtensive ? 'cinema-header-hideable' : ''} ${headerVisible ? 'is-visible' : ''}`}
-        onMouseEnter={() => isExtensive && setHeaderVisible(true)}
-        onMouseLeave={() => isExtensive && setHeaderVisible(false)}
-        inert={isExtensive && !headerVisible ? '' : undefined}
+        className={`dashboard-header cinema-hover-header ${isHeaderHideable ? 'cinema-header-hideable' : ''} ${headerVisible ? 'is-visible' : ''}`}
+        onMouseEnter={() => isHeaderHideable && setHeaderVisible(true)}
+        onMouseLeave={() => isHeaderHideable && setHeaderVisible(false)}
+        inert={isHeaderHideable && !headerVisible ? '' : undefined}
       >
         <div className="dashboard-brand-band cinema-header-band">
           <div className="cinema-header-left">

@@ -443,6 +443,13 @@ const ActiveCinemaMode = ({
     4: 'Final Watch',
   }
 
+  const passInstructions = {
+    1: 'Focus on the visuals and audio. No subtitles - absorb the content naturally.',
+    2: 'Follow along with subtitles. Words highlight as they\'re spoken.',
+    3: 'Review the transcript and adjust word statuses.',
+    4: 'Final watch with subtitles. Click any word to mark its status.',
+  }
+
   const isSubtitlesVisible = activeStep >= 2
   const heroTitle = heroTitles[activeStep] || heroTitles[1]
 
@@ -638,8 +645,8 @@ const ActiveCinemaMode = ({
           {showSubtitlesOverlay && (
             <div className="cinema-fullscreen-subtitles">
               <KaraokeSubtitles
-                segments={filteredSegments}
-                currentTime={clampedPosition}
+                segments={transcriptSegments}
+                currentTime={currentTime}
                 language={language}
                 vocabEntries={vocabEntries}
                 showWordStatus
@@ -649,6 +656,17 @@ const ActiveCinemaMode = ({
               />
             </div>
           )}
+        </div>
+
+        {/* Pass info header - appears at top when overlay is visible */}
+        <div className={`cinema-overlay-header ${overlayVisible ? 'is-visible' : ''}`}>
+          <div className="cinema-overlay-header-inner">
+            <div className="cinema-overlay-pass-info">
+              <span className="cinema-overlay-pass-label">PASS {activeStep}</span>
+              <span className="cinema-overlay-pass-title">{heroTitle}</span>
+            </div>
+            <p className="cinema-overlay-pass-hint">{passInstructions[activeStep]}</p>
+          </div>
         </div>
 
         {/* Overlay control bar */}

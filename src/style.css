@@ -7689,9 +7689,9 @@ body.active-pass-locked {
 .cinema-intensive-subtitle-zone .intensive-transcribe-input-container {
   display: flex;
   gap: 0.5rem;
-  justify-content: center;
   align-items: center;
-  margin-bottom: 2.5rem;
+  width: fit-content;
+  margin: 0 auto 2.5rem auto;
 }
 
 .cinema-intensive-subtitle-zone .intensive-input {

@@ -1171,6 +1171,7 @@ textarea {
   max-height: calc(100vh - 2rem);
   overflow: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.14);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 @media (max-width: 900px) {

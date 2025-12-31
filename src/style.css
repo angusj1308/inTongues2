@@ -6306,14 +6306,11 @@ body.active-pass-locked {
   right: 4px;
 }
 
-/* Pass intro - shows pass label/title, lets controls show through at bottom */
+/* Pass intro - shows pass label/title, controls appear on top */
 .cinema-pass-intro {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 200px; /* Leave space for controls to be visible at bottom */
-  z-index: 115;
+  inset: 0; /* Cover full screen */
+  z-index: 106; /* Below controls (110) so they appear on top */
   background: #000;
   display: flex;
   align-items: center;

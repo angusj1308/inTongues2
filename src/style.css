@@ -8996,6 +8996,37 @@ body.active-pass-locked {
   cursor: not-allowed;
 }
 
+.review-deck-card-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.review-deck-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.review-deck-icon-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.review-deck-icon-btn:active {
+  background: #e5e7eb;
+}
+
 /* Session Header */
 .review-session-header {
   display: flex;

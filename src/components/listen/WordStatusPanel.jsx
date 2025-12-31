@@ -4,6 +4,16 @@ import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highl
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  // Try exact match first, then capitalized version
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
+}
+
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
     <path d="M8 5v14l11-7z" />
@@ -126,7 +136,7 @@ const WordStatusPanel = ({
 }) => {
   const audioRef = useRef(null)
   const initialWordsRef = useRef(null)
-  const languageColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+  const languageColor = getLanguageColor(language)
 
   // Capture initial non-known words on first render
   // Words that start as 'known' are excluded, but words moved to 'known' during session stay visible

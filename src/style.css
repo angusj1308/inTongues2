@@ -6470,6 +6470,7 @@ body.active-pass-locked {
   border: none;
   box-shadow: none;
   border-radius: 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 .cinema-pass-three-words .word-status-panel-header {
@@ -6500,13 +6501,13 @@ body.active-pass-locked {
   color: rgba(255, 255, 255, 0.6);
 }
 
-.cinema-pass-three-words .word-status-footer {
+.cinema-pass-three-words .word-status-panel-footer {
   background: #111;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0 0 12px 12px;
 }
 
-.cinema-pass-three-words .word-status-footer .button,
+.cinema-pass-three-words .word-status-panel-footer .button,
 .cinema-pass-three-words .word-status-save-btn {
   background: #1a1a1a;
   color: #fff;
@@ -6542,12 +6543,13 @@ body.active-pass-locked {
 }
 
 .cinema-pass-three-words .word-status-row-audio {
-  color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .cinema-pass-three-words .word-status-row-audio:hover:not(:disabled) {
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Dark mode for NURFK status selector buttons */

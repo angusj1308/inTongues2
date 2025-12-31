@@ -7195,7 +7195,7 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1rem 1.5rem 1.5rem;
+  padding: 2rem 1.5rem 2.5rem;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 60%, transparent 100%);
   z-index: 110;
   pointer-events: none;
@@ -7206,7 +7206,7 @@ body.active-pass-locked {
   width: 100%;
   max-width: 800px;
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
   pointer-events: auto;
 }
 
@@ -7234,7 +7234,7 @@ body.active-pass-locked {
 .cinema-intensive-reveal-center {
   display: flex;
   justify-content: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
   pointer-events: auto;
 }
 
@@ -7313,8 +7313,8 @@ body.active-pass-locked {
   max-width: 500px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  pointer-events: auto; /* Re-enable clicks for interactive elements */
+  gap: 1rem;
+  pointer-events: auto;
 }
 
 .cinema-intensive-player .intensive-player-progress {

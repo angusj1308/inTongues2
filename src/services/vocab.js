@@ -105,6 +105,9 @@ export const loadDueCards = async (userId, language) => {
 
   snapshot.forEach((docSnap) => {
     const data = docSnap.data()
+    // Skip "known" cards - they don't need review
+    if (data.status === 'known') return
+
     const nextDate = data.nextReviewAt?.toDate ? data.nextReviewAt.toDate() : null
     if (!nextDate || nextDate <= now) {
       dueCards.push({

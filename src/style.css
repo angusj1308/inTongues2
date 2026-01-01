@@ -9067,7 +9067,86 @@ body.active-pass-locked {
 .review-modal-controls {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+}
+
+/* Font toggle button */
+.review-modal-toggle-btn {
+  background: #f1f5f9;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.review-modal-toggle-btn:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.review-modal-toggle-btn.is-active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.review-modal-toggle-btn.font-toggle {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+/* Toggle switch container */
+.review-modal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-modal-toggle-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* Toggle switch */
+.review-modal-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  background: #e2e8f0;
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 0;
+}
+
+.review-modal-switch:hover {
+  background: #cbd5e1;
+}
+
+.review-modal-switch.is-on {
+  background: #0f172a;
+}
+
+.review-modal-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.review-modal-switch.is-on .review-modal-switch-knob {
+  transform: translateX(18px);
 }
 
 .review-modal-close {
@@ -9173,8 +9252,11 @@ body.active-pass-locked {
   font-size: 1.5rem;
 }
 
-.review-modal .review-card-translation-small {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+/* Serif font option (Crimson) */
+.review-modal.use-serif-font .review-card-text {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-size: 2.25rem;
+  font-weight: 300;
 }
 
 .review-modal .review-actions {
@@ -9497,7 +9579,11 @@ body.active-pass-locked {
   }
 
   .review-modal-controls {
-    gap: 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .review-modal-toggle-label {
+    display: none;
   }
 
   .review-modal-content {
@@ -9505,20 +9591,20 @@ body.active-pass-locked {
   }
 
   .review-modal .review-card {
-    min-height: 240px;
+    min-height: 200px;
   }
 
   .review-modal .review-card-front,
   .review-modal .review-card-back {
-    padding: 2rem 1.5rem;
+    padding: 1.5rem 1.25rem;
   }
 
-  .review-modal .review-card-word {
-    font-size: 2rem;
+  .review-modal .review-card-text {
+    font-size: 1.5rem;
   }
 
-  .review-modal .review-card-translation {
-    font-size: 1.25rem;
+  .review-modal.use-serif-font .review-card-text {
+    font-size: 1.75rem;
   }
 
   .review-modal .review-response-button {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 import {
   loadDueCards,
   loadCardsByStatus,
@@ -40,10 +41,14 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   // Review mode toggles
   const [isRecallMode, setIsRecallMode] = useState(false)
   const [autoPlayAudio, setAutoPlayAudio] = useState(true)
+  const [useSerifFont, setUseSerifFont] = useState(false)
 
   // Audio state
   const audioRef = useRef(null)
   const [audioLoading, setAudioLoading] = useState(false)
+
+  // Get language color for status selector
+  const languageColor = getLanguageColor(language)
 
   // Load cards when modal opens
   useEffect(() => {
@@ -203,10 +208,11 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   }
 
   const currentCard = cards[currentIndex] || null
+  const fontClass = useSerifFont ? 'use-serif-font' : ''
 
   return (
     <div className="review-modal-backdrop" onClick={handleBackdropClick}>
-      <div className="review-modal">
+      <div className={`review-modal ${fontClass}`}>
         {/* Modal Header */}
         <div className="review-modal-header">
           <div className="review-modal-title">
@@ -282,12 +288,12 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                   <div className="review-card-front">
                     <div className="review-card-content">
                       {isRecallMode ? (
-                        <div className="review-card-translation">
+                        <div className="review-card-text">
                           {currentCard?.translation || 'No translation'}
                         </div>
                       ) : (
                         <>
-                          <div className="review-card-word">{currentCard?.text}</div>
+                          <div className="review-card-text">{currentCard?.text}</div>
                           <button
                             className="review-audio-button"
                             onClick={() => playAudio(currentCard?.text)}
@@ -305,7 +311,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                     <div className="review-card-content">
                       {isRecallMode ? (
                         <>
-                          <div className="review-card-word">{currentCard?.text}</div>
+                          <div className="review-card-text">{currentCard?.text}</div>
                           <button
                             className="review-audio-button"
                             onClick={() => playAudio(currentCard?.text)}
@@ -315,7 +321,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                           </button>
                         </>
                       ) : (
-                        <div className="review-card-translation">
+                        <div className="review-card-text">
                           {currentCard?.translation || 'No translation'}
                         </div>
                       )}

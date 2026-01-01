@@ -543,6 +543,14 @@ const Dashboard = () => {
                 </p>
               ) : (
                 <>
+                  {/* Pinned - at top */}
+                  <div className="section">
+                    <div className="section-header">
+                      <h3>Pinned</h3>
+                    </div>
+                    <p className="muted small">Pin decks to keep them here for quick access.</p>
+                  </div>
+
                   {/* Core Decks */}
                   <div className="section">
                     <div className="section-header">
@@ -563,6 +571,17 @@ const Dashboard = () => {
                             role="button"
                             tabIndex={countsLoading || count === 0 ? -1 : 0}
                           >
+                            <button
+                              type="button"
+                              className="review-deck-pin-btn"
+                              title="Pin deck"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                // TODO: implement pin functionality
+                              }}
+                            >
+                              <PinIcon />
+                            </button>
                             <div className="review-deck-card-inner">
                               <div className="review-deck-card-icon">
                                 <CardsIcon />
@@ -578,14 +597,6 @@ const Dashboard = () => {
                         )
                       })}
                     </div>
-                  </div>
-
-                  {/* My Favourites - Placeholder */}
-                  <div className="section">
-                    <div className="section-header">
-                      <h3>My Favourites</h3>
-                    </div>
-                    <p className="muted small">Favourite content decks will appear here.</p>
                   </div>
 
                   {/* Recently Studied - Placeholder */}
@@ -621,6 +632,17 @@ const Dashboard = () => {
                             role="button"
                             tabIndex={0}
                           >
+                            <button
+                              type="button"
+                              className="review-deck-pin-btn"
+                              title="Pin deck"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                // TODO: implement pin functionality
+                              }}
+                            >
+                              <PinIcon />
+                            </button>
                             <div className="review-deck-card-inner">
                               <div className="review-deck-card-icon">
                                 <CardsIcon />
@@ -628,30 +650,6 @@ const Dashboard = () => {
                               <div className="review-deck-card-content">
                                 <div className="review-deck-card-title">{item.title}</div>
                                 <div className="review-deck-card-meta ui-text">{item.type}</div>
-                              </div>
-                              <div className="review-deck-card-icon-actions">
-                                <button
-                                  type="button"
-                                  className="review-deck-icon-btn"
-                                  title="Pin to favourites"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    // TODO: implement pin functionality
-                                  }}
-                                >
-                                  <PinIcon />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="review-deck-icon-btn"
-                                  title="Hide deck"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    // TODO: implement hide functionality
-                                  }}
-                                >
-                                  <HideIcon />
-                                </button>
                               </div>
                             </div>
                           </div>

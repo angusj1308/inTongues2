@@ -185,15 +185,15 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
     [language, profile?.nativeLanguage]
   )
 
-  // Auto-play audio when card changes or answer is revealed
+  // Auto-play audio when card is first shown (not when answer is revealed)
   useEffect(() => {
-    if (!autoPlayAudio || !showAnswer || cards.length === 0) return
+    if (!autoPlayAudio || cards.length === 0 || showAnswer) return
 
     const currentCard = cards[currentIndex]
     if (currentCard && !isRecallMode) {
       playAudio(currentCard.text)
     }
-  }, [showAnswer, currentIndex, autoPlayAudio, isRecallMode, cards, playAudio])
+  }, [currentIndex, autoPlayAudio, isRecallMode, cards, playAudio, showAnswer])
 
   // Handle reveal answer
   const handleReveal = () => {
@@ -267,21 +267,28 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
             )}
           </div>
           <div className="review-modal-controls">
-            <label className="review-toggle">
-              <input
-                type="checkbox"
-                checked={isRecallMode}
-                onChange={(e) => setIsRecallMode(e.target.checked)}
-              />
-              <span>Recall</span>
+            <label className="review-toggle-switch">
+              <span className="review-toggle-label">Recognise</span>
+              <div className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={isRecallMode}
+                  onChange={(e) => setIsRecallMode(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+              </div>
+              <span className="review-toggle-label">Recall</span>
             </label>
-            <label className="review-toggle">
-              <input
-                type="checkbox"
-                checked={autoPlayAudio}
-                onChange={(e) => setAutoPlayAudio(e.target.checked)}
-              />
-              <span>Auto-play</span>
+            <label className="review-toggle-switch">
+              <span className="review-toggle-label">Audio</span>
+              <div className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={autoPlayAudio}
+                  onChange={(e) => setAutoPlayAudio(e.target.checked)}
+                />
+                <span className="toggle-slider"></span>
+              </div>
             </label>
             <button className="review-modal-close" onClick={onClose}>
               <CloseIcon />

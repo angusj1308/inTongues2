@@ -21,11 +21,11 @@ const SOURCE_OPTIONS = [
   { id: 'youtube', label: 'YouTube Video' },
 ]
 
-const NewWritingModal = ({ activeLanguage, onClose, onCreated }) => {
+const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) => {
   const { user } = useAuth()
 
-  // Step management
-  const [mode, setMode] = useState(null) // 'free' or 'practice'
+  // Step management - start with initialMode if provided
+  const [mode, setMode] = useState(initialMode || null) // 'free' or 'practice'
 
   // Free writing state
   const [selectedType, setSelectedType] = useState('')

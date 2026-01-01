@@ -9974,39 +9974,68 @@ body.active-pass-locked {
 
 /* Practice Mode Styles */
 
-/* Write actions buttons */
-.write-actions {
+/* New Writing Modal */
+.new-writing-modal {
+  max-width: 480px;
+}
+
+.mode-selection {
+  text-align: center;
+}
+
+.mode-prompt {
+  margin: 0 0 1.25rem;
+  font-size: 1rem;
+  color: #64748b;
+}
+
+.mode-options {
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-.write-action-btn {
+.mode-option {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.9rem 1.1rem;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.15s ease;
   text-align: left;
+  transition: all 0.15s ease;
 }
 
-.write-action-btn:hover {
+.mode-option:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
 }
 
-.write-action-title {
-  font-size: 0.95rem;
+.mode-option-title {
+  font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
 }
 
-.write-action-desc {
-  font-size: 0.8rem;
+.mode-option-desc {
+  font-size: 0.875rem;
   color: #64748b;
+}
+
+.text-type-grid.two-col {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.text-type-grid.three-col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Small button variant */
+.button.small {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
 }
 
 /* Practice Lesson Card */
@@ -10480,10 +10509,6 @@ body.active-pass-locked {
 }
 
 @media (max-width: 600px) {
-  .write-actions {
-    flex-direction: column;
-  }
-
   .practice-header {
     flex-wrap: wrap;
     padding: 0.75rem 1rem;
@@ -10501,24 +10526,29 @@ body.active-pass-locked {
   .practice-model-sentence .model-text {
     font-size: 1.1rem;
   }
+
+  .text-type-grid.two-col,
+  .text-type-grid.three-col {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Dark theme support */
-[data-theme='dark'] .write-action-btn {
+[data-theme='dark'] .mode-option {
   background: #1e293b;
   border-color: #334155;
 }
 
-[data-theme='dark'] .write-action-btn:hover {
+[data-theme='dark'] .mode-option:hover {
   background: #334155;
   border-color: #475569;
 }
 
-[data-theme='dark'] .write-action-title {
+[data-theme='dark'] .mode-option-title {
   color: #f1f5f9;
 }
 
-[data-theme='dark'] .write-action-desc {
+[data-theme='dark'] .mode-option-desc {
   color: #94a3b8;
 }
 

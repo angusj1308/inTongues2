@@ -24,43 +24,9 @@ const CloseIcon = () => (
   </svg>
 )
 
-// Status levels and abbreviations
-const STATUS_LEVELS = ['unknown', 'recognised', 'familiar']
-const STATUS_ABBREV = { unknown: 'U', recognised: 'R', familiar: 'F' }
-
-// Helper to get language color
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
-
-// Get status button style (matches WordStatusPanel)
-const getStatusStyle = (statusLevel, isActive, languageColor) => {
-  if (!isActive) return {}
-
-  switch (statusLevel) {
-    case 'unknown':
-      return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
-        color: '#1e293b'
-      }
-    case 'recognised':
-      return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
-        color: '#1e293b'
-      }
-    case 'familiar':
-      return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
-        color: '#64748b'
-      }
-    default:
-      return {}
-  }
-}
+// Status abbreviations for display (full spectrum: New, Unknown, Recognised, Familiar, Known)
+const ALL_STATUSES = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = { new: 'N', unknown: 'U', recognised: 'R', familiar: 'F', known: 'K' }
 
 const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   const { user, profile } = useAuth()
@@ -252,47 +218,40 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
           <div className="review-modal-title">
             <h2>{deck?.label || 'Review'}</h2>
             {cards.length > 0 && (
-              <span className="review-progress">
-                {currentIndex + 1} / {cards.length}
-              </span>
+              <span className="review-progress">{cards.length} remaining</span>
             )}
           </div>
           <div className="review-modal-controls">
-            {/* Font toggle */}
-            <button
-              className={`review-modal-toggle-btn font-toggle ${useSerifFont ? 'is-active' : ''}`}
-              onClick={() => setUseSerifFont(!useSerifFont)}
-              title="Toggle serif font"
-            >
-              Aa
-            </button>
-
-            {/* Recall toggle */}
-            <div className="review-modal-toggle">
-              <span className="review-modal-toggle-label">Recall</span>
-              <button
-                className={`review-modal-switch ${isRecallMode ? 'is-on' : ''}`}
-                onClick={() => setIsRecallMode(!isRecallMode)}
-                role="switch"
-                aria-checked={isRecallMode}
-              >
-                <span className="review-modal-switch-knob" />
-              </button>
-            </div>
-
-            {/* Auto-play audio toggle */}
-            <div className="review-modal-toggle">
-              <span className="review-modal-toggle-label">Auto-play</span>
-              <button
-                className={`review-modal-switch ${autoPlayAudio ? 'is-on' : ''}`}
-                onClick={() => setAutoPlayAudio(!autoPlayAudio)}
-                role="switch"
-                aria-checked={autoPlayAudio}
-              >
-                <span className="review-modal-switch-knob" />
-              </button>
-            </div>
-
+            {/* Status indicator in header */}
+            {currentCard && (
+              <div className="review-status-indicator">
+                {ALL_STATUSES.map((status) => (
+                  <span
+                    key={status}
+                    className={`review-status-pip${currentCard?.status === status ? ' is-active' : ''}${status === 'new' ? ' is-disabled' : ''}`}
+                    title={status.charAt(0).toUpperCase() + status.slice(1)}
+                  >
+                    {STATUS_ABBREV[status]}
+                  </span>
+                ))}
+              </div>
+            )}
+            <label className="review-toggle">
+              <input
+                type="checkbox"
+                checked={isRecallMode}
+                onChange={(e) => setIsRecallMode(e.target.checked)}
+              />
+              <span>Recall</span>
+            </label>
+            <label className="review-toggle">
+              <input
+                type="checkbox"
+                checked={autoPlayAudio}
+                onChange={(e) => setAutoPlayAudio(e.target.checked)}
+              />
+              <span>Auto-play</span>
+            </label>
             <button className="review-modal-close" onClick={onClose}>
               <CloseIcon />
             </button>
@@ -380,29 +339,6 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                 </div>
               ) : (
                 <div className="review-actions">
-                  {/* Status selector - matches WordStatusPanel design */}
-                  <div className="review-status-row">
-                    <div className="status-selector">
-                      {STATUS_LEVELS.map((status) => {
-                        const isActive = currentCard?.status === status
-                        const style = getStatusStyle(status, isActive, languageColor)
-                        return (
-                          <button
-                            key={status}
-                            type="button"
-                            className={`status-selector-option ${isActive ? 'active' : ''}`}
-                            style={style}
-                            onClick={() => handleStatusChange(status)}
-                            aria-label={`Set status to ${status}`}
-                            aria-pressed={isActive}
-                          >
-                            {STATUS_ABBREV[status]}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
                   {/* Response buttons */}
                   <div className="review-response-buttons">
                     <button

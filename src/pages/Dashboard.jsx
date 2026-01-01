@@ -111,6 +111,7 @@ const Dashboard = () => {
 
   // Review tab state
   const [deckCounts, setDeckCounts] = useState({})
+  const [contentCounts, setContentCounts] = useState({})
   const [countsLoading, setCountsLoading] = useState(true)
   const [contentItems, setContentItems] = useState([])
   const [contentLoading, setContentLoading] = useState(true)
@@ -205,6 +206,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user || !activeLanguage) {
       setDeckCounts({})
+      setContentCounts({})
       setCountsLoading(false)
       return
     }
@@ -220,6 +222,17 @@ const Dashboard = () => {
           familiar: allCards.filter((c) => c.status === 'familiar').length,
         }
         setDeckCounts(counts)
+
+        // Calculate counts per content item
+        const perContent = {}
+        allCards.forEach((card) => {
+          if (card.sourceContentIds) {
+            card.sourceContentIds.forEach((contentId) => {
+              perContent[contentId] = (perContent[contentId] || 0) + 1
+            })
+          }
+        })
+        setContentCounts(perContent)
       } catch (error) {
         console.error('Error loading deck counts:', error)
       } finally {
@@ -323,6 +336,17 @@ const Dashboard = () => {
         familiar: allCards.filter((c) => c.status === 'familiar').length,
       }
       setDeckCounts(counts)
+
+      // Recalculate content counts
+      const perContent = {}
+      allCards.forEach((card) => {
+        if (card.sourceContentIds) {
+          card.sourceContentIds.forEach((contentId) => {
+            perContent[contentId] = (perContent[contentId] || 0) + 1
+          })
+        }
+      })
+      setContentCounts(perContent)
     } catch (error) {
       console.error('Error refreshing deck counts:', error)
     }
@@ -589,22 +613,24 @@ const Dashboard = () => {
                     ) : (
                       <div className="listen-shelf">
                         {pinnedDecks.map((pinned) => {
-                          const count = pinned.type === 'core' ? (deckCounts[pinned.id] ?? 0) : 0
+                          const count = pinned.type === 'core'
+                            ? (deckCounts[pinned.id] ?? 0)
+                            : (contentCounts[pinned.contentId] || 0)
+                          const isDisabled = countsLoading || count === 0
                           return (
                             <div
                               key={pinned.key}
-                              className={`preview-card listen-card review-deck-card${pinned.type === 'core' && (countsLoading || count === 0) ? ' is-disabled' : ''}`}
+                              className={`preview-card listen-card review-deck-card${isDisabled ? ' is-disabled' : ''}`}
                               onClick={() => {
+                                if (isDisabled) return
                                 if (pinned.type === 'core') {
-                                  if (!countsLoading && count > 0) {
-                                    startReviewSession({ type: 'core', id: pinned.id, label: pinned.label, filter: pinned.filter })
-                                  }
+                                  startReviewSession({ type: 'core', id: pinned.id, label: pinned.label, filter: pinned.filter })
                                 } else {
                                   startReviewSession({ type: 'content', contentId: pinned.contentId, label: pinned.label })
                                 }
                               }}
                               role="button"
-                              tabIndex={0}
+                              tabIndex={isDisabled ? -1 : 0}
                             >
                               <button
                                 type="button"
@@ -621,7 +647,7 @@ const Dashboard = () => {
                                 <div className="review-deck-card-content">
                                   <div className="review-deck-card-title">{pinned.label}</div>
                                   <div className="review-deck-card-meta ui-text">
-                                    {pinned.type === 'core' ? (countsLoading ? 'Loading...' : `${count} due`) : pinned.contentType || 'content'}
+                                    {countsLoading ? 'Loading...' : `${count} due`}
                                   </div>
                                 </div>
                               </div>
@@ -699,19 +725,22 @@ const Dashboard = () => {
                       <div className="listen-shelf">
                         {contentItems.map((item) => {
                           const pinned = isDeckPinned('content', item.id)
+                          const count = contentCounts[item.id] || 0
                           return (
                             <div
                               key={item.id}
-                              className="preview-card listen-card review-deck-card"
-                              onClick={() =>
-                                startReviewSession({
-                                  type: 'content',
-                                  contentId: item.id,
-                                  label: item.title,
-                                })
-                              }
+                              className={`preview-card listen-card review-deck-card${countsLoading || count === 0 ? ' is-disabled' : ''}`}
+                              onClick={() => {
+                                if (!countsLoading && count > 0) {
+                                  startReviewSession({
+                                    type: 'content',
+                                    contentId: item.id,
+                                    label: item.title,
+                                  })
+                                }
+                              }}
                               role="button"
-                              tabIndex={0}
+                              tabIndex={countsLoading || count === 0 ? -1 : 0}
                             >
                               <button
                                 type="button"
@@ -727,7 +756,9 @@ const Dashboard = () => {
                               <div className="review-deck-card-inner">
                                 <div className="review-deck-card-content">
                                   <div className="review-deck-card-title">{item.title}</div>
-                                  <div className="review-deck-card-meta ui-text">{item.type}</div>
+                                  <div className="review-deck-card-meta ui-text">
+                                    {countsLoading ? 'Loading...' : `${count} due`}
+                                  </div>
                                 </div>
                               </div>
                             </div>

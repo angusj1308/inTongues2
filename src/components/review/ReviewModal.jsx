@@ -300,24 +300,11 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                           >
                             <PlayIcon />
                           </button>
-                          <div className="review-card-translation-small">
-                            {currentCard?.translation || 'No translation'}
-                          </div>
                         </>
                       ) : (
-                        <>
-                          <div className="review-card-word">{currentCard?.text}</div>
-                          <button
-                            className="review-audio-button"
-                            onClick={() => playAudio(currentCard?.text)}
-                            disabled={audioLoading}
-                          >
-                            <PlayIcon />
-                          </button>
-                          <div className="review-card-translation">
-                            {currentCard?.translation || 'No translation'}
-                          </div>
-                        </>
+                        <div className="review-card-translation">
+                          {currentCard?.translation || 'No translation'}
+                        </div>
                       )}
                     </div>
                   </div>

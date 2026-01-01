@@ -6,6 +6,7 @@ import ListeningHub from '../components/listen/ListeningHub'
 import WritingHub from '../components/write/WritingHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
+import ReviewModal from '../components/review/ReviewModal'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -128,6 +129,7 @@ const Dashboard = () => {
   const [countsLoading, setCountsLoading] = useState(true)
   const [contentItems, setContentItems] = useState([])
   const [contentLoading, setContentLoading] = useState(true)
+  const [reviewDeck, setReviewDeck] = useState(null)
   const [pinnedDecks, setPinnedDecks] = useState(() => {
     try {
       const saved = localStorage.getItem('pinnedDecks')
@@ -314,14 +316,31 @@ const Dashboard = () => {
     loadContent()
   }, [user, activeLanguage])
 
-  // Navigate to review session with deck info
+  // Open review modal with deck info
   const startReviewSession = (deck) => {
-    const params = new URLSearchParams()
-    params.set('type', deck.type)
-    if (deck.filter) params.set('filter', deck.filter)
-    if (deck.contentId) params.set('contentId', deck.contentId)
-    if (deck.label) params.set('label', deck.label)
-    navigate(`/review?${params.toString()}`)
+    setReviewDeck(deck)
+  }
+
+  // Handle review modal close
+  const handleReviewModalClose = () => {
+    setReviewDeck(null)
+  }
+
+  // Handle cards updated callback - reload counts
+  const handleCardsUpdated = async () => {
+    if (!user || !activeLanguage) return
+    try {
+      const allCards = await loadDueCards(user.uid, activeLanguage)
+      const counts = {
+        all: allCards.length,
+        unknown: allCards.filter((c) => c.status === 'unknown').length,
+        recognised: allCards.filter((c) => c.status === 'recognised').length,
+        familiar: allCards.filter((c) => c.status === 'familiar').length,
+      }
+      setDeckCounts(counts)
+    } catch (error) {
+      console.error('Error refreshing deck counts:', error)
+    }
   }
 
   // Toggle pin status for a deck
@@ -747,6 +766,16 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Review Modal */}
+      {reviewDeck && (
+        <ReviewModal
+          deck={reviewDeck}
+          language={activeLanguage}
+          onClose={handleReviewModalClose}
+          onCardsUpdated={handleCardsUpdated}
+        />
+      )}
     </DashboardLayout>
   )
 }

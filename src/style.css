@@ -854,9 +854,12 @@ textarea {
 .listening-hub h1,
 .listening-hub h2,
 .listening-hub h3,
-.listening-hub .section-header h3 {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui,
-    sans-serif;
+.listening-hub .section-header h3,
+.listening-hub .section h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
   letter-spacing: 0.01em;
 }
 
@@ -9085,6 +9088,39 @@ body.active-pass-locked {
   color: #0f172a;
 }
 
+/* Status indicator in header */
+.review-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.review-status-pip {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  border-radius: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+}
+
+.review-status-pip.is-active {
+  background: #0f172a;
+  color: #fff;
+}
+
+.review-status-pip.is-disabled {
+  opacity: 0.4;
+}
+
 .review-modal-content {
   flex: 1;
   overflow: hidden;
@@ -9127,8 +9163,9 @@ body.active-pass-locked {
 }
 
 .review-modal .review-card-word {
-  font-family: 'Garamond', 'Times New Roman', serif;
-  font-size: 3rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 2.5rem;
+  font-weight: 500;
 }
 
 .review-modal .review-card-translation {
@@ -9277,7 +9314,7 @@ body.active-pass-locked {
   font-size: 2rem;
   font-weight: 500;
   color: #0f172a;
-  font-family: 'Crimson Pro', 'Garamond', serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
 .review-card-translation {

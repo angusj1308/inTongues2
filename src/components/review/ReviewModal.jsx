@@ -23,8 +23,9 @@ const CloseIcon = () => (
   </svg>
 )
 
-// Status abbreviations for display
-const STATUS_ABBREV = { unknown: 'U', recognised: 'R', familiar: 'F', known: 'K' }
+// Status abbreviations for display (full spectrum: New, Unknown, Recognised, Familiar, Known)
+const ALL_STATUSES = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = { new: 'N', unknown: 'U', recognised: 'R', familiar: 'F', known: 'K' }
 
 const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   const { user, profile } = useAuth()
@@ -211,12 +212,24 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
           <div className="review-modal-title">
             <h2>{deck?.label || 'Review'}</h2>
             {cards.length > 0 && (
-              <span className="review-progress">
-                {currentIndex + 1} / {cards.length}
-              </span>
+              <span className="review-progress">{cards.length} remaining</span>
             )}
           </div>
           <div className="review-modal-controls">
+            {/* Status indicator in header */}
+            {currentCard && (
+              <div className="review-status-indicator">
+                {ALL_STATUSES.map((status) => (
+                  <span
+                    key={status}
+                    className={`review-status-pip${currentCard?.status === status ? ' is-active' : ''}${status === 'new' ? ' is-disabled' : ''}`}
+                    title={status.charAt(0).toUpperCase() + status.slice(1)}
+                  >
+                    {STATUS_ABBREV[status]}
+                  </span>
+                ))}
+              </div>
+            )}
             <label className="review-toggle">
               <input
                 type="checkbox"
@@ -231,7 +244,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                 checked={autoPlayAudio}
                 onChange={(e) => setAutoPlayAudio(e.target.checked)}
               />
-              <span>Audio</span>
+              <span>Auto-play</span>
             </label>
             <button className="review-modal-close" onClick={onClose}>
               <CloseIcon />
@@ -320,24 +333,6 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                 </div>
               ) : (
                 <div className="review-actions">
-                  {/* Status adjustment */}
-                  <div className="review-status-row">
-                    <span className="review-status-label">Status:</span>
-                    <div className="review-status-buttons">
-                      {VOCAB_STATUSES.filter((s) => s !== 'known').map((status) => (
-                        <button
-                          key={status}
-                          className={`review-status-button ${
-                            currentCard?.status === status ? 'is-active' : ''
-                          }`}
-                          onClick={() => handleStatusChange(status)}
-                        >
-                          {STATUS_ABBREV[status]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Response buttons */}
                   <div className="review-response-buttons">
                     <button

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
+import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
 import {
   loadDueCards,
   loadCardsByStatus,
@@ -9,7 +9,6 @@ import {
   setVocabStatus,
   VOCAB_STATUSES,
 } from '../../services/vocab'
-import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
 
 // Helper to get language color (needed by some editors/linters)
 const getLanguageColor = (language) => {

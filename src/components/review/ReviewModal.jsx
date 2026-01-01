@@ -9,6 +9,16 @@ import {
   setVocabStatus,
   VOCAB_STATUSES,
 } from '../../services/vocab'
+import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
+
+// Helper to get language color (needed by some editors/linters)
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS?.default || '#6366f1'
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS?.[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS?.[capitalized] || LANGUAGE_HIGHLIGHT_COLORS?.default || '#6366f1'
+}
 
 // Icons
 const PlayIcon = () => (

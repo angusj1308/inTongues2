@@ -12,25 +12,6 @@ import ImportPracticeModal from './ImportPracticeModal'
 import WritingPieceCard from './WritingPieceCard'
 import PracticeLessonCard from './PracticeLessonCard'
 
-// Icons
-const PenIcon = () => (
-  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-  </svg>
-)
-
-const TranslateIcon = () => (
-  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M5 8l6 6" />
-    <path d="M4 14l6-6 2-3" />
-    <path d="M2 5h12" />
-    <path d="M7 2v3" />
-    <path d="M22 22l-5-10-5 10" />
-    <path d="M14 18h6" />
-  </svg>
-)
-
 const WritingShelf = ({ title, pieces, onPieceClick }) => {
   if (!pieces?.length) return null
 
@@ -148,22 +129,6 @@ const WritingHub = ({ activeLanguage }) => {
     navigate(`/practice/${lesson.id}`)
   }
 
-  const handleCreateNew = () => {
-    setShowCreateModal(true)
-  }
-
-  const handleStartPractice = () => {
-    setShowPracticeModal(true)
-  }
-
-  const handleCloseModal = () => {
-    setShowCreateModal(false)
-  }
-
-  const handleClosePracticeModal = () => {
-    setShowPracticeModal(false)
-  }
-
   const handlePieceCreated = (newPiece) => {
     setShowCreateModal(false)
     navigate(`/write/${newPiece.id}`)
@@ -202,55 +167,30 @@ const WritingHub = ({ activeLanguage }) => {
 
   const hasPieces = pieces.length > 0
   const hasLessons = practiceLessons.length > 0
-  const hasContent = hasPieces || hasLessons
   const groupedPieces = groupPiecesByType(pieces)
 
   return (
     <div className="writing-hub">
-      {/* Mode Selection Cards */}
+      {/* New Actions */}
       <section className="read-section read-slab">
-        <div className="writing-mode-cards">
-          <div
-            className="writing-mode-card"
-            role="button"
-            tabIndex={0}
-            onClick={handleCreateNew}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateNew()}
+        <div className="read-section-header">
+          <h3>Start Writing</h3>
+        </div>
+        <div className="write-actions">
+          <button
+            className="write-action-btn"
+            onClick={() => setShowCreateModal(true)}
           >
-            <div className="writing-mode-card-icon">
-              <PenIcon />
-            </div>
-            <div className="writing-mode-card-content">
-              <h3>Free Writing</h3>
-              <p className="muted small">
-                Write journals, essays, stories in {activeLanguage}. Get AI feedback on grammar and style.
-              </p>
-            </div>
-            <button className="button ghost" onClick={(e) => { e.stopPropagation(); handleCreateNew(); }}>
-              + New Piece
-            </button>
-          </div>
-
-          <div
-            className="writing-mode-card"
-            role="button"
-            tabIndex={0}
-            onClick={handleStartPractice}
-            onKeyDown={(e) => e.key === 'Enter' && handleStartPractice()}
+            <span className="write-action-title">New Piece</span>
+            <span className="write-action-desc">Write freely in {activeLanguage}</span>
+          </button>
+          <button
+            className="write-action-btn"
+            onClick={() => setShowPracticeModal(true)}
           >
-            <div className="writing-mode-card-icon">
-              <TranslateIcon />
-            </div>
-            <div className="writing-mode-card-content">
-              <h3>Practice Mode</h3>
-              <p className="muted small">
-                Import content in your native language and practice expressing it in {activeLanguage}.
-              </p>
-            </div>
-            <button className="button ghost" onClick={(e) => { e.stopPropagation(); handleStartPractice(); }}>
-              + New Lesson
-            </button>
-          </div>
+            <span className="write-action-title">Translation Practice</span>
+            <span className="write-action-desc">Express ideas from your native language</span>
+          </button>
         </div>
       </section>
 
@@ -276,19 +216,10 @@ const WritingHub = ({ activeLanguage }) => {
         </>
       )}
 
-      {/* Empty state message if no content */}
-      {!hasContent && (
-        <div className="writing-empty-hint">
-          <p className="muted small">
-            Choose a mode above to start practicing your {activeLanguage} writing skills.
-          </p>
-        </div>
-      )}
-
       {showCreateModal && (
         <CreatePieceModal
           activeLanguage={activeLanguage}
-          onClose={handleCloseModal}
+          onClose={() => setShowCreateModal(false)}
           onCreated={handlePieceCreated}
         />
       )}
@@ -296,7 +227,7 @@ const WritingHub = ({ activeLanguage }) => {
       {showPracticeModal && (
         <ImportPracticeModal
           activeLanguage={activeLanguage}
-          onClose={handleClosePracticeModal}
+          onClose={() => setShowPracticeModal(false)}
           onCreated={handleLessonCreated}
         />
       )}

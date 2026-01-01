@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 import {
   loadDueCards,
   loadCardsByStatus,
@@ -36,6 +36,42 @@ const CloseIcon = () => (
 // Status abbreviations for display (full spectrum: New, Unknown, Recognised, Familiar, Known)
 const ALL_STATUSES = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = { new: 'N', unknown: 'U', recognised: 'R', familiar: 'F', known: 'K' }
+
+// Get background style for a status button when active
+// Uses exact same color codes and opacity values as the word highlighting system
+const getStatusStyle = (statusLevel, isActive, languageColor) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'new':
+      return {
+        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
+        color: '#9a3412'
+      }
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        color: '#64748b'
+      }
+    case 'known':
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534'
+      }
+    default:
+      return {}
+  }
+}
 
 const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   const { user, profile } = useAuth()
@@ -231,20 +267,6 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
             )}
           </div>
           <div className="review-modal-controls">
-            {/* Status indicator in header */}
-            {currentCard && (
-              <div className="review-status-indicator">
-                {ALL_STATUSES.map((status) => (
-                  <span
-                    key={status}
-                    className={`review-status-pip${currentCard?.status === status ? ' is-active' : ''}${status === 'new' ? ' is-disabled' : ''}`}
-                    title={status.charAt(0).toUpperCase() + status.slice(1)}
-                  >
-                    {STATUS_ABBREV[status]}
-                  </span>
-                ))}
-              </div>
-            )}
             <label className="review-toggle">
               <input
                 type="checkbox"
@@ -292,6 +314,25 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
             <div className="review-session">
               {/* Card */}
               <div className="review-card-container">
+                {/* Status selector on card */}
+                <div className="review-card-status-selector">
+                  {ALL_STATUSES.map((status) => {
+                    const isActive = currentCard?.status === status
+                    const style = getStatusStyle(status, isActive, languageColor)
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        className={`review-card-status-option${isActive ? ' is-active' : ''}`}
+                        style={style}
+                        onClick={() => handleStatusChange(status)}
+                        title={status.charAt(0).toUpperCase() + status.slice(1)}
+                      >
+                        {STATUS_ABBREV[status]}
+                      </button>
+                    )
+                  })}
+                </div>
                 <div className={`review-card ${showAnswer ? 'is-flipped' : ''}`}>
                   {/* Front of card */}
                   <div className="review-card-front">

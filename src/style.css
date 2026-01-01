@@ -9228,6 +9228,44 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+/* Status selector on card - top right corner */
+.review-card-status-selector {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  z-index: 10;
+}
+
+.review-card-status-option {
+  padding: 5px 8px;
+  min-width: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-transform: uppercase;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+}
+
+.review-card-status-option:hover {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.review-card-status-option.is-active {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .review-modal .review-card {

@@ -19,9 +19,11 @@ const CardsIcon = () => (
   </svg>
 )
 
-const PinIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 17v5M9 11l-6 6M15 11l6 6M9 3h6l1 8H8l1-8z" />
+const PinIcon = ({ filled }) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+    <path d="M9 4v6l-2 4v2h10v-2l-2-4V4" />
+    <line x1="12" y1="16" x2="12" y2="21" />
+    <line x1="8" y1="4" x2="16" y2="4" />
   </svg>
 )
 
@@ -126,6 +128,14 @@ const Dashboard = () => {
   const [countsLoading, setCountsLoading] = useState(true)
   const [contentItems, setContentItems] = useState([])
   const [contentLoading, setContentLoading] = useState(true)
+  const [pinnedDecks, setPinnedDecks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pinnedDecks')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -312,6 +322,28 @@ const Dashboard = () => {
     if (deck.contentId) params.set('contentId', deck.contentId)
     if (deck.label) params.set('label', deck.label)
     navigate(`/review?${params.toString()}`)
+  }
+
+  // Toggle pin status for a deck
+  const togglePinDeck = (deckInfo) => {
+    setPinnedDecks((prev) => {
+      const key = deckInfo.type === 'core' ? `core:${deckInfo.id}` : `content:${deckInfo.contentId}`
+      const exists = prev.some((p) => p.key === key)
+      let next
+      if (exists) {
+        next = prev.filter((p) => p.key !== key)
+      } else {
+        next = [...prev, { key, ...deckInfo }]
+      }
+      localStorage.setItem('pinnedDecks', JSON.stringify(next))
+      return next
+    })
+  }
+
+  // Check if a deck is pinned
+  const isDeckPinned = (type, id) => {
+    const key = type === 'core' ? `core:${id}` : `content:${id}`
+    return pinnedDecks.some((p) => p.key === key)
   }
 
   const handleTabClick = (tab) => {
@@ -548,7 +580,55 @@ const Dashboard = () => {
                     <div className="section-header">
                       <h3>Pinned</h3>
                     </div>
-                    <p className="muted small">Pin decks to keep them here for quick access.</p>
+                    {pinnedDecks.length === 0 ? (
+                      <p className="muted small">Pin decks to keep them here for quick access.</p>
+                    ) : (
+                      <div className="listen-shelf">
+                        {pinnedDecks.map((pinned) => {
+                          const count = pinned.type === 'core' ? (deckCounts[pinned.id] ?? 0) : 0
+                          return (
+                            <div
+                              key={pinned.key}
+                              className={`preview-card listen-card review-deck-card${pinned.type === 'core' && (countsLoading || count === 0) ? ' is-disabled' : ''}`}
+                              onClick={() => {
+                                if (pinned.type === 'core') {
+                                  if (!countsLoading && count > 0) {
+                                    startReviewSession({ type: 'core', id: pinned.id, label: pinned.label, filter: pinned.filter })
+                                  }
+                                } else {
+                                  startReviewSession({ type: 'content', contentId: pinned.contentId, label: pinned.label })
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
+                            >
+                              <button
+                                type="button"
+                                className="review-deck-pin-btn is-pinned"
+                                title="Unpin deck"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  togglePinDeck(pinned)
+                                }}
+                              >
+                                <PinIcon filled />
+                              </button>
+                              <div className="review-deck-card-inner">
+                                <div className="review-deck-card-icon">
+                                  <CardsIcon />
+                                </div>
+                                <div className="review-deck-card-content">
+                                  <div className="review-deck-card-title">{pinned.label}</div>
+                                  <div className="review-deck-card-meta ui-text">
+                                    {pinned.type === 'core' ? (countsLoading ? 'Loading...' : `${count} cards due`) : pinned.contentType || 'content'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Core Decks */}
@@ -559,6 +639,7 @@ const Dashboard = () => {
                     <div className="listen-shelf">
                       {CORE_DECKS.map((deck) => {
                         const count = deckCounts[deck.id] ?? 0
+                        const pinned = isDeckPinned('core', deck.id)
                         return (
                           <div
                             key={deck.id}
@@ -573,14 +654,14 @@ const Dashboard = () => {
                           >
                             <button
                               type="button"
-                              className="review-deck-pin-btn"
-                              title="Pin deck"
+                              className={`review-deck-pin-btn${pinned ? ' is-pinned' : ''}`}
+                              title={pinned ? 'Unpin deck' : 'Pin deck'}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                // TODO: implement pin functionality
+                                togglePinDeck({ type: 'core', id: deck.id, label: deck.label, filter: deck.filter })
                               }}
                             >
-                              <PinIcon />
+                              <PinIcon filled={pinned} />
                             </button>
                             <div className="review-deck-card-inner">
                               <div className="review-deck-card-icon">
@@ -618,42 +699,45 @@ const Dashboard = () => {
                       <p className="muted small">No content yet. Add stories, videos, or podcasts to create decks.</p>
                     ) : (
                       <div className="listen-shelf">
-                        {contentItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="preview-card listen-card review-deck-card"
-                            onClick={() =>
-                              startReviewSession({
-                                type: 'content',
-                                contentId: item.id,
-                                label: item.title,
-                              })
-                            }
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <button
-                              type="button"
-                              className="review-deck-pin-btn"
-                              title="Pin deck"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                // TODO: implement pin functionality
-                              }}
+                        {contentItems.map((item) => {
+                          const pinned = isDeckPinned('content', item.id)
+                          return (
+                            <div
+                              key={item.id}
+                              className="preview-card listen-card review-deck-card"
+                              onClick={() =>
+                                startReviewSession({
+                                  type: 'content',
+                                  contentId: item.id,
+                                  label: item.title,
+                                })
+                              }
+                              role="button"
+                              tabIndex={0}
                             >
-                              <PinIcon />
-                            </button>
-                            <div className="review-deck-card-inner">
-                              <div className="review-deck-card-icon">
-                                <CardsIcon />
-                              </div>
-                              <div className="review-deck-card-content">
-                                <div className="review-deck-card-title">{item.title}</div>
-                                <div className="review-deck-card-meta ui-text">{item.type}</div>
+                              <button
+                                type="button"
+                                className={`review-deck-pin-btn${pinned ? ' is-pinned' : ''}`}
+                                title={pinned ? 'Unpin deck' : 'Pin deck'}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  togglePinDeck({ type: 'content', contentId: item.id, label: item.title, contentType: item.type })
+                                }}
+                              >
+                                <PinIcon filled={pinned} />
+                              </button>
+                              <div className="review-deck-card-inner">
+                                <div className="review-deck-card-icon">
+                                  <CardsIcon />
+                                </div>
+                                <div className="review-deck-card-content">
+                                  <div className="review-deck-card-title">{item.title}</div>
+                                  <div className="review-deck-card-meta ui-text">{item.type}</div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </div>

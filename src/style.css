@@ -8913,18 +8913,20 @@ body.active-pass-locked {
   margin: 0;
 }
 
-/* Review deck cards - styled to match listen/media cards */
+/* Review deck cards - square minimal design */
 .review-deck-card {
   position: relative;
-  flex: 0 0 320px;
-  min-width: 280px;
+  flex: 0 0 160px;
+  width: 160px;
+  height: 160px;
   scroll-snap-align: start;
   padding: 0;
   overflow: visible;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  align-items: center;
+  justify-content: center;
   transition: transform 120ms ease, box-shadow 120ms ease;
   cursor: pointer;
   background: #fff;
@@ -8946,15 +8948,15 @@ body.active-pass-locked {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  background: rgba(255, 255, 255, 0.9);
+  background: transparent;
   border-radius: 6px;
-  color: #9ca3af;
+  color: #d1d5db;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
   z-index: 1;
@@ -8971,34 +8973,26 @@ body.active-pass-locked {
 
 .review-deck-card-inner {
   display: flex;
-  gap: 1rem;
-  padding: 1rem 1.1rem;
-  align-items: flex-start;
-}
-
-.review-deck-card-icon {
-  width: 44px;
-  height: 44px;
-  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
-  border-radius: 12px;
-  color: #64748b;
-  flex-shrink: 0;
+  text-align: center;
+  padding: 1.25rem 1rem;
+  gap: 0.35rem;
+  width: 100%;
+  height: 100%;
 }
 
 .review-deck-card-content {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .review-deck-card-title {
   font-family: 'Garamond', serif;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1.3;
   color: #0f172a;
   margin: 0;
@@ -9007,11 +9001,13 @@ body.active-pass-locked {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  text-align: center;
 }
 
 .review-deck-card-meta {
-  color: #6b7280;
-  font-size: 0.9rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  text-align: center;
 }
 
 /* Review Modal */

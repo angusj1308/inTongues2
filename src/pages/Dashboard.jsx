@@ -12,26 +12,11 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 
-// Icons for review decks
-const CardsIcon = () => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <path d="M3 10h18" />
-  </svg>
-)
-
 const PinIcon = ({ filled }) => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
     <path d="M9 4v6l-2 4v2h10v-2l-2-4V4" />
     <line x1="12" y1="16" x2="12" y2="21" />
     <line x1="8" y1="4" x2="16" y2="4" />
-  </svg>
-)
-
-const HideIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-    <line x1="1" y1="1" x2="23" y2="23" />
   </svg>
 )
 
@@ -633,13 +618,10 @@ const Dashboard = () => {
                                 <PinIcon filled />
                               </button>
                               <div className="review-deck-card-inner">
-                                <div className="review-deck-card-icon">
-                                  <CardsIcon />
-                                </div>
                                 <div className="review-deck-card-content">
                                   <div className="review-deck-card-title">{pinned.label}</div>
                                   <div className="review-deck-card-meta ui-text">
-                                    {pinned.type === 'core' ? (countsLoading ? 'Loading...' : `${count} cards due`) : pinned.contentType || 'content'}
+                                    {pinned.type === 'core' ? (countsLoading ? 'Loading...' : `${count} due`) : pinned.contentType || 'content'}
                                   </div>
                                 </div>
                               </div>
@@ -683,13 +665,10 @@ const Dashboard = () => {
                               <PinIcon filled={pinned} />
                             </button>
                             <div className="review-deck-card-inner">
-                              <div className="review-deck-card-icon">
-                                <CardsIcon />
-                              </div>
                               <div className="review-deck-card-content">
                                 <div className="review-deck-card-title">{deck.label}</div>
                                 <div className="review-deck-card-meta ui-text">
-                                  {countsLoading ? 'Loading...' : `${count} cards due`}
+                                  {countsLoading ? 'Loading...' : `${count} due`}
                                 </div>
                               </div>
                             </div>
@@ -746,9 +725,6 @@ const Dashboard = () => {
                                 <PinIcon filled={pinned} />
                               </button>
                               <div className="review-deck-card-inner">
-                                <div className="review-deck-card-icon">
-                                  <CardsIcon />
-                                </div>
                                 <div className="review-deck-card-content">
                                   <div className="review-deck-card-title">{item.title}</div>
                                   <div className="review-deck-card-meta ui-text">{item.type}</div>

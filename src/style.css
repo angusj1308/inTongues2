@@ -9028,15 +9028,16 @@ body.active-pass-locked {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
 }
 
 .review-modal {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 24px;
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
+  max-width: 800px;
+  height: min(90vh, 750px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -9047,8 +9048,9 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 2rem;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .review-modal-title {
@@ -9059,6 +9061,7 @@ body.active-pass-locked {
 
 .review-modal-title h2 {
   font-size: 1.25rem;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -9088,8 +9091,70 @@ body.active-pass-locked {
 
 .review-modal-content {
   flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem;
+  overflow: hidden;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-modal .review-message {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-modal .review-session {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.review-modal .review-card-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-modal .review-card {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+}
+
+.review-modal .review-card-front,
+.review-modal .review-card-back {
+  padding: 3rem 2.5rem;
+}
+
+.review-modal .review-card-word {
+  font-family: 'Garamond', 'Times New Roman', serif;
+  font-size: 3rem;
+}
+
+.review-modal .review-card-translation {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.5rem;
+}
+
+.review-modal .review-card-translation-small {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+
+.review-modal .review-actions {
+  flex-shrink: 0;
+}
+
+.review-modal .review-response-buttons {
+  gap: 0.75rem;
+}
+
+.review-modal .review-response-button {
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
 }
 
 /* Session Header */
@@ -9390,12 +9455,12 @@ body.active-pass-locked {
 
   .review-modal {
     max-width: 100%;
-    max-height: 100%;
+    height: 100%;
     border-radius: 0;
   }
 
   .review-modal-header {
-    padding: 1rem;
+    padding: 1rem 1.25rem;
   }
 
   .review-modal-controls {
@@ -9403,7 +9468,29 @@ body.active-pass-locked {
   }
 
   .review-modal-content {
-    padding: 1rem;
+    padding: 1.25rem;
+  }
+
+  .review-modal .review-card {
+    min-height: 240px;
+  }
+
+  .review-modal .review-card-front,
+  .review-modal .review-card-back {
+    padding: 2rem 1.5rem;
+  }
+
+  .review-modal .review-card-word {
+    font-size: 2rem;
+  }
+
+  .review-modal .review-card-translation {
+    font-size: 1.25rem;
+  }
+
+  .review-modal .review-response-button {
+    padding: 0.875rem 1rem;
+    font-size: 0.9rem;
   }
 
   .review-session-header {

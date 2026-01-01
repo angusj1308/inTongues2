@@ -100,6 +100,33 @@ const PLACEHOLDER_LESSONS = [
   },
 ]
 
+// Icons
+const PenIcon = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </svg>
+)
+
+const TranslateIcon = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M5 8l6 6" />
+    <path d="M4 14l6-6 2-3" />
+    <path d="M2 5h12" />
+    <path d="M7 2v3" />
+    <path d="M22 22l-5-10-5 10" />
+    <path d="M14 18h6" />
+  </svg>
+)
+
+const ChatIcon = () => (
+  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    <path d="M8 9h8" />
+    <path d="M8 13h6" />
+  </svg>
+)
+
 const WritingShelf = ({ title, pieces, onPieceClick }) => {
   if (!pieces?.length) return null
 
@@ -150,7 +177,7 @@ const WritingHub = ({ activeLanguage }) => {
   const [loading, setLoading] = useState(true)
   const [practiceLoading, setPracticeLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showModal, setShowModal] = useState(false)
+  const [modalMode, setModalMode] = useState(null) // 'free' | 'practice' | null
 
   // For design preview - set to true to see placeholders
   const SHOW_PLACEHOLDERS = true
@@ -210,24 +237,29 @@ const WritingHub = ({ activeLanguage }) => {
   }, [activeLanguage, user])
 
   const handleOpenPiece = (piece) => {
-    if (piece.id?.startsWith('placeholder')) return // Don't navigate for placeholders
+    if (piece.id?.startsWith('placeholder')) return
     if (!piece?.id) return
     navigate(`/write/${piece.id}`)
   }
 
   const handleOpenLesson = (lesson) => {
-    if (lesson.id?.startsWith('placeholder')) return // Don't navigate for placeholders
+    if (lesson.id?.startsWith('placeholder')) return
     if (!lesson?.id) return
     navigate(`/practice/${lesson.id}`)
   }
 
   const handleCreated = (item, type) => {
-    setShowModal(false)
+    setModalMode(null)
     if (type === 'free') {
       navigate(`/write/${item.id}`)
     } else {
       navigate(`/practice/${item.id}`)
     }
+  }
+
+  const handleChatWithTutor = () => {
+    // TODO: Implement chat with tutor
+    alert('Chat with Tutor coming soon!')
   }
 
   if (!activeLanguage) {
@@ -266,20 +298,38 @@ const WritingHub = ({ activeLanguage }) => {
 
   return (
     <div className="writing-hub">
-      {/* Header with + New button */}
-      <section className="read-section read-slab">
-        <div className="read-section-header">
-          <h3>Your Writing</h3>
-          <button className="button primary small" onClick={() => setShowModal(true)}>
-            + New
-          </button>
-        </div>
-        {!hasPieces && !hasLessons && (
-          <p className="muted small">
-            Start writing to practice your {activeLanguage}.
-          </p>
-        )}
-      </section>
+      {/* Three CTA Cards */}
+      <div className="writing-cta-row">
+        <button className="writing-cta-card" onClick={() => setModalMode('free')}>
+          <div className="writing-cta-icon">
+            <PenIcon />
+          </div>
+          <div className="writing-cta-content">
+            <h3>Free Writing</h3>
+            <p>Write journals, essays, stories</p>
+          </div>
+        </button>
+
+        <button className="writing-cta-card" onClick={() => setModalMode('practice')}>
+          <div className="writing-cta-icon">
+            <TranslateIcon />
+          </div>
+          <div className="writing-cta-content">
+            <h3>Practice Mode</h3>
+            <p>Translate from your native language</p>
+          </div>
+        </button>
+
+        <button className="writing-cta-card" onClick={handleChatWithTutor}>
+          <div className="writing-cta-icon">
+            <ChatIcon />
+          </div>
+          <div className="writing-cta-content">
+            <h3>Chat with Tutor</h3>
+            <p>Get help and feedback</p>
+          </div>
+        </button>
+      </div>
 
       {/* Practice Lessons */}
       {hasLessons && (
@@ -303,10 +353,11 @@ const WritingHub = ({ activeLanguage }) => {
         </>
       )}
 
-      {showModal && (
+      {modalMode && (
         <NewWritingModal
           activeLanguage={activeLanguage}
-          onClose={() => setShowModal(false)}
+          initialMode={modalMode}
+          onClose={() => setModalMode(null)}
           onCreated={handleCreated}
         />
       )}

@@ -9546,6 +9546,80 @@ body.active-pass-locked {
 
 /* Practice Mode Styles */
 
+/* CTA Row - Three big cards */
+.writing-cta-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.writing-cta-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.writing-cta-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.writing-cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: #f8fafc;
+  border-radius: 12px;
+  color: #475569;
+}
+
+.writing-cta-card:hover .writing-cta-icon {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.writing-cta-content h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.writing-cta-content p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .writing-cta-row {
+    grid-template-columns: 1fr;
+  }
+
+  .writing-cta-card {
+    flex-direction: row;
+    text-align: left;
+    padding: 1rem 1.25rem;
+  }
+
+  .writing-cta-icon {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 /* New Writing Modal */
 .new-writing-modal {
   max-width: 480px;
@@ -10121,6 +10195,34 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .mode-option-desc {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-cta-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-cta-card:hover {
+  border-color: #475569;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .writing-cta-icon {
+  background: #334155;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-cta-card:hover .writing-cta-icon {
+  background: #475569;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-cta-content h3 {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .writing-cta-content p {
   color: #94a3b8;
 }
 

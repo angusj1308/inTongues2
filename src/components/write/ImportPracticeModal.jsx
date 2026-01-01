@@ -1,26 +1,33 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { ADAPTATION_LEVELS, SOURCE_TYPES, createPracticeLesson, splitIntoSentences } from '../../services/practice'
+import { ADAPTATION_LEVELS, createPracticeLesson, splitIntoSentences } from '../../services/practice'
+
+const SOURCE_OPTIONS = [
+  { id: 'text', label: 'Paste Text' },
+  { id: 'youtube', label: 'YouTube Video' },
+]
 
 const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
   const { user } = useAuth()
-  const [title, setTitle] = useState('')
-  const [sourceType, setSourceType] = useState('text')
+  const [sourceType, setSourceType] = useState('')
   const [adaptationLevel, setAdaptationLevel] = useState('native')
-  const [sourceLanguage, setSourceLanguage] = useState('English')
   const [textContent, setTextContent] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [processingStatus, setProcessingStatus] = useState('')
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
+    if (!sourceType) {
+      setError('Please select a source type')
+      return
+    }
+
     setError('')
     setLoading(true)
 
     try {
       let sentences = []
+      let title = `Practice - ${new Date().toLocaleDateString()}`
 
       if (sourceType === 'text') {
         if (!textContent.trim()) {
@@ -34,14 +41,14 @@ const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
           setLoading(false)
           return
         }
+        title = textContent.slice(0, 40).trim() + (textContent.length > 40 ? '...' : '')
       } else if (sourceType === 'youtube') {
         if (!youtubeUrl.trim()) {
           setError('Please enter a YouTube URL.')
           setLoading(false)
           return
         }
-        setProcessingStatus('Fetching transcript...')
-        // Call the existing transcribe endpoint
+
         const response = await fetch('/api/transcribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -55,7 +62,6 @@ const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
 
         const data = await response.json()
         if (data.segments && data.segments.length > 0) {
-          // Use segments as sentences
           sentences = data.segments.map(seg => seg.text.trim()).filter(s => s.length > 0)
         } else if (data.text) {
           sentences = splitIntoSentences(data.text)
@@ -66,17 +72,13 @@ const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
           setLoading(false)
           return
         }
-      } else {
-        setError('This import source is not yet supported.')
-        setLoading(false)
-        return
+
+        title = data.title || title
       }
 
-      setProcessingStatus('Creating lesson...')
-
       const lessonData = {
-        title: title.trim() || `Practice - ${new Date().toLocaleDateString()}`,
-        sourceLanguage,
+        title,
+        sourceLanguage: 'English',
         targetLanguage: activeLanguage,
         adaptationLevel,
         sourceType,
@@ -94,7 +96,6 @@ const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
       setError(err.message || 'Failed to create practice lesson.')
     } finally {
       setLoading(false)
-      setProcessingStatus('')
     }
   }
 
@@ -104,87 +105,51 @@ const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
     }
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      onClose()
+    }
+  }
+
+  const canSubmit = sourceType && (
+    (sourceType === 'text' && textContent.trim()) ||
+    (sourceType === 'youtube' && youtubeUrl.trim())
+  )
+
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-content import-practice-modal">
+    <div
+      className="modal-backdrop"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="practice-modal-title"
+    >
+      <div className="modal-content create-piece-modal">
         <div className="modal-header">
-          <h2>Start Practice Lesson</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
-            ×
+          <h2 id="practice-modal-title">Translation Practice</h2>
+          <button
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            &times;
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <div className="modal-body">
           <div className="form-group">
-            <label htmlFor="practice-title">Title (optional)</label>
-            <input
-              id="practice-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="My Practice Lesson"
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="source-language">Source Language</label>
-              <input
-                id="source-language"
-                type="text"
-                value={sourceLanguage}
-                onChange={(e) => setSourceLanguage(e.target.value)}
-                placeholder="English"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="target-language">Target Language</label>
-              <input
-                id="target-language"
-                type="text"
-                value={activeLanguage}
-                disabled
-                className="disabled-input"
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="adaptation-level">Adaptation Level</label>
-            <select
-              id="adaptation-level"
-              value={adaptationLevel}
-              onChange={(e) => setAdaptationLevel(e.target.value)}
-              disabled={loading}
-            >
-              {ADAPTATION_LEVELS.map((level) => (
-                <option key={level.id} value={level.id}>
-                  {level.label}
-                </option>
-              ))}
-            </select>
-            <p className="form-hint">
-              {adaptationLevel === 'beginner' && 'Simplified vocabulary and shorter sentences'}
-              {adaptationLevel === 'intermediate' && 'Natural expressions with some simplification'}
-              {adaptationLevel === 'native' && 'Original content as-is, no adaptation'}
-            </p>
-          </div>
-
-          <div className="form-group">
-            <label>Import Source</label>
-            <div className="source-type-tabs">
-              {SOURCE_TYPES.filter(t => t.id === 'text' || t.id === 'youtube').map((type) => (
+            <label className="form-label">Import from</label>
+            <div className="text-type-grid">
+              {SOURCE_OPTIONS.map((opt) => (
                 <button
-                  key={type.id}
+                  key={opt.id}
+                  className={`text-type-option ${sourceType === opt.id ? 'selected' : ''}`}
+                  onClick={() => setSourceType(opt.id)}
                   type="button"
-                  className={`source-type-tab ${sourceType === type.id ? 'active' : ''}`}
-                  onClick={() => setSourceType(type.id)}
                   disabled={loading}
                 >
-                  {type.label}
+                  {opt.label}
                 </button>
               ))}
             </div>
@@ -192,50 +157,72 @@ const ImportPracticeModal = ({ activeLanguage, onClose, onCreated }) => {
 
           {sourceType === 'text' && (
             <div className="form-group">
-              <label htmlFor="text-content">Paste your text</label>
+              <label className="form-label" htmlFor="practice-text">
+                Paste your English text
+              </label>
               <textarea
-                id="text-content"
+                id="practice-text"
+                className="form-textarea"
                 value={textContent}
                 onChange={(e) => setTextContent(e.target.value)}
-                placeholder="Paste the content you want to practice with..."
-                rows={8}
+                placeholder="Paste a paragraph or article you want to practice expressing in your target language..."
+                rows={5}
                 disabled={loading}
               />
-              <p className="form-hint">
-                Enter text in {sourceLanguage}. It will be split into sentences for practice.
-              </p>
             </div>
           )}
 
           {sourceType === 'youtube' && (
             <div className="form-group">
-              <label htmlFor="youtube-url">YouTube URL</label>
+              <label className="form-label" htmlFor="practice-url">
+                YouTube URL
+              </label>
               <input
-                id="youtube-url"
+                id="practice-url"
                 type="url"
+                className="form-input"
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder="https://youtube.com/watch?v=..."
                 disabled={loading}
               />
-              <p className="form-hint">
-                We'll extract the transcript and split it into sentences.
-              </p>
             </div>
           )}
 
-          {error && <p className="form-error">{error}</p>}
-          {processingStatus && <p className="form-status">{processingStatus}</p>}
+          {sourceType && (
+            <div className="form-group">
+              <label className="form-label">Difficulty</label>
+              <div className="text-type-grid">
+                {ADAPTATION_LEVELS.map((level) => (
+                  <button
+                    key={level.id}
+                    className={`text-type-option ${adaptationLevel === level.id ? 'selected' : ''}`}
+                    onClick={() => setAdaptationLevel(level.id)}
+                    type="button"
+                    disabled={loading}
+                  >
+                    {level.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <div className="modal-actions">
-            <button type="button" className="button ghost" onClick={onClose} disabled={loading}>
-              Cancel
-            </button>
-            <button type="submit" className="button primary" disabled={loading}>
-              {loading ? 'Processing...' : 'Start Practice'}
-            </button>
-          </div>
-        </form>
+          {error && <p className="error small">{error}</p>}
+        </div>
+
+        <div className="modal-footer">
+          <button className="button ghost" onClick={onClose} disabled={loading}>
+            Cancel
+          </button>
+          <button
+            className="button primary"
+            onClick={handleSubmit}
+            disabled={loading || !canSubmit}
+          >
+            {loading ? 'Processing...' : 'Start Practice'}
+          </button>
+        </div>
       </div>
     </div>
   )

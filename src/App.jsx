@@ -19,6 +19,7 @@ import IntonguesCinema from './pages/IntonguesCinema'
 import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
+import PracticeLesson from './pages/PracticeLesson'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -202,6 +203,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <WritingEditor />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/practice/:lessonId"
+        element={
+          <ProtectedRoute>
+            <PracticeLesson />
           </ProtectedRoute>
         }
       />

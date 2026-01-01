@@ -256,13 +256,9 @@ const Dashboard = () => {
       try {
         const allContent = []
 
-        // Load stories
+        // Load stories (simple query without orderBy to avoid index requirement)
         const storiesRef = collection(db, 'users', user.uid, 'stories')
-        const storiesQuery = query(
-          storiesRef,
-          where('language', '==', activeLanguage),
-          orderBy('createdAt', 'desc')
-        )
+        const storiesQuery = query(storiesRef, where('language', '==', activeLanguage))
         const storiesSnap = await getDocs(storiesQuery)
         storiesSnap.forEach((doc) => {
           allContent.push({
@@ -275,11 +271,7 @@ const Dashboard = () => {
 
         // Load YouTube videos
         const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
-        const videosQuery = query(
-          videosRef,
-          where('language', '==', activeLanguage),
-          orderBy('createdAt', 'desc')
-        )
+        const videosQuery = query(videosRef, where('language', '==', activeLanguage))
         const videosSnap = await getDocs(videosQuery)
         videosSnap.forEach((doc) => {
           allContent.push({
@@ -303,6 +295,14 @@ const Dashboard = () => {
           })
         })
 
+        // Sort by createdAt client-side
+        allContent.sort((a, b) => {
+          const aTime = a.createdAt?.toMillis?.() || 0
+          const bTime = b.createdAt?.toMillis?.() || 0
+          return bTime - aTime
+        })
+
+        console.log('Loaded content items:', allContent.length, allContent)
         setContentItems(allContent)
       } catch (error) {
         console.error('Error loading content items:', error)

@@ -268,7 +268,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
           </div>
           <div className="review-modal-controls">
             <label className="review-toggle-switch">
-              <span className="review-toggle-label">Recognise</span>
+              <span className="review-toggle-label">Recall</span>
               <div className="toggle-switch">
                 <input
                   type="checkbox"
@@ -277,7 +277,6 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                 />
                 <span className="toggle-slider"></span>
               </div>
-              <span className="review-toggle-label">Recall</span>
             </label>
             <label className="review-toggle-switch">
               <span className="review-toggle-label">Audio</span>

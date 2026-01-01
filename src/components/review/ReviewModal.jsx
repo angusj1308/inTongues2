@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
 import {
   loadDueCards,
   loadCardsByStatus,
@@ -23,8 +24,43 @@ const CloseIcon = () => (
   </svg>
 )
 
-// Status abbreviations for display
-const STATUS_ABBREV = { unknown: 'U', recognised: 'R', familiar: 'F', known: 'K' }
+// Status levels and abbreviations
+const STATUS_LEVELS = ['unknown', 'recognised', 'familiar']
+const STATUS_ABBREV = { unknown: 'U', recognised: 'R', familiar: 'F' }
+
+// Helper to get language color
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
+}
+
+// Get status button style (matches WordStatusPanel)
+const getStatusStyle = (statusLevel, isActive, languageColor) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        color: '#64748b'
+      }
+    default:
+      return {}
+  }
+}
 
 const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   const { user, profile } = useAuth()
@@ -39,10 +75,14 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   // Review mode toggles
   const [isRecallMode, setIsRecallMode] = useState(false)
   const [autoPlayAudio, setAutoPlayAudio] = useState(true)
+  const [useSerifFont, setUseSerifFont] = useState(false)
 
   // Audio state
   const audioRef = useRef(null)
   const [audioLoading, setAudioLoading] = useState(false)
+
+  // Get language color for status selector
+  const languageColor = getLanguageColor(language)
 
   // Load cards when modal opens
   useEffect(() => {
@@ -202,10 +242,11 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   }
 
   const currentCard = cards[currentIndex] || null
+  const fontClass = useSerifFont ? 'use-serif-font' : ''
 
   return (
     <div className="review-modal-backdrop" onClick={handleBackdropClick}>
-      <div className="review-modal">
+      <div className={`review-modal ${fontClass}`}>
         {/* Modal Header */}
         <div className="review-modal-header">
           <div className="review-modal-title">
@@ -217,22 +258,41 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
             )}
           </div>
           <div className="review-modal-controls">
-            <label className="review-toggle">
-              <input
-                type="checkbox"
-                checked={isRecallMode}
-                onChange={(e) => setIsRecallMode(e.target.checked)}
-              />
-              <span>Recall</span>
-            </label>
-            <label className="review-toggle">
-              <input
-                type="checkbox"
-                checked={autoPlayAudio}
-                onChange={(e) => setAutoPlayAudio(e.target.checked)}
-              />
-              <span>Audio</span>
-            </label>
+            {/* Font toggle */}
+            <button
+              className={`review-modal-toggle-btn font-toggle ${useSerifFont ? 'is-active' : ''}`}
+              onClick={() => setUseSerifFont(!useSerifFont)}
+              title="Toggle serif font"
+            >
+              Aa
+            </button>
+
+            {/* Recall toggle */}
+            <div className="review-modal-toggle">
+              <span className="review-modal-toggle-label">Recall</span>
+              <button
+                className={`review-modal-switch ${isRecallMode ? 'is-on' : ''}`}
+                onClick={() => setIsRecallMode(!isRecallMode)}
+                role="switch"
+                aria-checked={isRecallMode}
+              >
+                <span className="review-modal-switch-knob" />
+              </button>
+            </div>
+
+            {/* Auto-play audio toggle */}
+            <div className="review-modal-toggle">
+              <span className="review-modal-toggle-label">Auto-play</span>
+              <button
+                className={`review-modal-switch ${autoPlayAudio ? 'is-on' : ''}`}
+                onClick={() => setAutoPlayAudio(!autoPlayAudio)}
+                role="switch"
+                aria-checked={autoPlayAudio}
+              >
+                <span className="review-modal-switch-knob" />
+              </button>
+            </div>
+
             <button className="review-modal-close" onClick={onClose}>
               <CloseIcon />
             </button>
@@ -269,12 +329,12 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                   <div className="review-card-front">
                     <div className="review-card-content">
                       {isRecallMode ? (
-                        <div className="review-card-translation">
+                        <div className="review-card-text">
                           {currentCard?.translation || 'No translation'}
                         </div>
                       ) : (
                         <>
-                          <div className="review-card-word">{currentCard?.text}</div>
+                          <div className="review-card-text">{currentCard?.text}</div>
                           <button
                             className="review-audio-button"
                             onClick={() => playAudio(currentCard?.text)}
@@ -292,7 +352,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                     <div className="review-card-content">
                       {isRecallMode ? (
                         <>
-                          <div className="review-card-word">{currentCard?.text}</div>
+                          <div className="review-card-text">{currentCard?.text}</div>
                           <button
                             className="review-audio-button"
                             onClick={() => playAudio(currentCard?.text)}
@@ -302,7 +362,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                           </button>
                         </>
                       ) : (
-                        <div className="review-card-translation">
+                        <div className="review-card-text">
                           {currentCard?.translation || 'No translation'}
                         </div>
                       )}
@@ -320,21 +380,26 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                 </div>
               ) : (
                 <div className="review-actions">
-                  {/* Status adjustment */}
+                  {/* Status selector - matches WordStatusPanel design */}
                   <div className="review-status-row">
-                    <span className="review-status-label">Status:</span>
-                    <div className="review-status-buttons">
-                      {VOCAB_STATUSES.filter((s) => s !== 'known').map((status) => (
-                        <button
-                          key={status}
-                          className={`review-status-button ${
-                            currentCard?.status === status ? 'is-active' : ''
-                          }`}
-                          onClick={() => handleStatusChange(status)}
-                        >
-                          {STATUS_ABBREV[status]}
-                        </button>
-                      ))}
+                    <div className="status-selector">
+                      {STATUS_LEVELS.map((status) => {
+                        const isActive = currentCard?.status === status
+                        const style = getStatusStyle(status, isActive, languageColor)
+                        return (
+                          <button
+                            key={status}
+                            type="button"
+                            className={`status-selector-option ${isActive ? 'active' : ''}`}
+                            style={style}
+                            onClick={() => handleStatusChange(status)}
+                            aria-label={`Set status to ${status}`}
+                            aria-pressed={isActive}
+                          >
+                            {STATUS_ABBREV[status]}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 

@@ -2120,7 +2120,7 @@ function alignPunctuationToWords(fullText = '', words = []) {
 }
 
 // Build sentences from Whisper word-level timestamps
-// Sentence breaks on: punctuation (. ? !) OR pause > threshold OR approaching max words with punctuation
+// Sentence breaks only on punctuation (. ? !)
 function buildSentencesFromWords(words = [], fullText = '') {
   if (!words.length) return []
 
@@ -2129,10 +2129,6 @@ function buildSentencesFromWords(words = [], fullText = '') {
 
   const sentences = []
   let currentWords = []
-
-  const PAUSE_THRESHOLD = 0.8 // seconds - increased from 0.5
-  const SOFT_MAX_WORDS = 15 // start looking for break point
-  const HARD_MAX_WORDS = 30 // force break if no punctuation found
 
   for (let i = 0; i < enrichedWords.length; i++) {
     const word = enrichedWords[i]
@@ -2145,16 +2141,11 @@ function buildSentencesFromWords(words = [], fullText = '') {
       end: word.end || 0,
     })
 
-    // Check for sentence break conditions
+    // Check for sentence break conditions - only punctuation based
     const hasSentenceEnd = /[.?!]$/.test(word.word || '')
-    const gap = nextWord ? nextWord.start - word.end : 999
-    const hasLongPause = gap > PAUSE_THRESHOLD
-    const atSoftMax = currentWords.length >= SOFT_MAX_WORDS
-    const atHardMax = currentWords.length >= HARD_MAX_WORDS
-    const hasAnyPunctuation = /[.,;:?!]$/.test(word.word || '')
 
-    // Break on: sentence end, long pause, hard max, or soft max with any punctuation
-    const shouldBreak = hasSentenceEnd || hasLongPause || atHardMax || (atSoftMax && hasAnyPunctuation) || !nextWord
+    // Break only on: sentence end punctuation or end of text
+    const shouldBreak = hasSentenceEnd || !nextWord
 
     if (shouldBreak && currentWords.length > 0) {
       const text = currentWords.map(w => w.text).join(' ')

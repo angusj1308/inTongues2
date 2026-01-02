@@ -281,7 +281,6 @@ const PracticeLesson = () => {
           ← Back
         </button>
         <div className="practice-header-info">
-          <h1>{lesson.title}</h1>
           <span className="practice-header-meta">
             {lesson.sourceLanguage} → {lesson.targetLanguage} • {lesson.completedCount}/{lesson.sentences?.length || 0} sentences
           </span>
@@ -368,29 +367,34 @@ const PracticeLesson = () => {
 
         {/* Right panel - Document */}
         <main className="practice-document-panel">
-          {/* Completed sentences */}
-          {completedDocument && (
+          {/* Document title */}
+          <h1 className="practice-document-title">{lesson.title}</h1>
+
+          {/* Completed sentences - clickable to navigate */}
+          {lesson.sentences?.some((_, i) => {
+            const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
+            return attempt?.status === 'finalized'
+          }) && (
             <div className="practice-completed-document">
               <h3>Your Document</h3>
-              <p>{completedDocument}</p>
+              <p className="practice-document-sentences">
+                {lesson.sentences?.map((s, i) => {
+                  const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
+                  if (attempt?.status !== 'finalized') return null
+                  return (
+                    <span
+                      key={i}
+                      className={`practice-document-sentence ${i === lesson.currentIndex ? 'current' : ''}`}
+                      onClick={() => handleGoToSentence(i)}
+                      title={`Sentence ${i + 1} - Click to edit`}
+                    >
+                      {attempt.finalText}{' '}
+                    </span>
+                  )
+                })}
+              </p>
             </div>
           )}
-
-          {/* Sentence navigator */}
-          <div className="practice-sentence-nav">
-            {lesson.sentences?.map((s, i) => {
-              const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
-              const status = attempt?.status || 'pending'
-              return (
-                <button
-                  key={i}
-                  className={`sentence-nav-dot ${status} ${i === lesson.currentIndex ? 'current' : ''}`}
-                  onClick={() => handleGoToSentence(i)}
-                  title={`Sentence ${i + 1}`}
-                />
-              )
-            })}
-          </div>
 
           {/* Current sentence workspace */}
           {!isComplete && currentSentence && (

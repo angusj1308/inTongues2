@@ -92,6 +92,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   // Audio state
   const audioRef = useRef(null)
   const [audioLoading, setAudioLoading] = useState(false)
+  const [translationLoading, setTranslationLoading] = useState(false)
 
   // Get language color for status selector
   const languageColor = getLanguageColor(language)
@@ -150,8 +151,13 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   // Fetch missing translation for current card and persist to Firestore
   useEffect(() => {
     const currentCard = cards[currentIndex]
-    if (!currentCard || !isMissingTranslation(currentCard.translation)) return
+    if (!currentCard || !isMissingTranslation(currentCard.translation)) {
+      setTranslationLoading(false)
+      return
+    }
     if (!language || !profile?.nativeLanguage || !user) return
+
+    setTranslationLoading(true)
 
     const fetchTranslation = async () => {
       try {
@@ -180,6 +186,8 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
         }
       } catch (error) {
         console.error('Error fetching translation:', error)
+      } finally {
+        setTranslationLoading(false)
       }
     }
 
@@ -392,7 +400,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                     <div className="review-card-content">
                       {isRecallMode ? (
                         <div className="review-card-text">
-                          {currentCard?.translation || 'No translation'}
+                          {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
                         </div>
                       ) : (
                         <>
@@ -425,7 +433,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                         </>
                       ) : (
                         <div className="review-card-text">
-                          {currentCard?.translation || 'No translation'}
+                          {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
                         </div>
                       )}
                     </div>

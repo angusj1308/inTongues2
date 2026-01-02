@@ -2160,6 +2160,108 @@ app.post('/api/transcribe', async (req, res) => {
   }
 })
 
+// Background transcript processing for Translation Practice YouTube imports
+// Creates lesson immediately, then fetches transcript and updates the lesson
+app.post('/api/transcribe/background', async (req, res) => {
+  const { url, lessonId, uid } = req.body || {}
+
+  if (!url || !lessonId || !uid) {
+    return res.status(400).json({ error: 'url, lessonId, and uid are required' })
+  }
+
+  const videoId = extractYouTubeId(url)
+  if (!videoId) {
+    // Update lesson to failed status
+    try {
+      await firestore.collection('users').doc(uid).collection('practiceLessons').doc(lessonId).update({
+        status: 'import_failed',
+        importError: 'Invalid YouTube URL',
+      })
+    } catch (e) {
+      console.error('Failed to update lesson status:', e)
+    }
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  // Respond immediately - processing happens in background
+  res.json({ status: 'processing', lessonId })
+
+  // Background processing
+  const lessonRef = firestore.collection('users').doc(uid).collection('practiceLessons').doc(lessonId)
+
+  try {
+    let transcriptResult = { text: '', segments: [] }
+
+    // Try YouTube captions first
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, 'en')
+      if (captionSegments.length > 0) {
+        transcriptResult = {
+          text: captionSegments.map((seg) => seg.text).join(' '),
+          segments: captionSegments,
+        }
+      }
+    } catch (captionError) {
+      console.error('Background import - captions failed, trying Whisper:', captionError.message)
+    }
+
+    // Fallback to Whisper if no captions
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      try {
+        const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+        transcriptResult = {
+          text: whisperResult?.text || '',
+          segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        }
+      } catch (whisperError) {
+        console.error('Background import - Whisper failed:', whisperError.message)
+        await lessonRef.update({
+          status: 'import_failed',
+          importError: 'Failed to fetch transcript from video',
+        })
+        return
+      }
+    }
+
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: 'No transcript available for this video',
+      })
+      return
+    }
+
+    // Extract sentences from segments
+    const sentences = transcriptResult.segments
+      .map((seg) => seg.text?.trim())
+      .filter((s) => s && s.length > 0)
+      .map((text, index) => ({
+        index,
+        text,
+        status: 'pending',
+      }))
+
+    // Update the lesson with sentences and change status
+    await lessonRef.update({
+      sentences,
+      status: 'in_progress',
+      importError: null,
+    })
+
+    console.log(`Background import complete for lesson ${lessonId}: ${sentences.length} sentences`)
+  } catch (error) {
+    console.error('Background transcript processing error:', error)
+    try {
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: error.message || 'Failed to process video',
+      })
+    } catch (e) {
+      console.error('Failed to update lesson status:', e)
+    }
+  }
+})
+
 // Background processor for YouTube transcript generation
 // Called from import to prepare video before user opens it
 async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode = 'auto') {

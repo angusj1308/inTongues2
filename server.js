@@ -1596,28 +1596,53 @@ app.post('/api/spotify/transcript/generate', async (req, res) => {
 })
 
 async function fetchYoutubeCaptionSegments(videoId, languageCode) {
-  const info = await ytdl.getInfo(videoId)
-  const tracks =
-    info?.player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || []
+  // Fetch the YouTube video page directly to get caption data
+  const videoPageUrl = `https://www.youtube.com/watch?v=${videoId}`
+  console.log('Fetching YouTube page for captions:', videoId)
 
-  console.log('CAPTION TRACKS:', JSON.stringify(tracks, null, 2))
+  const pageResponse = await fetch(videoPageUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  })
+
+  if (!pageResponse.ok) {
+    throw new Error(`Failed to fetch YouTube page: ${pageResponse.status}`)
+  }
+
+  const pageHtml = await pageResponse.text()
+
+  // Extract ytInitialPlayerResponse from the page
+  const playerResponseMatch = pageHtml.match(/ytInitialPlayerResponse\s*=\s*({.+?});/)
+  if (!playerResponseMatch) {
+    throw new Error('Could not find player response in YouTube page')
+  }
+
+  let playerResponse
+  try {
+    playerResponse = JSON.parse(playerResponseMatch[1])
+  } catch (e) {
+    throw new Error('Failed to parse player response JSON')
+  }
+
+  const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || []
+  console.log('Found', tracks.length, 'caption tracks')
 
   if (!tracks.length) return []
 
-  // Convert language name to code (e.g., 'Spanish' → 'es')
-  const requestedLang = (languageCode || '').trim()
-  const lowerRequested = requestedLang.toLowerCase()
-
+  // Convert language name to code
+  const requestedLang = (languageCode || '').trim().toLowerCase()
   let langCode = null
   for (const [name, code] of Object.entries(LANGUAGE_NAME_TO_CODE)) {
-    if (name.toLowerCase() === lowerRequested) {
+    if (name.toLowerCase() === requestedLang) {
       langCode = code
       break
     }
   }
-  langCode = langCode || lowerRequested
+  langCode = langCode || requestedLang
 
-  console.log('REQUESTED LANGUAGE:', requestedLang, '→ CODE:', langCode)
+  console.log('REQUESTED LANGUAGE:', languageCode, '→ CODE:', langCode)
 
   // Find best matching track
   const manualTrackForLang = tracks.find((track) =>
@@ -1632,42 +1657,39 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 
   const selectedTrack = manualTrackForLang || matchByLangCode || asrTrackForLang || anyAsrTrack || fallbackTrack
 
-  console.log('SELECTED TRACK:', selectedTrack?.languageCode, selectedTrack?.kind, selectedTrack?.name)
+  console.log('SELECTED TRACK:', selectedTrack?.languageCode, selectedTrack?.kind)
 
   if (!selectedTrack?.baseUrl) return []
 
-  // Fetch as XML (more reliable than JSON) - don't add fmt parameter
+  // Fetch the caption XML
   const trackUrl = selectedTrack.baseUrl
-  console.log('Fetching caption track URL:', trackUrl.substring(0, 100) + '...')
+  console.log('Fetching caption URL...')
 
-  const response = await fetch(trackUrl, {
+  const captionResponse = await fetch(trackUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': '*/*',
     },
   })
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch caption track: ${response.status} ${response.statusText}`)
+  if (!captionResponse.ok) {
+    throw new Error(`Failed to fetch captions: ${captionResponse.status}`)
   }
 
-  const responseText = await response.text()
-  console.log('Caption response length:', responseText.length, 'First 300 chars:', responseText.substring(0, 300))
+  const captionXml = await captionResponse.text()
+  console.log('Caption response length:', captionXml.length)
 
-  if (!responseText || responseText.length === 0) {
-    throw new Error('Empty response from caption track')
+  if (!captionXml || captionXml.length === 0) {
+    throw new Error('Empty caption response')
   }
 
-  // Parse XML format (default YouTube caption format)
-  // Format: <transcript><text start="0" dur="2.5">Hello world</text>...</transcript>
+  // Parse XML: <text start="0" dur="2.5">Hello world</text>
   const segments = []
   const textRegex = /<text\s+start="([^"]+)"\s+dur="([^"]+)"[^>]*>([^<]*)<\/text>/g
   let match
 
-  while ((match = textRegex.exec(responseText)) !== null) {
+  while ((match = textRegex.exec(captionXml)) !== null) {
     const start = parseFloat(match[1])
     const duration = parseFloat(match[2])
-    // Decode HTML entities
     const text = match[3]
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')

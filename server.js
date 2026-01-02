@@ -1977,43 +1977,78 @@ function hasAdequatePunctuation(text) {
   return punctuationCount >= expectedPunctuation * 0.5
 }
 
-// Use AI to add punctuation to unpunctuated transcript text
-async function addPunctuationWithAI(text) {
-  if (!text || text.length < 50) return text
+// Use AI to segment unpunctuated transcript into proper sentences
+async function segmentWithAI(text) {
+  if (!text || text.length < 50) return [text]
 
-  // Check if already has adequate punctuation
+  // Check if already has adequate punctuation - if so, use standard splitting
   if (hasAdequatePunctuation(text)) {
-    console.log('Text already has adequate punctuation, skipping AI')
-    return text
+    console.log('Text already has adequate punctuation, using standard split')
+    return splitIntoSentences(text)
   }
 
-  console.log('Adding punctuation with AI for', text.length, 'characters')
+  console.log('Segmenting with AI for', text.length, 'characters')
 
-  try {
-    const response = await client.responses.create({
-      model: 'gpt-4o-mini',
-      input: `Add proper punctuation (periods, question marks, exclamation marks) to this transcript.
-Keep the exact same words - only add punctuation marks where sentences naturally end.
-Do not add commas or change any words. Just add . ! or ? at sentence boundaries.
+  // Process in chunks if text is very long (GPT has token limits)
+  const MAX_CHUNK = 8000 // characters per chunk
+  const chunks = []
+  for (let i = 0; i < text.length; i += MAX_CHUNK) {
+    chunks.push(text.slice(i, i + MAX_CHUNK))
+  }
+
+  const allSentences = []
+
+  for (const chunk of chunks) {
+    try {
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: `Segment this transcript into individual sentences. Output ONE SENTENCE PER LINE.
+
+Rules:
+- Each line should be a complete, natural sentence
+- Aim for sentences of 10-25 words each
+- Keep the exact same words, just add line breaks between sentences
+- Add periods at the end of each sentence
 
 Transcript:
-${text}
+${chunk}
 
-Return ONLY the punctuated text, nothing else.`,
-    })
+Output each sentence on its own line:`,
+      })
 
-    const punctuatedText = response.output_text?.trim()
-    if (punctuatedText && punctuatedText.length > text.length * 0.8) {
-      console.log('AI punctuation complete, added', (punctuatedText.match(/[.!?]/g) || []).length, 'sentence endings')
-      return punctuatedText
+      const segmentedText = response.output_text?.trim()
+      if (segmentedText) {
+        const sentences = segmentedText
+          .split('\n')
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
+        allSentences.push(...sentences)
+        console.log(`AI segmented chunk into ${sentences.length} sentences`)
+      }
+    } catch (error) {
+      console.error('AI segmentation error:', error.message)
+      // Fallback: split by length
+      const fallbackSentences = splitByLength(chunk, 150)
+      allSentences.push(...fallbackSentences)
     }
-
-    console.log('AI response invalid, using original text')
-    return text
-  } catch (error) {
-    console.error('AI punctuation error:', error.message)
-    return text
   }
+
+  return allSentences.length > 0 ? allSentences : [text]
+}
+
+// Fallback: split long text by word count
+function splitByLength(text, maxWords = 150) {
+  const words = text.split(/\s+/)
+  const sentences = []
+
+  for (let i = 0; i < words.length; i += maxWords) {
+    const chunk = words.slice(i, i + maxWords).join(' ')
+    if (chunk.trim()) {
+      sentences.push(chunk.trim() + (chunk.endsWith('.') ? '' : '.'))
+    }
+  }
+
+  return sentences
 }
 
 function buildSentenceSegmentsFromWhisper(whisperSegments = []) {
@@ -2463,16 +2498,16 @@ app.post('/api/transcribe/background', async (req, res) => {
       .filter((s) => s && s.length > 0)
       .join(' ')
 
-    // Add punctuation if needed (YouTube ASR captions often lack punctuation)
-    const fullTranscript = await addPunctuationWithAI(rawTranscript)
-
-    // Split into proper sentences by punctuation
-    const sentenceTexts = splitIntoSentences(fullTranscript)
+    // Use AI to segment into proper sentences (handles unpunctuated ASR captions)
+    const sentenceTexts = await segmentWithAI(rawTranscript)
     const sentences = sentenceTexts.map((text, index) => ({
       index,
       text,
       status: 'pending',
     }))
+
+    // Store full transcript for tutor context
+    const fullTranscript = sentenceTexts.join(' ')
 
     // Update the lesson with sentences, fullTranscript, and change status
     await lessonRef.update({

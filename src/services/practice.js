@@ -43,6 +43,8 @@ export const createPracticeLesson = async (userId, data) => {
     adaptationLevel,
     sourceType,
     sentences,
+    youtubeUrl,
+    status,
   } = data
 
   const normalisedTarget = normaliseLanguage(targetLanguage)
@@ -57,7 +59,7 @@ export const createPracticeLesson = async (userId, data) => {
     sentences: sentences || [],
     currentIndex: 0,
     completedCount: 0,
-    status: 'in_progress',
+    status: status || 'in_progress',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     attempts: [],
@@ -65,6 +67,11 @@ export const createPracticeLesson = async (userId, data) => {
       feedbackLanguage: 'target', // 'native' or 'target'
       showGrammar: true,
     },
+  }
+
+  // Add youtubeUrl if provided (for importing status)
+  if (youtubeUrl) {
+    lessonData.youtubeUrl = youtubeUrl
   }
 
   const docRef = await addDoc(getPracticeCollection(userId), lessonData)

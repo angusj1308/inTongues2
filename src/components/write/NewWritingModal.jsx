@@ -36,6 +36,7 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
   const [adaptationLevel, setAdaptationLevel] = useState('native')
   const [textContent, setTextContent] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [youtubeTitle, setYoutubeTitle] = useState('')
 
   // Shared state
   const [loading, setLoading] = useState(false)
@@ -103,6 +104,22 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
           return
         }
         lessonTitle = textContent.slice(0, 40).trim() + (textContent.length > 40 ? '...' : '')
+
+        const lessonData = {
+          title: lessonTitle,
+          sourceLanguage: 'English',
+          targetLanguage: activeLanguage,
+          adaptationLevel,
+          sourceType,
+          sentences: sentences.map((text, index) => ({
+            index,
+            text,
+            status: 'pending',
+          })),
+        }
+
+        const newLesson = await createPracticeLesson(user.uid, lessonData)
+        onCreated(newLesson, 'practice')
       } else if (sourceType === 'youtube') {
         if (!youtubeUrl.trim()) {
           setError('Please enter a YouTube URL')
@@ -110,48 +127,36 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
           return
         }
 
-        const response = await fetch('/api/transcribe', {
+        // Create lesson immediately with importing status
+        lessonTitle = youtubeTitle.trim() || `YouTube Import - ${new Date().toLocaleDateString()}`
+
+        const lessonData = {
+          title: lessonTitle,
+          sourceLanguage: 'English',
+          targetLanguage: activeLanguage,
+          adaptationLevel,
+          sourceType,
+          youtubeUrl: youtubeUrl.trim(),
+          status: 'importing',
+          sentences: [],
+        }
+
+        const newLesson = await createPracticeLesson(user.uid, lessonData)
+
+        // Trigger background import (fire and forget)
+        fetch('/api/transcribe/background', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: youtubeUrl }),
-        })
+          body: JSON.stringify({
+            url: youtubeUrl.trim(),
+            lessonId: newLesson.id,
+            uid: user.uid,
+          }),
+        }).catch(err => console.error('Background import trigger failed:', err))
 
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Failed to fetch transcript')
-        }
-
-        const data = await response.json()
-        if (data.segments?.length > 0) {
-          sentences = data.segments.map(seg => seg.text.trim()).filter(s => s.length > 0)
-        } else if (data.text) {
-          sentences = splitIntoSentences(data.text)
-        }
-
-        if (sentences.length === 0) {
-          setError('Could not extract sentences from the video')
-          setLoading(false)
-          return
-        }
-
-        lessonTitle = data.title || lessonTitle
+        // Return to dashboard immediately - don't navigate to lesson
+        onCreated(newLesson, 'practice', { stayOnDashboard: true })
       }
-
-      const lessonData = {
-        title: lessonTitle,
-        sourceLanguage: 'English',
-        targetLanguage: activeLanguage,
-        adaptationLevel,
-        sourceType,
-        sentences: sentences.map((text, index) => ({
-          index,
-          text,
-          status: 'pending',
-        })),
-      }
-
-      const newLesson = await createPracticeLesson(user.uid, lessonData)
-      onCreated(newLesson, 'practice')
     } catch (err) {
       console.error('Import error:', err)
       setError(err.message || 'Failed to create practice lesson')
@@ -282,20 +287,36 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
               )}
 
               {sourceType === 'youtube' && (
-                <div className="form-group">
-                  <label className="form-label" htmlFor="practice-url">
-                    YouTube URL
-                  </label>
-                  <input
-                    id="practice-url"
-                    type="url"
-                    className="form-input"
-                    value={youtubeUrl}
-                    onChange={(e) => setYoutubeUrl(e.target.value)}
-                    placeholder="https://youtube.com/watch?v=..."
-                    disabled={loading}
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="practice-url">
+                      YouTube URL
+                    </label>
+                    <input
+                      id="practice-url"
+                      type="url"
+                      className="form-input"
+                      value={youtubeUrl}
+                      onChange={(e) => setYoutubeUrl(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="practice-title">
+                      Title
+                    </label>
+                    <input
+                      id="practice-title"
+                      type="text"
+                      className="form-input"
+                      value={youtubeTitle}
+                      onChange={(e) => setYoutubeTitle(e.target.value)}
+                      placeholder="Enter a title for this practice..."
+                      disabled={loading}
+                    />
+                  </div>
+                </>
               )}
 
               {sourceType && (

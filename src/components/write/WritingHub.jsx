@@ -248,8 +248,12 @@ const WritingHub = ({ activeLanguage }) => {
     navigate(`/practice/${lesson.id}`)
   }
 
-  const handleCreated = (item, type) => {
+  const handleCreated = (item, type, options = {}) => {
     setModalMode(null)
+    // If stayOnDashboard is true (e.g., YouTube import), just close modal
+    if (options.stayOnDashboard) {
+      return
+    }
     if (type === 'free') {
       navigate(`/write/${item.id}`)
     } else {

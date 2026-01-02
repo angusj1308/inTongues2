@@ -9540,6 +9540,12 @@ body.active-pass-locked {
   cursor: not-allowed;
 }
 
+/* Placeholder to keep text centered when no audio button */
+.review-audio-placeholder {
+  width: 44px;
+  height: 44px;
+}
+
 /* Review Actions */
 .review-actions {
   display: flex;

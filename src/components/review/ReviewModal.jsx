@@ -399,9 +399,13 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                   <div className="review-card-front">
                     <div className="review-card-content">
                       {isRecallMode ? (
-                        <div className="review-card-text">
-                          {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
-                        </div>
+                        <>
+                          <div className="review-card-text">
+                            {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
+                          </div>
+                          {/* Placeholder to match play button height */}
+                          <div className="review-audio-placeholder" />
+                        </>
                       ) : (
                         <>
                           <div className="review-card-text">{currentCard?.text}</div>
@@ -432,9 +436,13 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                           </button>
                         </>
                       ) : (
-                        <div className="review-card-text">
-                          {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
-                        </div>
+                        <>
+                          <div className="review-card-text">
+                            {translationLoading ? '...' : (currentCard?.translation || 'No translation')}
+                          </div>
+                          {/* Placeholder to match play button height */}
+                          <div className="review-audio-placeholder" />
+                        </>
                       )}
                     </div>
                   </div>

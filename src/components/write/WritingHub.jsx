@@ -6,7 +6,7 @@ import {
   groupPiecesByType,
   subscribeToWritingPieces,
 } from '../../services/writing'
-import { subscribeToPracticeLessons } from '../../services/practice'
+import { subscribeToPracticeLessons, deletePracticeLesson } from '../../services/practice'
 import NewWritingModal from './NewWritingModal'
 import WritingPieceCard from './WritingPieceCard'
 import PracticeLessonCard from './PracticeLessonCard'
@@ -148,7 +148,7 @@ const WritingShelf = ({ title, pieces, onPieceClick }) => {
   )
 }
 
-const PracticeShelf = ({ lessons, onLessonClick }) => {
+const PracticeShelf = ({ lessons, onLessonClick, onLessonDelete }) => {
   if (!lessons?.length) return null
 
   return (
@@ -162,6 +162,7 @@ const PracticeShelf = ({ lessons, onLessonClick }) => {
             key={lesson.id}
             lesson={lesson}
             onClick={() => onLessonClick(lesson)}
+            onDelete={onLessonDelete}
           />
         ))}
       </div>
@@ -246,6 +247,15 @@ const WritingHub = ({ activeLanguage }) => {
     if (lesson.id?.startsWith('placeholder')) return
     if (!lesson?.id) return
     navigate(`/practice/${lesson.id}`)
+  }
+
+  const handleDeleteLesson = async (lessonId) => {
+    if (!user || !lessonId || lessonId.startsWith('placeholder')) return
+    try {
+      await deletePracticeLesson(user.uid, lessonId)
+    } catch (err) {
+      console.error('Failed to delete lesson:', err)
+    }
   }
 
   const handleCreated = (item, type, options = {}) => {
@@ -340,6 +350,7 @@ const WritingHub = ({ activeLanguage }) => {
         <PracticeShelf
           lessons={displayLessons}
           onLessonClick={handleOpenLesson}
+          onLessonDelete={handleDeleteLesson}
         />
       )}
 

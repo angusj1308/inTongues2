@@ -11160,6 +11160,60 @@ body.active-pass-locked {
   color: #dc2626;
 }
 
+/* Tutor Prompt */
+.practice-tutor-prompt {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.practice-tutor-prompt .prompt-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.practice-tutor-prompt .prompt-text {
+  margin: 0;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+/* Example Sentence */
+.practice-example-sentence {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
+
+.practice-example-sentence .example-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #16a34a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.practice-example-sentence .example-text {
+  margin: 0;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #14532d;
+}
+
 /* Feedback Details */
 .practice-feedback-details {
   padding: 1rem 1.25rem;
@@ -11220,7 +11274,7 @@ body.active-pass-locked {
 .practice-document-paper {
   width: 100%;
   max-width: 816px;
-  min-height: calc(100vh - 200px);
+  min-height: 1056px;
   background: #ffffff;
   border-radius: 2px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -11661,6 +11715,28 @@ body.active-pass-locked {
 [data-theme='dark'] .practice-chat-message.assistant {
   background: #334155;
   color: #e2e8f0;
+}
+
+[data-theme='dark'] .practice-tutor-prompt {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .practice-tutor-prompt .prompt-text {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .practice-example-sentence {
+  background: #14532d;
+  border-color: #166534;
+}
+
+[data-theme='dark'] .practice-example-sentence .example-label {
+  color: #4ade80;
+}
+
+[data-theme='dark'] .practice-example-sentence .example-text {
+  color: #bbf7d0;
 }
 
 [data-theme='dark'] .practice-feedback-details {

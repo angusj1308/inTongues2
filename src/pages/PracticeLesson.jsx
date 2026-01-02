@@ -411,29 +411,52 @@ const PracticeLesson = () => {
               </div>
             ))}
 
-            {/* Feedback card - shown after getting feedback */}
-            {feedback && (
-              <div className="practice-feedback-card">
-                <div className="feedback-scores">
-                  {feedback.correctness !== undefined && (
-                    <div className="feedback-score">
-                      <span className="score-label">Correctness</span>
-                      <span className="score-value">{feedback.correctness}/5</span>
-                    </div>
-                  )}
-                  {feedback.accuracy !== undefined && (
-                    <div className="feedback-score">
-                      <span className="score-label">Accuracy</span>
-                      <span className="score-value">{feedback.accuracy}/5</span>
-                    </div>
-                  )}
-                  {feedback.naturalness !== undefined && (
-                    <div className="feedback-score">
-                      <span className="score-label">Naturalness</span>
-                      <span className="score-value">{feedback.naturalness}/5</span>
-                    </div>
-                  )}
+            {/* Feedback checklist - shown while checking or after feedback */}
+            {(feedbackLoading || feedback) && (
+              <div className="practice-feedback-checklist">
+                <div className={`feedback-check-item ${feedback ? (feedback.correctness >= 4 ? 'pass' : 'fail') : 'checking'}`}>
+                  <span className="check-label">Grammar & Spelling</span>
+                  <span className="check-status">
+                    {!feedback ? (
+                      <span className="checking-text">checking...</span>
+                    ) : feedback.correctness >= 4 ? (
+                      <span className="check-icon pass">✓</span>
+                    ) : (
+                      <span className="check-icon fail">✗</span>
+                    )}
+                  </span>
                 </div>
+                <div className={`feedback-check-item ${feedback ? (feedback.accuracy >= 4 ? 'pass' : 'fail') : 'checking'}`}>
+                  <span className="check-label">Accuracy</span>
+                  <span className="check-status">
+                    {!feedback ? (
+                      <span className="checking-text">checking...</span>
+                    ) : feedback.accuracy >= 4 ? (
+                      <span className="check-icon pass">✓</span>
+                    ) : (
+                      <span className="check-icon fail">✗</span>
+                    )}
+                  </span>
+                </div>
+                <div className={`feedback-check-item ${feedback ? (feedback.naturalness >= 4 ? 'pass' : 'fail') : 'checking'}`}>
+                  <span className="check-label">Naturalness</span>
+                  <span className="check-status">
+                    {!feedback ? (
+                      <span className="checking-text">checking...</span>
+                    ) : feedback.naturalness >= 4 ? (
+                      <span className="check-icon pass">✓</span>
+                    ) : (
+                      <span className="check-icon fail">✗</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Feedback explanation - only shows issues */}
+            {feedback && feedback.explanation && (
+              <div className="practice-feedback-explanation">
+                {feedback.explanation}
               </div>
             )}
 

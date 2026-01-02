@@ -367,97 +367,93 @@ const PracticeLesson = () => {
 
         {/* Right panel - Document */}
         <main className="practice-document-panel">
-          {/* Document title */}
-          <h1 className="practice-document-title">{lesson.title}</h1>
+          <div className="practice-document-paper">
+            {/* Document title */}
+            <h1 className="practice-document-title">{lesson.title}</h1>
 
-          {/* Completed sentences - clickable to navigate */}
-          {lesson.sentences?.some((_, i) => {
-            const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
-            return attempt?.status === 'finalized'
-          }) && (
-            <div className="practice-completed-document">
-              <h3>Your Document</h3>
-              <p className="practice-document-sentences">
-                {lesson.sentences?.map((s, i) => {
-                  const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
-                  if (attempt?.status !== 'finalized') return null
+            {/* Document body - flows like a real document */}
+            <div className="practice-document-body">
+              {/* Completed sentences - clickable to navigate */}
+              {lesson.sentences?.map((s, i) => {
+                const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
+                if (attempt?.status === 'finalized') {
                   return (
                     <span
                       key={i}
                       className={`practice-document-sentence ${i === lesson.currentIndex ? 'current' : ''}`}
                       onClick={() => handleGoToSentence(i)}
-                      title={`Sentence ${i + 1} - Click to edit`}
+                      title="Click to revise"
                     >
                       {attempt.finalText}{' '}
                     </span>
                   )
-                })}
-              </p>
+                }
+                return null
+              })}
+
+              {/* Current sentence workspace - inline in document */}
+              {!isComplete && currentSentence && (
+                <span className="practice-current-sentence">
+                  <span className="practice-source-text">{currentSentence.text}</span>
+                  <textarea
+                    ref={attemptInputRef}
+                    className="practice-inline-input"
+                    value={userAttempt}
+                    onChange={(e) => setUserAttempt(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Continue writing..."
+                    rows={1}
+                    disabled={feedbackLoading}
+                  />
+                </span>
+              )}
             </div>
-          )}
 
-          {/* Current sentence workspace */}
-          {!isComplete && currentSentence && (
-            <div className="practice-workspace">
-              <div className="practice-source-sentence">
-                <span className="label">Express this in {lesson.targetLanguage}:</span>
-                <p className="source-text">{currentSentence.text}</p>
-              </div>
-
-              <div className="practice-attempt-area">
-                <textarea
-                  ref={attemptInputRef}
-                  value={userAttempt}
-                  onChange={(e) => setUserAttempt(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={`Type your ${lesson.targetLanguage} version...`}
-                  rows={3}
-                  disabled={feedbackLoading}
-                />
+            {/* Actions bar - outside the paper flow */}
+            {!isComplete && currentSentence && (
+              <div className="practice-actions-bar">
                 {!feedback && (
                   <button
                     className="button primary"
                     onClick={handleSubmitAttempt}
                     disabled={!userAttempt.trim() || feedbackLoading}
                   >
-                    {feedbackLoading ? 'Getting feedback...' : 'Submit'}
+                    {feedbackLoading ? 'Checking...' : 'Submit'}
                   </button>
                 )}
-              </div>
 
-              {/* Model sentence and actions */}
-              {feedback && modelSentence && (
-                <div className="practice-model-sentence">
-                  <span className="label">Model sentence:</span>
-                  <p className="model-text">{modelSentence}</p>
-                  <div className="practice-actions">
-                    <button
-                      className="button ghost"
-                      onClick={() => handleFinalize(false)}
-                    >
-                      Keep My Version
-                    </button>
-                    <button
-                      className="button primary"
-                      onClick={() => handleFinalize(true)}
-                    >
-                      Use Model Sentence
-                    </button>
+                {/* Model sentence and actions */}
+                {feedback && modelSentence && (
+                  <div className="practice-model-section">
+                    <div className="practice-model-sentence">
+                      <span className="label">Model:</span>
+                      <p className="model-text">{modelSentence}</p>
+                    </div>
+                    <div className="practice-actions">
+                      <button
+                        className="button ghost"
+                        onClick={() => handleFinalize(false)}
+                      >
+                        Keep Mine
+                      </button>
+                      <button
+                        className="button primary"
+                        onClick={() => handleFinalize(true)}
+                      >
+                        Use Model
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Completion message */}
           {isComplete && (
             <div className="practice-complete">
-              <h2>🎉 Lesson Complete!</h2>
+              <h2>Lesson Complete!</h2>
               <p>You've completed all {lesson.sentences?.length} sentences.</p>
-              <div className="practice-complete-document">
-                <h3>Your Final Document</h3>
-                <p>{completedDocument}</p>
-              </div>
               <button className="button primary" onClick={() => navigate('/dashboard')}>
                 Back to Dashboard
               </button>

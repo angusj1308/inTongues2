@@ -1605,11 +1605,9 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
   if (!tracks.length) return []
 
   // Convert language name to code (e.g., 'Spanish' → 'es')
-  // Case-insensitive lookup to handle 'Spanish', 'spanish', 'SPANISH', etc.
   const requestedLang = (languageCode || '').trim()
   const lowerRequested = requestedLang.toLowerCase()
 
-  // Find matching language code (case-insensitive)
   let langCode = null
   for (const [name, code] of Object.entries(LANGUAGE_NAME_TO_CODE)) {
     if (name.toLowerCase() === lowerRequested) {
@@ -1617,119 +1615,79 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
       break
     }
   }
-  // If not found as a language name, assume it's already a code
   langCode = langCode || lowerRequested
 
   console.log('REQUESTED LANGUAGE:', requestedLang, '→ CODE:', langCode)
 
-  // 1. Try exact match on language code (e.g., 'es')
-  const matchByLangCode = tracks.find((track) => track.languageCode?.toLowerCase() === langCode)
-
-  // 2. Try matching by language name in track name (e.g., 'Spanish' in track.name)
-  const matchByName = tracks.find((track) =>
-    track.name?.languageCode?.toLowerCase() === langCode ||
-    track.languageCode?.toLowerCase().startsWith(langCode.split('-')[0])
-  )
-
-  // 3. For target language, prefer manual captions over ASR
+  // Find best matching track
   const manualTrackForLang = tracks.find((track) =>
     track.languageCode?.toLowerCase() === langCode && track.kind !== 'asr'
   )
-
-  // 4. ASR track for target language (auto-generated in that language)
+  const matchByLangCode = tracks.find((track) => track.languageCode?.toLowerCase() === langCode)
   const asrTrackForLang = tracks.find((track) =>
     track.languageCode?.toLowerCase() === langCode && track.kind === 'asr'
   )
-
-  // 5. Any ASR track (usually English) - only as last resort
   const anyAsrTrack = tracks.find((track) => track.kind === 'asr')
-
-  // 6. First available track
   const fallbackTrack = tracks[0]
 
-  // Priority: manual target lang > ASR target lang > any match > ASR (any) > first track
-  const selectedTrack = manualTrackForLang || matchByLangCode || matchByName || asrTrackForLang || anyAsrTrack || fallbackTrack
+  const selectedTrack = manualTrackForLang || matchByLangCode || asrTrackForLang || anyAsrTrack || fallbackTrack
 
   console.log('SELECTED TRACK:', selectedTrack?.languageCode, selectedTrack?.kind, selectedTrack?.name)
 
   if (!selectedTrack?.baseUrl) return []
 
-  const trackUrl = `${selectedTrack.baseUrl}&fmt=json3`
+  // Fetch as XML (more reliable than JSON) - don't add fmt parameter
+  const trackUrl = selectedTrack.baseUrl
   console.log('Fetching caption track URL:', trackUrl.substring(0, 100) + '...')
 
-  const response = await fetch(trackUrl)
+  const response = await fetch(trackUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+    },
+  })
 
   if (!response.ok) {
     throw new Error(`Failed to fetch caption track: ${response.status} ${response.statusText}`)
   }
 
   const responseText = await response.text()
-  console.log('Caption response length:', responseText.length, 'First 200 chars:', responseText.substring(0, 200))
+  console.log('Caption response length:', responseText.length, 'First 300 chars:', responseText.substring(0, 300))
 
   if (!responseText || responseText.length === 0) {
     throw new Error('Empty response from caption track')
   }
 
-  let data
-  try {
-    data = JSON.parse(responseText)
-  } catch (parseError) {
-    console.error('Failed to parse caption JSON:', parseError.message)
-    console.error('Response was:', responseText.substring(0, 500))
-    throw new Error(`Invalid JSON from caption track: ${parseError.message}`)
+  // Parse XML format (default YouTube caption format)
+  // Format: <transcript><text start="0" dur="2.5">Hello world</text>...</transcript>
+  const segments = []
+  const textRegex = /<text\s+start="([^"]+)"\s+dur="([^"]+)"[^>]*>([^<]*)<\/text>/g
+  let match
+
+  while ((match = textRegex.exec(responseText)) !== null) {
+    const start = parseFloat(match[1])
+    const duration = parseFloat(match[2])
+    // Decode HTML entities
+    const text = match[3]
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n/g, ' ')
+      .trim()
+
+    if (text) {
+      segments.push({
+        start,
+        end: start + duration,
+        text,
+        words: [{ text, start, end: start + duration }],
+      })
+    }
   }
 
-  const events = Array.isArray(data?.events) ? data.events : []
-
-  const segments = events
-    .map((event) => {
-      const eventStartMs = Number(event.tStartMs || event.startMs || 0)
-      const eventStart = eventStartMs / 1000
-      const durationMs = Number(event.dDurationMs ?? event.dur ?? event.segs?.[0]?.tDurMs ?? 0)
-      const eventEnd = eventStart + durationMs / 1000
-
-      const segs = event.segs || []
-      if (!segs.length) return null
-
-      // Extract word-level timing from segs array
-      const words = []
-      for (let i = 0; i < segs.length; i++) {
-        const seg = segs[i]
-        const wordText = (seg.utf8 || '').replace('\n', ' ').trim()
-        if (!wordText) continue
-
-        const wordOffsetMs = Number(seg.tOffsetMs || 0)
-        const wordStart = (eventStartMs + wordOffsetMs) / 1000
-
-        // Word end is either next word's start or segment end
-        let wordEnd
-        if (i < segs.length - 1) {
-          const nextOffsetMs = Number(segs[i + 1].tOffsetMs || wordOffsetMs)
-          wordEnd = (eventStartMs + nextOffsetMs) / 1000
-        } else {
-          wordEnd = eventEnd
-        }
-
-        words.push({
-          text: wordText,
-          start: wordStart,
-          end: wordEnd > wordStart ? wordEnd : wordStart + 0.1,
-        })
-      }
-
-      if (!words.length) return null
-
-      const text = words.map((w) => w.text).join(' ').replace(/\s+/g, ' ').trim()
-
-      return {
-        start: eventStart,
-        end: eventEnd > eventStart ? eventEnd : eventStart,
-        text,
-        words,
-      }
-    })
-    .filter(Boolean)
-
+  console.log('Parsed', segments.length, 'caption segments')
   return segments
 }
 

@@ -1762,45 +1762,54 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 async function downloadYoutubeAudio(videoId) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
   const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
-  const outputTemplate = `${tempBase}.%(ext)s`
-  const downloadDir = path.dirname(tempBase)
-  const baseName = path.basename(tempBase)
+  const outputPath = `${tempBase}.mp3`
 
-  let actualAudioPath = null
+  console.log('Downloading YouTube audio:', videoId, '→', outputPath)
 
   await new Promise((resolve, reject) => {
-    const ytProcess = spawn('yt-dlp', ['-f', 'bestaudio', '-o', outputTemplate, videoUrl])
+    // Use -x to extract audio and --audio-format mp3 to convert to mp3
+    // This ensures Whisper gets a format it can definitely read
+    const ytProcess = spawn('yt-dlp', [
+      '-x',
+      '--audio-format', 'mp3',
+      '--audio-quality', '0',
+      '-o', outputPath,
+      videoUrl
+    ])
 
-    ytProcess.on('error', reject)
+    let stderr = ''
+    ytProcess.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    ytProcess.on('error', (err) => {
+      console.error('yt-dlp spawn error:', err)
+      reject(err)
+    })
 
     ytProcess.on('close', async (code) => {
       if (code !== 0) {
+        console.error('yt-dlp stderr:', stderr)
         return reject(new Error(`yt-dlp exited with code ${code}`))
       }
 
       try {
-        const entries = await fs.readdir(downloadDir)
-        const matchedFiles = entries.filter((name) => name.startsWith(`${baseName}.`))
-
-        if (matchedFiles.length === 0) {
-          return reject(new Error('No audio file found for yt-dlp output template'))
-        }
-
-        actualAudioPath = path.join(downloadDir, matchedFiles[0])
-        const stat = await fs.stat(actualAudioPath)
+        const stat = await fs.stat(outputPath)
 
         if (!stat.size) {
           return reject(new Error('Downloaded audio file is empty'))
         }
 
+        console.log('Audio downloaded successfully:', outputPath, `(${stat.size} bytes)`)
         return resolve()
       } catch (fileError) {
+        console.error('Audio file error:', fileError)
         return reject(fileError)
       }
     })
   })
 
-  return actualAudioPath
+  return outputPath
 }
 
 async function downloadAudioUrlToTempFile(audioUrl) {
@@ -1879,14 +1888,22 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
     const whisperLanguage = resolveTargetCode(languageCode)
 
     console.log('WHISPER LANGUAGE:', languageCode, '→', whisperLanguage || 'auto-detect')
+    console.log('Sending audio to Whisper API:', audioPath)
 
-    const transcription = await client.audio.transcriptions.create({
-      file: createReadStream(audioPath),
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['word'],
-      ...(whisperLanguage ? { language: whisperLanguage } : {}),
-    })
+    let transcription
+    try {
+      transcription = await client.audio.transcriptions.create({
+        file: createReadStream(audioPath),
+        model: 'whisper-1',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['word'],
+        ...(whisperLanguage ? { language: whisperLanguage } : {}),
+      })
+    } catch (whisperApiError) {
+      console.error('Whisper API error:', whisperApiError.message)
+      console.error('Whisper API error details:', JSON.stringify(whisperApiError, null, 2))
+      throw whisperApiError
+    }
 
     console.log('Whisper verbose_json response keys:', Object.keys(transcription || {}))
     console.log('Words count:', transcription?.words?.length || 0)
@@ -2233,37 +2250,24 @@ app.post('/api/transcribe/background', async (req, res) => {
   const lessonRef = firestore.collection('users').doc(uid).collection('practiceLessons').doc(lessonId)
 
   try {
-    let transcriptResult = { text: '', segments: [] }
+    console.log(`Background import starting for lesson ${lessonId}, video ${videoId}`)
 
-    // Try YouTube captions first
+    // Go straight to Whisper transcription (caption fetching is unreliable)
+    let transcriptResult
     try {
-      const captionSegments = await fetchYoutubeCaptionSegments(videoId, 'en')
-      if (captionSegments.length > 0) {
-        transcriptResult = {
-          text: captionSegments.map((seg) => seg.text).join(' '),
-          segments: captionSegments,
-        }
+      const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+      transcriptResult = {
+        text: whisperResult?.text || '',
+        segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
       }
-    } catch (captionError) {
-      console.error('Background import - captions failed, trying Whisper:', captionError.message)
-    }
-
-    // Fallback to Whisper if no captions
-    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
-      try {
-        const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
-        transcriptResult = {
-          text: whisperResult?.text || '',
-          segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
-        }
-      } catch (whisperError) {
-        console.error('Background import - Whisper failed:', whisperError.message)
-        await lessonRef.update({
-          status: 'import_failed',
-          importError: 'Failed to fetch transcript from video',
-        })
-        return
-      }
+      console.log(`Whisper transcription complete: ${transcriptResult.segments.length} segments`)
+    } catch (whisperError) {
+      console.error('Background import - Whisper failed:', whisperError.message, whisperError.stack)
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: `Transcription failed: ${whisperError.message}`,
+      })
+      return
     }
 
     if (!transcriptResult.segments || transcriptResult.segments.length === 0) {

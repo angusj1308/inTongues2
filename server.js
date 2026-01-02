@@ -2092,6 +2092,74 @@ app.post('/api/youtube/transcript', async (req, res) => {
   }
 })
 
+// Lightweight transcript endpoint for Translation Practice feature
+// Returns transcript without requiring user authentication or Firestore storage
+app.post('/api/transcribe', async (req, res) => {
+  const { url } = req.body || {}
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' })
+  }
+
+  const videoId = extractYouTubeId(url)
+  if (!videoId) {
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  try {
+    // Get video info for title
+    let title = null
+    try {
+      const info = await ytdl.getInfo(videoId)
+      title = info?.videoDetails?.title || null
+    } catch (infoErr) {
+      console.error('Failed to fetch video info for title:', infoErr.message)
+    }
+
+    // Try YouTube captions first
+    let transcriptResult = { text: '', segments: [] }
+
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, 'en')
+      if (captionSegments.length > 0) {
+        transcriptResult = {
+          text: captionSegments.map((seg) => seg.text).join(' '),
+          segments: captionSegments,
+        }
+      }
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback:', captionError.message)
+    }
+
+    // Fallback to Whisper if no captions
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      try {
+        const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+        transcriptResult = {
+          text: whisperResult?.text || '',
+          segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        }
+      } catch (whisperError) {
+        console.error('Failed to transcribe with Whisper:', whisperError.message)
+        return res.status(500).json({ error: 'Failed to fetch transcript from video' })
+      }
+    }
+
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      return res.status(500).json({ error: 'No transcript available for this video' })
+    }
+
+    return res.json({
+      text: transcriptResult.text,
+      segments: transcriptResult.segments,
+      title,
+    })
+  } catch (error) {
+    console.error('Transcribe endpoint error:', error)
+    return res.status(500).json({ error: 'Failed to process video' })
+  }
+})
+
 // Background processor for YouTube transcript generation
 // Called from import to prepare video before user opens it
 async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode = 'auto') {

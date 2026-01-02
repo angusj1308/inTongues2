@@ -139,6 +139,7 @@ const PracticeLesson = () => {
           targetLanguage: lesson.targetLanguage,
           sourceLanguage: lesson.sourceLanguage,
           adaptationLevel: lesson.adaptationLevel,
+          fullTranscript: lesson.fullTranscript,
         }),
       })
 
@@ -308,6 +309,7 @@ const PracticeLesson = () => {
             feedback: feedback,
             targetLanguage: lesson.targetLanguage,
             sourceLanguage: lesson.sourceLanguage,
+            fullTranscript: lesson.fullTranscript,
           },
         }),
       })

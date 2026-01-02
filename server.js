@@ -2458,30 +2458,20 @@ app.post('/api/transcribe/background', async (req, res) => {
   try {
     console.log(`Background import starting for lesson ${lessonId}, video ${videoId}`)
 
-    // Use yt-dlp to download subtitles (doesn't require ffmpeg)
+    // Use Whisper for transcription (returns punctuated text - fast and accurate)
     let segments = []
     try {
-      segments = await downloadYoutubeSubtitles(videoId, 'en')
-      console.log(`yt-dlp subtitles: ${segments.length} segments`)
-    } catch (subError) {
-      console.error('yt-dlp subtitle download failed:', subError.message)
-    }
-
-    // If no subtitles found, try Whisper (requires ffmpeg)
-    if (segments.length === 0) {
-      console.log('No subtitles found, trying Whisper transcription...')
-      try {
-        const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
-        segments = Array.isArray(whisperResult?.segments) ? whisperResult.segments : []
-        console.log(`Whisper transcription complete: ${segments.length} segments`)
-      } catch (whisperError) {
-        console.error('Background import - Whisper failed:', whisperError.message)
-        await lessonRef.update({
-          status: 'import_failed',
-          importError: `No subtitles available and transcription failed. Install ffmpeg for audio transcription.`,
-        })
-        return
-      }
+      console.log('Starting Whisper transcription...')
+      const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+      segments = Array.isArray(whisperResult?.segments) ? whisperResult.segments : []
+      console.log(`Whisper transcription complete: ${segments.length} segments`)
+    } catch (whisperError) {
+      console.error('Whisper transcription failed:', whisperError.message)
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: `Transcription failed: ${whisperError.message}. Ensure ffmpeg is installed.`,
+      })
+      return
     }
 
     if (segments.length === 0) {
@@ -2492,22 +2482,19 @@ app.post('/api/transcribe/background', async (req, res) => {
       return
     }
 
-    // Combine all segment text into raw transcript
-    const rawTranscript = segments
+    // Combine all segment text into full transcript
+    const fullTranscript = segments
       .map((seg) => seg.text?.trim())
       .filter((s) => s && s.length > 0)
       .join(' ')
 
-    // Use AI to segment into proper sentences (handles unpunctuated ASR captions)
-    const sentenceTexts = await segmentWithAI(rawTranscript)
+    // Whisper returns punctuated text - use standard sentence splitting (instant)
+    const sentenceTexts = splitIntoSentences(fullTranscript)
     const sentences = sentenceTexts.map((text, index) => ({
       index,
       text,
       status: 'pending',
     }))
-
-    // Store full transcript for tutor context
-    const fullTranscript = sentenceTexts.join(' ')
 
     // Update the lesson with sentences, fullTranscript, and change status
     await lessonRef.update({

@@ -1893,18 +1893,17 @@ function parseTimestamp(ts) {
 async function downloadYoutubeAudio(videoId) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
   const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
-  const outputPath = `${tempBase}.mp3`
+  const downloadPath = `${tempBase}.mp3`
+  const compressedPath = `${tempBase}-compressed.mp3`
 
-  console.log('Downloading YouTube audio:', videoId, '→', outputPath)
+  console.log('Downloading YouTube audio:', videoId, '→', downloadPath)
 
+  // Step 1: Download audio with yt-dlp
   await new Promise((resolve, reject) => {
-    // Use -x to extract audio and convert to compressed mp3 for Whisper
-    // 32kbps mono is sufficient for speech and keeps file under 25MB API limit
     const ytProcess = spawn('yt-dlp', [
       '-x',
       '--audio-format', 'mp3',
-      '--postprocessor-args', 'ffmpeg:-ac 1 -ar 16000 -b:a 32k',
-      '-o', outputPath,
+      '-o', downloadPath,
       videoUrl
     ])
 
@@ -1918,29 +1917,51 @@ async function downloadYoutubeAudio(videoId) {
       reject(err)
     })
 
-    ytProcess.on('close', async (code) => {
+    ytProcess.on('close', (code) => {
       if (code !== 0) {
         console.error('yt-dlp stderr:', stderr)
         return reject(new Error(`yt-dlp exited with code ${code}`))
       }
-
-      try {
-        const stat = await fs.stat(outputPath)
-
-        if (!stat.size) {
-          return reject(new Error('Downloaded audio file is empty'))
-        }
-
-        console.log('Audio downloaded successfully:', outputPath, `(${stat.size} bytes)`)
-        return resolve()
-      } catch (fileError) {
-        console.error('Audio file error:', fileError)
-        return reject(fileError)
-      }
+      resolve()
     })
   })
 
-  return outputPath
+  // Step 2: Check file size
+  const stat = await fs.stat(downloadPath)
+  console.log('Downloaded audio:', `${(stat.size / 1024 / 1024).toFixed(1)}MB`)
+
+  // Step 3: If over 24MB, compress with ffmpeg for Whisper's 25MB limit
+  const MAX_SIZE = 24 * 1024 * 1024 // 24MB
+  if (stat.size > MAX_SIZE) {
+    console.log('File too large for Whisper API, compressing...')
+
+    await new Promise((resolve, reject) => {
+      // Compress to 32kbps mono 16kHz - optimized for speech
+      const ffmpeg = spawn('ffmpeg', [
+        '-i', downloadPath,
+        '-ac', '1',           // mono
+        '-ar', '16000',       // 16kHz sample rate
+        '-b:a', '32k',        // 32kbps bitrate
+        '-y',                 // overwrite output
+        compressedPath
+      ])
+
+      ffmpeg.on('error', reject)
+      ffmpeg.on('close', (code) => {
+        if (code !== 0) reject(new Error(`ffmpeg exited with code ${code}`))
+        else resolve()
+      })
+    })
+
+    const compressedStat = await fs.stat(compressedPath)
+    console.log('Compressed audio:', `${(compressedStat.size / 1024 / 1024).toFixed(1)}MB`)
+
+    // Clean up original, return compressed
+    await fs.unlink(downloadPath).catch(() => {})
+    return compressedPath
+  }
+
+  return downloadPath
 }
 
 async function downloadAudioUrlToTempFile(audioUrl) {

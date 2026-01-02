@@ -1655,13 +1655,30 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
   if (!selectedTrack?.baseUrl) return []
 
   const trackUrl = `${selectedTrack.baseUrl}&fmt=json3`
+  console.log('Fetching caption track URL:', trackUrl.substring(0, 100) + '...')
+
   const response = await fetch(trackUrl)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch caption track: ${response.status} ${response.statusText}`)
   }
 
-  const data = await response.json()
+  const responseText = await response.text()
+  console.log('Caption response length:', responseText.length, 'First 200 chars:', responseText.substring(0, 200))
+
+  if (!responseText || responseText.length === 0) {
+    throw new Error('Empty response from caption track')
+  }
+
+  let data
+  try {
+    data = JSON.parse(responseText)
+  } catch (parseError) {
+    console.error('Failed to parse caption JSON:', parseError.message)
+    console.error('Response was:', responseText.substring(0, 500))
+    throw new Error(`Invalid JSON from caption track: ${parseError.message}`)
+  }
+
   const events = Array.isArray(data?.events) ? data.events : []
 
   const segments = events

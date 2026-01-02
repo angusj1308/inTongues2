@@ -1759,6 +1759,137 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
   return segments
 }
 
+// Use yt-dlp to download subtitles directly (doesn't require ffmpeg)
+async function downloadYoutubeSubtitles(videoId, languageCode = 'en') {
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+  const tempBase = path.join(os.tmpdir(), `yt-subs-${videoId}-${Date.now()}`)
+
+  console.log('Downloading YouTube subtitles via yt-dlp:', videoId)
+
+  return new Promise((resolve, reject) => {
+    const ytProcess = spawn('yt-dlp', [
+      '--write-auto-subs',
+      '--write-subs',
+      '--sub-langs', languageCode,
+      '--skip-download',
+      '-o', tempBase,
+      videoUrl
+    ])
+
+    let stderr = ''
+    ytProcess.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    ytProcess.on('error', (err) => {
+      console.error('yt-dlp subtitle spawn error:', err)
+      reject(err)
+    })
+
+    ytProcess.on('close', async (code) => {
+      // yt-dlp returns 0 even if no subs found, so we check for file existence
+      try {
+        const downloadDir = path.dirname(tempBase)
+        const baseName = path.basename(tempBase)
+        const entries = await fs.readdir(downloadDir)
+
+        // Look for .vtt or .srt files
+        const subFiles = entries.filter((name) =>
+          name.startsWith(baseName) && (name.endsWith('.vtt') || name.endsWith('.srt'))
+        )
+
+        if (subFiles.length === 0) {
+          console.log('No subtitle files found for video')
+          return resolve([])
+        }
+
+        const subPath = path.join(downloadDir, subFiles[0])
+        console.log('Found subtitle file:', subPath)
+
+        const subContent = await fs.readFile(subPath, 'utf-8')
+
+        // Clean up
+        await fs.unlink(subPath).catch(() => {})
+
+        // Parse VTT/SRT format
+        const segments = parseSubtitleFile(subContent)
+        console.log('Parsed', segments.length, 'subtitle segments from yt-dlp')
+
+        resolve(segments)
+      } catch (fileError) {
+        console.error('Subtitle file error:', fileError)
+        resolve([])
+      }
+    })
+  })
+}
+
+function parseSubtitleFile(content) {
+  const segments = []
+
+  // VTT format: 00:00:00.000 --> 00:00:02.500
+  // SRT format: 00:00:00,000 --> 00:00:02,500
+  const timeRegex = /(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/g
+  const lines = content.split('\n')
+
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    const timeMatch = line.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/)
+
+    if (timeMatch) {
+      const start = parseTimestamp(timeMatch[1])
+      const end = parseTimestamp(timeMatch[2])
+
+      // Collect text lines until empty line or next timestamp
+      const textLines = []
+      i++
+      while (i < lines.length && lines[i].trim() && !lines[i].match(/^\d{2}:\d{2}:\d{2}/)) {
+        // Skip VTT positioning tags like <c> or alignment tags
+        const cleanedLine = lines[i]
+          .replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim()
+        if (cleanedLine) {
+          textLines.push(cleanedLine)
+        }
+        i++
+      }
+
+      const text = textLines.join(' ').trim()
+      if (text) {
+        segments.push({
+          start,
+          end,
+          text,
+          words: [{ text, start, end }]
+        })
+      }
+    } else {
+      i++
+    }
+  }
+
+  return segments
+}
+
+function parseTimestamp(ts) {
+  // Handle both 00:00:00.000 (VTT) and 00:00:00,000 (SRT)
+  const normalized = ts.replace(',', '.')
+  const parts = normalized.split(':')
+  const hours = parseInt(parts[0], 10)
+  const minutes = parseInt(parts[1], 10)
+  const secondsParts = parts[2].split('.')
+  const seconds = parseInt(secondsParts[0], 10)
+  const ms = parseInt(secondsParts[1], 10)
+
+  return hours * 3600 + minutes * 60 + seconds + ms / 1000
+}
+
 async function downloadYoutubeAudio(videoId) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
   const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
@@ -2252,25 +2383,33 @@ app.post('/api/transcribe/background', async (req, res) => {
   try {
     console.log(`Background import starting for lesson ${lessonId}, video ${videoId}`)
 
-    // Go straight to Whisper transcription (caption fetching is unreliable)
-    let transcriptResult
+    // Use yt-dlp to download subtitles (doesn't require ffmpeg)
+    let segments = []
     try {
-      const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
-      transcriptResult = {
-        text: whisperResult?.text || '',
-        segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
-      }
-      console.log(`Whisper transcription complete: ${transcriptResult.segments.length} segments`)
-    } catch (whisperError) {
-      console.error('Background import - Whisper failed:', whisperError.message, whisperError.stack)
-      await lessonRef.update({
-        status: 'import_failed',
-        importError: `Transcription failed: ${whisperError.message}`,
-      })
-      return
+      segments = await downloadYoutubeSubtitles(videoId, 'en')
+      console.log(`yt-dlp subtitles: ${segments.length} segments`)
+    } catch (subError) {
+      console.error('yt-dlp subtitle download failed:', subError.message)
     }
 
-    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+    // If no subtitles found, try Whisper (requires ffmpeg)
+    if (segments.length === 0) {
+      console.log('No subtitles found, trying Whisper transcription...')
+      try {
+        const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+        segments = Array.isArray(whisperResult?.segments) ? whisperResult.segments : []
+        console.log(`Whisper transcription complete: ${segments.length} segments`)
+      } catch (whisperError) {
+        console.error('Background import - Whisper failed:', whisperError.message)
+        await lessonRef.update({
+          status: 'import_failed',
+          importError: `No subtitles available and transcription failed. Install ffmpeg for audio transcription.`,
+        })
+        return
+      }
+    }
+
+    if (segments.length === 0) {
       await lessonRef.update({
         status: 'import_failed',
         importError: 'No transcript available for this video',
@@ -2279,7 +2418,7 @@ app.post('/api/transcribe/background', async (req, res) => {
     }
 
     // Extract sentences from segments
-    const sentences = transcriptResult.segments
+    const sentences = segments
       .map((seg) => seg.text?.trim())
       .filter((s) => s && s.length > 0)
       .map((text, index) => ({

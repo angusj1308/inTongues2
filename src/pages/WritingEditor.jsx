@@ -11,7 +11,46 @@ import {
 } from '../services/writing'
 
 const AUTO_SAVE_INTERVAL = 30000 // 30 seconds
-const FOCUS_MODE_DELAY = 2000 // 2 seconds before dimming chrome
+
+// Theme options for the writing editor
+const themeOptions = [
+  {
+    id: 'light',
+    label: 'Light',
+    background: '#FFFFFF',
+    text: '#1A1A1A',
+    tone: 'light',
+  },
+  {
+    id: 'dark',
+    label: 'Dark',
+    background: '#1a1a1a',
+    text: '#e5e5e5',
+    tone: 'dark',
+  },
+]
+
+// Font options for the writing editor
+const fontOptions = [
+  {
+    id: 'garamond',
+    label: 'Garamond',
+    fontFamily: "'EB Garamond', 'Garamond', 'Georgia', serif",
+    titleFamily: "'EB Garamond', 'Garamond', 'Georgia', serif",
+  },
+  {
+    id: 'inter',
+    label: 'Inter',
+    fontFamily: "'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif",
+    titleFamily: "'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif",
+  },
+  {
+    id: 'crimson',
+    label: 'Crimson',
+    fontFamily: "'Crimson Pro', 'Times New Roman', serif",
+    titleFamily: "'Crimson Pro', 'Times New Roman', serif",
+  },
+]
 
 const WritingEditor = () => {
   const { id } = useParams()
@@ -27,14 +66,14 @@ const WritingEditor = () => {
   const [error, setError] = useState('')
   const [showFeedbackPanel, setShowFeedbackPanel] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [isFocusMode, setIsFocusMode] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [editorTheme, setEditorTheme] = useState('light')
+  const [editorFont, setEditorFont] = useState('garamond')
 
   const contentRef = useRef(content)
   const titleRef = useRef(title)
   const hasUnsavedChanges = useRef(false)
   const autoSaveTimer = useRef(null)
-  const focusModeTimer = useRef(null)
 
   // Keep refs in sync
   useEffect(() => {
@@ -148,25 +187,21 @@ const WritingEditor = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  // Focus mode: dim chrome when typing
-  const triggerFocusMode = useCallback(() => {
-    setIsFocusMode(true)
-    if (focusModeTimer.current) {
-      clearTimeout(focusModeTimer.current)
-    }
-    focusModeTimer.current = setTimeout(() => {
-      setIsFocusMode(false)
-    }, FOCUS_MODE_DELAY)
-  }, [])
+  // Theme and font cycling
+  const activeTheme = themeOptions.find((t) => t.id === editorTheme) || themeOptions[0]
+  const activeFont = fontOptions.find((f) => f.id === editorFont) || fontOptions[0]
 
-  // Cleanup focus mode timer
-  useEffect(() => {
-    return () => {
-      if (focusModeTimer.current) {
-        clearTimeout(focusModeTimer.current)
-      }
-    }
-  }, [])
+  const cycleTheme = () => {
+    const currentIndex = themeOptions.findIndex((t) => t.id === editorTheme)
+    const nextIndex = (currentIndex + 1) % themeOptions.length
+    setEditorTheme(themeOptions[nextIndex].id)
+  }
+
+  const cycleFont = () => {
+    const currentIndex = fontOptions.findIndex((f) => f.id === editorFont)
+    const nextIndex = (currentIndex + 1) % fontOptions.length
+    setEditorFont(fontOptions[nextIndex].id)
+  }
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -184,13 +219,11 @@ const WritingEditor = () => {
   const handleContentChange = (e) => {
     setContent(e.target.value)
     hasUnsavedChanges.current = true
-    triggerFocusMode()
   }
 
   const handleTitleChange = (e) => {
     setTitle(e.target.value)
     hasUnsavedChanges.current = true
-    triggerFocusMode()
   }
 
   const handleSave = async () => {
@@ -262,11 +295,41 @@ const WritingEditor = () => {
   const typeLabel = typeInfo?.label || piece.textType
   const wordCount = content.split(/\s+/).filter(Boolean).length
 
-  // Format the date nicely
-  const formatDate = (date) => {
+  // Format the date in the target language
+  const formatDateInLanguage = (date, language) => {
     if (!date) return ''
     const d = date instanceof Date ? date : new Date(date)
-    return d.toLocaleDateString('en-US', {
+
+    // Map language names to locale codes
+    const localeMap = {
+      'Spanish': 'es-ES',
+      'French': 'fr-FR',
+      'German': 'de-DE',
+      'Italian': 'it-IT',
+      'Portuguese': 'pt-PT',
+      'Japanese': 'ja-JP',
+      'Chinese': 'zh-CN',
+      'Korean': 'ko-KR',
+      'Russian': 'ru-RU',
+      'Arabic': 'ar-SA',
+      'Dutch': 'nl-NL',
+      'Swedish': 'sv-SE',
+      'Norwegian': 'nb-NO',
+      'Danish': 'da-DK',
+      'Polish': 'pl-PL',
+      'Turkish': 'tr-TR',
+      'Greek': 'el-GR',
+      'Hebrew': 'he-IL',
+      'Hindi': 'hi-IN',
+      'Thai': 'th-TH',
+      'Vietnamese': 'vi-VN',
+      'Indonesian': 'id-ID',
+      'Malay': 'ms-MY',
+    }
+
+    const locale = localeMap[language] || 'en-US'
+
+    return d.toLocaleDateString(locale, {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
@@ -307,46 +370,115 @@ const WritingEditor = () => {
         <polyline points="22 4 12 14.01 9 11.01" />
       </svg>
     ),
+    save: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <polyline points="17 21 17 13 7 13 7 21" />
+        <polyline points="7 3 7 8 15 8" />
+      </svg>
+    ),
+    arrowLeft: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+    ),
+    sun: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="5" />
+        <line x1="12" y1="1" x2="12" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="23" />
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+        <line x1="1" y1="12" x2="3" y2="12" />
+        <line x1="21" y1="12" x2="23" y2="12" />
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+      </svg>
+    ),
+    moon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+      </svg>
+    ),
   }
 
-  // Get status info
+  // Get status info - only show for saving/saved/submitted/complete, not draft
   const getStatusInfo = () => {
-    if (saving) return { label: 'Saving', icon: icons.loader, class: 'saving' }
-    if (saveSuccess) return { label: 'Saved', icon: icons.check, class: 'saved' }
-    if (piece.status === 'submitted') return { label: 'Submitted', icon: icons.checkCircle, class: 'submitted' }
-    if (piece.status === 'complete') return { label: 'Complete', icon: icons.check, class: 'complete' }
-    return { label: 'Draft', icon: icons.circle, class: 'draft' }
+    if (saving) return { label: 'Saving', icon: icons.loader, class: 'saving', show: true }
+    if (saveSuccess) return { label: 'Saved', icon: icons.check, class: 'saved', show: true }
+    if (piece.status === 'submitted') return { label: 'Submitted', icon: icons.checkCircle, class: 'submitted', show: true }
+    if (piece.status === 'complete') return { label: 'Complete', icon: icons.check, class: 'complete', show: true }
+    return { label: 'Draft', icon: icons.circle, class: 'draft', show: false }
   }
 
   const status = getStatusInfo()
 
   return (
-    <div className={`writing-editor-page ${isFocusMode ? 'focus-mode' : ''}`}>
-      <header className="writing-editor-header">
-        <nav className="writing-editor-breadcrumb">
-          <button className="writing-editor-nav-link" onClick={handleBack}>
-            Dashboard
+    <div
+      className="writing-editor-page writing-editor-themed"
+      style={{
+        '--editor-bg': activeTheme.background,
+        '--editor-text': activeTheme.text,
+        '--editor-font': activeFont.fontFamily,
+        '--editor-title-font': activeFont.titleFamily,
+      }}
+      data-editor-tone={activeTheme.tone}
+    >
+      {/* Hover header shell */}
+      <div className="writing-editor-hover-shell">
+        <div className="writing-editor-hover-hitbox" />
+        <header className="writing-editor-header writing-editor-hover-header">
+          <button className="writing-editor-back-btn" onClick={handleBack}>
+            <span className="writing-editor-back-icon">{icons.arrowLeft}</span>
+            Back to dashboard
           </button>
-          <span className="writing-editor-nav-separator">/</span>
-          <span className="writing-editor-nav-current">Write</span>
-        </nav>
-        <div className="writing-editor-header-right">
-          <span className="writing-editor-shortcut-hint">⌘S to save</span>
-          <div className={`writing-editor-status-pill ${status.class}`}>
-            <span className="writing-editor-status-icon">{status.icon}</span>
-            <span className="writing-editor-status-label">{status.label}</span>
+          <div className="writing-editor-header-right">
+            <button
+              className="writing-editor-header-btn"
+              type="button"
+              aria-label={`Font: ${activeFont.label}`}
+              onClick={(e) => {
+                cycleFont()
+                e.currentTarget.blur()
+              }}
+            >
+              Aa
+            </button>
+            <button
+              className="writing-editor-header-btn icon-btn"
+              type="button"
+              aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={(e) => {
+                cycleTheme()
+                e.currentTarget.blur()
+              }}
+            >
+              {activeTheme.tone === 'dark' ? icons.sun : icons.moon}
+            </button>
+            <button
+              className="writing-editor-header-btn icon-btn"
+              onClick={handleSave}
+              disabled={saving}
+              title="Save"
+            >
+              {saving ? icons.loader : icons.save}
+            </button>
+            {status.show && (
+              <div className={`writing-editor-status-pill ${status.class}`}>
+                <span className="writing-editor-status-icon">{status.icon}</span>
+                <span className="writing-editor-status-label">{status.label}</span>
+              </div>
+            )}
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       <div className={`writing-editor-main ${showFeedbackPanel ? 'with-feedback' : ''}`}>
         <div className="writing-editor-canvas">
-          <div className="writing-editor-accent-bar" />
           <div className="writing-editor-content">
-            <div className="writing-editor-meta">
-              <span className="writing-editor-type-badge">{typeLabel.toLowerCase()}</span>
-              <span className="writing-editor-meta-separator">·</span>
-              <span className="writing-editor-language">{piece.language}</span>
+            <div className="writing-editor-date">
+              {formatDateInLanguage(piece.createdAt, piece.language)}
             </div>
 
             <input
@@ -354,10 +486,8 @@ const WritingEditor = () => {
               className="writing-editor-title"
               value={title}
               onChange={handleTitleChange}
-              placeholder={formatDate(piece.createdAt) || 'Untitled'}
+              placeholder="Untitled"
             />
-
-            <div className="writing-editor-title-underline" />
 
             <textarea
               className="writing-editor-textarea"
@@ -413,13 +543,16 @@ const WritingEditor = () => {
           <span className="writing-editor-word-count">
             {wordCount} {wordCount === 1 ? 'word' : 'words'}
           </span>
-          {lastSaved && !saving && (
-            <span className="writing-editor-last-saved">
-              Last saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
         </div>
         <div className="writing-editor-footer-right">
+          <button
+            className="writing-editor-action-btn secondary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            <span className="writing-editor-action-icon">{saving ? icons.loader : icons.save}</span>
+            {saving ? 'Saving' : 'Save'}
+          </button>
           <button
             className="writing-editor-action-btn secondary"
             onClick={() => setShowFeedbackPanel(!showFeedbackPanel)}
@@ -427,45 +560,6 @@ const WritingEditor = () => {
             <span className="writing-editor-action-icon">{icons.messageCircle}</span>
             Feedback
           </button>
-          {piece.status !== 'complete' && (
-            <>
-              <button
-                className="writing-editor-action-btn secondary"
-                onClick={handleSubmitForFeedback}
-                disabled={submitting || piece.status === 'submitted'}
-              >
-                {submitting ? (
-                  <>
-                    <span className="writing-editor-action-icon">{icons.loader}</span>
-                    Submitting
-                  </>
-                ) : piece.status === 'submitted' ? (
-                  <>
-                    <span className="writing-editor-action-icon">{icons.check}</span>
-                    Submitted
-                  </>
-                ) : (
-                  <>
-                    <span className="writing-editor-action-icon">{icons.send}</span>
-                    Submit
-                  </>
-                )}
-              </button>
-              <button
-                className="writing-editor-action-btn primary"
-                onClick={handleMarkComplete}
-              >
-                <span className="writing-editor-action-icon">{icons.check}</span>
-                Complete
-              </button>
-            </>
-          )}
-          {piece.status === 'complete' && (
-            <div className="writing-editor-complete-badge">
-              <span className="writing-editor-action-icon">{icons.checkCircle}</span>
-              Completed
-            </div>
-          )}
         </div>
       </footer>
     </div>

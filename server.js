@@ -1898,12 +1898,12 @@ async function downloadYoutubeAudio(videoId) {
   console.log('Downloading YouTube audio:', videoId, '→', outputPath)
 
   await new Promise((resolve, reject) => {
-    // Use -x to extract audio and --audio-format mp3 to convert to mp3
-    // This ensures Whisper gets a format it can definitely read
+    // Use -x to extract audio and convert to compressed mp3 for Whisper
+    // 32kbps mono is sufficient for speech and keeps file under 25MB API limit
     const ytProcess = spawn('yt-dlp', [
       '-x',
       '--audio-format', 'mp3',
-      '--audio-quality', '0',
+      '--postprocessor-args', 'ffmpeg:-ac 1 -ar 16000 -b:a 32k',
       '-o', outputPath,
       videoUrl
     ])

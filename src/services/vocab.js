@@ -464,3 +464,24 @@ export const setVocabStatus = async (userId, language, text, newStatus) => {
     { merge: true }
   )
 }
+
+/**
+ * Update translation for a vocab entry
+ */
+export const updateVocabTranslation = async (userId, language, text, translation) => {
+  const ref = getVocabDocRef(userId, language, text)
+  const docSnap = await getDoc(ref)
+
+  if (!docSnap.exists()) {
+    return // Entry doesn't exist, nothing to update
+  }
+
+  await setDoc(
+    ref,
+    {
+      translation,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  )
+}

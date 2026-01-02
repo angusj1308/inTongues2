@@ -7,6 +7,7 @@ import {
   loadDueCardsByContentId,
   updateVocabSRS,
   setVocabStatus,
+  updateVocabTranslation,
   VOCAB_STATUSES,
 } from '../../services/vocab'
 
@@ -146,11 +147,11 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
       translation === 'No translation'
   }
 
-  // Fetch missing translation for current card
+  // Fetch missing translation for current card and persist to Firestore
   useEffect(() => {
     const currentCard = cards[currentIndex]
     if (!currentCard || !isMissingTranslation(currentCard.translation)) return
-    if (!language || !profile?.nativeLanguage) return
+    if (!language || !profile?.nativeLanguage || !user) return
 
     const fetchTranslation = async () => {
       try {
@@ -167,12 +168,14 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
         if (response.ok) {
           const data = await response.json()
           if (data.translation && data.translation !== 'No translation found') {
-            // Update the card with the fetched translation
+            // Update the card in local state
             setCards((prev) =>
               prev.map((card, idx) =>
                 idx === currentIndex ? { ...card, translation: data.translation } : card
               )
             )
+            // Persist to Firestore
+            await updateVocabTranslation(user.uid, language, currentCard.text, data.translation)
           }
         }
       } catch (error) {
@@ -181,7 +184,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
     }
 
     fetchTranslation()
-  }, [currentIndex, cards, language, profile?.nativeLanguage])
+  }, [currentIndex, cards, language, profile?.nativeLanguage, user])
 
   // Play audio for current card
   const playAudio = useCallback(

@@ -93,6 +93,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
   const audioRef = useRef(null)
   const [audioLoading, setAudioLoading] = useState(false)
   const [translationLoading, setTranslationLoading] = useState(false)
+  const [skipFlipAnimation, setSkipFlipAnimation] = useState(false)
 
   // Get language color for status selector
   const languageColor = getLanguageColor(language)
@@ -269,9 +270,18 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
       const updatedCards = cards.filter((_, idx) => idx !== currentIndex)
       const nextIndex = currentIndex >= updatedCards.length ? 0 : currentIndex
 
+      // Skip flip animation when transitioning to next card
+      setSkipFlipAnimation(true)
       setCards(updatedCards)
       setCurrentIndex(nextIndex)
       setShowAnswer(false)
+
+      // Re-enable animation after state updates
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setSkipFlipAnimation(false)
+        })
+      })
 
       // Notify parent that cards were updated
       if (onCardsUpdated) {
@@ -394,7 +404,7 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
                     )
                   })}
                 </div>
-                <div className={`review-card ${showAnswer ? 'is-flipped' : ''}`}>
+                <div className={`review-card ${showAnswer ? 'is-flipped' : ''}${skipFlipAnimation ? ' no-transition' : ''}`}>
                   {/* Front of card */}
                   <div className="review-card-front">
                     <div className="review-card-content">

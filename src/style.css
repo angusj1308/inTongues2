@@ -9458,6 +9458,10 @@ body.active-pass-locked {
   transform: rotateY(180deg);
 }
 
+.review-card.no-transition {
+  transition: none;
+}
+
 .review-card-front,
 .review-card-back {
   position: absolute;

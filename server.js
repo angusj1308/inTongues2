@@ -2408,19 +2408,24 @@ app.post('/api/transcribe/background', async (req, res) => {
       return
     }
 
-    // Extract sentences from segments
-    const sentences = segments
+    // Combine all segment text into full transcript
+    const fullTranscript = segments
       .map((seg) => seg.text?.trim())
       .filter((s) => s && s.length > 0)
-      .map((text, index) => ({
-        index,
-        text,
-        status: 'pending',
-      }))
+      .join(' ')
 
-    // Update the lesson with sentences and change status
+    // Re-segment by punctuation into proper sentences
+    const sentenceTexts = splitIntoSentences(fullTranscript)
+    const sentences = sentenceTexts.map((text, index) => ({
+      index,
+      text,
+      status: 'pending',
+    }))
+
+    // Update the lesson with sentences, fullTranscript, and change status
     await lessonRef.update({
       sentences,
+      fullTranscript,
       status: 'in_progress',
       importError: null,
     })
@@ -4270,7 +4275,7 @@ app.post('/api/delete-story', async (req, res) => {
 // Practice Mode: Get AI feedback on user's translation attempt
 app.post('/api/practice/feedback', async (req, res) => {
   try {
-    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel } = req.body || {}
+    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, fullTranscript } = req.body || {}
 
     if (!nativeSentence || !userAttempt || !targetLanguage) {
       return res.status(400).json({ error: 'nativeSentence, userAttempt, and targetLanguage are required' })
@@ -4279,9 +4284,29 @@ app.post('/api/practice/feedback', async (req, res) => {
     const sourceLang = sourceLanguage || 'English'
     const level = adaptationLevel || 'native'
 
+    // Build context section if full transcript is available
+    const contextSection = fullTranscript
+      ? `
+IMPORTANT CONTEXT - Full Document/Lecture:
+"""
+${fullTranscript}
+"""
+
+Use this context to understand:
+- The register (formal lecture, casual conversation, interview, etc.)
+- The audience (is the speaker addressing one person with "you" or many people?)
+- Cultural and temporal references (decades like "the 80s", idioms, etc.)
+- The overall topic and tone
+
+Your feedback and model sentence MUST be consistent with this context. For example:
+- If the speaker is lecturing to an audience, use plural "you" forms (ustedes, vosotros, etc.) not singular
+- If referring to decades (like "the 80s"), use the culturally appropriate form for ${targetLanguage}
+`
+      : ''
+
     // Build the prompt for the tutor
     const prompt = `You are a language tutor helping a student learn ${targetLanguage}. The student is practicing expressing ideas from ${sourceLang} into ${targetLanguage}.
-
+${contextSection}
 Original sentence (in ${sourceLang}):
 "${nativeSentence}"
 
@@ -4298,7 +4323,8 @@ Analyze the student's attempt and provide feedback. Return a JSON object with th
     "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
     "explanation": "Brief explanation of your feedback in ${sourceLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.",
     "grammarIssues": ["list of specific grammar issues if any, or empty array"],
-    "suggestions": ["list of alternative expressions or tips, or empty array"]
+    "suggestions": ["list of alternative expressions or tips, or empty array"],
+    "correctness": <1-5 score, where 5 means no grammar or spelling errors>
   }
 }
 
@@ -4338,6 +4364,53 @@ Return ONLY the JSON object, no additional text.`
   } catch (error) {
     console.error('Practice feedback error:', error)
     return res.status(500).json({ error: 'Failed to get feedback' })
+  }
+})
+
+// Practice Mode: Handle follow-up questions from the user
+app.post('/api/practice/followup', async (req, res) => {
+  try {
+    const { question, context } = req.body || {}
+
+    if (!question) {
+      return res.status(400).json({ error: 'question is required' })
+    }
+
+    const { sourceSentence, userAttempt, modelSentence, feedback, targetLanguage, sourceLanguage, fullTranscript } = context || {}
+
+    // Build context section if full transcript is available
+    const transcriptSection = fullTranscript
+      ? `
+Full Document/Lecture Context:
+"""
+${fullTranscript}
+"""
+
+Use this context to understand the register, audience, and cultural references when answering.
+`
+      : ''
+
+    const prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}. The student has a follow-up question.
+${transcriptSection}
+Current exercise context:
+- Source sentence (${sourceLanguage || 'source language'}): "${sourceSentence || 'N/A'}"
+- Student's attempt: "${userAttempt || 'N/A'}"
+- Model sentence: "${modelSentence || 'N/A'}"
+- Previous feedback: ${feedback?.explanation || 'N/A'}
+
+Student's question: "${question}"
+
+Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be concise but thorough. If they're asking about grammar, vocabulary, or cultural aspects, explain clearly with examples.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    return res.json({ response: response.output_text || 'I couldn\'t generate a response.' })
+  } catch (error) {
+    console.error('Practice follow-up error:', error)
+    return res.status(500).json({ error: 'Failed to process follow-up question' })
   }
 })
 

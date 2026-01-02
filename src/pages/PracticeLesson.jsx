@@ -308,13 +308,15 @@ const PracticeLesson = () => {
             <h2>Tutor</h2>
           </div>
           <div className="practice-chat-messages">
-            {chatMessages.length === 0 && !isComplete && (
-              <div className="practice-chat-empty">
-                <p className="muted">
-                  Type your attempt at expressing the sentence in {lesson.targetLanguage}, and I'll give you feedback.
-                </p>
+            {/* Current prompt */}
+            {!isComplete && currentSentence && (
+              <div className="practice-tutor-prompt">
+                <span className="prompt-label">Translate this sentence:</span>
+                <p className="prompt-text">{currentSentence.text}</p>
               </div>
             )}
+
+            {/* Chat messages */}
             {chatMessages.map((msg, i) => (
               <div
                 key={i}
@@ -323,6 +325,15 @@ const PracticeLesson = () => {
                 {msg.content}
               </div>
             ))}
+
+            {/* Example sentence - shown after feedback */}
+            {feedback && modelSentence && (
+              <div className="practice-example-sentence">
+                <span className="example-label">Example:</span>
+                <p className="example-text">{modelSentence}</p>
+              </div>
+            )}
+
             <div ref={chatEndRef} />
           </div>
 
@@ -391,28 +402,25 @@ const PracticeLesson = () => {
                 return null
               })}
 
-              {/* Current sentence workspace - inline in document */}
+              {/* Current sentence workspace - clean textarea */}
               {!isComplete && currentSentence && (
-                <span className="practice-current-sentence">
-                  <span className="practice-source-text">{currentSentence.text}</span>
-                  <textarea
-                    ref={attemptInputRef}
-                    className="practice-inline-input"
-                    value={userAttempt}
-                    onChange={(e) => setUserAttempt(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Continue writing..."
-                    rows={1}
-                    disabled={feedbackLoading}
-                  />
-                </span>
+                <textarea
+                  ref={attemptInputRef}
+                  className="practice-inline-input"
+                  value={userAttempt}
+                  onChange={(e) => setUserAttempt(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Continue writing..."
+                  rows={1}
+                  disabled={feedbackLoading}
+                />
               )}
             </div>
 
-            {/* Actions bar - outside the paper flow */}
+            {/* Actions bar - simple buttons */}
             {!isComplete && currentSentence && (
               <div className="practice-actions-bar">
-                {!feedback && (
+                {!feedback ? (
                   <button
                     className="button primary"
                     onClick={handleSubmitAttempt}
@@ -420,30 +428,14 @@ const PracticeLesson = () => {
                   >
                     {feedbackLoading ? 'Checking...' : 'Submit'}
                   </button>
-                )}
-
-                {/* Model sentence and actions */}
-                {feedback && modelSentence && (
-                  <div className="practice-model-section">
-                    <div className="practice-model-sentence">
-                      <span className="label">Model:</span>
-                      <p className="model-text">{modelSentence}</p>
-                    </div>
-                    <div className="practice-actions">
-                      <button
-                        className="button ghost"
-                        onClick={() => handleFinalize(false)}
-                      >
-                        Keep Mine
-                      </button>
-                      <button
-                        className="button primary"
-                        onClick={() => handleFinalize(true)}
-                      >
-                        Use Model
-                      </button>
-                    </div>
-                  </div>
+                ) : (
+                  <button
+                    className="button primary"
+                    onClick={() => handleFinalize(false)}
+                    disabled={!userAttempt.trim()}
+                  >
+                    Next
+                  </button>
                 )}
               </div>
             )}

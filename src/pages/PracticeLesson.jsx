@@ -26,10 +26,17 @@ const PracticeLesson = () => {
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState([])
 
+  // Follow-up question state
+  const [followUpQuestion, setFollowUpQuestion] = useState('')
+  const [followUpLoading, setFollowUpLoading] = useState(false)
+
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [panelWidth, setPanelWidth] = useState(380)
   const attemptInputRef = useRef(null)
   const chatEndRef = useRef(null)
+  const resizeRef = useRef(null)
+  const isResizing = useRef(false)
 
   // Load lesson
   useEffect(() => {
@@ -76,6 +83,37 @@ const PracticeLesson = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
+
+  // Handle panel resize
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing.current) return
+      const newWidth = e.clientX
+      if (newWidth >= 280 && newWidth <= 600) {
+        setPanelWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      isResizing.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
+  const startResize = () => {
+    isResizing.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   const currentSentence = lesson?.sentences?.[lesson.currentIndex]
   const completedDocument = lesson ? getCompletedDocument(lesson) : ''
@@ -245,6 +283,53 @@ const PracticeLesson = () => {
     }
   }
 
+  const handleFollowUp = async () => {
+    if (!followUpQuestion.trim() || followUpLoading) return
+
+    setFollowUpLoading(true)
+    const question = followUpQuestion.trim()
+    setFollowUpQuestion('')
+
+    setChatMessages((prev) => [
+      ...prev,
+      { role: 'user', content: question },
+    ])
+
+    try {
+      const response = await fetch('/api/practice/followup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          context: {
+            sourceSentence: currentSentence?.text,
+            userAttempt: userAttempt,
+            modelSentence: modelSentence,
+            feedback: feedback,
+            targetLanguage: lesson.targetLanguage,
+            sourceLanguage: lesson.sourceLanguage,
+          },
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to get response')
+
+      const data = await response.json()
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: data.response },
+      ])
+    } catch (err) {
+      console.error('Follow-up error:', err)
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'Sorry, I couldn\'t process your question.', isError: true },
+      ])
+    } finally {
+      setFollowUpLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="practice-lesson-page">
@@ -303,7 +388,7 @@ const PracticeLesson = () => {
       {/* Main content */}
       <div className="practice-layout">
         {/* Left panel - Chat/Tutor */}
-        <aside className="practice-chat-panel">
+        <aside className="practice-chat-panel" style={{ width: panelWidth }}>
           <div className="practice-chat-header">
             <h2>Tutor</h2>
           </div>
@@ -326,6 +411,32 @@ const PracticeLesson = () => {
               </div>
             ))}
 
+            {/* Feedback card - shown after getting feedback */}
+            {feedback && (
+              <div className="practice-feedback-card">
+                <div className="feedback-scores">
+                  {feedback.correctness !== undefined && (
+                    <div className="feedback-score">
+                      <span className="score-label">Correctness</span>
+                      <span className="score-value">{feedback.correctness}/5</span>
+                    </div>
+                  )}
+                  {feedback.accuracy !== undefined && (
+                    <div className="feedback-score">
+                      <span className="score-label">Accuracy</span>
+                      <span className="score-value">{feedback.accuracy}/5</span>
+                    </div>
+                  )}
+                  {feedback.naturalness !== undefined && (
+                    <div className="feedback-score">
+                      <span className="score-label">Naturalness</span>
+                      <span className="score-value">{feedback.naturalness}/5</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Example sentence - shown after feedback */}
             {feedback && modelSentence && (
               <div className="practice-example-sentence">
@@ -337,43 +448,31 @@ const PracticeLesson = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Feedback details */}
-          {feedback && (
-            <div className="practice-feedback-details">
-              {feedback.naturalness && (
-                <div className="feedback-item">
-                  <span className="feedback-label">Naturalness</span>
-                  <span className="feedback-value">{feedback.naturalness}/5</span>
-                </div>
-              )}
-              {feedback.accuracy && (
-                <div className="feedback-item">
-                  <span className="feedback-label">Accuracy</span>
-                  <span className="feedback-value">{feedback.accuracy}/5</span>
-                </div>
-              )}
-              {feedback.grammarIssues?.length > 0 && (
-                <div className="feedback-item full-width">
-                  <span className="feedback-label">Grammar Notes</span>
-                  <ul className="feedback-list">
-                    {feedback.grammarIssues.map((issue, i) => (
-                      <li key={i}>{issue}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {feedback.suggestions?.length > 0 && (
-                <div className="feedback-item full-width">
-                  <span className="feedback-label">Suggestions</span>
-                  <ul className="feedback-list">
-                    {feedback.suggestions.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Follow-up input */}
+          <div className="practice-followup-input">
+            <input
+              type="text"
+              value={followUpQuestion}
+              onChange={(e) => setFollowUpQuestion(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleFollowUp()}
+              placeholder="Ask a question..."
+              disabled={followUpLoading}
+            />
+            <button
+              className="button ghost small"
+              onClick={handleFollowUp}
+              disabled={!followUpQuestion.trim() || followUpLoading}
+            >
+              {followUpLoading ? '...' : '→'}
+            </button>
+          </div>
+
+          {/* Resize handle */}
+          <div
+            className="practice-panel-resize"
+            onMouseDown={startResize}
+            ref={resizeRef}
+          />
         </aside>
 
         {/* Right panel - Document */}

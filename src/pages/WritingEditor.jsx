@@ -168,6 +168,19 @@ const WritingEditor = () => {
     }
   }, [])
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        save(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [save])
+
   const handleContentChange = (e) => {
     setContent(e.target.value)
     hasUnsavedChanges.current = true
@@ -260,13 +273,49 @@ const WritingEditor = () => {
     })
   }
 
+  // SVG Icons
+  const icons = {
+    check: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    ),
+    circle: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+      </svg>
+    ),
+    loader: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="spinning">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+      </svg>
+    ),
+    send: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13" />
+        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+      </svg>
+    ),
+    messageCircle: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      </svg>
+    ),
+    checkCircle: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    ),
+  }
+
   // Get status info
   const getStatusInfo = () => {
-    if (saving) return { label: 'Saving', icon: '○', class: 'saving' }
-    if (saveSuccess) return { label: 'Saved', icon: '✓', class: 'saved' }
-    if (piece.status === 'submitted') return { label: 'Submitted', icon: '◉', class: 'submitted' }
-    if (piece.status === 'complete') return { label: 'Complete', icon: '✓', class: 'complete' }
-    return { label: 'Draft', icon: '○', class: 'draft' }
+    if (saving) return { label: 'Saving', icon: icons.loader, class: 'saving' }
+    if (saveSuccess) return { label: 'Saved', icon: icons.check, class: 'saved' }
+    if (piece.status === 'submitted') return { label: 'Submitted', icon: icons.checkCircle, class: 'submitted' }
+    if (piece.status === 'complete') return { label: 'Complete', icon: icons.check, class: 'complete' }
+    return { label: 'Draft', icon: icons.circle, class: 'draft' }
   }
 
   const status = getStatusInfo()
@@ -282,6 +331,7 @@ const WritingEditor = () => {
           <span className="writing-editor-nav-current">Write</span>
         </nav>
         <div className="writing-editor-header-right">
+          <span className="writing-editor-shortcut-hint">⌘S to save</span>
           <div className={`writing-editor-status-pill ${status.class}`}>
             <span className="writing-editor-status-icon">{status.icon}</span>
             <span className="writing-editor-status-label">{status.label}</span>
@@ -291,9 +341,10 @@ const WritingEditor = () => {
 
       <div className={`writing-editor-main ${showFeedbackPanel ? 'with-feedback' : ''}`}>
         <div className="writing-editor-canvas">
+          <div className="writing-editor-accent-bar" />
           <div className="writing-editor-content">
             <div className="writing-editor-meta">
-              <span className="writing-editor-type-badge">{typeLabel}</span>
+              <span className="writing-editor-type-badge">{typeLabel.toLowerCase()}</span>
               <span className="writing-editor-meta-separator">·</span>
               <span className="writing-editor-language">{piece.language}</span>
             </div>
@@ -312,7 +363,7 @@ const WritingEditor = () => {
               className="writing-editor-textarea"
               value={content}
               onChange={handleContentChange}
-              placeholder={`Start writing your ${typeLabel.toLowerCase()}...`}
+              placeholder="What's on your mind today..."
             />
           </div>
         </div>
@@ -373,7 +424,7 @@ const WritingEditor = () => {
             className="writing-editor-action-btn secondary"
             onClick={() => setShowFeedbackPanel(!showFeedbackPanel)}
           >
-            <span className="writing-editor-action-icon">💬</span>
+            <span className="writing-editor-action-icon">{icons.messageCircle}</span>
             Feedback
           </button>
           {piece.status !== 'complete' && (
@@ -385,17 +436,17 @@ const WritingEditor = () => {
               >
                 {submitting ? (
                   <>
-                    <span className="writing-editor-action-icon spinning">◌</span>
+                    <span className="writing-editor-action-icon">{icons.loader}</span>
                     Submitting
                   </>
                 ) : piece.status === 'submitted' ? (
                   <>
-                    <span className="writing-editor-action-icon">✓</span>
+                    <span className="writing-editor-action-icon">{icons.check}</span>
                     Submitted
                   </>
                 ) : (
                   <>
-                    <span className="writing-editor-action-icon">↗</span>
+                    <span className="writing-editor-action-icon">{icons.send}</span>
                     Submit
                   </>
                 )}
@@ -404,14 +455,14 @@ const WritingEditor = () => {
                 className="writing-editor-action-btn primary"
                 onClick={handleMarkComplete}
               >
-                <span className="writing-editor-action-icon">✓</span>
+                <span className="writing-editor-action-icon">{icons.check}</span>
                 Complete
               </button>
             </>
           )}
           {piece.status === 'complete' && (
             <div className="writing-editor-complete-badge">
-              <span className="writing-editor-action-icon">✓</span>
+              <span className="writing-editor-action-icon">{icons.checkCircle}</span>
               Completed
             </div>
           )}

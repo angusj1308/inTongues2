@@ -139,6 +139,50 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
+  // Helper to check if translation is missing or invalid
+  const isMissingTranslation = (translation) => {
+    return !translation ||
+      translation === 'No translation found' ||
+      translation === 'No translation'
+  }
+
+  // Fetch missing translation for current card
+  useEffect(() => {
+    const currentCard = cards[currentIndex]
+    if (!currentCard || !isMissingTranslation(currentCard.translation)) return
+    if (!language || !profile?.nativeLanguage) return
+
+    const fetchTranslation = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: currentCard.text,
+            sourceLang: language,
+            targetLang: profile.nativeLanguage,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.translation && data.translation !== 'No translation found') {
+            // Update the card with the fetched translation
+            setCards((prev) =>
+              prev.map((card, idx) =>
+                idx === currentIndex ? { ...card, translation: data.translation } : card
+              )
+            )
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching translation:', error)
+      }
+    }
+
+    fetchTranslation()
+  }, [currentIndex, cards, language, profile?.nativeLanguage])
+
   // Play audio for current card
   const playAudio = useCallback(
     async (word) => {

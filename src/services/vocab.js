@@ -201,9 +201,30 @@ export const upsertVocabEntry = async (
   const ref = getVocabDocRef(userId, normalisedLang, text)
   const existingDoc = await getDoc(ref)
 
+  // Check if translation is a fallback/placeholder string
+  const isFallbackTranslation = !translation ||
+    translation === 'No translation found' ||
+    translation === 'No translation'
+
+  // Determine the translation to save
+  let translationToSave = translation
+  if (existingDoc.exists()) {
+    const existingData = existingDoc.data()
+    // Preserve existing translation if new one is a fallback
+    if (isFallbackTranslation && existingData.translation &&
+        existingData.translation !== 'No translation found' &&
+        existingData.translation !== 'No translation') {
+      translationToSave = existingData.translation
+    }
+  }
+  // If no existing translation and new one is fallback, save null instead of the literal string
+  if (isFallbackTranslation && translationToSave === translation) {
+    translationToSave = null
+  }
+
   const updates = {
     text,
-    translation,
+    translation: translationToSave,
     language: normalisedLang,
     status,
     updatedAt: serverTimestamp(),

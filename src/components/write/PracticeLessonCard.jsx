@@ -39,7 +39,7 @@ const getProgressPercent = (completedCount, totalCount) => {
   return Math.round((completedCount / totalCount) * 100)
 }
 
-const PracticeLessonCard = ({ lesson, onClick }) => {
+const PracticeLessonCard = ({ lesson, onClick, onDelete }) => {
   const levelInfo = ADAPTATION_LEVELS.find((l) => l.id === lesson.adaptationLevel)
   const levelLabel = levelInfo?.label || lesson.adaptationLevel
   const totalSentences = lesson.sentences?.length || 0
@@ -49,7 +49,7 @@ const PracticeLessonCard = ({ lesson, onClick }) => {
   const isImportFailed = lesson.status === 'import_failed'
 
   const handleClick = () => {
-    if (isImporting) return // Don't allow clicking while importing
+    if (isImporting) return
     onClick()
   }
 
@@ -57,6 +57,13 @@ const PracticeLessonCard = ({ lesson, onClick }) => {
     if (isImporting) return
     if (e.key === 'Enter' || e.key === ' ') {
       onClick()
+    }
+  }
+
+  const handleDelete = (e) => {
+    e.stopPropagation()
+    if (window.confirm(`Delete "${lesson.title || 'Untitled Lesson'}"?`)) {
+      onDelete(lesson.id)
     }
   }
 
@@ -74,6 +81,16 @@ const PracticeLessonCard = ({ lesson, onClick }) => {
         <span className={`writing-piece-status ${getStatusClass(lesson.status)}`}>
           {getStatusLabel(lesson.status, completedCount, totalSentences)}
         </span>
+        {onDelete && (
+          <button
+            className="delete-btn"
+            onClick={handleDelete}
+            aria-label="Delete lesson"
+            title="Delete"
+          >
+            &times;
+          </button>
+        )}
       </div>
       <h4 className="writing-piece-title">{lesson.title || 'Untitled Lesson'}</h4>
       <div className="practice-lesson-meta">

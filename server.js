@@ -1613,16 +1613,57 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 
   const pageHtml = await pageResponse.text()
 
-  // Extract ytInitialPlayerResponse from the page
-  const playerResponseMatch = pageHtml.match(/ytInitialPlayerResponse\s*=\s*({.+?});/)
-  if (!playerResponseMatch) {
+  // Extract ytInitialPlayerResponse from the page - need greedy match for full JSON
+  const startMarker = 'ytInitialPlayerResponse = '
+  const startIndex = pageHtml.indexOf(startMarker)
+  if (startIndex === -1) {
     throw new Error('Could not find player response in YouTube page')
   }
 
+  // Find the JSON object by matching braces
+  const jsonStart = startIndex + startMarker.length
+  let braceCount = 0
+  let jsonEnd = jsonStart
+  let inString = false
+  let escapeNext = false
+
+  for (let i = jsonStart; i < pageHtml.length; i++) {
+    const char = pageHtml[i]
+
+    if (escapeNext) {
+      escapeNext = false
+      continue
+    }
+
+    if (char === '\\') {
+      escapeNext = true
+      continue
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString
+      continue
+    }
+
+    if (!inString) {
+      if (char === '{') braceCount++
+      if (char === '}') {
+        braceCount--
+        if (braceCount === 0) {
+          jsonEnd = i + 1
+          break
+        }
+      }
+    }
+  }
+
+  const jsonStr = pageHtml.substring(jsonStart, jsonEnd)
+
   let playerResponse
   try {
-    playerResponse = JSON.parse(playerResponseMatch[1])
+    playerResponse = JSON.parse(jsonStr)
   } catch (e) {
+    console.error('JSON parse error at position:', e.message)
     throw new Error('Failed to parse player response JSON')
   }
 
@@ -1661,22 +1702,27 @@ async function fetchYoutubeCaptionSegments(videoId, languageCode) {
 
   if (!selectedTrack?.baseUrl) return []
 
-  // Fetch the caption XML
+  // Fetch the caption XML with full browser headers
   const trackUrl = selectedTrack.baseUrl
-  console.log('Fetching caption URL...')
+  console.log('Fetching caption URL:', trackUrl.substring(0, 100) + '...')
 
   const captionResponse = await fetch(trackUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://www.youtube.com/',
     },
   })
+
+  console.log('Caption response status:', captionResponse.status, captionResponse.statusText)
 
   if (!captionResponse.ok) {
     throw new Error(`Failed to fetch captions: ${captionResponse.status}`)
   }
 
   const captionXml = await captionResponse.text()
-  console.log('Caption response length:', captionXml.length)
+  console.log('Caption response length:', captionXml.length, 'First 200 chars:', captionXml.substring(0, 200))
 
   if (!captionXml || captionXml.length === 0) {
     throw new Error('Empty caption response')

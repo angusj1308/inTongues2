@@ -9960,12 +9960,24 @@ body.active-pass-locked {
   color: #fff;
 }
 
-/* Writing Editor Page */
+/* Writing Editor Page - Redesigned */
 .writing-editor-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #fafafa;
+  background: #f8f9fa;
+  transition: background 0.3s ease;
+}
+
+.writing-editor-page.focus-mode .writing-editor-header,
+.writing-editor-page.focus-mode .writing-editor-footer {
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.writing-editor-page.focus-mode .writing-editor-header:hover,
+.writing-editor-page.focus-mode .writing-editor-footer:hover {
+  opacity: 1;
 }
 
 .writing-editor-loading,
@@ -9978,22 +9990,54 @@ body.active-pass-locked {
   gap: 16px;
 }
 
+/* Header - Breadcrumb Navigation */
 .writing-editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
+  padding: 14px 32px;
   background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: opacity 0.3s ease, background 0.2s ease;
 }
 
-.writing-editor-header-left {
+.writing-editor-breadcrumb {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+}
+
+.writing-editor-nav-link {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  margin: -6px -12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.writing-editor-nav-link:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.writing-editor-nav-separator {
+  color: #d1d5db;
+  font-size: 0.875rem;
+  user-select: none;
+}
+
+.writing-editor-nav-current {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
 }
 
 .writing-editor-header-right {
@@ -10002,63 +10046,139 @@ body.active-pass-locked {
   gap: 12px;
 }
 
+/* Status Pill */
+.writing-editor-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.writing-editor-status-pill.draft {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.writing-editor-status-pill.saving {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.writing-editor-status-pill.saved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.writing-editor-status-pill.submitted {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.writing-editor-status-pill.complete {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.writing-editor-status-icon {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.writing-editor-status-label {
+  line-height: 1;
+}
+
+/* Main Content Area */
+.writing-editor-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 40px 24px;
+  gap: 32px;
+}
+
+.writing-editor-main.with-feedback {
+  justify-content: flex-start;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Canvas - Paper Effect */
+.writing-editor-canvas {
+  flex: 1;
+  max-width: 720px;
+  background: #fffcf9;
+  border-radius: 16px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  padding: 48px 56px;
+  min-height: calc(100vh - 200px);
+  transition: box-shadow 0.2s ease;
+}
+
+.writing-editor-canvas:focus-within {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.writing-editor-main.with-feedback .writing-editor-canvas {
+  max-width: none;
+  flex: 1;
+}
+
+.writing-editor-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Meta Info (Type + Language) */
+.writing-editor-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
 .writing-editor-type-badge {
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 4px 10px;
-  background: #f1f5f9;
-  color: #475569;
-  border-radius: 6px;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+
+.writing-editor-meta-separator {
+  color: #d1d5db;
+  font-size: 0.75rem;
 }
 
 .writing-editor-language {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
-.writing-editor-save-status {
   font-size: 0.8rem;
-  color: #64748b;
+  font-weight: 500;
+  color: #6b7280;
 }
 
-.writing-editor-main {
-  flex: 1;
-  display: flex;
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 32px 24px;
-}
-
-.writing-editor-main.with-feedback {
-  gap: 32px;
-}
-
-.writing-editor-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  max-width: 720px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.writing-editor-main.with-feedback .writing-editor-content {
-  max-width: none;
-  margin: 0;
-}
-
+/* Title Input */
 .writing-editor-title {
-  font-size: 2rem;
+  font-size: 1.875rem;
   font-weight: 600;
+  letter-spacing: -0.02em;
   border: none;
   background: transparent;
   padding: 0;
-  margin-bottom: 24px;
-  color: #0f172a;
+  color: #111827;
   width: 100%;
+  line-height: 1.3;
 }
 
 .writing-editor-title:focus {
@@ -10066,19 +10186,29 @@ body.active-pass-locked {
 }
 
 .writing-editor-title::placeholder {
-  color: #94a3b8;
+  color: #9ca3af;
 }
 
+.writing-editor-title-underline {
+  height: 2px;
+  background: linear-gradient(90deg, #e5e7eb 0%, transparent 100%);
+  margin: 16px 0 32px 0;
+  border-radius: 1px;
+}
+
+/* Textarea */
 .writing-editor-textarea {
   flex: 1;
   min-height: 400px;
-  font-size: 1.1rem;
-  line-height: 1.8;
+  font-size: 1.125rem;
+  line-height: 1.9;
+  letter-spacing: 0.01em;
   border: none;
   background: transparent;
   padding: 0;
   resize: none;
-  color: #1f2937;
+  color: #374151;
+  font-family: inherit;
 }
 
 .writing-editor-textarea:focus {
@@ -10087,46 +10217,73 @@ body.active-pass-locked {
 
 .writing-editor-textarea::placeholder {
   color: #9ca3af;
+  font-style: italic;
 }
 
-/* Feedback Panel */
+/* Feedback Panel - Refined */
 .writing-feedback-panel {
-  width: 320px;
+  width: 340px;
   flex-shrink: 0;
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
   overflow: hidden;
   height: fit-content;
   position: sticky;
-  top: 80px;
+  top: 100px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .writing-feedback-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
 }
 
 .writing-feedback-header h3 {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   margin: 0;
+  color: #111827;
+}
+
+.writing-feedback-close {
+  background: none;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.writing-feedback-close:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .writing-feedback-content {
-  padding: 16px;
+  padding: 20px;
   max-height: 500px;
   overflow-y: auto;
 }
 
 .writing-feedback-item {
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f9fafb;
+  border-radius: 10px;
   margin-bottom: 12px;
+  border: 1px solid #f3f4f6;
 }
 
 .writing-feedback-item:last-child {
@@ -10134,25 +10291,52 @@ body.active-pass-locked {
 }
 
 .writing-feedback-item p {
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.6;
   margin: 0 0 8px 0;
+  color: #374151;
 }
 
 .writing-feedback-date {
   font-size: 0.75rem;
+  color: #9ca3af;
 }
 
-/* Editor Footer */
+.writing-feedback-empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.writing-feedback-empty-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.writing-feedback-empty p {
+  margin: 0 0 4px 0;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.writing-feedback-empty p.muted {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+/* Editor Footer - Refined */
 .writing-editor-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
+  padding: 14px 32px;
   background: #fff;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #e5e7eb;
   position: sticky;
   bottom: 0;
+  transition: opacity 0.3s ease;
 }
 
 .writing-editor-footer-left {
@@ -10164,23 +10348,82 @@ body.active-pass-locked {
 .writing-editor-footer-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .writing-editor-word-count {
   font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
 }
 
-.writing-editor-status-badge {
+.writing-editor-last-saved {
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  color: #9ca3af;
+  padding-left: 16px;
+  border-left: 1px solid #e5e7eb;
 }
 
-.writing-editor-status-badge.complete {
+/* Action Buttons */
+.writing-editor-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.writing-editor-action-btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.writing-editor-action-btn.secondary:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.writing-editor-action-btn.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.writing-editor-action-btn.primary {
+  background: #111827;
+  color: #fff;
+}
+
+.writing-editor-action-btn.primary:hover {
+  background: #1f2937;
+}
+
+.writing-editor-action-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.writing-editor-action-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.writing-editor-complete-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
   background: #d1fae5;
   color: #065f46;
 }
@@ -10192,8 +10435,33 @@ body.active-pass-locked {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .writing-editor-header {
+    padding: 12px 16px;
+  }
+
+  .writing-editor-breadcrumb {
+    gap: 6px;
+  }
+
+  .writing-editor-nav-link {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    margin: -4px -8px;
+  }
+
+  .writing-editor-nav-separator,
+  .writing-editor-nav-current {
+    font-size: 0.8rem;
+  }
+
   .writing-editor-main {
-    padding: 24px 16px;
+    padding: 20px 16px;
+  }
+
+  .writing-editor-canvas {
+    padding: 32px 24px;
+    border-radius: 12px;
+    min-height: calc(100vh - 180px);
   }
 
   .writing-editor-main.with-feedback {
@@ -10203,10 +10471,24 @@ body.active-pass-locked {
   .writing-feedback-panel {
     width: 100%;
     position: static;
+    border-radius: 12px;
   }
 
   .writing-editor-title {
     font-size: 1.5rem;
+  }
+
+  .writing-editor-textarea {
+    font-size: 1rem;
+    min-height: 300px;
+  }
+
+  .writing-editor-meta {
+    margin-bottom: 16px;
+  }
+
+  .writing-editor-title-underline {
+    margin: 12px 0 24px 0;
   }
 
   .text-type-grid {
@@ -10214,35 +10496,33 @@ body.active-pass-locked {
   }
 
   .writing-editor-footer {
+    padding: 12px 16px;
     flex-direction: column;
     gap: 12px;
   }
 
+  .writing-editor-footer-left {
+    width: 100%;
+    justify-content: center;
+  }
+
   .writing-editor-footer-right {
+    width: 100%;
     flex-wrap: wrap;
     justify-content: center;
+  }
+
+  .writing-editor-action-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  .writing-editor-last-saved {
+    display: none;
   }
 }
 
 /* Dark mode support */
-[data-theme='dark'] .writing-piece-card,
-[data-theme='dark'] .modal-content,
-[data-theme='dark'] .writing-feedback-panel {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-[data-theme='dark'] .writing-piece-title,
-[data-theme='dark'] .modal-header h2,
-[data-theme='dark'] .writing-editor-title {
-  color: #f1f5f9;
-}
-
-[data-theme='dark'] .writing-piece-snippet,
-[data-theme='dark'] .writing-piece-type {
-  color: #94a3b8;
-}
-
 [data-theme='dark'] .writing-editor-page {
   background: #0f172a;
 }
@@ -10253,8 +10533,186 @@ body.active-pass-locked {
   border-color: #334155;
 }
 
+[data-theme='dark'] .writing-editor-nav-link {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-editor-nav-link:hover {
+  color: #e2e8f0;
+  background: #334155;
+}
+
+[data-theme='dark'] .writing-editor-nav-separator {
+  color: #475569;
+}
+
+[data-theme='dark'] .writing-editor-nav-current {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-editor-status-pill.draft {
+  background: #334155;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-editor-status-pill.saving {
+  background: #422006;
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .writing-editor-status-pill.saved {
+  background: #064e3b;
+  color: #34d399;
+}
+
+[data-theme='dark'] .writing-editor-status-pill.submitted {
+  background: #1e3a5f;
+  color: #60a5fa;
+}
+
+[data-theme='dark'] .writing-editor-status-pill.complete {
+  background: #064e3b;
+  color: #34d399;
+}
+
+[data-theme='dark'] .writing-editor-canvas {
+  background: #1e293b;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .writing-editor-canvas:focus-within {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .writing-editor-type-badge {
+  color: #64748b;
+}
+
+[data-theme='dark'] .writing-editor-meta-separator {
+  color: #475569;
+}
+
+[data-theme='dark'] .writing-editor-language {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-editor-title {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .writing-editor-title::placeholder {
+  color: #64748b;
+}
+
+[data-theme='dark'] .writing-editor-title-underline {
+  background: linear-gradient(90deg, #334155 0%, transparent 100%);
+}
+
 [data-theme='dark'] .writing-editor-textarea {
   color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-editor-textarea::placeholder {
+  color: #64748b;
+}
+
+[data-theme='dark'] .writing-feedback-panel {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-feedback-header {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-feedback-header h3 {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .writing-feedback-close {
+  color: #64748b;
+}
+
+[data-theme='dark'] .writing-feedback-close:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-feedback-item {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-feedback-item p {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-feedback-date {
+  color: #64748b;
+}
+
+[data-theme='dark'] .writing-feedback-empty p {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-feedback-empty p.muted {
+  color: #64748b;
+}
+
+[data-theme='dark'] .writing-editor-word-count {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .writing-editor-last-saved {
+  color: #64748b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-editor-action-btn.secondary {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .writing-editor-action-btn.secondary:hover {
+  background: #475569;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .writing-editor-action-btn.primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+[data-theme='dark'] .writing-editor-action-btn.primary:hover {
+  background: #2563eb;
+}
+
+[data-theme='dark'] .writing-editor-complete-badge {
+  background: #064e3b;
+  color: #34d399;
+}
+
+[data-theme='dark'] .writing-piece-card,
+[data-theme='dark'] .modal-content {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .writing-piece-title,
+[data-theme='dark'] .modal-header h2 {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .writing-piece-snippet,
+[data-theme='dark'] .writing-piece-type {
+  color: #94a3b8;
 }
 
 [data-theme='dark'] .text-type-option {

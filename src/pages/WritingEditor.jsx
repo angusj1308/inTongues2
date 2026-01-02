@@ -11,6 +11,7 @@ import {
 } from '../services/writing'
 
 const AUTO_SAVE_INTERVAL = 30000 // 30 seconds
+const FOCUS_MODE_DELAY = 2000 // 2 seconds before dimming chrome
 
 const WritingEditor = () => {
   const { id } = useParams()
@@ -26,11 +27,14 @@ const WritingEditor = () => {
   const [error, setError] = useState('')
   const [showFeedbackPanel, setShowFeedbackPanel] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [isFocusMode, setIsFocusMode] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   const contentRef = useRef(content)
   const titleRef = useRef(title)
   const hasUnsavedChanges = useRef(false)
   const autoSaveTimer = useRef(null)
+  const focusModeTimer = useRef(null)
 
   // Keep refs in sync
   useEffect(() => {
@@ -81,6 +85,7 @@ const WritingEditor = () => {
     if (!hasUnsavedChanges.current && !forceContentSave) return
 
     setSaving(true)
+    setSaveSuccess(false)
 
     try {
       // Save content
@@ -93,6 +98,9 @@ const WritingEditor = () => {
 
       setLastSaved(new Date())
       hasUnsavedChanges.current = false
+      setSaveSuccess(true)
+      // Reset success indicator after animation
+      setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
       console.error('Failed to save:', err)
     } finally {
@@ -140,14 +148,36 @@ const WritingEditor = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
+  // Focus mode: dim chrome when typing
+  const triggerFocusMode = useCallback(() => {
+    setIsFocusMode(true)
+    if (focusModeTimer.current) {
+      clearTimeout(focusModeTimer.current)
+    }
+    focusModeTimer.current = setTimeout(() => {
+      setIsFocusMode(false)
+    }, FOCUS_MODE_DELAY)
+  }, [])
+
+  // Cleanup focus mode timer
+  useEffect(() => {
+    return () => {
+      if (focusModeTimer.current) {
+        clearTimeout(focusModeTimer.current)
+      }
+    }
+  }, [])
+
   const handleContentChange = (e) => {
     setContent(e.target.value)
     hasUnsavedChanges.current = true
+    triggerFocusMode()
   }
 
   const handleTitleChange = (e) => {
     setTitle(e.target.value)
     hasUnsavedChanges.current = true
+    triggerFocusMode()
   }
 
   const handleSave = async () => {
@@ -217,43 +247,74 @@ const WritingEditor = () => {
 
   const typeInfo = TEXT_TYPES.find((t) => t.id === piece.textType)
   const typeLabel = typeInfo?.label || piece.textType
+  const wordCount = content.split(/\s+/).filter(Boolean).length
+
+  // Format the date nicely
+  const formatDate = (date) => {
+    if (!date) return ''
+    const d = date instanceof Date ? date : new Date(date)
+    return d.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
+  // Get status info
+  const getStatusInfo = () => {
+    if (saving) return { label: 'Saving', icon: '○', class: 'saving' }
+    if (saveSuccess) return { label: 'Saved', icon: '✓', class: 'saved' }
+    if (piece.status === 'submitted') return { label: 'Submitted', icon: '◉', class: 'submitted' }
+    if (piece.status === 'complete') return { label: 'Complete', icon: '✓', class: 'complete' }
+    return { label: 'Draft', icon: '○', class: 'draft' }
+  }
+
+  const status = getStatusInfo()
 
   return (
-    <div className="writing-editor-page">
+    <div className={`writing-editor-page ${isFocusMode ? 'focus-mode' : ''}`}>
       <header className="writing-editor-header">
-        <div className="writing-editor-header-left">
-          <button className="button ghost" onClick={handleBack}>
-            &larr; Back
+        <nav className="writing-editor-breadcrumb">
+          <button className="writing-editor-nav-link" onClick={handleBack}>
+            Dashboard
           </button>
-          <span className="writing-editor-type-badge">{typeLabel}</span>
-          <span className="writing-editor-language">{piece.language}</span>
-        </div>
+          <span className="writing-editor-nav-separator">/</span>
+          <span className="writing-editor-nav-current">Write</span>
+        </nav>
         <div className="writing-editor-header-right">
-          {saving && <span className="writing-editor-save-status">Saving...</span>}
-          {!saving && lastSaved && (
-            <span className="writing-editor-save-status muted">
-              Saved {lastSaved.toLocaleTimeString()}
-            </span>
-          )}
+          <div className={`writing-editor-status-pill ${status.class}`}>
+            <span className="writing-editor-status-icon">{status.icon}</span>
+            <span className="writing-editor-status-label">{status.label}</span>
+          </div>
         </div>
       </header>
 
       <div className={`writing-editor-main ${showFeedbackPanel ? 'with-feedback' : ''}`}>
-        <div className="writing-editor-content">
-          <input
-            type="text"
-            className="writing-editor-title"
-            value={title}
-            onChange={handleTitleChange}
-            placeholder="Untitled"
-          />
+        <div className="writing-editor-canvas">
+          <div className="writing-editor-content">
+            <div className="writing-editor-meta">
+              <span className="writing-editor-type-badge">{typeLabel}</span>
+              <span className="writing-editor-meta-separator">·</span>
+              <span className="writing-editor-language">{piece.language}</span>
+            </div>
 
-          <textarea
-            className="writing-editor-textarea"
-            value={content}
-            onChange={handleContentChange}
-            placeholder={`Start writing your ${typeLabel.toLowerCase()} in ${piece.language}...`}
-          />
+            <input
+              type="text"
+              className="writing-editor-title"
+              value={title}
+              onChange={handleTitleChange}
+              placeholder={formatDate(piece.createdAt) || 'Untitled'}
+            />
+
+            <div className="writing-editor-title-underline" />
+
+            <textarea
+              className="writing-editor-textarea"
+              value={content}
+              onChange={handleContentChange}
+              placeholder={`Start writing your ${typeLabel.toLowerCase()}...`}
+            />
+          </div>
         </div>
 
         {showFeedbackPanel && (
@@ -261,10 +322,11 @@ const WritingEditor = () => {
             <div className="writing-feedback-header">
               <h3>Feedback</h3>
               <button
-                className="button ghost small"
+                className="writing-feedback-close"
                 onClick={() => setShowFeedbackPanel(false)}
+                aria-label="Close feedback panel"
               >
-                Hide
+                ×
               </button>
             </div>
             <div className="writing-feedback-content">
@@ -272,19 +334,23 @@ const WritingEditor = () => {
                 piece.feedback.map((fb) => (
                   <div key={fb.id} className="writing-feedback-item">
                     <p>{fb.content}</p>
-                    <span className="writing-feedback-date muted small">
+                    <span className="writing-feedback-date">
                       {new Date(fb.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                 ))
               ) : piece.status === 'submitted' ? (
-                <p className="muted small">
-                  Your writing has been submitted. AI feedback will appear here soon.
-                </p>
+                <div className="writing-feedback-empty">
+                  <span className="writing-feedback-empty-icon">◎</span>
+                  <p>Your writing has been submitted.</p>
+                  <p className="muted">AI feedback will appear here soon.</p>
+                </div>
               ) : (
-                <p className="muted small">
-                  Submit your writing to receive feedback on grammar, vocabulary, and style.
-                </p>
+                <div className="writing-feedback-empty">
+                  <span className="writing-feedback-empty-icon">💬</span>
+                  <p>No feedback yet</p>
+                  <p className="muted">Submit your writing to receive feedback on grammar, vocabulary, and style.</p>
+                </div>
               )}
             </div>
           </aside>
@@ -293,42 +359,61 @@ const WritingEditor = () => {
 
       <footer className="writing-editor-footer">
         <div className="writing-editor-footer-left">
-          <span className="writing-editor-word-count muted small">
-            {content.split(/\s+/).filter(Boolean).length} words
+          <span className="writing-editor-word-count">
+            {wordCount} {wordCount === 1 ? 'word' : 'words'}
           </span>
+          {lastSaved && !saving && (
+            <span className="writing-editor-last-saved">
+              Last saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </div>
         <div className="writing-editor-footer-right">
-          <button className="button ghost" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save'}
+          <button
+            className="writing-editor-action-btn secondary"
+            onClick={() => setShowFeedbackPanel(!showFeedbackPanel)}
+          >
+            <span className="writing-editor-action-icon">💬</span>
+            Feedback
           </button>
-          {!showFeedbackPanel && (
-            <button
-              className="button ghost"
-              onClick={() => setShowFeedbackPanel(true)}
-            >
-              Show Feedback
-            </button>
-          )}
           {piece.status !== 'complete' && (
             <>
               <button
-                className="button ghost"
+                className="writing-editor-action-btn secondary"
                 onClick={handleSubmitForFeedback}
                 disabled={submitting || piece.status === 'submitted'}
               >
-                {submitting
-                  ? 'Submitting...'
-                  : piece.status === 'submitted'
-                    ? 'Submitted'
-                    : 'Submit for Feedback'}
+                {submitting ? (
+                  <>
+                    <span className="writing-editor-action-icon spinning">◌</span>
+                    Submitting
+                  </>
+                ) : piece.status === 'submitted' ? (
+                  <>
+                    <span className="writing-editor-action-icon">✓</span>
+                    Submitted
+                  </>
+                ) : (
+                  <>
+                    <span className="writing-editor-action-icon">↗</span>
+                    Submit
+                  </>
+                )}
               </button>
-              <button className="button primary" onClick={handleMarkComplete}>
-                Mark Complete
+              <button
+                className="writing-editor-action-btn primary"
+                onClick={handleMarkComplete}
+              >
+                <span className="writing-editor-action-icon">✓</span>
+                Complete
               </button>
             </>
           )}
           {piece.status === 'complete' && (
-            <span className="writing-editor-status-badge complete">Complete</span>
+            <div className="writing-editor-complete-badge">
+              <span className="writing-editor-action-icon">✓</span>
+              Completed
+            </div>
           )}
         </div>
       </footer>

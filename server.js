@@ -2602,10 +2602,38 @@ app.post('/api/transcribe/background', async (req, res) => {
       status: 'pending',
     }))
 
-    // Update the lesson with sentences, fullTranscript, and change status
+    // Generate context summary for tutor feedback (AI analyzes and extracts relevant context)
+    let contextSummary = ''
+    try {
+      console.log('Generating context summary...')
+      const summaryResponse = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: `Analyze this transcript and write a brief context summary (150-200 words) that would help a language tutor provide accurate translations. The tutor needs to understand the context to give appropriate feedback.
+
+Extract and describe whatever you find relevant - this might include:
+- What type of content this is and the setting
+- Who is speaking and who they're addressing
+- The subject matter and any specialized terminology
+- Time periods, cultural references, or proper nouns mentioned
+- The tone and register being used
+- Any other contextually important details
+
+Transcript (first 8000 characters):
+${fullTranscript.slice(0, 8000)}
+
+Write the summary in a natural paragraph format:`,
+      })
+      contextSummary = summaryResponse.output_text?.trim() || ''
+      console.log('Context summary generated:', contextSummary.slice(0, 100) + '...')
+    } catch (summaryError) {
+      console.error('Failed to generate context summary:', summaryError.message)
+    }
+
+    // Update the lesson with sentences, fullTranscript, contextSummary, and change status
     await lessonRef.update({
       sentences,
       fullTranscript,
+      contextSummary,
       status: 'in_progress',
       importError: null,
     })
@@ -4459,7 +4487,7 @@ app.post('/api/delete-story', async (req, res) => {
 // Practice Mode: Get AI feedback on user's translation attempt
 app.post('/api/practice/feedback', async (req, res) => {
   try {
-    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, fullTranscript } = req.body || {}
+    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, contextSummary } = req.body || {}
 
     if (!nativeSentence || !userAttempt || !targetLanguage) {
       return res.status(400).json({ error: 'nativeSentence, userAttempt, and targetLanguage are required' })
@@ -4468,23 +4496,13 @@ app.post('/api/practice/feedback', async (req, res) => {
     const sourceLang = sourceLanguage || 'English'
     const level = adaptationLevel || 'native'
 
-    // Build context section if full transcript is available
-    const contextSection = fullTranscript
+    // Build context section if context summary is available
+    const contextSection = contextSummary
       ? `
-IMPORTANT CONTEXT - Full Document/Lecture:
-"""
-${fullTranscript}
-"""
+IMPORTANT CONTEXT:
+${contextSummary}
 
-Use this context to understand:
-- The register (formal lecture, casual conversation, interview, etc.)
-- The audience (is the speaker addressing one person with "you" or many people?)
-- Cultural and temporal references (decades like "the 80s", idioms, etc.)
-- The overall topic and tone
-
-Your feedback and model sentence MUST be consistent with this context. For example:
-- If the speaker is lecturing to an audience, use plural "you" forms (ustedes, vosotros, etc.) not singular
-- If referring to decades (like "the 80s"), use the culturally appropriate form for ${targetLanguage}
+Your feedback and model sentence MUST be consistent with this context.
 `
       : ''
 
@@ -4560,22 +4578,17 @@ app.post('/api/practice/followup', async (req, res) => {
       return res.status(400).json({ error: 'question is required' })
     }
 
-    const { sourceSentence, userAttempt, modelSentence, feedback, targetLanguage, sourceLanguage, fullTranscript } = context || {}
+    const { sourceSentence, userAttempt, modelSentence, feedback, targetLanguage, sourceLanguage, contextSummary } = context || {}
 
-    // Build context section if full transcript is available
-    const transcriptSection = fullTranscript
+    // Build context section if context summary is available
+    const contextSection = contextSummary
       ? `
-Full Document/Lecture Context:
-"""
-${fullTranscript}
-"""
-
-Use this context to understand the register, audience, and cultural references when answering.
+Context: ${contextSummary}
 `
       : ''
 
     const prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}. The student has a follow-up question.
-${transcriptSection}
+${contextSection}
 Current exercise context:
 - Source sentence (${sourceLanguage || 'source language'}): "${sourceSentence || 'N/A'}"
 - Student's attempt: "${userAttempt || 'N/A'}"

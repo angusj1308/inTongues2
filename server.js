@@ -2107,6 +2107,7 @@ function buildSentenceSegmentsFromWhisper(whisperSegments = []) {
 
 async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
   let audioPath = null
+  const chunkPaths = []
 
   try {
     if (videoId) {
@@ -2119,54 +2120,121 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
       throw new Error('No audio source provided for Whisper transcription')
     }
 
-    // Convert language name to code for Whisper (e.g., 'Spanish' → 'es')
-    // Returns null if auto or unknown - Whisper will auto-detect
+    // Get audio duration
+    const duration = await getAudioDuration(audioPath)
+    console.log(`Audio duration: ${(duration / 60).toFixed(1)} minutes`)
+
+    // Convert language name to code for Whisper
     const whisperLanguage = resolveTargetCode(languageCode)
-
     console.log('WHISPER LANGUAGE:', languageCode, '→', whisperLanguage || 'auto-detect')
-    console.log('Sending audio to Whisper API:', audioPath)
 
-    let transcription
-    try {
-      transcription = await client.audio.transcriptions.create({
+    const CHUNK_DURATION = 20 * 60 // 20 minutes in seconds
+    let allSegments = []
+    let fullText = ''
+
+    if (duration > CHUNK_DURATION) {
+      // Split into chunks for long audio
+      const numChunks = Math.ceil(duration / CHUNK_DURATION)
+      console.log(`Splitting into ${numChunks} chunks of ~20 minutes each`)
+
+      for (let i = 0; i < numChunks; i++) {
+        const startTime = i * CHUNK_DURATION
+        const chunkPath = audioPath.replace('.mp3', `-chunk${i}.mp3`)
+        chunkPaths.push(chunkPath)
+
+        // Extract chunk with ffmpeg
+        await new Promise((resolve, reject) => {
+          const ffmpeg = spawn('ffmpeg', [
+            '-i', audioPath,
+            '-ss', String(startTime),
+            '-t', String(CHUNK_DURATION),
+            '-c', 'copy',
+            '-y',
+            chunkPath
+          ])
+          ffmpeg.on('error', reject)
+          ffmpeg.on('close', (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg chunk failed`)))
+        })
+
+        console.log(`Transcribing chunk ${i + 1}/${numChunks}...`)
+
+        const transcription = await client.audio.transcriptions.create({
+          file: createReadStream(chunkPath),
+          model: 'whisper-1',
+          response_format: 'verbose_json',
+          timestamp_granularities: ['word'],
+          ...(whisperLanguage ? { language: whisperLanguage } : {}),
+        })
+
+        // Adjust timestamps for chunk offset
+        const chunkSegments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
+        const offsetSegments = chunkSegments.map(seg => ({
+          ...seg,
+          start: seg.start + startTime,
+          end: seg.end + startTime
+        }))
+
+        allSegments.push(...offsetSegments)
+        fullText += (fullText ? ' ' : '') + (transcription?.text || '')
+
+        console.log(`Chunk ${i + 1} complete: ${chunkSegments.length} segments`)
+      }
+    } else {
+      // Single transcription for short audio
+      console.log('Sending audio to Whisper API:', audioPath)
+
+      const transcription = await client.audio.transcriptions.create({
         file: createReadStream(audioPath),
         model: 'whisper-1',
         response_format: 'verbose_json',
         timestamp_granularities: ['word'],
         ...(whisperLanguage ? { language: whisperLanguage } : {}),
       })
-    } catch (whisperApiError) {
-      console.error('Whisper API error:', whisperApiError.message)
-      console.error('Whisper API error details:', JSON.stringify(whisperApiError, null, 2))
-      throw whisperApiError
+
+      allSegments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
+      fullText = transcription?.text || ''
     }
 
-    console.log('Whisper verbose_json response keys:', Object.keys(transcription || {}))
-    console.log('Words count:', transcription?.words?.length || 0)
-    console.log('First word sample:', transcription?.words?.[0])
-
-    // Build sentences from words using punctuation + pause detection
-    const segments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
-
-    console.log('Built sentences count:', segments.length)
-    console.log('First sentence sample:', segments[0])
-
-    if (!segments.length) {
-      console.warn('No sentences built from words, falling back to text-only')
-    }
-
-    return { text: transcription?.text || '', segments, sentenceSegments: segments }
+    console.log('Total segments:', allSegments.length)
+    return { text: fullText, segments: allSegments, sentenceSegments: allSegments }
+  } catch (error) {
+    console.error('Whisper API error:', error.message)
+    console.error('Whisper API error details:', JSON.stringify(error, null, 2))
+    throw error
   } finally {
-    if (audioPath) {
+    // Clean up all temp files
+    const filesToClean = [audioPath, ...chunkPaths].filter(Boolean)
+    for (const filePath of filesToClean) {
       try {
-        await fs.unlink(audioPath)
-      } catch (cleanupError) {
-        if (cleanupError?.code !== 'ENOENT') {
-          console.error('Failed to clean up temporary audio file', cleanupError)
-        }
+        await fs.unlink(filePath)
+      } catch (e) {
+        if (e?.code !== 'ENOENT') console.error('Cleanup error:', e)
       }
     }
   }
+}
+
+// Get audio duration in seconds using ffprobe
+async function getAudioDuration(audioPath) {
+  return new Promise((resolve, reject) => {
+    const ffprobe = spawn('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      audioPath
+    ])
+
+    let output = ''
+    ffprobe.stdout.on('data', (data) => { output += data.toString() })
+    ffprobe.on('error', reject)
+    ffprobe.on('close', (code) => {
+      if (code === 0) {
+        resolve(parseFloat(output.trim()) || 0)
+      } else {
+        reject(new Error('ffprobe failed'))
+      }
+    })
+  })
 }
 
 // Align punctuation from full text to word-level timestamps

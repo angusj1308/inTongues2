@@ -1903,6 +1903,7 @@ async function downloadYoutubeAudio(videoId) {
     const ytProcess = spawn('yt-dlp', [
       '-x',
       '--audio-format', 'mp3',
+      '--cookies-from-browser', 'chrome',
       '-o', downloadPath,
       videoUrl
     ])

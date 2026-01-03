@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 
+const LEVELS = ['Beginner', 'Intermediate', 'Native']
+
 const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) => {
   const { user } = useAuth()
   const [file, setFile] = useState(null)
   const [originalLanguage, setOriginalLanguage] = useState('')
-  const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
   const [levelIndex, setLevelIndex] = useState(0)
   const [author, setAuthor] = useState('')
   const [title, setTitle] = useState('')
   const [voiceGender, setVoiceGender] = useState('male')
   const [isPublicDomain, setIsPublicDomain] = useState(false)
+  const [generateAudio, setGenerateAudio] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   if (!activeLanguage) {
@@ -33,7 +35,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
       return
     }
 
-    const selectedLevel = CEFR_LEVELS[levelIndex] || ''
+    const selectedLevel = LEVELS[levelIndex] || 'Beginner'
 
     try {
       const formData = new FormData()
@@ -47,6 +49,7 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
       formData.append('isPublicDomain', isPublicDomain ? 'true' : 'false')
       formData.append('userId', user?.uid || '')
       formData.append('voiceGender', voiceGender)
+      formData.append('generateAudio', generateAudio ? 'true' : 'false')
 
       const response = await fetch('http://localhost:4000/api/import-upload', {
         method: 'POST',
@@ -137,14 +140,14 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
             <input
               type="range"
               min="0"
-              max={CEFR_LEVELS.length - 1}
+              max={LEVELS.length - 1}
               value={levelIndex}
               onChange={(event) => setLevelIndex(Number(event.target.value))}
-              style={{ '--range-progress': `${(levelIndex / (CEFR_LEVELS.length - 1)) * 100}%` }}
+              style={{ '--range-progress': `${(levelIndex / (LEVELS.length - 1)) * 100}%` }}
             />
           </div>
           <div className="slider-marks">
-            {CEFR_LEVELS.map((level, index) => (
+            {LEVELS.map((level, index) => (
               <span
                 key={level}
                 className={`slider-mark${levelIndex === index ? ' active' : ''}`}
@@ -204,6 +207,16 @@ const ImportBookPanel = ({ activeLanguage = '', onBack, headingLevel = 'h2' }) =
             checked={isPublicDomain}
             onChange={(event) => setIsPublicDomain(event.target.checked)}
           />
+        </label>
+
+        <label className="checkbox ui-text">
+          <span className="ui-text">Generate audio</span>
+          <input
+            type="checkbox"
+            checked={generateAudio}
+            onChange={(event) => setGenerateAudio(event.target.checked)}
+          />
+          <p className="muted small ui-text">Audio generation is optional and may take some time</p>
         </label>
 
         <button type="submit" className="button primary" disabled={isSubmitDisabled}>

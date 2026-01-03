@@ -174,26 +174,43 @@ function escapeForSsml(text) {
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const ADAPTATION_SYSTEM_PROMPT = `
-You are an expert language educator adapting reading materials for learners.
-Always preserve all key events, factual details, character actions, and tone from the source. Do not omit plot points, merge scenes, or summarize; deliver a full, faithful retelling in the requested level and language.
+You are adapting a book for language learners. Write only in the requested target language.
 
-Language output
-- Write only in the requested target language.
-- Keep proper nouns (people, places, brands) exactly as in the source.
-- Use full sentences with natural punctuation. Do not use lists, headings, or bullet points.
-- Return only the adapted narrative text—no explanations, notes, or markup.
+LEVELS:
+- Native: Faithful translation. Preserve the author's style, sentence structure, and vocabulary complexity. No simplification.
+- Intermediate: Simplify vocabulary and clarify implicit meaning. Keep most structure but may split complex sentences. Natural, clear prose.
+- Beginner: Short sentences, common words, explicit meaning. Freely restructure and split complex ideas.
 
-CEFR adaptation rules
-- A1: Extremely simple, short sentences. Split any long sentence into multiple simple ones. Use high-frequency words and very simple verb phrases.
-- A2: Simple, direct sentences. Prefer present or simple past. Avoid multi-clause sentences; split long or complex sentences.
-- B1: Clear, straightforward prose with some detail. Moderate sentence length. Lightly simplify complex grammar.
-- B2: Natural, fluent prose. Keep most descriptive detail. Moderate to longer sentences are acceptable.
-- C1/C2: Preserve the original stylistic richness and complexity while remaining readable.
+FREEDOMS:
+- Use any vocabulary that conveys the same meaning
+- Restructure sentences, split clauses, reorder ideas
+- Not bound by the author's syntax or word choices
+- Only bound by meaning and appropriate grading
 
-Meaning fidelity
-- Include every important action and piece of information. Do not shorten by removing events.
-- You may simplify grammar or vocabulary to match the level, but keep the narrative complete.
+NEVER:
+- Skip sentences or omit concepts from the original
+- Summarize multiple sentences into one
+- Remove dialogue, descriptions, events, or character actions
+- Add content not present in the original
+- Omit names, places, or plot-critical details
+
+ALWAYS:
+- Represent every concept from the source
+- Preserve all proper nouns exactly as written
+- Maintain the same narrative beats
+- Use natural punctuation and full sentences
+- Return only adapted text with no commentary or markup
 `
+
+// Map legacy CEFR levels to new simplified levels
+function mapLevelToSimplified(level) {
+  const normalized = (level || '').toUpperCase().trim()
+  if (['A1', 'A2'].includes(normalized) || normalized === 'BEGINNER') return 'Beginner'
+  if (['B1', 'B2'].includes(normalized) || normalized === 'INTERMEDIATE') return 'Intermediate'
+  if (['C1', 'C2'].includes(normalized) || normalized === 'NATIVE') return 'Native'
+  // Default to Intermediate if unrecognized
+  return 'Intermediate'
+}
 
 const app = express()
 app.use(express.json())
@@ -3295,32 +3312,27 @@ async function adaptPageText({
   translationMode,
   level,
 }) {
-  const sourceLabel = originalLanguage || 'auto-detected'
   const targetLabel = outputLanguage || 'target language'
+  const simplifiedLevel = mapLevelToSimplified(level)
 
-  const modeInstruction =
-    translationMode === 'graded'
-      ? `Rewrite this text as a simplified graded reader in ${targetLabel} at CEFR level ${level}. Preserve all key information and narrative events, but use simpler vocabulary and shorter sentences.`
-      : `Translate this text from ${sourceLabel} to ${targetLabel} as literally as possible while keeping natural grammar. Do not simplify or summarize.`
-
-  const prompt = `
-You are adapting a book for language learners.
-
-${modeInstruction}
-
-Return only the adapted text, with no headings, no commentary, and no explanations.
-
---- BEGIN TEXT ---
-${originalText}
---- END TEXT ---
-  `.trim()
+  // For literal translation mode, use Native level (no simplification)
+  const effectiveLevel = translationMode === 'graded' ? simplifiedLevel : 'Native'
 
   const response = await client.responses.create({
     model: 'gpt-4o-mini',
-    input: prompt,
+    input: [
+      {
+        role: 'system',
+        content: ADAPTATION_SYSTEM_PROMPT,
+      },
+      {
+        role: 'user',
+        content: `Adapt the following text to ${effectiveLevel} level in ${targetLabel}:\n\n${originalText}`,
+      },
+    ],
   })
 
-  const adapted = response.output_text?.trim() || ''
+  const adapted = response?.output?.[0]?.content?.[0]?.text?.trim() || response.output_text?.trim() || ''
   return adapted
 }
 
@@ -3424,6 +3436,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       isPublicDomain,
       userId,
       voiceGender,
+      generateAudio,
     } = req.body || {}
 
     const metadata = {
@@ -3436,6 +3449,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       isPublicDomain,
       userId,
       voiceGender,
+      generateAudio,
     }
 
     console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
@@ -3461,6 +3475,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       storyId: bookId,
       targetLanguage: outputLanguage,
       level,
+      generateAudio: generateAudio === 'true',
     }
 
     fetch('http://localhost:4000/api/adapt-imported-book', {
@@ -3519,13 +3534,16 @@ app.post('/api/start-adaptation/:bookId', async (req, res) => {
 
 app.post('/api/adapt-imported-book', async (req, res) => {
   try {
-    const { uid, storyId, targetLanguage, level } = req.body || {}
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
 
     if (!uid || !storyId) {
       return res.status(400).json({ error: 'uid and storyId are required' })
     }
 
-    console.log('Received adapt-imported-book request:', { uid, storyId, targetLanguage, level })
+    // Map legacy CEFR levels to simplified levels
+    const simplifiedLevel = mapLevelToSimplified(level)
+
+    console.log('Received adapt-imported-book request:', { uid, storyId, targetLanguage, level, simplifiedLevel, generateAudio })
 
     const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
     const storySnap = await storyRef.get()
@@ -3572,7 +3590,7 @@ app.post('/api/adapt-imported-book', async (req, res) => {
             },
             {
               role: "user",
-              content: `Adapt the following text to level ${level} in ${resolvedTargetLanguage}:\n\n${sourceText}`
+              content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${sourceText}`
             }
           ]
         })
@@ -3600,13 +3618,16 @@ app.post('/api/adapt-imported-book', async (req, res) => {
       adaptedPages: processedCount,
     })
 
-    fetch('http://localhost:4000/api/generate-audio-book', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, storyId }),
-    }).catch((err) => {
-      console.error('Auto audio generation trigger failed:', err)
-    })
+    // Only trigger audio generation if explicitly requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
 
     console.log('Adaptation completed for story:', storyId, 'pages processed:', processedCount)
 

@@ -11038,41 +11038,55 @@ body.active-pass-locked {
 }
 
 .practice-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.5rem;
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
+  padding: 0.75rem 0;
 }
 
-.practice-header .back-button {
-  flex-shrink: 0;
+.practice-header-band {
+  font-family: 'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
 }
 
-.practice-header-info {
-  flex: 1;
-  min-width: 0;
+.practice-header-left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
-.practice-header-info h1 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.practice-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.practice-header-meta {
-  font-size: 0.85rem;
+.practice-header-progress {
+  font-size: 0.9rem;
+  font-weight: 500;
   color: #64748b;
 }
 
 .practice-header-actions {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.practice-header-languages {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.dashboard-control.danger {
+  color: #ef4444;
+}
+
+.dashboard-control.danger:hover {
+  color: #dc2626;
 }
 
 .practice-progress-bar {
@@ -11453,31 +11467,42 @@ body.active-pass-locked {
   background-color: #f1f5f9;
 }
 
-/* Inline textarea that looks like document typing */
+/* Inline contenteditable that looks like writing on page */
 .practice-inline-input {
-  display: block;
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0;
-  border: none;
-  border-bottom: 2px solid #3b82f6;
-  background: transparent;
+  display: inline;
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1.15rem;
   line-height: 1.8;
   color: #0f172a;
-  resize: none;
   outline: none;
-  min-height: 2em;
+  border: none;
+  background: transparent;
+  caret-color: #3b82f6;
+  min-width: 2ch;
 }
 
-.practice-inline-input::placeholder {
+.practice-inline-input:empty::before {
+  content: attr(data-placeholder);
   color: #94a3b8;
   font-style: italic;
+  pointer-events: none;
 }
 
 .practice-inline-input:focus {
-  border-bottom-color: #2563eb;
+  outline: none;
+}
+
+/* Subtle underline cursor effect */
+.practice-inline-input::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+  border-bottom: 2px solid #3b82f6;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 /* Actions bar at bottom of paper */
@@ -11820,8 +11845,12 @@ body.active-pass-locked {
   border-color: #334155;
 }
 
-[data-theme='dark'] .practice-header-info h1 {
-  color: #f1f5f9;
+[data-theme='dark'] .practice-header-progress {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-header-languages {
+  color: #64748b;
 }
 
 [data-theme='dark'] .practice-chat-panel {
@@ -11947,10 +11976,10 @@ body.active-pass-locked {
 
 [data-theme='dark'] .practice-inline-input {
   color: #f1f5f9;
-  border-bottom-color: #3b82f6;
+  caret-color: #60a5fa;
 }
 
-[data-theme='dark'] .practice-inline-input::placeholder {
+[data-theme='dark'] .practice-inline-input:empty::before {
   color: #64748b;
 }
 

@@ -362,23 +362,35 @@ const PracticeLesson = () => {
 
   return (
     <div className="practice-lesson-page">
-      {/* Header */}
-      <header className="practice-header">
-        <button className="button ghost back-button" onClick={() => navigate('/dashboard')}>
-          ← Back
-        </button>
-        <div className="practice-header-info">
-          <span className="practice-header-meta">
-            {lesson.sourceLanguage} → {lesson.targetLanguage} • {lesson.completedCount}/{lesson.sentences?.length || 0} sentences
-          </span>
-        </div>
-        <div className="practice-header-actions">
-          <button
-            className="button ghost danger"
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            Delete
-          </button>
+      {/* Header - matching Reader style */}
+      <header className="dashboard-header practice-header">
+        <div className="dashboard-brand-band practice-header-band">
+          <div className="practice-header-left">
+            <button
+              className="dashboard-control ui-text"
+              onClick={() => navigate('/dashboard')}
+            >
+              Back to library
+            </button>
+          </div>
+
+          <div className="practice-header-center">
+            <span className="practice-header-progress">
+              {lesson.completedCount}/{lesson.sentences?.length || 0} sentences
+            </span>
+          </div>
+
+          <div className="practice-header-actions">
+            <span className="practice-header-languages">
+              {lesson.sourceLanguage} → {lesson.targetLanguage}
+            </span>
+            <button
+              className="dashboard-control ui-text danger"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </header>
 
@@ -526,17 +538,16 @@ const PracticeLesson = () => {
                 return null
               })}
 
-              {/* Current sentence workspace - clean textarea */}
+              {/* Current sentence workspace - inline editable text */}
               {!isComplete && currentSentence && (
-                <textarea
+                <span
                   ref={attemptInputRef}
                   className="practice-inline-input"
-                  value={userAttempt}
-                  onChange={(e) => setUserAttempt(e.target.value)}
+                  contentEditable={!feedbackLoading}
+                  suppressContentEditableWarning
+                  onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
                   onKeyDown={handleKeyDown}
-                  placeholder="Continue writing..."
-                  rows={1}
-                  disabled={feedbackLoading}
+                  data-placeholder="Continue writing..."
                 />
               )}
             </div>

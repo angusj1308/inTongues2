@@ -1936,12 +1936,12 @@ async function downloadYoutubeAudio(videoId) {
     console.log('File too large for Whisper API, compressing...')
 
     await new Promise((resolve, reject) => {
-      // Compress to 32kbps mono 16kHz - optimized for speech
+      // Compress to 16kbps mono 16kHz - optimized for speech, ensures under 25MB
       const ffmpeg = spawn('ffmpeg', [
         '-i', downloadPath,
         '-ac', '1',           // mono
         '-ar', '16000',       // 16kHz sample rate
-        '-b:a', '32k',        // 32kbps bitrate
+        '-b:a', '16k',        // 16kbps bitrate (halved for long videos)
         '-y',                 // overwrite output
         compressedPath
       ])

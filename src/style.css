@@ -11597,12 +11597,20 @@ body.active-pass-locked {
   color: #16a34a;
 }
 
+.feedback-check-item .check-icon.acceptable {
+  color: #d97706;
+}
+
 .feedback-check-item .check-icon.fail {
   color: #dc2626;
 }
 
 .feedback-check-item.pass .check-label {
   color: #16a34a;
+}
+
+.feedback-check-item.acceptable .check-label {
+  color: #d97706;
 }
 
 .feedback-check-item.fail .check-label {

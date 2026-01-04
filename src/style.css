@@ -11652,27 +11652,19 @@ body.active-pass-locked {
   font-weight: 600;
 }
 
-.practice-inline-input:empty::before {
-  content: attr(data-placeholder);
-  color: #94a3b8;
-  font-style: italic;
-  pointer-events: none;
-}
-
 .practice-inline-input:focus {
   outline: none;
 }
 
-/* Subtle underline cursor effect */
-.practice-inline-input::after {
-  content: '';
-  display: inline-block;
-  width: 0;
-  border-bottom: 2px solid #3b82f6;
-  animation: blink 1s step-end infinite;
+/* Show a subtle pipe cursor when empty */
+.practice-inline-input:empty::after {
+  content: '|';
+  color: #3b82f6;
+  font-weight: 400;
+  animation: blink-cursor 1s step-end infinite;
 }
 
-@keyframes blink {
+@keyframes blink-cursor {
   50% { opacity: 0; }
 }
 
@@ -12150,8 +12142,8 @@ body.active-pass-locked {
   caret-color: #60a5fa;
 }
 
-[data-theme='dark'] .practice-inline-input:empty::before {
-  color: #64748b;
+[data-theme='dark'] .practice-inline-input:empty::after {
+  color: #60a5fa;
 }
 
 [data-theme='dark'] .practice-actions-bar {

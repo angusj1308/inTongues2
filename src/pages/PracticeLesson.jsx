@@ -117,6 +117,7 @@ const PracticeLesson = () => {
 
   // Display settings
   const [showWordStatus, setShowWordStatus] = useState(true)
+  const [feedbackInTarget, setFeedbackInTarget] = useState(false)
   const [darkMode, setDarkMode] = useState(() => {
     // Check if dark mode is already set
     return document.documentElement.getAttribute('data-theme') === 'dark'
@@ -358,6 +359,7 @@ const PracticeLesson = () => {
           sourceLanguage: lesson.sourceLanguage,
           adaptationLevel: lesson.adaptationLevel,
           contextSummary: lesson.contextSummary,
+          feedbackInTarget,
         }),
       })
 
@@ -785,6 +787,13 @@ const PracticeLesson = () => {
         <aside className="practice-chat-panel" style={{ width: panelWidth }}>
           <div className="practice-chat-header">
             <h2>Tutor</h2>
+            <button
+              className={`practice-tutor-lang-toggle ${feedbackInTarget ? 'active' : ''}`}
+              onClick={() => setFeedbackInTarget(!feedbackInTarget)}
+              title={feedbackInTarget ? 'Feedback in target language' : 'Feedback in native language'}
+            >
+              {feedbackInTarget ? lesson?.targetLanguage?.slice(0, 2).toUpperCase() : 'EN'}
+            </button>
           </div>
           <div className="practice-chat-messages">
             {/* Current prompt */}
@@ -805,43 +814,45 @@ const PracticeLesson = () => {
             {/* Chat messages with feedback inline */}
             {chatMessages.map((msg, i) => (
               <div key={i}>
+                {/* Render checklist BEFORE the assistant feedback message */}
+                {msg.role === 'assistant' && msg.hasFeedback && (
+                  <div className="practice-feedback-checklist">
+                    <div className={`feedback-check-item ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
+                      <span className="check-label">Grammar & Spelling</span>
+                      <span className="check-status">
+                        <span className={`check-icon ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
+                          {feedback?.correctness >= 4 ? '✓' : '✗'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className={`feedback-check-item ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
+                      <span className="check-label">Accuracy</span>
+                      <span className="check-status">
+                        <span className={`check-icon ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
+                          {feedback?.accuracy >= 4 ? '✓' : '✗'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className={`feedback-check-item ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
+                      <span className="check-label">Naturalness</span>
+                      <span className="check-status">
+                        <span className={`check-icon ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
+                          {feedback?.naturalness >= 4 ? '✓' : '✗'}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
                 >
                   {msg.content}
                 </div>
 
-                {/* Render feedback components right after the first assistant response */}
+                {/* Render example and word panel after feedback message */}
                 {msg.role === 'assistant' && msg.hasFeedback && (
                   <>
-                    {/* Feedback checklist */}
-                    <div className="practice-feedback-checklist">
-                      <div className={`feedback-check-item ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
-                        <span className="check-label">Grammar & Spelling</span>
-                        <span className="check-status">
-                          <span className={`check-icon ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
-                            {feedback?.correctness >= 4 ? '✓' : '✗'}
-                          </span>
-                        </span>
-                      </div>
-                      <div className={`feedback-check-item ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
-                        <span className="check-label">Accuracy</span>
-                        <span className="check-status">
-                          <span className={`check-icon ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
-                            {feedback?.accuracy >= 4 ? '✓' : '✗'}
-                          </span>
-                        </span>
-                      </div>
-                      <div className={`feedback-check-item ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
-                        <span className="check-label">Naturalness</span>
-                        <span className="check-status">
-                          <span className={`check-icon ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
-                            {feedback?.naturalness >= 4 ? '✓' : '✗'}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-
                     {/* Example sentence with word status highlighting */}
                     {modelSentence && (
                       <div className="practice-example-sentence">
@@ -1023,13 +1034,13 @@ const PracticeLesson = () => {
                   )
                 }
 
-                // Not finalized - only render if it's the current sentence
+                // Not finalized - only render if it's the current sentence (first time writing - no bold)
                 if (isCurrent && !isComplete) {
                   return (
                     <span
                       key={i}
                       ref={attemptInputRef}
-                      className="practice-inline-input current"
+                      className="practice-inline-input"
                       contentEditable={!feedbackLoading}
                       suppressContentEditableWarning
                       onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}

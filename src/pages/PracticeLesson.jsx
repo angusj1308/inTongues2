@@ -1102,9 +1102,9 @@ const PracticeLesson = () => {
                   if (isCurrent && !isComplete) {
                     return (
                       <span
-                        key={i}
+                        key={`editing-${i}`}
                         ref={attemptInputRef}
-                        className="practice-inline-input current"
+                        className="practice-inline-input"
                         contentEditable={!feedbackLoading}
                         suppressContentEditableWarning
                         onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
@@ -1115,7 +1115,7 @@ const PracticeLesson = () => {
                   // Otherwise, just show the text (clickable to navigate)
                   return (
                     <span
-                      key={i}
+                      key={`finalized-${i}`}
                       className="practice-document-sentence"
                       onClick={() => handleGoToSentence(i)}
                       title="Click to revise"
@@ -1129,7 +1129,7 @@ const PracticeLesson = () => {
                 if (isCurrent && !isComplete) {
                   return (
                     <span
-                      key={i}
+                      key={`editing-${i}`}
                       ref={attemptInputRef}
                       className="practice-inline-input"
                       contentEditable={!feedbackLoading}

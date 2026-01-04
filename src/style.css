@@ -11887,10 +11887,7 @@ body.active-pass-locked {
   background-color: rgba(0, 0, 0, 0.04);
 }
 
-.practice-document-sentence.current {
-  font-weight: 600;
-  background-color: transparent;
-}
+/* Active sentence - no special styling, user sees position via cursor and tutor panel */
 
 /* Current sentence being worked on */
 .practice-current-sentence {
@@ -11920,9 +11917,7 @@ body.active-pass-locked {
   min-width: 2ch;
 }
 
-.practice-inline-input.current {
-  font-weight: 600;
-}
+/* No bold for current input - cursor and tutor panel show position */
 
 .practice-inline-input:focus {
   outline: none;
@@ -12473,10 +12468,7 @@ body.active-pass-locked {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-[data-theme='dark'] .practice-document-sentence.current {
-  font-weight: 600;
-  background-color: transparent;
-}
+/* Dark mode: no special styling for current sentence */
 
 [data-theme='dark'] .practice-source-text {
   color: #94a3b8;

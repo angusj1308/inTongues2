@@ -11334,6 +11334,99 @@ body.active-pass-locked {
   color: #14532d;
 }
 
+/* Practice Word Panel */
+.practice-word-panel {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.practice-word-panel-header {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.practice-word-panel-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.practice-word-panel-list {
+  padding: 0.5rem 0;
+}
+
+.practice-word-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  gap: 0.75rem;
+}
+
+.practice-word-row:hover {
+  background: #f1f5f9;
+}
+
+.practice-word-row-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.practice-word-row-word {
+  font-weight: 500;
+  color: #1e293b;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.practice-word-row-translation {
+  color: #64748b;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.practice-word-status-selector {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.practice-status-option {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.practice-status-option:hover:not(.active) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.practice-status-option.active {
+  border-color: transparent;
+}
+
 /* Feedback Checklist */
 .practice-feedback-checklist {
   background: #f8fafc;
@@ -12055,6 +12148,43 @@ body.active-pass-locked {
 
 [data-theme='dark'] .practice-example-sentence .example-text {
   color: #bbf7d0;
+}
+
+[data-theme='dark'] .practice-word-panel {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .practice-word-panel-header {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .practice-word-panel-label {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-word-row:hover {
+  background: #1e293b;
+}
+
+[data-theme='dark'] .practice-word-row-word {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .practice-word-row-translation {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-status-option {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-status-option:hover:not(.active) {
+  background: #334155;
+  border-color: #475569;
 }
 
 [data-theme='dark'] .practice-feedback-checklist {

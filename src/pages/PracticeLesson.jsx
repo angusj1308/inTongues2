@@ -143,6 +143,7 @@ const PracticeLesson = () => {
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(380)
   const attemptInputRef = useRef(null)
   const chatEndRef = useRef(null)
@@ -206,7 +207,7 @@ const PracticeLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  // Extract NURF words (non-known words) from model sentence and fetch translations
+  // Extract NURF words (non-known words) from model sentence and fetch translations + audio
   useEffect(() => {
     if (!modelSentence || !lesson?.targetLanguage) {
       setNurfWords([])
@@ -223,45 +224,59 @@ const PracticeLesson = () => {
         const vocabEntry = userVocab[word]
         const status = vocabEntry?.status || 'new'
         if (status === 'known') return null
+        const translationData = wordTranslations[word] || {}
         return {
           word,
           displayWord: words.find(w => w.toLowerCase() === word) || word,
           normalised: word,
           status,
-          translation: vocabEntry?.translation || wordTranslations[word] || null,
+          translation: translationData.translation || vocabEntry?.translation || null,
+          audioBase64: translationData.audioBase64 || null,
+          audioUrl: translationData.audioUrl || null,
         }
       })
       .filter(Boolean)
 
     setNurfWords(nurfList)
 
-    // Fetch translations for words that don't have them
-    const wordsNeedingTranslation = nurfList.filter(w => !w.translation)
-    if (wordsNeedingTranslation.length > 0) {
-      const fetchTranslations = async () => {
+    // Fetch translations and audio for words that don't have them
+    const wordsNeedingData = nurfList.filter(w => !w.translation)
+    if (wordsNeedingData.length > 0) {
+      const fetchTranslationsAndAudio = async () => {
         const newTranslations = { ...wordTranslations }
-        for (const w of wordsNeedingTranslation) {
-          try {
-            const response = await fetch('/api/translatePhrase', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                phrase: w.displayWord,
-                sourceLanguage: lesson.targetLanguage,
-                targetLanguage: lesson.sourceLanguage,
-              }),
-            })
-            if (response.ok) {
-              const data = await response.json()
-              newTranslations[w.normalised] = data.translation
+
+        // Batch fetch in groups of 5
+        const batchSize = 5
+        for (let i = 0; i < wordsNeedingData.length; i += batchSize) {
+          const batch = wordsNeedingData.slice(i, i + batchSize)
+          const promises = batch.map(async (w) => {
+            try {
+              const response = await fetch('/api/translatePhrase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  phrase: w.displayWord,
+                  sourceLanguage: lesson.targetLanguage,
+                  targetLanguage: lesson.sourceLanguage,
+                }),
+              })
+              if (response.ok) {
+                const data = await response.json()
+                newTranslations[w.normalised] = {
+                  translation: data.translation || null,
+                  audioBase64: data.audioBase64 || null,
+                  audioUrl: data.audioUrl || null,
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to fetch translation for:', w.word, err)
             }
-          } catch (err) {
-            console.warn('Failed to fetch translation for:', w.word, err)
-          }
+          })
+          await Promise.all(promises)
         }
         setWordTranslations(newTranslations)
       }
-      fetchTranslations()
+      fetchTranslationsAndAudio()
     }
   }, [modelSentence, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
 
@@ -471,14 +486,35 @@ const PracticeLesson = () => {
     }
   }, [userAttempt, modelSentence, feedbackLoading, lesson, user, lessonId])
 
+  // Check for new words before finalizing - show warning if any exist
+  const attemptFinalize = useCallback((useModel = false) => {
+    const hasNewWords = nurfWords.some(w => w.status === 'new')
+    if (hasNewWords) {
+      setShowNewWordsWarning(true)
+    } else {
+      handleFinalize(useModel)
+    }
+  }, [nurfWords, handleFinalize])
+
+  // Mark all new words as known and proceed
+  const handleConfirmNewWordsAsKnown = useCallback(async () => {
+    // Mark all 'new' status words as 'known'
+    const newWords = nurfWords.filter(w => w.status === 'new')
+    for (const wordData of newWords) {
+      await handleWordStatusChange(wordData.displayWord, 'known')
+    }
+    setShowNewWordsWarning(false)
+    handleFinalize(false)
+  }, [nurfWords, handleWordStatusChange, handleFinalize])
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (!feedback) {
         handleSubmitAttempt()
       } else {
-        // After feedback, Enter goes to next sentence
-        handleFinalize(false)
+        // After feedback, Enter goes to next sentence (with new words check)
+        attemptFinalize(false)
       }
     }
   }
@@ -917,11 +953,24 @@ const PracticeLesson = () => {
                             const statusIndex = STATUS_LEVELS.indexOf(wordData.status)
                             const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
                             const languageColor = getLanguageColor(lesson?.targetLanguage)
-                            const translation = wordData.translation || wordTranslations[wordData.normalised] || '...'
+                            const translationData = wordTranslations[wordData.normalised] || {}
+                            const translation = translationData.translation || wordData.translation || '...'
+                            const hasAudio = Boolean(wordData.audioBase64 || wordData.audioUrl || translationData.audioBase64 || translationData.audioUrl)
 
                             return (
                               <div key={wordData.normalised} className="practice-word-row">
                                 <div className="practice-word-row-left">
+                                  <button
+                                    className={`practice-word-audio ${hasAudio ? '' : 'practice-word-audio--disabled'}`}
+                                    onClick={() => hasAudio && handlePlayWordAudio(
+                                      wordData.audioBase64 || translationData.audioBase64,
+                                      wordData.audioUrl || translationData.audioUrl
+                                    )}
+                                    disabled={!hasAudio}
+                                    aria-label={`Play pronunciation for ${wordData.displayWord}`}
+                                  >
+                                    <PlayIcon />
+                                  </button>
                                   <span className="practice-word-row-word">{wordData.displayWord}</span>
                                   <span className="practice-word-row-translation">{translation}</span>
                                 </div>
@@ -999,7 +1048,7 @@ const PracticeLesson = () => {
                 ) : (
                   <button
                     className="practice-submit-btn practice-submit-btn--next"
-                    onClick={() => handleFinalize(false)}
+                    onClick={() => attemptFinalize(false)}
                     disabled={!userAttempt.trim()}
                   >
                     Next →
@@ -1140,6 +1189,24 @@ const PracticeLesson = () => {
               </button>
               <button className="button primary" onClick={handleReset}>
                 Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New words warning modal */}
+      {showNewWordsWarning && (
+        <div className="modal-backdrop" onClick={() => setShowNewWordsWarning(false)}>
+          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
+            <h3>Unreviewed Words</h3>
+            <p>By proceeding to the next sentence, all new words will be moved to known.</p>
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setShowNewWordsWarning(false)}>
+                Review Words
+              </button>
+              <button className="button primary" onClick={handleConfirmNewWordsAsKnown}>
+                Continue
               </button>
             </div>
           </div>

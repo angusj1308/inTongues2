@@ -11520,10 +11520,35 @@ body.active-pass-locked {
 
 .practice-word-row-left {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5rem;
   min-width: 0;
   flex: 1;
+}
+
+.practice-word-audio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #e2e8f0;
+  border-radius: 50%;
+  color: #475569;
+  cursor: pointer;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+}
+
+.practice-word-audio:hover:not(:disabled) {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.practice-word-audio--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .practice-word-row-word {
@@ -12354,6 +12379,16 @@ body.active-pass-locked {
 
 [data-theme='dark'] .practice-word-row-translation {
   color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-word-audio {
+  background: #334155;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-word-audio:hover:not(:disabled) {
+  background: #3b82f6;
+  color: #fff;
 }
 
 [data-theme='dark'] .practice-status-option {

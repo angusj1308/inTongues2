@@ -280,16 +280,23 @@ const PracticeLesson = () => {
     }
   }, [modelSentence, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
 
-  // Sync contentEditable with userAttempt when navigating to a sentence
-  // Using useLayoutEffect to ensure sync happens before paint
+  // Track the previous sentence index to detect navigation
+  const prevIndexRef = useRef(lesson?.currentIndex)
+
+  // Sync contentEditable with userAttempt ONLY when navigating to a different sentence
+  // This avoids interfering with normal typing
   useLayoutEffect(() => {
-    if (attemptInputRef.current && userAttempt !== undefined) {
-      // Only update if content differs to avoid cursor jumping
-      if (attemptInputRef.current.textContent !== userAttempt) {
-        attemptInputRef.current.textContent = userAttempt
+    const currentIndex = lesson?.currentIndex
+    const prevIndex = prevIndexRef.current
+
+    // Only sync content when we've navigated to a different sentence
+    if (currentIndex !== prevIndex) {
+      prevIndexRef.current = currentIndex
+      if (attemptInputRef.current) {
+        attemptInputRef.current.textContent = userAttempt || ''
       }
     }
-  }, [lesson?.currentIndex, userAttempt]) // Re-sync when sentence or content changes
+  }, [lesson?.currentIndex, userAttempt])
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -565,6 +572,11 @@ const PracticeLesson = () => {
         setModelSentence('')
         setChatMessages([])
       }
+
+      // Focus the input after DOM updates
+      setTimeout(() => {
+        attemptInputRef.current?.focus()
+      }, 0)
     } catch (err) {
       console.error('Navigation error:', err)
     }

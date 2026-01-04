@@ -11040,7 +11040,7 @@ body.active-pass-locked {
 .practice-header {
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
-  padding: 1rem 0;
+  padding: 1.25rem 0;
 }
 
 .practice-header-band {
@@ -11049,6 +11049,7 @@ body.active-pass-locked {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1rem;
+  min-height: 40px;
 }
 
 .practice-header-left {

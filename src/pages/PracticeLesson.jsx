@@ -207,7 +207,7 @@ const PracticeLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  // Extract NURF words (non-known words) from model sentence and fetch translations + audio
+  // Extract words from model sentence for review panel (includes all non-known initially)
   useEffect(() => {
     if (!modelSentence || !lesson?.targetLanguage) {
       setNurfWords([])
@@ -218,12 +218,15 @@ const PracticeLesson = () => {
     const words = modelSentence.match(/[\p{L}\p{M}]+/gu) || []
     const uniqueWords = [...new Set(words.map(w => w.toLowerCase()))]
 
-    // Filter to only NURF words (not known)
-    const nurfList = uniqueWords
+    // Include all words that aren't already known in vocab (new words stay visible after being marked known)
+    const wordList = uniqueWords
       .map(word => {
         const vocabEntry = userVocab[word]
         const status = vocabEntry?.status || 'new'
-        if (status === 'known') return null
+        // Only filter out words that were already known BEFORE this sentence
+        // Check if word is in nurfWords already - if so, keep showing it
+        const existingNurf = nurfWords.find(w => w.normalised === word)
+        if (status === 'known' && !existingNurf) return null
         const translationData = wordTranslations[word] || {}
         return {
           word,
@@ -237,10 +240,10 @@ const PracticeLesson = () => {
       })
       .filter(Boolean)
 
-    setNurfWords(nurfList)
+    setNurfWords(wordList)
 
     // Fetch translations and audio for words that don't have them
-    const wordsNeedingData = nurfList.filter(w => !w.translation)
+    const wordsNeedingData = wordList.filter(w => !w.translation)
     if (wordsNeedingData.length > 0) {
       const fetchTranslationsAndAudio = async () => {
         const newTranslations = { ...wordTranslations }
@@ -604,14 +607,10 @@ const PracticeLesson = () => {
         }
       }))
 
-      // Update nurfWords to reflect the new status (or remove if now known)
-      if (dbStatus === 'known') {
-        setNurfWords(prev => prev.filter(w => w.normalised !== normalised))
-      } else {
-        setNurfWords(prev => prev.map(w =>
-          w.normalised === normalised ? { ...w, status: dbStatus } : w
-        ))
-      }
+      // Update nurfWords to reflect the new status (keep in panel even when known)
+      setNurfWords(prev => prev.map(w =>
+        w.normalised === normalised ? { ...w, status: dbStatus } : w
+      ))
     } catch (err) {
       console.error('Failed to update word status:', err)
     }

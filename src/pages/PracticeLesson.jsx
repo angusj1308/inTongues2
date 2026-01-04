@@ -64,6 +64,7 @@ const PracticeLesson = () => {
               {
                 role: 'assistant',
                 content: currentAttempt.feedback.explanation || '',
+                hasFeedback: true,
               },
             ])
           }
@@ -152,12 +153,13 @@ const PracticeLesson = () => {
       setFeedback(data.feedback)
       setModelSentence(data.modelSentence || '')
 
-      // Add tutor response to chat
+      // Add tutor response to chat with feedback flag
       setChatMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
           content: data.feedback?.explanation || 'Here is my feedback on your attempt.',
+          hasFeedback: true,
         },
       ])
 
@@ -212,11 +214,16 @@ const PracticeLesson = () => {
       setModelSentence('')
       setChatMessages([])
 
+      // Clear the contentEditable span's DOM content
+      if (attemptInputRef.current) {
+        attemptInputRef.current.textContent = ''
+      }
+
       if (result.isComplete) {
         setChatMessages([
           {
             role: 'assistant',
-            content: '🎉 Congratulations! You\'ve completed this practice lesson!',
+            content: 'Congratulations! You\'ve completed this practice lesson!',
           },
         ])
       }
@@ -259,6 +266,10 @@ const PracticeLesson = () => {
       const attemptData = updated.attempts?.find((a) => a.sentenceIndex === index)
       if (attemptData) {
         setUserAttempt(attemptData.userText || '')
+        // Sync contentEditable span with loaded text
+        if (attemptInputRef.current) {
+          attemptInputRef.current.textContent = attemptData.userText || ''
+        }
         if (attemptData.feedback) {
           setFeedback(attemptData.feedback)
           setModelSentence(attemptData.modelSentence || '')
@@ -266,6 +277,7 @@ const PracticeLesson = () => {
             {
               role: 'assistant',
               content: attemptData.feedback.explanation || '',
+              hasFeedback: true,
             },
           ])
         } else {
@@ -278,6 +290,10 @@ const PracticeLesson = () => {
         setFeedback(null)
         setModelSentence('')
         setChatMessages([])
+        // Clear contentEditable span
+        if (attemptInputRef.current) {
+          attemptInputRef.current.textContent = ''
+        }
       }
     } catch (err) {
       console.error('Navigation error:', err)
@@ -415,70 +431,79 @@ const PracticeLesson = () => {
               </div>
             )}
 
-            {/* Chat messages */}
+            {/* Chat messages with feedback inline */}
             {chatMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
-              >
-                {msg.content}
+              <div key={i}>
+                <div
+                  className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
+                >
+                  {msg.content}
+                </div>
+
+                {/* Render feedback components right after the first assistant response */}
+                {msg.role === 'assistant' && msg.hasFeedback && (
+                  <>
+                    {/* Feedback checklist */}
+                    <div className="practice-feedback-checklist">
+                      <div className={`feedback-check-item ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
+                        <span className="check-label">Grammar & Spelling</span>
+                        <span className="check-status">
+                          <span className={`check-icon ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
+                            {feedback?.correctness >= 4 ? '✓' : '✗'}
+                          </span>
+                        </span>
+                      </div>
+                      <div className={`feedback-check-item ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
+                        <span className="check-label">Accuracy</span>
+                        <span className="check-status">
+                          <span className={`check-icon ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
+                            {feedback?.accuracy >= 4 ? '✓' : '✗'}
+                          </span>
+                        </span>
+                      </div>
+                      <div className={`feedback-check-item ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
+                        <span className="check-label">Naturalness</span>
+                        <span className="check-status">
+                          <span className={`check-icon ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
+                            {feedback?.naturalness >= 4 ? '✓' : '✗'}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Example sentence */}
+                    {modelSentence && (
+                      <div className="practice-example-sentence">
+                        <span className="example-label">Example:</span>
+                        <p className="example-text">{modelSentence}</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             ))}
 
-            {/* Feedback checklist - shown while checking or after feedback */}
-            {(feedbackLoading || feedback) && (
+            {/* Loading state for feedback */}
+            {feedbackLoading && (
               <div className="practice-feedback-checklist">
-                <div className={`feedback-check-item ${feedback ? (feedback.correctness >= 4 ? 'pass' : 'fail') : 'checking'}`}>
+                <div className="feedback-check-item checking">
                   <span className="check-label">Grammar & Spelling</span>
                   <span className="check-status">
-                    {!feedback ? (
-                      <span className="checking-text">checking...</span>
-                    ) : feedback.correctness >= 4 ? (
-                      <span className="check-icon pass">✓</span>
-                    ) : (
-                      <span className="check-icon fail">✗</span>
-                    )}
+                    <span className="checking-text">checking...</span>
                   </span>
                 </div>
-                <div className={`feedback-check-item ${feedback ? (feedback.accuracy >= 4 ? 'pass' : 'fail') : 'checking'}`}>
+                <div className="feedback-check-item checking">
                   <span className="check-label">Accuracy</span>
                   <span className="check-status">
-                    {!feedback ? (
-                      <span className="checking-text">checking...</span>
-                    ) : feedback.accuracy >= 4 ? (
-                      <span className="check-icon pass">✓</span>
-                    ) : (
-                      <span className="check-icon fail">✗</span>
-                    )}
+                    <span className="checking-text">checking...</span>
                   </span>
                 </div>
-                <div className={`feedback-check-item ${feedback ? (feedback.naturalness >= 4 ? 'pass' : 'fail') : 'checking'}`}>
+                <div className="feedback-check-item checking">
                   <span className="check-label">Naturalness</span>
                   <span className="check-status">
-                    {!feedback ? (
-                      <span className="checking-text">checking...</span>
-                    ) : feedback.naturalness >= 4 ? (
-                      <span className="check-icon pass">✓</span>
-                    ) : (
-                      <span className="check-icon fail">✗</span>
-                    )}
+                    <span className="checking-text">checking...</span>
                   </span>
                 </div>
-              </div>
-            )}
-
-            {/* Feedback explanation - only shows issues */}
-            {feedback && feedback.explanation && (
-              <div className="practice-feedback-explanation">
-                {feedback.explanation}
-              </div>
-            )}
-
-            {/* Example sentence - shown after feedback */}
-            {feedback && modelSentence && (
-              <div className="practice-example-sentence">
-                <span className="example-label">Example:</span>
-                <p className="example-text">{modelSentence}</p>
               </div>
             )}
 

@@ -4541,9 +4541,12 @@ Return ONLY the JSON object, no additional text.`
     try {
       // Extract JSON from the response
       const text = response.output_text || ''
+      console.log('AI response:', text.slice(0, 500))
+
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         result = JSON.parse(jsonMatch[0])
+        console.log('Parsed feedback:', JSON.stringify(result.feedback, null, 2))
       } else {
         throw new Error('No JSON found in response')
       }
@@ -4555,6 +4558,7 @@ Return ONLY the JSON object, no additional text.`
         feedback: {
           naturalness: 3,
           accuracy: 3,
+          correctness: 3,
           explanation: 'I was unable to fully analyze your attempt. Please try again.',
           grammarIssues: [],
           suggestions: [],

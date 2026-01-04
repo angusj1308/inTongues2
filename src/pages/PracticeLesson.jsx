@@ -892,6 +892,17 @@ const PracticeLesson = () => {
                         <p className="example-text">
                           {renderHighlightedModelSentence}
                         </p>
+                        <button
+                          className="practice-use-example-btn"
+                          onClick={() => {
+                            setUserAttempt(modelSentence)
+                            if (attemptInputRef.current) {
+                              attemptInputRef.current.textContent = modelSentence
+                            }
+                          }}
+                        >
+                          Use example sentence
+                        </button>
                       </div>
                     )}
 

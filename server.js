@@ -484,6 +484,186 @@ async function batchGetTranslations(words, targetLanguage, nativeLanguage) {
   return results
 }
 
+// =====================================================
+// EXPRESSION DETECTION SYSTEM
+// Identifies idiomatic expressions in content
+// =====================================================
+
+// Generate a key for expression storage: language_normalized_expression
+function getExpressionKey(expression, language) {
+  if (!expression || !language) return null
+  const normalizedExpr = expression.trim().toLowerCase().replace(/\s+/g, '_')
+  const normalizedLang = language.trim().toLowerCase()
+  return `${normalizedLang}_${normalizedExpr}`
+}
+
+// Get expression from cache
+async function getExpression(expression, language) {
+  const key = getExpressionKey(expression, language)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('expressions').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching expression:', err)
+    return null
+  }
+}
+
+// Save expression to Firestore
+async function saveExpression(expression, language, meaning, literal = null) {
+  const key = getExpressionKey(expression, language)
+  if (!key || !meaning) return false
+
+  try {
+    const docRef = firestore.collection('expressions').doc(key)
+    await docRef.set({
+      text: expression.trim().toLowerCase(),
+      language: language.toLowerCase().trim(),
+      meaning: meaning,
+      literal: literal,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true })
+    return true
+  } catch (err) {
+    console.error('Error saving expression:', err)
+    return false
+  }
+}
+
+// Get all expressions for a language
+async function getExpressionsForLanguage(language) {
+  if (!language) return []
+
+  try {
+    const normalizedLang = language.trim().toLowerCase()
+    const snapshot = await firestore.collection('expressions')
+      .where('language', '==', normalizedLang)
+      .get()
+
+    return snapshot.docs.map(doc => doc.data())
+  } catch (err) {
+    console.error('Error fetching expressions for language:', err)
+    return []
+  }
+}
+
+// Batch fetch expressions that appear in text
+async function getExpressionsInText(text, language) {
+  if (!text || !language) return []
+
+  const expressions = await getExpressionsForLanguage(language)
+  const normalizedText = text.toLowerCase()
+
+  return expressions.filter(expr =>
+    normalizedText.includes(expr.text.toLowerCase())
+  )
+}
+
+// LLM-powered expression detection
+async function detectExpressionsWithLLM(text, language, nativeLanguage = 'english') {
+  if (!text || !language) return []
+
+  try {
+    const prompt = `Analyze this ${language} text and identify ALL idiomatic expressions, phrases, and multi-word units whose meaning cannot be understood from the individual words alone.
+
+TEXT:
+${text}
+
+For each expression found, provide:
+1. The exact expression as it appears in the text (lowercase)
+2. Its meaning in ${nativeLanguage}
+3. A literal word-by-word translation (to show why it's non-obvious)
+
+Return a JSON array of objects with keys: "expression", "meaning", "literal"
+
+Examples of what to look for:
+- Idioms ("kick the bucket" = "to die", literally "kick the bucket")
+- Fixed phrases ("by the way" = "incidentally")
+- Phrasal verbs ("give up" = "surrender")
+- Collocations with non-obvious meaning ("make a decision" vs "take a decision")
+
+Only include expressions where knowing the individual words wouldn't reveal the full meaning.
+Return an empty array [] if no such expressions are found.
+Return ONLY valid JSON, no other text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+      text: { format: { type: 'json_object' } },
+    })
+
+    let expressions = []
+
+    // Try to parse the response
+    const contentBlocks = response?.output?.[0]?.content || []
+    const jsonBlock = contentBlocks.find((block) =>
+      block?.type === 'output_json' || block?.type === 'json'
+    )
+
+    let payload = jsonBlock?.output_json || jsonBlock?.json
+
+    if (!payload) {
+      const textBlock = contentBlocks.find((block) => typeof block?.text === 'string')
+      const candidateText = textBlock?.text || response?.output_text
+      if (candidateText) {
+        try {
+          payload = JSON.parse(candidateText)
+        } catch (err) {
+          console.error('Failed to parse expression detection response:', err)
+          return []
+        }
+      }
+    }
+
+    // Handle both array and object with expressions key
+    if (Array.isArray(payload)) {
+      expressions = payload
+    } else if (payload && Array.isArray(payload.expressions)) {
+      expressions = payload.expressions
+    }
+
+    // Validate and normalize
+    return expressions
+      .filter(e => e && e.expression && e.meaning)
+      .map(e => ({
+        expression: e.expression.trim().toLowerCase(),
+        meaning: e.meaning.trim(),
+        literal: e.literal ? e.literal.trim() : null,
+      }))
+  } catch (err) {
+    console.error('Error detecting expressions with LLM:', err)
+    return []
+  }
+}
+
+// Detect and save expressions from text content
+async function detectAndSaveExpressions(text, language, nativeLanguage = 'english') {
+  if (!text || !language) return []
+
+  console.log(`Detecting expressions in ${language} text (${text.length} chars)...`)
+
+  // Detect expressions using LLM
+  const detectedExpressions = await detectExpressionsWithLLM(text, language, nativeLanguage)
+
+  console.log(`Found ${detectedExpressions.length} expressions`)
+
+  // Save each expression to the database
+  const savedExpressions = []
+  for (const expr of detectedExpressions) {
+    const saved = await saveExpression(expr.expression, language, expr.meaning, expr.literal)
+    if (saved) {
+      savedExpressions.push(expr.expression)
+    }
+  }
+
+  return savedExpressions
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, os.tmpdir())
@@ -4282,6 +4462,24 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     })
   }
 
+  // Detect and save expressions from the text
+  let detectedExpressions = []
+  try {
+    console.log(`Detecting expressions for ${contentType} ${contentId}...`)
+    detectedExpressions = await detectAndSaveExpressions(allText, normalizedLang, nativeLanguage)
+    console.log(`Detected ${detectedExpressions.length} expressions`)
+
+    // Save expressions list on content document
+    if (detectedExpressions.length > 0) {
+      await contentRef.update({
+        expressions: detectedExpressions,
+      })
+    }
+  } catch (exprError) {
+    console.error('Error detecting expressions:', exprError)
+    // Continue - expression detection failures shouldn't block content preparation
+  }
+
   // Extract unique words
   const uniqueWords = extractUniqueWords(allText)
 
@@ -4328,28 +4526,38 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     getMissingTranslations(wordsToProcess, normalizedLang, nativeLanguage),
   ])
 
+  // Also check for missing expression pronunciations
+  const missingExpressionPronunciations = await getMissingPronunciations(
+    detectedExpressions,
+    normalizedLang,
+    finalVoiceId
+  )
+
   // Combine into unique set of words that need fetching
   const allMissingWords = [...new Set([...missingPronunciations, ...missingTranslations])]
-  const missingPronunciationsSet = new Set(missingPronunciations)
+  const missingPronunciationsSet = new Set([...missingPronunciations, ...missingExpressionPronunciations])
   const missingTranslationsSet = new Set(missingTranslations)
 
-  if (allMissingWords.length === 0) {
+  // Add expressions to the processing queue (for pronunciations only)
+  const allMissingItems = [...new Set([...allMissingWords, ...missingExpressionPronunciations])]
+
+  if (allMissingItems.length === 0) {
     await contentRef.update({
       preparationStatus: 'ready',
       preparationProgress: 100,
       voiceId: finalVoiceId,
     })
-    return { success: true, wordsProcessed: wordsToProcess.length, pronunciationsFetched: 0, translationsFetched: 0 }
+    return { success: true, wordsProcessed: wordsToProcess.length, expressionsDetected: detectedExpressions.length, pronunciationsFetched: 0, translationsFetched: 0 }
   }
 
   // Fetch missing pronunciations AND translations (with rate limiting)
   let pronunciationsFetched = 0
   let translationsFetched = 0
   const concurrencyLimit = 3
-  const totalMissing = allMissingWords.length
+  const totalMissing = allMissingItems.length
 
-  for (let i = 0; i < allMissingWords.length; i += concurrencyLimit) {
-    const batch = allMissingWords.slice(i, i + concurrencyLimit)
+  for (let i = 0; i < allMissingItems.length; i += concurrencyLimit) {
+    const batch = allMissingItems.slice(i, i + concurrencyLimit)
 
     await Promise.all(
       batch.map(async (word) => {
@@ -4408,9 +4616,10 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
   return {
     success: true,
     wordsProcessed: wordsToProcess.length,
+    expressionsDetected: detectedExpressions.length,
     pronunciationsFetched,
     translationsFetched,
-    totalMissing: allMissingWords.length,
+    totalMissing: allMissingItems.length,
   }
 }
 
@@ -4430,6 +4639,69 @@ app.post('/api/prepare-content', async (req, res) => {
   } catch (error) {
     console.error('Error preparing content:', error)
     return res.status(500).json({ error: error.message || 'Failed to prepare content' })
+  }
+})
+
+// Get all expressions for a language
+app.get('/api/expressions/:language', async (req, res) => {
+  const { language } = req.params
+
+  if (!language) {
+    return res.status(400).json({ error: 'language is required' })
+  }
+
+  try {
+    const expressions = await getExpressionsForLanguage(language)
+    return res.json({ expressions })
+  } catch (error) {
+    console.error('Error fetching expressions:', error)
+    return res.status(500).json({ error: 'Failed to fetch expressions' })
+  }
+})
+
+// Get expressions for specific content
+app.post('/api/content/expressions', async (req, res) => {
+  const { uid, contentId, contentType, language } = req.body || {}
+
+  if (!uid || !contentId || !contentType) {
+    return res.status(400).json({ error: 'uid, contentId, and contentType are required' })
+  }
+
+  try {
+    // Get content reference based on type
+    let contentRef
+    if (contentType === 'story') {
+      contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+    } else if (contentType === 'youtube') {
+      contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+    } else if (contentType === 'spotify') {
+      contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+    } else {
+      return res.status(400).json({ error: `Unknown content type: ${contentType}` })
+    }
+
+    const contentSnap = await contentRef.get()
+    if (!contentSnap.exists) {
+      return res.status(404).json({ error: 'Content not found' })
+    }
+
+    const contentData = contentSnap.data() || {}
+    const expressionsList = contentData.expressions || []
+
+    // Fetch full expression data for each expression in the content
+    const normalizedLang = (language || contentData.language || contentData.outputLanguage || '').toLowerCase().trim()
+
+    const expressionDetails = await Promise.all(
+      expressionsList.map(async (exprText) => {
+        const expr = await getExpression(exprText, normalizedLang)
+        return expr || { text: exprText, meaning: null, literal: null }
+      })
+    )
+
+    return res.json({ expressions: expressionDetails })
+  } catch (error) {
+    console.error('Error fetching content expressions:', error)
+    return res.status(500).json({ error: 'Failed to fetch content expressions' })
   }
 })
 

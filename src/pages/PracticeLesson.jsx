@@ -510,15 +510,16 @@ const PracticeLesson = () => {
 
           <div className="practice-header-actions">
             <button
-              className={`practice-header-button ui-text ${showWordStatus ? 'active' : ''}`}
+              className={`practice-header-button ${showWordStatus ? 'practice-header-button--active' : ''}`}
               type="button"
               onClick={() => setShowWordStatus(!showWordStatus)}
               aria-pressed={showWordStatus}
+              style={{ color: showWordStatus ? '#F97316' : undefined }}
             >
-              {showWordStatus ? 'Hide status' : 'Show status'}
+              Aa
             </button>
             <button
-              className="practice-header-button icon-button"
+              className="practice-header-button"
               type="button"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setDarkMode(!darkMode)}
@@ -540,12 +541,6 @@ const PracticeLesson = () => {
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
               )}
-            </button>
-            <button
-              className="dashboard-control ui-text danger"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Delete
             </button>
           </div>
         </div>
@@ -653,23 +648,47 @@ const PracticeLesson = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Follow-up input */}
-          <div className="practice-followup-input">
-            <input
-              type="text"
-              value={followUpQuestion}
-              onChange={(e) => setFollowUpQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleFollowUp()}
-              placeholder="Ask a question..."
-              disabled={followUpLoading}
-            />
-            <button
-              className="button ghost small"
-              onClick={handleFollowUp}
-              disabled={!followUpQuestion.trim() || followUpLoading}
-            >
-              {followUpLoading ? '...' : '→'}
-            </button>
+          {/* Panel footer with actions */}
+          <div className="practice-panel-footer">
+            {!isComplete && currentSentence && (
+              <div className="practice-submit-row">
+                {!feedback ? (
+                  <button
+                    className="practice-submit-btn"
+                    onClick={handleSubmitAttempt}
+                    disabled={!userAttempt.trim() || feedbackLoading}
+                  >
+                    {feedbackLoading ? 'Checking...' : 'Submit'}
+                    <span className="practice-submit-hint">↵</span>
+                  </button>
+                ) : (
+                  <button
+                    className="practice-submit-btn practice-submit-btn--next"
+                    onClick={() => handleFinalize(false)}
+                    disabled={!userAttempt.trim()}
+                  >
+                    Next →
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="practice-followup-input">
+              <input
+                type="text"
+                value={followUpQuestion}
+                onChange={(e) => setFollowUpQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleFollowUp()}
+                placeholder="Ask a question..."
+                disabled={followUpLoading}
+              />
+              <button
+                className="button ghost small"
+                onClick={handleFollowUp}
+                disabled={!followUpQuestion.trim() || followUpLoading}
+              >
+                {followUpLoading ? '...' : '→'}
+              </button>
+            </div>
           </div>
 
           {/* Resize handle */}
@@ -688,14 +707,34 @@ const PracticeLesson = () => {
 
             {/* Document body - flows like a real document */}
             <div className="practice-document-body">
-              {/* Completed sentences - clickable to navigate with word status highlighting */}
+              {/* Render sentences with current one editable */}
               {lesson.sentences?.map((s, i) => {
                 const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
-                if (attempt?.status === 'finalized') {
+                const isCurrent = i === lesson.currentIndex
+                const isFinalized = attempt?.status === 'finalized'
+
+                // Current sentence - always editable
+                if (isCurrent && !isComplete) {
                   return (
                     <span
                       key={i}
-                      className={`practice-document-sentence ${i === lesson.currentIndex ? 'current' : ''}`}
+                      ref={attemptInputRef}
+                      className="practice-inline-input current"
+                      contentEditable={!feedbackLoading}
+                      suppressContentEditableWarning
+                      onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
+                      onKeyDown={handleKeyDown}
+                      data-placeholder="Continue writing..."
+                    />
+                  )
+                }
+
+                // Finalized sentences - clickable to navigate
+                if (isFinalized) {
+                  return (
+                    <span
+                      key={i}
+                      className="practice-document-sentence"
                       onClick={() => handleGoToSentence(i)}
                       title="Click to revise"
                     >
@@ -703,45 +742,10 @@ const PracticeLesson = () => {
                     </span>
                   )
                 }
+
                 return null
               })}
-
-              {/* Current sentence workspace - inline editable text */}
-              {!isComplete && currentSentence && (
-                <span
-                  ref={attemptInputRef}
-                  className="practice-inline-input"
-                  contentEditable={!feedbackLoading}
-                  suppressContentEditableWarning
-                  onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
-                  onKeyDown={handleKeyDown}
-                  data-placeholder="Continue writing..."
-                />
-              )}
             </div>
-
-            {/* Actions bar - simple buttons */}
-            {!isComplete && currentSentence && (
-              <div className="practice-actions-bar">
-                {!feedback ? (
-                  <button
-                    className="button primary"
-                    onClick={handleSubmitAttempt}
-                    disabled={!userAttempt.trim() || feedbackLoading}
-                  >
-                    {feedbackLoading ? 'Checking...' : 'Submit'}
-                  </button>
-                ) : (
-                  <button
-                    className="button primary"
-                    onClick={() => handleFinalize(false)}
-                    disabled={!userAttempt.trim()}
-                  >
-                    Next
-                  </button>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Completion message */}

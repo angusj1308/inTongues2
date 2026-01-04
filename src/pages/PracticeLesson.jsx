@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -9,7 +9,7 @@ import {
   saveAttempt,
   updatePracticeLesson,
 } from '../services/practice'
-import { loadUserVocab, normaliseExpression } from '../services/vocab'
+import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import {
   LANGUAGE_HIGHLIGHT_COLORS,
   STATUS_OPACITY,
@@ -23,6 +23,52 @@ const getLanguageColor = (language) => {
   const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
   return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
 }
+
+// Word status constants for the vocab panel
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+// Get background style for a status button when active
+const getStatusButtonStyle = (statusLevel, isActive, languageColor) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'new':
+      return {
+        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
+        color: '#9a3412'
+      }
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        color: '#64748b'
+      }
+    case 'known':
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534'
+      }
+    default:
+      return {}
+  }
+}
+
+// Play icon for audio button
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+)
 
 // Get highlight style for a word based on status
 const getHighlightStyle = (language, status, enableHighlight) => {
@@ -62,6 +108,11 @@ const PracticeLesson = () => {
 
   // Vocab state for word highlighting
   const [userVocab, setUserVocab] = useState({})
+
+  // Word panel state for NURF words
+  const [nurfWords, setNurfWords] = useState([])
+  const [wordTranslations, setWordTranslations] = useState({})
+  const audioRef = useRef(null)
 
   // Display settings
   const [showWordStatus, setShowWordStatus] = useState(true)
@@ -135,15 +186,75 @@ const PracticeLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  // Sync contentEditable with userAttempt when navigating to a sentence
+  // Extract NURF words (non-known words) from model sentence and fetch translations
   useEffect(() => {
+    if (!modelSentence || !lesson?.targetLanguage) {
+      setNurfWords([])
+      return
+    }
+
+    // Extract unique words from model sentence
+    const words = modelSentence.match(/[\p{L}\p{M}]+/gu) || []
+    const uniqueWords = [...new Set(words.map(w => w.toLowerCase()))]
+
+    // Filter to only NURF words (not known)
+    const nurfList = uniqueWords
+      .map(word => {
+        const vocabEntry = userVocab[word]
+        const status = vocabEntry?.status || 'new'
+        if (status === 'known') return null
+        return {
+          word,
+          displayWord: words.find(w => w.toLowerCase() === word) || word,
+          normalised: word,
+          status,
+          translation: vocabEntry?.translation || wordTranslations[word] || null,
+        }
+      })
+      .filter(Boolean)
+
+    setNurfWords(nurfList)
+
+    // Fetch translations for words that don't have them
+    const wordsNeedingTranslation = nurfList.filter(w => !w.translation)
+    if (wordsNeedingTranslation.length > 0) {
+      const fetchTranslations = async () => {
+        const newTranslations = { ...wordTranslations }
+        for (const w of wordsNeedingTranslation) {
+          try {
+            const response = await fetch('/api/translatePhrase', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phrase: w.displayWord,
+                sourceLanguage: lesson.targetLanguage,
+                targetLanguage: lesson.sourceLanguage,
+              }),
+            })
+            if (response.ok) {
+              const data = await response.json()
+              newTranslations[w.normalised] = data.translation
+            }
+          } catch (err) {
+            console.warn('Failed to fetch translation for:', w.word, err)
+          }
+        }
+        setWordTranslations(newTranslations)
+      }
+      fetchTranslations()
+    }
+  }, [modelSentence, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
+
+  // Sync contentEditable with userAttempt when navigating to a sentence
+  // Using useLayoutEffect to ensure sync happens before paint
+  useLayoutEffect(() => {
     if (attemptInputRef.current && userAttempt !== undefined) {
       // Only update if content differs to avoid cursor jumping
       if (attemptInputRef.current.textContent !== userAttempt) {
         attemptInputRef.current.textContent = userAttempt
       }
     }
-  }, [lesson?.currentIndex]) // Re-sync when sentence changes
+  }, [lesson?.currentIndex, userAttempt]) // Re-sync when sentence or content changes
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -344,6 +455,9 @@ const PracticeLesson = () => {
       e.preventDefault()
       if (!feedback) {
         handleSubmitAttempt()
+      } else {
+        // After feedback, Enter goes to next sentence
+        handleFinalize(false)
       }
     }
   }
@@ -403,6 +517,69 @@ const PracticeLesson = () => {
       console.error('Navigation error:', err)
     }
   }
+
+  // Handle word status change from vocab panel
+  const handleWordStatusChange = useCallback(async (word, newStatus) => {
+    if (!user || !lesson?.targetLanguage) return
+
+    try {
+      // Get the translation for this word
+      const normalised = normaliseExpression(word)
+      const existingEntry = userVocab[normalised]
+      const translation = existingEntry?.translation || wordTranslations[normalised] || null
+
+      // Map 'new' status to 'unknown' for database (new is UI-only)
+      const dbStatus = newStatus === 'new' ? 'unknown' : newStatus
+
+      // Upsert the vocab entry
+      await upsertVocabEntry(
+        user.uid,
+        lesson.targetLanguage,
+        word,
+        translation,
+        dbStatus
+      )
+
+      // Update local vocab state to reflect the change immediately
+      setUserVocab(prev => ({
+        ...prev,
+        [normalised]: {
+          ...prev[normalised],
+          text: word,
+          status: dbStatus,
+          translation,
+          language: lesson.targetLanguage,
+        }
+      }))
+
+      // Update nurfWords to reflect the new status (or remove if now known)
+      if (dbStatus === 'known') {
+        setNurfWords(prev => prev.filter(w => w.normalised !== normalised))
+      } else {
+        setNurfWords(prev => prev.map(w =>
+          w.normalised === normalised ? { ...w, status: dbStatus } : w
+        ))
+      }
+    } catch (err) {
+      console.error('Failed to update word status:', err)
+    }
+  }, [user, lesson?.targetLanguage, userVocab, wordTranslations])
+
+  // Play audio for a word
+  const handlePlayWordAudio = useCallback((audioBase64, audioUrl) => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+
+    const audio = new Audio()
+    if (audioBase64) {
+      audio.src = `data:audio/mp3;base64,${audioBase64}`
+    } else if (audioUrl) {
+      audio.src = audioUrl
+    }
+    audio.play().catch((err) => console.error('Audio playback failed:', err))
+    audioRef.current = audio
+  }, [])
 
   const handleFollowUp = async () => {
     if (!followUpQuestion.trim() || followUpLoading) return
@@ -626,6 +803,52 @@ const PracticeLesson = () => {
                         </p>
                       </div>
                     )}
+
+                    {/* Word panel for NURF words */}
+                    {nurfWords.length > 0 && (
+                      <div className="practice-word-panel">
+                        <div className="practice-word-panel-header">
+                          <span className="practice-word-panel-label">Words to review</span>
+                        </div>
+                        <div className="practice-word-panel-list">
+                          {nurfWords.map((wordData) => {
+                            const statusIndex = STATUS_LEVELS.indexOf(wordData.status)
+                            const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
+                            const languageColor = getLanguageColor(lesson?.targetLanguage)
+                            const translation = wordData.translation || wordTranslations[wordData.normalised] || '...'
+
+                            return (
+                              <div key={wordData.normalised} className="practice-word-row">
+                                <div className="practice-word-row-left">
+                                  <span className="practice-word-row-word">{wordData.displayWord}</span>
+                                  <span className="practice-word-row-translation">{translation}</span>
+                                </div>
+                                <div className="practice-word-status-selector">
+                                  {STATUS_ABBREV.map((abbrev, i) => {
+                                    const isActive = i === validStatusIndex
+                                    const style = getStatusButtonStyle(STATUS_LEVELS[i], isActive, languageColor)
+
+                                    return (
+                                      <button
+                                        key={abbrev}
+                                        type="button"
+                                        className={`practice-status-option ${isActive ? 'active' : ''}`}
+                                        style={style}
+                                        onClick={() => handleWordStatusChange(wordData.displayWord, STATUS_LEVELS[i])}
+                                        aria-label={`Set ${wordData.displayWord} status to ${STATUS_LEVELS[i]}`}
+                                        aria-pressed={isActive}
+                                      >
+                                        {abbrev}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -717,13 +940,42 @@ const PracticeLesson = () => {
 
             {/* Document body - flows like a real document */}
             <div className="practice-document-body">
-              {/* Render sentences with current one editable */}
+              {/* Render all sentences - finalized ones always visible, current one editable */}
               {lesson.sentences?.map((s, i) => {
                 const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
                 const isCurrent = i === lesson.currentIndex
                 const isFinalized = attempt?.status === 'finalized'
 
-                // Current sentence - always editable
+                // Finalized sentence
+                if (isFinalized) {
+                  // If it's current and not complete, make it editable
+                  if (isCurrent && !isComplete) {
+                    return (
+                      <span
+                        key={i}
+                        ref={attemptInputRef}
+                        className="practice-inline-input current"
+                        contentEditable={!feedbackLoading}
+                        suppressContentEditableWarning
+                        onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
+                        onKeyDown={handleKeyDown}
+                      />
+                    )
+                  }
+                  // Otherwise, just show the text (clickable to navigate)
+                  return (
+                    <span
+                      key={i}
+                      className="practice-document-sentence"
+                      onClick={() => handleGoToSentence(i)}
+                      title="Click to revise"
+                    >
+                      {renderTextWithWordStatus(attempt.finalText, `doc-${i}-`)}{' '}
+                    </span>
+                  )
+                }
+
+                // Not finalized - only render if it's the current sentence
                 if (isCurrent && !isComplete) {
                   return (
                     <span
@@ -735,20 +987,6 @@ const PracticeLesson = () => {
                       onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
                       onKeyDown={handleKeyDown}
                     />
-                  )
-                }
-
-                // Finalized sentences - clickable to navigate
-                if (isFinalized) {
-                  return (
-                    <span
-                      key={i}
-                      className="practice-document-sentence"
-                      onClick={() => handleGoToSentence(i)}
-                      title="Click to revise"
-                    >
-                      {renderTextWithWordStatus(attempt.finalText, `doc-${i}-`)}{' '}
-                    </span>
                   )
                 }
 

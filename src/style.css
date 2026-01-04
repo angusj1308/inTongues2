@@ -11069,6 +11069,63 @@ body.active-pass-locked {
   color: #64748b;
 }
 
+.practice-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.practice-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.practice-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.practice-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.practice-nav-indicator {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+  min-width: 80px;
+  text-align: center;
+}
+
+[data-theme='dark'] .practice-nav-btn {
+  background: #334155;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .practice-nav-btn:hover:not(:disabled) {
+  background: #475569;
+  border-color: #64748b;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .practice-nav-indicator {
+  color: #94a3b8;
+}
+
 .practice-header-actions {
   display: flex;
   align-items: center;
@@ -11243,6 +11300,68 @@ body.active-pass-locked {
   font-size: 1.1rem;
   line-height: 1.5;
   color: #14532d;
+}
+
+.practice-example-sentence .example-text-highlighted {
+  color: inherit;
+}
+
+/* Word Status Highlighting */
+.word-status {
+  border-radius: 2px;
+  padding: 1px 2px;
+  margin: 0 -2px;
+  transition: background-color 0.15s ease;
+}
+
+.word-status-new {
+  background-color: rgba(147, 197, 253, 0.35); /* blue-300 - new words not in vocab */
+  color: #1e40af;
+}
+
+.word-status-unknown {
+  background-color: rgba(253, 186, 116, 0.45); /* orange-300 - actively learning */
+  color: #9a3412;
+}
+
+.word-status-recognised {
+  background-color: rgba(253, 224, 71, 0.4); /* yellow-300 - recognised */
+  color: #854d0e;
+}
+
+.word-status-familiar {
+  background-color: rgba(134, 239, 172, 0.4); /* green-300 - familiar */
+  color: #166534;
+}
+
+.word-status-known {
+  background-color: transparent; /* known words - no highlight needed */
+  color: inherit;
+}
+
+[data-theme='dark'] .word-status-new {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .word-status-unknown {
+  background-color: rgba(251, 146, 60, 0.35);
+  color: #fed7aa;
+}
+
+[data-theme='dark'] .word-status-recognised {
+  background-color: rgba(250, 204, 21, 0.3);
+  color: #fef08a;
+}
+
+[data-theme='dark'] .word-status-familiar {
+  background-color: rgba(74, 222, 128, 0.3);
+  color: #bbf7d0;
+}
+
+[data-theme='dark'] .word-status-known {
+  background-color: transparent;
+  color: inherit;
 }
 
 /* Feedback Checklist */

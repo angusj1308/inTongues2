@@ -266,17 +266,125 @@ export const getCompletedDocument = (lesson) => {
   return finalizedAttempts.map((a) => a.finalText || a.userText).join(' ')
 }
 
+const MIN_WORDS = 10
+const MAX_WORDS = 25
+
 /**
- * Split text into sentences (simple implementation)
+ * Count words in a text segment
+ */
+const countWords = (text) => {
+  if (!text?.trim()) return 0
+  return text.trim().split(/\s+/).length
+}
+
+/**
+ * Split text into sentences with min/max word constraints
+ * - Minimum 10 words: if a sentence is too short, combine with next
+ * - Maximum 25 words: if a sentence is too long, split at natural breaks
  */
 export const splitIntoSentences = (text) => {
   if (!text?.trim()) return []
 
-  // Split on sentence-ending punctuation followed by space or end
-  const sentences = text
+  // First, split on sentence-ending punctuation followed by space or end
+  const rawSentences = text
     .split(/(?<=[.!?¡¿…])\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
 
-  return sentences
+  const result = []
+  let buffer = ''
+
+  for (let i = 0; i < rawSentences.length; i++) {
+    const sentence = rawSentences[i]
+    const combined = buffer ? `${buffer} ${sentence}` : sentence
+    const wordCount = countWords(combined)
+
+    if (wordCount <= MAX_WORDS) {
+      // Combined is within max limit
+      if (wordCount >= MIN_WORDS) {
+        // Meets minimum, add to result
+        result.push(combined)
+        buffer = ''
+      } else {
+        // Still under minimum, keep buffering
+        buffer = combined
+      }
+    } else {
+      // Combined exceeds max
+      if (buffer) {
+        // First, flush the buffer if it meets minimum
+        if (countWords(buffer) >= MIN_WORDS) {
+          result.push(buffer)
+          buffer = ''
+        }
+      }
+
+      // Now handle the current sentence
+      const currentWords = countWords(buffer ? `${buffer} ${sentence}` : sentence)
+      if (currentWords > MAX_WORDS) {
+        // Need to split this sentence
+        const textToSplit = buffer ? `${buffer} ${sentence}` : sentence
+        const splitParts = splitLongSentence(textToSplit, MIN_WORDS, MAX_WORDS)
+        result.push(...splitParts)
+        buffer = ''
+      } else {
+        buffer = buffer ? `${buffer} ${sentence}` : sentence
+      }
+    }
+  }
+
+  // Handle remaining buffer
+  if (buffer) {
+    if (result.length > 0 && countWords(buffer) < MIN_WORDS) {
+      // Combine with last result if buffer is too short
+      const lastWordCount = countWords(result[result.length - 1])
+      if (lastWordCount + countWords(buffer) <= MAX_WORDS) {
+        result[result.length - 1] = `${result[result.length - 1]} ${buffer}`
+      } else {
+        // Just add it even if short - last sentence exception
+        result.push(buffer)
+      }
+    } else {
+      result.push(buffer)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Split a long sentence at natural break points (commas, semicolons, conjunctions)
+ */
+const splitLongSentence = (text, minWords, maxWords) => {
+  const words = text.split(/\s+/)
+  if (words.length <= maxWords) return [text]
+
+  const result = []
+  let current = []
+
+  for (let i = 0; i < words.length; i++) {
+    current.push(words[i])
+    const currentText = current.join(' ')
+
+    // Check if we're at a natural break point and have enough words
+    const isNaturalBreak = /[,;:]$/.test(words[i]) ||
+      /^(and|but|or|so|yet|because|although|while|when|if|then|however|therefore|moreover|furthermore|additionally|consequently|thus|hence|meanwhile|otherwise|instead|rather|indeed)$/i.test(words[i + 1] || '')
+
+    if (current.length >= minWords && (current.length >= maxWords || (isNaturalBreak && current.length >= minWords))) {
+      result.push(currentText)
+      current = []
+    }
+  }
+
+  // Handle remaining words
+  if (current.length > 0) {
+    if (result.length > 0 && current.length < minWords) {
+      // Combine with previous if too short
+      result[result.length - 1] = `${result[result.length - 1]} ${current.join(' ')}`
+    } else {
+      result.push(current.join(' '))
+    }
+  }
+
+  return result
 }

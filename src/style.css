@@ -11040,7 +11040,7 @@ body.active-pass-locked {
 .practice-header {
   background: #ffffff;
   border-bottom: 1px solid #e2e8f0;
-  padding: 0.75rem 0;
+  padding: 1rem 0;
 }
 
 .practice-header-band {
@@ -11079,26 +11079,22 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  border-radius: 6px;
+  border: none;
+  background: none;
   font-size: 1rem;
   font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .practice-nav-btn:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #334155;
+  color: #0f172a;
 }
 
 .practice-nav-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -11111,14 +11107,10 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .practice-nav-btn {
-  background: #334155;
-  border-color: #475569;
   color: #94a3b8;
 }
 
 [data-theme='dark'] .practice-nav-btn:hover:not(:disabled) {
-  background: #475569;
-  border-color: #64748b;
   color: #e2e8f0;
 }
 
@@ -11137,56 +11129,39 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.375rem 0.75rem;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  padding: 0.25rem;
+  border: none;
+  background: none;
+  font-size: 1rem;
+  font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .practice-header-button:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #334155;
+  opacity: 0.7;
 }
 
-.practice-header-button.active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #ffffff;
-}
-
-.practice-header-button.icon-button {
-  padding: 0.375rem;
-  width: 32px;
-  height: 32px;
+.practice-header-button--active {
+  color: #F97316;
 }
 
 .practice-header-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 [data-theme='dark'] .practice-header-button {
-  background: #334155;
-  border-color: #475569;
   color: #94a3b8;
 }
 
 [data-theme='dark'] .practice-header-button:hover {
-  background: #475569;
-  border-color: #64748b;
   color: #e2e8f0;
 }
 
-[data-theme='dark'] .practice-header-button.active {
-  background: #f1f5f9;
-  border-color: #f1f5f9;
-  color: #0f172a;
+[data-theme='dark'] .practice-header-button--active {
+  color: #FB923C;
 }
 
 .practice-header-languages {
@@ -11426,12 +11401,90 @@ body.active-pass-locked {
 }
 
 /* Follow-up Input */
+.practice-panel-footer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.practice-submit-row {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.practice-submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.practice-submit-btn:hover:not(:disabled) {
+  background: #1e293b;
+}
+
+.practice-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.practice-submit-btn--next {
+  background: #16a34a;
+}
+
+.practice-submit-btn--next:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.practice-submit-hint {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+[data-theme='dark'] .practice-panel-footer {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .practice-submit-row {
+  border-color: #334155;
+}
+
+[data-theme='dark'] .practice-submit-btn {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .practice-submit-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+[data-theme='dark'] .practice-submit-btn--next {
+  background: #22c55e;
+  color: #052e16;
+}
+
+[data-theme='dark'] .practice-submit-btn--next:hover:not(:disabled) {
+  background: #16a34a;
+}
+
 .practice-followup-input {
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-top: 1px solid #e2e8f0;
-  background: #fafafa;
+  background: transparent;
 }
 
 .practice-followup-input input {
@@ -11593,6 +11646,10 @@ body.active-pass-locked {
   background: transparent;
   caret-color: #3b82f6;
   min-width: 2ch;
+}
+
+.practice-inline-input.current {
+  font-weight: 600;
 }
 
 .practice-inline-input:empty::before {
@@ -12027,8 +12084,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .practice-followup-input {
-  background: #0f172a;
-  border-color: #334155;
+  background: transparent;
 }
 
 [data-theme='dark'] .practice-followup-input input {

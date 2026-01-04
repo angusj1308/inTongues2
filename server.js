@@ -569,25 +569,31 @@ async function detectExpressionsWithLLM(text, language, nativeLanguage = 'englis
   if (!text || !language) return []
 
   try {
-    const prompt = `Analyze this ${language} text and identify ALL idiomatic expressions, phrases, and multi-word units whose meaning cannot be understood from the individual words alone.
+    const prompt = `Analyze this ${language} text and identify ALL multi-word combinations where the meaning differs from the literal sum of the individual words.
+
+A learner might know each word separately but still not understand the combination. Find these.
 
 TEXT:
 ${text}
 
 For each expression found, provide:
 1. The exact expression as it appears in the text (lowercase)
-2. Its meaning in ${nativeLanguage}
-3. A literal word-by-word translation (to show why it's non-obvious)
+2. Its actual meaning in ${nativeLanguage}
+3. A literal word-by-word translation (to show the gap between literal and actual meaning)
 
 Return a JSON array of objects with keys: "expression", "meaning", "literal"
 
-Examples of what to look for:
-- Idioms ("kick the bucket" = "to die", literally "kick the bucket")
-- Fixed phrases ("by the way" = "incidentally")
-- Phrasal verbs ("give up" = "surrender")
-- Collocations with non-obvious meaning ("make a decision" vs "take a decision")
+Types to look for (works for any language):
+- Idioms: ES "dar en el clavo" = "get it right", FR "coûter les yeux de la tête" = "cost a fortune"
+- Phrasal verbs: EN "give up" = "surrender", "look after" = "care for"
+- Verb + preposition: ES "pensar en" = "think about", IT "contare su" = "rely on"
+- Verb + noun: ES "hacer caso" = "pay attention", FR "faire attention" = "be careful"
+- Fixed phrases: ES "sin embargo" = "however", IT "a proposito" = "by the way"
+- Collocations: ES "echar de menos" = "miss someone", FR "avoir envie de" = "want to"
+- Any word combination where the meaning ≠ sum of literal parts
 
-Only include expressions where knowing the individual words wouldn't reveal the full meaning.
+The key test: Would a learner who knows each word individually still fail to understand the combination?
+
 Return an empty array [] if no such expressions are found.
 Return ONLY valid JSON, no other text.`
 

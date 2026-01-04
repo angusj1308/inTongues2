@@ -10,6 +10,35 @@ import {
   updatePracticeLesson,
 } from '../services/practice'
 import { loadUserVocab, normaliseExpression } from '../services/vocab'
+import {
+  LANGUAGE_HIGHLIGHT_COLORS,
+  STATUS_OPACITY,
+} from '../constants/highlightColors'
+
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
+}
+
+// Get highlight style for a word based on status
+const getHighlightStyle = (language, status, enableHighlight) => {
+  if (!enableHighlight) return {}
+
+  const opacity = STATUS_OPACITY[status]
+  if (!opacity || opacity === 0) return {}
+
+  // New words are always orange, others use language color
+  const base = status === 'new' ? '#F97316' : getLanguageColor(language)
+
+  return {
+    '--hlt-base': base,
+    '--hlt-opacity': opacity,
+  }
+}
 
 const PracticeLesson = () => {
   const { lessonId } = useParams()
@@ -33,6 +62,13 @@ const PracticeLesson = () => {
 
   // Vocab state for word highlighting
   const [userVocab, setUserVocab] = useState({})
+
+  // Display settings
+  const [showWordStatus, setShowWordStatus] = useState(true)
+  const [darkMode, setDarkMode] = useState(() => {
+    // Check if dark mode is already set
+    return document.documentElement.getAttribute('data-theme') === 'dark'
+  })
 
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -94,6 +130,11 @@ const PracticeLesson = () => {
     loadLesson()
   }, [user, lessonId])
 
+  // Handle dark mode toggle
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
   // Scroll chat to bottom when messages change
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -133,40 +174,44 @@ const PracticeLesson = () => {
   const currentSentence = lesson?.sentences?.[lesson.currentIndex]
   const completedDocument = lesson ? getCompletedDocument(lesson) : ''
 
-  // Render model sentence with word status highlighting
-  const renderHighlightedModelSentence = useMemo(() => {
-    if (!modelSentence) return null
+  // Helper function to render text with word status highlighting (using app's standard approach)
+  const renderTextWithWordStatus = useCallback((text, keyPrefix = '') => {
+    if (!text) return null
 
     // Split into words while preserving punctuation
-    const tokens = modelSentence.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
+    const tokens = text.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
 
     return tokens.map((token, idx) => {
       // Skip whitespace and punctuation
       if (/^\s+$/.test(token) || !/[\p{L}\p{M}]/u.test(token)) {
-        return <span key={idx}>{token}</span>
+        return <span key={`${keyPrefix}${idx}`}>{token}</span>
       }
 
       // Check word status in vocab
       const normalised = normaliseExpression(token)
       const vocabEntry = userVocab[normalised]
-      const status = vocabEntry?.status || 'new' // new = not in vocab at all
+      const status = vocabEntry?.status || 'new'
 
-      // Map status to CSS class
-      const statusClass = {
-        unknown: 'word-status-unknown',    // Red/orange - being learned
-        recognised: 'word-status-recognised', // Yellow - recognised
-        familiar: 'word-status-familiar',   // Light green - familiar
-        known: 'word-status-known',        // Green - known well
-        new: 'word-status-new',           // Gray/blue - never seen
-      }[status] || 'word-status-new'
+      // Get highlight style using app's standard approach
+      const style = getHighlightStyle(lesson?.targetLanguage, status, showWordStatus)
+      const highlighted = Boolean(style['--hlt-opacity'])
 
       return (
-        <span key={idx} className={`word-status ${statusClass}`} title={status}>
+        <span
+          key={`${keyPrefix}${idx}`}
+          className={`reader-word ${highlighted ? 'reader-word--highlighted' : ''}`}
+          style={style}
+        >
           {token}
         </span>
       )
     })
-  }, [modelSentence, userVocab])
+  }, [userVocab, lesson?.targetLanguage, showWordStatus])
+
+  // Render model sentence with word status highlighting
+  const renderHighlightedModelSentence = useMemo(() => {
+    return renderTextWithWordStatus(modelSentence, 'model-')
+  }, [modelSentence, renderTextWithWordStatus])
 
   const handleSubmitAttempt = useCallback(async () => {
     if (!userAttempt.trim() || feedbackLoading) return
@@ -465,6 +510,38 @@ const PracticeLesson = () => {
 
           <div className="practice-header-actions">
             <button
+              className={`practice-header-button ui-text ${showWordStatus ? 'active' : ''}`}
+              type="button"
+              onClick={() => setShowWordStatus(!showWordStatus)}
+              aria-pressed={showWordStatus}
+            >
+              {showWordStatus ? 'Hide status' : 'Show status'}
+            </button>
+            <button
+              className="practice-header-button icon-button"
+              type="button"
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => setDarkMode(!darkMode)}
+            >
+              {darkMode ? (
+                <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              ) : (
+                <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </svg>
+              )}
+            </button>
+            <button
               className="dashboard-control ui-text danger"
               onClick={() => setShowDeleteConfirm(true)}
             >
@@ -539,7 +616,7 @@ const PracticeLesson = () => {
                     {modelSentence && (
                       <div className="practice-example-sentence">
                         <span className="example-label">Example:</span>
-                        <p className="example-text example-text-highlighted">
+                        <p className="example-text">
                           {renderHighlightedModelSentence}
                         </p>
                       </div>
@@ -611,7 +688,7 @@ const PracticeLesson = () => {
 
             {/* Document body - flows like a real document */}
             <div className="practice-document-body">
-              {/* Completed sentences - clickable to navigate */}
+              {/* Completed sentences - clickable to navigate with word status highlighting */}
               {lesson.sentences?.map((s, i) => {
                 const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
                 if (attempt?.status === 'finalized') {
@@ -622,7 +699,7 @@ const PracticeLesson = () => {
                       onClick={() => handleGoToSentence(i)}
                       title="Click to revise"
                     >
-                      {attempt.finalText}{' '}
+                      {renderTextWithWordStatus(attempt.finalText, `doc-${i}-`)}{' '}
                     </span>
                   )
                 }

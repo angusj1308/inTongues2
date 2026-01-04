@@ -184,6 +184,20 @@ textarea {
   color: inherit;
 }
 
+.reader-word--clickable {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+
+.reader-word--clickable:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] .reader-word--clickable:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 .reader-word--highlighted {
   background-color: rgba(0, 0, 0, var(--hlt-opacity, 0.16));
   background-color: color-mix(

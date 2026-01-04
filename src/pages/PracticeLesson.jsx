@@ -145,6 +145,7 @@ const PracticeLesson = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(380)
+  const [popup, setPopup] = useState(null) // Translation popup state
   const attemptInputRef = useRef(null)
   const chatEndRef = useRef(null)
   const resizeRef = useRef(null)
@@ -278,6 +279,20 @@ const PracticeLesson = () => {
           await Promise.all(promises)
         }
         setWordTranslations(newTranslations)
+
+        // Update nurfWords with the fetched translations
+        setNurfWords(prev => prev.map(w => {
+          const translationData = newTranslations[w.normalised]
+          if (translationData) {
+            return {
+              ...w,
+              translation: translationData.translation || w.translation,
+              audioBase64: translationData.audioBase64 || w.audioBase64,
+              audioUrl: translationData.audioUrl || w.audioUrl,
+            }
+          }
+          return w
+        }))
       }
       fetchTranslationsAndAudio()
     }
@@ -340,8 +355,128 @@ const PracticeLesson = () => {
   const currentSentence = lesson?.sentences?.[lesson.currentIndex]
   const completedDocument = lesson ? getCompletedDocument(lesson) : ''
 
+  // Handle word click for translation popup
+  const handleWordClick = useCallback(async (word, event) => {
+    event.stopPropagation()
+
+    const normalised = normaliseExpression(word)
+    const vocabEntry = userVocab[normalised]
+
+    // Position popup near the clicked word
+    const rect = event.target.getBoundingClientRect()
+    const x = Math.min(rect.left, window.innerWidth - 320)
+    const y = rect.bottom + 8
+
+    // Check if we already have a translation
+    let translation = vocabEntry?.translation || wordTranslations[normalised]?.translation || null
+    let audioBase64 = wordTranslations[normalised]?.audioBase64 || null
+    let audioUrl = wordTranslations[normalised]?.audioUrl || null
+
+    // Set popup immediately with loading state if no translation
+    setPopup({
+      x,
+      y,
+      word,
+      normalised,
+      translation: translation || 'Loading...',
+      audioBase64,
+      audioUrl,
+      status: vocabEntry?.status || 'new',
+    })
+
+    // Fetch translation if we don't have one
+    if (!translation && lesson?.targetLanguage) {
+      try {
+        const response = await fetch('/api/translatePhrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: word,
+            sourceLanguage: lesson.targetLanguage,
+            targetLanguage: lesson.sourceLanguage,
+          }),
+        })
+        if (response.ok) {
+          const data = await response.json()
+          translation = data.translation || 'No translation found'
+          audioBase64 = data.audioBase64 || null
+          audioUrl = data.audioUrl || null
+
+          // Update popup with translation
+          setPopup(prev => prev ? {
+            ...prev,
+            translation,
+            audioBase64,
+            audioUrl,
+          } : null)
+
+          // Cache the translation
+          setWordTranslations(prev => ({
+            ...prev,
+            [normalised]: { translation, audioBase64, audioUrl }
+          }))
+        }
+      } catch (err) {
+        console.warn('Failed to fetch translation:', err)
+        setPopup(prev => prev ? { ...prev, translation: 'Translation failed' } : null)
+      }
+    }
+  }, [userVocab, wordTranslations, lesson?.targetLanguage, lesson?.sourceLanguage])
+
+  // Handle setting word status from popup
+  const handlePopupStatusChange = useCallback(async (newStatus) => {
+    if (!popup || !user || !lesson?.targetLanguage) return
+
+    const dbStatus = newStatus === 'new' ? 'unknown' : newStatus
+
+    try {
+      await upsertVocabEntry(
+        user.uid,
+        lesson.targetLanguage,
+        popup.word,
+        popup.translation !== 'Loading...' ? popup.translation : null,
+        dbStatus
+      )
+
+      setUserVocab(prev => ({
+        ...prev,
+        [popup.normalised]: {
+          ...prev[popup.normalised],
+          text: popup.word,
+          status: dbStatus,
+          translation: popup.translation !== 'Loading...' ? popup.translation : prev[popup.normalised]?.translation,
+          language: lesson.targetLanguage,
+        }
+      }))
+
+      // Update popup status
+      setPopup(prev => prev ? { ...prev, status: dbStatus } : null)
+
+      // Update nurfWords if needed
+      if (dbStatus === 'known') {
+        setNurfWords(prev => prev.filter(w => w.normalised !== popup.normalised))
+      } else {
+        setNurfWords(prev => prev.map(w =>
+          w.normalised === popup.normalised ? { ...w, status: dbStatus } : w
+        ))
+      }
+    } catch (err) {
+      console.error('Failed to update word status:', err)
+    }
+  }, [popup, user, lesson?.targetLanguage])
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleGlobalClick = (event) => {
+      if (event.target.closest('.translate-popup')) return
+      setPopup(null)
+    }
+    window.addEventListener('click', handleGlobalClick)
+    return () => window.removeEventListener('click', handleGlobalClick)
+  }, [])
+
   // Helper function to render text with word status highlighting (using app's standard approach)
-  const renderTextWithWordStatus = useCallback((text, keyPrefix = '') => {
+  const renderTextWithWordStatus = useCallback((text, keyPrefix = '', clickable = true) => {
     if (!text) return null
 
     // Split into words while preserving punctuation
@@ -365,14 +500,15 @@ const PracticeLesson = () => {
       return (
         <span
           key={`${keyPrefix}${idx}`}
-          className={`reader-word ${highlighted ? 'reader-word--highlighted' : ''}`}
+          className={`reader-word ${highlighted ? 'reader-word--highlighted' : ''} ${clickable ? 'reader-word--clickable' : ''}`}
           style={style}
+          onClick={clickable ? (e) => handleWordClick(token, e) : undefined}
         >
           {token}
         </span>
       )
     })
-  }, [userVocab, lesson?.targetLanguage, showWordStatus])
+  }, [userVocab, lesson?.targetLanguage, showWordStatus, handleWordClick])
 
   // Render model sentence with word status highlighting
   const renderHighlightedModelSentence = useMemo(() => {
@@ -926,7 +1062,10 @@ const PracticeLesson = () => {
                 <div
                   className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
                 >
-                  {msg.content}
+                  {/* Apply word highlighting to assistant messages when showing in target language */}
+                  {msg.role === 'assistant' && feedbackInTarget && showWordStatus
+                    ? renderTextWithWordStatus(msg.content, `chat-${i}-`)
+                    : msg.content}
                 </div>
 
                 {/* Render example and word panel after feedback message */}
@@ -1220,6 +1359,102 @@ const PracticeLesson = () => {
                 Continue
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Translation popup */}
+      {popup && (
+        <div
+          className="translate-popup"
+          style={{
+            position: 'fixed',
+            top: popup.y,
+            left: popup.x,
+            zIndex: 1000,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="translate-popup-header">
+            <div className="translate-popup-title">Translation</div>
+            <button
+              type="button"
+              className="translate-popup-close"
+              aria-label="Close translation popup"
+              onClick={() => setPopup(null)}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="translate-popup-body">
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">
+                {lesson?.targetLanguage || 'Target'}
+              </p>
+              <p className="translate-popup-language-text" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span>{popup.word}</span>
+                {(popup.audioBase64 || popup.audioUrl) && (
+                  <button
+                    type="button"
+                    className="translate-popup-audio"
+                    onClick={() => {
+                      const audio = new Audio()
+                      if (popup.audioBase64) {
+                        audio.src = `data:audio/mp3;base64,${popup.audioBase64}`
+                      } else if (popup.audioUrl) {
+                        audio.src = popup.audioUrl
+                      }
+                      audio.play().catch(err => console.error('Audio playback failed:', err))
+                    }}
+                    aria-label="Play pronunciation"
+                    style={{
+                      border: '1px solid #d7d7db',
+                      background: '#f5f5f7',
+                      cursor: 'pointer',
+                      padding: '0.35rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0f172a',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </button>
+                )}
+              </p>
+            </div>
+
+            <div className="translate-popup-language-column">
+              <p className="translate-popup-language-label">
+                {lesson?.sourceLanguage || 'Native'}
+              </p>
+              <p className="translate-popup-language-text">
+                {popup.translation}
+              </p>
+            </div>
+          </div>
+
+          <div className="translate-popup-status">
+            {STATUS_LEVELS.map((status) => {
+              const isActive = (popup.status === status) ||
+                (popup.status === 'unknown' && status === 'new') ||
+                (status === 'new' && !popup.status)
+
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  className={`translate-popup-status-button ${isActive ? 'active' : ''}`}
+                  onClick={() => handlePopupStatusChange(status)}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

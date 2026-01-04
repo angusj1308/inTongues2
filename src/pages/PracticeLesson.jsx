@@ -486,39 +486,6 @@ const PracticeLesson = () => {
     }
   }, [userAttempt, modelSentence, feedbackLoading, lesson, user, lessonId])
 
-  // Check for new words before finalizing - show warning if any exist
-  const attemptFinalize = useCallback((useModel = false) => {
-    const hasNewWords = nurfWords.some(w => w.status === 'new')
-    if (hasNewWords) {
-      setShowNewWordsWarning(true)
-    } else {
-      handleFinalize(useModel)
-    }
-  }, [nurfWords, handleFinalize])
-
-  // Mark all new words as known and proceed
-  const handleConfirmNewWordsAsKnown = useCallback(async () => {
-    // Mark all 'new' status words as 'known'
-    const newWords = nurfWords.filter(w => w.status === 'new')
-    for (const wordData of newWords) {
-      await handleWordStatusChange(wordData.displayWord, 'known')
-    }
-    setShowNewWordsWarning(false)
-    handleFinalize(false)
-  }, [nurfWords, handleWordStatusChange, handleFinalize])
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      if (!feedback) {
-        handleSubmitAttempt()
-      } else {
-        // After feedback, Enter goes to next sentence (with new words check)
-        attemptFinalize(false)
-      }
-    }
-  }
-
   const handleDelete = async () => {
     try {
       await deletePracticeLesson(user.uid, lessonId)
@@ -649,6 +616,39 @@ const PracticeLesson = () => {
       console.error('Failed to update word status:', err)
     }
   }, [user, lesson?.targetLanguage, userVocab, wordTranslations])
+
+  // Check for new words before finalizing - show warning if any exist
+  const attemptFinalize = useCallback((useModel = false) => {
+    const hasNewWords = nurfWords.some(w => w.status === 'new')
+    if (hasNewWords) {
+      setShowNewWordsWarning(true)
+    } else {
+      handleFinalize(useModel)
+    }
+  }, [nurfWords, handleFinalize])
+
+  // Mark all new words as known and proceed
+  const handleConfirmNewWordsAsKnown = useCallback(async () => {
+    // Mark all 'new' status words as 'known'
+    const newWords = nurfWords.filter(w => w.status === 'new')
+    for (const wordData of newWords) {
+      await handleWordStatusChange(wordData.displayWord, 'known')
+    }
+    setShowNewWordsWarning(false)
+    handleFinalize(false)
+  }, [nurfWords, handleWordStatusChange, handleFinalize])
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (!feedback) {
+        handleSubmitAttempt()
+      } else {
+        // After feedback, Enter goes to next sentence (with new words check)
+        attemptFinalize(false)
+      }
+    }
+  }
 
   // Play audio for a word
   const handlePlayWordAudio = useCallback((audioBase64, audioUrl) => {

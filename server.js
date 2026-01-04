@@ -4599,7 +4599,7 @@ app.post('/api/delete-story', async (req, res) => {
 // Practice Mode: Get AI feedback on user's translation attempt
 app.post('/api/practice/feedback', async (req, res) => {
   try {
-    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, contextSummary } = req.body || {}
+    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, contextSummary, feedbackInTarget } = req.body || {}
 
     if (!nativeSentence || !userAttempt || !targetLanguage) {
       return res.status(400).json({ error: 'nativeSentence, userAttempt, and targetLanguage are required' })
@@ -4607,6 +4607,7 @@ app.post('/api/practice/feedback', async (req, res) => {
 
     const sourceLang = sourceLanguage || 'English'
     const level = adaptationLevel || 'native'
+    const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
 
     // Build context section if context summary is available
     const contextSection = contextSummary
@@ -4650,7 +4651,7 @@ Analyze the student's attempt and provide feedback. Return a JSON object with th
   "feedback": {
     "naturalness": <1-5 score, where 5 is perfectly natural for a native speaker>,
     "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
-    "explanation": "Brief explanation of your feedback in ${sourceLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.${hasUnknownWords ? ' Include the translations for the words the student asked about.' : ''}",
+    "explanation": "Brief explanation of your feedback in ${feedbackLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.${hasUnknownWords ? ' Include the translations for the words the student asked about.' : ''}",
     "grammarIssues": ["list of specific grammar issues if any, or empty array"],
     "suggestions": ["list of alternative expressions or tips, or empty array"],
     "correctness": <1-5 score, where 5 means no grammar or spelling errors>${hasUnknownWords ? `,

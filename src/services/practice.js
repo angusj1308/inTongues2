@@ -224,6 +224,21 @@ export const deletePracticeLesson = async (userId, lessonId) => {
 }
 
 /**
+ * Reset a practice lesson (start over from sentence 1)
+ * This clears all attempts but preserves word status changes
+ */
+export const resetPracticeLesson = async (userId, lessonId) => {
+  const ref = getPracticeDocRef(userId, lessonId)
+  await updateDoc(ref, {
+    attempts: [],
+    currentIndex: 0,
+    completedCount: 0,
+    status: 'in_progress',
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
  * Subscribe to practice lessons for a language
  */
 export const subscribeToPracticeLessons = (userId, language, callback, onError) => {

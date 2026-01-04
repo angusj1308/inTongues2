@@ -6,6 +6,7 @@ import {
   finalizeAttempt,
   getCompletedDocument,
   getPracticeLesson,
+  resetPracticeLesson,
   saveAttempt,
   updatePracticeLesson,
 } from '../services/practice'
@@ -123,6 +124,7 @@ const PracticeLesson = () => {
 
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [panelWidth, setPanelWidth] = useState(380)
   const attemptInputRef = useRef(null)
   const chatEndRef = useRef(null)
@@ -472,6 +474,31 @@ const PracticeLesson = () => {
     }
   }
 
+  const handleReset = async () => {
+    try {
+      await resetPracticeLesson(user.uid, lessonId)
+      const updated = await getPracticeLesson(user.uid, lessonId)
+      setLesson(updated)
+
+      // Reset local state
+      setUserAttempt('')
+      setFeedback(null)
+      setModelSentence('')
+      setChatMessages([])
+      setNurfWords([])
+      setWordTranslations({})
+      setShowResetConfirm(false)
+
+      // Clear contentEditable
+      if (attemptInputRef.current) {
+        attemptInputRef.current.textContent = ''
+      }
+    } catch (err) {
+      console.error('Reset error:', err)
+      setError('Failed to reset lesson.')
+    }
+  }
+
   const handleGoToSentence = async (index) => {
     if (index === lesson.currentIndex) return
 
@@ -728,6 +755,17 @@ const PracticeLesson = () => {
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
               )}
+            </button>
+            <button
+              className="practice-header-button"
+              type="button"
+              aria-label="Reset lesson"
+              onClick={() => setShowResetConfirm(true)}
+            >
+              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
             </button>
           </div>
         </div>
@@ -1020,6 +1058,24 @@ const PracticeLesson = () => {
               </button>
               <button className="button danger" onClick={handleDelete}>
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <div className="modal-backdrop" onClick={() => setShowResetConfirm(false)}>
+          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
+            <h3>Reset Lesson?</h3>
+            <p>This will clear all your written sentences and start over from sentence 1. Your saved vocabulary will not be affected.</p>
+            <div className="modal-actions">
+              <button className="button ghost" onClick={() => setShowResetConfirm(false)}>
+                Cancel
+              </button>
+              <button className="button primary" onClick={handleReset}>
+                Reset
               </button>
             </div>
           </div>

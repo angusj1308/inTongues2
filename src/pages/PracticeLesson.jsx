@@ -252,13 +252,13 @@ const PracticeLesson = () => {
           const batch = wordsNeedingData.slice(i, i + batchSize)
           const promises = batch.map(async (w) => {
             try {
-              const response = await fetch('/api/translatePhrase', {
+              const response = await fetch('http://localhost:4000/api/translatePhrase', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   phrase: w.displayWord,
-                  sourceLanguage: lesson.targetLanguage,
-                  targetLanguage: lesson.sourceLanguage,
+                  sourceLang: lesson.targetLanguage,
+                  targetLang: lesson.sourceLanguage,
                 }),
               })
               if (response.ok) {
@@ -384,13 +384,13 @@ const PracticeLesson = () => {
     // Fetch translation if we don't have one
     if (!translation && lesson?.targetLanguage) {
       try {
-        const response = await fetch('/api/translatePhrase', {
+        const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             phrase: word,
-            sourceLanguage: lesson.targetLanguage,
-            targetLanguage: lesson.sourceLanguage,
+            sourceLang: lesson.targetLanguage,
+            targetLang: lesson.sourceLanguage,
           }),
         })
         if (response.ok) {
@@ -1175,10 +1175,11 @@ const PracticeLesson = () => {
           <div className="practice-panel-footer">
             {!isComplete && currentSentence && (
               <>
-                {/* Main input - for translation before feedback, for questions after */}
-                <div className="practice-unified-input">
+                {/* Main input row - input and button side by side */}
+                <div className="practice-input-row">
                   <input
                     type="text"
+                    className="practice-input-field"
                     value={!feedback ? userAttempt : followUpQuestion}
                     onChange={(e) => {
                       if (!feedback) {
@@ -1200,10 +1201,6 @@ const PracticeLesson = () => {
                     placeholder={!feedback ? 'Type your translation...' : 'Ask a question...'}
                     disabled={feedbackLoading || followUpLoading}
                   />
-                </div>
-
-                {/* Action button */}
-                <div className="practice-submit-row">
                   {!feedback ? (
                     <button
                       className="practice-submit-btn"
@@ -1214,11 +1211,10 @@ const PracticeLesson = () => {
                     </button>
                   ) : (
                     <button
-                      className="practice-submit-btn practice-submit-btn--next"
+                      className="practice-submit-btn practice-submit-btn--continue"
                       onClick={() => attemptFinalize(false)}
-                      disabled={!userAttempt.trim()}
                     >
-                      Next →
+                      Save & Continue
                     </button>
                   )}
                 </div>

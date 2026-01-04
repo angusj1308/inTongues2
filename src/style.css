@@ -11694,26 +11694,49 @@ body.active-pass-locked {
   background: #fafafa;
 }
 
-.practice-submit-row {
+/* Input row with input and button side by side */
+.practice-input-row {
+  display: flex;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  align-items: stretch;
+}
+
+.practice-input-field {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.practice-input-field:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.practice-input-field::placeholder {
+  color: #94a3b8;
 }
 
 .practice-submit-btn {
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   background: #0f172a;
   color: #ffffff;
   font-size: 0.875rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   transition: background-color 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
 }
 
 .practice-submit-btn:hover:not(:disabled) {
@@ -11725,18 +11748,12 @@ body.active-pass-locked {
   cursor: not-allowed;
 }
 
-.practice-submit-btn--next {
+.practice-submit-btn--continue {
   background: #16a34a;
 }
 
-.practice-submit-btn--next:hover:not(:disabled) {
+.practice-submit-btn--continue:hover:not(:disabled) {
   background: #15803d;
-}
-
-.practice-submit-hint {
-  font-size: 0.75rem;
-  opacity: 0.6;
-  font-weight: 400;
 }
 
 [data-theme='dark'] .practice-panel-footer {
@@ -11744,8 +11761,19 @@ body.active-pass-locked {
   border-color: #334155;
 }
 
-[data-theme='dark'] .practice-submit-row {
+[data-theme='dark'] .practice-input-field {
+  background: #1e293b;
   border-color: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .practice-input-field:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+[data-theme='dark'] .practice-input-field::placeholder {
+  color: #64748b;
 }
 
 [data-theme='dark'] .practice-submit-btn {
@@ -11757,12 +11785,12 @@ body.active-pass-locked {
   background: #e2e8f0;
 }
 
-[data-theme='dark'] .practice-submit-btn--next {
+[data-theme='dark'] .practice-submit-btn--continue {
   background: #22c55e;
   color: #052e16;
 }
 
-[data-theme='dark'] .practice-submit-btn--next:hover:not(:disabled) {
+[data-theme='dark'] .practice-submit-btn--continue:hover:not(:disabled) {
   background: #16a34a;
 }
 

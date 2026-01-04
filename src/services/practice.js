@@ -160,11 +160,20 @@ export const finalizeAttempt = async (userId, lessonId, sentenceIndex, finalText
   const attempts = lesson.attempts || []
   const sentences = lesson.sentences || []
 
-  // Update the attempt status
+  // Update or create the attempt
   const attemptIndex = attempts.findIndex((a) => a.sentenceIndex === sentenceIndex)
   if (attemptIndex >= 0) {
     attempts[attemptIndex].status = 'finalized'
     attempts[attemptIndex].finalText = finalText
+  } else {
+    // Create attempt if it doesn't exist (safety fallback)
+    attempts.push({
+      sentenceIndex,
+      userText: finalText,
+      finalText,
+      status: 'finalized',
+      createdAt: new Date().toISOString(),
+    })
   }
 
   // Calculate progress

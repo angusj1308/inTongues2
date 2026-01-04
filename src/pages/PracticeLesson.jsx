@@ -1080,12 +1080,7 @@ const PracticeLesson = () => {
                         </p>
                         <button
                           className="practice-use-example-btn"
-                          onClick={() => {
-                            setUserAttempt(modelSentence)
-                            if (attemptInputRef.current) {
-                              attemptInputRef.current.textContent = modelSentence
-                            }
-                          }}
+                          onClick={() => setUserAttempt(modelSentence)}
                         >
                           Use example sentence
                         </button>
@@ -1182,47 +1177,59 @@ const PracticeLesson = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Panel footer with actions */}
+          {/* Panel footer with unified input */}
           <div className="practice-panel-footer">
             {!isComplete && currentSentence && (
-              <div className="practice-submit-row">
-                {!feedback ? (
-                  <button
-                    className="practice-submit-btn"
-                    onClick={handleSubmitAttempt}
-                    disabled={!userAttempt.trim() || feedbackLoading}
-                  >
-                    {feedbackLoading ? 'Checking...' : 'Submit'}
-                    <span className="practice-submit-hint">↵</span>
-                  </button>
-                ) : (
-                  <button
-                    className="practice-submit-btn practice-submit-btn--next"
-                    onClick={() => attemptFinalize(false)}
-                    disabled={!userAttempt.trim()}
-                  >
-                    Next →
-                  </button>
-                )}
-              </div>
+              <>
+                {/* Main input - for translation before feedback, for questions after */}
+                <div className="practice-unified-input">
+                  <input
+                    type="text"
+                    value={!feedback ? userAttempt : followUpQuestion}
+                    onChange={(e) => {
+                      if (!feedback) {
+                        setUserAttempt(e.target.value)
+                      } else {
+                        setFollowUpQuestion(e.target.value)
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        if (!feedback) {
+                          handleSubmitAttempt()
+                        } else if (followUpQuestion.trim()) {
+                          handleFollowUp()
+                        }
+                      }
+                    }}
+                    placeholder={!feedback ? 'Type your translation...' : 'Ask a question...'}
+                    disabled={feedbackLoading || followUpLoading}
+                  />
+                </div>
+
+                {/* Action button */}
+                <div className="practice-submit-row">
+                  {!feedback ? (
+                    <button
+                      className="practice-submit-btn"
+                      onClick={handleSubmitAttempt}
+                      disabled={!userAttempt.trim() || feedbackLoading}
+                    >
+                      {feedbackLoading ? 'Checking...' : 'Submit'}
+                    </button>
+                  ) : (
+                    <button
+                      className="practice-submit-btn practice-submit-btn--next"
+                      onClick={() => attemptFinalize(false)}
+                      disabled={!userAttempt.trim()}
+                    >
+                      Next →
+                    </button>
+                  )}
+                </div>
+              </>
             )}
-            <div className="practice-followup-input">
-              <input
-                type="text"
-                value={followUpQuestion}
-                onChange={(e) => setFollowUpQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleFollowUp()}
-                placeholder="Ask a question..."
-                disabled={followUpLoading}
-              />
-              <button
-                className="button ghost small"
-                onClick={handleFollowUp}
-                disabled={!followUpQuestion.trim() || followUpLoading}
-              >
-                {followUpLoading ? '...' : '→'}
-              </button>
-            </div>
           </div>
 
           {/* Resize handle */}
@@ -1241,7 +1248,7 @@ const PracticeLesson = () => {
 
             {/* Document body - flows like a real document */}
             <div className="practice-document-body">
-              {/* Render all sentences - finalized ones always visible, current one editable */}
+              {/* Render all sentences - finalized ones visible, current one shows live typing */}
               {lesson.sentences?.map((s, i) => {
                 const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
                 const isCurrent = i === lesson.currentIndex
@@ -1249,21 +1256,16 @@ const PracticeLesson = () => {
 
                 // Finalized sentence
                 if (isFinalized) {
-                  // If it's current and not complete, make it editable
+                  // If it's current (being revised), show current userAttempt
                   if (isCurrent && !isComplete) {
                     return (
-                      <span
-                        key={`editing-${i}`}
-                        ref={attemptInputRef}
-                        className="practice-inline-input"
-                        contentEditable={!feedbackLoading}
-                        suppressContentEditableWarning
-                        onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
-                        onKeyDown={handleKeyDown}
-                      />
+                      <span key={`current-${i}`} className="practice-inline-display">
+                        {userAttempt || <span className="practice-cursor">|</span>}
+                        {userAttempt && <span className="practice-cursor">|</span>}
+                      </span>
                     )
                   }
-                  // Otherwise, just show the text (clickable to navigate)
+                  // Otherwise, just show the finalized text (clickable to navigate)
                   return (
                     <span
                       key={`finalized-${i}`}
@@ -1276,18 +1278,13 @@ const PracticeLesson = () => {
                   )
                 }
 
-                // Not finalized - only render if it's the current sentence (first time writing - no bold)
+                // Not finalized - show live typing from the input
                 if (isCurrent && !isComplete) {
                   return (
-                    <span
-                      key={`editing-${i}`}
-                      ref={attemptInputRef}
-                      className="practice-inline-input"
-                      contentEditable={!feedbackLoading}
-                      suppressContentEditableWarning
-                      onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
-                      onKeyDown={handleKeyDown}
-                    />
+                    <span key={`current-${i}`} className="practice-inline-display">
+                      {userAttempt || <span className="practice-cursor">|</span>}
+                      {userAttempt && <span className="practice-cursor">|</span>}
+                    </span>
                   )
                 }
 

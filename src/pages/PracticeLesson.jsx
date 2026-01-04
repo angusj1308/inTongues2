@@ -71,6 +71,23 @@ const PlayIcon = () => (
   </svg>
 )
 
+// Get feedback state: 'pass' (5), 'acceptable' (3-4), 'fail' (1-2)
+const getFeedbackState = (score) => {
+  if (score >= 5) return 'pass'
+  if (score >= 3) return 'acceptable'
+  return 'fail'
+}
+
+// Get the icon for feedback state
+const getFeedbackIcon = (state) => {
+  switch (state) {
+    case 'pass': return '✓'
+    case 'acceptable': return '~'
+    case 'fail': return '✗'
+    default: return '?'
+  }
+}
+
 // Get highlight style for a word based on status
 const getHighlightStyle = (language, status, enableHighlight) => {
   if (!enableHighlight) return {}
@@ -817,30 +834,45 @@ const PracticeLesson = () => {
                 {/* Render checklist BEFORE the assistant feedback message */}
                 {msg.role === 'assistant' && msg.hasFeedback && (
                   <div className="practice-feedback-checklist">
-                    <div className={`feedback-check-item ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
-                      <span className="check-label">Grammar & Spelling</span>
-                      <span className="check-status">
-                        <span className={`check-icon ${feedback?.correctness >= 4 ? 'pass' : 'fail'}`}>
-                          {feedback?.correctness >= 4 ? '✓' : '✗'}
-                        </span>
-                      </span>
-                    </div>
-                    <div className={`feedback-check-item ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
-                      <span className="check-label">Accuracy</span>
-                      <span className="check-status">
-                        <span className={`check-icon ${feedback?.accuracy >= 4 ? 'pass' : 'fail'}`}>
-                          {feedback?.accuracy >= 4 ? '✓' : '✗'}
-                        </span>
-                      </span>
-                    </div>
-                    <div className={`feedback-check-item ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
-                      <span className="check-label">Naturalness</span>
-                      <span className="check-status">
-                        <span className={`check-icon ${feedback?.naturalness >= 4 ? 'pass' : 'fail'}`}>
-                          {feedback?.naturalness >= 4 ? '✓' : '✗'}
-                        </span>
-                      </span>
-                    </div>
+                    {(() => {
+                      const grammarState = getFeedbackState(feedback?.correctness)
+                      return (
+                        <div className={`feedback-check-item ${grammarState}`}>
+                          <span className="check-label">Grammar & Spelling</span>
+                          <span className="check-status">
+                            <span className={`check-icon ${grammarState}`}>
+                              {getFeedbackIcon(grammarState)}
+                            </span>
+                          </span>
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const accuracyState = getFeedbackState(feedback?.accuracy)
+                      return (
+                        <div className={`feedback-check-item ${accuracyState}`}>
+                          <span className="check-label">Accuracy</span>
+                          <span className="check-status">
+                            <span className={`check-icon ${accuracyState}`}>
+                              {getFeedbackIcon(accuracyState)}
+                            </span>
+                          </span>
+                        </div>
+                      )
+                    })()}
+                    {(() => {
+                      const naturalnessState = getFeedbackState(feedback?.naturalness)
+                      return (
+                        <div className={`feedback-check-item ${naturalnessState}`}>
+                          <span className="check-label">Naturalness</span>
+                          <span className="check-status">
+                            <span className={`check-icon ${naturalnessState}`}>
+                              {getFeedbackIcon(naturalnessState)}
+                            </span>
+                          </span>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 

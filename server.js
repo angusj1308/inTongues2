@@ -583,15 +583,14 @@ For each expression found, provide:
 
 Return a JSON array of objects with keys: "expression", "meaning", "literal"
 
-Types to look for:
-- Idioms: "dar en el clavo" (literal: "hit the nail") = "to get it right"
-- Phrasal verbs: "give up" (literal: "give up") = "surrender/quit"
-- Verb + preposition: "pensar en" (literal: "think in") = "think about"
-- Verb + noun: "hacer caso" (literal: "make case") = "pay attention"
-- Fixed phrases: "sin embargo" (literal: "without embargo") = "however"
-- Light verbs: "tomar una decisión" (literal: "take a decision") = "make a decision"
-- Collocations: "echar de menos" (literal: "throw of less") = "to miss someone"
-- Any combination where: word A + word B = meaning C (and C ≠ A + B literally)
+Types to look for (works for any language):
+- Idioms: ES "dar en el clavo" = "get it right", FR "coûter les yeux de la tête" = "cost a fortune"
+- Phrasal verbs: EN "give up" = "surrender", "look after" = "care for"
+- Verb + preposition: ES "pensar en" = "think about", IT "contare su" = "rely on"
+- Verb + noun: ES "hacer caso" = "pay attention", FR "faire attention" = "be careful"
+- Fixed phrases: ES "sin embargo" = "however", IT "a proposito" = "by the way"
+- Collocations: ES "echar de menos" = "miss someone", FR "avoir envie de" = "want to"
+- Any word combination where the meaning ≠ sum of literal parts
 
 The key test: Would a learner who knows each word individually still fail to understand the combination?
 

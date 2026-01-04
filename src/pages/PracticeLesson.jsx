@@ -135,6 +135,16 @@ const PracticeLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
+  // Sync contentEditable with userAttempt when navigating to a sentence
+  useEffect(() => {
+    if (attemptInputRef.current && userAttempt !== undefined) {
+      // Only update if content differs to avoid cursor jumping
+      if (attemptInputRef.current.textContent !== userAttempt) {
+        attemptInputRef.current.textContent = userAttempt
+      }
+    }
+  }, [lesson?.currentIndex]) // Re-sync when sentence changes
+
   // Scroll chat to bottom when messages change
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -359,15 +369,19 @@ const PracticeLesson = () => {
       // Load attempt for this sentence
       const attemptData = updated.attempts?.find((a) => a.sentenceIndex === index)
       if (attemptData) {
-        setUserAttempt(attemptData.userText || '')
-        // Sync contentEditable span with loaded text
-        if (attemptInputRef.current) {
-          attemptInputRef.current.textContent = attemptData.userText || ''
-        }
+        // Use finalText for finalized attempts, otherwise userText
+        const textToLoad = attemptData.status === 'finalized'
+          ? (attemptData.finalText || attemptData.userText || '')
+          : (attemptData.userText || '')
+
+        setUserAttempt(textToLoad)
+
         if (attemptData.feedback) {
           setFeedback(attemptData.feedback)
           setModelSentence(attemptData.modelSentence || '')
+          // Show the conversation: user's attempt, then tutor's feedback
           setChatMessages([
+            { role: 'user', content: textToLoad },
             {
               role: 'assistant',
               content: attemptData.feedback.explanation || '',
@@ -384,10 +398,6 @@ const PracticeLesson = () => {
         setFeedback(null)
         setModelSentence('')
         setChatMessages([])
-        // Clear contentEditable span
-        if (attemptInputRef.current) {
-          attemptInputRef.current.textContent = ''
-        }
       }
     } catch (err) {
       console.error('Navigation error:', err)
@@ -724,7 +734,6 @@ const PracticeLesson = () => {
                       suppressContentEditableWarning
                       onInput={(e) => setUserAttempt(e.currentTarget.textContent || '')}
                       onKeyDown={handleKeyDown}
-                      data-placeholder="Continue writing..."
                     />
                   )
                 }

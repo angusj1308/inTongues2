@@ -11375,6 +11375,11 @@ body.active-pass-locked {
   color: #dc2626;
 }
 
+.practice-chat-message.typing-preview {
+  opacity: 0.8;
+  border: 1px dashed #475569;
+}
+
 /* Tutor Prompt */
 .practice-tutor-prompt {
   background: #f8fafc;

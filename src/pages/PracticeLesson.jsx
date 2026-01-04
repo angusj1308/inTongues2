@@ -489,10 +489,13 @@ const PracticeLesson = () => {
       setWordTranslations({})
       setShowResetConfirm(false)
 
-      // Clear contentEditable
-      if (attemptInputRef.current) {
-        attemptInputRef.current.textContent = ''
-      }
+      // Clear and focus contentEditable after DOM updates
+      setTimeout(() => {
+        if (attemptInputRef.current) {
+          attemptInputRef.current.textContent = ''
+          attemptInputRef.current.focus()
+        }
+      }, 50)
     } catch (err) {
       console.error('Reset error:', err)
       setError('Failed to reset lesson.')
@@ -789,6 +792,13 @@ const PracticeLesson = () => {
               <div className="practice-tutor-prompt">
                 <span className="prompt-label">Translate this sentence:</span>
                 <p className="prompt-text">{currentSentence.text}</p>
+              </div>
+            )}
+
+            {/* Live typing preview - shows user's attempt as they type */}
+            {!isComplete && currentSentence && userAttempt && !chatMessages.some(m => m.role === 'user') && (
+              <div className="practice-chat-message user typing-preview">
+                {userAttempt}
               </div>
             )}
 

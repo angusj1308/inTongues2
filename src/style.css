@@ -9884,6 +9884,75 @@ body.active-pass-locked {
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
 }
 
+.modal-content.small {
+  max-width: 400px;
+  padding: 1.5rem 1.75rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+}
+
+.modal-content.small h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+  color: #0f172a;
+}
+
+.modal-content.small p {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.5;
+  margin: 0 0 1.5rem 0;
+  color: #475569;
+}
+
+.modal-content.small .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  margin: 0;
+}
+
+.modal-content.small .modal-actions .button {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  min-width: 80px;
+}
+
+.modal-content.small .modal-actions .button.ghost {
+  background: #f1f5f9;
+  color: #334155;
+  border: none;
+}
+
+.modal-content.small .modal-actions .button.ghost:hover {
+  background: #e2e8f0;
+}
+
+.modal-content.small .modal-actions .button.primary {
+  background: #0f172a;
+  color: #fff;
+  border: none;
+}
+
+.modal-content.small .modal-actions .button.primary:hover {
+  background: #1e293b;
+}
+
+.modal-content.small .modal-actions .button.danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+
+.modal-content.small .modal-actions .button.danger:hover {
+  background: #b91c1c;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -10779,6 +10848,32 @@ body.active-pass-locked {
   border-color: #334155;
 }
 
+[data-theme='dark'] .modal-content.small h3 {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .modal-content.small p {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .modal-content.small .modal-actions .button.ghost {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .modal-content.small .modal-actions .button.ghost:hover {
+  background: #475569;
+}
+
+[data-theme='dark'] .modal-content.small .modal-actions .button.primary {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .modal-content.small .modal-actions .button.primary:hover {
+  background: #e2e8f0;
+}
+
 [data-theme='dark'] .writing-piece-title,
 [data-theme='dark'] .modal-header h2 {
   color: #f1f5f9;
@@ -11278,6 +11373,11 @@ body.active-pass-locked {
 .practice-chat-message.error {
   background: #fef2f2;
   color: #dc2626;
+}
+
+.practice-chat-message.typing-preview {
+  opacity: 0.8;
+  border: 1px dashed #475569;
 }
 
 /* Tutor Prompt */

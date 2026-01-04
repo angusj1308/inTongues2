@@ -1998,11 +1998,123 @@ async function downloadAudioUrlToTempFile(audioUrl) {
   return tempPath
 }
 
+const MIN_SEGMENT_WORDS = 10
+const MAX_SEGMENT_WORDS = 25
+
+function countWords(text) {
+  if (!text?.trim()) return 0
+  return text.trim().split(/\s+/).length
+}
+
+/**
+ * Split a long sentence at natural break points (commas, semicolons, conjunctions)
+ */
+function splitLongSentence(text, minWords, maxWords) {
+  const words = text.split(/\s+/)
+  if (words.length <= maxWords) return [text]
+
+  const result = []
+  let current = []
+
+  for (let i = 0; i < words.length; i++) {
+    current.push(words[i])
+
+    // Check if we're at a natural break point and have enough words
+    const isNaturalBreak = /[,;:]$/.test(words[i]) ||
+      /^(and|but|or|so|yet|because|although|while|when|if|then|however|therefore|moreover|furthermore|additionally|consequently|thus|hence|meanwhile|otherwise|instead|rather|indeed|y|pero|o|porque|aunque|cuando|si|entonces|sin embargo|por lo tanto|además|por consiguiente|mientras|de lo contrario|en cambio|de hecho)$/i.test(words[i + 1] || '')
+
+    if (current.length >= minWords && (current.length >= maxWords || (isNaturalBreak && current.length >= minWords))) {
+      result.push(current.join(' '))
+      current = []
+    }
+  }
+
+  // Handle remaining words
+  if (current.length > 0) {
+    if (result.length > 0 && current.length < minWords) {
+      // Combine with previous if too short
+      result[result.length - 1] = `${result[result.length - 1]} ${current.join(' ')}`
+    } else {
+      result.push(current.join(' '))
+    }
+  }
+
+  return result
+}
+
+/**
+ * Split text into sentences with min/max word constraints
+ * - Minimum 10 words: if a sentence is too short, combine with next
+ * - Maximum 25 words: if a sentence is too long, split at natural breaks
+ */
 function splitIntoSentences(text) {
-  return (text || '')
+  if (!text?.trim()) return []
+
+  // First, split on sentence-ending punctuation followed by space or end
+  const rawSentences = (text || '')
     .split(/(?<=[.!?¡¿…])\s+/)
-    .map((sentence) => sentence.trim())
+    .map((s) => s.trim())
     .filter(Boolean)
+
+  const result = []
+  let buffer = ''
+
+  for (let i = 0; i < rawSentences.length; i++) {
+    const sentence = rawSentences[i]
+    const combined = buffer ? `${buffer} ${sentence}` : sentence
+    const wordCount = countWords(combined)
+
+    if (wordCount <= MAX_SEGMENT_WORDS) {
+      // Combined is within max limit
+      if (wordCount >= MIN_SEGMENT_WORDS) {
+        // Meets minimum, add to result
+        result.push(combined)
+        buffer = ''
+      } else {
+        // Still under minimum, keep buffering
+        buffer = combined
+      }
+    } else {
+      // Combined exceeds max
+      if (buffer) {
+        // First, flush the buffer if it meets minimum
+        if (countWords(buffer) >= MIN_SEGMENT_WORDS) {
+          result.push(buffer)
+          buffer = ''
+        }
+      }
+
+      // Now handle the current sentence
+      const currentWords = countWords(buffer ? `${buffer} ${sentence}` : sentence)
+      if (currentWords > MAX_SEGMENT_WORDS) {
+        // Need to split this sentence
+        const textToSplit = buffer ? `${buffer} ${sentence}` : sentence
+        const splitParts = splitLongSentence(textToSplit, MIN_SEGMENT_WORDS, MAX_SEGMENT_WORDS)
+        result.push(...splitParts)
+        buffer = ''
+      } else {
+        buffer = buffer ? `${buffer} ${sentence}` : sentence
+      }
+    }
+  }
+
+  // Handle remaining buffer
+  if (buffer) {
+    if (result.length > 0 && countWords(buffer) < MIN_SEGMENT_WORDS) {
+      // Combine with last result if buffer is too short
+      const lastWordCount = countWords(result[result.length - 1])
+      if (lastWordCount + countWords(buffer) <= MAX_SEGMENT_WORDS) {
+        result[result.length - 1] = `${result[result.length - 1]} ${buffer}`
+      } else {
+        // Just add it even if short - last sentence exception
+        result.push(buffer)
+      }
+    } else {
+      result.push(buffer)
+    }
+  }
+
+  return result
 }
 
 // Check if text has adequate punctuation for sentence splitting
@@ -4506,9 +4618,24 @@ Your feedback and model sentence MUST be consistent with this context.
 `
       : ''
 
+    // Check if user has words in parentheses (asking for help with unknown words)
+    const parenthesesPattern = /\(([^)]+)\)/g
+    const unknownWords = [...userAttempt.matchAll(parenthesesPattern)].map(m => m[1])
+    const hasUnknownWords = unknownWords.length > 0
+
+    // Build unknown words section for the prompt
+    const unknownWordsSection = hasUnknownWords
+      ? `
+IMPORTANT - Unknown Words:
+The student has indicated they don't know how to express certain words/phrases by putting them in parentheses in ${sourceLang}. These are: ${unknownWords.map(w => `"${w}"`).join(', ')}.
+In your feedback explanation, provide the ${targetLanguage} translations for each of these words/phrases.
+In the model sentence, replace these parenthetical expressions with the correct ${targetLanguage} translations.
+`
+      : ''
+
     // Build the prompt for the tutor
     const prompt = `You are a language tutor helping a student learn ${targetLanguage}. The student is practicing expressing ideas from ${sourceLang} into ${targetLanguage}.
-${contextSection}
+${contextSection}${unknownWordsSection}
 Original sentence (in ${sourceLang}):
 "${nativeSentence}"
 
@@ -4523,10 +4650,11 @@ Analyze the student's attempt and provide feedback. Return a JSON object with th
   "feedback": {
     "naturalness": <1-5 score, where 5 is perfectly natural for a native speaker>,
     "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
-    "explanation": "Brief explanation of your feedback in ${sourceLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.",
+    "explanation": "Brief explanation of your feedback in ${sourceLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.${hasUnknownWords ? ' Include the translations for the words the student asked about.' : ''}",
     "grammarIssues": ["list of specific grammar issues if any, or empty array"],
     "suggestions": ["list of alternative expressions or tips, or empty array"],
-    "correctness": <1-5 score, where 5 means no grammar or spelling errors>
+    "correctness": <1-5 score, where 5 means no grammar or spelling errors>${hasUnknownWords ? `,
+    "unknownWordTranslations": { "word in ${sourceLang}": "translation in ${targetLanguage}", ... }` : ''}
   }
 }
 

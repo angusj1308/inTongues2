@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -9,6 +9,7 @@ import {
   saveAttempt,
   updatePracticeLesson,
 } from '../services/practice'
+import { loadUserVocab, normaliseExpression } from '../services/vocab'
 
 const PracticeLesson = () => {
   const { lessonId } = useParams()
@@ -30,6 +31,9 @@ const PracticeLesson = () => {
   const [followUpQuestion, setFollowUpQuestion] = useState('')
   const [followUpLoading, setFollowUpLoading] = useState(false)
 
+  // Vocab state for word highlighting
+  const [userVocab, setUserVocab] = useState({})
+
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [panelWidth, setPanelWidth] = useState(380)
@@ -50,6 +54,16 @@ const PracticeLesson = () => {
           return
         }
         setLesson(data)
+
+        // Load user's vocab for word status highlighting
+        if (data.targetLanguage) {
+          try {
+            const vocab = await loadUserVocab(user.uid, data.targetLanguage)
+            setUserVocab(vocab)
+          } catch (vocabErr) {
+            console.warn('Could not load vocab:', vocabErr)
+          }
+        }
 
         // Load existing attempt for current sentence if any
         const currentAttempt = data.attempts?.find(
@@ -118,6 +132,41 @@ const PracticeLesson = () => {
 
   const currentSentence = lesson?.sentences?.[lesson.currentIndex]
   const completedDocument = lesson ? getCompletedDocument(lesson) : ''
+
+  // Render model sentence with word status highlighting
+  const renderHighlightedModelSentence = useMemo(() => {
+    if (!modelSentence) return null
+
+    // Split into words while preserving punctuation
+    const tokens = modelSentence.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
+
+    return tokens.map((token, idx) => {
+      // Skip whitespace and punctuation
+      if (/^\s+$/.test(token) || !/[\p{L}\p{M}]/u.test(token)) {
+        return <span key={idx}>{token}</span>
+      }
+
+      // Check word status in vocab
+      const normalised = normaliseExpression(token)
+      const vocabEntry = userVocab[normalised]
+      const status = vocabEntry?.status || 'new' // new = not in vocab at all
+
+      // Map status to CSS class
+      const statusClass = {
+        unknown: 'word-status-unknown',    // Red/orange - being learned
+        recognised: 'word-status-recognised', // Yellow - recognised
+        familiar: 'word-status-familiar',   // Light green - familiar
+        known: 'word-status-known',        // Green - known well
+        new: 'word-status-new',           // Gray/blue - never seen
+      }[status] || 'word-status-new'
+
+      return (
+        <span key={idx} className={`word-status ${statusClass}`} title={status}>
+          {token}
+        </span>
+      )
+    })
+  }, [modelSentence, userVocab])
 
   const handleSubmitAttempt = useCallback(async () => {
     if (!userAttempt.trim() || feedbackLoading) return
@@ -391,15 +440,30 @@ const PracticeLesson = () => {
           </div>
 
           <div className="practice-header-center">
-            <span className="practice-header-progress">
-              {lesson.completedCount}/{lesson.sentences?.length || 0} sentences
-            </span>
+            <div className="practice-nav-controls">
+              <button
+                className="practice-nav-btn"
+                onClick={() => handleGoToSentence(lesson.currentIndex - 1)}
+                disabled={lesson.currentIndex === 0}
+                aria-label="Previous sentence"
+              >
+                &lt;
+              </button>
+              <span className="practice-nav-indicator">
+                {lesson.currentIndex + 1} of {lesson.sentences?.length || 0}
+              </span>
+              <button
+                className="practice-nav-btn"
+                onClick={() => handleGoToSentence(lesson.currentIndex + 1)}
+                disabled={lesson.currentIndex >= (lesson.sentences?.length || 1) - 1}
+                aria-label="Next sentence"
+              >
+                &gt;
+              </button>
+            </div>
           </div>
 
           <div className="practice-header-actions">
-            <span className="practice-header-languages">
-              {lesson.sourceLanguage} → {lesson.targetLanguage}
-            </span>
             <button
               className="dashboard-control ui-text danger"
               onClick={() => setShowDeleteConfirm(true)}
@@ -471,11 +535,13 @@ const PracticeLesson = () => {
                       </div>
                     </div>
 
-                    {/* Example sentence */}
+                    {/* Example sentence with word status highlighting */}
                     {modelSentence && (
                       <div className="practice-example-sentence">
                         <span className="example-label">Example:</span>
-                        <p className="example-text">{modelSentence}</p>
+                        <p className="example-text example-text-highlighted">
+                          {renderHighlightedModelSentence}
+                        </p>
                       </div>
                     )}
                   </>

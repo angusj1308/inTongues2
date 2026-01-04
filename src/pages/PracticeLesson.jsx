@@ -1005,13 +1005,6 @@ const PracticeLesson = () => {
               </div>
             )}
 
-            {/* Live typing preview - shows user's attempt as they type */}
-            {!isComplete && currentSentence && userAttempt && !chatMessages.some(m => m.role === 'user') && (
-              <div className="practice-chat-message user typing-preview">
-                {userAttempt}
-              </div>
-            )}
-
             {/* Chat messages with feedback inline */}
             {chatMessages.map((msg, i) => (
               <div key={i}>

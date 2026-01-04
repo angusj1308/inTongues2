@@ -275,6 +275,20 @@ const PracticeLesson = () => {
           await Promise.all(promises)
         }
         setWordTranslations(newTranslations)
+
+        // Update nurfWords with the fetched translations
+        setNurfWords(prev => prev.map(w => {
+          const translationData = newTranslations[w.normalised]
+          if (translationData) {
+            return {
+              ...w,
+              translation: translationData.translation || w.translation,
+              audioBase64: translationData.audioBase64 || w.audioBase64,
+              audioUrl: translationData.audioUrl || w.audioUrl,
+            }
+          }
+          return w
+        }))
       }
       fetchTranslationsAndAudio()
     }

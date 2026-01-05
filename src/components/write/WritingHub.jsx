@@ -121,13 +121,6 @@ const TranslateIcon = () => (
   </svg>
 )
 
-const ChatIcon = () => (
-  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    <path d="M8 9h8" />
-    <path d="M8 13h6" />
-  </svg>
-)
 
 const WritingShelf = ({ title, pieces, onPieceClick }) => {
   if (!pieces?.length) return null
@@ -316,11 +309,6 @@ const WritingHub = ({ activeLanguage }) => {
     }
   }
 
-  const handleChatWithTutor = () => {
-    // TODO: Implement chat with tutor
-    alert('Chat with Tutor coming soon!')
-  }
-
   if (!activeLanguage) {
     return (
       <div className="writing-hub">
@@ -378,16 +366,6 @@ const WritingHub = ({ activeLanguage }) => {
           <div className="writing-cta-content">
             <h3>Practice Mode</h3>
             <p>Translate from your native language</p>
-          </div>
-        </button>
-
-        <button className="writing-cta-card" onClick={handleChatWithTutor}>
-          <div className="writing-cta-icon">
-            <ChatIcon />
-          </div>
-          <div className="writing-cta-content">
-            <h3>Chat with Tutor</h3>
-            <p>Get help and feedback</p>
           </div>
         </button>
       </div>

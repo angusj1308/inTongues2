@@ -16,6 +16,25 @@ The tutor is a person first, teacher second.
 
 ---
 
+## Feature Scope
+
+### One Tutor, Three Modes
+
+All in one dedicated **Tutor** tab on the main dashboard:
+
+| Mode | Description | Skills Practiced |
+|------|-------------|------------------|
+| **Chat** | Text messaging | Reading, Writing |
+| **Voice Record** | Send voice notes, get responses | Speaking, Listening |
+| **Voice Call** | Real-time conversation | Speaking, Listening |
+
+### Why Consolidated?
+- It's ONE relationship - you text AND call the same person
+- Fragmenting by skill (Write → chat, Listen → call) breaks the relationship
+- Real apps work this way (WhatsApp, iMessage - all modes in one thread)
+
+---
+
 ## Key Characteristics
 
 ### The Tutor Persona
@@ -25,6 +44,7 @@ The tutor is a person first, teacher second.
 - Expert in language learning but doesn't lecture
 - Corrects naturally within conversation flow
 - Adjusts complexity based on your level (observed, not configured)
+- One consistent persona (not customizable)
 
 ### Memory System
 The tutor remembers across ALL conversations:
@@ -33,6 +53,27 @@ The tutor remembers across ALL conversations:
 - Words/concepts you've struggled with
 - Topics you've discussed
 - Your progress over time
+
+---
+
+## App Structure
+
+```
+Dashboard
+├── Read
+├── Write      ← (removed "Chat with Tutor" placeholder)
+├── Listen
+├── Review
+└── Tutor      ← NEW top-level tab
+    │
+    └── TutorHome
+        ├── Current/recent conversation
+        ├── Chat history (past conversations)
+        └── Active Chat View
+            ├── Text messages
+            ├── Voice note button (record & send)
+            └── Call button (real-time voice)
+```
 
 ---
 
@@ -53,8 +94,8 @@ users/{userId}/tutorProfile
 │   ├── lastConversationSummary: string
 │   └── observedLevel: string        // tutor's assessment, updated over time
 │ }
-└── preferences: {
-    └── correctionStyle: 'inline' | 'minimal'  // how often to correct
+└── settings: {
+    └── preferredMode: 'chat' | 'voice'  // user preference
   }
 
 users/{userId}/tutorChats/{chatId}
@@ -64,7 +105,10 @@ users/{userId}/tutorChats/{chatId}
 │   {
 │     id: string
 │     role: 'user' | 'tutor'
-│     content: string
+│     type: 'text' | 'voice'         // message type
+│     content: string                 // text or transcript
+│     audioUrl: string | null         // for voice messages
+│     duration: number | null         // voice message length
 │     timestamp: timestamp
 │   }
 │ ]
@@ -72,26 +116,12 @@ users/{userId}/tutorChats/{chatId}
 └── archived: boolean
 ```
 
-### 2. Memory Strategy
-
-**Per-conversation:** Full message history sent to AI (recent conversation context)
-
-**Cross-conversation:** After each chat session ends (or periodically), AI generates:
-- Summary of what was discussed
-- New facts learned about user
-- Mistakes the user made
-- Updates to `tutorProfile.memory`
-
-**On new chat:** System prompt includes:
-- User facts from memory
-- Recent conversation summaries
-- Known recurring mistakes
-- Observed level
-
-### 3. Backend API Endpoints
+### 2. Backend API Endpoints
 
 ```javascript
-// Send message, get tutor response
+// === CHAT (Text) ===
+
+// Send text message, get tutor response
 POST /api/tutor/message
 Request: {
   message: string
@@ -110,9 +140,47 @@ Request: {
 }
 Response: {
   chatId: string
-  greeting: string        // Tutor's opening, informed by memory
+  greeting: string
   isReturningUser: boolean
 }
+
+// === VOICE RECORD (Async voice notes) ===
+
+// Send voice note, get text + voice response
+POST /api/tutor/voice-message
+Request: {
+  audioBlob: binary
+  chatId: string
+}
+Response: {
+  transcript: string          // what user said
+  response: string            // tutor's text response
+  audioUrl: string            // tutor's voice response
+}
+
+// === VOICE CALL (Real-time) ===
+
+// Initiate call session
+POST /api/tutor/call/start
+Request: {
+  chatId: string
+}
+Response: {
+  sessionId: string
+  websocketUrl: string        // for real-time audio streaming
+}
+
+// End call, save to chat history
+POST /api/tutor/call/end
+Request: {
+  sessionId: string
+}
+Response: {
+  transcript: string[]        // full conversation transcript
+  saved: boolean
+}
+
+// === MEMORY ===
 
 // End session (triggers memory update)
 POST /api/tutor/end-session
@@ -122,15 +190,9 @@ Request: {
 Response: {
   memoryUpdated: boolean
 }
-
-// Get tutor profile (for settings display)
-GET /api/tutor/profile
-Response: {
-  profile: TutorProfile
-}
 ```
 
-### 4. AI System Prompt
+### 3. AI System Prompt
 
 ```
 You are a friendly language tutor chatting naturally with a student learning {targetLanguage}.
@@ -168,20 +230,6 @@ NOT like this:
 "Great try! Just a small correction: in Spanish we use 'tener' for hunger, so it should be 'tengo hambre'. Keep up the good work!"
 ```
 
-### 5. Memory Update Prompt
-
-```
-Based on this conversation, extract:
-
-1. NEW_FACTS: Any new things learned about this person (interests, life events, etc.)
-2. MISTAKES: Language mistakes they made (patterns, not one-offs)
-3. TOPICS: Main topics discussed
-4. SUMMARY: 2-3 sentence summary of the conversation
-5. LEVEL_ASSESSMENT: Your current assessment of their level (beginner/intermediate/advanced)
-
-Respond in JSON format.
-```
-
 ---
 
 ## Frontend Components
@@ -191,19 +239,22 @@ Respond in JSON format.
 ```
 src/
 ├── pages/
-│   └── TutorChat.jsx           # Main chat interface
+│   └── TutorChat.jsx              # Main tutor interface
 ├── components/
 │   └── tutor/
-│       └── TutorMessage.jsx    # Message bubble with word interaction
+│       ├── TutorHome.jsx          # Landing page with chat history
+│       ├── TutorMessage.jsx       # Message bubble with word interaction
+│       ├── VoiceRecorder.jsx      # Voice note recording UI
+│       └── VoiceCallUI.jsx        # Real-time call interface
 ├── services/
-│   └── tutor.js                # Firestore + API service
+│   └── tutor.js                   # Firestore + API service
 ```
 
-### TutorChat.jsx Structure
+### UI Flow
 
 ```
 ┌─────────────────────────────────────────┐
-│ ← Tu Tutor                              │
+│ ← Tutor                                 │
 ├─────────────────────────────────────────┤
 │                                         │
 │  ┌──────────────────────────────────┐   │
@@ -212,23 +263,18 @@ src/
 │  └──────────────────────────────────┘   │
 │                                         │
 │         ┌───────────────────────────┐   │
-│         │ Muy bien! Yo pienso que   │   │
-│         │ ellos van a llamarme      │   │
+│         │ 🎤 0:12  [voice note]     │   │
 │         └───────────────────────────┘   │
 │                                         │
 │  ┌──────────────────────────────────┐   │
-│  │ Qué bueno!! Creo que* van a     │   │
-│  │ llamarte 😊 ¿Cuándo te avisan?  │   │
-│  │                                  │   │
-│  │ *pienso que = I think (opinion) │   │
-│  │  creo que = I think (belief) -  │   │
-│  │  more natural here              │   │
+│  │ 🎤 0:08  [voice response]        │   │
+│  │ "¡Qué bien! Me alegro mucho..."  │   │
 │  └──────────────────────────────────┘   │
 │                                         │
 ├─────────────────────────────────────────┤
-│ ┌─────────────────────────────┐ [Send]  │
-│ │ Escribe aquí...             │         │
-│ └─────────────────────────────┘         │
+│ ┌─────────────────────────┐ 🎤  📞     │
+│ │ Escribe aquí...         │ [rec][call]│
+│ └─────────────────────────┘             │
 └─────────────────────────────────────────┘
 ```
 
@@ -241,29 +287,37 @@ src/
 
 ## Implementation Phases
 
-### Phase 1: Core Chat
+### Phase 1: Core Chat (Text Only)
+- [ ] Add Tutor tab to dashboard navigation
 - [ ] Create `src/services/tutor.js` - Firestore operations
-- [ ] Add `/api/tutor/message` endpoint
-- [ ] Create `TutorChat.jsx` page with basic chat UI
-- [ ] Add route to App.jsx
-- [ ] Basic conversation (no memory yet)
+- [ ] Add `/api/tutor/message` and `/api/tutor/start` endpoints
+- [ ] Create `TutorHome.jsx` and `TutorChat.jsx` pages
+- [ ] Basic text conversation working
 
 ### Phase 2: Memory System
 - [ ] Create tutorProfile collection structure
-- [ ] Add `/api/tutor/start` with memory-informed greeting
-- [ ] Add `/api/tutor/end-session` with memory extraction
-- [ ] Update system prompt to include memory context
+- [ ] Memory-informed greetings
+- [ ] End-session memory extraction
+- [ ] Cross-conversation context
 
-### Phase 3: Integration
-- [ ] Word interaction (tap to translate, status toggle)
-- [ ] Add to WritingHub or main navigation
-- [ ] Session continuity (resume vs new chat)
+### Phase 3: Voice Recording
+- [ ] `VoiceRecorder.jsx` component
+- [ ] Whisper API integration for transcription
+- [ ] TTS for tutor voice responses (ElevenLabs)
+- [ ] Voice message UI in chat
 
-### Phase 4: Polish
-- [ ] Smooth message animations
-- [ ] Typing indicator
+### Phase 4: Voice Call (Real-time)
+- [ ] WebSocket/WebRTC setup for streaming
+- [ ] `VoiceCallUI.jsx` component
+- [ ] Real-time speech-to-text
+- [ ] Real-time TTS responses
+- [ ] Call transcript saving
+
+### Phase 5: Polish
+- [ ] Word interaction integration
+- [ ] Typing/recording indicators
+- [ ] Chat history view
 - [ ] Mobile responsiveness
-- [ ] Edge cases (long conversations, memory limits)
 
 ---
 
@@ -272,28 +326,36 @@ src/
 | File | Action | Description |
 |------|--------|-------------|
 | `src/services/tutor.js` | CREATE | Firestore + API service |
-| `src/pages/TutorChat.jsx` | CREATE | Main chat page |
+| `src/pages/TutorChat.jsx` | CREATE | Main tutor interface |
+| `src/components/tutor/TutorHome.jsx` | CREATE | Tutor landing/history |
 | `src/components/tutor/TutorMessage.jsx` | CREATE | Message with word interaction |
-| `src/App.jsx` | MODIFY | Add route |
+| `src/components/tutor/VoiceRecorder.jsx` | CREATE | Voice note recording |
+| `src/components/tutor/VoiceCallUI.jsx` | CREATE | Real-time call UI |
+| `src/App.jsx` | MODIFY | Add Tutor route |
+| `src/components/layout/DashboardLayout.jsx` | MODIFY | Add Tutor tab to nav |
+| `src/components/write/WritingHub.jsx` | MODIFY | Remove "Chat with Tutor" card ✓ |
 | `server.js` | MODIFY | Add tutor API endpoints |
-| `src/components/write/WritingHub.jsx` | MODIFY | Add tutor chat entry point |
 
 ---
 
 ## Design Decisions
 
-### Why One Tutor, Not Multiple?
-Creates a real relationship. You're building history with ONE person, not starting fresh with different tutors.
+### Why One Tutor?
+Creates a real relationship. You build history with ONE person, not starting fresh with different tutors.
+
+### Why Consolidate All Modes?
+You wouldn't use three different apps to text, voice note, and call the same friend. The relationship is the anchor.
 
 ### Memory Storage
 - Structured facts in Firestore (fast retrieval)
 - Conversation summaries (not full history) for context
-- Periodic memory consolidation to keep context window manageable
+- Periodic memory consolidation
 
 ### Correction Philosophy
-Corrections are woven into natural responses, not separate feedback blocks. The tutor is helpful but doesn't make everything about teaching.
+Corrections woven into natural responses, not separate feedback blocks.
 
-### Session Boundaries
-- New chat = same tutor, new conversation thread
-- Memory persists across all chats
-- User can scroll back through old chats if needed
+### Voice Call Architecture
+- WebRTC for low-latency audio streaming
+- Whisper for speech-to-text
+- ElevenLabs for natural TTS
+- Conversation saved to chat as transcript after call ends

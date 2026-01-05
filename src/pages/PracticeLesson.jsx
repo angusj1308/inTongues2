@@ -1441,18 +1441,30 @@ const PracticeLesson = () => {
                   // If it's current (being revised), show current userAttempt
                   if (isCurrent && !isComplete) {
                     // If feedback exists, show with correction highlights
-                    // Clicking enters edit mode (clears corrections)
+                    // Clicking enters edit mode (clears corrections, preserves text)
                     if (feedback && feedback.corrections?.length > 0) {
                       return (
                         <span
                           key={`current-${i}`}
-                          className="practice-inline-display practice-inline-display--with-corrections practice-inline-display--clickable"
+                          className="practice-inline-display practice-inline-display--with-corrections"
                           onClick={() => {
                             setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
                             setSubmittedAttempt('')
-                            setTimeout(() => documentInputRef.current?.focus(), 0)
+                            // After React re-renders, populate content and focus
+                            setTimeout(() => {
+                              if (documentInputRef.current) {
+                                documentInputRef.current.textContent = userAttempt
+                                documentInputRef.current.focus()
+                                // Place cursor at click position (end by default)
+                                const range = document.createRange()
+                                const sel = window.getSelection()
+                                range.selectNodeContents(documentInputRef.current)
+                                range.collapse(false)
+                                sel.removeAllRanges()
+                                sel.addRange(range)
+                              }
+                            }, 0)
                           }}
-                          title="Click to edit"
                         >
                           {renderTextWithCorrections(userAttempt, feedback.corrections)}
                         </span>
@@ -1491,20 +1503,30 @@ const PracticeLesson = () => {
                 // Not finalized - show live typing or corrections if feedback exists
                 if (isCurrent && !isComplete) {
                   // If feedback exists, show attempt with correction highlights
-                  // Clicking enters edit mode (clears corrections)
+                  // Clicking enters edit mode (clears corrections, preserves text)
                   if (feedback && feedback.corrections?.length > 0) {
                     return (
                       <span
                         key={`current-${i}`}
-                        className="practice-inline-display practice-inline-display--with-corrections practice-inline-display--clickable"
+                        className="practice-inline-display practice-inline-display--with-corrections"
                         onClick={() => {
-                          // Clear corrections to enter edit mode
                           setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
                           setSubmittedAttempt('')
-                          // Focus the editable element after React re-renders
-                          setTimeout(() => documentInputRef.current?.focus(), 0)
+                          // After React re-renders, populate content and focus
+                          setTimeout(() => {
+                            if (documentInputRef.current) {
+                              documentInputRef.current.textContent = userAttempt
+                              documentInputRef.current.focus()
+                              // Place cursor at end
+                              const range = document.createRange()
+                              const sel = window.getSelection()
+                              range.selectNodeContents(documentInputRef.current)
+                              range.collapse(false)
+                              sel.removeAllRanges()
+                              sel.addRange(range)
+                            }
+                          }, 0)
                         }}
-                        title="Click to edit"
                       >
                         {renderTextWithCorrections(userAttempt, feedback.corrections)}
                       </span>

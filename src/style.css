@@ -11993,10 +11993,6 @@ body.active-pass-locked {
   animation: blink-cursor 1s step-end infinite;
 }
 
-.practice-inline-display--editable:focus {
-  background: rgba(59, 130, 246, 0.08);
-}
-
 [data-theme='dark'] .practice-inline-display {
   color: #f1f5f9;
 }
@@ -12007,24 +12003,6 @@ body.active-pass-locked {
 
 [data-theme='dark'] .practice-inline-display--editable:empty::before {
   color: #60a5fa;
-}
-
-[data-theme='dark'] .practice-inline-display--editable:focus {
-  background: rgba(96, 165, 250, 0.12);
-}
-
-/* Clickable corrections - click to edit */
-.practice-inline-display--clickable {
-  cursor: pointer;
-}
-
-.practice-inline-display--clickable:hover {
-  background: rgba(59, 130, 246, 0.06);
-  border-radius: 2px;
-}
-
-[data-theme='dark'] .practice-inline-display--clickable:hover {
-  background: rgba(96, 165, 250, 0.1);
 }
 
 /* Blinking cursor */

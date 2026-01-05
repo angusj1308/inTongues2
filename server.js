@@ -5604,7 +5604,7 @@ Return JSON:
   "feedback": {
     "correctness": <1-5, where 5 = no errors>,
     "naturalness": <1-5, where 5 = sounds completely native>,
-    "explanation": "${hasHelpRequests ? 'A friendly explanation of how to express the bracketed ideas. Start with something like: Here\\'s how you can say that in ' + targetLanguage + '... Then explain each expression naturally.' : 'Optional brief overall feedback'}",
+    "explanation": "${hasHelpRequests ? 'A friendly explanation of how to express the bracketed ideas. Start with something like: Here\'s how you can say that in ' + targetLanguage + '... Then explain each expression naturally.' : 'Optional brief overall feedback'}",
     "corrections": [
       {
         "category": "spelling" | "grammar" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},

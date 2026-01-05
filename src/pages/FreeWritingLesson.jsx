@@ -144,6 +144,13 @@ const FreeWritingLesson = () => {
   const contentRef = useRef('') // Track content without triggering re-renders
   const isInitialized = useRef(false)
   const wordCountUpdateRef = useRef(null) // Debounce word count updates
+  const autoFeedbackTimeoutRef = useRef(null) // Debounce auto-feedback
+  const lastAnalyzedContentRef = useRef('') // Track what we've already analyzed
+
+  // Inline feedback state - corrections with positions for underlines
+  const [inlineFeedback, setInlineFeedback] = useState([]) // Array of { id, text, startIndex, endIndex, category, correction, explanation }
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [activeUnderlineId, setActiveUnderlineId] = useState(null) // Which underline was clicked
 
   // Load lesson
   useEffect(() => {
@@ -245,6 +252,134 @@ const FreeWritingLesson = () => {
       }
     }
   }, [content, lastSavedContent, user, lessonId])
+
+  // Save immediately on page leave/refresh
+  useEffect(() => {
+    const saveBeforeUnload = async () => {
+      const currentContent = contentRef.current
+      if (!user || !lessonId || currentContent === lastSavedContent) return
+
+      const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
+      // Use sendBeacon for reliable save on page unload
+      const data = JSON.stringify({
+        userId: user.uid,
+        lessonId,
+        content: currentContent,
+        wordCount,
+      })
+      navigator.sendBeacon('/api/freewriting/save-beacon', data)
+    }
+
+    const handleBeforeUnload = (e) => {
+      saveBeforeUnload()
+      // Also do a sync save attempt
+      if (contentRef.current !== lastSavedContent) {
+        e.preventDefault()
+        e.returnValue = '' // Chrome requires returnValue to be set
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveBeforeUnload()
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [user, lessonId, lastSavedContent])
+
+  // Auto-analyze text for feedback after user pauses typing
+  const analyzeTextForFeedback = useCallback(async () => {
+    if (!lesson || isAnalyzing) return
+
+    const currentContent = contentRef.current
+    if (!currentContent.trim() || currentContent === lastAnalyzedContentRef.current) return
+
+    setIsAnalyzing(true)
+
+    try {
+      // Detect bracketed expressions
+      const bracketedExpressions = currentContent.match(/[\[(\u300c]([^\])\u300d]+)[\])\u300d]/g) || []
+      const helpExpressions = bracketedExpressions.map(expr => expr.slice(1, -1).trim())
+
+      const response = await fetch('/api/freewriting/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userText: currentContent,
+          targetLanguage: lesson.targetLanguage,
+          sourceLanguage: lesson.sourceLanguage,
+          textType: lesson.textType,
+          fullDocument: currentContent,
+          feedbackInTarget,
+          helpExpressions,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to get feedback')
+
+      const data = await response.json()
+      lastAnalyzedContentRef.current = currentContent
+
+      // Convert corrections to inline feedback with positions
+      if (data.feedback?.corrections) {
+        const newInlineFeedback = data.feedback.corrections.map((c, idx) => {
+          // Find position in current content
+          const startIndex = currentContent.indexOf(c.original)
+          return {
+            id: `feedback-${Date.now()}-${idx}`,
+            text: c.original,
+            startIndex: startIndex >= 0 ? startIndex : -1,
+            endIndex: startIndex >= 0 ? startIndex + c.original.length : -1,
+            category: c.category,
+            correction: c.correction,
+            explanation: c.explanation,
+          }
+        }).filter(f => f.startIndex >= 0) // Only keep feedback we can position
+
+        setInlineFeedback(newInlineFeedback)
+
+        // Update chat messages with this feedback (but don't open panel)
+        if (newInlineFeedback.length > 0) {
+          setFeedback(data.feedback)
+          setModelSentence(data.modelSentence || '')
+        }
+      } else {
+        setInlineFeedback([])
+      }
+    } catch (err) {
+      console.error('Auto-feedback error:', err)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }, [lesson, isAnalyzing, feedbackInTarget])
+
+  // Trigger auto-feedback after 3 seconds of inactivity
+  useEffect(() => {
+    if (!lesson || !content) return
+
+    // Clear existing timeout
+    if (autoFeedbackTimeoutRef.current) {
+      clearTimeout(autoFeedbackTimeoutRef.current)
+    }
+
+    // Set new timeout for auto-analysis
+    autoFeedbackTimeoutRef.current = setTimeout(() => {
+      analyzeTextForFeedback()
+    }, 3000)
+
+    return () => {
+      if (autoFeedbackTimeoutRef.current) {
+        clearTimeout(autoFeedbackTimeoutRef.current)
+      }
+    }
+  }, [content, lesson, analyzeTextForFeedback])
 
   // Extract words from model sentence for review panel
   useEffect(() => {
@@ -553,6 +688,7 @@ const FreeWritingLesson = () => {
     try {
       await resetFreeWritingLesson(user.uid, lessonId)
       contentRef.current = ''
+      lastAnalyzedContentRef.current = ''
       setContent('')
       setLastSavedContent('')
       setFeedback(null)
@@ -560,6 +696,8 @@ const FreeWritingLesson = () => {
       setChatMessages([])
       setNurfWords([])
       setWordTranslations({})
+      setInlineFeedback([])
+      setActiveUnderlineId(null)
       setShowResetConfirm(false)
 
       if (documentRef.current) {
@@ -571,6 +709,69 @@ const FreeWritingLesson = () => {
       setError('Failed to reset lesson.')
     }
   }
+
+  // Handle clicking an inline underline - open panel and show that feedback
+  const handleUnderlineClick = useCallback((feedbackItem) => {
+    setActiveUnderlineId(feedbackItem.id)
+    setIsPanelOpen(true)
+
+    // Add to chat messages if not already there
+    setChatMessages((prev) => {
+      // Check if this feedback is already shown
+      const alreadyShown = prev.some(m => m.feedbackId === feedbackItem.id)
+      if (alreadyShown) return prev
+
+      return [
+        ...prev,
+        { role: 'user', content: feedbackItem.text, feedbackId: feedbackItem.id },
+        {
+          role: 'assistant',
+          content: feedbackItem.explanation,
+          feedbackId: feedbackItem.id,
+          correction: feedbackItem.correction,
+          category: feedbackItem.category,
+        },
+      ]
+    })
+  }, [])
+
+  // Compute underline positions using Range API
+  const getUnderlineRects = useCallback(() => {
+    if (!documentRef.current || !inlineFeedback.length) return []
+
+    const textNode = documentRef.current.firstChild
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return []
+
+    const docRect = documentRef.current.getBoundingClientRect()
+    const rects = []
+
+    inlineFeedback.forEach((fb) => {
+      if (fb.startIndex < 0 || fb.endIndex < 0) return
+
+      try {
+        const range = document.createRange()
+        range.setStart(textNode, Math.min(fb.startIndex, textNode.length))
+        range.setEnd(textNode, Math.min(fb.endIndex, textNode.length))
+
+        const clientRects = range.getClientRects()
+        for (let i = 0; i < clientRects.length; i++) {
+          const rect = clientRects[i]
+          rects.push({
+            ...fb,
+            left: rect.left - docRect.left,
+            top: rect.top - docRect.top + rect.height - 2,
+            width: rect.width,
+            height: 3,
+          })
+        }
+      } catch (e) {
+        // Range might be out of bounds if text changed
+        console.warn('Could not create range for feedback:', e)
+      }
+    })
+
+    return rects
+  }, [inlineFeedback])
 
   // Handle word status change from vocab panel
   const handleWordStatusChange = useCallback(async (word, newStatus) => {
@@ -1204,6 +1405,75 @@ const FreeWritingLesson = () => {
                   Start writing in {lesson.targetLanguage}...
                 </div>
               )}
+
+              {/* Inline feedback underlines overlay */}
+              {inlineFeedback.length > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    pointerEvents: 'none',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {getUnderlineRects().map((rect, idx) => {
+                    const isError = rect.category === 'grammar' || rect.category === 'spelling' || rect.category === 'expression'
+                    const isActive = activeUnderlineId === rect.id
+                    return (
+                      <div
+                        key={`${rect.id}-${idx}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleUnderlineClick(rect)
+                        }}
+                        style={{
+                          position: 'absolute',
+                          left: rect.left,
+                          top: rect.top,
+                          width: rect.width,
+                          height: rect.height,
+                          pointerEvents: 'auto',
+                          cursor: 'pointer',
+                          // Wavy underline using SVG pattern
+                          background: isError
+                            ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 3 Q1.5 0 3 3 T6 3' fill='none' stroke='%23ef4444' stroke-width='1'/%3E%3C/svg%3E")`
+                            : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 3 Q1.5 0 3 3 T6 3' fill='none' stroke='%23eab308' stroke-width='1'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'repeat-x',
+                          opacity: isActive ? 1 : 0.8,
+                          transition: 'opacity 0.15s ease',
+                        }}
+                        title={`${rect.category}: ${rect.explanation}`}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Analyzing indicator */}
+              {isAnalyzing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    padding: '4px 8px',
+                    background: 'var(--bg-secondary, #f8fafc)',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted, #64748b)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <span style={{ animation: 'pulse 1s infinite' }}>●</span>
+                  Analyzing...
+                </div>
+              )}
+
               {/* Document body - fully editable (uncontrolled) */}
               <div
                 ref={documentRef}

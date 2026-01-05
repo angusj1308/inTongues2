@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
@@ -107,8 +107,10 @@ const Dashboard = () => {
   const [items, setItems] = useState([])
   const [libraryLoading, setLibraryLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
-  const generatePanelRef = useRef(null)
-  const importPanelRef = useRef(null)
+
+  // Modal states for Generate and Import
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
 
   // Review tab state
   const [deckCounts, setDeckCounts] = useState({})
@@ -401,10 +403,6 @@ const Dashboard = () => {
     navigate(readerPath)
   }
 
-  const scrollToPanel = (ref) => {
-    ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
   const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
 
   const inProgressBooks =
@@ -480,29 +478,93 @@ const Dashboard = () => {
                 </p>
               ) : (
                 <>
-                  <section className="read-section read-slab continue-section">
-                    <div className="continue-card">
-                      <div className="continue-card-meta">
-                        <h3 className="continue-card-label">Continue reading</h3>
-                        <div className="continue-card-title">
-                          {libraryLoading
-                            ? 'Loading your books...'
-                            : continueStory
-                              ? getStoryTitle(continueStory)
-                              : 'No books yet'}
+                  {/* Action Cards Row */}
+                  <section className="read-section read-action-cards">
+                    <div className="action-cards-row">
+                      {/* Continue Reading Card */}
+                      <div
+                        className="action-card continue-action-card"
+                        role="button"
+                        tabIndex={continueStory && !libraryLoading ? 0 : -1}
+                        onClick={() => continueStory && handleOpenBook(continueStory)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ' ') && continueStory) {
+                            handleOpenBook(continueStory)
+                          }
+                        }}
+                      >
+                        <div className="action-card-icon">
+                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                          </svg>
                         </div>
-                        <div className="continue-card-progress ui-text">
-                          {libraryLoading ? 'Fetching your shelves' : continueMeta}
+                        <div className="action-card-content">
+                          <h3 className="action-card-title">Continue Reading</h3>
+                          <p className="action-card-subtitle">
+                            {libraryLoading
+                              ? 'Loading...'
+                              : continueStory
+                                ? getStoryTitle(continueStory)
+                                : 'No books yet'}
+                          </p>
+                          {continueStory && (
+                            <div className="action-card-progress">
+                              <div
+                                className="action-card-progress-bar"
+                                style={{ width: `${continueProgress}%` }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="continue-card-actions">
-                        <button
-                          className="button ghost"
-                          onClick={() => handleOpenBook(continueStory)}
-                          disabled={!continueStory || libraryLoading}
-                        >
-                          {continueStory ? 'Resume' : 'Start reading'}
-                        </button>
+
+                      {/* Generate Card */}
+                      <div
+                        className="action-card generate-action-card"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setShowGenerateModal(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setShowGenerateModal(true)
+                          }
+                        }}
+                      >
+                        <div className="action-card-icon">
+                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 3v18M3 12h18" />
+                          </svg>
+                        </div>
+                        <div className="action-card-content">
+                          <h3 className="action-card-title">Generate</h3>
+                          <p className="action-card-subtitle">Create a new romance story</p>
+                        </div>
+                      </div>
+
+                      {/* Import Card */}
+                      <div
+                        className="action-card import-action-card"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setShowImportModal(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setShowImportModal(true)
+                          }
+                        }}
+                      >
+                        <div className="action-card-icon">
+                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17,8 12,3 7,8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                        <div className="action-card-content">
+                          <h3 className="action-card-title">Import</h3>
+                          <p className="action-card-subtitle">Add a book from a file</p>
+                        </div>
                       </div>
                     </div>
                   </section>
@@ -532,7 +594,7 @@ const Dashboard = () => {
                     books={generatedBooks}
                     emptyMessage="You haven't generated any stories yet."
                     loading={libraryLoading}
-                    onEmptyAction={() => scrollToPanel(generatePanelRef)}
+                    onEmptyAction={() => setShowGenerateModal(true)}
                     onEmptyActionLabel="Generate your first book"
                     onBookClick={handleOpenBook}
                     getStoryTitle={getStoryTitle}
@@ -543,7 +605,7 @@ const Dashboard = () => {
                     books={adaptationBooks}
                     emptyMessage="You haven't imported or adapted any books yet."
                     loading={libraryLoading}
-                    onEmptyAction={() => scrollToPanel(importPanelRef)}
+                    onEmptyAction={() => setShowImportModal(true)}
                     onEmptyActionLabel="Import your first book"
                     onBookClick={handleOpenBook}
                     getStoryTitle={getStoryTitle}
@@ -570,17 +632,6 @@ const Dashboard = () => {
                       <h3>Create a Bookshelf</h3>
                     </div>
                     <button className="button ghost">+ Create a bookshelf</button>
-                  </section>
-
-                  <section className="read-section">
-                    <div className="read-tool-panels">
-                      <div className="read-tool-panel" ref={generatePanelRef}>
-                        <GenerateStoryPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                      </div>
-                      <div className="read-tool-panel" ref={importPanelRef}>
-                        <ImportBookPanel activeLanguage={activeLanguage} headingLevel="h3" />
-                      </div>
-                    </div>
                   </section>
                 </>
               )}
@@ -789,6 +840,24 @@ const Dashboard = () => {
           language={activeLanguage}
           onClose={handleReviewModalClose}
           onCardsUpdated={handleCardsUpdated}
+        />
+      )}
+
+      {/* Generate Story Modal */}
+      {showGenerateModal && (
+        <GenerateStoryPanel
+          activeLanguage={activeLanguage}
+          isModal
+          onClose={() => setShowGenerateModal(false)}
+        />
+      )}
+
+      {/* Import Book Modal */}
+      {showImportModal && (
+        <ImportBookPanel
+          activeLanguage={activeLanguage}
+          isModal
+          onClose={() => setShowImportModal(false)}
         />
       )}
     </DashboardLayout>

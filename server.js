@@ -18,9 +18,9 @@ import ffmpegStatic from 'ffmpeg-static'
 import { spawn } from 'child_process'
 import { createRequire } from 'module'
 import ytdl from '@distube/ytdl-core'
+import { existsSync } from 'fs'
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
-const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'
 import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
@@ -29,15 +29,25 @@ if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic)
 }
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: 'intongues2.firebasestorage.app',
-  })
+// Initialize Firebase Admin conditionally
+let bucket = null
+let firestore = null
+const serviceAccountPath = new URL('./serviceAccountKey.json', import.meta.url).pathname
+if (existsSync(serviceAccountPath)) {
+  const serviceAccount = require('./serviceAccountKey.json')
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: 'intongues2.firebasestorage.app',
+    })
+  }
+  bucket = admin.storage().bucket()
+  firestore = admin.firestore()
+} else {
+  console.warn('Warning: serviceAccountKey.json not found. Firebase Admin features disabled.')
 }
 
-export const bucket = admin.storage().bucket()
-const firestore = admin.firestore()
+export { bucket }
 
 const SPOTIFY_SCOPES = [
   'user-read-email',
@@ -172,7 +182,12 @@ function escapeForSsml(text) {
     .replace(/'/g, '&apos;')
 }
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+let client = null
+if (process.env.OPENAI_API_KEY) {
+  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+} else {
+  console.warn('Warning: OPENAI_API_KEY not set. OpenAI features disabled.')
+}
 
 const ADAPTATION_SYSTEM_PROMPT = `
 You are adapting a book for language learners. Write only in the requested target language.

@@ -311,6 +311,40 @@ const FreeWritingLesson = () => {
       const bracketedExpressions = currentContent.match(/[\[(\u300c]([^\])\u300d]+)[\])\u300d]/g) || []
       const helpExpressions = bracketedExpressions.map(expr => expr.slice(1, -1).trim())
 
+      // Extract words user wrote themselves (excluding bracketed help requests)
+      const contentWithoutBrackets = currentContent.replace(/[\[(\u300c][^\])\u300d]+[\])\u300d]/g, ' ')
+      const userProducedWords = contentWithoutBrackets.match(/[\p{L}\p{M}]+/gu) || []
+      const uniqueUserWords = [...new Set(userProducedWords.map(w => w.toLowerCase()))]
+
+      // Auto-mark user-produced words as "known" (they produced it, so they know it)
+      if (user && uniqueUserWords.length > 0) {
+        const wordsToMarkKnown = uniqueUserWords.filter(word => {
+          const vocabEntry = userVocab[word]
+          // Only update if not already known (avoid unnecessary writes)
+          return !vocabEntry || vocabEntry.status !== 'known'
+        })
+
+        // Batch update words to known status (fire and forget, don't block feedback)
+        if (wordsToMarkKnown.length > 0) {
+          Promise.all(wordsToMarkKnown.slice(0, 20).map(async (word) => {
+            try {
+              await upsertVocabEntry(user.uid, lesson.targetLanguage, word, null, 'known')
+            } catch (err) {
+              // Silent fail - not critical
+            }
+          })).then(() => {
+            // Update local vocab state
+            setUserVocab(prev => {
+              const updated = { ...prev }
+              wordsToMarkKnown.forEach(word => {
+                updated[word] = { ...updated[word], status: 'known' }
+              })
+              return updated
+            })
+          })
+        }
+      }
+
       const response = await fetch('/api/freewriting/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -361,7 +395,7 @@ const FreeWritingLesson = () => {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [lesson, isAnalyzing, feedbackInTarget])
+  }, [lesson, isAnalyzing, feedbackInTarget, user, userVocab])
 
   // Trigger auto-feedback after 3 seconds of inactivity
   useEffect(() => {
@@ -384,27 +418,47 @@ const FreeWritingLesson = () => {
     }
   }, [content, lesson, analyzeTextForFeedback])
 
-  // Extract words from model sentence for review panel
+  // Extract NEW words from tutor corrections only (not words user already wrote)
   useEffect(() => {
-    if (!modelSentence || !lesson?.targetLanguage) {
+    if (!feedback?.corrections || !lesson?.targetLanguage) {
       setNurfWords([])
       return
     }
 
-    const words = modelSentence.match(/[\p{L}\p{M}]+/gu) || []
-    const uniqueWords = [...new Set(words.map(w => w.toLowerCase()))]
+    // Get words the user wrote (these are "known" - they produced them)
+    const currentContent = contentRef.current || ''
+    const contentWithoutBrackets = currentContent.replace(/[\[(\u300c][^\])\u300d]+[\])\u300d]/g, ' ')
+    const userProducedWords = new Set(
+      (contentWithoutBrackets.match(/[\p{L}\p{M}]+/gu) || []).map(w => w.toLowerCase())
+    )
+
+    // Extract words from corrections (tutor suggestions) that user didn't write
+    const correctionWords = []
+    feedback.corrections.forEach(c => {
+      const words = (c.correction || '').match(/[\p{L}\p{M}]+/gu) || []
+      words.forEach(word => {
+        const normalised = word.toLowerCase()
+        // Only include if user didn't produce this word themselves
+        if (!userProducedWords.has(normalised)) {
+          correctionWords.push({ word, normalised })
+        }
+      })
+    })
+
+    // Dedupe
+    const uniqueWords = [...new Map(correctionWords.map(w => [w.normalised, w])).values()]
 
     const wordList = uniqueWords
-      .map(word => {
-        const vocabEntry = userVocab[word]
+      .map(({ word, normalised }) => {
+        const vocabEntry = userVocab[normalised]
         const status = vocabEntry?.status || 'new'
-        const existingNurf = nurfWords.find(w => w.normalised === word)
-        if (status === 'known' && !existingNurf) return null
-        const translationData = wordTranslations[word] || {}
+        // Only show words that aren't already known
+        if (status === 'known') return null
+        const translationData = wordTranslations[normalised] || {}
         return {
-          word,
-          displayWord: words.find(w => w.toLowerCase() === word) || word,
-          normalised: word,
+          word: normalised,
+          displayWord: word,
+          normalised,
           status,
           translation: translationData.translation || vocabEntry?.translation || null,
           audioBase64: translationData.audioBase64 || null,
@@ -466,7 +520,7 @@ const FreeWritingLesson = () => {
       }
       fetchTranslationsAndAudio()
     }
-  }, [modelSentence, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
+  }, [feedback, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
 
   // Handle text selection for feedback popup
   useEffect(() => {

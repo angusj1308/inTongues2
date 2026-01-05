@@ -1115,13 +1115,16 @@ const PracticeLesson = () => {
         <aside className="practice-chat-panel" style={{ width: panelWidth }}>
           <div className="practice-chat-header">
             <h2>Tutor</h2>
-            <button
-              className={`practice-tutor-lang-toggle ${feedbackInTarget ? 'active' : ''}`}
+            <div
+              className="practice-lang-toggle"
               onClick={() => setFeedbackInTarget(!feedbackInTarget)}
-              title={feedbackInTarget ? 'Feedback in target language' : 'Feedback in native language'}
+              title={feedbackInTarget ? 'Feedback in target language' : 'Feedback in English'}
             >
-              {feedbackInTarget ? lesson?.targetLanguage?.slice(0, 2).toUpperCase() : 'EN'}
-            </button>
+              <span className={`toggle-option ${!feedbackInTarget ? 'active' : ''}`}>EN</span>
+              <span className={`toggle-option ${feedbackInTarget ? 'active' : ''}`}>
+                {lesson?.targetLanguage?.slice(0, 2).toUpperCase() || 'TL'}
+              </span>
+            </div>
           </div>
           <div className="practice-chat-messages">
             {/* Current prompt */}

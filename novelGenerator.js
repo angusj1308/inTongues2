@@ -5,7 +5,18 @@ import OpenAI from 'openai'
 import fs from 'fs/promises'
 import path from 'path'
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Lazy-initialized OpenAI client (deferred to avoid initialization without API key)
+let client = null
+
+function getOpenAIClient() {
+  if (!client) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return client
+}
 
 // =============================================================================
 // CONFIGURATION
@@ -38,7 +49,7 @@ async function callOpenAI(systemPrompt, userPrompt, options = {}) {
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
       try {
-        const response = await client.chat.completions.create({
+        const response = await getOpenAIClient().chat.completions.create({
           model: CONFIG.model,
           messages: [
             { role: 'system', content: systemPrompt },

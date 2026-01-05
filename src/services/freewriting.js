@@ -40,15 +40,10 @@ export const createFreeWritingLesson = async (userId, data) => {
     textType: textType || 'journal', // journal, essay, short-story, etc.
     targetLanguage: normalisedTarget,
     sourceLanguage: normalisedSource,
-    feedbackMode: 'line', // 'line' or 'document'
 
-    lines: [], // Array of { index, text, modelSentence?, feedback?, status }
-    currentIndex: 0,
+    // Simple document content model
+    content: '',
     wordCount: 0,
-    lineCount: 0,
-
-    // Document-level feedback (populated when user submits full document)
-    documentFeedback: null,
 
     status: 'in_progress', // 'in_progress' | 'complete'
     createdAt: serverTimestamp(),
@@ -237,11 +232,8 @@ export const deleteFreeWritingLesson = async (userId, lessonId) => {
 export const resetFreeWritingLesson = async (userId, lessonId) => {
   const ref = getFreeWritingDocRef(userId, lessonId)
   await updateDoc(ref, {
-    lines: [],
-    currentIndex: 0,
+    content: '',
     wordCount: 0,
-    lineCount: 0,
-    documentFeedback: null,
     status: 'in_progress',
     updatedAt: serverTimestamp(),
   })

@@ -1,13 +1,11 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import {
   getTutorProfile,
   createTutorChat,
-  subscribeToTutorChats,
+  subscribeToTutorChat,
   addTutorMessage,
   getConversationContext,
-  updateTutorMemory,
 } from '../../services/tutor'
 
 const ChatIcon = () => (
@@ -25,14 +23,14 @@ const SendIcon = () => (
 
 const TutorHome = ({ activeLanguage, nativeLanguage }) => {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
-  const [chats, setChats] = useState([])
-  const [activeChat, setActiveChat] = useState(null)
+  const [chat, setChat] = useState(null)
+  const [chatId, setChatId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [startingChat, setStartingChat] = useState(false)
+  const [error, setError] = useState(null)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -46,10 +44,12 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
 
     const loadProfile = async () => {
       try {
+        setError(null)
         const tutorProfile = await getTutorProfile(user.uid, activeLanguage, nativeLanguage || 'English')
         setProfile(tutorProfile)
       } catch (err) {
         console.error('Failed to load tutor profile:', err)
+        setError('Failed to load tutor profile')
       } finally {
         setLoading(false)
       }
@@ -58,43 +58,51 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
     loadProfile()
   }, [user, activeLanguage, nativeLanguage])
 
-  // Subscribe to chats
+  // Subscribe to active chat when chatId changes
   useEffect(() => {
-    if (!user) {
-      setChats([])
+    if (!user || !chatId) {
       return
     }
 
-    const unsubscribe = subscribeToTutorChats(
+    console.log('Subscribing to chat:', chatId)
+    const unsubscribe = subscribeToTutorChat(
       user.uid,
-      (nextChats) => {
-        setChats(nextChats)
-        // Auto-select most recent chat if none selected
-        if (nextChats.length > 0 && !activeChat) {
-          setActiveChat(nextChats[0])
-        }
+      chatId,
+      (chatData) => {
+        console.log('Chat updated:', chatData?.messages?.length, 'messages')
+        setChat(chatData)
       },
-      (err) => console.error('Chat subscription error:', err)
+      (err) => {
+        console.error('Chat subscription error:', err)
+        setError('Failed to load chat')
+      }
     )
 
     return unsubscribe
-  }, [user])
+  }, [user, chatId])
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeChat?.messages])
+  }, [chat?.messages])
 
-  const handleStartNewChat = async () => {
+  const handleStartNewChat = useCallback(async () => {
     if (!user || !activeLanguage || startingChat) return
 
+    console.log('Starting new chat...')
     setStartingChat(true)
-    try {
-      // Create new chat
-      const newChat = await createTutorChat(user.uid)
-      setActiveChat(newChat)
+    setError(null)
 
-      // Get tutor greeting
+    try {
+      // Create new chat in Firestore
+      const newChat = await createTutorChat(user.uid)
+      console.log('Chat created:', newChat.id)
+
+      // Set chatId to trigger subscription
+      setChatId(newChat.id)
+
+      // Get tutor greeting from API
+      console.log('Fetching greeting...')
       const response = await fetch('/api/tutor/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,40 +113,48 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
         }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        // Add greeting as first message
-        await addTutorMessage(user.uid, newChat.id, {
-          role: 'tutor',
-          content: data.greeting,
-        })
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
       }
+
+      const data = await response.json()
+      console.log('Greeting received:', data.greeting?.slice(0, 50))
+
+      // Add greeting as first message
+      await addTutorMessage(user.uid, newChat.id, {
+        role: 'tutor',
+        content: data.greeting,
+      })
+      console.log('Greeting message added')
+
     } catch (err) {
       console.error('Failed to start chat:', err)
+      setError(`Failed to start chat: ${err.message}`)
     } finally {
       setStartingChat(false)
     }
-  }
+  }, [user, activeLanguage, nativeLanguage, profile?.memory, startingChat])
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || !activeChat || !user || sending) return
+  const handleSendMessage = useCallback(async () => {
+    if (!inputValue.trim() || !chat || !user || sending) return
 
     const messageText = inputValue.trim()
     setInputValue('')
     setSending(true)
+    setError(null)
 
     try {
-      // Add user message
-      await addTutorMessage(user.uid, activeChat.id, {
+      // Add user message to Firestore
+      await addTutorMessage(user.uid, chat.id, {
         role: 'user',
         content: messageText,
       })
 
-      // Get conversation context
-      const history = getConversationContext(activeChat)
+      // Get conversation context for AI
+      const history = getConversationContext(chat)
       history.push({ role: 'user', content: messageText })
 
-      // Get tutor response
+      // Get tutor response from API
       const response = await fetch('/api/tutor/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,21 +167,26 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
         }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        // Add tutor response
-        await addTutorMessage(user.uid, activeChat.id, {
-          role: 'tutor',
-          content: data.response,
-        })
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
       }
+
+      const data = await response.json()
+
+      // Add tutor response to Firestore
+      await addTutorMessage(user.uid, chat.id, {
+        role: 'tutor',
+        content: data.response,
+      })
+
     } catch (err) {
       console.error('Failed to send message:', err)
+      setError(`Failed to send message: ${err.message}`)
     } finally {
       setSending(false)
       inputRef.current?.focus()
     }
-  }
+  }, [inputValue, chat, user, sending, activeLanguage, nativeLanguage, profile?.memory])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -173,16 +194,6 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
       handleSendMessage()
     }
   }
-
-  // Re-sync activeChat when chats update
-  useEffect(() => {
-    if (activeChat && chats.length > 0) {
-      const updated = chats.find((c) => c.id === activeChat.id)
-      if (updated) {
-        setActiveChat(updated)
-      }
-    }
-  }, [chats])
 
   if (!activeLanguage) {
     return (
@@ -202,11 +213,25 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
     )
   }
 
-  const messages = activeChat?.messages || []
+  const messages = chat?.messages || []
   const hasMessages = messages.length > 0
 
   return (
     <div className="tutor-home">
+      {/* Error display */}
+      {error && (
+        <div className="tutor-error" style={{
+          padding: '0.75rem 1rem',
+          background: '#fef2f2',
+          color: '#dc2626',
+          borderRadius: '8px',
+          marginBottom: '1rem',
+          fontSize: '0.875rem'
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* Chat Interface */}
       <div className="tutor-chat-container">
         {/* Messages Area */}
@@ -280,8 +305,8 @@ const TutorHome = ({ activeLanguage, nativeLanguage }) => {
         )}
       </div>
 
-      {/* Chat History Sidebar (collapsed for now) */}
-      {chats.length > 1 && (
+      {/* New Chat button */}
+      {hasMessages && (
         <div className="tutor-history-hint">
           <button
             className="button ghost small"

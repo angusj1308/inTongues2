@@ -148,10 +148,12 @@ const PracticeLesson = () => {
   const [popup, setPopup] = useState(null) // Translation popup state
   const [correctionPopup, setCorrectionPopup] = useState(null) // Correction popup state
   const [expandedCategories, setExpandedCategories] = useState({}) // Track expanded checklist categories
-  const attemptInputRef = useRef(null)
+  const attemptInputRef = useRef(null) // Text input in panel
+  const documentInputRef = useRef(null) // ContentEditable in document
   const chatEndRef = useRef(null)
   const resizeRef = useRef(null)
   const isResizing = useRef(false)
+  const isUpdatingFromDocument = useRef(false) // Prevent sync loops
 
   // Load lesson
   useEffect(() => {
@@ -315,8 +317,52 @@ const PracticeLesson = () => {
       if (attemptInputRef.current) {
         attemptInputRef.current.textContent = userAttempt || ''
       }
+      if (documentInputRef.current) {
+        documentInputRef.current.textContent = userAttempt || ''
+      }
     }
   }, [lesson?.currentIndex, userAttempt])
+
+  // Sync document contentEditable when userAttempt changes from input field
+  useEffect(() => {
+    // Skip if the change came from the document itself (prevents cursor jump)
+    if (isUpdatingFromDocument.current) {
+      isUpdatingFromDocument.current = false
+      return
+    }
+    // Only sync if document ref exists and content differs
+    if (documentInputRef.current && documentInputRef.current.textContent !== userAttempt) {
+      // Save selection if document is focused
+      const isDocumentFocused = document.activeElement === documentInputRef.current
+      let savedSelection = null
+      if (isDocumentFocused) {
+        const sel = window.getSelection()
+        if (sel.rangeCount > 0) {
+          savedSelection = sel.getRangeAt(0).startOffset
+        }
+      }
+
+      documentInputRef.current.textContent = userAttempt || ''
+
+      // Restore cursor position if document was focused
+      if (isDocumentFocused && savedSelection !== null && documentInputRef.current.firstChild) {
+        const sel = window.getSelection()
+        const range = document.createRange()
+        const offset = Math.min(savedSelection, documentInputRef.current.textContent.length)
+        range.setStart(documentInputRef.current.firstChild, offset)
+        range.collapse(true)
+        sel.removeAllRanges()
+        sel.addRange(range)
+      }
+    }
+  }, [userAttempt])
+
+  // Handle input from document contentEditable
+  const handleDocumentInput = useCallback((e) => {
+    const newText = e.target.textContent || ''
+    isUpdatingFromDocument.current = true
+    setUserAttempt(newText)
+  }, [])
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -1292,12 +1338,6 @@ const PracticeLesson = () => {
                     <span className="checking-text">checking...</span>
                   </span>
                 </div>
-                <div className="feedback-check-item checking">
-                  <span className="check-label">Naturalness</span>
-                  <span className="check-status">
-                    <span className="checking-text">checking...</span>
-                  </span>
-                </div>
               </div>
             )}
 
@@ -1308,8 +1348,8 @@ const PracticeLesson = () => {
           <div className="practice-panel-footer">
             {!isComplete && currentSentence && (
               <>
-                {/* Input field */}
-                <div className="practice-input-wrapper">
+                {/* Input row - input and submit button side by side */}
+                <div className="practice-input-row">
                   <input
                     type="text"
                     className="practice-input-field"
@@ -1334,20 +1374,27 @@ const PracticeLesson = () => {
                     placeholder={!feedback ? 'Type your translation...' : 'Ask a question...'}
                     disabled={feedbackLoading || followUpLoading}
                   />
+                  <button
+                    className="practice-submit-btn"
+                    onClick={() => {
+                      if (!feedback) {
+                        handleSubmitAttempt()
+                      } else if (followUpQuestion.trim()) {
+                        handleFollowUp()
+                      }
+                    }}
+                    disabled={!feedback ? (!userAttempt.trim() || feedbackLoading) : (!followUpQuestion.trim() || followUpLoading)}
+                  >
+                    {feedbackLoading || followUpLoading ? '...' : 'Submit'}
+                  </button>
                 </div>
-                {/* Submit button below */}
+                {/* Save & Continue button - separate, for moving to next sentence */}
                 <button
-                  className={`practice-submit-btn ${feedback ? 'practice-submit-btn--continue' : ''}`}
-                  onClick={() => {
-                    if (!feedback) {
-                      handleSubmitAttempt()
-                    } else {
-                      attemptFinalize(false)
-                    }
-                  }}
-                  disabled={!feedback ? (!userAttempt.trim() || feedbackLoading) : false}
+                  className="practice-continue-btn"
+                  onClick={() => attemptFinalize(false)}
+                  disabled={!feedback}
                 >
-                  {feedbackLoading ? 'Checking...' : 'Submit'}
+                  Save & Continue
                 </button>
               </>
             )}
@@ -1388,10 +1435,20 @@ const PracticeLesson = () => {
                       )
                     }
                     return (
-                      <span key={`current-${i}`} className="practice-inline-display">
-                        {userAttempt || <span className="practice-cursor">|</span>}
-                        {userAttempt && <span className="practice-cursor">|</span>}
-                      </span>
+                      <span
+                        key={`current-${i}`}
+                        className="practice-inline-display practice-inline-display--editable"
+                        contentEditable
+                        suppressContentEditableWarning
+                        ref={documentInputRef}
+                        onInput={handleDocumentInput}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleSubmitAttempt()
+                          }
+                        }}
+                      />
                     )
                   }
                   // Otherwise, just show the finalized text (clickable to navigate)
@@ -1417,12 +1474,22 @@ const PracticeLesson = () => {
                       </span>
                     )
                   }
-                  // Otherwise show live typing with cursor
+                  // Otherwise show live typing - editable in document
                   return (
-                    <span key={`current-${i}`} className="practice-inline-display">
-                      {userAttempt || <span className="practice-cursor">|</span>}
-                      {userAttempt && <span className="practice-cursor">|</span>}
-                    </span>
+                    <span
+                      key={`current-${i}`}
+                      className="practice-inline-display practice-inline-display--editable"
+                      contentEditable
+                      suppressContentEditableWarning
+                      ref={documentInputRef}
+                      onInput={handleDocumentInput}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSubmitAttempt()
+                        }
+                      }}
+                    />
                   )
                 }
 

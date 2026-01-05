@@ -146,7 +146,7 @@ const PracticeLesson = () => {
   const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(() => Math.max(480, Math.floor(window.innerWidth / 3)))
   const [popup, setPopup] = useState(null) // Translation popup state
-  const [correctionPopup, setCorrectionPopup] = useState(null) // Correction popup state
+  const [submittedAttempt, setSubmittedAttempt] = useState('') // Track what was submitted for feedback
   const [expandedCategories, setExpandedCategories] = useState({}) // Track expanded checklist categories
   const attemptInputRef = useRef(null) // Text input in panel
   const documentInputRef = useRef(null) // ContentEditable in document
@@ -363,6 +363,14 @@ const PracticeLesson = () => {
     isUpdatingFromDocument.current = true
     setUserAttempt(newText)
   }, [])
+
+  // Clear corrections when user edits their text (text differs from what was submitted)
+  useEffect(() => {
+    if (feedback && submittedAttempt && userAttempt !== submittedAttempt) {
+      // User has edited their text, clear the corrections
+      setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
+    }
+  }, [userAttempt, submittedAttempt, feedback])
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -597,7 +605,7 @@ const PracticeLesson = () => {
         )
       }
 
-      // Add the error span with highlight
+      // Add the error span with underline highlight (no click handler)
       const categoryColors = {
         grammar: '#ef4444', // red
         spelling: '#ef4444', // red
@@ -615,16 +623,6 @@ const PracticeLesson = () => {
             textDecorationColor: underlineColor,
             textDecorationStyle: 'wavy',
             textUnderlineOffset: '3px',
-            cursor: 'pointer',
-          }}
-          onClick={(e) => {
-            e.stopPropagation()
-            const rect = e.target.getBoundingClientRect()
-            setCorrectionPopup({
-              x: Math.min(rect.left, window.innerWidth - 320),
-              y: rect.bottom + 8,
-              correction,
-            })
           }}
         >
           {text.slice(correction.startIndex, correction.endIndex)}
@@ -678,6 +676,7 @@ const PracticeLesson = () => {
 
       setFeedback(data.feedback)
       setModelSentence(data.modelSentence || '')
+      setSubmittedAttempt(userAttempt.trim()) // Track what was submitted
 
       // Add tutor response to chat with feedback flag
       setChatMessages((prev) => [
@@ -1253,7 +1252,10 @@ const PracticeLesson = () => {
                         </p>
                         <button
                           className="practice-use-example-btn"
-                          onClick={() => setUserAttempt(modelSentence)}
+                          onClick={() => {
+                            setUserAttempt(modelSentence)
+                            setSubmittedAttempt('') // Clear so corrections disappear
+                          }}
                         >
                           Use example sentence
                         </button>
@@ -1661,72 +1663,6 @@ const PracticeLesson = () => {
         </div>
       )}
 
-      {/* Correction popup - shows when clicking on an error in the document */}
-      {correctionPopup && (
-        <div
-          className="correction-popup"
-          style={{
-            position: 'fixed',
-            top: correctionPopup.y,
-            left: correctionPopup.x,
-            zIndex: 1001,
-            background: '#ffffff',
-            borderRadius: '12px',
-            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
-            padding: '1rem',
-            minWidth: '280px',
-            maxWidth: '360px',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                color: correctionPopup.correction.category === 'grammar' || correctionPopup.correction.category === 'spelling'
-                  ? '#ef4444'
-                  : correctionPopup.correction.category === 'naturalness'
-                    ? '#f59e0b'
-                    : '#3b82f6',
-              }}
-            >
-              {correctionPopup.correction.category}
-            </span>
-            <button
-              type="button"
-              onClick={() => setCorrectionPopup(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.25rem',
-                color: '#94a3b8',
-                lineHeight: 1,
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          <div style={{ marginBottom: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ textDecoration: 'line-through', color: '#ef4444' }}>
-                {correctionPopup.correction.original}
-              </span>
-              <span style={{ color: '#94a3b8' }}>→</span>
-              <span style={{ color: '#16a34a', fontWeight: '500' }}>
-                {correctionPopup.correction.correction}
-              </span>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>
-            {correctionPopup.correction.explanation}
-          </p>
-        </div>
-      )}
     </div>
   )
 }

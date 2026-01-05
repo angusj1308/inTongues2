@@ -165,9 +165,10 @@ const FreeWritingLesson = () => {
         }
         setLesson(data)
 
-        // Load document content - store in ref, don't use state for the actual content
+        // Load document content - store in ref and state
         const docContent = data.content || ''
         contentRef.current = docContent
+        setContent(docContent)
         setLastSavedContent(docContent)
 
         // Load user's vocab for word status highlighting
@@ -261,13 +262,15 @@ const FreeWritingLesson = () => {
 
       const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
       // Use sendBeacon for reliable save on page unload
+      // Must use Blob with correct Content-Type for express.json() to parse
       const data = JSON.stringify({
         userId: user.uid,
         lessonId,
         content: currentContent,
         wordCount,
       })
-      navigator.sendBeacon('/api/freewriting/save-beacon', data)
+      const blob = new Blob([data], { type: 'application/json' })
+      navigator.sendBeacon('/api/freewriting/save-beacon', blob)
     }
 
     const handleBeforeUnload = (e) => {
@@ -1079,193 +1082,169 @@ const FreeWritingLesson = () => {
               </svg>
             </button>
           </div>
-          <div className="practice-chat-messages">
-            {/* Instructions */}
-            <div className="practice-tutor-prompt">
-              <span className="prompt-label">Write in {lesson.targetLanguage}</span>
-              <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                Select text and click "Get Feedback" to review your writing.
-              </p>
-            </div>
-
-            {/* Chat messages with feedback inline */}
-            {chatMessages.map((msg, i) => (
-              <div key={i}>
-                {/* Render expandable checklist BEFORE the assistant feedback message */}
-                {msg.role === 'assistant' && msg.hasFeedback && feedback && (
-                  <div className="practice-feedback-checklist">
-                    {/* Grammar & Spelling - expandable */}
-                    {(() => {
-                      const grammarCorrections = feedback?.corrections?.filter(c => c.category === 'grammar' || c.category === 'spelling') || []
-                      const grammarState = grammarCorrections.length > 0 ? 'fail' : 'pass'
-                      const isExpanded = expandedCategories['grammar']
-                      return (
-                        <div className={`feedback-check-item ${grammarState} ${isExpanded ? 'expanded' : ''}`}>
-                          <div
-                            className="feedback-check-header"
-                            onClick={() => grammarCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, grammar: !prev.grammar }))}
-                            style={{ cursor: grammarCorrections.length > 0 ? 'pointer' : 'default' }}
-                          >
-                            <span className="check-label">
-                              Grammar & Spelling
-                              {grammarCorrections.length > 0 && (
-                                <span className="check-count">({grammarCorrections.length})</span>
-                              )}
-                            </span>
-                            <span className="check-status">
-                              <span className={`check-icon ${grammarState}`}>
-                                {getFeedbackIcon(grammarState)}
-                              </span>
-                              {grammarCorrections.length > 0 && (
-                                <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                              )}
-                            </span>
-                          </div>
-                          {isExpanded && grammarCorrections.length > 0 && (
-                            <div className="feedback-corrections-list">
-                              {grammarCorrections.map((c, idx) => (
-                                <div key={idx} className="feedback-correction-item">
-                                  <span className="correction-original">{c.original}</span>
-                                  <span className="correction-arrow">→</span>
-                                  <span className="correction-fix">{c.correction}</span>
-                                  <p className="correction-explanation">{c.explanation}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-
-                    {/* Naturalness - expandable */}
-                    {(() => {
-                      const naturalnessCorrections = feedback?.corrections?.filter(c => c.category === 'naturalness') || []
-                      const naturalnessState = naturalnessCorrections.length > 0 ? 'acceptable' : 'pass'
-                      const isExpanded = expandedCategories['naturalness']
-                      return (
-                        <div className={`feedback-check-item ${naturalnessState} ${isExpanded ? 'expanded' : ''}`}>
-                          <div
-                            className="feedback-check-header"
-                            onClick={() => naturalnessCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, naturalness: !prev.naturalness }))}
-                            style={{ cursor: naturalnessCorrections.length > 0 ? 'pointer' : 'default' }}
-                          >
-                            <span className="check-label">
-                              Naturalness
-                              {naturalnessCorrections.length > 0 && (
-                                <span className="check-count">({naturalnessCorrections.length})</span>
-                              )}
-                            </span>
-                            <span className="check-status">
-                              <span className={`check-icon ${naturalnessState}`}>
-                                {getFeedbackIcon(naturalnessState)}
-                              </span>
-                              {naturalnessCorrections.length > 0 && (
-                                <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                              )}
-                            </span>
-                          </div>
-                          {isExpanded && naturalnessCorrections.length > 0 && (
-                            <div className="feedback-corrections-list">
-                              {naturalnessCorrections.map((c, idx) => (
-                                <div key={idx} className="feedback-correction-item">
-                                  <span className="correction-original">{c.original}</span>
-                                  <span className="correction-arrow">→</span>
-                                  <span className="correction-fix">{c.correction}</span>
-                                  <p className="correction-explanation">{c.explanation}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-
-                    {/* Expression Help - for bracketed "help me say this" requests */}
-                    {(() => {
-                      const expressionHelp = feedback?.corrections?.filter(c => c.category === 'expression') || []
-                      if (expressionHelp.length === 0) return null
-                      const isExpanded = expandedCategories['expression'] !== false // Default to expanded
-                      return (
-                        <div
-                          className="feedback-check-item expression-help"
-                          style={{
-                            background: 'var(--bg-accent, #f0f9ff)',
-                            borderLeft: '3px solid var(--color-info, #0ea5e9)',
-                          }}
-                        >
-                          <div
-                            className="feedback-check-header"
-                            onClick={() => setExpandedCategories(prev => ({ ...prev, expression: !isExpanded }))}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <span className="check-label" style={{ color: 'var(--color-info, #0ea5e9)' }}>
-                              💡 How to express this
-                              <span className="check-count">({expressionHelp.length})</span>
-                            </span>
-                            <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                          </div>
-                          {isExpanded && (
-                            <div className="feedback-corrections-list">
-                              {/* Show the explanation first if available */}
-                              {feedback.explanation && (
-                                <p style={{
-                                  margin: '0 0 12px 0',
-                                  padding: '8px 12px',
-                                  background: 'var(--bg-primary, white)',
-                                  borderRadius: '6px',
-                                  fontSize: '0.9rem',
-                                  lineHeight: '1.5',
-                                }}>
-                                  {feedback.explanation}
-                                </p>
-                              )}
-                              {expressionHelp.map((c, idx) => (
-                                <div key={idx} className="feedback-correction-item" style={{ background: 'var(--bg-primary, white)' }}>
-                                  <span className="correction-original" style={{ fontStyle: 'italic' }}>{c.original}</span>
-                                  <span className="correction-arrow">→</span>
-                                  <span className="correction-fix" style={{ fontWeight: '600' }}>{c.correction}</span>
-                                  {c.explanation && <p className="correction-explanation">{c.explanation}</p>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
-
-                {/* Only show chat message for user messages and non-feedback assistant messages */}
-                {!(msg.role === 'assistant' && msg.hasFeedback) && (
+          <div className="practice-chat-messages" style={{ padding: '16px' }}>
+            {/* 1. Spelling & Grammar Section */}
+            {(() => {
+              const grammarItems = inlineFeedback.filter(f => f.category === 'grammar' || f.category === 'spelling')
+              const errorCount = grammarItems.length
+              const isExpanded = expandedCategories['grammar'] !== false
+              return (
+                <div className={`feedback-check-item ${errorCount > 0 ? 'fail' : 'pass'}`} style={{ marginBottom: '12px' }}>
                   <div
-                    className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
+                    className="feedback-check-header"
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, grammar: !isExpanded }))}
+                    style={{ cursor: 'pointer' }}
                   >
-                    {msg.content}
+                    <span className="check-label">
+                      Spelling & Grammar
+                      {errorCount > 0 && <span className="check-count" style={{ color: '#ef4444' }}>({errorCount})</span>}
+                    </span>
+                    <span className="check-status">
+                      <span className={`check-icon ${errorCount > 0 ? 'fail' : 'pass'}`}>
+                        {getFeedbackIcon(errorCount > 0 ? 'fail' : 'pass')}
+                      </span>
+                      <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                    </span>
                   </div>
-                )}
-
-                {/* Render example and word panel after feedback message */}
-                {msg.role === 'assistant' && msg.hasFeedback && (
-                  <>
-                    {modelSentence && (
-                      <div className="practice-example-sentence">
-                        <span className="example-label">
-                          {feedback?.corrections?.some(c => c.category === 'expression')
-                            ? "Here's how to say it:"
-                            : 'A more natural way:'}
-                        </span>
-                        <p className="example-text">
-                          {renderHighlightedModelSentence}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Word panel for NURF words */}
-                    {nurfWords.length > 0 && (
-                      <div className="practice-word-panel">
-                        <div className="practice-word-panel-header">
-                          <span className="practice-word-panel-label">Words to review</span>
+                  {isExpanded && errorCount > 0 && (
+                    <div className="feedback-corrections-list">
+                      {grammarItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                          onClick={() => setActiveUnderlineId(item.id)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="correction-original">{item.text}</span>
+                          <span className="correction-arrow">→</span>
+                          <span className="correction-fix">{item.correction}</span>
+                          <p className="correction-explanation">{item.explanation}</p>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                  {isExpanded && errorCount === 0 && (
+                    <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                      No spelling or grammar issues detected.
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 2. Accuracy Section - naturalness + expression help + examples */}
+            {(() => {
+              const naturalnessItems = inlineFeedback.filter(f => f.category === 'naturalness')
+              const expressionItems = inlineFeedback.filter(f => f.category === 'expression')
+              const accuracyCount = naturalnessItems.length + expressionItems.length
+              const isExpanded = expandedCategories['accuracy'] !== false
+              return (
+                <div className={`feedback-check-item ${accuracyCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                  <div
+                    className="feedback-check-header"
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="check-label">
+                      Accuracy
+                      {accuracyCount > 0 && <span className="check-count" style={{ color: '#eab308' }}>({accuracyCount})</span>}
+                    </span>
+                    <span className="check-status">
+                      <span className={`check-icon ${accuracyCount > 0 ? 'acceptable' : 'pass'}`}>
+                        {getFeedbackIcon(accuracyCount > 0 ? 'acceptable' : 'pass')}
+                      </span>
+                      <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                    </span>
+                  </div>
+                  {isExpanded && (
+                    <div className="feedback-corrections-list">
+                      {/* Expression help (bracketed requests) */}
+                      {expressionItems.length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-info, #0ea5e9)', fontWeight: '600', marginBottom: '8px' }}>
+                            How to express this
+                          </div>
+                          {expressionItems.map((item) => (
+                            <div
+                              key={item.id}
+                              className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                              onClick={() => setActiveUnderlineId(item.id)}
+                              style={{ cursor: 'pointer', background: 'var(--bg-accent, #f0f9ff)' }}
+                            >
+                              <span className="correction-original" style={{ fontStyle: 'italic' }}>{item.text}</span>
+                              <span className="correction-arrow">→</span>
+                              <span className="correction-fix" style={{ fontWeight: '600' }}>{item.correction}</span>
+                              {item.explanation && <p className="correction-explanation">{item.explanation}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Naturalness suggestions */}
+                      {naturalnessItems.length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '8px' }}>
+                            More natural phrasing
+                          </div>
+                          {naturalnessItems.map((item) => (
+                            <div
+                              key={item.id}
+                              className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                              onClick={() => setActiveUnderlineId(item.id)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <span className="correction-original">{item.text}</span>
+                              <span className="correction-arrow">→</span>
+                              <span className="correction-fix">{item.correction}</span>
+                              <p className="correction-explanation">{item.explanation}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Model sentence / example */}
+                      {modelSentence && (
+                        <div className="practice-example-sentence" style={{ margin: 0 }}>
+                          <span className="example-label">Example:</span>
+                          <p className="example-text" style={{ margin: '4px 0 0 0' }}>
+                            {renderHighlightedModelSentence}
+                          </p>
+                        </div>
+                      )}
+
+                      {accuracyCount === 0 && !modelSentence && (
+                        <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                          Your writing sounds natural!
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* 3. Vocab Panel Section */}
+            {(() => {
+              const isExpanded = expandedCategories['vocab'] !== false
+              const vocabCount = nurfWords.length
+              return (
+                <div className={`feedback-check-item ${vocabCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                  <div
+                    className="feedback-check-header"
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, vocab: !isExpanded }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="check-label">
+                      Vocab
+                      {vocabCount > 0 && <span className="check-count">({vocabCount})</span>}
+                    </span>
+                    <span className="check-status">
+                      <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                    </span>
+                  </div>
+                  {isExpanded && (
+                    <div style={{ padding: '8px 0' }}>
+                      {nurfWords.length > 0 ? (
                         <div className="practice-word-panel-list">
                           {nurfWords.map((wordData) => {
                             const statusIndex = STATUS_LEVELS.indexOf(wordData.status)
@@ -1316,61 +1295,55 @@ const FreeWritingLesson = () => {
                             )
                           })}
                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                      ) : (
+                        <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                          Words from tutor suggestions will appear here.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Follow-up chat messages */}
+            {chatMessages.filter(msg => !msg.hasFeedback).map((msg, i) => (
+              <div
+                key={i}
+                className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
+              >
+                {msg.content}
               </div>
             ))}
-
-            {/* Loading state for feedback */}
-            {feedbackLoading && (
-              <div className="practice-feedback-checklist">
-                <div className="feedback-check-item checking">
-                  <span className="check-label">Grammar & Spelling</span>
-                  <span className="check-status">
-                    <span className="checking-text">checking...</span>
-                  </span>
-                </div>
-                <div className="feedback-check-item checking">
-                  <span className="check-label">Naturalness</span>
-                  <span className="check-status">
-                    <span className="checking-text">checking...</span>
-                  </span>
-                </div>
-              </div>
-            )}
 
             <div ref={chatEndRef} />
           </div>
 
-          {/* Panel footer - just for follow-up questions when feedback is shown */}
+          {/* Panel footer - follow-up questions */}
           <div className="practice-panel-footer">
-            {feedback && (
-              <div className="practice-input-row">
-                <input
-                  type="text"
-                  className="practice-input-field"
-                  value={followUpQuestion}
-                  onChange={(e) => setFollowUpQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && followUpQuestion.trim()) {
-                      e.preventDefault()
-                      handleFollowUp()
-                    }
-                  }}
-                  placeholder="Ask a question..."
-                  disabled={followUpLoading}
-                />
-                <button
-                  className="practice-submit-btn"
-                  onClick={handleFollowUp}
-                  disabled={!followUpQuestion.trim() || followUpLoading}
-                >
-                  {followUpLoading ? '...' : 'Ask'}
-                </button>
-              </div>
-            )}
+            <div className="practice-input-row">
+              <input
+                type="text"
+                className="practice-input-field"
+                value={followUpQuestion}
+                onChange={(e) => setFollowUpQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && followUpQuestion.trim()) {
+                    e.preventDefault()
+                    handleFollowUp()
+                  }
+                }}
+                placeholder="Ask a question..."
+                disabled={followUpLoading}
+              />
+              <button
+                className="practice-submit-btn"
+                onClick={handleFollowUp}
+                disabled={!followUpQuestion.trim() || followUpLoading}
+              >
+                {followUpLoading ? '...' : 'Ask'}
+              </button>
+            </div>
           </div>
 
           {/* Resize handle */}
@@ -1449,28 +1422,6 @@ const FreeWritingLesson = () => {
                       />
                     )
                   })}
-                </div>
-              )}
-
-              {/* Analyzing indicator */}
-              {isAnalyzing && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    padding: '4px 8px',
-                    background: 'var(--bg-secondary, #f8fafc)',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    color: 'var(--text-muted, #64748b)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <span style={{ animation: 'pulse 1s infinite' }}>●</span>
-                  Analyzing...
                 </div>
               )}
 

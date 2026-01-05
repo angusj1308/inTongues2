@@ -10,7 +10,23 @@ import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
 
-const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+const LEVELS = ['Beginner', 'Intermediate', 'Native']
+
+const GENRES = [
+  { id: 'romance', label: 'Romance' },
+]
+
+// Culturally relevant setting examples that cycle through
+const SETTING_EXAMPLES = [
+  'Forbidden love during the British occupation of Buenos Aires',
+  'A chance encounter in a Parisian café during the 1920s',
+  'Star-crossed lovers in feudal Japan',
+  'A summer romance on the Amalfi Coast',
+  'Love blooming in colonial-era Havana',
+  'A passionate affair in revolutionary Mexico',
+  'Unexpected connection in modern-day Seoul',
+  'Romance amid the vineyards of Tuscany',
+]
 
 // Length presets with page ranges
 const LENGTH_PRESETS = [
@@ -30,13 +46,15 @@ const GenerateStoryPanel = ({
   const navigate = useNavigate()
   const { profile, setLastUsedLanguage, user } = useAuth()
 
-  const [levelIndex, setLevelIndex] = useState(2)
+  const [levelIndex, setLevelIndex] = useState(0)
   const [lengthPreset, setLengthPreset] = useState('short')
-  const [pageCount, setPageCount] = useState(10)
+  const [genre, setGenre] = useState('romance')
   const [description, setDescription] = useState('')
+  const [generateAudio, setGenerateAudio] = useState(false)
   const [voiceGender, setVoiceGender] = useState('male')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [exampleIndex, setExampleIndex] = useState(0)
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -69,10 +87,13 @@ const GenerateStoryPanel = ({
   // Get current preset details
   const currentPreset = LENGTH_PRESETS.find((p) => p.id === lengthPreset) || LENGTH_PRESETS[0]
 
-  // Update page count when preset changes
+  // Cycle through setting examples
   useEffect(() => {
-    setPageCount(currentPreset.defaultPages)
-  }, [lengthPreset, currentPreset.defaultPages])
+    const interval = setInterval(() => {
+      setExampleIndex((prev) => (prev + 1) % SETTING_EXAMPLES.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     if (profile && !availableLanguages.length && !isModal) {
@@ -112,13 +133,15 @@ const GenerateStoryPanel = ({
     setIsSubmitting(true)
 
     const params = {
-      level: CEFR_LEVELS[levelIndex],
-      genre: 'Romance', // Fixed to Romance for now
-      length: pageCount,
-      pageCount: pageCount,
+      level: LEVELS[levelIndex],
+      genre: GENRES.find((g) => g.id === genre)?.label || 'Romance',
+      lengthPreset,
+      minPages: currentPreset.minPages,
+      maxPages: currentPreset.maxPages,
       description: description.trim(),
       language: activeLanguage,
-      voiceGender,
+      generateAudio,
+      voiceGender: generateAudio ? voiceGender : null,
     }
 
     try {
@@ -130,11 +153,11 @@ const GenerateStoryPanel = ({
       const storyRef = await addDoc(storiesRef, {
         ...params,
         title: resolvedTitle,
-        voiceGender: resolvedVoiceGender,
-        voiceId,
+        voiceGender: generateAudio ? resolvedVoiceGender : null,
+        voiceId: generateAudio ? voiceId : null,
         createdAt: serverTimestamp(),
         hasFullAudio: false,
-        audioStatus: 'none',
+        audioStatus: generateAudio ? 'pending' : 'none',
         fullAudioUrl: null,
       })
 
@@ -148,17 +171,20 @@ const GenerateStoryPanel = ({
 
       await Promise.all(pageWrites)
 
-      try {
-        await fetch('http://localhost:4000/api/generate-audio-book', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uid: user.uid,
-            storyId: storyRef.id,
-          }),
-        })
-      } catch (err) {
-        console.error('Failed to trigger audio book generation:', err)
+      // Only trigger audio book generation if audio was requested
+      if (generateAudio) {
+        try {
+          await fetch('http://localhost:4000/api/generate-audio-book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              uid: user.uid,
+              storyId: storyRef.id,
+            }),
+          })
+        } catch (err) {
+          console.error('Failed to trigger audio book generation:', err)
+        }
       }
 
       if (onClose) {
@@ -177,10 +203,10 @@ const GenerateStoryPanel = ({
       <div className="page-header">
         <div className="page-header-title">
           <HeadingTag className="text-center">
-            {`Generate ${environmentLanguageCapitalized} Romance`}
+            {`Generate ${environmentLanguageCapitalized} Story`}
           </HeadingTag>
           <p className="text-center ui-text">
-            Create an original romance story in your target language, tailored to your level.
+            Create an original story in your target language, tailored to your level.
           </p>
         </div>
         {onClose && (
@@ -227,14 +253,14 @@ const GenerateStoryPanel = ({
             <input
               type="range"
               min="0"
-              max={CEFR_LEVELS.length - 1}
+              max={LEVELS.length - 1}
               value={levelIndex}
               onChange={(event) => setLevelIndex(Number(event.target.value))}
-              style={{ '--range-progress': `${(levelIndex / (CEFR_LEVELS.length - 1)) * 100}%` }}
+              style={{ '--range-progress': `${(levelIndex / (LEVELS.length - 1)) * 100}%` }}
             />
           </div>
           <div className="slider-marks">
-            {CEFR_LEVELS.map((level, index) => (
+            {LEVELS.map((level, index) => (
               <span
                 key={level}
                 className={`slider-mark${levelIndex === index ? ' active' : ''}`}
@@ -263,52 +289,62 @@ const GenerateStoryPanel = ({
         </label>
 
         <label className="ui-text">
-          Page count
-          <div className="slider-row">
-            <input
-              type="range"
-              min={currentPreset.minPages}
-              max={currentPreset.maxPages}
-              value={pageCount}
-              onChange={(event) => setPageCount(Number(event.target.value))}
-              style={{
-                '--range-progress': `${((pageCount - currentPreset.minPages) / (currentPreset.maxPages - currentPreset.minPages)) * 100}%`,
-              }}
-            />
-            <span className="pill">{pageCount} pages</span>
-          </div>
+          Genre
+          <select
+            className="genre-select"
+            value={genre}
+            onChange={(event) => setGenre(event.target.value)}
+          >
+            {GENRES.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.label}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="ui-text">
-          Text description
+          Setting
           <textarea
-            placeholder="Describe the topic, themes, or characters you want to include in your romance story."
+            placeholder={SETTING_EXAMPLES[exampleIndex]}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
+          <p className="muted small ui-text">Describe the time, place, and setting for your story.</p>
         </label>
 
-        <label className="ui-text">
-          Voice gender
-          <div className="voice-gender-toggle" role="radiogroup" aria-label="Voice gender">
-            <button
-              className={`voice-gender-option${voiceGender === 'male' ? ' is-active' : ''}`}
-              type="button"
-              onClick={() => setVoiceGender('male')}
-              aria-pressed={voiceGender === 'male'}
-            >
-              Male
-            </button>
-            <button
-              className={`voice-gender-option${voiceGender === 'female' ? ' is-active' : ''}`}
-              type="button"
-              onClick={() => setVoiceGender('female')}
-              aria-pressed={voiceGender === 'female'}
-            >
-              Female
-            </button>
-          </div>
+        <label className="checkbox ui-text">
+          <span className="ui-text">Generate audio</span>
+          <input
+            type="checkbox"
+            checked={generateAudio}
+            onChange={(event) => setGenerateAudio(event.target.checked)}
+          />
         </label>
+
+        {generateAudio && (
+          <label className="ui-text">
+            Voice gender
+            <div className="voice-gender-toggle" role="radiogroup" aria-label="Voice gender">
+              <button
+                className={`voice-gender-option${voiceGender === 'male' ? ' is-active' : ''}`}
+                type="button"
+                onClick={() => setVoiceGender('male')}
+                aria-pressed={voiceGender === 'male'}
+              >
+                Male
+              </button>
+              <button
+                className={`voice-gender-option${voiceGender === 'female' ? ' is-active' : ''}`}
+                type="button"
+                onClick={() => setVoiceGender('female')}
+                aria-pressed={voiceGender === 'female'}
+              >
+                Female
+              </button>
+            </div>
+          </label>
+        )}
 
         <div className="action-row">
           {(onBack || onClose) && (

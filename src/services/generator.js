@@ -25,19 +25,22 @@ export const generateStory = async (params) => {
       throw new Error('No story pages were returned.')
     }
 
-    if (!data?.voiceId) {
-      throw new Error('No voiceId was returned for this story.')
-    }
+    // voiceId and voiceGender are only required when audio generation is requested
+    if (params?.generateAudio) {
+      if (!data?.voiceId) {
+        throw new Error('No voiceId was returned for this story.')
+      }
 
-    if (!data?.voiceGender) {
-      throw new Error('No voice gender was returned for this story.')
+      if (!data?.voiceGender) {
+        throw new Error('No voice gender was returned for this story.')
+      }
     }
 
     return {
       pages: data.pages,
       title: data.title,
-      voiceId: data.voiceId,
-      voiceGender: data.voiceGender,
+      voiceId: data.voiceId || null,
+      voiceGender: data.voiceGender || null,
     }
   } catch (error) {
     throw new Error(error?.message || 'Unable to generate story. Please try again.')

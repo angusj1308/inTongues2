@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   deleteFreeWritingLesson,
-  finalizeFreeWritingLine,
   getFreeWritingLesson,
-  getFullDocument,
   resetFreeWritingLesson,
-  saveFreeWritingLine,
   updateFreeWritingLesson,
 } from '../services/freewriting'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -88,22 +85,6 @@ const getFeedbackIcon = (state) => {
   }
 }
 
-// Get highlight style for a word based on status
-const getHighlightStyle = (language, status, enableHighlight) => {
-  if (!enableHighlight) return {}
-
-  const opacity = STATUS_OPACITY[status]
-  if (!opacity || opacity === 0) return {}
-
-  // New words are always orange, others use language color
-  const base = status === 'new' ? '#F97316' : getLanguageColor(language)
-
-  return {
-    '--hlt-base': base,
-    '--hlt-opacity': opacity,
-  }
-}
-
 const FreeWritingLesson = () => {
   const { lessonId } = useParams()
   const { user } = useAuth()
@@ -113,11 +94,20 @@ const FreeWritingLesson = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Current line state
-  const [userText, setUserText] = useState('')
+  // Document content - single string for whole document
+  const [content, setContent] = useState('')
+  const [lastSavedContent, setLastSavedContent] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Selection state for feedback popup
+  const [selection, setSelection] = useState(null) // { text, rect }
+  const [selectionFeedbackPopup, setSelectionFeedbackPopup] = useState(null) // { x, y }
+
+  // Feedback state
   const [feedback, setFeedback] = useState(null)
   const [modelSentence, setModelSentence] = useState('')
   const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [selectedTextForFeedback, setSelectedTextForFeedback] = useState('')
   const [chatMessages, setChatMessages] = useState([])
 
   // Follow-up question state
@@ -142,17 +132,18 @@ const FreeWritingLesson = () => {
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
-  const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(() => Math.max(480, Math.floor(window.innerWidth / 3)))
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [popup, setPopup] = useState(null)
-  const [submittedText, setSubmittedText] = useState('')
   const [expandedCategories, setExpandedCategories] = useState({})
-  const attemptInputRef = useRef(null)
-  const documentInputRef = useRef(null)
+  const documentRef = useRef(null)
   const chatEndRef = useRef(null)
   const resizeRef = useRef(null)
   const isResizing = useRef(false)
-  const isUpdatingFromDocument = useRef(false)
+  const saveTimeoutRef = useRef(null)
+  const contentRef = useRef('') // Track content without triggering re-renders
+  const isInitialized = useRef(false)
+  const wordCountUpdateRef = useRef(null) // Debounce word count updates
 
   // Load lesson
   useEffect(() => {
@@ -167,6 +158,11 @@ const FreeWritingLesson = () => {
         }
         setLesson(data)
 
+        // Load document content - store in ref, don't use state for the actual content
+        const docContent = data.content || ''
+        contentRef.current = docContent
+        setLastSavedContent(docContent)
+
         // Load user's vocab for word status highlighting
         if (data.targetLanguage) {
           try {
@@ -174,23 +170,6 @@ const FreeWritingLesson = () => {
             setUserVocab(vocab)
           } catch (vocabErr) {
             console.warn('Could not load vocab:', vocabErr)
-          }
-        }
-
-        // Load existing line for current index if any
-        const currentLine = data.lines?.find((l) => l.index === data.currentIndex)
-        if (currentLine) {
-          setUserText(currentLine.text || '')
-          if (currentLine.feedback) {
-            setFeedback(currentLine.feedback)
-            setModelSentence(currentLine.modelSentence || '')
-            setChatMessages([
-              {
-                role: 'assistant',
-                content: currentLine.feedback.explanation || '',
-                hasFeedback: true,
-              },
-            ])
           }
         }
       } catch (err) {
@@ -208,6 +187,64 @@ const FreeWritingLesson = () => {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  // Initialize contentEditable with content after lesson loads
+  useEffect(() => {
+    if (lesson && documentRef.current && !isInitialized.current) {
+      documentRef.current.textContent = contentRef.current
+      isInitialized.current = true
+    }
+  }, [lesson])
+
+  // Handle document input - update ref only, debounce state updates
+  const handleDocumentInput = useCallback(() => {
+    if (!documentRef.current) return
+
+    const newContent = documentRef.current.textContent || ''
+    contentRef.current = newContent
+
+    // Debounce state update to avoid re-renders during typing
+    if (wordCountUpdateRef.current) {
+      clearTimeout(wordCountUpdateRef.current)
+    }
+    wordCountUpdateRef.current = setTimeout(() => {
+      setContent(newContent) // Only update state after 300ms of inactivity
+    }, 300)
+  }, [])
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (!user || !lessonId || content === lastSavedContent) return
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Save after 1 second of inactivity
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true)
+      try {
+        const currentContent = contentRef.current
+        const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
+        await updateFreeWritingLesson(user.uid, lessonId, {
+          content: currentContent,
+          wordCount,
+        })
+        setLastSavedContent(currentContent)
+      } catch (err) {
+        console.error('Auto-save error:', err)
+      } finally {
+        setIsSaving(false)
+      }
+    }, 1000)
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [content, lastSavedContent, user, lessonId])
 
   // Extract words from model sentence for review panel
   useEffect(() => {
@@ -293,68 +330,44 @@ const FreeWritingLesson = () => {
     }
   }, [modelSentence, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
 
-  // Track the previous line index to detect navigation
-  const prevIndexRef = useRef(lesson?.currentIndex)
-
-  // Sync contentEditable with userText when navigating
-  useLayoutEffect(() => {
-    const currentIndex = lesson?.currentIndex
-    const prevIndex = prevIndexRef.current
-
-    if (currentIndex !== prevIndex) {
-      prevIndexRef.current = currentIndex
-      if (attemptInputRef.current) {
-        attemptInputRef.current.textContent = userText || ''
-      }
-      if (documentInputRef.current) {
-        documentInputRef.current.textContent = userText || ''
-      }
-    }
-  }, [lesson?.currentIndex, userText])
-
-  // Sync document contentEditable when userText changes from input field
+  // Handle text selection for feedback popup
   useEffect(() => {
-    if (isUpdatingFromDocument.current) {
-      isUpdatingFromDocument.current = false
-      return
-    }
-    if (documentInputRef.current && documentInputRef.current.textContent !== userText) {
-      const isDocumentFocused = document.activeElement === documentInputRef.current
-      let savedSelection = null
-      if (isDocumentFocused) {
-        const sel = window.getSelection()
-        if (sel.rangeCount > 0) {
-          savedSelection = sel.getRangeAt(0).startOffset
-        }
+    const handleSelectionChange = () => {
+      const sel = window.getSelection()
+      if (!sel || sel.isCollapsed || !documentRef.current) {
+        setSelection(null)
+        setSelectionFeedbackPopup(null)
+        return
       }
 
-      documentInputRef.current.textContent = userText || ''
-
-      if (isDocumentFocused && savedSelection !== null && documentInputRef.current.firstChild) {
-        const sel = window.getSelection()
-        const range = document.createRange()
-        const offset = Math.min(savedSelection, documentInputRef.current.textContent.length)
-        range.setStart(documentInputRef.current.firstChild, offset)
-        range.collapse(true)
-        sel.removeAllRanges()
-        sel.addRange(range)
+      // Check if selection is within our document
+      const range = sel.getRangeAt(0)
+      if (!documentRef.current.contains(range.commonAncestorContainer)) {
+        setSelection(null)
+        setSelectionFeedbackPopup(null)
+        return
       }
-    }
-  }, [userText])
 
-  // Handle input from document contentEditable
-  const handleDocumentInput = useCallback((e) => {
-    const newText = e.target.textContent || ''
-    isUpdatingFromDocument.current = true
-    setUserText(newText)
+      const selectedText = sel.toString().trim()
+      if (selectedText.length < 2) {
+        setSelection(null)
+        setSelectionFeedbackPopup(null)
+        return
+      }
+
+      const rect = range.getBoundingClientRect()
+      setSelection({ text: selectedText, rect })
+
+      // Position popup above the selection
+      setSelectionFeedbackPopup({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
+      })
+    }
+
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
   }, [])
-
-  // Clear corrections when user edits their text
-  useEffect(() => {
-    if (feedback && submittedText && userText !== submittedText) {
-      setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
-    }
-  }, [userText, submittedText, feedback])
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -391,70 +404,6 @@ const FreeWritingLesson = () => {
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
   }
-
-  const completedDocument = lesson ? getFullDocument(lesson) : ''
-
-  // Handle word click for translation popup
-  const handleWordClick = useCallback(async (word, event) => {
-    event.stopPropagation()
-
-    const normalised = normaliseExpression(word)
-    const vocabEntry = userVocab[normalised]
-
-    const rect = event.target.getBoundingClientRect()
-    const x = Math.min(rect.left, window.innerWidth - 320)
-    const y = rect.bottom + 8
-
-    let translation = vocabEntry?.translation || wordTranslations[normalised]?.translation || null
-    let audioBase64 = wordTranslations[normalised]?.audioBase64 || null
-    let audioUrl = wordTranslations[normalised]?.audioUrl || null
-
-    setPopup({
-      x,
-      y,
-      word,
-      normalised,
-      translation: translation || 'Loading...',
-      audioBase64,
-      audioUrl,
-      status: vocabEntry?.status || 'new',
-    })
-
-    if (!translation && lesson?.targetLanguage) {
-      try {
-        const response = await fetch('/api/translatePhrase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase: word,
-            sourceLang: lesson.targetLanguage,
-            targetLang: lesson.sourceLanguage,
-          }),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          translation = data.translation || 'No translation found'
-          audioBase64 = data.audioBase64 || null
-          audioUrl = data.audioUrl || null
-
-          setPopup(prev => prev ? {
-            ...prev,
-            translation,
-            audioBase64,
-            audioUrl,
-          } : null)
-
-          setWordTranslations(prev => ({
-            ...prev,
-            [normalised]: { translation, audioBase64, audioUrl }
-          }))
-        }
-      } catch (err) {
-        console.warn('Failed to fetch translation:', err)
-        setPopup(prev => prev ? { ...prev, translation: 'Translation failed' } : null)
-      }
-    }
-  }, [userVocab, wordTranslations, lesson?.targetLanguage, lesson?.sourceLanguage])
 
   // Handle setting word status from popup
   const handlePopupStatusChange = useCallback(async (newStatus) => {
@@ -499,7 +448,7 @@ const FreeWritingLesson = () => {
   // Close popup when clicking outside
   useEffect(() => {
     const handleGlobalClick = (event) => {
-      if (!event.target.closest('.translate-popup')) {
+      if (!event.target.closest('.translate-popup') && !event.target.closest('.selection-feedback-popup')) {
         setPopup(null)
       }
     }
@@ -507,131 +456,43 @@ const FreeWritingLesson = () => {
     return () => window.removeEventListener('click', handleGlobalClick)
   }, [])
 
-  // Helper function to render text with word status highlighting
-  const renderTextWithWordStatus = useCallback((text, keyPrefix = '', clickable = true) => {
-    if (!text) return null
+  // Submit selected text for feedback
+  const handleSubmitSelectionForFeedback = useCallback(async () => {
+    if (!selection?.text || feedbackLoading) return
 
-    const tokens = text.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
-
-    return tokens.map((token, idx) => {
-      if (/^\s+$/.test(token) || !/[\p{L}\p{M}]/u.test(token)) {
-        return <span key={`${keyPrefix}${idx}`}>{token}</span>
-      }
-
-      const normalised = normaliseExpression(token)
-      const vocabEntry = userVocab[normalised]
-      const status = vocabEntry?.status || 'new'
-
-      const style = getHighlightStyle(lesson?.targetLanguage, status, showWordStatus)
-      const highlighted = Boolean(style['--hlt-opacity'])
-
-      return (
-        <span
-          key={`${keyPrefix}${idx}`}
-          className={`reader-word ${highlighted ? 'reader-word--highlighted' : ''} ${clickable ? 'reader-word--clickable' : ''}`}
-          style={style}
-          onClick={clickable ? (e) => handleWordClick(token, e) : undefined}
-        >
-          {token}
-        </span>
-      )
-    })
-  }, [userVocab, lesson?.targetLanguage, showWordStatus, handleWordClick])
-
-  // Render model sentence with word status highlighting
-  const renderHighlightedModelSentence = useMemo(() => {
-    return renderTextWithWordStatus(modelSentence, 'model-')
-  }, [modelSentence, renderTextWithWordStatus])
-
-  // Render text with correction highlights
-  const renderTextWithCorrections = useCallback((text, corrections = []) => {
-    if (!text || !corrections || corrections.length === 0) {
-      return text
-    }
-
-    const sortedCorrections = [...corrections]
-      .filter(c => typeof c.startIndex === 'number')
-      .sort((a, b) => a.startIndex - b.startIndex)
-
-    if (sortedCorrections.length === 0) {
-      return text
-    }
-
-    const elements = []
-    let lastIndex = 0
-
-    sortedCorrections.forEach((correction, idx) => {
-      if (correction.startIndex > lastIndex) {
-        elements.push(
-          <span key={`text-${idx}`}>
-            {text.slice(lastIndex, correction.startIndex)}
-          </span>
-        )
-      }
-
-      const categoryColors = {
-        grammar: '#ef4444',
-        spelling: '#ef4444',
-        naturalness: '#f59e0b',
-        accuracy: '#3b82f6',
-      }
-      const underlineColor = categoryColors[correction.category] || '#ef4444'
-
-      elements.push(
-        <span
-          key={`error-${idx}`}
-          className="practice-correction-highlight"
-          style={{
-            textDecoration: 'underline',
-            textDecorationColor: underlineColor,
-            textDecorationStyle: 'wavy',
-            textUnderlineOffset: '3px',
-          }}
-        >
-          {text.slice(correction.startIndex, correction.endIndex)}
-        </span>
-      )
-
-      lastIndex = correction.endIndex
-    })
-
-    if (lastIndex < text.length) {
-      elements.push(
-        <span key="text-end">{text.slice(lastIndex)}</span>
-      )
-    }
-
-    return elements
-  }, [])
-
-  const handleSubmitForFeedback = useCallback(async () => {
-    if (!userText.trim() || feedbackLoading) return
-
+    const textToReview = selection.text
+    setSelectedTextForFeedback(textToReview)
     setFeedbackLoading(true)
     setFeedback(null)
+    setSelectionFeedbackPopup(null)
+
+    // Detect bracketed expressions (user asking for help expressing something)
+    // Matches text in [], (), or 「」brackets
+    const bracketedExpressions = textToReview.match(/[\[(\u300c]([^\])\u300d]+)[\])\u300d]/g) || []
+    const helpExpressions = bracketedExpressions.map(expr =>
+      expr.slice(1, -1).trim() // Remove the brackets
+    )
+
+    // Clear selection
+    window.getSelection()?.removeAllRanges()
+
     setChatMessages((prev) => [
       ...prev,
-      { role: 'user', content: userText },
+      { role: 'user', content: textToReview },
     ])
 
     try {
-      // Get previous lines for context
-      const previousLines = lesson.lines
-        ?.filter(l => l.index < lesson.currentIndex)
-        ?.sort((a, b) => a.index - b.index)
-        ?.map(l => l.text)
-        ?.slice(-3) || []
-
       const response = await fetch('/api/freewriting/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userText: userText.trim(),
+          userText: textToReview,
           targetLanguage: lesson.targetLanguage,
           sourceLanguage: lesson.sourceLanguage,
           textType: lesson.textType,
-          previousLines,
+          fullDocument: contentRef.current,
           feedbackInTarget,
+          helpExpressions, // Bracketed text user needs help expressing
         }),
       })
 
@@ -643,7 +504,9 @@ const FreeWritingLesson = () => {
 
       setFeedback(data.feedback)
       setModelSentence(data.modelSentence || '')
-      setSubmittedText(userText.trim())
+
+      // Open panel to show feedback
+      setIsPanelOpen(true)
 
       setChatMessages((prev) => [
         ...prev,
@@ -653,19 +516,6 @@ const FreeWritingLesson = () => {
           hasFeedback: true,
         },
       ])
-
-      // Save the line
-      await saveFreeWritingLine(user.uid, lessonId, {
-        index: lesson.currentIndex,
-        text: userText.trim(),
-        modelSentence: data.modelSentence || '',
-        feedback: data.feedback,
-        status: 'reviewed',
-      })
-
-      // Refresh lesson data
-      const updated = await getFreeWritingLesson(user.uid, lessonId)
-      setLesson(updated)
     } catch (err) {
       console.error('Feedback error:', err)
       setChatMessages((prev) => [
@@ -679,43 +529,15 @@ const FreeWritingLesson = () => {
     } finally {
       setFeedbackLoading(false)
     }
-  }, [userText, feedbackLoading, lesson, user, lessonId, feedbackInTarget])
+  }, [selection, feedbackLoading, lesson, feedbackInTarget])
 
-  const handleFinalize = useCallback(async (useModel = false) => {
-    if (feedbackLoading) return
-
-    const finalText = useModel ? modelSentence : userText.trim()
-    if (!finalText) return
-
-    try {
-      await finalizeFreeWritingLine(
-        user.uid,
-        lessonId,
-        lesson.currentIndex,
-        finalText
-      )
-
-      // Refresh lesson data
-      const updated = await getFreeWritingLesson(user.uid, lessonId)
-      setLesson(updated)
-
-      // Reset state for next line
-      setUserText('')
-      setFeedback(null)
-      setModelSentence('')
-      setChatMessages([])
-      setNurfWords([])
-
-      if (attemptInputRef.current) {
-        attemptInputRef.current.textContent = ''
-      }
-
-      attemptInputRef.current?.focus()
-    } catch (err) {
-      console.error('Finalize error:', err)
-      setError('Failed to save progress.')
+  // Handle keyboard shortcut for feedback (Cmd/Ctrl + Enter)
+  const handleKeyDown = useCallback((e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && selection?.text) {
+      e.preventDefault()
+      handleSubmitSelectionForFeedback()
     }
-  }, [userText, modelSentence, feedbackLoading, lesson, user, lessonId])
+  }, [selection, handleSubmitSelectionForFeedback])
 
   const handleDelete = async () => {
     try {
@@ -730,10 +552,9 @@ const FreeWritingLesson = () => {
   const handleReset = async () => {
     try {
       await resetFreeWritingLesson(user.uid, lessonId)
-      const updated = await getFreeWritingLesson(user.uid, lessonId)
-      setLesson(updated)
-
-      setUserText('')
+      contentRef.current = ''
+      setContent('')
+      setLastSavedContent('')
       setFeedback(null)
       setModelSentence('')
       setChatMessages([])
@@ -741,58 +562,13 @@ const FreeWritingLesson = () => {
       setWordTranslations({})
       setShowResetConfirm(false)
 
-      setTimeout(() => {
-        if (attemptInputRef.current) {
-          attemptInputRef.current.textContent = ''
-          attemptInputRef.current.focus()
-        }
-      }, 50)
+      if (documentRef.current) {
+        documentRef.current.textContent = ''
+        documentRef.current.focus()
+      }
     } catch (err) {
       console.error('Reset error:', err)
       setError('Failed to reset lesson.')
-    }
-  }
-
-  const handleGoToLine = async (index) => {
-    if (index === lesson.currentIndex) return
-
-    try {
-      await updateFreeWritingLesson(user.uid, lessonId, { currentIndex: index })
-      const updated = await getFreeWritingLesson(user.uid, lessonId)
-      setLesson(updated)
-
-      const lineData = updated.lines?.find((l) => l.index === index)
-      if (lineData) {
-        setUserText(lineData.text || '')
-
-        if (lineData.feedback) {
-          setFeedback(lineData.feedback)
-          setModelSentence(lineData.modelSentence || '')
-          setChatMessages([
-            { role: 'user', content: lineData.text },
-            {
-              role: 'assistant',
-              content: lineData.feedback.explanation || '',
-              hasFeedback: true,
-            },
-          ])
-        } else {
-          setFeedback(null)
-          setModelSentence('')
-          setChatMessages([])
-        }
-      } else {
-        setUserText('')
-        setFeedback(null)
-        setModelSentence('')
-        setChatMessages([])
-      }
-
-      setTimeout(() => {
-        attemptInputRef.current?.focus()
-      }, 0)
-    } catch (err) {
-      console.error('Navigation error:', err)
     }
   }
 
@@ -834,37 +610,6 @@ const FreeWritingLesson = () => {
     }
   }, [user, lesson?.targetLanguage, userVocab, wordTranslations])
 
-  // Check for new words before finalizing
-  const attemptFinalize = useCallback((useModel = false) => {
-    const hasNewWords = nurfWords.some(w => w.status === 'new')
-    if (hasNewWords) {
-      setShowNewWordsWarning(true)
-    } else {
-      handleFinalize(useModel)
-    }
-  }, [nurfWords, handleFinalize])
-
-  // Mark all new words as known and proceed
-  const handleConfirmNewWordsAsKnown = useCallback(async () => {
-    const newWords = nurfWords.filter(w => w.status === 'new')
-    for (const wordData of newWords) {
-      await handleWordStatusChange(wordData.displayWord, 'known')
-    }
-    setShowNewWordsWarning(false)
-    handleFinalize(false)
-  }, [nurfWords, handleWordStatusChange, handleFinalize])
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      if (!feedback) {
-        handleSubmitForFeedback()
-      } else {
-        attemptFinalize(false)
-      }
-    }
-  }
-
   // Play audio for a word
   const handlePlayWordAudio = useCallback((audioBase64, audioUrl) => {
     if (audioRef.current) {
@@ -901,7 +646,7 @@ const FreeWritingLesson = () => {
           question,
           context: {
             sourceSentence: null,
-            userAttempt: userText,
+            userAttempt: selectedTextForFeedback,
             modelSentence: modelSentence,
             feedback: feedback,
             targetLanguage: lesson.targetLanguage,
@@ -929,66 +674,36 @@ const FreeWritingLesson = () => {
     }
   }
 
-  // Toggle feedback mode
-  const handleToggleFeedbackMode = async () => {
-    const newMode = lesson.feedbackMode === 'line' ? 'document' : 'line'
-    try {
-      await updateFreeWritingLesson(user.uid, lessonId, { feedbackMode: newMode })
-      setLesson(prev => ({ ...prev, feedbackMode: newMode }))
-    } catch (err) {
-      console.error('Failed to update feedback mode:', err)
-    }
-  }
+  // Render model sentence with word status highlighting
+  const renderHighlightedModelSentence = useMemo(() => {
+    if (!modelSentence) return null
 
-  // Submit full document for feedback
-  const handleSubmitDocument = async () => {
-    if (!lesson.lines?.length) return
+    const tokens = modelSentence.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
 
-    setFeedbackLoading(true)
-    try {
-      const fullDocument = getFullDocument(lesson)
-
-      const response = await fetch('/api/freewriting/document-feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          document: fullDocument,
-          targetLanguage: lesson.targetLanguage,
-          sourceLanguage: lesson.sourceLanguage,
-          textType: lesson.textType,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to get document feedback')
+    return tokens.map((token, idx) => {
+      if (/^\s+$/.test(token) || !/[\p{L}\p{M}]/u.test(token)) {
+        return <span key={idx}>{token}</span>
       }
 
-      const data = await response.json()
+      const normalised = normaliseExpression(token)
+      const vocabEntry = userVocab[normalised]
+      const status = vocabEntry?.status || 'new'
 
-      // Update lesson with document feedback
-      await updateFreeWritingLesson(user.uid, lessonId, {
-        documentFeedback: data.overallFeedback,
-      })
+      const opacity = STATUS_OPACITY[status]
+      const base = status === 'new' ? '#F97316' : getLanguageColor(lesson?.targetLanguage)
+      const highlighted = opacity && opacity > 0
 
-      const updated = await getFreeWritingLesson(user.uid, lessonId)
-      setLesson(updated)
-
-      setChatMessages([{
-        role: 'assistant',
-        content: `Document Review:\n\n${data.overallFeedback?.summary || 'Feedback received.'}`,
-        hasDocumentFeedback: true,
-      }])
-    } catch (err) {
-      console.error('Document feedback error:', err)
-      setChatMessages([{
-        role: 'assistant',
-        content: 'Sorry, I had trouble reviewing your document. Please try again.',
-        isError: true,
-      }])
-    } finally {
-      setFeedbackLoading(false)
-    }
-  }
+      return (
+        <span
+          key={idx}
+          className={`reader-word ${highlighted ? 'reader-word--highlighted' : ''} reader-word--clickable`}
+          style={highlighted ? { '--hlt-base': base, '--hlt-opacity': opacity } : {}}
+        >
+          {token}
+        </span>
+      )
+    })
+  }, [modelSentence, userVocab, lesson?.targetLanguage])
 
   if (loading) {
     return (
@@ -1013,14 +728,12 @@ const FreeWritingLesson = () => {
     return null
   }
 
-  const isDocumentMode = lesson.feedbackMode === 'document'
-  const lineCount = lesson.lines?.length || 0
-  const wordCount = lesson.wordCount || 0
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length
 
   return (
-    <div className="practice-lesson-page">
+    <div className="practice-lesson-page freewriting-page" onKeyDown={handleKeyDown}>
       {/* Header */}
-      <header className="dashboard-header practice-header">
+      <header className="dashboard-header practice-header" style={{ minHeight: '56px' }}>
         <div className="dashboard-brand-band practice-header-band">
           <div className="practice-header-left">
             <button
@@ -1032,37 +745,33 @@ const FreeWritingLesson = () => {
           </div>
 
           <div className="practice-header-center">
-            <div className="practice-nav-controls">
-              <span className="practice-nav-indicator">
-                {wordCount} words · {lineCount} lines
-              </span>
-            </div>
+            <span className="freewriting-stats">
+              {wordCount} words
+              {isSaving && <span style={{ marginLeft: '8px', opacity: 0.6 }}>Saving...</span>}
+              {!isSaving && content !== lastSavedContent && <span style={{ marginLeft: '8px', opacity: 0.6 }}>•</span>}
+            </span>
           </div>
 
           <div className="practice-header-actions">
-            {/* Feedback mode toggle */}
             <button
-              className={`practice-header-button ${isDocumentMode ? 'practice-header-button--active' : ''}`}
-              type="button"
-              onClick={handleToggleFeedbackMode}
-              title={isDocumentMode ? 'Document feedback mode' : 'Line-by-line feedback mode'}
-            >
-              {isDocumentMode ? 'Doc' : 'Line'}
-            </button>
-            <button
-              className={`practice-header-button ${showWordStatus ? 'practice-header-button--active' : ''}`}
+              className="practice-header-button"
               type="button"
               onClick={() => setShowWordStatus(!showWordStatus)}
               aria-pressed={showWordStatus}
-              style={{ color: showWordStatus ? '#F97316' : undefined }}
+              title="Toggle word highlighting"
             >
-              Aa
+              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke={showWordStatus ? '#F97316' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7V4h16v3" />
+                <path d="M9 20h6" />
+                <path d="M12 4v16" />
+              </svg>
             </button>
             <button
               className="practice-header-button"
               type="button"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setDarkMode(!darkMode)}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
             >
               {darkMode ? (
                 <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1087,6 +796,7 @@ const FreeWritingLesson = () => {
               type="button"
               aria-label="Reset lesson"
               onClick={() => setShowResetConfirm(true)}
+              title="Reset"
             >
               <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -1099,40 +809,83 @@ const FreeWritingLesson = () => {
 
       {/* Main content */}
       <div className="practice-layout">
-        {/* Left panel - Feedback */}
-        <aside className="practice-chat-panel" style={{ width: panelWidth }}>
+        {/* Tutor panel toggle tab */}
+        <button
+          className="freewriting-panel-tab"
+          onClick={() => setIsPanelOpen(!isPanelOpen)}
+          title={isPanelOpen ? 'Hide tutor' : 'Show tutor'}
+          style={{
+            position: 'fixed',
+            left: isPanelOpen ? panelWidth : 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 100,
+            background: 'var(--bg-primary, #fff)',
+            border: '1px solid var(--border-color, #e2e8f0)',
+            borderLeft: isPanelOpen ? '1px solid var(--border-color, #e2e8f0)' : 'none',
+            borderRadius: isPanelOpen ? '0 8px 8px 0' : '0 8px 8px 0',
+            padding: '12px 8px',
+            cursor: 'pointer',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            transition: 'left 0.2s ease',
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{ transform: isPanelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+
+        {/* Left panel - Feedback (collapsible) */}
+        <aside
+          className="practice-chat-panel"
+          style={{
+            width: panelWidth,
+            transform: isPanelOpen ? 'translateX(0)' : `translateX(-100%)`,
+            transition: 'transform 0.2s ease',
+            position: 'fixed',
+            left: 0,
+            top: '56px',
+            bottom: 0,
+            zIndex: 99,
+          }}
+        >
           <div className="practice-chat-header">
             <h2>Tutor</h2>
-            <div
-              className="practice-lang-toggle"
-              onClick={() => setFeedbackInTarget(!feedbackInTarget)}
-              title={feedbackInTarget ? 'Feedback in target language' : 'Feedback in English'}
+            <button
+              className="freewriting-panel-close"
+              onClick={() => setIsPanelOpen(false)}
+              title="Close panel"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <span className={`toggle-option ${!feedbackInTarget ? 'active' : ''}`}>EN</span>
-              <span className={`toggle-option ${feedbackInTarget ? 'active' : ''}`}>
-                {lesson?.targetLanguage?.slice(0, 2).toUpperCase() || 'TL'}
-              </span>
-            </div>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
           <div className="practice-chat-messages">
-            {/* Writing prompt area - no translation prompt, just encouragement */}
-            {!isDocumentMode && (
-              <div className="practice-tutor-prompt">
-                <span className="prompt-label">Write in {lesson.targetLanguage}:</span>
-                <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  Express your thoughts freely. Press Enter to get feedback on your sentence.
-                </p>
-              </div>
-            )}
-
-            {isDocumentMode && (
-              <div className="practice-tutor-prompt">
-                <span className="prompt-label">Document Mode</span>
-                <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  Write freely in the document. When you're done, click "Submit for Review" to get feedback on the entire document.
-                </p>
-              </div>
-            )}
+            {/* Instructions */}
+            <div className="practice-tutor-prompt">
+              <span className="prompt-label">Write in {lesson.targetLanguage}</span>
+              <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                Select text and click "Get Feedback" to review your writing.
+              </p>
+            </div>
 
             {/* Chat messages with feedback inline */}
             {chatMessages.map((msg, i) => (
@@ -1225,55 +978,68 @@ const FreeWritingLesson = () => {
                         </div>
                       )
                     })()}
-                  </div>
-                )}
 
-                {/* Document feedback display */}
-                {msg.role === 'assistant' && msg.hasDocumentFeedback && lesson.documentFeedback && (
-                  <div className="practice-feedback-checklist">
-                    <div className="feedback-check-item pass">
-                      <div className="feedback-check-header">
-                        <span className="check-label">Overall Score</span>
-                        <span className="check-status">
-                          {lesson.documentFeedback.overallScore || 'N/A'}/5
-                        </span>
-                      </div>
-                    </div>
-                    {lesson.documentFeedback.strengths?.length > 0 && (
-                      <div className="feedback-check-item pass">
-                        <div className="feedback-check-header">
-                          <span className="check-label">Strengths</span>
+                    {/* Expression Help - for bracketed "help me say this" requests */}
+                    {(() => {
+                      const expressionHelp = feedback?.corrections?.filter(c => c.category === 'expression') || []
+                      if (expressionHelp.length === 0) return null
+                      const isExpanded = expandedCategories['expression'] !== false // Default to expanded
+                      return (
+                        <div
+                          className="feedback-check-item expression-help"
+                          style={{
+                            background: 'var(--bg-accent, #f0f9ff)',
+                            borderLeft: '3px solid var(--color-info, #0ea5e9)',
+                          }}
+                        >
+                          <div
+                            className="feedback-check-header"
+                            onClick={() => setExpandedCategories(prev => ({ ...prev, expression: !isExpanded }))}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <span className="check-label" style={{ color: 'var(--color-info, #0ea5e9)' }}>
+                              💡 How to express this
+                              <span className="check-count">({expressionHelp.length})</span>
+                            </span>
+                            <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                          </div>
+                          {isExpanded && (
+                            <div className="feedback-corrections-list">
+                              {/* Show the explanation first if available */}
+                              {feedback.explanation && (
+                                <p style={{
+                                  margin: '0 0 12px 0',
+                                  padding: '8px 12px',
+                                  background: 'var(--bg-primary, white)',
+                                  borderRadius: '6px',
+                                  fontSize: '0.9rem',
+                                  lineHeight: '1.5',
+                                }}>
+                                  {feedback.explanation}
+                                </p>
+                              )}
+                              {expressionHelp.map((c, idx) => (
+                                <div key={idx} className="feedback-correction-item" style={{ background: 'var(--bg-primary, white)' }}>
+                                  <span className="correction-original" style={{ fontStyle: 'italic' }}>{c.original}</span>
+                                  <span className="correction-arrow">→</span>
+                                  <span className="correction-fix" style={{ fontWeight: '600' }}>{c.correction}</span>
+                                  {c.explanation && <p className="correction-explanation">{c.explanation}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <ul style={{ margin: '0.5rem 0', paddingLeft: '1.25rem' }}>
-                          {lesson.documentFeedback.strengths.map((s, idx) => (
-                            <li key={idx} style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{s}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {lesson.documentFeedback.suggestions?.length > 0 && (
-                      <div className="feedback-check-item acceptable">
-                        <div className="feedback-check-header">
-                          <span className="check-label">Suggestions</span>
-                        </div>
-                        <ul style={{ margin: '0.5rem 0', paddingLeft: '1.25rem' }}>
-                          {lesson.documentFeedback.suggestions.map((s, idx) => (
-                            <li key={idx} style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{s}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 )}
 
                 {/* Only show chat message for user messages and non-feedback assistant messages */}
-                {!(msg.role === 'assistant' && (msg.hasFeedback || msg.hasDocumentFeedback)) && (
+                {!(msg.role === 'assistant' && msg.hasFeedback) && (
                   <div
                     className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
                   >
-                    {msg.role === 'assistant' && feedbackInTarget && showWordStatus
-                      ? renderTextWithWordStatus(msg.content, `chat-${i}-`)
-                      : msg.content}
+                    {msg.content}
                   </div>
                 )}
 
@@ -1282,19 +1048,14 @@ const FreeWritingLesson = () => {
                   <>
                     {modelSentence && (
                       <div className="practice-example-sentence">
-                        <span className="example-label">A more natural way:</span>
+                        <span className="example-label">
+                          {feedback?.corrections?.some(c => c.category === 'expression')
+                            ? "Here's how to say it:"
+                            : 'A more natural way:'}
+                        </span>
                         <p className="example-text">
                           {renderHighlightedModelSentence}
                         </p>
-                        <button
-                          className="practice-use-example-btn"
-                          onClick={() => {
-                            setUserText(modelSentence)
-                            setSubmittedText('')
-                          }}
-                        >
-                          Use this version
-                        </button>
                       </div>
                     )}
 
@@ -1382,68 +1143,32 @@ const FreeWritingLesson = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Panel footer with input */}
+          {/* Panel footer - just for follow-up questions when feedback is shown */}
           <div className="practice-panel-footer">
-            {!isDocumentMode && (
-              <>
-                <div className="practice-input-row">
-                  <input
-                    type="text"
-                    className="practice-input-field"
-                    value={!feedback ? userText : followUpQuestion}
-                    onChange={(e) => {
-                      if (!feedback) {
-                        setUserText(e.target.value)
-                      } else {
-                        setFollowUpQuestion(e.target.value)
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        if (!feedback) {
-                          handleSubmitForFeedback()
-                        } else if (followUpQuestion.trim()) {
-                          handleFollowUp()
-                        }
-                      }
-                    }}
-                    placeholder={!feedback ? `Write in ${lesson.targetLanguage}...` : 'Ask a question...'}
-                    disabled={feedbackLoading || followUpLoading}
-                  />
-                  <button
-                    className="practice-submit-btn"
-                    onClick={() => {
-                      if (!feedback) {
-                        handleSubmitForFeedback()
-                      } else if (followUpQuestion.trim()) {
-                        handleFollowUp()
-                      }
-                    }}
-                    disabled={!feedback ? (!userText.trim() || feedbackLoading) : (!followUpQuestion.trim() || followUpLoading)}
-                  >
-                    {feedbackLoading || followUpLoading ? '...' : 'Submit'}
-                  </button>
-                </div>
+            {feedback && (
+              <div className="practice-input-row">
+                <input
+                  type="text"
+                  className="practice-input-field"
+                  value={followUpQuestion}
+                  onChange={(e) => setFollowUpQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && followUpQuestion.trim()) {
+                      e.preventDefault()
+                      handleFollowUp()
+                    }
+                  }}
+                  placeholder="Ask a question..."
+                  disabled={followUpLoading}
+                />
                 <button
-                  className="practice-continue-btn"
-                  onClick={() => attemptFinalize(false)}
-                  disabled={!feedback}
+                  className="practice-submit-btn"
+                  onClick={handleFollowUp}
+                  disabled={!followUpQuestion.trim() || followUpLoading}
                 >
-                  Save & Continue
+                  {followUpLoading ? '...' : 'Ask'}
                 </button>
-              </>
-            )}
-
-            {isDocumentMode && (
-              <button
-                className="practice-continue-btn"
-                onClick={handleSubmitDocument}
-                disabled={feedbackLoading || !lesson.lines?.length}
-                style={{ marginTop: 0 }}
-              >
-                {feedbackLoading ? 'Reviewing...' : 'Submit for Review'}
-              </button>
+              </div>
             )}
           </div>
 
@@ -1455,85 +1180,91 @@ const FreeWritingLesson = () => {
           />
         </aside>
 
-        {/* Right panel - Document */}
-        <main className="practice-document-panel">
-          <div className="practice-document-paper">
+        {/* Right panel - Document (takes full width) */}
+        <main className="practice-document-panel" style={{ marginLeft: 0, width: '100%' }}>
+          <div className="practice-document-paper" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Document title */}
             <h1 className="practice-document-title">{lesson.title}</h1>
 
-            {/* Document body */}
-            <div className="practice-document-body">
-              {/* Render all lines - finalized ones visible, current one shows live typing */}
-              {lesson.lines?.filter(l => l.status === 'finalized').sort((a, b) => a.index - b.index).map((line) => (
-                <span
-                  key={`finalized-${line.index}`}
-                  className="practice-document-sentence"
-                  onClick={() => handleGoToLine(line.index)}
-                  title="Click to revise"
-                >
-                  {renderTextWithWordStatus(line.text, `doc-${line.index}-`)}{' '}
-                </span>
-              ))}
-
-              {/* Current line input - only in line mode */}
-              {!isDocumentMode && (
-                <>
-                  {feedback && feedback.corrections?.length > 0 ? (
-                    <span className="practice-inline-display practice-inline-display--with-corrections">
-                      {renderTextWithCorrections(userText, feedback.corrections)}
-                    </span>
-                  ) : (
-                    <span
-                      className="practice-inline-display practice-inline-display--editable"
-                      contentEditable
-                      suppressContentEditableWarning
-                      ref={documentInputRef}
-                      onInput={handleDocumentInput}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleSubmitForFeedback()
-                        }
-                      }}
-                    />
-                  )}
-                </>
-              )}
-
-              {/* Document mode - editable textarea */}
-              {isDocumentMode && (
-                <span
-                  className="practice-inline-display practice-inline-display--editable"
-                  contentEditable
-                  suppressContentEditableWarning
-                  ref={documentInputRef}
-                  onInput={(e) => {
-                    // In document mode, we just let them type freely
-                    // The text will be processed when they submit
+            {/* Document body container */}
+            <div style={{ position: 'relative' }}>
+              {/* Placeholder shown when empty */}
+              {!content && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    color: 'var(--text-muted, #9ca3af)',
+                    pointerEvents: 'none',
+                    fontSize: '1.1rem',
+                    lineHeight: '1.8',
                   }}
-                  style={{ display: 'block', minHeight: '200px' }}
-                />
+                >
+                  Start writing in {lesson.targetLanguage}...
+                </div>
               )}
+              {/* Document body - fully editable (uncontrolled) */}
+              <div
+                ref={documentRef}
+                className="freewriting-document-body"
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleDocumentInput}
+                style={{
+                  minHeight: '400px',
+                  outline: 'none',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.8',
+                  fontSize: '1.1rem',
+                }}
+              />
             </div>
           </div>
         </main>
       </div>
 
-      {/* Delete confirmation modal */}
-      {showDeleteConfirm && (
-        <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete Writing?</h3>
-            <p>This will permanently delete this writing and all your progress.</p>
-            <div className="modal-actions">
-              <button className="button ghost" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
-              </button>
-              <button className="button danger" onClick={handleDelete}>
-                Delete
-              </button>
-            </div>
-          </div>
+      {/* Selection feedback popup */}
+      {selectionFeedbackPopup && selection && !feedbackLoading && (
+        <div
+          className="selection-feedback-popup"
+          style={{
+            position: 'fixed',
+            left: selectionFeedbackPopup.x,
+            top: selectionFeedbackPopup.y,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 1000,
+            background: 'var(--bg-primary, #fff)',
+            border: '1px solid var(--border-color, #e2e8f0)',
+            borderRadius: '8px',
+            padding: '6px 12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="button primary small"
+            onClick={handleSubmitSelectionForFeedback}
+            style={{
+              padding: '4px 12px',
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Get Feedback
+          </button>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            or ⌘+Enter
+          </span>
         </div>
       )}
 
@@ -1549,24 +1280,6 @@ const FreeWritingLesson = () => {
               </button>
               <button className="button primary" onClick={handleReset}>
                 Reset
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* New words warning modal */}
-      {showNewWordsWarning && (
-        <div className="modal-backdrop" onClick={() => setShowNewWordsWarning(false)}>
-          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
-            <h3>Unreviewed Words</h3>
-            <p>By proceeding to the next line, all new words will be moved to known.</p>
-            <div className="modal-actions">
-              <button className="button ghost" onClick={() => setShowNewWordsWarning(false)}>
-                Review Words
-              </button>
-              <button className="button primary" onClick={handleConfirmNewWordsAsKnown}>
-                Continue
               </button>
             </div>
           </div>

@@ -21,6 +21,7 @@ import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
 import FreeWritingLesson from './pages/FreeWritingLesson'
+import NovelGenerator from './pages/NovelGenerator'
 import TutorChat from './pages/TutorChat'
 
 const LandingRedirect = () => {
@@ -109,6 +110,22 @@ const App = () => {
         element={
           <ProtectedRoute>
             <GenerateContent />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/novel"
+        element={
+          <ProtectedRoute>
+            <NovelGenerator />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/novel/:bookId"
+        element={
+          <ProtectedRoute>
+            <NovelGenerator />
           </ProtectedRoute>
         }
       />

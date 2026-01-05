@@ -5085,7 +5085,7 @@ app.post('/api/freewriting/save-beacon', async (req, res) => {
     const lessonRef = admin.firestore()
       .collection('users')
       .doc(userId)
-      .collection('freewriting')
+      .collection('freeWritingLessons')
       .doc(lessonId)
 
     await lessonRef.update({

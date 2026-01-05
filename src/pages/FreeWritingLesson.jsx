@@ -165,9 +165,10 @@ const FreeWritingLesson = () => {
         }
         setLesson(data)
 
-        // Load document content - store in ref, don't use state for the actual content
+        // Load document content - store in ref and state
         const docContent = data.content || ''
         contentRef.current = docContent
+        setContent(docContent)
         setLastSavedContent(docContent)
 
         // Load user's vocab for word status highlighting
@@ -261,13 +262,15 @@ const FreeWritingLesson = () => {
 
       const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
       // Use sendBeacon for reliable save on page unload
+      // Must use Blob with correct Content-Type for express.json() to parse
       const data = JSON.stringify({
         userId: user.uid,
         lessonId,
         content: currentContent,
         wordCount,
       })
-      navigator.sendBeacon('/api/freewriting/save-beacon', data)
+      const blob = new Blob([data], { type: 'application/json' })
+      navigator.sendBeacon('/api/freewriting/save-beacon', blob)
     }
 
     const handleBeforeUnload = (e) => {

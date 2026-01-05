@@ -104,6 +104,14 @@ const getHighlightStyle = (language, status, enableHighlight) => {
   }
 }
 
+// Helper to safely extract translation string (handles corrupted data where object was stored)
+const safeTranslation = (value) => {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && value.translation) return value.translation
+  return null
+}
+
 const PracticeLesson = () => {
   const { lessonId } = useParams()
   const { user } = useAuth()
@@ -235,7 +243,7 @@ const PracticeLesson = () => {
           displayWord: words.find(w => w.toLowerCase() === word) || word,
           normalised: word,
           status,
-          translation: translationData.translation || vocabEntry?.translation || null,
+          translation: safeTranslation(translationData.translation) || safeTranslation(vocabEntry?.translation) || null,
           audioBase64: translationData.audioBase64 || null,
           audioUrl: translationData.audioUrl || null,
         }
@@ -287,7 +295,7 @@ const PracticeLesson = () => {
           if (translationData) {
             return {
               ...w,
-              translation: translationData.translation || w.translation,
+              translation: safeTranslation(translationData.translation) || safeTranslation(w.translation),
               audioBase64: translationData.audioBase64 || w.audioBase64,
               audioUrl: translationData.audioUrl || w.audioUrl,
             }
@@ -421,7 +429,7 @@ const PracticeLesson = () => {
     const y = rect.bottom + 8
 
     // Check if we already have a translation
-    let translation = vocabEntry?.translation || wordTranslations[normalised]?.translation || null
+    let translation = safeTranslation(vocabEntry?.translation) || safeTranslation(wordTranslations[normalised]?.translation) || null
     let audioBase64 = wordTranslations[normalised]?.audioBase64 || null
     let audioUrl = wordTranslations[normalised]?.audioUrl || null
 
@@ -854,7 +862,7 @@ const PracticeLesson = () => {
       // Get the translation for this word
       const normalised = normaliseExpression(word)
       const existingEntry = userVocab[normalised]
-      const translation = existingEntry?.translation || wordTranslations[normalised]?.translation || null
+      const translation = safeTranslation(existingEntry?.translation) || safeTranslation(wordTranslations[normalised]?.translation) || null
 
       // Map 'new' status to 'unknown' for database (new is UI-only)
       const dbStatus = newStatus === 'new' ? 'unknown' : newStatus
@@ -1278,7 +1286,7 @@ const PracticeLesson = () => {
                             const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
                             const languageColor = getLanguageColor(lesson?.targetLanguage)
                             const translationData = wordTranslations[wordData.normalised] || {}
-                            const translation = translationData.translation || wordData.translation || '...'
+                            const translation = safeTranslation(translationData.translation) || safeTranslation(wordData.translation) || '...'
                             const hasAudio = Boolean(wordData.audioBase64 || wordData.audioUrl || translationData.audioBase64 || translationData.audioUrl)
 
                             return (
@@ -1641,7 +1649,7 @@ const PracticeLesson = () => {
                 {lesson?.sourceLanguage || 'Native'}
               </p>
               <p className="translate-popup-language-text">
-                {popup.translation}
+                {safeTranslation(popup.translation) || 'Loading...'}
               </p>
             </div>
           </div>

@@ -727,6 +727,41 @@ const PracticeLesson = () => {
     if (!finalText) return
 
     try {
+      // Extract words from the finalized text and mark them as known
+      // If a user uses a word correctly, they know it
+      const wordsInText = finalText.match(/[\p{L}\p{M}]+/gu) || []
+      const uniqueWords = [...new Set(wordsInText.map(w => w.toLowerCase()))]
+
+      // Mark each word as known (batch the updates)
+      for (const word of uniqueWords) {
+        const normalised = normaliseExpression(word)
+        // Only update if not already known (avoid unnecessary writes)
+        if (userVocab[normalised]?.status !== 'known') {
+          await upsertVocabEntry(
+            user.uid,
+            lesson.targetLanguage,
+            word,
+            userVocab[normalised]?.translation || null,
+            'known'
+          )
+        }
+      }
+
+      // Update local vocab state
+      setUserVocab(prev => {
+        const updated = { ...prev }
+        for (const word of uniqueWords) {
+          const normalised = normaliseExpression(word)
+          updated[normalised] = {
+            ...prev[normalised],
+            text: word,
+            status: 'known',
+            language: lesson.targetLanguage,
+          }
+        }
+        return updated
+      })
+
       const result = await finalizeAttempt(
         user.uid,
         lessonId,
@@ -763,7 +798,7 @@ const PracticeLesson = () => {
       console.error('Finalize error:', err)
       setError('Failed to save progress.')
     }
-  }, [userAttempt, modelSentence, feedbackLoading, lesson, user, lessonId])
+  }, [userAttempt, modelSentence, feedbackLoading, lesson, user, lessonId, userVocab])
 
   const handleDelete = async () => {
     try {

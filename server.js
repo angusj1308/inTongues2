@@ -23,6 +23,7 @@ const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'
+import { generateBible } from './novelGenerator.js'
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic)
@@ -4858,30 +4859,45 @@ app.post('/api/generate/bible', async (req, res) => {
       bible: {} // Will be populated by phases
     })
 
-    // TODO: Phase B will implement actual bible generation
-    // For Phase A, return mock response
-    const mockBible = {
-      coreFoundation: {
-        status: 'pending',
-        message: 'Phase 1 generation not yet implemented'
-      },
-      world: { status: 'pending' },
-      characters: { status: 'pending' },
-      chemistry: { status: 'pending' },
-      plot: { status: 'pending' },
-      chapters: { status: 'pending' },
-      levelCheck: { status: 'pending' },
-      validation: { status: 'pending' }
+    // Generate the complete bible using the 8-phase pipeline
+    console.log(`Starting bible generation for book ${bookId}...`)
+    const result = await generateBible(concept, level, lengthPreset, language)
+
+    if (!result.success) {
+      // Update book status to failed
+      await bookRef.update({
+        status: 'failed',
+        error: result.error,
+        bible: result.partialBible || {}
+      })
+
+      return res.status(500).json({
+        success: false,
+        bookId,
+        error: result.error,
+        partialBible: result.partialBible
+      })
     }
 
-    await bookRef.update({ bible: mockBible })
+    // Update book with completed bible
+    const finalStatus = result.validationStatus === 'PASS' || result.validationStatus === 'CONDITIONAL_PASS'
+      ? 'bible_complete'
+      : 'bible_needs_review'
+
+    await bookRef.update({
+      bible: result.bible,
+      status: finalStatus,
+      validationStatus: result.validationStatus,
+      validationAttempts: result.validationAttempts
+    })
 
     return res.status(201).json({
       success: true,
       bookId,
-      status: 'planning',
-      message: 'Bible generation initiated (Phase A mock - actual generation not yet implemented)',
-      bible: mockBible
+      status: finalStatus,
+      validationStatus: result.validationStatus,
+      validationAttempts: result.validationAttempts,
+      bible: result.bible
     })
 
   } catch (error) {
@@ -4923,9 +4939,11 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     }
 
     // Check if bible is complete
-    if (bookData.status === 'planning' && bookData.bible?.validation?.status !== 'PASS') {
+    const validBibleStatuses = ['bible_complete', 'in_progress', 'complete']
+    if (!validBibleStatuses.includes(bookData.status)) {
       return res.status(400).json({
-        error: 'Bible generation must be complete before generating chapters'
+        error: 'Bible generation must be complete before generating chapters',
+        currentStatus: bookData.status
       })
     }
 

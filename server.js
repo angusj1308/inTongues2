@@ -5678,6 +5678,206 @@ Only return valid JSON, no other text.`
   }
 })
 
+// ============================================
+// TUTOR CHAT API
+// ============================================
+
+/**
+ * Start a new tutor conversation or continue existing
+ */
+app.post('/api/tutor/start', async (req, res) => {
+  try {
+    const { targetLanguage, sourceLanguage, memory } = req.body || {}
+
+    if (!targetLanguage) {
+      return res.status(400).json({ error: 'targetLanguage is required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const isReturning = memory && (memory.userFacts?.length > 0 || memory.lastConversationSummary)
+
+    // Build memory context for returning users
+    let memoryContext = ''
+    if (isReturning) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const lastSummary = memory.lastConversationSummary || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      memoryContext = `
+WHAT YOU REMEMBER ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${lastSummary ? `- Last conversation: ${lastSummary}` : ''}
+${mistakes ? `- Common mistakes they make: ${mistakes}` : ''}
+`
+    }
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- ${isReturning ? 'Reference something from your past conversations naturally' : 'Introduce yourself briefly and ask something to get to know them'}
+- Keep it short and conversational (1-3 sentences max)
+- Write primarily in ${targetLanguage}, with occasional ${sourceLang} if helpful
+- Match your vocabulary to their level (${memory?.observedLevel || 'beginner'})
+
+Generate a natural, friendly opening message to start or continue the conversation.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: systemPrompt,
+    })
+
+    const greeting = response.output_text?.trim() || `¡Hola! ¿Cómo estás hoy?`
+
+    return res.json({
+      greeting,
+      isReturningUser: isReturning,
+    })
+  } catch (error) {
+    console.error('Tutor start error:', error)
+    return res.status(500).json({ error: 'Failed to start tutor conversation' })
+  }
+})
+
+/**
+ * Send a message to the tutor and get a response
+ */
+app.post('/api/tutor/message', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, memory } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    // Build memory context
+    let memoryContext = ''
+    if (memory) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      if (facts || mistakes) {
+        memoryContext = `
+WHAT YOU KNOW ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${mistakes ? `- Mistakes they often make: ${mistakes}` : ''}
+`
+      }
+    }
+
+    // Build conversation history
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'tutor' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Ask about their life, remember details they share
+- Keep the conversation flowing naturally
+- Correct mistakes NATURALLY within your response - don't make it a lesson
+- Write primarily in ${targetLanguage}, with ${sourceLang} only when explaining corrections
+- Keep responses conversational length (1-4 sentences typically)
+- Match vocabulary to their level (${memory?.observedLevel || 'beginner'})
+- Don't be overly encouraging or teacherly - just be real
+
+CORRECTION STYLE:
+When they make a mistake, work the correction into your natural response.
+Example: If they say "Yo soy hambre", you might respond:
+"Jaja yo también tengo hambre! (btw it's 'tengo hambre' not 'soy' - hunger uses tener in Spanish) ¿Qué vas a comer?"
+
+NOT like this:
+"Great try! Just a small correction: in Spanish we use 'tener' for hunger, so it should be 'tengo hambre'. Keep up the good work!"
+
+Respond naturally to the student's message.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.8,
+    })
+
+    const tutorResponse = response.choices?.[0]?.message?.content?.trim() || 'Lo siento, no entendí. ¿Puedes repetir?'
+
+    return res.json({
+      response: tutorResponse,
+    })
+  } catch (error) {
+    console.error('Tutor message error:', error)
+    return res.status(500).json({ error: 'Failed to get tutor response' })
+  }
+})
+
+/**
+ * End a session and extract memory updates
+ */
+app.post('/api/tutor/end-session', async (req, res) => {
+  try {
+    const { conversationHistory, targetLanguage, sourceLanguage } = req.body || {}
+
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return res.json({ memoryUpdates: null })
+    }
+
+    const conversationText = conversationHistory
+      .map((m) => `${m.role === 'tutor' ? 'Tutor' : 'Student'}: ${m.content}`)
+      .join('\n')
+
+    const prompt = `Analyze this conversation between a language tutor and a student learning ${targetLanguage}.
+Extract information to remember for future conversations.
+
+CONVERSATION:
+${conversationText}
+
+Return JSON with:
+{
+  "userFacts": ["fact1", "fact2"], // New things learned about the student (interests, job, life events)
+  "recurringMistakes": ["mistake1"], // Language mistakes they made (patterns, not one-offs)
+  "topicsDiscussed": ["topic1", "topic2"], // Main topics in this conversation
+  "summary": "2-3 sentence summary of what was discussed",
+  "observedLevel": "beginner" | "intermediate" | "advanced" // Your assessment of their level
+}
+
+Only include facts that would be useful to remember. Return ONLY valid JSON.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let memoryUpdates
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        memoryUpdates = JSON.parse(jsonMatch[0])
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse memory updates:', parseErr)
+      memoryUpdates = null
+    }
+
+    return res.json({ memoryUpdates })
+  } catch (error) {
+    console.error('Tutor end-session error:', error)
+    return res.status(500).json({ error: 'Failed to extract memory updates' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

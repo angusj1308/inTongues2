@@ -21,6 +21,7 @@ import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
 import FreeWritingLesson from './pages/FreeWritingLesson'
+import TutorChat from './pages/TutorChat'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -220,6 +221,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <FreeWritingLesson />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tutor/:chatId"
+        element={
+          <ProtectedRoute>
+            <TutorChat />
           </ProtectedRoute>
         }
       />

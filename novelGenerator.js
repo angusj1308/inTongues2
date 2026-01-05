@@ -1592,8 +1592,797 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   }
 }
 
+// =============================================================================
+// CHAPTER GENERATION
+// =============================================================================
+
+const CHAPTER_SYSTEM_PROMPT = `You are a romance novelist writing in {{target_language}}. Your task is to write a single chapter that executes the provided beats while maintaining voice consistency, continuity, and reading level.
+
+You will receive:
+- Story bible (core elements)
+- POV character profile (voice, psychology, arc)
+- This chapter's breakdown (beats, location, hook, foreshadowing)
+- Previous chapter summaries (context)
+- Level-specific prose guidance
+
+Your job is to:
+1. Write the chapter prose in {{target_language}}
+2. Hit every specified beat
+3. Maintain the POV character's distinct voice
+4. End with the specified hook type
+5. Plant or pay off foreshadowing as specified
+6. Stay within the target word count
+7. Follow the reading level guidelines
+
+## Critical Rules
+
+VOICE:
+- You are writing from the POV character's perspective
+- Use their speech patterns, verbal tics, and emotional expression style
+- Their vocabulary level reflects their class and education
+- Internal monologue should sound like THEM, not generic narration
+- Dialogue from other characters must match THEIR voice profiles
+
+CONTINUITY:
+- Characters know ONLY what has been revealed in previous chapters
+- Characters are in the emotional state established by previous chapter
+- Physical locations and time must flow logically from previous chapter
+- Relationship state continues from where it was
+
+BEATS:
+- Every beat listed must appear in the chapter
+- Beats should flow naturally, not feel like a checklist
+- You may add connective tissue between beats
+- Do not add major events not in the beat list
+
+FORESHADOWING:
+- Seeds to plant should feel natural, not forced
+- The scene serves the story first; the seed is incidental detail
+- Payoffs should land with emotional weight
+- Reference earlier planting subtly — readers should feel the callback
+
+HOOK:
+- Final paragraphs must create the specified hook type
+- Cliffhanger: Action interrupted, danger imminent, outcome unknown
+- Question: Mystery raised, information withheld, reader needs to know
+- Revelation: Truth revealed with implications that demand exploration
+- Emotional: Powerful feeling that resonates, demands resolution
+- Decision: Choice presented, stakes clear, outcome uncertain
+
+LEVEL COMPLIANCE:
+- Follow the prose guidance exactly
+- Sentence length, vocabulary, subtext handling per guidelines
+- This is for language learners — clarity matters
+
+## Output Format
+
+Respond with a JSON object:
+
+{
+  "chapter": {
+    "number": {{chapter_number}},
+    "title": "Chapter title",
+    "content": "The full chapter prose in {{target_language}}..."
+  },
+  "summary": {
+    "events": ["Brief description of event 1", "Brief description of event 2"],
+    "characterStates": {
+      "protagonist_name": "Emotional/situational state at chapter end",
+      "love_interest_name": "Emotional/situational state at chapter end"
+    },
+    "relationshipState": "Where the romantic relationship stands now",
+    "reveals": ["Any new information revealed this chapter"],
+    "seedsPlanted": ["Any foreshadowing seeds planted"],
+    "seedsPaid": ["Any foreshadowing seeds that paid off"],
+    "locationEnd": "Where POV character is at chapter end",
+    "timeElapsed": "How much story time this chapter covered"
+  },
+  "metadata": {
+    "wordCount": number,
+    "beatsCovered": ["Beat 1", "Beat 2"],
+    "hookDelivered": "Description of how chapter ends",
+    "hookType": "cliffhanger | question | revelation | emotional | decision"
+  }
+}
+
+IMPORTANT: The "content" field must contain the complete chapter prose in {{target_language}}. This is the actual story text readers will see. Write it as a proper chapter — not an outline, not a summary, but full narrative prose with scenes, dialogue, and interiority.`
+
+// Word count targets by tension rating
+const WORD_COUNT_BY_TENSION = {
+  low: { min: 1800, max: 2200 },    // Tension 3-4
+  medium: { min: 2200, max: 2800 }, // Tension 5-7
+  high: { min: 2800, max: 3500 }    // Tension 8-10
+}
+
+function getWordCountTarget(tensionRating) {
+  if (tensionRating <= 4) return WORD_COUNT_BY_TENSION.low
+  if (tensionRating <= 7) return WORD_COUNT_BY_TENSION.medium
+  return WORD_COUNT_BY_TENSION.high
+}
+
+function buildChapterUserPrompt(bible, chapterIndex, previousSummaries, language) {
+  const chapter = bible.chapters.chapters[chapterIndex - 1]
+  if (!chapter) throw new Error(`Chapter ${chapterIndex} not found in bible`)
+
+  const protagonist = bible.characters.protagonist
+  const loveInterest = bible.characters.love_interest
+  const isPovProtagonist = chapter.pov === protagonist?.name
+  const povCharacter = isPovProtagonist ? protagonist : loveInterest
+  const otherCharacter = isPovProtagonist ? loveInterest : protagonist
+
+  const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
+
+  // Build previous summaries section
+  let previousContext = ''
+  if (previousSummaries && previousSummaries.length > 0) {
+    previousContext = previousSummaries.map(s => {
+      if (s.type === 'full') {
+        return `Chapter ${s.number} (${s.pov}):
+Events: ${s.summary.events?.join(', ') || 'N/A'}
+Relationship: ${s.summary.relationshipState || 'N/A'}
+Emotional state: ${JSON.stringify(s.summary.characterStates || {})}`
+      } else if (s.type === 'compressed') {
+        return `Ch ${s.number} (${s.pov}): ${s.compressedSummary}`
+      } else {
+        return `Ch ${s.number}: ${s.ultraSummary}`
+      }
+    }).join('\n\n')
+  } else {
+    previousContext = 'This is Chapter 1. No previous context.'
+  }
+
+  // Get prose guidance from levelCheck
+  const proseGuidance = bible.levelCheck?.prose_guidance || {}
+  const proseGuidanceText = Object.entries(proseGuidance)
+    .map(([key, value]) => `- ${key}: ${value}`)
+    .join('\n')
+
+  return `STORY BIBLE:
+
+Genre: ${bible.coreFoundation.genre}
+Theme: ${bible.coreFoundation.theme}
+Tone: ${JSON.stringify(bible.coreFoundation.tone)}
+Heat Level: ${bible.coreFoundation.heat_level?.level || 'Warm'}
+
+Setting: ${bible.world.setting?.location}, ${bible.world.setting?.time_period}
+Key Location This Chapter: ${chapter.location_primary}
+${chapter.location_secondary ? `Secondary Location: ${chapter.location_secondary}` : ''}
+
+CENTRAL CONFLICT:
+External: ${bible.coreFoundation.central_conflict?.external}
+Internal: ${bible.coreFoundation.central_conflict?.internal}
+
+---
+
+POV CHARACTER THIS CHAPTER: ${chapter.pov}
+
+Psychology:
+- Want: ${povCharacter?.psychology?.external_want || 'N/A'}
+- Need: ${povCharacter?.psychology?.internal_need || 'N/A'}
+- Flaw: ${povCharacter?.psychology?.fatal_flaw || 'N/A'}
+- Fear: ${povCharacter?.psychology?.fear || 'N/A'}
+- Lie they believe: ${povCharacter?.psychology?.lie_they_believe || 'N/A'}
+
+Voice Profile:
+- Speech patterns: ${povCharacter?.voice?.speech_patterns || 'N/A'}
+- Verbal tics: ${povCharacter?.voice?.verbal_tics || 'N/A'}
+- Vocabulary level: ${povCharacter?.voice?.vocabulary_level || 'N/A'}
+- Emotional expression: ${povCharacter?.voice?.emotional_expression || 'N/A'}
+- Topics they avoid: ${povCharacter?.voice?.topics_avoided || 'N/A'}
+- Humor style: ${povCharacter?.voice?.humor_style || 'N/A'}
+
+---
+
+OTHER MAIN CHARACTER: ${otherCharacter?.name}
+- Voice: ${otherCharacter?.voice?.speech_patterns || 'N/A'}
+- Verbal tics: ${otherCharacter?.voice?.verbal_tics || 'N/A'}
+
+---
+
+CHAPTER ${chapter.number}: ${chapter.title}
+
+Story Time: ${chapter.story_time}
+
+Plot Threads Active:
+- Main: ${chapter.plot_threads?.main || 'N/A'}
+${chapter.plot_threads?.subplot_a ? `- Subplot A: ${chapter.plot_threads.subplot_a}` : ''}
+${chapter.plot_threads?.subplot_b ? `- Subplot B: ${chapter.plot_threads.subplot_b}` : ''}
+
+BEATS TO HIT (in order):
+${chapter.beats?.map((beat, i) => `${i + 1}. ${beat}`).join('\n') || 'N/A'}
+
+Emotional Arc:
+- Opens: ${chapter.emotional_arc?.opens || 'N/A'}
+- Closes: ${chapter.emotional_arc?.closes || 'N/A'}
+
+${chapter.phase_4_moment ? `KEY MOMENT: This chapter contains "${chapter.phase_4_moment}" — a pivotal relationship moment. Give it weight.` : ''}
+
+FORESHADOWING:
+${chapter.foreshadowing?.plants?.length > 0 ? `Plant these seeds (weave naturally):\n${chapter.foreshadowing.plants.map(s => `- ${s}`).join('\n')}` : ''}
+${chapter.foreshadowing?.payoffs?.length > 0 ? `Pay off these seeds (callback to earlier):\n${chapter.foreshadowing.payoffs.map(s => `- ${s}`).join('\n')}` : ''}
+
+CHAPTER ENDING:
+Hook Type: ${chapter.hook?.type || 'emotional'}
+Hook Description: ${chapter.hook?.description || 'End with emotional resonance'}
+
+Tension Rating: ${chapter.tension_rating || 5}/10
+Target Word Count: ${wordCountTarget.min}-${wordCountTarget.max} words
+
+---
+
+PREVIOUS CONTEXT:
+
+${previousContext}
+
+---
+
+LEVEL: ${bible.levelCheck?.target_level || 'Intermediate'}
+
+PROSE GUIDANCE:
+${proseGuidanceText || 'Follow standard prose conventions.'}
+
+---
+
+Write Chapter ${chapter.number} now. Full prose in ${language}. Hit every beat. End with the ${chapter.hook?.type || 'emotional'} hook. Stay within ${wordCountTarget.min}-${wordCountTarget.max} words.`
+}
+
+// Validate chapter output
+function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wordCountTarget) {
+  const issues = []
+
+  // Check content exists and has reasonable length
+  const content = chapterData?.chapter?.content
+  if (!content || content.length < 1000) {
+    issues.push({ type: 'content_missing', message: 'Chapter content is missing or too short' })
+  }
+
+  // Count words (rough estimate)
+  const wordCount = content ? content.split(/\s+/).length : 0
+  if (wordCount < wordCountTarget.min * 0.8) {
+    issues.push({ type: 'too_short', message: `Word count ${wordCount} is below minimum ${wordCountTarget.min}`, wordCount })
+  }
+  if (wordCount > wordCountTarget.max * 1.3) {
+    issues.push({ type: 'too_long', message: `Word count ${wordCount} exceeds maximum ${wordCountTarget.max}`, wordCount })
+  }
+
+  // Check hook type matches
+  const hookType = chapterData?.metadata?.hookType
+  if (hookType && expectedHookType && hookType !== expectedHookType) {
+    issues.push({ type: 'wrong_hook', message: `Hook type ${hookType} doesn't match expected ${expectedHookType}`, expected: expectedHookType, actual: hookType })
+  }
+
+  // Check beats covered
+  const beatsCovered = chapterData?.metadata?.beatsCovered || []
+  if (expectedBeats && beatsCovered.length < expectedBeats.length * 0.7) {
+    issues.push({ type: 'missing_beats', message: `Only ${beatsCovered.length} of ${expectedBeats.length} beats covered`, expected: expectedBeats.length, actual: beatsCovered.length })
+  }
+
+  // Check summary exists
+  if (!chapterData?.summary) {
+    issues.push({ type: 'missing_summary', message: 'Chapter summary is missing' })
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    wordCount,
+    beatsCovered: beatsCovered.length
+  }
+}
+
+// Generate a single chapter
+async function generateChapter(bible, chapterIndex, previousSummaries, language) {
+  console.log(`Generating Chapter ${chapterIndex}...`)
+
+  const chapter = bible.chapters.chapters[chapterIndex - 1]
+  if (!chapter) throw new Error(`Chapter ${chapterIndex} not found in bible`)
+
+  const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
+
+  // Build the system prompt with language substitution
+  const systemPrompt = CHAPTER_SYSTEM_PROMPT.replace(/\{\{target_language\}\}/g, language)
+
+  // Build user prompt
+  const userPrompt = buildChapterUserPrompt(bible, chapterIndex, previousSummaries, language)
+
+  // Call OpenAI
+  const response = await callOpenAI(systemPrompt, userPrompt, { temperature: 0.8 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error(`Chapter ${chapterIndex} JSON parse failed: ${parsed.error}`)
+  }
+
+  const chapterData = parsed.data
+
+  // Validate output
+  const validation = validateChapterOutput(
+    chapterData,
+    chapter.beats,
+    chapter.hook?.type,
+    wordCountTarget
+  )
+
+  if (!validation.valid) {
+    console.warn(`Chapter ${chapterIndex} validation issues:`, validation.issues)
+  }
+
+  console.log(`Chapter ${chapterIndex} generated. Word count: ${validation.wordCount}`)
+
+  return {
+    ...chapterData,
+    validation,
+    generatedAt: new Date().toISOString()
+  }
+}
+
+// =============================================================================
+// SUMMARY COMPRESSION
+// =============================================================================
+
+const COMPRESSION_SYSTEM_PROMPT = `You are a continuity editor. Your task is to compress chapter summaries while preserving all information essential for story continuity.
+
+Preserve:
+- Key plot events (what happened)
+- Character emotional states (how they feel now)
+- Relationship state (where the romance stands)
+- Important reveals (information characters now know)
+- Foreshadowing planted (seeds that need future payoff)
+- Time and location (when/where chapter ended)
+
+Discard:
+- Detailed scene descriptions
+- Minor character interactions
+- Atmospheric details
+- Specific dialogue (unless crucial)
+- Redundant information
+
+## Output Format
+
+For COMPRESSED level:
+{
+  "compressed_summaries": [
+    {
+      "chapter": 1,
+      "pov": "Character name",
+      "summary": "2-3 sentences covering events, emotional state, relationship state, any reveals or seeds."
+    }
+  ]
+}
+
+For ULTRA level:
+{
+  "ultra_summaries": [
+    {
+      "chapter": 1,
+      "summary": "One sentence. Bare facts."
+    }
+  ]
+}`
+
+async function compressSummaries(summaries, level) {
+  console.log(`Compressing ${summaries.length} summaries to ${level} level...`)
+
+  const summariesText = summaries.map(s => `---
+CHAPTER ${s.number} (POV: ${s.pov})
+
+Events:
+${s.summary.events?.map(e => `- ${e}`).join('\n') || 'N/A'}
+
+Character States:
+${Object.entries(s.summary.characterStates || {}).map(([k, v]) => `- ${k}: ${v}`).join('\n') || 'N/A'}
+
+Relationship State: ${s.summary.relationshipState || 'N/A'}
+
+Reveals:
+${s.summary.reveals?.map(r => `- ${r}`).join('\n') || 'None'}
+
+Seeds Planted:
+${s.summary.seedsPlanted?.map(s => `- ${s}`).join('\n') || 'None'}
+
+Location at End: ${s.summary.locationEnd || 'N/A'}
+---`).join('\n\n')
+
+  const userPrompt = `COMPRESSION LEVEL: ${level}
+
+FULL SUMMARIES TO COMPRESS:
+
+${summariesText}
+
+Compress these summaries to ${level} level. Preserve continuity-critical information.`
+
+  const response = await callOpenAI(COMPRESSION_SYSTEM_PROMPT, userPrompt)
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error(`Summary compression failed: ${parsed.error}`)
+  }
+
+  return parsed.data
+}
+
+// Determine which summaries need compression based on current chapter
+function getSummaryCompressionStrategy(chapterIndex, allSummaries) {
+  // Chapters 1-5: All full summaries
+  // Chapters 6-15: Last 5 full, Ch 1-5 compressed
+  // Chapters 16-30: Last 5 full, Ch 6-10 compressed, Ch 1-5 ultra
+  // Chapters 31+: Last 5 full, Ch 11-25 compressed, Ch 1-10 ultra
+
+  const result = {
+    full: [],
+    needsCompression: [],
+    needsUltra: []
+  }
+
+  const currentIndex = chapterIndex - 1 // 0-indexed
+
+  if (chapterIndex <= 5) {
+    // All full
+    result.full = allSummaries.slice(0, currentIndex)
+  } else if (chapterIndex <= 15) {
+    // Last 5 full, 1-5 compressed
+    result.full = allSummaries.slice(Math.max(0, currentIndex - 5), currentIndex)
+    result.needsCompression = allSummaries.slice(0, Math.min(5, currentIndex - 5))
+  } else if (chapterIndex <= 30) {
+    // Last 5 full, 6-10 compressed, 1-5 ultra
+    result.full = allSummaries.slice(Math.max(0, currentIndex - 5), currentIndex)
+    result.needsCompression = allSummaries.slice(5, Math.min(10, currentIndex - 5))
+    result.needsUltra = allSummaries.slice(0, 5)
+  } else {
+    // Last 5 full, 11-25 compressed, 1-10 ultra
+    result.full = allSummaries.slice(Math.max(0, currentIndex - 5), currentIndex)
+    result.needsCompression = allSummaries.slice(10, Math.min(25, currentIndex - 5))
+    result.needsUltra = allSummaries.slice(0, 10)
+  }
+
+  return result
+}
+
+// Build context with appropriate compression
+async function buildPreviousContext(chapterIndex, allSummaries) {
+  if (chapterIndex === 1 || allSummaries.length === 0) {
+    return []
+  }
+
+  const strategy = getSummaryCompressionStrategy(chapterIndex, allSummaries)
+  const context = []
+
+  // Add ultra-compressed summaries
+  if (strategy.needsUltra.length > 0) {
+    // Check if we have cached ultra summaries
+    const needsUltraCompression = strategy.needsUltra.filter(s => !s.ultraSummary)
+    if (needsUltraCompression.length > 0) {
+      const compressed = await compressSummaries(needsUltraCompression, 'ultra')
+      // Merge back
+      compressed.ultra_summaries?.forEach(cs => {
+        const original = strategy.needsUltra.find(s => s.number === cs.chapter)
+        if (original) original.ultraSummary = cs.summary
+      })
+    }
+    strategy.needsUltra.forEach(s => {
+      context.push({ type: 'ultra', number: s.number, ultraSummary: s.ultraSummary })
+    })
+  }
+
+  // Add compressed summaries
+  if (strategy.needsCompression.length > 0) {
+    const needsCompression = strategy.needsCompression.filter(s => !s.compressedSummary)
+    if (needsCompression.length > 0) {
+      const compressed = await compressSummaries(needsCompression, 'compressed')
+      compressed.compressed_summaries?.forEach(cs => {
+        const original = strategy.needsCompression.find(s => s.number === cs.chapter)
+        if (original) {
+          original.compressedSummary = cs.summary
+          original.compressedPov = cs.pov
+        }
+      })
+    }
+    strategy.needsCompression.forEach(s => {
+      context.push({ type: 'compressed', number: s.number, pov: s.compressedPov || s.pov, compressedSummary: s.compressedSummary })
+    })
+  }
+
+  // Add full summaries
+  strategy.full.forEach(s => {
+    context.push({ type: 'full', number: s.number, pov: s.pov, summary: s.summary })
+  })
+
+  // Sort by chapter number
+  context.sort((a, b) => a.number - b.number)
+
+  return context
+}
+
+// =============================================================================
+// CHAPTER REGENERATION
+// =============================================================================
+
+const REGENERATION_TYPES = {
+  FULL: 'full',
+  ENDING_ONLY: 'ending_only',
+  EXPANSION: 'expansion',
+  PARTIAL: 'partial'
+}
+
+async function regenerateChapter(bible, chapterIndex, previousSummaries, language, previousOutput, issues) {
+  console.log(`Regenerating Chapter ${chapterIndex}...`)
+  console.log('Issues to fix:', issues.map(i => i.type).join(', '))
+
+  // Determine regeneration type based on issues
+  const issueTypes = issues.map(i => i.type)
+
+  if (issueTypes.includes('wrong_hook') && !issueTypes.includes('content_missing') && !issueTypes.includes('too_short')) {
+    // Just fix the ending
+    return await regenerateChapterEnding(bible, chapterIndex, previousOutput, language)
+  }
+
+  if (issueTypes.includes('too_short') && !issueTypes.includes('content_missing')) {
+    // Expand existing content
+    return await expandChapter(bible, chapterIndex, previousOutput, language)
+  }
+
+  // Full regeneration with emphasis on issues
+  const chapter = bible.chapters.chapters[chapterIndex - 1]
+  const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
+
+  const systemPrompt = CHAPTER_SYSTEM_PROMPT.replace(/\{\{target_language\}\}/g, language)
+
+  let userPrompt = buildChapterUserPrompt(bible, chapterIndex, previousSummaries, language)
+
+  // Add regeneration instructions
+  userPrompt += `
+
+---
+
+REGENERATION INSTRUCTIONS:
+This is a regeneration attempt. The previous output had these issues:
+${issues.map(i => `- ${i.type}: ${i.message}`).join('\n')}
+
+SPECIFIC FIXES REQUIRED:
+${issues.map((i, idx) => `${idx + 1}. ${i.message}`).join('\n')}
+
+Please fix these issues while maintaining story quality.`
+
+  const response = await callOpenAI(systemPrompt, userPrompt, { temperature: 0.8 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error(`Chapter ${chapterIndex} regeneration JSON parse failed: ${parsed.error}`)
+  }
+
+  const chapterData = parsed.data
+
+  const validation = validateChapterOutput(
+    chapterData,
+    chapter.beats,
+    chapter.hook?.type,
+    wordCountTarget
+  )
+
+  console.log(`Chapter ${chapterIndex} regenerated. Word count: ${validation.wordCount}`)
+
+  return {
+    ...chapterData,
+    validation,
+    regenerated: true,
+    generatedAt: new Date().toISOString()
+  }
+}
+
+async function regenerateChapterEnding(bible, chapterIndex, previousOutput, language) {
+  console.log(`Regenerating ending for Chapter ${chapterIndex}...`)
+
+  const chapter = bible.chapters.chapters[chapterIndex - 1]
+  const existingContent = previousOutput?.chapter?.content || ''
+
+  // Keep all but the last ~400 words
+  const words = existingContent.split(/\s+/)
+  const cutPoint = Math.max(0, words.length - 400)
+  const contentToKeep = words.slice(0, cutPoint).join(' ')
+
+  const systemPrompt = `You are rewriting only the ending of a chapter. The body is good, but the hook doesn't land correctly.
+
+Write ONLY the new ending (200-400 words) that:
+1. Flows naturally from the preserved content
+2. Delivers the correct hook type
+3. Ends the chapter with the right emotional note
+
+Do not rewrite anything before the cut point.
+
+Output format:
+{
+  "new_ending": "The rewritten ending text...",
+  "hookDelivered": "Description of how hook lands",
+  "hookType": "${chapter.hook?.type || 'emotional'}"
+}`
+
+  const userPrompt = `CHAPTER CONTENT (preserve everything before the cut):
+
+${contentToKeep}
+
+[CUT POINT — rewrite from here]
+
+---
+
+REQUIRED HOOK:
+Type: ${chapter.hook?.type || 'emotional'}
+Description: ${chapter.hook?.description || 'End with emotional resonance'}
+
+EMOTIONAL STATE AT END:
+${chapter.emotional_arc?.closes || 'Transformed from opening state'}
+
+---
+
+Write the new ending (200-400 words) in ${language}. Start exactly where the cut point is. Deliver a ${chapter.hook?.type || 'emotional'} hook.`
+
+  const response = await callOpenAI(systemPrompt, userPrompt)
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error('Ending regeneration failed to parse')
+  }
+
+  // Combine preserved content with new ending
+  const newContent = contentToKeep + ' ' + parsed.data.new_ending
+
+  return {
+    chapter: {
+      ...previousOutput.chapter,
+      content: newContent
+    },
+    summary: previousOutput.summary,
+    metadata: {
+      ...previousOutput.metadata,
+      hookDelivered: parsed.data.hookDelivered,
+      hookType: parsed.data.hookType
+    },
+    validation: { valid: true, issues: [] },
+    regenerated: true,
+    regenerationType: 'ending_only',
+    generatedAt: new Date().toISOString()
+  }
+}
+
+async function expandChapter(bible, chapterIndex, previousOutput, language) {
+  console.log(`Expanding Chapter ${chapterIndex}...`)
+
+  const chapter = bible.chapters.chapters[chapterIndex - 1]
+  const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
+
+  const systemPrompt = `You are expanding a chapter that is too short. The content is good but thin — scenes need more development.
+
+Your job is to:
+1. Keep all existing content
+2. Expand thin sections with more detail, interiority, and scene development
+3. Reach target word count without padding
+4. Maintain voice and tone consistency
+
+EXPANSION APPROACH:
+- Add interiority (what POV character thinks/feels)
+- Add sensory detail (what they see/hear/smell/touch)
+- Add micro-actions (small physical movements)
+- Extend dialogue exchanges (another beat or two)
+- Deepen emotional moments (let them breathe)
+
+Do NOT:
+- Add new plot events
+- Add new characters
+- Change what happens
+- Pad with filler
+
+Output the complete expanded chapter in the same JSON format as original.`
+
+  const userPrompt = `CURRENT CHAPTER:
+
+${previousOutput?.chapter?.content || ''}
+
+Current word count: ${previousOutput?.chapter?.content?.split(/\s+/).length || 0}
+Target word count: ${wordCountTarget.min}-${wordCountTarget.max}
+
+---
+
+Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${language}. Output complete expanded chapter in JSON format:
+
+{
+  "chapter": {
+    "number": ${chapterIndex},
+    "title": "${chapter.title}",
+    "content": "The expanded chapter prose..."
+  },
+  "summary": ${JSON.stringify(previousOutput.summary || {})},
+  "metadata": {
+    "wordCount": number,
+    "beatsCovered": ${JSON.stringify(previousOutput.metadata?.beatsCovered || [])},
+    "hookDelivered": "${previousOutput.metadata?.hookDelivered || ''}",
+    "hookType": "${previousOutput.metadata?.hookType || chapter.hook?.type || 'emotional'}"
+  }
+}`
+
+  const response = await callOpenAI(systemPrompt, userPrompt)
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error('Chapter expansion failed to parse')
+  }
+
+  const validation = validateChapterOutput(
+    parsed.data,
+    chapter.beats,
+    chapter.hook?.type,
+    wordCountTarget
+  )
+
+  return {
+    ...parsed.data,
+    validation,
+    regenerated: true,
+    regenerationType: 'expansion',
+    generatedAt: new Date().toISOString()
+  }
+}
+
+// Main function to generate chapter with validation and potential regeneration
+async function generateChapterWithValidation(bible, chapterIndex, previousSummaries, language, maxAttempts = 2) {
+  let attempts = 0
+  let lastOutput = null
+  let lastIssues = []
+
+  while (attempts < maxAttempts) {
+    attempts++
+    console.log(`Chapter ${chapterIndex} generation attempt ${attempts}/${maxAttempts}`)
+
+    try {
+      if (attempts === 1) {
+        lastOutput = await generateChapter(bible, chapterIndex, previousSummaries, language)
+      } else {
+        lastOutput = await regenerateChapter(bible, chapterIndex, previousSummaries, language, lastOutput, lastIssues)
+      }
+
+      if (lastOutput.validation.valid) {
+        console.log(`Chapter ${chapterIndex} passed validation.`)
+        return {
+          success: true,
+          chapter: lastOutput,
+          attempts
+        }
+      }
+
+      lastIssues = lastOutput.validation.issues
+      console.log(`Chapter ${chapterIndex} validation failed:`, lastIssues.map(i => i.type).join(', '))
+
+    } catch (error) {
+      console.error(`Chapter ${chapterIndex} generation error:`, error.message)
+      lastIssues = [{ type: 'generation_error', message: error.message }]
+    }
+  }
+
+  // Max attempts reached, return best effort
+  console.warn(`Chapter ${chapterIndex} max attempts reached. Returning best effort.`)
+  return {
+    success: false,
+    chapter: lastOutput,
+    attempts,
+    issues: lastIssues,
+    needsReview: true
+  }
+}
+
+export {
+  generateChapter,
+  generateChapterWithValidation,
+  buildPreviousContext,
+  compressSummaries,
+  validateChapterOutput,
+  getWordCountTarget,
+  WORD_COUNT_BY_TENSION
+}
+
 export default {
   generateBible,
+  generateChapter,
+  generateChapterWithValidation,
+  buildPreviousContext,
+  compressSummaries,
   executePhase1,
   executePhase2,
   executePhase3,

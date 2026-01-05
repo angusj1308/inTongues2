@@ -23,7 +23,7 @@ const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'
-import { generateBible } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic)
@@ -4947,49 +4947,78 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       })
     }
 
-    // Create/update chapter document
-    const chapterRef = bookRef.collection('chapters').doc(String(chapterNum))
+    // Get previous chapter summaries for context
+    const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const previousSummaries = chaptersSnapshot.docs
+      .filter(doc => doc.data().index < chapterNum)
+      .map(doc => {
+        const data = doc.data()
+        return {
+          number: data.index,
+          pov: data.pov,
+          summary: data.summary,
+          compressedSummary: data.compressedSummary,
+          ultraSummary: data.ultraSummary
+        }
+      })
 
-    // TODO: Phase C will implement actual chapter generation
-    // For Phase A, return mock response
-    const mockChapter = {
+    // Build context with appropriate compression
+    console.log(`Building context for Chapter ${chapterNum}...`)
+    const contextSummaries = await buildPreviousContext(chapterNum, previousSummaries)
+
+    // Generate the chapter
+    console.log(`Generating Chapter ${chapterNum}...`)
+    const result = await generateChapterWithValidation(
+      bookData.bible,
+      chapterNum,
+      contextSummaries,
+      bookData.language
+    )
+
+    // Get chapter info from bible
+    const bibleChapter = bookData.bible.chapters?.chapters?.[chapterNum - 1] || {}
+
+    // Build chapter document
+    const chapterDoc = {
       index: chapterNum,
-      title: `Chapter ${chapterNum} (Mock)`,
-      pov: 'Protagonist',
-      content: `[Mock content for chapter ${chapterNum}. Actual generation not yet implemented.]`,
-      wordCount: 0,
-      tensionRating: 5,
-      summary: {
-        events: ['Mock event 1', 'Mock event 2'],
-        characterStates: {},
-        relationshipState: 'Mock relationship state',
-        reveals: [],
-        seedsPlanted: [],
-        seedsPaid: []
-      },
+      title: result.chapter?.chapter?.title || bibleChapter.title || `Chapter ${chapterNum}`,
+      pov: bibleChapter.pov || 'Unknown',
+      content: result.chapter?.chapter?.content || '',
+      wordCount: result.chapter?.validation?.wordCount || 0,
+      tensionRating: bibleChapter.tension_rating || 5,
+      summary: result.chapter?.summary || {},
       compressedSummary: null,
       ultraSummary: null,
       audioUrl: null,
       audioStatus: 'none',
-      validationPassed: false,
-      regenerationCount: 0,
+      validationPassed: result.success,
+      regenerationCount: result.attempts - 1,
+      needsReview: result.needsReview || false,
       generatedAt: admin.firestore.FieldValue.serverTimestamp()
     }
 
-    await chapterRef.set(mockChapter)
+    // Save chapter to Firestore
+    const chapterRef = bookRef.collection('chapters').doc(String(chapterNum))
+    await chapterRef.set(chapterDoc)
 
-    // Update book status if this is first chapter
-    if (bookData.status === 'planning') {
+    // Update book status
+    if (bookData.status === 'bible_complete') {
       await bookRef.update({ status: 'in_progress' })
     }
 
+    // Check if this is the last chapter
+    if (chapterNum === bookData.chapterCount) {
+      await bookRef.update({ status: 'complete' })
+    }
+
     return res.status(201).json({
-      success: true,
+      success: result.success,
       bookId,
       chapterIndex: chapterNum,
-      message: 'Chapter generation initiated (Phase A mock - actual generation not yet implemented)',
+      attempts: result.attempts,
+      needsReview: result.needsReview || false,
       chapter: {
-        ...mockChapter,
+        ...chapterDoc,
         generatedAt: new Date().toISOString()
       }
     })

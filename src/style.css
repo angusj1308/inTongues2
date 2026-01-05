@@ -11624,21 +11624,45 @@ body.active-pass-locked {
 
 .feedback-check-item {
   display: flex;
+  flex-direction: column;
+  padding: 0.25rem 0;
+}
+
+.feedback-check-header {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.25rem 0;
+  width: 100%;
 }
 
 .feedback-check-item .check-label {
   font-size: 0.875rem;
   color: #334155;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feedback-check-item .check-count {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 400;
 }
 
 .feedback-check-item .check-status {
   font-size: 0.875rem;
   min-width: 70px;
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.feedback-check-item .check-expand-icon {
+  font-size: 0.625rem;
+  color: #94a3b8;
 }
 
 .feedback-check-item .checking-text {
@@ -11673,6 +11697,48 @@ body.active-pass-locked {
 
 .feedback-check-item.fail .check-label {
   color: #dc2626;
+}
+
+/* Corrections list inside expandable checklist */
+.feedback-corrections-list {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.feedback-correction-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.correction-original {
+  color: #ef4444;
+  text-decoration: line-through;
+}
+
+.correction-arrow {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.correction-fix {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+.correction-explanation {
+  width: 100%;
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.4;
 }
 
 /* Feedback Explanation */
@@ -12513,8 +12579,20 @@ body.active-pass-locked {
   color: #e2e8f0;
 }
 
+[data-theme='dark'] .feedback-check-item .check-count {
+  color: #94a3b8;
+}
+
 [data-theme='dark'] .feedback-check-item .checking-text {
   color: #64748b;
+}
+
+[data-theme='dark'] .feedback-corrections-list {
+  background: #1e293b;
+}
+
+[data-theme='dark'] .correction-explanation {
+  color: #94a3b8;
 }
 
 [data-theme='dark'] .practice-feedback-explanation {

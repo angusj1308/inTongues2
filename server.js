@@ -4923,13 +4923,22 @@ Student's attempt (in ${targetLanguage}):
 
 Adaptation level: ${level} (${level === 'beginner' ? 'use simple vocabulary and shorter sentences' : level === 'intermediate' ? 'natural expressions with moderate complexity' : 'natural, native-level expression'})
 
-CRITICAL INSTRUCTION: Your job is to identify ACTUAL ERRORS, not to mark things wrong just because they differ from how you would phrase it. There are MANY valid ways to express the same idea in ${targetLanguage}. A student's phrasing is ONLY wrong if:
-1. It contains grammar errors (wrong conjugation, agreement, word order that breaks rules)
-2. It contains spelling errors
-3. It fundamentally changes or loses the meaning of the original sentence
-4. It uses phrasing that a native speaker would genuinely find strange or confusing
+CRITICAL INSTRUCTION - READ CAREFULLY: Your job is to identify ACTUAL ERRORS ONLY. Do NOT mark things wrong just because they differ from how you would phrase it.
 
-Do NOT flag something as an error simply because you would have used a different word or structure. "debemos actuar" and "necesitamos actuar" are BOTH correct - do not mark one wrong because you prefer the other.
+There are MANY valid ways to express the same idea. A student's phrasing is ONLY wrong if:
+1. It contains actual grammar errors (wrong conjugation, agreement, broken syntax)
+2. It contains spelling errors
+3. It fundamentally changes or loses the meaning
+
+IMPORTANT EXAMPLES OF WHAT IS NOT AN ERROR:
+- "¿no?" vs "¿verdad?" at the end of a sentence - BOTH are correct and natural, do NOT flag either as wrong
+- "debemos actuar" vs "necesitamos actuar" - BOTH are correct
+- Different word order that is still grammatically valid - NOT an error
+- Using a synonym that conveys the same meaning - NOT an error
+
+If your explanation would contain phrases like "more natural", "more common", "I would prefer", or "better to use" - then it is NOT an error, it is just your preference. DO NOT FLAG PREFERENCES AS ERRORS.
+
+The corrections array should ONLY contain things that are genuinely WRONG, not things that are merely DIFFERENT from your preferred phrasing.
 
 Return a JSON object with this structure:
 {

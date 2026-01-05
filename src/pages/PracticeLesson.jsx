@@ -144,7 +144,7 @@ const PracticeLesson = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
-  const [panelWidth, setPanelWidth] = useState(380)
+  const [panelWidth, setPanelWidth] = useState(() => Math.max(480, Math.floor(window.innerWidth / 3)))
   const [popup, setPopup] = useState(null) // Translation popup state
   const [correctionPopup, setCorrectionPopup] = useState(null) // Correction popup state
   const [expandedCategories, setExpandedCategories] = useState({}) // Track expanded checklist categories
@@ -1308,8 +1308,8 @@ const PracticeLesson = () => {
           <div className="practice-panel-footer">
             {!isComplete && currentSentence && (
               <>
-                {/* Main input row - input and button side by side */}
-                <div className="practice-input-row">
+                {/* Input field */}
+                <div className="practice-input-wrapper">
                   <input
                     type="text"
                     className="practice-input-field"
@@ -1334,23 +1334,21 @@ const PracticeLesson = () => {
                     placeholder={!feedback ? 'Type your translation...' : 'Ask a question...'}
                     disabled={feedbackLoading || followUpLoading}
                   />
-                  {!feedback ? (
-                    <button
-                      className="practice-submit-btn"
-                      onClick={handleSubmitAttempt}
-                      disabled={!userAttempt.trim() || feedbackLoading}
-                    >
-                      {feedbackLoading ? 'Checking...' : 'Submit'}
-                    </button>
-                  ) : (
-                    <button
-                      className="practice-submit-btn practice-submit-btn--continue"
-                      onClick={() => attemptFinalize(false)}
-                    >
-                      Save & Continue
-                    </button>
-                  )}
                 </div>
+                {/* Submit button below */}
+                <button
+                  className={`practice-submit-btn ${feedback ? 'practice-submit-btn--continue' : ''}`}
+                  onClick={() => {
+                    if (!feedback) {
+                      handleSubmitAttempt()
+                    } else {
+                      attemptFinalize(false)
+                    }
+                  }}
+                  disabled={!feedback ? (!userAttempt.trim() || feedbackLoading) : false}
+                >
+                  {feedbackLoading ? 'Checking...' : 'Submit'}
+                </button>
               </>
             )}
           </div>

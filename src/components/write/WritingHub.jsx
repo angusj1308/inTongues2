@@ -7,9 +7,11 @@ import {
   subscribeToWritingPieces,
 } from '../../services/writing'
 import { subscribeToPracticeLessons, deletePracticeLesson } from '../../services/practice'
+import { subscribeToFreeWritingLessons, deleteFreeWritingLesson } from '../../services/freewriting'
 import NewWritingModal from './NewWritingModal'
 import WritingPieceCard from './WritingPieceCard'
 import PracticeLessonCard from './PracticeLessonCard'
+import FreeWritingCard from './FreeWritingCard'
 
 // Placeholder data for design preview
 const PLACEHOLDER_PIECES = [
@@ -175,13 +177,15 @@ const WritingHub = ({ activeLanguage }) => {
   const navigate = useNavigate()
   const [pieces, setPieces] = useState([])
   const [practiceLessons, setPracticeLessons] = useState([])
+  const [freeWritingLessons, setFreeWritingLessons] = useState([])
   const [loading, setLoading] = useState(true)
   const [practiceLoading, setPracticeLoading] = useState(true)
+  const [freeWritingLoading, setFreeWritingLoading] = useState(true)
   const [error, setError] = useState('')
   const [modalMode, setModalMode] = useState(null) // 'free' | 'practice' | null
 
   // For design preview - set to true to see placeholders
-  const SHOW_PLACEHOLDERS = true
+  const SHOW_PLACEHOLDERS = false
 
   // Load writing pieces
   useEffect(() => {
@@ -237,6 +241,32 @@ const WritingHub = ({ activeLanguage }) => {
     return unsubscribe
   }, [activeLanguage, user])
 
+  // Load free writing lessons
+  useEffect(() => {
+    if (!user || !activeLanguage) {
+      setFreeWritingLessons([])
+      setFreeWritingLoading(false)
+      return undefined
+    }
+
+    setFreeWritingLoading(true)
+
+    const unsubscribe = subscribeToFreeWritingLessons(
+      user.uid,
+      activeLanguage,
+      (nextLessons) => {
+        setFreeWritingLessons(nextLessons)
+        setFreeWritingLoading(false)
+      },
+      (err) => {
+        console.error('Free writing load error:', err)
+        setFreeWritingLoading(false)
+      }
+    )
+
+    return unsubscribe
+  }, [activeLanguage, user])
+
   const handleOpenPiece = (piece) => {
     if (piece.id?.startsWith('placeholder')) return
     if (!piece?.id) return
@@ -249,12 +279,27 @@ const WritingHub = ({ activeLanguage }) => {
     navigate(`/practice/${lesson.id}`)
   }
 
+  const handleOpenFreeWriting = (lesson) => {
+    if (lesson.id?.startsWith('placeholder')) return
+    if (!lesson?.id) return
+    navigate(`/freewrite/${lesson.id}`)
+  }
+
   const handleDeleteLesson = async (lessonId) => {
     if (!user || !lessonId || lessonId.startsWith('placeholder')) return
     try {
       await deletePracticeLesson(user.uid, lessonId)
     } catch (err) {
       console.error('Failed to delete lesson:', err)
+    }
+  }
+
+  const handleDeleteFreeWriting = async (lessonId) => {
+    if (!user || !lessonId || lessonId.startsWith('placeholder')) return
+    try {
+      await deleteFreeWritingLesson(user.uid, lessonId)
+    } catch (err) {
+      console.error('Failed to delete free writing:', err)
     }
   }
 
@@ -265,7 +310,7 @@ const WritingHub = ({ activeLanguage }) => {
       return
     }
     if (type === 'free') {
-      navigate(`/write/${item.id}`)
+      navigate(`/freewrite/${item.id}`)
     } else {
       navigate(`/practice/${item.id}`)
     }
@@ -286,7 +331,7 @@ const WritingHub = ({ activeLanguage }) => {
     )
   }
 
-  if (loading && practiceLoading && !SHOW_PLACEHOLDERS) {
+  if (loading && practiceLoading && freeWritingLoading && !SHOW_PLACEHOLDERS) {
     return (
       <div className="writing-hub">
         <p className="muted small">Loading your writing...</p>
@@ -305,9 +350,11 @@ const WritingHub = ({ activeLanguage }) => {
   // Combine real data with placeholders for design preview
   const displayPieces = SHOW_PLACEHOLDERS ? [...pieces, ...PLACEHOLDER_PIECES] : pieces
   const displayLessons = SHOW_PLACEHOLDERS ? [...practiceLessons, ...PLACEHOLDER_LESSONS] : practiceLessons
+  const displayFreeWriting = freeWritingLessons
 
   const hasPieces = displayPieces.length > 0
   const hasLessons = displayLessons.length > 0
+  const hasFreeWriting = displayFreeWriting.length > 0
   const groupedPieces = groupPiecesByType(displayPieces)
 
   return (
@@ -344,6 +391,25 @@ const WritingHub = ({ activeLanguage }) => {
           </div>
         </button>
       </div>
+
+      {/* Free Writing Lessons */}
+      {hasFreeWriting && (
+        <section className="read-section read-slab">
+          <div className="read-section-header">
+            <h3>Free Writing</h3>
+          </div>
+          <div className="writing-grid">
+            {displayFreeWriting.map((lesson) => (
+              <FreeWritingCard
+                key={lesson.id}
+                lesson={lesson}
+                onClick={() => handleOpenFreeWriting(lesson)}
+                onDelete={handleDeleteFreeWriting}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Practice Lessons */}
       {hasLessons && (

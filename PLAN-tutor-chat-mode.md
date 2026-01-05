@@ -1,39 +1,38 @@
 # Tutor Chat Mode - Implementation Plan
 
-## Overview
+## Vision
 
-A conversational practice mode where users engage in natural dialogue with an AI tutor. Unlike structured writing exercises (sentence translation, free writing), this mode focuses on casual, flowing conversation practice with optional correction feedback.
-
----
-
-## Core Concept
-
-**What it is:** Real-time chat conversation with an AI language tutor
-**How it differs from existing modes:**
-- **Practice Lesson**: Translate specific sentences → structured, one-way
-- **Free Writing**: Write about a topic line-by-line → user-driven content
-- **Tutor Chat (NEW)**: Back-and-forth dialogue → conversational, interactive
+Chat with an AI tutor who feels like a **real person** - someone you're genuinely texting with who happens to be an expert in language learning. They remember your past conversations, know your struggles, and talk to you naturally. Corrections come up organically in conversation, not as structured feedback panels.
 
 ---
 
-## Feature Specification
+## Core Philosophy
 
-### User Flow
-1. User starts a new chat session (selects topic/scenario or free conversation)
-2. AI tutor sends opening message in target language
-3. User responds in target language
-4. AI responds naturally AND optionally provides corrections
-5. Conversation continues naturally
-6. User can toggle correction mode on/off
-7. Words are tracked for vocabulary system
+**Not this:** "Here is your feedback. You made 2 errors. Error 1: grammar..."
 
-### Key Features
-- **Conversation Topics/Scenarios**: Optional prompts (e.g., "At a restaurant", "Meeting someone new", "Discussing hobbies")
-- **Difficulty Levels**: Beginner (simple vocab, slow pace), Intermediate (complex topics), Advanced (native-like)
-- **Correction Toggle**: User can choose inline corrections or pure conversation
-- **Vocabulary Tracking**: New words encountered get added to vocab system
-- **Session History**: Chat sessions saved for review
-- **Context Awareness**: AI remembers full conversation context
+**Like this:** "Haha sí! Aunque quick note - it's 'tengo hambre' not 'estoy hambre' - hunger uses tener in Spanish, weird right? Anyway, what did you end up eating?"
+
+The tutor is a person first, teacher second.
+
+---
+
+## Key Characteristics
+
+### The Tutor Persona
+- Warm, genuine, curious about you
+- Remembers what you've talked about before
+- Brings up past topics naturally ("How did that job interview go?")
+- Expert in language learning but doesn't lecture
+- Corrects naturally within conversation flow
+- Adjusts complexity based on your level (observed, not configured)
+
+### Memory System
+The tutor remembers across ALL conversations:
+- Your interests and life events you've mentioned
+- Recurring mistakes you make
+- Words/concepts you've struggled with
+- Topics you've discussed
+- Your progress over time
 
 ---
 
@@ -42,214 +41,229 @@ A conversational practice mode where users engage in natural dialogue with an AI
 ### 1. Database Schema (Firestore)
 
 ```
-users/{userId}/tutorChats/{chatId}
-├── title: string (auto-generated or user-defined)
-├── topic: string | null (optional conversation topic)
-├── scenario: string | null (optional scenario prompt)
+users/{userId}/tutorProfile
 ├── targetLanguage: string
 ├── sourceLanguage: string
-├── difficulty: 'beginner' | 'intermediate' | 'advanced'
-├── correctionMode: 'always' | 'on-request' | 'off'
-├── messages: [
-│   {
-│     id: string (uuid)
-│     role: 'user' | 'assistant' | 'system'
-│     content: string
-│     timestamp: serverTimestamp
-│     correction: {
-│       hasErrors: boolean
-│       overallFeedback: string
-│       corrections: [
-│         {
-│           original: string
-│           correction: string
-│           explanation: string
-│           category: 'spelling' | 'grammar' | 'vocabulary' | 'naturalness'
-│           startIndex: number
-│           endIndex: number
-│         }
-│       ]
-│     } | null
-│     vocabWords: string[] (words to potentially track)
-│   }
-│ ]
-├── messageCount: number
-├── status: 'active' | 'archived'
+├── createdAt: timestamp
+├── lastChatAt: timestamp
+├── memory: {
+│   ├── userFacts: string[]          // "works as a designer", "has a dog named Luna"
+│   ├── recurringMistakes: string[]  // "confuses ser/estar", "forgets subjunctive"
+│   ├── topicsDiscussed: string[]    // "travel to Mexico", "cooking"
+│   ├── lastConversationSummary: string
+│   └── observedLevel: string        // tutor's assessment, updated over time
+│ }
+└── preferences: {
+    └── correctionStyle: 'inline' | 'minimal'  // how often to correct
+  }
+
+users/{userId}/tutorChats/{chatId}
 ├── createdAt: timestamp
 ├── updatedAt: timestamp
-└── lastMessageAt: timestamp
+├── messages: [
+│   {
+│     id: string
+│     role: 'user' | 'tutor'
+│     content: string
+│     timestamp: timestamp
+│   }
+│ ]
+├── summary: string | null           // AI-generated summary for memory
+└── archived: boolean
 ```
 
-### 2. Backend API Endpoints
+### 2. Memory Strategy
 
-**File:** `server.js` (add new routes)
+**Per-conversation:** Full message history sent to AI (recent conversation context)
+
+**Cross-conversation:** After each chat session ends (or periodically), AI generates:
+- Summary of what was discussed
+- New facts learned about user
+- Mistakes the user made
+- Updates to `tutorProfile.memory`
+
+**On new chat:** System prompt includes:
+- User facts from memory
+- Recent conversation summaries
+- Known recurring mistakes
+- Observed level
+
+### 3. Backend API Endpoints
 
 ```javascript
-// Start new chat session
-POST /api/tutor-chat/start
+// Send message, get tutor response
+POST /api/tutor/message
 Request: {
-  targetLanguage: string
-  sourceLanguage: string
-  difficulty: string
-  topic?: string
-  scenario?: string
-  correctionMode: string
-}
-Response: {
-  sessionId: string
-  openingMessage: string
-}
-
-// Send message and get response
-POST /api/tutor-chat/message
-Request: {
-  sessionId: string
   message: string
-  includeCorrection: boolean
-  conversationHistory: Message[] (last N messages for context)
+  chatId: string
 }
 Response: {
   response: string
-  correction?: {
-    hasErrors: boolean
-    overallFeedback: string
-    corrections: Correction[]
-  }
-  suggestedVocab?: string[]
+  chatId: string
 }
 
-// Request correction for specific message (on-demand)
-POST /api/tutor-chat/correct
+// Start new conversation (or continue existing)
+POST /api/tutor/start
 Request: {
-  message: string
   targetLanguage: string
   sourceLanguage: string
-  conversationContext: string[]
 }
 Response: {
-  correction: CorrectionObject
+  chatId: string
+  greeting: string        // Tutor's opening, informed by memory
+  isReturningUser: boolean
+}
+
+// End session (triggers memory update)
+POST /api/tutor/end-session
+Request: {
+  chatId: string
+}
+Response: {
+  memoryUpdated: boolean
+}
+
+// Get tutor profile (for settings display)
+GET /api/tutor/profile
+Response: {
+  profile: TutorProfile
 }
 ```
 
-### 3. Frontend Service Layer
+### 4. AI System Prompt
 
-**File:** `src/services/tutorChat.js`
+```
+You are a friendly language tutor chatting naturally with a student learning {targetLanguage}.
+Their native language is {sourceLanguage}.
 
-```javascript
-// CRUD Operations
-createTutorChat(userId, config) → chatId
-getTutorChat(userId, chatId) → chat
-getUserTutorChats(userId) → chat[]
-updateTutorChat(userId, chatId, updates)
-archiveTutorChat(userId, chatId)
-deleteTutorChat(userId, chatId)
+ABOUT THIS PERSON:
+{userFacts as bullet points}
 
-// Message Operations
-addMessage(userId, chatId, message)
-getMessages(userId, chatId, limit?) → messages[]
+WHAT YOU'VE TALKED ABOUT RECENTLY:
+{lastConversationSummary}
 
-// Real-time
-subscribeToChat(userId, chatId, callback) → unsubscribe
-subscribeToUserChats(userId, callback) → unsubscribe
+MISTAKES THEY COMMONLY MAKE:
+{recurringMistakes}
+
+YOUR OBSERVED ASSESSMENT:
+{observedLevel}
+
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Ask about their life, remember details
+- Keep the conversation flowing naturally
+- Correct mistakes NATURALLY within your response - don't make it a lesson
+- Use their target language primarily, with {sourceLanguage} for explanations when needed
+- Match your vocabulary to their level
+- Don't be overly encouraging or teacherly - just be real
+
+CORRECTION STYLE:
+When they make a mistake, work the correction into your natural response.
+Example: If they say "Yo soy hambre", you might respond:
+"Jaja yo también tengo hambre! (btw it's 'tengo hambre' not 'soy' - hunger uses tener)
+¿Qué vas a comer?"
+
+NOT like this:
+"Great try! Just a small correction: in Spanish we use 'tener' for hunger, so it should be 'tengo hambre'. Keep up the good work!"
 ```
 
-### 4. Frontend Components
+### 5. Memory Update Prompt
 
-**New Files:**
+```
+Based on this conversation, extract:
+
+1. NEW_FACTS: Any new things learned about this person (interests, life events, etc.)
+2. MISTAKES: Language mistakes they made (patterns, not one-offs)
+3. TOPICS: Main topics discussed
+4. SUMMARY: 2-3 sentence summary of the conversation
+5. LEVEL_ASSESSMENT: Your current assessment of their level (beginner/intermediate/advanced)
+
+Respond in JSON format.
+```
+
+---
+
+## Frontend Components
+
+### Files to Create
+
 ```
 src/
 ├── pages/
-│   └── TutorChat.jsx              # Main chat page
+│   └── TutorChat.jsx           # Main chat interface
 ├── components/
-│   └── write/
-│       ├── TutorChatCard.jsx      # Chat session card for hub
-│       └── NewTutorChatModal.jsx  # Create new chat modal
+│   └── tutor/
+│       └── TutorMessage.jsx    # Message bubble with word interaction
+├── services/
+│   └── tutor.js                # Firestore + API service
 ```
 
-**TutorChat.jsx Structure:**
-```jsx
-- Header (chat title, settings toggle)
-- Message Container (scrollable)
-  - TutorMessage (AI messages)
-  - UserMessage (user messages with optional corrections)
-  - CorrectionPanel (expandable correction details)
-- Input Area
-  - Text input
-  - Send button
-  - Correction toggle
-  - Voice input (future)
+### TutorChat.jsx Structure
+
+```
+┌─────────────────────────────────────────┐
+│ ← Tu Tutor                              │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌──────────────────────────────────┐   │
+│  │ Hey! ¿Cómo te fue con la        │   │
+│  │ entrevista del viernes?          │   │
+│  └──────────────────────────────────┘   │
+│                                         │
+│         ┌───────────────────────────┐   │
+│         │ Muy bien! Yo pienso que   │   │
+│         │ ellos van a llamarme      │   │
+│         └───────────────────────────┘   │
+│                                         │
+│  ┌──────────────────────────────────┐   │
+│  │ Qué bueno!! Creo que* van a     │   │
+│  │ llamarte 😊 ¿Cuándo te avisan?  │   │
+│  │                                  │   │
+│  │ *pienso que = I think (opinion) │   │
+│  │  creo que = I think (belief) -  │   │
+│  │  more natural here              │   │
+│  └──────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│ ┌─────────────────────────────┐ [Send]  │
+│ │ Escribe aquí...             │         │
+│ └─────────────────────────────┘         │
+└─────────────────────────────────────────┘
 ```
 
-### 5. AI Prompts
-
-**System Prompt (Conversation):**
-```
-You are a friendly language tutor having a natural conversation in {targetLanguage}.
-Difficulty level: {difficulty}
-Topic: {topic}
-
-Guidelines:
-- Respond naturally as a conversation partner
-- Match complexity to difficulty level
-- Ask follow-up questions to keep conversation flowing
-- Be encouraging but authentic
-- Use vocabulary appropriate to level
-```
-
-**System Prompt (Correction):**
-```
-Analyze the following message in {targetLanguage} for errors.
-The user's native language is {sourceLanguage}.
-Context: [previous messages]
-
-Provide corrections in JSON format:
-{
-  "hasErrors": boolean,
-  "overallFeedback": "brief encouraging feedback",
-  "corrections": [
-    {
-      "original": "exact text",
-      "correction": "corrected text",
-      "explanation": "why this is wrong (in {feedbackLanguage})",
-      "category": "spelling|grammar|vocabulary|naturalness",
-      "startIndex": number,
-      "endIndex": number
-    }
-  ]
-}
-```
+### Word Interaction
+- Same as rest of app: tap word to translate
+- Toggle word status (new/unknown/recognised/familiar/known)
+- Words flow into existing vocab system
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Core Infrastructure
-- [ ] Create `src/services/tutorChat.js` with Firestore operations
-- [ ] Add API endpoints to `server.js`
-- [ ] Create AI prompt templates
-
-### Phase 2: UI Components
-- [ ] Create `TutorChat.jsx` page
-- [ ] Create `TutorChatCard.jsx` for WritingHub
-- [ ] Create `NewTutorChatModal.jsx`
+### Phase 1: Core Chat
+- [ ] Create `src/services/tutor.js` - Firestore operations
+- [ ] Add `/api/tutor/message` endpoint
+- [ ] Create `TutorChat.jsx` page with basic chat UI
 - [ ] Add route to App.jsx
+- [ ] Basic conversation (no memory yet)
 
-### Phase 3: Chat Functionality
-- [ ] Implement message sending/receiving
-- [ ] Add real-time message updates
-- [ ] Implement correction display
-- [ ] Add correction toggle
+### Phase 2: Memory System
+- [ ] Create tutorProfile collection structure
+- [ ] Add `/api/tutor/start` with memory-informed greeting
+- [ ] Add `/api/tutor/end-session` with memory extraction
+- [ ] Update system prompt to include memory context
 
-### Phase 4: Integration
-- [ ] Integrate with vocabulary tracking system
-- [ ] Add word status highlighting
-- [ ] Add to WritingHub navigation
+### Phase 3: Integration
+- [ ] Word interaction (tap to translate, status toggle)
+- [ ] Add to WritingHub or main navigation
+- [ ] Session continuity (resume vs new chat)
 
-### Phase 5: Polish
-- [ ] Add conversation topics/scenarios
-- [ ] Add difficulty adjustment
-- [ ] Session history and archive
+### Phase 4: Polish
+- [ ] Smooth message animations
+- [ ] Typing indicator
 - [ ] Mobile responsiveness
+- [ ] Edge cases (long conversations, memory limits)
 
 ---
 
@@ -257,73 +271,29 @@ Provide corrections in JSON format:
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/services/tutorChat.js` | CREATE | Firestore service layer |
+| `src/services/tutor.js` | CREATE | Firestore + API service |
 | `src/pages/TutorChat.jsx` | CREATE | Main chat page |
-| `src/components/write/TutorChatCard.jsx` | CREATE | Hub card component |
-| `src/components/write/NewTutorChatModal.jsx` | CREATE | New chat modal |
-| `src/components/write/WritingHub.jsx` | MODIFY | Add tutor chat section |
+| `src/components/tutor/TutorMessage.jsx` | CREATE | Message with word interaction |
 | `src/App.jsx` | MODIFY | Add route |
-| `server.js` | MODIFY | Add API endpoints |
+| `server.js` | MODIFY | Add tutor API endpoints |
+| `src/components/write/WritingHub.jsx` | MODIFY | Add tutor chat entry point |
 
 ---
 
 ## Design Decisions
 
-### Why separate from Free Writing?
-- Different mental model (conversation vs. composition)
-- Different UI patterns (chat bubbles vs. editor)
-- Different AI behavior (responsive vs. evaluative)
+### Why One Tutor, Not Multiple?
+Creates a real relationship. You're building history with ONE person, not starting fresh with different tutors.
 
-### Message Storage Strategy
-- Store messages in array within chat document (Firestore)
-- Pros: Single read for full conversation, atomic updates
-- Cons: Document size limit (1MB) - mitigate with archiving old messages
+### Memory Storage
+- Structured facts in Firestore (fast retrieval)
+- Conversation summaries (not full history) for context
+- Periodic memory consolidation to keep context window manageable
 
-### Correction Modes
-- **Always**: Every user message gets correction (learning-focused)
-- **On-Request**: User taps to request correction (flow-focused)
-- **Off**: Pure conversation practice (confidence-building)
+### Correction Philosophy
+Corrections are woven into natural responses, not separate feedback blocks. The tutor is helpful but doesn't make everything about teaching.
 
----
-
-## UI Mockup (ASCII)
-
-```
-┌─────────────────────────────────────────┐
-│ ← Tutor Chat: Coffee Shop        ⚙️    │
-├─────────────────────────────────────────┤
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │ 🤖 ¡Hola! ¿Cómo estás hoy?      │   │
-│  └──────────────────────────────────┘   │
-│                                         │
-│         ┌───────────────────────────┐   │
-│         │ Estoy bien, gracías!      │   │
-│         └───────────────────────────┘   │
-│         ⚠️ 1 correction                 │
-│         ┌─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐   │
-│         │ gracías → gracias         │   │
-│         │ (no accent needed)        │   │
-│         └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘   │
-│                                         │
-│  ┌──────────────────────────────────┐   │
-│  │ 🤖 ¡Qué bueno! ¿Qué vas a       │   │
-│  │ pedir hoy?                       │   │
-│  └──────────────────────────────────┘   │
-│                                         │
-├─────────────────────────────────────────┤
-│ ┌─────────────────────────────┐ [Send]  │
-│ │ Type your message...        │ ✓corr   │
-│ └─────────────────────────────┘         │
-└─────────────────────────────────────────┘
-```
-
----
-
-## Open Questions for Consideration
-
-1. **Topic Library**: Should we provide pre-built conversation scenarios?
-2. **Voice Input**: Priority for speech-to-text input?
-3. **Vocab Integration**: Auto-add corrected words to vocab, or user-initiated?
-4. **Message Limit**: Archive after N messages or let documents grow?
-5. **Tutor Persona**: Same tutor personality or customizable?
+### Session Boundaries
+- New chat = same tutor, new conversation thread
+- Memory persists across all chats
+- User can scroll back through old chats if needed

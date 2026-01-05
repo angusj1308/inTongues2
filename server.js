@@ -4743,6 +4743,381 @@ Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be co
   }
 })
 
+// =============================================================================
+// NOVEL GENERATOR API
+// =============================================================================
+
+// OpenAI wrapper with retry, timeout, and streaming support
+// Per planning doc Section 11.5: 3 attempts, exponential backoff (2s, 4s, 8s), 90s timeout
+async function callOpenAIWithRetry(options, { maxRetries = 3, timeoutMs = 90000, stream = false } = {}) {
+  const delays = [2000, 4000, 8000]
+  let lastError = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+      try {
+        if (stream) {
+          // Streaming mode for chapter generation
+          const response = await client.chat.completions.create({
+            ...options,
+            stream: true,
+          })
+          clearTimeout(timeoutId)
+          return response
+        } else {
+          // Non-streaming mode for bible phases
+          const response = await client.chat.completions.create({
+            ...options,
+            stream: false,
+          })
+          clearTimeout(timeoutId)
+          return response
+        }
+      } finally {
+        clearTimeout(timeoutId)
+      }
+    } catch (error) {
+      lastError = error
+      console.error(`OpenAI call attempt ${attempt + 1} failed:`, error.message)
+
+      // Don't retry on abort (timeout)
+      if (error.name === 'AbortError') {
+        throw new Error(`OpenAI call timed out after ${timeoutMs}ms`)
+      }
+
+      // Wait before retrying (unless last attempt)
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]))
+      }
+    }
+  }
+
+  throw lastError || new Error('OpenAI call failed after all retries')
+}
+
+// Parse JSON from LLM response, with retry instruction if parsing fails
+function parseJSONResponse(content) {
+  try {
+    // Try to extract JSON from markdown code blocks if present
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
+    const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim()
+    return { success: true, data: JSON.parse(jsonStr) }
+  } catch (error) {
+    return { success: false, error: error.message, raw: content }
+  }
+}
+
+// Validate coherence check fields are non-empty
+function validateCoherenceCheck(coherenceCheck, requiredFields) {
+  if (!coherenceCheck) return { valid: false, missing: requiredFields }
+  const missing = requiredFields.filter(field => !coherenceCheck[field] || coherenceCheck[field].trim() === '')
+  return { valid: missing.length === 0, missing }
+}
+
+// POST /api/generate/bible - Generate complete story bible (Phases 1-8)
+app.post('/api/generate/bible', async (req, res) => {
+  try {
+    const { uid, concept, level, lengthPreset, language, generateAudio = false } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!concept) return res.status(400).json({ error: 'concept is required' })
+    if (!level) return res.status(400).json({ error: 'level is required' })
+    if (!lengthPreset) return res.status(400).json({ error: 'lengthPreset is required' })
+    if (!language) return res.status(400).json({ error: 'language is required' })
+
+    // Validate level
+    const validLevels = ['Beginner', 'Intermediate', 'Native']
+    if (!validLevels.includes(level)) {
+      return res.status(400).json({ error: `level must be one of: ${validLevels.join(', ')}` })
+    }
+
+    // Validate lengthPreset
+    const validLengths = ['novella', 'novel']
+    if (!validLengths.includes(lengthPreset)) {
+      return res.status(400).json({ error: `lengthPreset must be one of: ${validLengths.join(', ')}` })
+    }
+
+    // Create initial book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc()
+    const bookId = bookRef.id
+
+    await bookRef.set({
+      concept,
+      language,
+      level,
+      genre: 'Romance', // Pilot genre
+      lengthPreset,
+      chapterCount: lengthPreset === 'novella' ? 12 : 35,
+      generateAudio,
+      status: 'planning',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      bible: {} // Will be populated by phases
+    })
+
+    // TODO: Phase B will implement actual bible generation
+    // For Phase A, return mock response
+    const mockBible = {
+      coreFoundation: {
+        status: 'pending',
+        message: 'Phase 1 generation not yet implemented'
+      },
+      world: { status: 'pending' },
+      characters: { status: 'pending' },
+      chemistry: { status: 'pending' },
+      plot: { status: 'pending' },
+      chapters: { status: 'pending' },
+      levelCheck: { status: 'pending' },
+      validation: { status: 'pending' }
+    }
+
+    await bookRef.update({ bible: mockBible })
+
+    return res.status(201).json({
+      success: true,
+      bookId,
+      status: 'planning',
+      message: 'Bible generation initiated (Phase A mock - actual generation not yet implemented)',
+      bible: mockBible
+    })
+
+  } catch (error) {
+    console.error('Generate bible error:', error)
+    return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
+  }
+})
+
+// POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
+app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
+  try {
+    const { bookId, chapterIndex } = req.params
+    const { uid } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const chapterNum = parseInt(chapterIndex, 10)
+    if (isNaN(chapterNum) || chapterNum < 1) {
+      return res.status(400).json({ error: 'chapterIndex must be a positive integer' })
+    }
+
+    // Get book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Validate chapter index
+    if (chapterNum > bookData.chapterCount) {
+      return res.status(400).json({
+        error: `Chapter ${chapterNum} exceeds book chapter count (${bookData.chapterCount})`
+      })
+    }
+
+    // Check if bible is complete
+    if (bookData.status === 'planning' && bookData.bible?.validation?.status !== 'PASS') {
+      return res.status(400).json({
+        error: 'Bible generation must be complete before generating chapters'
+      })
+    }
+
+    // Create/update chapter document
+    const chapterRef = bookRef.collection('chapters').doc(String(chapterNum))
+
+    // TODO: Phase C will implement actual chapter generation
+    // For Phase A, return mock response
+    const mockChapter = {
+      index: chapterNum,
+      title: `Chapter ${chapterNum} (Mock)`,
+      pov: 'Protagonist',
+      content: `[Mock content for chapter ${chapterNum}. Actual generation not yet implemented.]`,
+      wordCount: 0,
+      tensionRating: 5,
+      summary: {
+        events: ['Mock event 1', 'Mock event 2'],
+        characterStates: {},
+        relationshipState: 'Mock relationship state',
+        reveals: [],
+        seedsPlanted: [],
+        seedsPaid: []
+      },
+      compressedSummary: null,
+      ultraSummary: null,
+      audioUrl: null,
+      audioStatus: 'none',
+      validationPassed: false,
+      regenerationCount: 0,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    await chapterRef.set(mockChapter)
+
+    // Update book status if this is first chapter
+    if (bookData.status === 'planning') {
+      await bookRef.update({ status: 'in_progress' })
+    }
+
+    return res.status(201).json({
+      success: true,
+      bookId,
+      chapterIndex: chapterNum,
+      message: 'Chapter generation initiated (Phase A mock - actual generation not yet implemented)',
+      chapter: {
+        ...mockChapter,
+        generatedAt: new Date().toISOString()
+      }
+    })
+
+  } catch (error) {
+    console.error('Generate chapter error:', error)
+    return res.status(500).json({ error: 'Failed to generate chapter', details: error.message })
+  }
+})
+
+// GET /api/generate/book/:bookId - Get book status and bible
+app.get('/api/generate/book/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params
+    const { uid } = req.query
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid query parameter is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    // Get book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Get chapter summaries
+    const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const chapters = chaptersSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        index: data.index,
+        title: data.title,
+        pov: data.pov,
+        wordCount: data.wordCount,
+        validationPassed: data.validationPassed,
+        generatedAt: data.generatedAt
+      }
+    })
+
+    return res.json({
+      success: true,
+      book: {
+        id: bookId,
+        concept: bookData.concept,
+        language: bookData.language,
+        level: bookData.level,
+        genre: bookData.genre,
+        lengthPreset: bookData.lengthPreset,
+        chapterCount: bookData.chapterCount,
+        generateAudio: bookData.generateAudio,
+        status: bookData.status,
+        createdAt: bookData.createdAt,
+        bible: bookData.bible
+      },
+      chapters,
+      generatedChapterCount: chapters.length
+    })
+
+  } catch (error) {
+    console.error('Get book error:', error)
+    return res.status(500).json({ error: 'Failed to get book', details: error.message })
+  }
+})
+
+// GET /api/generate/books - List all generated books for a user
+app.get('/api/generate/books', async (req, res) => {
+  try {
+    const { uid } = req.query
+
+    if (!uid) return res.status(400).json({ error: 'uid query parameter is required' })
+
+    const booksSnapshot = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('generatedBooks')
+      .orderBy('createdAt', 'desc')
+      .get()
+
+    const books = booksSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        concept: data.concept,
+        language: data.language,
+        level: data.level,
+        genre: data.genre,
+        lengthPreset: data.lengthPreset,
+        chapterCount: data.chapterCount,
+        status: data.status,
+        createdAt: data.createdAt
+      }
+    })
+
+    return res.json({
+      success: true,
+      books,
+      count: books.length
+    })
+
+  } catch (error) {
+    console.error('List books error:', error)
+    return res.status(500).json({ error: 'Failed to list books', details: error.message })
+  }
+})
+
+// DELETE /api/generate/book/:bookId - Delete a generated book
+app.delete('/api/generate/book/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params
+    const { uid } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    // Delete all chapters first
+    const chaptersSnapshot = await bookRef.collection('chapters').get()
+    const batch = firestore.batch()
+    chaptersSnapshot.docs.forEach(doc => batch.delete(doc.ref))
+    await batch.commit()
+
+    // Delete the book document
+    await bookRef.delete()
+
+    return res.json({
+      success: true,
+      message: 'Book and all chapters deleted'
+    })
+
+  } catch (error) {
+    console.error('Delete book error:', error)
+    return res.status(500).json({ error: 'Failed to delete book', details: error.message })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

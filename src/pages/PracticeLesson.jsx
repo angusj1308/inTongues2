@@ -162,6 +162,9 @@ const PracticeLesson = () => {
   const resizeRef = useRef(null)
   const isResizing = useRef(false)
   const isUpdatingFromDocument = useRef(false) // Prevent sync loops
+  const saveTimeoutRef = useRef(null) // Auto-save debounce
+  const lastSavedAttemptRef = useRef('') // Track last saved to avoid unnecessary writes
+  const [isSaving, setIsSaving] = useState(false)
 
   // Load lesson
   useEffect(() => {
@@ -191,7 +194,9 @@ const PracticeLesson = () => {
           (a) => a.sentenceIndex === data.currentIndex
         )
         if (currentAttempt) {
-          setUserAttempt(currentAttempt.userText || '')
+          const attemptText = currentAttempt.userText || ''
+          setUserAttempt(attemptText)
+          lastSavedAttemptRef.current = attemptText
           if (currentAttempt.feedback) {
             setFeedback(currentAttempt.feedback)
             setModelSentence(currentAttempt.modelSentence || '')
@@ -219,6 +224,103 @@ const PracticeLesson = () => {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  // Core save function for auto-save
+  const saveDraft = useCallback(async () => {
+    if (!user || !lessonId || !lesson) return false
+
+    const currentAttempt = userAttempt.trim()
+    if (currentAttempt === lastSavedAttemptRef.current) return true // Already saved
+
+    try {
+      await saveAttempt(user.uid, lessonId, {
+        sentenceIndex: lesson.currentIndex,
+        userText: currentAttempt,
+        status: 'draft',
+      })
+      lastSavedAttemptRef.current = currentAttempt
+      return true
+    } catch (err) {
+      console.error('Auto-save error:', err)
+      return false
+    }
+  }, [user, lessonId, lesson, userAttempt])
+
+  // Auto-save userAttempt with debounce
+  useEffect(() => {
+    if (!user || !lessonId || !lesson) return
+
+    const currentAttempt = userAttempt.trim()
+    if (currentAttempt === lastSavedAttemptRef.current) return
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Save after 500ms of inactivity
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true)
+      await saveDraft()
+      setIsSaving(false)
+    }, 500)
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [userAttempt, user, lessonId, lesson, saveDraft])
+
+  // Save on page leave/refresh
+  useEffect(() => {
+    if (!user || !lessonId || !lesson) return
+
+    const saveBeforeUnload = () => {
+      const currentAttempt = userAttempt.trim()
+      if (currentAttempt === lastSavedAttemptRef.current) return
+
+      // Use sendBeacon for reliable save on page unload
+      const data = JSON.stringify({
+        userId: user.uid,
+        lessonId,
+        sentenceIndex: lesson.currentIndex,
+        userText: currentAttempt,
+        status: 'draft',
+      })
+      const blob = new Blob([data], { type: 'application/json' })
+      const success = navigator.sendBeacon('/api/practice/save-beacon', blob)
+      if (success) {
+        lastSavedAttemptRef.current = currentAttempt
+      }
+    }
+
+    const handleBeforeUnload = () => {
+      saveBeforeUnload()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveBeforeUnload()
+      }
+    }
+
+    const handleBlur = () => {
+      if (userAttempt.trim() !== lastSavedAttemptRef.current) {
+        saveDraft()
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [user, lessonId, lesson, userAttempt, saveDraft])
 
   // Extract words from model sentence for review panel (includes all non-known initially)
   useEffect(() => {

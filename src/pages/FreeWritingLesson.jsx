@@ -142,6 +142,7 @@ const FreeWritingLesson = () => {
   const isResizing = useRef(false)
   const saveTimeoutRef = useRef(null)
   const contentRef = useRef('') // Track content without triggering re-renders
+  const lastSavedContentRef = useRef('') // Track last saved content (ref to avoid closure issues)
   const isInitialized = useRef(false)
   const wordCountUpdateRef = useRef(null) // Debounce word count updates
   const autoFeedbackTimeoutRef = useRef(null) // Debounce auto-feedback
@@ -168,6 +169,7 @@ const FreeWritingLesson = () => {
         // Load document content - store in ref and state
         const docContent = data.content || ''
         contentRef.current = docContent
+        lastSavedContentRef.current = docContent
         setContent(docContent)
         setLastSavedContent(docContent)
 
@@ -220,49 +222,64 @@ const FreeWritingLesson = () => {
     }, 300)
   }, [])
 
-  // Auto-save with debounce
+  // Core save function - reusable
+  const saveContent = useCallback(async () => {
+    if (!user || !lessonId) return false
+
+    const currentContent = contentRef.current
+    if (currentContent === lastSavedContentRef.current) return true // Already saved
+
+    try {
+      const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
+      await updateFreeWritingLesson(user.uid, lessonId, {
+        content: currentContent,
+        wordCount,
+      })
+      lastSavedContentRef.current = currentContent
+      setLastSavedContent(currentContent)
+      return true
+    } catch (err) {
+      console.error('Save error:', err)
+      return false
+    }
+  }, [user, lessonId])
+
+  // Auto-save with debounce - triggers on content changes
   useEffect(() => {
-    if (!user || !lessonId || content === lastSavedContent) return
+    if (!user || !lessonId) return
+
+    const currentContent = contentRef.current
+    if (currentContent === lastSavedContentRef.current) return
 
     // Clear any pending save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
 
-    // Save after 1 second of inactivity
+    // Save after 500ms of inactivity (faster for better UX)
     saveTimeoutRef.current = setTimeout(async () => {
       setIsSaving(true)
-      try {
-        const currentContent = contentRef.current
-        const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
-        await updateFreeWritingLesson(user.uid, lessonId, {
-          content: currentContent,
-          wordCount,
-        })
-        setLastSavedContent(currentContent)
-      } catch (err) {
-        console.error('Auto-save error:', err)
-      } finally {
-        setIsSaving(false)
-      }
-    }, 1000)
+      await saveContent()
+      setIsSaving(false)
+    }, 500)
 
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [content, lastSavedContent, user, lessonId])
+  }, [content, user, lessonId, saveContent])
 
-  // Save immediately on page leave/refresh
+  // Save immediately on page leave/refresh - use refs to avoid stale closures
   useEffect(() => {
-    const saveBeforeUnload = async () => {
+    if (!user || !lessonId) return
+
+    const saveBeforeUnload = () => {
       const currentContent = contentRef.current
-      if (!user || !lessonId || currentContent === lastSavedContent) return
+      if (currentContent === lastSavedContentRef.current) return
 
       const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
       // Use sendBeacon for reliable save on page unload
-      // Must use Blob with correct Content-Type for express.json() to parse
       const data = JSON.stringify({
         userId: user.uid,
         lessonId,
@@ -270,16 +287,14 @@ const FreeWritingLesson = () => {
         wordCount,
       })
       const blob = new Blob([data], { type: 'application/json' })
-      navigator.sendBeacon('/api/freewriting/save-beacon', blob)
+      const success = navigator.sendBeacon('/api/freewriting/save-beacon', blob)
+      if (success) {
+        lastSavedContentRef.current = currentContent
+      }
     }
 
     const handleBeforeUnload = (e) => {
       saveBeforeUnload()
-      // Also do a sync save attempt
-      if (contentRef.current !== lastSavedContent) {
-        e.preventDefault()
-        e.returnValue = '' // Chrome requires returnValue to be set
-      }
     }
 
     const handleVisibilityChange = () => {
@@ -288,14 +303,23 @@ const FreeWritingLesson = () => {
       }
     }
 
+    // Also save on blur (switching tabs, clicking outside)
+    const handleBlur = () => {
+      if (contentRef.current !== lastSavedContentRef.current) {
+        saveContent()
+      }
+    }
+
     window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('blur', handleBlur)
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('blur', handleBlur)
     }
-  }, [user, lessonId, lastSavedContent])
+  }, [user, lessonId, saveContent])
 
   // Auto-analyze text for feedback after user pauses typing
   const analyzeTextForFeedback = useCallback(async () => {
@@ -745,6 +769,7 @@ const FreeWritingLesson = () => {
     try {
       await resetFreeWritingLesson(user.uid, lessonId)
       contentRef.current = ''
+      lastSavedContentRef.current = ''
       lastAnalyzedContentRef.current = ''
       setContent('')
       setLastSavedContent('')

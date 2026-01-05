@@ -5072,6 +5072,61 @@ Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be co
   }
 })
 
+// Practice Save Beacon - for saving draft on page unload
+app.post('/api/practice/save-beacon', async (req, res) => {
+  try {
+    const { userId, lessonId, sentenceIndex, userText, status } = req.body || {}
+
+    if (!userId || !lessonId || sentenceIndex === undefined) {
+      return res.status(400).json({ error: 'userId, lessonId, and sentenceIndex are required' })
+    }
+
+    // Get the lesson and update or add the attempt
+    const lessonRef = admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('practiceLessons')
+      .doc(lessonId)
+
+    const lessonDoc = await lessonRef.get()
+    if (!lessonDoc.exists) {
+      return res.status(404).json({ error: 'Lesson not found' })
+    }
+
+    const lessonData = lessonDoc.data()
+    let attempts = lessonData.attempts || []
+
+    // Find existing attempt for this sentence
+    const existingIndex = attempts.findIndex(a => a.sentenceIndex === sentenceIndex)
+    const attemptData = {
+      sentenceIndex,
+      userText: userText || '',
+      status: status || 'draft',
+      updatedAt: new Date().toISOString(),
+    }
+
+    if (existingIndex >= 0) {
+      // Preserve existing feedback/modelSentence if just saving draft
+      attempts[existingIndex] = {
+        ...attempts[existingIndex],
+        ...attemptData,
+      }
+    } else {
+      attempts.push(attemptData)
+    }
+
+    await lessonRef.update({
+      attempts,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    return res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Practice save beacon error:', error)
+    return res.status(500).json({ error: 'Failed to save' })
+  }
+})
+
 // Free Writing Save Beacon - for saving on page unload
 app.post('/api/freewriting/save-beacon', async (req, res) => {
   try {

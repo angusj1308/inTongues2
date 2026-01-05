@@ -11760,16 +11760,13 @@ body.active-pass-locked {
   background: #fafafa;
 }
 
-/* Input row with input and button side by side */
-.practice-input-row {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  align-items: stretch;
+/* Input wrapper for stacked layout */
+.practice-input-wrapper {
+  padding: 0.75rem 1rem 0.5rem;
 }
 
 .practice-input-field {
-  flex: 1;
+  width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -11793,6 +11790,8 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: calc(100% - 2rem);
+  margin: 0 1rem 0.75rem;
   padding: 0.75rem 1.25rem;
   border: none;
   background: #0f172a;

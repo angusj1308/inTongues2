@@ -4913,63 +4913,57 @@ In the model sentence, replace these parenthetical expressions with the correct 
       : ''
 
     // Build the prompt for the tutor
-    const prompt = `You are a language tutor helping a student learn ${targetLanguage}. The student is practicing expressing ideas from ${sourceLang} into ${targetLanguage}.
+    const prompt = `You are a strict but fair ${targetLanguage} language tutor. Analyze the student's translation attempt.
 ${contextSection}${unknownWordsSection}
-Original sentence (in ${sourceLang}):
-"${nativeSentence}"
+Original sentence (${sourceLang}): "${nativeSentence}"
+Student's attempt (${targetLanguage}): "${userAttempt}"
+Adaptation level: ${level}
 
-Student's attempt (in ${targetLanguage}):
-"${userAttempt}"
+YOUR TASK: Find ALL errors in the student's attempt. Be thorough but fair.
 
-Adaptation level: ${level} (${level === 'beginner' ? 'use simple vocabulary and shorter sentences' : level === 'intermediate' ? 'natural expressions with moderate complexity' : 'natural, native-level expression'})
+WHAT TO FLAG AS ERRORS (you MUST catch these):
+1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
+   Examples: "difficil" → "difícil", "extramadamente" → "extremadamente", "esta" → "está" (when verb)
+2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order that breaks grammar
+   Examples: "la problema" → "el problema", "ellos tiene" → "ellos tienen"
+3. ACCURACY ERRORS - Wrong word that changes the meaning, missing key information
+   Examples: Using "always" when original said "never"
 
-CRITICAL INSTRUCTION - READ CAREFULLY: Your job is to identify ACTUAL ERRORS ONLY. Do NOT mark things wrong just because they differ from how you would phrase it.
+WHAT IS NOT AN ERROR (do NOT flag these):
+- Valid synonyms: "necesitar" vs "deber", "muy" vs "bastante"
+- Valid alternatives: "¿no?" vs "¿verdad?", "es que" vs "porque"
+- Style preferences: Different but grammatically correct word order
+- If you would say "more natural" or "I prefer" - it's NOT an error, don't flag it
 
-There are MANY valid ways to express the same idea. A student's phrasing is ONLY wrong if:
-1. It contains actual grammar errors (wrong conjugation, agreement, broken syntax)
-2. It contains spelling errors
-3. It fundamentally changes or loses the meaning
-
-IMPORTANT EXAMPLES OF WHAT IS NOT AN ERROR:
-- "¿no?" vs "¿verdad?" at the end of a sentence - BOTH are correct and natural, do NOT flag either as wrong
-- "debemos actuar" vs "necesitamos actuar" - BOTH are correct
-- Different word order that is still grammatically valid - NOT an error
-- Using a synonym that conveys the same meaning - NOT an error
-
-If your explanation would contain phrases like "more natural", "more common", "I would prefer", or "better to use" - then it is NOT an error, it is just your preference. DO NOT FLAG PREFERENCES AS ERRORS.
-
-The corrections array should ONLY contain things that are genuinely WRONG, not things that are merely DIFFERENT from your preferred phrasing.
-
-Return a JSON object with this structure:
+Return JSON:
 {
-  "modelSentence": "ONE natural way to express this idea in ${targetLanguage} (offered as an exemplar, not THE correct answer)",
+  "modelSentence": "A natural ${targetLanguage} translation (as exemplar, not the only correct answer)",
   "feedback": {
-    "accuracy": <1-5 score, where 5 means the meaning is correctly and naturally conveyed>,
-    "correctness": <1-5 score, where 5 means no grammar or spelling errors>,
+    "correctness": <1-5, where 5 = no errors>,
+    "accuracy": <1-5, where 5 = meaning fully preserved>,
     "corrections": [
       {
-        "category": "grammar" | "spelling" | "accuracy",
-        "original": "exact word or phrase from student's attempt that needs correction",
-        "correction": "the corrected word or phrase",
-        "explanation": "Brief explanation in ${feedbackLang} of why this is actually wrong (not just different)"
+        "category": "spelling" | "grammar" | "accuracy",
+        "original": "exact text from student's attempt",
+        "correction": "corrected text",
+        "explanation": "Brief explanation in ${feedbackLang}"
       }
     ]${hasUnknownWords ? `,
-    "unknownWordTranslations": { "word in ${sourceLang}": "translation in ${targetLanguage}", ... }` : ''}
+    "unknownWordTranslations": { "word": "translation", ... }` : ''}
   }
 }
 
-IMPORTANT for corrections array:
-- ONLY include ACTUAL errors - grammar mistakes, spelling errors, or phrases that genuinely distort meaning
-- Do NOT include valid alternative phrasings as errors
-- The "original" field MUST exactly match the text as it appears in the student's attempt (case-sensitive)
-- Category: "grammar" for grammatical errors, "spelling" for spelling mistakes, "accuracy" for meaning/translation errors
-- If the student's attempt is correct (even if different from your model), return an empty corrections array []
-- When in doubt, do NOT flag it - only flag things you are certain are wrong
+CRITICAL RULES:
+- "original" must EXACTLY match text in student's attempt (for highlighting)
+- Flag EVERY spelling error including missing accents (á, é, í, ó, ú, ñ, ü)
+- Flag EVERY grammar error (conjugation, agreement, syntax)
+- Do NOT flag valid alternative phrasings
+- Empty corrections [] only if attempt has zero errors
 
-Return ONLY the JSON object, no additional text.`
+Return ONLY valid JSON.`
 
     const response = await client.responses.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       input: prompt,
     })
 

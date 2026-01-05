@@ -12,26 +12,11 @@ import { generateStory } from '../../services/generator'
 
 const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
-const GENRES = [
-  'Adventure',
-  'Mystery',
-  'Fantasy',
-  'Science Fiction',
-  'Historical Fiction',
-  'Romance',
-  'Drama',
-  'Comedy',
-  'Horror',
-  'Thriller',
-  'Biography',
-  'Non-fiction',
-  'Mythology',
-  'Folklore',
-  'Travel',
-  'Opinion',
-  'News',
-  'Young Adult',
-  "Children's",
+// Length presets with page ranges
+const LENGTH_PRESETS = [
+  { id: 'short', label: 'Short Story', minPages: 5, maxPages: 15, defaultPages: 10 },
+  { id: 'novella', label: 'Novella', minPages: 50, maxPages: 100, defaultPages: 75 },
+  { id: 'novel', label: 'Novel', minPages: 250, maxPages: 330, defaultPages: 290 },
 ]
 
 const GenerateStoryPanel = ({
@@ -39,13 +24,15 @@ const GenerateStoryPanel = ({
   languageParam = '',
   headingLevel = 'h2',
   onBack,
+  onClose,
+  isModal = false,
 }) => {
   const navigate = useNavigate()
   const { profile, setLastUsedLanguage, user } = useAuth()
 
   const [levelIndex, setLevelIndex] = useState(2)
-  const [length, setLength] = useState(1)
-  const [genre, setGenre] = useState(GENRES[0])
+  const [lengthPreset, setLengthPreset] = useState('short')
+  const [pageCount, setPageCount] = useState(10)
   const [description, setDescription] = useState('')
   const [voiceGender, setVoiceGender] = useState('male')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -79,11 +66,19 @@ const GenerateStoryPanel = ({
     environmentLanguage.charAt(0).toUpperCase() + environmentLanguage.slice(1)
   const normalizedEnvironmentLanguage = environmentLanguage.toLowerCase()
 
+  // Get current preset details
+  const currentPreset = LENGTH_PRESETS.find((p) => p.id === lengthPreset) || LENGTH_PRESETS[0]
+
+  // Update page count when preset changes
   useEffect(() => {
-    if (profile && !availableLanguages.length) {
+    setPageCount(currentPreset.defaultPages)
+  }, [lengthPreset, currentPreset.defaultPages])
+
+  useEffect(() => {
+    if (profile && !availableLanguages.length && !isModal) {
       navigate('/select-language')
     }
-  }, [availableLanguages.length, navigate, profile])
+  }, [availableLanguages.length, navigate, profile, isModal])
 
   useEffect(() => {
     if (activeLanguage) {
@@ -118,9 +113,9 @@ const GenerateStoryPanel = ({
 
     const params = {
       level: CEFR_LEVELS[levelIndex],
-      genre,
-      length,
-      pageCount: length,
+      genre: 'Romance', // Fixed to Romance for now
+      length: pageCount,
+      pageCount: pageCount,
       description: description.trim(),
       language: activeLanguage,
       voiceGender,
@@ -166,6 +161,9 @@ const GenerateStoryPanel = ({
         console.error('Failed to trigger audio book generation:', err)
       }
 
+      if (onClose) {
+        onClose()
+      }
       navigate('/dashboard', { state: { initialTab: 'read' } })
     } catch (submissionError) {
       setError(submissionError?.message || 'Unable to generate story.')
@@ -174,20 +172,20 @@ const GenerateStoryPanel = ({
     }
   }
 
-  return (
-    <div className="generate-story-panel">
+  const panelContent = (
+    <>
       <div className="page-header">
         <div className="page-header-title">
           <HeadingTag className="text-center">
-            {`Generate ${environmentLanguageCapitalized} Content`}
+            {`Generate ${environmentLanguageCapitalized} Romance`}
           </HeadingTag>
           <p className="text-center ui-text">
-            Create original content in your target language, tailored to your level and interests.
+            Create an original romance story in your target language, tailored to your level.
           </p>
         </div>
-        {onBack && (
-          <button className="button ghost" onClick={onBack}>
-            Back
+        {onClose && (
+          <button className="modal-close-button" onClick={onClose} aria-label="Close">
+            ×
           </button>
         )}
       </div>
@@ -248,35 +246,43 @@ const GenerateStoryPanel = ({
         </label>
 
         <label className="ui-text">
-          Length in pages
-          <div className="slider-row">
-            <input
-              type="range"
-              min="1"
-              max="25"
-              value={length}
-              onChange={(event) => setLength(Number(event.target.value))}
-              style={{ '--range-progress': `${((length - 1) / 24) * 100}%` }}
-            />
-            <span className="pill">{length} page{length === 1 ? '' : 's'}</span>
+          Story length
+          <div className="length-preset-options">
+            {LENGTH_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={`length-preset-option${lengthPreset === preset.id ? ' is-active' : ''}`}
+                onClick={() => setLengthPreset(preset.id)}
+              >
+                <span className="preset-label">{preset.label}</span>
+                <span className="preset-range">{preset.minPages}–{preset.maxPages} pages</span>
+              </button>
+            ))}
           </div>
         </label>
 
         <label className="ui-text">
-          Genre
-          <select value={genre} onChange={(event) => setGenre(event.target.value)}>
-            {GENRES.map((genreOption) => (
-              <option key={genreOption} value={genreOption}>
-                {genreOption}
-              </option>
-            ))}
-          </select>
+          Page count
+          <div className="slider-row">
+            <input
+              type="range"
+              min={currentPreset.minPages}
+              max={currentPreset.maxPages}
+              value={pageCount}
+              onChange={(event) => setPageCount(Number(event.target.value))}
+              style={{
+                '--range-progress': `${((pageCount - currentPreset.minPages) / (currentPreset.maxPages - currentPreset.minPages)) * 100}%`,
+              }}
+            />
+            <span className="pill">{pageCount} pages</span>
+          </div>
         </label>
 
         <label className="ui-text">
           Text description
           <textarea
-            placeholder="Describe the topic, themes, or characters you want to include."
+            placeholder="Describe the topic, themes, or characters you want to include in your romance story."
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
@@ -305,8 +311,8 @@ const GenerateStoryPanel = ({
         </label>
 
         <div className="action-row">
-          {onBack && (
-            <button className="button ghost" type="button" onClick={onBack}>
+          {(onBack || onClose) && (
+            <button className="button ghost" type="button" onClick={onClose || onBack}>
               Cancel
             </button>
           )}
@@ -317,8 +323,20 @@ const GenerateStoryPanel = ({
       </form>
 
       {error && <p className="error ui-text">{error}</p>}
-    </div>
+    </>
   )
+
+  if (isModal) {
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-container generate-story-modal" onClick={(e) => e.stopPropagation()}>
+          {panelContent}
+        </div>
+      </div>
+    )
+  }
+
+  return <div className="generate-story-panel">{panelContent}</div>
 }
 
 export default GenerateStoryPanel

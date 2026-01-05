@@ -5490,6 +5490,9 @@ app.delete('/api/generate/book/:bookId', async (req, res) => {
   } catch (error) {
     console.error('Delete book error:', error)
     return res.status(500).json({ error: 'Failed to delete book', details: error.message })
+  }
+})
+
 // Free Writing Feedback Endpoint (line-by-line)
 app.post('/api/freewriting/feedback', async (req, res) => {
   try {

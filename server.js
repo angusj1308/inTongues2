@@ -5072,6 +5072,7 @@ Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be co
   }
 })
 
+// Free Writing Feedback Endpoint
 // =============================================================================
 // NOVEL GENERATOR API
 // =============================================================================
@@ -5496,7 +5497,7 @@ app.delete('/api/generate/book/:bookId', async (req, res) => {
 // Free Writing Feedback Endpoint (line-by-line)
 app.post('/api/freewriting/feedback', async (req, res) => {
   try {
-    const { userText, targetLanguage, sourceLanguage, textType, previousLines, feedbackInTarget } = req.body || {}
+    const { userText, targetLanguage, sourceLanguage, textType, previousLines, feedbackInTarget, helpExpressions, fullDocument } = req.body || {}
 
     if (!userText || !targetLanguage) {
       return res.status(400).json({ error: 'userText and targetLanguage are required' })
@@ -5506,45 +5507,62 @@ app.post('/api/freewriting/feedback', async (req, res) => {
     const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
     const type = textType || 'general writing'
 
-    // Build context from previous lines
-    const contextSection = previousLines?.length > 0
-      ? `
+    // Check if user has bracketed expressions they need help with
+    const hasHelpRequests = helpExpressions && helpExpressions.length > 0
+
+    // Build context from full document or previous lines
+    let contextSection = ''
+    if (fullDocument && fullDocument.trim() !== userText.trim()) {
+      contextSection = `
+CONTEXT (from the student's document):
+"${fullDocument.slice(0, 500)}${fullDocument.length > 500 ? '...' : ''}"
+
+The student is writing a ${type}. Consider this context when providing feedback.
+`
+    } else if (previousLines?.length > 0) {
+      contextSection = `
 CONTEXT (previous sentences in this ${type}):
 ${previousLines.map((line, i) => `${i + 1}. ${line}`).join('\n')}
 
 The student is continuing this ${type}. Consider the context when evaluating naturalness and coherence.
 `
+    }
+
+    // Build special section for help expressions (bracketed text user needs help with)
+    const helpSection = hasHelpRequests
+      ? `
+HELP REQUESTED: The student has placed text in brackets to indicate they don't know how to express these ideas in ${targetLanguage}:
+${helpExpressions.map((expr) => `- "${expr}" (in ${sourceLang})`).join('\n')}
+
+YOUR PRIMARY TASK: Show the student how to express these bracketed ideas naturally in ${targetLanguage}.
+- Replace the bracketed ${sourceLang} text with natural ${targetLanguage} equivalents in modelSentence
+- In your explanation, help them understand HOW to express each bracketed idea
+- Use a warm, helpful tone like a tutor saying "Here's how you'd say that..."
+`
       : ''
 
     const prompt = `You are a supportive ${targetLanguage} language tutor helping a student with free writing practice. The student is writing a ${type}.
 ${contextSection}
-Student's sentence (${targetLanguage}): "${userText}"
+Student's text: "${userText}"
+${helpSection}
+YOUR TASK: ${hasHelpRequests ? 'Help the student express the bracketed ideas in ' + targetLanguage + ', and also check for any errors in the non-bracketed parts.' : 'Analyze the student\'s writing for errors and naturalness. Be encouraging but thorough.'}
 
-YOUR TASK: Analyze the student's writing for errors and naturalness. Be encouraging but thorough.
-
-WHAT TO FLAG AS ERRORS:
+WHAT TO FLAG AS ERRORS (in the non-bracketed parts):
 1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
-   Examples: "difficil" → "difícil", "extramadamente" → "extremadamente"
 2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order
-   Examples: "la problema" → "el problema", "ellos tiene" → "ellos tienen"
-3. NATURALNESS - Awkward phrasing that a native speaker wouldn't use (mark as "naturalness" category)
-   Examples: Literal translations from English, unusual word order
-
-IMPORTANT: Since this is free writing (not translation), focus on:
-- Is the sentence grammatically correct?
-- Does it sound natural to a native speaker?
-- Are there better ways to express the same idea?
+3. NATURALNESS - Awkward phrasing that a native speaker wouldn't use
 
 Return JSON:
 {
-  "modelSentence": "A more natural way to express this in ${targetLanguage} (if needed, or the same sentence if perfect)",
+  "modelSentence": "${hasHelpRequests ? 'The complete sentence with bracketed expressions replaced by natural ' + targetLanguage : 'A more natural way to express this in ' + targetLanguage + ' (if needed, or the same sentence if perfect)'}",
   "feedback": {
     "correctness": <1-5, where 5 = no errors>,
     "naturalness": <1-5, where 5 = sounds completely native>,
+    "explanation": "${hasHelpRequests ? 'A friendly explanation of how to express the bracketed ideas. Start with something like: Here\\'s how you can say that in ' + targetLanguage + '... Then explain each expression naturally.' : 'Optional brief overall feedback'}",
     "corrections": [
       {
-        "category": "spelling" | "grammar" | "naturalness",
-        "original": "exact text from student's writing",
+        "category": "spelling" | "grammar" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
+        "original": "exact text from student's writing (including brackets for help requests)",
         "correction": "corrected/improved text",
         "explanation": "Brief explanation in ${feedbackLang}"
       }
@@ -5555,7 +5573,9 @@ Return JSON:
 CRITICAL RULES:
 - "original" must EXACTLY match text in student's writing (for highlighting)
 - Flag EVERY spelling error including missing accents
-- If the sentence is perfect, return empty corrections array and set modelSentence to the student's text
+${hasHelpRequests ? '- For each bracketed expression, add a correction with category "expression" showing the ' + targetLanguage + ' equivalent' : ''}
+${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor explaining how to express the ideas' : ''}
+- If the sentence is perfect (and no help requests), return empty corrections array
 - Be encouraging - acknowledge what they did well
 - Only return valid JSON, no other text`
 
@@ -5675,6 +5695,206 @@ Only return valid JSON, no other text.`
   } catch (error) {
     console.error('Document feedback error:', error)
     return res.status(500).json({ error: 'Failed to get document feedback' })
+  }
+})
+
+// ============================================
+// TUTOR CHAT API
+// ============================================
+
+/**
+ * Start a new tutor conversation or continue existing
+ */
+app.post('/api/tutor/start', async (req, res) => {
+  try {
+    const { targetLanguage, sourceLanguage, memory } = req.body || {}
+
+    if (!targetLanguage) {
+      return res.status(400).json({ error: 'targetLanguage is required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const isReturning = memory && (memory.userFacts?.length > 0 || memory.lastConversationSummary)
+
+    // Build memory context for returning users
+    let memoryContext = ''
+    if (isReturning) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const lastSummary = memory.lastConversationSummary || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      memoryContext = `
+WHAT YOU REMEMBER ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${lastSummary ? `- Last conversation: ${lastSummary}` : ''}
+${mistakes ? `- Common mistakes they make: ${mistakes}` : ''}
+`
+    }
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- ${isReturning ? 'Reference something from your past conversations naturally' : 'Introduce yourself briefly and ask something to get to know them'}
+- Keep it short and conversational (1-3 sentences max)
+- Write primarily in ${targetLanguage}, with occasional ${sourceLang} if helpful
+- Match your vocabulary to their level (${memory?.observedLevel || 'beginner'})
+
+Generate a natural, friendly opening message to start or continue the conversation.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: systemPrompt,
+    })
+
+    const greeting = response.output_text?.trim() || `¡Hola! ¿Cómo estás hoy?`
+
+    return res.json({
+      greeting,
+      isReturningUser: isReturning,
+    })
+  } catch (error) {
+    console.error('Tutor start error:', error)
+    return res.status(500).json({ error: 'Failed to start tutor conversation' })
+  }
+})
+
+/**
+ * Send a message to the tutor and get a response
+ */
+app.post('/api/tutor/message', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, memory } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    // Build memory context
+    let memoryContext = ''
+    if (memory) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      if (facts || mistakes) {
+        memoryContext = `
+WHAT YOU KNOW ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${mistakes ? `- Mistakes they often make: ${mistakes}` : ''}
+`
+      }
+    }
+
+    // Build conversation history
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'tutor' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Ask about their life, remember details they share
+- Keep the conversation flowing naturally
+- Correct mistakes NATURALLY within your response - don't make it a lesson
+- Write primarily in ${targetLanguage}, with ${sourceLang} only when explaining corrections
+- Keep responses conversational length (1-4 sentences typically)
+- Match vocabulary to their level (${memory?.observedLevel || 'beginner'})
+- Don't be overly encouraging or teacherly - just be real
+
+CORRECTION STYLE:
+When they make a mistake, work the correction into your natural response.
+Example: If they say "Yo soy hambre", you might respond:
+"Jaja yo también tengo hambre! (btw it's 'tengo hambre' not 'soy' - hunger uses tener in Spanish) ¿Qué vas a comer?"
+
+NOT like this:
+"Great try! Just a small correction: in Spanish we use 'tener' for hunger, so it should be 'tengo hambre'. Keep up the good work!"
+
+Respond naturally to the student's message.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.8,
+    })
+
+    const tutorResponse = response.choices?.[0]?.message?.content?.trim() || 'Lo siento, no entendí. ¿Puedes repetir?'
+
+    return res.json({
+      response: tutorResponse,
+    })
+  } catch (error) {
+    console.error('Tutor message error:', error)
+    return res.status(500).json({ error: 'Failed to get tutor response' })
+  }
+})
+
+/**
+ * End a session and extract memory updates
+ */
+app.post('/api/tutor/end-session', async (req, res) => {
+  try {
+    const { conversationHistory, targetLanguage, sourceLanguage } = req.body || {}
+
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return res.json({ memoryUpdates: null })
+    }
+
+    const conversationText = conversationHistory
+      .map((m) => `${m.role === 'tutor' ? 'Tutor' : 'Student'}: ${m.content}`)
+      .join('\n')
+
+    const prompt = `Analyze this conversation between a language tutor and a student learning ${targetLanguage}.
+Extract information to remember for future conversations.
+
+CONVERSATION:
+${conversationText}
+
+Return JSON with:
+{
+  "userFacts": ["fact1", "fact2"], // New things learned about the student (interests, job, life events)
+  "recurringMistakes": ["mistake1"], // Language mistakes they made (patterns, not one-offs)
+  "topicsDiscussed": ["topic1", "topic2"], // Main topics in this conversation
+  "summary": "2-3 sentence summary of what was discussed",
+  "observedLevel": "beginner" | "intermediate" | "advanced" // Your assessment of their level
+}
+
+Only include facts that would be useful to remember. Return ONLY valid JSON.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let memoryUpdates
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        memoryUpdates = JSON.parse(jsonMatch[0])
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse memory updates:', parseErr)
+      memoryUpdates = null
+    }
+
+    return res.json({ memoryUpdates })
+  } catch (error) {
+    console.error('Tutor end-session error:', error)
+    return res.status(500).json({ error: 'Failed to extract memory updates' })
   }
 })
 

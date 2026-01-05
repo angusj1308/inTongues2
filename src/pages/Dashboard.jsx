@@ -4,6 +4,7 @@ import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
 import WritingHub from '../components/write/WritingHub'
+import TutorHome from '../components/tutor/TutorHome'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import ReviewModal from '../components/review/ReviewModal'
@@ -645,6 +646,13 @@ const Dashboard = () => {
           )}
 
           {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}
+
+          {activeTab === 'tutor' && (
+            <TutorHome
+              activeLanguage={activeLanguage}
+              nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
+            />
+          )}
 
           {activeTab === 'review' && (
             <div className="listening-hub">

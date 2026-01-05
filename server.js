@@ -4923,19 +4923,26 @@ Student's attempt (in ${targetLanguage}):
 
 Adaptation level: ${level} (${level === 'beginner' ? 'use simple vocabulary and shorter sentences' : level === 'intermediate' ? 'natural expressions with moderate complexity' : 'natural, native-level expression'})
 
-Analyze the student's attempt and provide detailed, structured feedback. Return a JSON object with this structure:
+CRITICAL INSTRUCTION: Your job is to identify ACTUAL ERRORS, not to mark things wrong just because they differ from how you would phrase it. There are MANY valid ways to express the same idea in ${targetLanguage}. A student's phrasing is ONLY wrong if:
+1. It contains grammar errors (wrong conjugation, agreement, word order that breaks rules)
+2. It contains spelling errors
+3. It fundamentally changes or loses the meaning of the original sentence
+4. It uses phrasing that a native speaker would genuinely find strange or confusing
+
+Do NOT flag something as an error simply because you would have used a different word or structure. "debemos actuar" and "necesitamos actuar" are BOTH correct - do not mark one wrong because you prefer the other.
+
+Return a JSON object with this structure:
 {
-  "modelSentence": "A natural ${targetLanguage} way to express the same idea, appropriate for the adaptation level",
+  "modelSentence": "ONE natural way to express this idea in ${targetLanguage} (offered as an exemplar, not THE correct answer)",
   "feedback": {
-    "naturalness": <1-5 score, where 5 is perfectly natural for a native speaker>,
-    "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
+    "accuracy": <1-5 score, where 5 means the meaning is correctly and naturally conveyed>,
     "correctness": <1-5 score, where 5 means no grammar or spelling errors>,
     "corrections": [
       {
-        "category": "grammar" | "spelling" | "naturalness" | "accuracy",
+        "category": "grammar" | "spelling" | "accuracy",
         "original": "exact word or phrase from student's attempt that needs correction",
         "correction": "the corrected word or phrase",
-        "explanation": "Brief explanation in ${feedbackLang} of why this change improves the sentence"
+        "explanation": "Brief explanation in ${feedbackLang} of why this is actually wrong (not just different)"
       }
     ]${hasUnknownWords ? `,
     "unknownWordTranslations": { "word in ${sourceLang}": "translation in ${targetLanguage}", ... }` : ''}
@@ -4943,10 +4950,12 @@ Analyze the student's attempt and provide detailed, structured feedback. Return 
 }
 
 IMPORTANT for corrections array:
-- Include ALL specific issues found (grammar errors, spelling mistakes, unnatural word choices, accuracy issues)
+- ONLY include ACTUAL errors - grammar mistakes, spelling errors, or phrases that genuinely distort meaning
+- Do NOT include valid alternative phrasings as errors
 - The "original" field MUST exactly match the text as it appears in the student's attempt (case-sensitive)
-- Category should be: "grammar" for grammatical errors, "spelling" for spelling mistakes, "naturalness" for unnatural but technically correct expressions, "accuracy" for meaning/translation issues
-- If no issues, return an empty corrections array []
+- Category: "grammar" for grammatical errors, "spelling" for spelling mistakes, "accuracy" for meaning/translation errors
+- If the student's attempt is correct (even if different from your model), return an empty corrections array []
+- When in doubt, do NOT flag it - only flag things you are certain are wrong
 
 Return ONLY the JSON object, no additional text.`
 

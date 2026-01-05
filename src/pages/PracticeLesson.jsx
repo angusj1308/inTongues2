@@ -1096,8 +1096,9 @@ const PracticeLesson = () => {
                   <div className="practice-feedback-checklist">
                     {/* Grammar & Spelling - expandable */}
                     {(() => {
-                      const grammarState = getFeedbackState(feedback?.correctness)
                       const grammarCorrections = feedback?.corrections?.filter(c => c.category === 'grammar' || c.category === 'spelling') || []
+                      // If there are corrections, it's fail. Otherwise use score.
+                      const grammarState = grammarCorrections.length > 0 ? 'fail' : 'pass'
                       const isExpanded = expandedCategories['grammar']
                       return (
                         <div className={`feedback-check-item ${grammarState} ${isExpanded ? 'expanded' : ''}`}>
@@ -1139,8 +1140,9 @@ const PracticeLesson = () => {
 
                     {/* Accuracy - expandable */}
                     {(() => {
-                      const accuracyState = getFeedbackState(feedback?.accuracy)
                       const accuracyCorrections = feedback?.corrections?.filter(c => c.category === 'accuracy') || []
+                      // If there are corrections, it's fail. Otherwise use score.
+                      const accuracyState = accuracyCorrections.length > 0 ? 'fail' : 'pass'
                       const isExpanded = expandedCategories['accuracy']
                       return (
                         <div className={`feedback-check-item ${accuracyState} ${isExpanded ? 'expanded' : ''}`}>
@@ -1167,49 +1169,6 @@ const PracticeLesson = () => {
                           {isExpanded && accuracyCorrections.length > 0 && (
                             <div className="feedback-corrections-list">
                               {accuracyCorrections.map((c, idx) => (
-                                <div key={idx} className="feedback-correction-item">
-                                  <span className="correction-original">{c.original}</span>
-                                  <span className="correction-arrow">→</span>
-                                  <span className="correction-fix">{c.correction}</span>
-                                  <p className="correction-explanation">{c.explanation}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-
-                    {/* Naturalness - expandable */}
-                    {(() => {
-                      const naturalnessState = getFeedbackState(feedback?.naturalness)
-                      const naturalnessCorrections = feedback?.corrections?.filter(c => c.category === 'naturalness') || []
-                      const isExpanded = expandedCategories['naturalness']
-                      return (
-                        <div className={`feedback-check-item ${naturalnessState} ${isExpanded ? 'expanded' : ''}`}>
-                          <div
-                            className="feedback-check-header"
-                            onClick={() => naturalnessCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, naturalness: !prev.naturalness }))}
-                            style={{ cursor: naturalnessCorrections.length > 0 ? 'pointer' : 'default' }}
-                          >
-                            <span className="check-label">
-                              Naturalness
-                              {naturalnessCorrections.length > 0 && (
-                                <span className="check-count">({naturalnessCorrections.length})</span>
-                              )}
-                            </span>
-                            <span className="check-status">
-                              <span className={`check-icon ${naturalnessState}`}>
-                                {getFeedbackIcon(naturalnessState)}
-                              </span>
-                              {naturalnessCorrections.length > 0 && (
-                                <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                              )}
-                            </span>
-                          </div>
-                          {isExpanded && naturalnessCorrections.length > 0 && (
-                            <div className="feedback-corrections-list">
-                              {naturalnessCorrections.map((c, idx) => (
                                 <div key={idx} className="feedback-correction-item">
                                   <span className="correction-original">{c.original}</span>
                                   <span className="correction-arrow">→</span>

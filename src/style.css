@@ -12013,6 +12013,20 @@ body.active-pass-locked {
   background: rgba(96, 165, 250, 0.12);
 }
 
+/* Clickable corrections - click to edit */
+.practice-inline-display--clickable {
+  cursor: pointer;
+}
+
+.practice-inline-display--clickable:hover {
+  background: rgba(59, 130, 246, 0.06);
+  border-radius: 2px;
+}
+
+[data-theme='dark'] .practice-inline-display--clickable:hover {
+  background: rgba(96, 165, 250, 0.1);
+}
+
 /* Blinking cursor */
 .practice-cursor {
   color: #3b82f6;

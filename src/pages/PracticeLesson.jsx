@@ -1440,9 +1440,19 @@ const PracticeLesson = () => {
                   // If it's current (being revised), show current userAttempt
                   if (isCurrent && !isComplete) {
                     // If feedback exists, show with correction highlights
+                    // Clicking enters edit mode (clears corrections)
                     if (feedback && feedback.corrections?.length > 0) {
                       return (
-                        <span key={`current-${i}`} className="practice-inline-display practice-inline-display--with-corrections">
+                        <span
+                          key={`current-${i}`}
+                          className="practice-inline-display practice-inline-display--with-corrections practice-inline-display--clickable"
+                          onClick={() => {
+                            setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
+                            setSubmittedAttempt('')
+                            setTimeout(() => documentInputRef.current?.focus(), 0)
+                          }}
+                          title="Click to edit"
+                        >
                           {renderTextWithCorrections(userAttempt, feedback.corrections)}
                         </span>
                       )
@@ -1479,10 +1489,22 @@ const PracticeLesson = () => {
 
                 // Not finalized - show live typing or corrections if feedback exists
                 if (isCurrent && !isComplete) {
-                  // If feedback exists, show attempt with correction highlights (no cursor)
+                  // If feedback exists, show attempt with correction highlights
+                  // Clicking enters edit mode (clears corrections)
                   if (feedback && feedback.corrections?.length > 0) {
                     return (
-                      <span key={`current-${i}`} className="practice-inline-display practice-inline-display--with-corrections">
+                      <span
+                        key={`current-${i}`}
+                        className="practice-inline-display practice-inline-display--with-corrections practice-inline-display--clickable"
+                        onClick={() => {
+                          // Clear corrections to enter edit mode
+                          setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
+                          setSubmittedAttempt('')
+                          // Focus the editable element after React re-renders
+                          setTimeout(() => documentInputRef.current?.focus(), 0)
+                        }}
+                        title="Click to edit"
+                      >
                         {renderTextWithCorrections(userAttempt, feedback.corrections)}
                       </span>
                     )

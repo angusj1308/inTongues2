@@ -141,6 +141,9 @@ const FreeWritingLesson = () => {
   const resizeRef = useRef(null)
   const isResizing = useRef(false)
   const saveTimeoutRef = useRef(null)
+  const contentRef = useRef('') // Track content without triggering re-renders
+  const isInitialized = useRef(false)
+  const wordCountUpdateRef = useRef(null) // Debounce word count updates
 
   // Load lesson
   useEffect(() => {
@@ -155,9 +158,9 @@ const FreeWritingLesson = () => {
         }
         setLesson(data)
 
-        // Load document content
+        // Load document content - store in ref, don't use state for the actual content
         const docContent = data.content || ''
-        setContent(docContent)
+        contentRef.current = docContent
         setLastSavedContent(docContent)
 
         // Load user's vocab for word status highlighting
@@ -185,6 +188,30 @@ const FreeWritingLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
+  // Initialize contentEditable with content after lesson loads
+  useEffect(() => {
+    if (lesson && documentRef.current && !isInitialized.current) {
+      documentRef.current.textContent = contentRef.current
+      isInitialized.current = true
+    }
+  }, [lesson])
+
+  // Handle document input - update ref only, debounce state updates
+  const handleDocumentInput = useCallback(() => {
+    if (!documentRef.current) return
+
+    const newContent = documentRef.current.textContent || ''
+    contentRef.current = newContent
+
+    // Debounce state update to avoid re-renders during typing
+    if (wordCountUpdateRef.current) {
+      clearTimeout(wordCountUpdateRef.current)
+    }
+    wordCountUpdateRef.current = setTimeout(() => {
+      setContent(newContent) // Only update state after 300ms of inactivity
+    }, 300)
+  }, [])
+
   // Auto-save with debounce
   useEffect(() => {
     if (!user || !lessonId || content === lastSavedContent) return
@@ -198,12 +225,13 @@ const FreeWritingLesson = () => {
     saveTimeoutRef.current = setTimeout(async () => {
       setIsSaving(true)
       try {
-        const wordCount = content.trim().split(/\s+/).filter(Boolean).length
+        const currentContent = contentRef.current
+        const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
         await updateFreeWritingLesson(user.uid, lessonId, {
-          content,
+          content: currentContent,
           wordCount,
         })
-        setLastSavedContent(content)
+        setLastSavedContent(currentContent)
       } catch (err) {
         console.error('Auto-save error:', err)
       } finally {
@@ -455,7 +483,7 @@ const FreeWritingLesson = () => {
           targetLanguage: lesson.targetLanguage,
           sourceLanguage: lesson.sourceLanguage,
           textType: lesson.textType,
-          fullDocument: content,
+          fullDocument: contentRef.current,
           feedbackInTarget,
         }),
       })
@@ -493,7 +521,7 @@ const FreeWritingLesson = () => {
     } finally {
       setFeedbackLoading(false)
     }
-  }, [selection, feedbackLoading, lesson, content, feedbackInTarget])
+  }, [selection, feedbackLoading, lesson, feedbackInTarget])
 
   // Handle keyboard shortcut for feedback (Cmd/Ctrl + Enter)
   const handleKeyDown = useCallback((e) => {
@@ -516,6 +544,7 @@ const FreeWritingLesson = () => {
   const handleReset = async () => {
     try {
       await resetFreeWritingLesson(user.uid, lessonId)
+      contentRef.current = ''
       setContent('')
       setLastSavedContent('')
       setFeedback(null)
@@ -1092,23 +1121,39 @@ const FreeWritingLesson = () => {
             {/* Document title */}
             <h1 className="practice-document-title">{lesson.title}</h1>
 
-            {/* Document body - fully editable */}
-            <div
-              ref={documentRef}
-              className="freewriting-document-body"
-              contentEditable
-              suppressContentEditableWarning
-              onInput={(e) => setContent(e.currentTarget.textContent || '')}
-              style={{
-                minHeight: '400px',
-                outline: 'none',
-                whiteSpace: 'pre-wrap',
-                lineHeight: '1.8',
-                fontSize: '1.1rem',
-              }}
-              data-placeholder={`Start writing in ${lesson.targetLanguage}...`}
-            >
-              {content}
+            {/* Document body container */}
+            <div style={{ position: 'relative' }}>
+              {/* Placeholder shown when empty */}
+              {!content && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    color: 'var(--text-muted, #9ca3af)',
+                    pointerEvents: 'none',
+                    fontSize: '1.1rem',
+                    lineHeight: '1.8',
+                  }}
+                >
+                  Start writing in {lesson.targetLanguage}...
+                </div>
+              )}
+              {/* Document body - fully editable (uncontrolled) */}
+              <div
+                ref={documentRef}
+                className="freewriting-document-body"
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleDocumentInput}
+                style={{
+                  minHeight: '400px',
+                  outline: 'none',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.8',
+                  fontSize: '1.1rem',
+                }}
+              />
             </div>
           </div>
         </main>

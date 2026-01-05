@@ -2,14 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
-  deletePracticeLesson,
-  finalizeAttempt,
-  getCompletedDocument,
-  getPracticeLesson,
-  resetPracticeLesson,
-  saveAttempt,
-  updatePracticeLesson,
-} from '../services/practice'
+  deleteFreeWritingLesson,
+  finalizeFreeWritingLine,
+  getFreeWritingLesson,
+  getFullDocument,
+  resetFreeWritingLesson,
+  saveFreeWritingLine,
+  updateFreeWritingLesson,
+} from '../services/freewriting'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import {
   LANGUAGE_HIGHLIGHT_COLORS,
@@ -104,15 +104,7 @@ const getHighlightStyle = (language, status, enableHighlight) => {
   }
 }
 
-// Helper to safely extract translation string (handles corrupted data where object was stored)
-const safeTranslation = (value) => {
-  if (!value) return null
-  if (typeof value === 'string') return value
-  if (typeof value === 'object' && value.translation) return value.translation
-  return null
-}
-
-const PracticeLesson = () => {
+const FreeWritingLesson = () => {
   const { lessonId } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -121,8 +113,8 @@ const PracticeLesson = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Current sentence state
-  const [userAttempt, setUserAttempt] = useState('')
+  // Current line state
+  const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState(null)
   const [modelSentence, setModelSentence] = useState('')
   const [feedbackLoading, setFeedbackLoading] = useState(false)
@@ -144,7 +136,6 @@ const PracticeLesson = () => {
   const [showWordStatus, setShowWordStatus] = useState(true)
   const [feedbackInTarget, setFeedbackInTarget] = useState(false)
   const [darkMode, setDarkMode] = useState(() => {
-    // Check if dark mode is already set
     return document.documentElement.getAttribute('data-theme') === 'dark'
   })
 
@@ -153,15 +144,15 @@ const PracticeLesson = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(() => Math.max(480, Math.floor(window.innerWidth / 3)))
-  const [popup, setPopup] = useState(null) // Translation popup state
-  const [submittedAttempt, setSubmittedAttempt] = useState('') // Track what was submitted for feedback
-  const [expandedCategories, setExpandedCategories] = useState({}) // Track expanded checklist categories
-  const attemptInputRef = useRef(null) // Text input in panel
-  const documentInputRef = useRef(null) // ContentEditable in document
+  const [popup, setPopup] = useState(null)
+  const [submittedText, setSubmittedText] = useState('')
+  const [expandedCategories, setExpandedCategories] = useState({})
+  const attemptInputRef = useRef(null)
+  const documentInputRef = useRef(null)
   const chatEndRef = useRef(null)
   const resizeRef = useRef(null)
   const isResizing = useRef(false)
-  const isUpdatingFromDocument = useRef(false) // Prevent sync loops
+  const isUpdatingFromDocument = useRef(false)
 
   // Load lesson
   useEffect(() => {
@@ -169,9 +160,9 @@ const PracticeLesson = () => {
       if (!user || !lessonId) return
 
       try {
-        const data = await getPracticeLesson(user.uid, lessonId)
+        const data = await getFreeWritingLesson(user.uid, lessonId)
         if (!data) {
-          setError('Practice lesson not found.')
+          setError('Free writing lesson not found.')
           return
         }
         setLesson(data)
@@ -186,19 +177,17 @@ const PracticeLesson = () => {
           }
         }
 
-        // Load existing attempt for current sentence if any
-        const currentAttempt = data.attempts?.find(
-          (a) => a.sentenceIndex === data.currentIndex
-        )
-        if (currentAttempt) {
-          setUserAttempt(currentAttempt.userText || '')
-          if (currentAttempt.feedback) {
-            setFeedback(currentAttempt.feedback)
-            setModelSentence(currentAttempt.modelSentence || '')
+        // Load existing line for current index if any
+        const currentLine = data.lines?.find((l) => l.index === data.currentIndex)
+        if (currentLine) {
+          setUserText(currentLine.text || '')
+          if (currentLine.feedback) {
+            setFeedback(currentLine.feedback)
+            setModelSentence(currentLine.modelSentence || '')
             setChatMessages([
               {
                 role: 'assistant',
-                content: currentAttempt.feedback.explanation || '',
+                content: currentLine.feedback.explanation || '',
                 hasFeedback: true,
               },
             ])
@@ -206,7 +195,7 @@ const PracticeLesson = () => {
         }
       } catch (err) {
         console.error('Load error:', err)
-        setError('Failed to load practice lesson.')
+        setError('Failed to load free writing lesson.')
       } finally {
         setLoading(false)
       }
@@ -220,24 +209,20 @@ const PracticeLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  // Extract words from model sentence for review panel (includes all non-known initially)
+  // Extract words from model sentence for review panel
   useEffect(() => {
     if (!modelSentence || !lesson?.targetLanguage) {
       setNurfWords([])
       return
     }
 
-    // Extract unique words from model sentence
     const words = modelSentence.match(/[\p{L}\p{M}]+/gu) || []
     const uniqueWords = [...new Set(words.map(w => w.toLowerCase()))]
 
-    // Include all words that aren't already known in vocab (new words stay visible after being marked known)
     const wordList = uniqueWords
       .map(word => {
         const vocabEntry = userVocab[word]
         const status = vocabEntry?.status || 'new'
-        // Only filter out words that were already known BEFORE this sentence
-        // Check if word is in nurfWords already - if so, keep showing it
         const existingNurf = nurfWords.find(w => w.normalised === word)
         if (status === 'known' && !existingNurf) return null
         const translationData = wordTranslations[word] || {}
@@ -246,7 +231,7 @@ const PracticeLesson = () => {
           displayWord: words.find(w => w.toLowerCase() === word) || word,
           normalised: word,
           status,
-          translation: safeTranslation(translationData.translation) || safeTranslation(vocabEntry?.translation) || null,
+          translation: translationData.translation || vocabEntry?.translation || null,
           audioBase64: translationData.audioBase64 || null,
           audioUrl: translationData.audioUrl || null,
         }
@@ -255,19 +240,18 @@ const PracticeLesson = () => {
 
     setNurfWords(wordList)
 
-    // Fetch translations and audio for words that don't have them
+    // Fetch translations for words that don't have them
     const wordsNeedingData = wordList.filter(w => !w.translation)
     if (wordsNeedingData.length > 0) {
       const fetchTranslationsAndAudio = async () => {
         const newTranslations = { ...wordTranslations }
 
-        // Batch fetch in groups of 5
         const batchSize = 5
         for (let i = 0; i < wordsNeedingData.length; i += batchSize) {
           const batch = wordsNeedingData.slice(i, i + batchSize)
           const promises = batch.map(async (w) => {
             try {
-              const response = await fetch('http://localhost:4000/api/translatePhrase', {
+              const response = await fetch('/api/translatePhrase', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -292,13 +276,12 @@ const PracticeLesson = () => {
         }
         setWordTranslations(newTranslations)
 
-        // Update nurfWords with the fetched translations
         setNurfWords(prev => prev.map(w => {
           const translationData = newTranslations[w.normalised]
           if (translationData) {
             return {
               ...w,
-              translation: safeTranslation(translationData.translation) || safeTranslation(w.translation),
+              translation: translationData.translation || w.translation,
               audioBase64: translationData.audioBase64 || w.audioBase64,
               audioUrl: translationData.audioUrl || w.audioUrl,
             }
@@ -310,37 +293,32 @@ const PracticeLesson = () => {
     }
   }, [modelSentence, lesson?.targetLanguage, lesson?.sourceLanguage, userVocab])
 
-  // Track the previous sentence index to detect navigation
+  // Track the previous line index to detect navigation
   const prevIndexRef = useRef(lesson?.currentIndex)
 
-  // Sync contentEditable with userAttempt ONLY when navigating to a different sentence
-  // This avoids interfering with normal typing
+  // Sync contentEditable with userText when navigating
   useLayoutEffect(() => {
     const currentIndex = lesson?.currentIndex
     const prevIndex = prevIndexRef.current
 
-    // Only sync content when we've navigated to a different sentence
     if (currentIndex !== prevIndex) {
       prevIndexRef.current = currentIndex
       if (attemptInputRef.current) {
-        attemptInputRef.current.textContent = userAttempt || ''
+        attemptInputRef.current.textContent = userText || ''
       }
       if (documentInputRef.current) {
-        documentInputRef.current.textContent = userAttempt || ''
+        documentInputRef.current.textContent = userText || ''
       }
     }
-  }, [lesson?.currentIndex, userAttempt])
+  }, [lesson?.currentIndex, userText])
 
-  // Sync document contentEditable when userAttempt changes from input field
+  // Sync document contentEditable when userText changes from input field
   useEffect(() => {
-    // Skip if the change came from the document itself (prevents cursor jump)
     if (isUpdatingFromDocument.current) {
       isUpdatingFromDocument.current = false
       return
     }
-    // Only sync if document ref exists and content differs
-    if (documentInputRef.current && documentInputRef.current.textContent !== userAttempt) {
-      // Save selection if document is focused
+    if (documentInputRef.current && documentInputRef.current.textContent !== userText) {
       const isDocumentFocused = document.activeElement === documentInputRef.current
       let savedSelection = null
       if (isDocumentFocused) {
@@ -350,9 +328,8 @@ const PracticeLesson = () => {
         }
       }
 
-      documentInputRef.current.textContent = userAttempt || ''
+      documentInputRef.current.textContent = userText || ''
 
-      // Restore cursor position if document was focused
       if (isDocumentFocused && savedSelection !== null && documentInputRef.current.firstChild) {
         const sel = window.getSelection()
         const range = document.createRange()
@@ -363,22 +340,21 @@ const PracticeLesson = () => {
         sel.addRange(range)
       }
     }
-  }, [userAttempt])
+  }, [userText])
 
   // Handle input from document contentEditable
   const handleDocumentInput = useCallback((e) => {
     const newText = e.target.textContent || ''
     isUpdatingFromDocument.current = true
-    setUserAttempt(newText)
+    setUserText(newText)
   }, [])
 
-  // Clear corrections when user edits their text (text differs from what was submitted)
+  // Clear corrections when user edits their text
   useEffect(() => {
-    if (feedback && submittedAttempt && userAttempt !== submittedAttempt) {
-      // User has edited their text, clear the corrections
+    if (feedback && submittedText && userText !== submittedText) {
       setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
     }
-  }, [userAttempt, submittedAttempt, feedback])
+  }, [userText, submittedText, feedback])
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -416,8 +392,7 @@ const PracticeLesson = () => {
     document.body.style.userSelect = 'none'
   }
 
-  const currentSentence = lesson?.sentences?.[lesson.currentIndex]
-  const completedDocument = lesson ? getCompletedDocument(lesson) : ''
+  const completedDocument = lesson ? getFullDocument(lesson) : ''
 
   // Handle word click for translation popup
   const handleWordClick = useCallback(async (word, event) => {
@@ -426,17 +401,14 @@ const PracticeLesson = () => {
     const normalised = normaliseExpression(word)
     const vocabEntry = userVocab[normalised]
 
-    // Position popup near the clicked word
     const rect = event.target.getBoundingClientRect()
     const x = Math.min(rect.left, window.innerWidth - 320)
     const y = rect.bottom + 8
 
-    // Check if we already have a translation
-    let translation = safeTranslation(vocabEntry?.translation) || safeTranslation(wordTranslations[normalised]?.translation) || null
+    let translation = vocabEntry?.translation || wordTranslations[normalised]?.translation || null
     let audioBase64 = wordTranslations[normalised]?.audioBase64 || null
     let audioUrl = wordTranslations[normalised]?.audioUrl || null
 
-    // Set popup immediately with loading state if no translation
     setPopup({
       x,
       y,
@@ -448,10 +420,9 @@ const PracticeLesson = () => {
       status: vocabEntry?.status || 'new',
     })
 
-    // Fetch translation if we don't have one
     if (!translation && lesson?.targetLanguage) {
       try {
-        const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        const response = await fetch('/api/translatePhrase', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -466,7 +437,6 @@ const PracticeLesson = () => {
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
 
-          // Update popup with translation
           setPopup(prev => prev ? {
             ...prev,
             translation,
@@ -474,7 +444,6 @@ const PracticeLesson = () => {
             audioUrl,
           } : null)
 
-          // Cache the translation
           setWordTranslations(prev => ({
             ...prev,
             [normalised]: { translation, audioBase64, audioUrl }
@@ -513,10 +482,8 @@ const PracticeLesson = () => {
         }
       }))
 
-      // Update popup status
       setPopup(prev => prev ? { ...prev, status: dbStatus } : null)
 
-      // Update nurfWords if needed
       if (dbStatus === 'known') {
         setNurfWords(prev => prev.filter(w => w.normalised !== popup.normalised))
       } else {
@@ -532,38 +499,29 @@ const PracticeLesson = () => {
   // Close popup when clicking outside
   useEffect(() => {
     const handleGlobalClick = (event) => {
-      // Close translation popup if clicking outside
       if (!event.target.closest('.translate-popup')) {
         setPopup(null)
-      }
-      // Close correction popup if clicking outside
-      if (!event.target.closest('.correction-popup') && !event.target.closest('.practice-correction-highlight')) {
-        setCorrectionPopup(null)
       }
     }
     window.addEventListener('click', handleGlobalClick)
     return () => window.removeEventListener('click', handleGlobalClick)
   }, [])
 
-  // Helper function to render text with word status highlighting (using app's standard approach)
+  // Helper function to render text with word status highlighting
   const renderTextWithWordStatus = useCallback((text, keyPrefix = '', clickable = true) => {
     if (!text) return null
 
-    // Split into words while preserving punctuation
     const tokens = text.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
 
     return tokens.map((token, idx) => {
-      // Skip whitespace and punctuation
       if (/^\s+$/.test(token) || !/[\p{L}\p{M}]/u.test(token)) {
         return <span key={`${keyPrefix}${idx}`}>{token}</span>
       }
 
-      // Check word status in vocab
       const normalised = normaliseExpression(token)
       const vocabEntry = userVocab[normalised]
       const status = vocabEntry?.status || 'new'
 
-      // Get highlight style using app's standard approach
       const style = getHighlightStyle(lesson?.targetLanguage, status, showWordStatus)
       const highlighted = Boolean(style['--hlt-opacity'])
 
@@ -585,13 +543,12 @@ const PracticeLesson = () => {
     return renderTextWithWordStatus(modelSentence, 'model-')
   }, [modelSentence, renderTextWithWordStatus])
 
-  // Render text with correction highlights (for inline error marking)
+  // Render text with correction highlights
   const renderTextWithCorrections = useCallback((text, corrections = []) => {
     if (!text || !corrections || corrections.length === 0) {
       return text
     }
 
-    // Sort corrections by startIndex (handle any without positions)
     const sortedCorrections = [...corrections]
       .filter(c => typeof c.startIndex === 'number')
       .sort((a, b) => a.startIndex - b.startIndex)
@@ -604,7 +561,6 @@ const PracticeLesson = () => {
     let lastIndex = 0
 
     sortedCorrections.forEach((correction, idx) => {
-      // Add text before this correction
       if (correction.startIndex > lastIndex) {
         elements.push(
           <span key={`text-${idx}`}>
@@ -613,12 +569,11 @@ const PracticeLesson = () => {
         )
       }
 
-      // Add the error span with underline highlight (no click handler)
       const categoryColors = {
-        grammar: '#ef4444', // red
-        spelling: '#ef4444', // red
-        naturalness: '#f59e0b', // amber/yellow
-        accuracy: '#3b82f6', // blue
+        grammar: '#ef4444',
+        spelling: '#ef4444',
+        naturalness: '#f59e0b',
+        accuracy: '#3b82f6',
       }
       const underlineColor = categoryColors[correction.category] || '#ef4444'
 
@@ -640,7 +595,6 @@ const PracticeLesson = () => {
       lastIndex = correction.endIndex
     })
 
-    // Add remaining text after last correction
     if (lastIndex < text.length) {
       elements.push(
         <span key="text-end">{text.slice(lastIndex)}</span>
@@ -650,28 +604,33 @@ const PracticeLesson = () => {
     return elements
   }, [])
 
-  const handleSubmitAttempt = useCallback(async () => {
-    if (!userAttempt.trim() || feedbackLoading) return
+  const handleSubmitForFeedback = useCallback(async () => {
+    if (!userText.trim() || feedbackLoading) return
 
     setFeedbackLoading(true)
     setFeedback(null)
     setChatMessages((prev) => [
       ...prev,
-      { role: 'user', content: userAttempt },
+      { role: 'user', content: userText },
     ])
 
     try {
-      // Call the practice feedback endpoint
-      const response = await fetch('/api/practice/feedback', {
+      // Get previous lines for context
+      const previousLines = lesson.lines
+        ?.filter(l => l.index < lesson.currentIndex)
+        ?.sort((a, b) => a.index - b.index)
+        ?.map(l => l.text)
+        ?.slice(-3) || []
+
+      const response = await fetch('/api/freewriting/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nativeSentence: currentSentence.text,
-          userAttempt: userAttempt.trim(),
+          userText: userText.trim(),
           targetLanguage: lesson.targetLanguage,
           sourceLanguage: lesson.sourceLanguage,
-          adaptationLevel: lesson.adaptationLevel,
-          contextSummary: lesson.contextSummary,
+          textType: lesson.textType,
+          previousLines,
           feedbackInTarget,
         }),
       })
@@ -684,29 +643,28 @@ const PracticeLesson = () => {
 
       setFeedback(data.feedback)
       setModelSentence(data.modelSentence || '')
-      setSubmittedAttempt(userAttempt.trim()) // Track what was submitted
+      setSubmittedText(userText.trim())
 
-      // Add tutor response to chat with feedback flag
       setChatMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: data.feedback?.explanation || 'Here is my feedback on your attempt.',
+          content: data.feedback?.explanation || 'Here is my feedback on your writing.',
           hasFeedback: true,
         },
       ])
 
-      // Save the attempt
-      await saveAttempt(user.uid, lessonId, {
-        sentenceIndex: lesson.currentIndex,
-        userText: userAttempt.trim(),
+      // Save the line
+      await saveFreeWritingLine(user.uid, lessonId, {
+        index: lesson.currentIndex,
+        text: userText.trim(),
         modelSentence: data.modelSentence || '',
         feedback: data.feedback,
-        status: 'attempted',
+        status: 'reviewed',
       })
 
       // Refresh lesson data
-      const updated = await getPracticeLesson(user.uid, lessonId)
+      const updated = await getFreeWritingLesson(user.uid, lessonId)
       setLesson(updated)
     } catch (err) {
       console.error('Feedback error:', err)
@@ -714,58 +672,23 @@ const PracticeLesson = () => {
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, I had trouble analyzing your attempt. Please try again.',
+          content: 'Sorry, I had trouble analyzing your writing. Please try again.',
           isError: true,
         },
       ])
     } finally {
       setFeedbackLoading(false)
     }
-  }, [userAttempt, feedbackLoading, currentSentence, lesson, user, lessonId])
+  }, [userText, feedbackLoading, lesson, user, lessonId, feedbackInTarget])
 
   const handleFinalize = useCallback(async (useModel = false) => {
     if (feedbackLoading) return
 
-    const finalText = useModel ? modelSentence : userAttempt.trim()
+    const finalText = useModel ? modelSentence : userText.trim()
     if (!finalText) return
 
     try {
-      // Extract words from the finalized text and mark them as known
-      // If a user uses a word correctly, they know it
-      const wordsInText = finalText.match(/[\p{L}\p{M}]+/gu) || []
-      const uniqueWords = [...new Set(wordsInText.map(w => w.toLowerCase()))]
-
-      // Mark each word as known (batch the updates)
-      for (const word of uniqueWords) {
-        const normalised = normaliseExpression(word)
-        // Only update if not already known (avoid unnecessary writes)
-        if (userVocab[normalised]?.status !== 'known') {
-          await upsertVocabEntry(
-            user.uid,
-            lesson.targetLanguage,
-            word,
-            userVocab[normalised]?.translation || null,
-            'known'
-          )
-        }
-      }
-
-      // Update local vocab state
-      setUserVocab(prev => {
-        const updated = { ...prev }
-        for (const word of uniqueWords) {
-          const normalised = normaliseExpression(word)
-          updated[normalised] = {
-            ...prev[normalised],
-            text: word,
-            status: 'known',
-            language: lesson.targetLanguage,
-          }
-        }
-        return updated
-      })
-
-      const result = await finalizeAttempt(
+      await finalizeFreeWritingLine(
         user.uid,
         lessonId,
         lesson.currentIndex,
@@ -773,27 +696,18 @@ const PracticeLesson = () => {
       )
 
       // Refresh lesson data
-      const updated = await getPracticeLesson(user.uid, lessonId)
+      const updated = await getFreeWritingLesson(user.uid, lessonId)
       setLesson(updated)
 
-      // Reset state for next sentence
-      setUserAttempt('')
+      // Reset state for next line
+      setUserText('')
       setFeedback(null)
       setModelSentence('')
       setChatMessages([])
+      setNurfWords([])
 
-      // Clear the contentEditable span's DOM content
       if (attemptInputRef.current) {
         attemptInputRef.current.textContent = ''
-      }
-
-      if (result.isComplete) {
-        setChatMessages([
-          {
-            role: 'assistant',
-            content: 'Congratulations! You\'ve completed this practice lesson!',
-          },
-        ])
       }
 
       attemptInputRef.current?.focus()
@@ -801,11 +715,11 @@ const PracticeLesson = () => {
       console.error('Finalize error:', err)
       setError('Failed to save progress.')
     }
-  }, [userAttempt, modelSentence, feedbackLoading, lesson, user, lessonId, userVocab])
+  }, [userText, modelSentence, feedbackLoading, lesson, user, lessonId])
 
   const handleDelete = async () => {
     try {
-      await deletePracticeLesson(user.uid, lessonId)
+      await deleteFreeWritingLesson(user.uid, lessonId)
       navigate('/dashboard')
     } catch (err) {
       console.error('Delete error:', err)
@@ -815,12 +729,11 @@ const PracticeLesson = () => {
 
   const handleReset = async () => {
     try {
-      await resetPracticeLesson(user.uid, lessonId)
-      const updated = await getPracticeLesson(user.uid, lessonId)
+      await resetFreeWritingLesson(user.uid, lessonId)
+      const updated = await getFreeWritingLesson(user.uid, lessonId)
       setLesson(updated)
 
-      // Reset local state
-      setUserAttempt('')
+      setUserText('')
       setFeedback(null)
       setModelSentence('')
       setChatMessages([])
@@ -828,7 +741,6 @@ const PracticeLesson = () => {
       setWordTranslations({})
       setShowResetConfirm(false)
 
-      // Clear and focus contentEditable after DOM updates
       setTimeout(() => {
         if (attemptInputRef.current) {
           attemptInputRef.current.textContent = ''
@@ -841,33 +753,26 @@ const PracticeLesson = () => {
     }
   }
 
-  const handleGoToSentence = async (index) => {
+  const handleGoToLine = async (index) => {
     if (index === lesson.currentIndex) return
 
     try {
-      await updatePracticeLesson(user.uid, lessonId, { currentIndex: index })
-      const updated = await getPracticeLesson(user.uid, lessonId)
+      await updateFreeWritingLesson(user.uid, lessonId, { currentIndex: index })
+      const updated = await getFreeWritingLesson(user.uid, lessonId)
       setLesson(updated)
 
-      // Load attempt for this sentence
-      const attemptData = updated.attempts?.find((a) => a.sentenceIndex === index)
-      if (attemptData) {
-        // Use finalText for finalized attempts, otherwise userText
-        const textToLoad = attemptData.status === 'finalized'
-          ? (attemptData.finalText || attemptData.userText || '')
-          : (attemptData.userText || '')
+      const lineData = updated.lines?.find((l) => l.index === index)
+      if (lineData) {
+        setUserText(lineData.text || '')
 
-        setUserAttempt(textToLoad)
-
-        if (attemptData.feedback) {
-          setFeedback(attemptData.feedback)
-          setModelSentence(attemptData.modelSentence || '')
-          // Show the conversation: user's attempt, then tutor's feedback
+        if (lineData.feedback) {
+          setFeedback(lineData.feedback)
+          setModelSentence(lineData.modelSentence || '')
           setChatMessages([
-            { role: 'user', content: textToLoad },
+            { role: 'user', content: lineData.text },
             {
               role: 'assistant',
-              content: attemptData.feedback.explanation || '',
+              content: lineData.feedback.explanation || '',
               hasFeedback: true,
             },
           ])
@@ -877,13 +782,12 @@ const PracticeLesson = () => {
           setChatMessages([])
         }
       } else {
-        setUserAttempt('')
+        setUserText('')
         setFeedback(null)
         setModelSentence('')
         setChatMessages([])
       }
 
-      // Focus the input after DOM updates
       setTimeout(() => {
         attemptInputRef.current?.focus()
       }, 0)
@@ -897,15 +801,12 @@ const PracticeLesson = () => {
     if (!user || !lesson?.targetLanguage) return
 
     try {
-      // Get the translation for this word
       const normalised = normaliseExpression(word)
       const existingEntry = userVocab[normalised]
-      const translation = safeTranslation(existingEntry?.translation) || safeTranslation(wordTranslations[normalised]?.translation) || null
+      const translation = existingEntry?.translation || wordTranslations[normalised]?.translation || null
 
-      // Map 'new' status to 'unknown' for database (new is UI-only)
       const dbStatus = newStatus === 'new' ? 'unknown' : newStatus
 
-      // Upsert the vocab entry
       await upsertVocabEntry(
         user.uid,
         lesson.targetLanguage,
@@ -914,7 +815,6 @@ const PracticeLesson = () => {
         dbStatus
       )
 
-      // Update local vocab state to reflect the change immediately
       setUserVocab(prev => ({
         ...prev,
         [normalised]: {
@@ -926,7 +826,6 @@ const PracticeLesson = () => {
         }
       }))
 
-      // Update nurfWords to reflect the new status (keep in panel even when known)
       setNurfWords(prev => prev.map(w =>
         w.normalised === normalised ? { ...w, status: dbStatus } : w
       ))
@@ -935,7 +834,7 @@ const PracticeLesson = () => {
     }
   }, [user, lesson?.targetLanguage, userVocab, wordTranslations])
 
-  // Check for new words before finalizing - show warning if any exist
+  // Check for new words before finalizing
   const attemptFinalize = useCallback((useModel = false) => {
     const hasNewWords = nurfWords.some(w => w.status === 'new')
     if (hasNewWords) {
@@ -947,7 +846,6 @@ const PracticeLesson = () => {
 
   // Mark all new words as known and proceed
   const handleConfirmNewWordsAsKnown = useCallback(async () => {
-    // Mark all 'new' status words as 'known'
     const newWords = nurfWords.filter(w => w.status === 'new')
     for (const wordData of newWords) {
       await handleWordStatusChange(wordData.displayWord, 'known')
@@ -960,9 +858,8 @@ const PracticeLesson = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (!feedback) {
-        handleSubmitAttempt()
+        handleSubmitForFeedback()
       } else {
-        // After feedback, Enter goes to next sentence (with new words check)
         attemptFinalize(false)
       }
     }
@@ -1003,13 +900,13 @@ const PracticeLesson = () => {
         body: JSON.stringify({
           question,
           context: {
-            sourceSentence: currentSentence?.text,
-            userAttempt: userAttempt,
+            sourceSentence: null,
+            userAttempt: userText,
             modelSentence: modelSentence,
             feedback: feedback,
             targetLanguage: lesson.targetLanguage,
             sourceLanguage: lesson.sourceLanguage,
-            contextSummary: lesson.contextSummary,
+            contextSummary: `Free writing (${lesson.textType})`,
           },
         }),
       })
@@ -1029,6 +926,67 @@ const PracticeLesson = () => {
       ])
     } finally {
       setFollowUpLoading(false)
+    }
+  }
+
+  // Toggle feedback mode
+  const handleToggleFeedbackMode = async () => {
+    const newMode = lesson.feedbackMode === 'line' ? 'document' : 'line'
+    try {
+      await updateFreeWritingLesson(user.uid, lessonId, { feedbackMode: newMode })
+      setLesson(prev => ({ ...prev, feedbackMode: newMode }))
+    } catch (err) {
+      console.error('Failed to update feedback mode:', err)
+    }
+  }
+
+  // Submit full document for feedback
+  const handleSubmitDocument = async () => {
+    if (!lesson.lines?.length) return
+
+    setFeedbackLoading(true)
+    try {
+      const fullDocument = getFullDocument(lesson)
+
+      const response = await fetch('/api/freewriting/document-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document: fullDocument,
+          targetLanguage: lesson.targetLanguage,
+          sourceLanguage: lesson.sourceLanguage,
+          textType: lesson.textType,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get document feedback')
+      }
+
+      const data = await response.json()
+
+      // Update lesson with document feedback
+      await updateFreeWritingLesson(user.uid, lessonId, {
+        documentFeedback: data.overallFeedback,
+      })
+
+      const updated = await getFreeWritingLesson(user.uid, lessonId)
+      setLesson(updated)
+
+      setChatMessages([{
+        role: 'assistant',
+        content: `Document Review:\n\n${data.overallFeedback?.summary || 'Feedback received.'}`,
+        hasDocumentFeedback: true,
+      }])
+    } catch (err) {
+      console.error('Document feedback error:', err)
+      setChatMessages([{
+        role: 'assistant',
+        content: 'Sorry, I had trouble reviewing your document. Please try again.',
+        isError: true,
+      }])
+    } finally {
+      setFeedbackLoading(false)
     }
   }
 
@@ -1055,14 +1013,13 @@ const PracticeLesson = () => {
     return null
   }
 
-  const isComplete = lesson.status === 'complete'
-  const progress = lesson.sentences?.length
-    ? Math.round((lesson.completedCount / lesson.sentences.length) * 100)
-    : 0
+  const isDocumentMode = lesson.feedbackMode === 'document'
+  const lineCount = lesson.lines?.length || 0
+  const wordCount = lesson.wordCount || 0
 
   return (
     <div className="practice-lesson-page">
-      {/* Header - matching Reader style */}
+      {/* Header */}
       <header className="dashboard-header practice-header">
         <div className="dashboard-brand-band practice-header-band">
           <div className="practice-header-left">
@@ -1076,29 +1033,22 @@ const PracticeLesson = () => {
 
           <div className="practice-header-center">
             <div className="practice-nav-controls">
-              <button
-                className="practice-nav-btn"
-                onClick={() => handleGoToSentence(lesson.currentIndex - 1)}
-                disabled={lesson.currentIndex === 0}
-                aria-label="Previous sentence"
-              >
-                &lt;
-              </button>
               <span className="practice-nav-indicator">
-                {lesson.currentIndex + 1} of {lesson.sentences?.length || 0}
+                {wordCount} words · {lineCount} lines
               </span>
-              <button
-                className="practice-nav-btn"
-                onClick={() => handleGoToSentence(lesson.currentIndex + 1)}
-                disabled={lesson.currentIndex >= (lesson.sentences?.length || 1) - 1}
-                aria-label="Next sentence"
-              >
-                &gt;
-              </button>
             </div>
           </div>
 
           <div className="practice-header-actions">
+            {/* Feedback mode toggle */}
+            <button
+              className={`practice-header-button ${isDocumentMode ? 'practice-header-button--active' : ''}`}
+              type="button"
+              onClick={handleToggleFeedbackMode}
+              title={isDocumentMode ? 'Document feedback mode' : 'Line-by-line feedback mode'}
+            >
+              {isDocumentMode ? 'Doc' : 'Line'}
+            </button>
             <button
               className={`practice-header-button ${showWordStatus ? 'practice-header-button--active' : ''}`}
               type="button"
@@ -1147,14 +1097,9 @@ const PracticeLesson = () => {
         </div>
       </header>
 
-      {/* Progress bar */}
-      <div className="practice-progress-bar">
-        <div className="practice-progress-fill" style={{ width: `${progress}%` }} />
-      </div>
-
       {/* Main content */}
       <div className="practice-layout">
-        {/* Left panel - Chat/Tutor */}
+        {/* Left panel - Feedback */}
         <aside className="practice-chat-panel" style={{ width: panelWidth }}>
           <div className="practice-chat-header">
             <h2>Tutor</h2>
@@ -1170,11 +1115,22 @@ const PracticeLesson = () => {
             </div>
           </div>
           <div className="practice-chat-messages">
-            {/* Current prompt */}
-            {!isComplete && currentSentence && (
+            {/* Writing prompt area - no translation prompt, just encouragement */}
+            {!isDocumentMode && (
               <div className="practice-tutor-prompt">
-                <span className="prompt-label">Translate this sentence:</span>
-                <p className="prompt-text">{currentSentence.text}</p>
+                <span className="prompt-label">Write in {lesson.targetLanguage}:</span>
+                <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  Express your thoughts freely. Press Enter to get feedback on your sentence.
+                </p>
+              </div>
+            )}
+
+            {isDocumentMode && (
+              <div className="practice-tutor-prompt">
+                <span className="prompt-label">Document Mode</span>
+                <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  Write freely in the document. When you're done, click "Submit for Review" to get feedback on the entire document.
+                </p>
               </div>
             )}
 
@@ -1182,12 +1138,11 @@ const PracticeLesson = () => {
             {chatMessages.map((msg, i) => (
               <div key={i}>
                 {/* Render expandable checklist BEFORE the assistant feedback message */}
-                {msg.role === 'assistant' && msg.hasFeedback && (
+                {msg.role === 'assistant' && msg.hasFeedback && feedback && (
                   <div className="practice-feedback-checklist">
                     {/* Grammar & Spelling - expandable */}
                     {(() => {
                       const grammarCorrections = feedback?.corrections?.filter(c => c.category === 'grammar' || c.category === 'spelling') || []
-                      // If there are corrections, it's fail. Otherwise use score.
                       const grammarState = grammarCorrections.length > 0 ? 'fail' : 'pass'
                       const isExpanded = expandedCategories['grammar']
                       return (
@@ -1228,37 +1183,36 @@ const PracticeLesson = () => {
                       )
                     })()}
 
-                    {/* Accuracy - expandable */}
+                    {/* Naturalness - expandable */}
                     {(() => {
-                      const accuracyCorrections = feedback?.corrections?.filter(c => c.category === 'accuracy') || []
-                      // If there are corrections, it's fail. Otherwise use score.
-                      const accuracyState = accuracyCorrections.length > 0 ? 'fail' : 'pass'
-                      const isExpanded = expandedCategories['accuracy']
+                      const naturalnessCorrections = feedback?.corrections?.filter(c => c.category === 'naturalness') || []
+                      const naturalnessState = naturalnessCorrections.length > 0 ? 'acceptable' : 'pass'
+                      const isExpanded = expandedCategories['naturalness']
                       return (
-                        <div className={`feedback-check-item ${accuracyState} ${isExpanded ? 'expanded' : ''}`}>
+                        <div className={`feedback-check-item ${naturalnessState} ${isExpanded ? 'expanded' : ''}`}>
                           <div
                             className="feedback-check-header"
-                            onClick={() => accuracyCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, accuracy: !prev.accuracy }))}
-                            style={{ cursor: accuracyCorrections.length > 0 ? 'pointer' : 'default' }}
+                            onClick={() => naturalnessCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, naturalness: !prev.naturalness }))}
+                            style={{ cursor: naturalnessCorrections.length > 0 ? 'pointer' : 'default' }}
                           >
                             <span className="check-label">
-                              Accuracy
-                              {accuracyCorrections.length > 0 && (
-                                <span className="check-count">({accuracyCorrections.length})</span>
+                              Naturalness
+                              {naturalnessCorrections.length > 0 && (
+                                <span className="check-count">({naturalnessCorrections.length})</span>
                               )}
                             </span>
                             <span className="check-status">
-                              <span className={`check-icon ${accuracyState}`}>
-                                {getFeedbackIcon(accuracyState)}
+                              <span className={`check-icon ${naturalnessState}`}>
+                                {getFeedbackIcon(naturalnessState)}
                               </span>
-                              {accuracyCorrections.length > 0 && (
+                              {naturalnessCorrections.length > 0 && (
                                 <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
                               )}
                             </span>
                           </div>
-                          {isExpanded && accuracyCorrections.length > 0 && (
+                          {isExpanded && naturalnessCorrections.length > 0 && (
                             <div className="feedback-corrections-list">
-                              {accuracyCorrections.map((c, idx) => (
+                              {naturalnessCorrections.map((c, idx) => (
                                 <div key={idx} className="feedback-correction-item">
                                   <span className="correction-original">{c.original}</span>
                                   <span className="correction-arrow">→</span>
@@ -1274,12 +1228,49 @@ const PracticeLesson = () => {
                   </div>
                 )}
 
+                {/* Document feedback display */}
+                {msg.role === 'assistant' && msg.hasDocumentFeedback && lesson.documentFeedback && (
+                  <div className="practice-feedback-checklist">
+                    <div className="feedback-check-item pass">
+                      <div className="feedback-check-header">
+                        <span className="check-label">Overall Score</span>
+                        <span className="check-status">
+                          {lesson.documentFeedback.overallScore || 'N/A'}/5
+                        </span>
+                      </div>
+                    </div>
+                    {lesson.documentFeedback.strengths?.length > 0 && (
+                      <div className="feedback-check-item pass">
+                        <div className="feedback-check-header">
+                          <span className="check-label">Strengths</span>
+                        </div>
+                        <ul style={{ margin: '0.5rem 0', paddingLeft: '1.25rem' }}>
+                          {lesson.documentFeedback.strengths.map((s, idx) => (
+                            <li key={idx} style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {lesson.documentFeedback.suggestions?.length > 0 && (
+                      <div className="feedback-check-item acceptable">
+                        <div className="feedback-check-header">
+                          <span className="check-label">Suggestions</span>
+                        </div>
+                        <ul style={{ margin: '0.5rem 0', paddingLeft: '1.25rem' }}>
+                          {lesson.documentFeedback.suggestions.map((s, idx) => (
+                            <li key={idx} style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Only show chat message for user messages and non-feedback assistant messages */}
-                {!(msg.role === 'assistant' && msg.hasFeedback) && (
+                {!(msg.role === 'assistant' && (msg.hasFeedback || msg.hasDocumentFeedback)) && (
                   <div
                     className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
                   >
-                    {/* Apply word highlighting to assistant messages when showing in target language */}
                     {msg.role === 'assistant' && feedbackInTarget && showWordStatus
                       ? renderTextWithWordStatus(msg.content, `chat-${i}-`)
                       : msg.content}
@@ -1289,21 +1280,20 @@ const PracticeLesson = () => {
                 {/* Render example and word panel after feedback message */}
                 {msg.role === 'assistant' && msg.hasFeedback && (
                   <>
-                    {/* Example sentence with word status highlighting */}
                     {modelSentence && (
                       <div className="practice-example-sentence">
-                        <span className="example-label">Example:</span>
+                        <span className="example-label">A more natural way:</span>
                         <p className="example-text">
                           {renderHighlightedModelSentence}
                         </p>
                         <button
                           className="practice-use-example-btn"
                           onClick={() => {
-                            setUserAttempt(modelSentence)
-                            setSubmittedAttempt('') // Clear so corrections disappear
+                            setUserText(modelSentence)
+                            setSubmittedText('')
                           }}
                         >
-                          Use example sentence
+                          Use this version
                         </button>
                       </div>
                     )}
@@ -1320,7 +1310,7 @@ const PracticeLesson = () => {
                             const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
                             const languageColor = getLanguageColor(lesson?.targetLanguage)
                             const translationData = wordTranslations[wordData.normalised] || {}
-                            const translation = safeTranslation(translationData.translation) || safeTranslation(wordData.translation) || '...'
+                            const translation = translationData.translation || wordData.translation || '...'
                             const hasAudio = Boolean(wordData.audioBase64 || wordData.audioUrl || translationData.audioBase64 || translationData.audioUrl)
 
                             return (
@@ -1381,7 +1371,7 @@ const PracticeLesson = () => {
                   </span>
                 </div>
                 <div className="feedback-check-item checking">
-                  <span className="check-label">Accuracy</span>
+                  <span className="check-label">Naturalness</span>
                   <span className="check-status">
                     <span className="checking-text">checking...</span>
                   </span>
@@ -1392,19 +1382,18 @@ const PracticeLesson = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Panel footer with unified input */}
+          {/* Panel footer with input */}
           <div className="practice-panel-footer">
-            {!isComplete && currentSentence && (
+            {!isDocumentMode && (
               <>
-                {/* Input row - input and submit button side by side */}
                 <div className="practice-input-row">
                   <input
                     type="text"
                     className="practice-input-field"
-                    value={!feedback ? userAttempt : followUpQuestion}
+                    value={!feedback ? userText : followUpQuestion}
                     onChange={(e) => {
                       if (!feedback) {
-                        setUserAttempt(e.target.value)
+                        setUserText(e.target.value)
                       } else {
                         setFollowUpQuestion(e.target.value)
                       }
@@ -1413,30 +1402,29 @@ const PracticeLesson = () => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
                         if (!feedback) {
-                          handleSubmitAttempt()
+                          handleSubmitForFeedback()
                         } else if (followUpQuestion.trim()) {
                           handleFollowUp()
                         }
                       }
                     }}
-                    placeholder={!feedback ? 'Type your translation...' : 'Ask a question...'}
+                    placeholder={!feedback ? `Write in ${lesson.targetLanguage}...` : 'Ask a question...'}
                     disabled={feedbackLoading || followUpLoading}
                   />
                   <button
                     className="practice-submit-btn"
                     onClick={() => {
                       if (!feedback) {
-                        handleSubmitAttempt()
+                        handleSubmitForFeedback()
                       } else if (followUpQuestion.trim()) {
                         handleFollowUp()
                       }
                     }}
-                    disabled={!feedback ? (!userAttempt.trim() || feedbackLoading) : (!followUpQuestion.trim() || followUpLoading)}
+                    disabled={!feedback ? (!userText.trim() || feedbackLoading) : (!followUpQuestion.trim() || followUpLoading)}
                   >
                     {feedbackLoading || followUpLoading ? '...' : 'Submit'}
                   </button>
                 </div>
-                {/* Save & Continue button - separate, for moving to next sentence */}
                 <button
                   className="practice-continue-btn"
                   onClick={() => attemptFinalize(false)}
@@ -1445,6 +1433,17 @@ const PracticeLesson = () => {
                   Save & Continue
                 </button>
               </>
+            )}
+
+            {isDocumentMode && (
+              <button
+                className="practice-continue-btn"
+                onClick={handleSubmitDocument}
+                disabled={feedbackLoading || !lesson.lines?.length}
+                style={{ marginTop: 0 }}
+              >
+                {feedbackLoading ? 'Reviewing...' : 'Submit for Review'}
+              </button>
             )}
           </div>
 
@@ -1462,114 +1461,29 @@ const PracticeLesson = () => {
             {/* Document title */}
             <h1 className="practice-document-title">{lesson.title}</h1>
 
-            {/* Document body - flows like a real document */}
+            {/* Document body */}
             <div className="practice-document-body">
-              {/* Render all sentences - finalized ones visible, current one shows live typing */}
-              {lesson.sentences?.map((s, i) => {
-                const attempt = lesson.attempts?.find((a) => a.sentenceIndex === i)
-                const isCurrent = i === lesson.currentIndex
-                const isFinalized = attempt?.status === 'finalized'
+              {/* Render all lines - finalized ones visible, current one shows live typing */}
+              {lesson.lines?.filter(l => l.status === 'finalized').sort((a, b) => a.index - b.index).map((line) => (
+                <span
+                  key={`finalized-${line.index}`}
+                  className="practice-document-sentence"
+                  onClick={() => handleGoToLine(line.index)}
+                  title="Click to revise"
+                >
+                  {renderTextWithWordStatus(line.text, `doc-${line.index}-`)}{' '}
+                </span>
+              ))}
 
-                // Finalized sentence
-                if (isFinalized) {
-                  // If it's current (being revised), show current userAttempt
-                  if (isCurrent && !isComplete) {
-                    // If feedback exists, show with correction highlights
-                    // Clicking enters edit mode (clears corrections, preserves text)
-                    if (feedback && feedback.corrections?.length > 0) {
-                      return (
-                        <span
-                          key={`current-${i}`}
-                          className="practice-inline-display practice-inline-display--with-corrections"
-                          onClick={() => {
-                            setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
-                            setSubmittedAttempt('')
-                            // After React re-renders, populate content and focus
-                            setTimeout(() => {
-                              if (documentInputRef.current) {
-                                documentInputRef.current.textContent = userAttempt
-                                documentInputRef.current.focus()
-                                // Place cursor at click position (end by default)
-                                const range = document.createRange()
-                                const sel = window.getSelection()
-                                range.selectNodeContents(documentInputRef.current)
-                                range.collapse(false)
-                                sel.removeAllRanges()
-                                sel.addRange(range)
-                              }
-                            }, 0)
-                          }}
-                        >
-                          {renderTextWithCorrections(userAttempt, feedback.corrections)}
-                        </span>
-                      )
-                    }
-                    return (
-                      <span
-                        key={`current-${i}`}
-                        className="practice-inline-display practice-inline-display--editable"
-                        contentEditable
-                        suppressContentEditableWarning
-                        ref={documentInputRef}
-                        onInput={handleDocumentInput}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleSubmitAttempt()
-                          }
-                        }}
-                      />
-                    )
-                  }
-                  // Otherwise, just show the finalized text (clickable to navigate)
-                  return (
-                    <span
-                      key={`finalized-${i}`}
-                      className="practice-document-sentence"
-                      onClick={() => handleGoToSentence(i)}
-                      title="Click to revise"
-                    >
-                      {renderTextWithWordStatus(attempt.finalText, `doc-${i}-`)}{' '}
+              {/* Current line input - only in line mode */}
+              {!isDocumentMode && (
+                <>
+                  {feedback && feedback.corrections?.length > 0 ? (
+                    <span className="practice-inline-display practice-inline-display--with-corrections">
+                      {renderTextWithCorrections(userText, feedback.corrections)}
                     </span>
-                  )
-                }
-
-                // Not finalized - show live typing or corrections if feedback exists
-                if (isCurrent && !isComplete) {
-                  // If feedback exists, show attempt with correction highlights
-                  // Clicking enters edit mode (clears corrections, preserves text)
-                  if (feedback && feedback.corrections?.length > 0) {
-                    return (
-                      <span
-                        key={`current-${i}`}
-                        className="practice-inline-display practice-inline-display--with-corrections"
-                        onClick={() => {
-                          setFeedback(prev => prev ? { ...prev, corrections: [] } : null)
-                          setSubmittedAttempt('')
-                          // After React re-renders, populate content and focus
-                          setTimeout(() => {
-                            if (documentInputRef.current) {
-                              documentInputRef.current.textContent = userAttempt
-                              documentInputRef.current.focus()
-                              // Place cursor at end
-                              const range = document.createRange()
-                              const sel = window.getSelection()
-                              range.selectNodeContents(documentInputRef.current)
-                              range.collapse(false)
-                              sel.removeAllRanges()
-                              sel.addRange(range)
-                            }
-                          }, 0)
-                        }}
-                      >
-                        {renderTextWithCorrections(userAttempt, feedback.corrections)}
-                      </span>
-                    )
-                  }
-                  // Otherwise show live typing - editable in document
-                  return (
+                  ) : (
                     <span
-                      key={`current-${i}`}
                       className="practice-inline-display practice-inline-display--editable"
                       contentEditable
                       suppressContentEditableWarning
@@ -1578,28 +1492,30 @@ const PracticeLesson = () => {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault()
-                          handleSubmitAttempt()
+                          handleSubmitForFeedback()
                         }
                       }}
                     />
-                  )
-                }
+                  )}
+                </>
+              )}
 
-                return null
-              })}
+              {/* Document mode - editable textarea */}
+              {isDocumentMode && (
+                <span
+                  className="practice-inline-display practice-inline-display--editable"
+                  contentEditable
+                  suppressContentEditableWarning
+                  ref={documentInputRef}
+                  onInput={(e) => {
+                    // In document mode, we just let them type freely
+                    // The text will be processed when they submit
+                  }}
+                  style={{ display: 'block', minHeight: '200px' }}
+                />
+              )}
             </div>
           </div>
-
-          {/* Completion message */}
-          {isComplete && (
-            <div className="practice-complete">
-              <h2>Lesson Complete!</h2>
-              <p>You've completed all {lesson.sentences?.length} sentences.</p>
-              <button className="button primary" onClick={() => navigate('/dashboard')}>
-                Back to Dashboard
-              </button>
-            </div>
-          )}
         </main>
       </div>
 
@@ -1607,8 +1523,8 @@ const PracticeLesson = () => {
       {showDeleteConfirm && (
         <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
           <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete Lesson?</h3>
-            <p>This will permanently delete this practice lesson and all your progress.</p>
+            <h3>Delete Writing?</h3>
+            <p>This will permanently delete this writing and all your progress.</p>
             <div className="modal-actions">
               <button className="button ghost" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
@@ -1625,8 +1541,8 @@ const PracticeLesson = () => {
       {showResetConfirm && (
         <div className="modal-backdrop" onClick={() => setShowResetConfirm(false)}>
           <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
-            <h3>Reset Lesson?</h3>
-            <p>This will clear all your written sentences and start over from sentence 1. Your saved vocabulary will not be affected.</p>
+            <h3>Reset Writing?</h3>
+            <p>This will clear all your written content and start over. Your saved vocabulary will not be affected.</p>
             <div className="modal-actions">
               <button className="button ghost" onClick={() => setShowResetConfirm(false)}>
                 Cancel
@@ -1644,7 +1560,7 @@ const PracticeLesson = () => {
         <div className="modal-backdrop" onClick={() => setShowNewWordsWarning(false)}>
           <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
             <h3>Unreviewed Words</h3>
-            <p>By proceeding to the next sentence, all new words will be moved to known.</p>
+            <p>By proceeding to the next line, all new words will be moved to known.</p>
             <div className="modal-actions">
               <button className="button ghost" onClick={() => setShowNewWordsWarning(false)}>
                 Review Words
@@ -1727,7 +1643,7 @@ const PracticeLesson = () => {
                 {lesson?.sourceLanguage || 'Native'}
               </p>
               <p className="translate-popup-language-text">
-                {safeTranslation(popup.translation) || 'Loading...'}
+                {popup.translation}
               </p>
             </div>
           </div>
@@ -1757,4 +1673,4 @@ const PracticeLesson = () => {
   )
 }
 
-export default PracticeLesson
+export default FreeWritingLesson

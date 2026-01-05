@@ -485,6 +485,192 @@ async function batchGetTranslations(words, targetLanguage, nativeLanguage) {
   return results
 }
 
+// =====================================================
+// EXPRESSION DETECTION SYSTEM
+// Identifies idiomatic expressions in content
+// =====================================================
+
+// Generate a key for expression storage: language_normalized_expression
+function getExpressionKey(expression, language) {
+  if (!expression || !language) return null
+  const normalizedExpr = expression.trim().toLowerCase().replace(/\s+/g, '_')
+  const normalizedLang = language.trim().toLowerCase()
+  return `${normalizedLang}_${normalizedExpr}`
+}
+
+// Get expression from cache
+async function getExpression(expression, language) {
+  const key = getExpressionKey(expression, language)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('expressions').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching expression:', err)
+    return null
+  }
+}
+
+// Save expression to Firestore
+async function saveExpression(expression, language, meaning, literal = null) {
+  const key = getExpressionKey(expression, language)
+  if (!key || !meaning) return false
+
+  try {
+    const docRef = firestore.collection('expressions').doc(key)
+    await docRef.set({
+      text: expression.trim().toLowerCase(),
+      language: language.toLowerCase().trim(),
+      meaning: meaning,
+      literal: literal,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true })
+    return true
+  } catch (err) {
+    console.error('Error saving expression:', err)
+    return false
+  }
+}
+
+// Get all expressions for a language
+async function getExpressionsForLanguage(language) {
+  if (!language) return []
+
+  try {
+    const normalizedLang = language.trim().toLowerCase()
+    const snapshot = await firestore.collection('expressions')
+      .where('language', '==', normalizedLang)
+      .get()
+
+    return snapshot.docs.map(doc => doc.data())
+  } catch (err) {
+    console.error('Error fetching expressions for language:', err)
+    return []
+  }
+}
+
+// Batch fetch expressions that appear in text
+async function getExpressionsInText(text, language) {
+  if (!text || !language) return []
+
+  const expressions = await getExpressionsForLanguage(language)
+  const normalizedText = text.toLowerCase()
+
+  return expressions.filter(expr =>
+    normalizedText.includes(expr.text.toLowerCase())
+  )
+}
+
+// LLM-powered expression detection
+async function detectExpressionsWithLLM(text, language, nativeLanguage = 'english') {
+  if (!text || !language) return []
+
+  try {
+    const prompt = `Analyze this ${language} text and identify ALL multi-word combinations where the meaning differs from the literal sum of the individual words.
+
+A learner might know each word separately but still not understand the combination. Find these.
+
+TEXT:
+${text}
+
+For each expression found, provide:
+1. The exact expression as it appears in the text (lowercase)
+2. Its actual meaning in ${nativeLanguage}
+3. A literal word-by-word translation (to show the gap between literal and actual meaning)
+
+Return a JSON array of objects with keys: "expression", "meaning", "literal"
+
+Types to look for (works for any language):
+- Idioms: ES "dar en el clavo" = "get it right", FR "coûter les yeux de la tête" = "cost a fortune"
+- Phrasal verbs: EN "give up" = "surrender", "look after" = "care for"
+- Verb + preposition: ES "pensar en" = "think about", IT "contare su" = "rely on"
+- Verb + noun: ES "hacer caso" = "pay attention", FR "faire attention" = "be careful"
+- Fixed phrases: ES "sin embargo" = "however", IT "a proposito" = "by the way"
+- Collocations: ES "echar de menos" = "miss someone", FR "avoir envie de" = "want to"
+- Any word combination where the meaning ≠ sum of literal parts
+
+The key test: Would a learner who knows each word individually still fail to understand the combination?
+
+Return an empty array [] if no such expressions are found.
+Return ONLY valid JSON, no other text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+      text: { format: { type: 'json_object' } },
+    })
+
+    let expressions = []
+
+    // Try to parse the response
+    const contentBlocks = response?.output?.[0]?.content || []
+    const jsonBlock = contentBlocks.find((block) =>
+      block?.type === 'output_json' || block?.type === 'json'
+    )
+
+    let payload = jsonBlock?.output_json || jsonBlock?.json
+
+    if (!payload) {
+      const textBlock = contentBlocks.find((block) => typeof block?.text === 'string')
+      const candidateText = textBlock?.text || response?.output_text
+      if (candidateText) {
+        try {
+          payload = JSON.parse(candidateText)
+        } catch (err) {
+          console.error('Failed to parse expression detection response:', err)
+          return []
+        }
+      }
+    }
+
+    // Handle both array and object with expressions key
+    if (Array.isArray(payload)) {
+      expressions = payload
+    } else if (payload && Array.isArray(payload.expressions)) {
+      expressions = payload.expressions
+    }
+
+    // Validate and normalize
+    return expressions
+      .filter(e => e && e.expression && e.meaning)
+      .map(e => ({
+        expression: e.expression.trim().toLowerCase(),
+        meaning: e.meaning.trim(),
+        literal: e.literal ? e.literal.trim() : null,
+      }))
+  } catch (err) {
+    console.error('Error detecting expressions with LLM:', err)
+    return []
+  }
+}
+
+// Detect and save expressions from text content
+async function detectAndSaveExpressions(text, language, nativeLanguage = 'english') {
+  if (!text || !language) return []
+
+  console.log(`Detecting expressions in ${language} text (${text.length} chars)...`)
+
+  // Detect expressions using LLM
+  const detectedExpressions = await detectExpressionsWithLLM(text, language, nativeLanguage)
+
+  console.log(`Found ${detectedExpressions.length} expressions`)
+
+  // Save each expression to the database
+  const savedExpressions = []
+  for (const expr of detectedExpressions) {
+    const saved = await saveExpression(expr.expression, language, expr.meaning, expr.literal)
+    if (saved) {
+      savedExpressions.push(expr.expression)
+    }
+  }
+
+  return savedExpressions
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, os.tmpdir())
@@ -4283,6 +4469,24 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     })
   }
 
+  // Detect and save expressions from the text
+  let detectedExpressions = []
+  try {
+    console.log(`Detecting expressions for ${contentType} ${contentId}...`)
+    detectedExpressions = await detectAndSaveExpressions(allText, normalizedLang, nativeLanguage)
+    console.log(`Detected ${detectedExpressions.length} expressions`)
+
+    // Save expressions list on content document
+    if (detectedExpressions.length > 0) {
+      await contentRef.update({
+        expressions: detectedExpressions,
+      })
+    }
+  } catch (exprError) {
+    console.error('Error detecting expressions:', exprError)
+    // Continue - expression detection failures shouldn't block content preparation
+  }
+
   // Extract unique words
   const uniqueWords = extractUniqueWords(allText)
 
@@ -4329,28 +4533,38 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
     getMissingTranslations(wordsToProcess, normalizedLang, nativeLanguage),
   ])
 
+  // Also check for missing expression pronunciations
+  const missingExpressionPronunciations = await getMissingPronunciations(
+    detectedExpressions,
+    normalizedLang,
+    finalVoiceId
+  )
+
   // Combine into unique set of words that need fetching
   const allMissingWords = [...new Set([...missingPronunciations, ...missingTranslations])]
-  const missingPronunciationsSet = new Set(missingPronunciations)
+  const missingPronunciationsSet = new Set([...missingPronunciations, ...missingExpressionPronunciations])
   const missingTranslationsSet = new Set(missingTranslations)
 
-  if (allMissingWords.length === 0) {
+  // Add expressions to the processing queue (for pronunciations only)
+  const allMissingItems = [...new Set([...allMissingWords, ...missingExpressionPronunciations])]
+
+  if (allMissingItems.length === 0) {
     await contentRef.update({
       preparationStatus: 'ready',
       preparationProgress: 100,
       voiceId: finalVoiceId,
     })
-    return { success: true, wordsProcessed: wordsToProcess.length, pronunciationsFetched: 0, translationsFetched: 0 }
+    return { success: true, wordsProcessed: wordsToProcess.length, expressionsDetected: detectedExpressions.length, pronunciationsFetched: 0, translationsFetched: 0 }
   }
 
   // Fetch missing pronunciations AND translations (with rate limiting)
   let pronunciationsFetched = 0
   let translationsFetched = 0
   const concurrencyLimit = 3
-  const totalMissing = allMissingWords.length
+  const totalMissing = allMissingItems.length
 
-  for (let i = 0; i < allMissingWords.length; i += concurrencyLimit) {
-    const batch = allMissingWords.slice(i, i + concurrencyLimit)
+  for (let i = 0; i < allMissingItems.length; i += concurrencyLimit) {
+    const batch = allMissingItems.slice(i, i + concurrencyLimit)
 
     await Promise.all(
       batch.map(async (word) => {
@@ -4409,9 +4623,10 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
   return {
     success: true,
     wordsProcessed: wordsToProcess.length,
+    expressionsDetected: detectedExpressions.length,
     pronunciationsFetched,
     translationsFetched,
-    totalMissing: allMissingWords.length,
+    totalMissing: allMissingItems.length,
   }
 }
 
@@ -4431,6 +4646,69 @@ app.post('/api/prepare-content', async (req, res) => {
   } catch (error) {
     console.error('Error preparing content:', error)
     return res.status(500).json({ error: error.message || 'Failed to prepare content' })
+  }
+})
+
+// Get all expressions for a language
+app.get('/api/expressions/:language', async (req, res) => {
+  const { language } = req.params
+
+  if (!language) {
+    return res.status(400).json({ error: 'language is required' })
+  }
+
+  try {
+    const expressions = await getExpressionsForLanguage(language)
+    return res.json({ expressions })
+  } catch (error) {
+    console.error('Error fetching expressions:', error)
+    return res.status(500).json({ error: 'Failed to fetch expressions' })
+  }
+})
+
+// Get expressions for specific content
+app.post('/api/content/expressions', async (req, res) => {
+  const { uid, contentId, contentType, language } = req.body || {}
+
+  if (!uid || !contentId || !contentType) {
+    return res.status(400).json({ error: 'uid, contentId, and contentType are required' })
+  }
+
+  try {
+    // Get content reference based on type
+    let contentRef
+    if (contentType === 'story') {
+      contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+    } else if (contentType === 'youtube') {
+      contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+    } else if (contentType === 'spotify') {
+      contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+    } else {
+      return res.status(400).json({ error: `Unknown content type: ${contentType}` })
+    }
+
+    const contentSnap = await contentRef.get()
+    if (!contentSnap.exists) {
+      return res.status(404).json({ error: 'Content not found' })
+    }
+
+    const contentData = contentSnap.data() || {}
+    const expressionsList = contentData.expressions || []
+
+    // Fetch full expression data for each expression in the content
+    const normalizedLang = (language || contentData.language || contentData.outputLanguage || '').toLowerCase().trim()
+
+    const expressionDetails = await Promise.all(
+      expressionsList.map(async (exprText) => {
+        const expr = await getExpression(exprText, normalizedLang)
+        return expr || { text: exprText, meaning: null, literal: null }
+      })
+    )
+
+    return res.json({ expressions: expressionDetails })
+  } catch (error) {
+    console.error('Error fetching content expressions:', error)
+    return res.status(500).json({ error: 'Failed to fetch content expressions' })
   }
 })
 
@@ -4600,7 +4878,7 @@ app.post('/api/delete-story', async (req, res) => {
 // Practice Mode: Get AI feedback on user's translation attempt
 app.post('/api/practice/feedback', async (req, res) => {
   try {
-    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, contextSummary } = req.body || {}
+    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, contextSummary, feedbackInTarget } = req.body || {}
 
     if (!nativeSentence || !userAttempt || !targetLanguage) {
       return res.status(400).json({ error: 'nativeSentence, userAttempt, and targetLanguage are required' })
@@ -4608,6 +4886,7 @@ app.post('/api/practice/feedback', async (req, res) => {
 
     const sourceLang = sourceLanguage || 'English'
     const level = adaptationLevel || 'native'
+    const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
 
     // Build context section if context summary is available
     const contextSection = contextSummary
@@ -4635,34 +4914,57 @@ In the model sentence, replace these parenthetical expressions with the correct 
       : ''
 
     // Build the prompt for the tutor
-    const prompt = `You are a language tutor helping a student learn ${targetLanguage}. The student is practicing expressing ideas from ${sourceLang} into ${targetLanguage}.
+    const prompt = `You are a strict but fair ${targetLanguage} language tutor. Analyze the student's translation attempt.
 ${contextSection}${unknownWordsSection}
-Original sentence (in ${sourceLang}):
-"${nativeSentence}"
+Original sentence (${sourceLang}): "${nativeSentence}"
+Student's attempt (${targetLanguage}): "${userAttempt}"
+Adaptation level: ${level}
 
-Student's attempt (in ${targetLanguage}):
-"${userAttempt}"
+YOUR TASK: Find ALL errors in the student's attempt. Be thorough but fair.
 
-Adaptation level: ${level} (${level === 'beginner' ? 'use simple vocabulary and shorter sentences' : level === 'intermediate' ? 'natural expressions with moderate complexity' : 'natural, native-level expression'})
+WHAT TO FLAG AS ERRORS (you MUST catch these):
+1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
+   Examples: "difficil" → "difícil", "extramadamente" → "extremadamente", "esta" → "está" (when verb)
+2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order that breaks grammar
+   Examples: "la problema" → "el problema", "ellos tiene" → "ellos tienen"
+3. ACCURACY ERRORS - Wrong word that changes the meaning, missing key information
+   Examples: Using "always" when original said "never"
 
-Analyze the student's attempt and provide feedback. Return a JSON object with this structure:
+WHAT IS NOT AN ERROR (do NOT flag these):
+- Valid synonyms: "necesitar" vs "deber", "muy" vs "bastante"
+- Valid alternatives: "¿no?" vs "¿verdad?", "es que" vs "porque"
+- Style preferences: Different but grammatically correct word order
+- If you would say "more natural" or "I prefer" - it's NOT an error, don't flag it
+
+Return JSON:
 {
-  "modelSentence": "A natural ${targetLanguage} way to express the same idea, appropriate for the adaptation level",
+  "modelSentence": "A natural ${targetLanguage} translation (as exemplar, not the only correct answer)",
   "feedback": {
-    "naturalness": <1-5 score, where 5 is perfectly natural for a native speaker>,
-    "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
-    "explanation": "Brief explanation of your feedback in ${sourceLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.${hasUnknownWords ? ' Include the translations for the words the student asked about.' : ''}",
-    "grammarIssues": ["list of specific grammar issues if any, or empty array"],
-    "suggestions": ["list of alternative expressions or tips, or empty array"],
-    "correctness": <1-5 score, where 5 means no grammar or spelling errors>${hasUnknownWords ? `,
-    "unknownWordTranslations": { "word in ${sourceLang}": "translation in ${targetLanguage}", ... }` : ''}
+    "correctness": <1-5, where 5 = no errors>,
+    "accuracy": <1-5, where 5 = meaning fully preserved>,
+    "corrections": [
+      {
+        "category": "spelling" | "grammar" | "accuracy",
+        "original": "exact text from student's attempt",
+        "correction": "corrected text",
+        "explanation": "Brief explanation in ${feedbackLang}"
+      }
+    ]${hasUnknownWords ? `,
+    "unknownWordTranslations": { "word": "translation", ... }` : ''}
   }
 }
 
-Return ONLY the JSON object, no additional text.`
+CRITICAL RULES:
+- "original" must EXACTLY match text in student's attempt (for highlighting)
+- Flag EVERY spelling error including missing accents (á, é, í, ó, ú, ñ, ü)
+- Flag EVERY grammar error (conjugation, agreement, syntax)
+- Do NOT flag valid alternative phrasings
+- Empty corrections [] only if attempt has zero errors
+
+Return ONLY valid JSON.`
 
     const response = await client.responses.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       input: prompt,
     })
 
@@ -4676,6 +4978,34 @@ Return ONLY the JSON object, no additional text.`
       if (jsonMatch) {
         result = JSON.parse(jsonMatch[0])
         console.log('Parsed feedback:', JSON.stringify(result.feedback, null, 2))
+
+        // Calculate positions for each correction
+        if (result.feedback?.corrections) {
+          result.feedback.corrections = result.feedback.corrections.map(correction => {
+            const startIndex = userAttempt.indexOf(correction.original)
+            if (startIndex !== -1) {
+              return {
+                ...correction,
+                startIndex,
+                endIndex: startIndex + correction.original.length
+              }
+            }
+            // If exact match not found, try case-insensitive search
+            const lowerAttempt = userAttempt.toLowerCase()
+            const lowerOriginal = correction.original.toLowerCase()
+            const caseInsensitiveStart = lowerAttempt.indexOf(lowerOriginal)
+            if (caseInsensitiveStart !== -1) {
+              return {
+                ...correction,
+                original: userAttempt.slice(caseInsensitiveStart, caseInsensitiveStart + correction.original.length),
+                startIndex: caseInsensitiveStart,
+                endIndex: caseInsensitiveStart + correction.original.length
+              }
+            }
+            // Return without position if not found
+            return correction
+          })
+        }
       } else {
         throw new Error('No JSON found in response')
       }
@@ -4688,9 +5018,7 @@ Return ONLY the JSON object, no additional text.`
           naturalness: 3,
           accuracy: 3,
           correctness: 3,
-          explanation: 'I was unable to fully analyze your attempt. Please try again.',
-          grammarIssues: [],
-          suggestions: [],
+          corrections: [],
         },
       }
     }
@@ -5162,6 +5490,188 @@ app.delete('/api/generate/book/:bookId', async (req, res) => {
   } catch (error) {
     console.error('Delete book error:', error)
     return res.status(500).json({ error: 'Failed to delete book', details: error.message })
+// Free Writing Feedback Endpoint (line-by-line)
+app.post('/api/freewriting/feedback', async (req, res) => {
+  try {
+    const { userText, targetLanguage, sourceLanguage, textType, previousLines, feedbackInTarget } = req.body || {}
+
+    if (!userText || !targetLanguage) {
+      return res.status(400).json({ error: 'userText and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
+    const type = textType || 'general writing'
+
+    // Build context from previous lines
+    const contextSection = previousLines?.length > 0
+      ? `
+CONTEXT (previous sentences in this ${type}):
+${previousLines.map((line, i) => `${i + 1}. ${line}`).join('\n')}
+
+The student is continuing this ${type}. Consider the context when evaluating naturalness and coherence.
+`
+      : ''
+
+    const prompt = `You are a supportive ${targetLanguage} language tutor helping a student with free writing practice. The student is writing a ${type}.
+${contextSection}
+Student's sentence (${targetLanguage}): "${userText}"
+
+YOUR TASK: Analyze the student's writing for errors and naturalness. Be encouraging but thorough.
+
+WHAT TO FLAG AS ERRORS:
+1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
+   Examples: "difficil" → "difícil", "extramadamente" → "extremadamente"
+2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order
+   Examples: "la problema" → "el problema", "ellos tiene" → "ellos tienen"
+3. NATURALNESS - Awkward phrasing that a native speaker wouldn't use (mark as "naturalness" category)
+   Examples: Literal translations from English, unusual word order
+
+IMPORTANT: Since this is free writing (not translation), focus on:
+- Is the sentence grammatically correct?
+- Does it sound natural to a native speaker?
+- Are there better ways to express the same idea?
+
+Return JSON:
+{
+  "modelSentence": "A more natural way to express this in ${targetLanguage} (if needed, or the same sentence if perfect)",
+  "feedback": {
+    "correctness": <1-5, where 5 = no errors>,
+    "naturalness": <1-5, where 5 = sounds completely native>,
+    "corrections": [
+      {
+        "category": "spelling" | "grammar" | "naturalness",
+        "original": "exact text from student's writing",
+        "correction": "corrected/improved text",
+        "explanation": "Brief explanation in ${feedbackLang}"
+      }
+    ]
+  }
+}
+
+CRITICAL RULES:
+- "original" must EXACTLY match text in student's writing (for highlighting)
+- Flag EVERY spelling error including missing accents
+- If the sentence is perfect, return empty corrections array and set modelSentence to the student's text
+- Be encouraging - acknowledge what they did well
+- Only return valid JSON, no other text`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let result
+    try {
+      let text = response.output_text || ''
+      // Clean up markdown code blocks if present
+      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      result = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Failed to parse feedback response:', parseErr)
+      return res.status(500).json({ error: 'Failed to parse feedback response' })
+    }
+
+    // Add position indices for corrections
+    if (result.feedback?.corrections) {
+      result.feedback.corrections = result.feedback.corrections.map(c => {
+        const startIndex = userText.indexOf(c.original)
+        return {
+          ...c,
+          startIndex: startIndex >= 0 ? startIndex : 0,
+          endIndex: startIndex >= 0 ? startIndex + c.original.length : 0,
+        }
+      })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Free writing feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get feedback' })
+  }
+})
+
+// Free Writing Document Feedback Endpoint (full document review)
+app.post('/api/freewriting/document-feedback', async (req, res) => {
+  try {
+    const { document, targetLanguage, sourceLanguage, textType } = req.body || {}
+
+    if (!document || !targetLanguage) {
+      return res.status(400).json({ error: 'document and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const type = textType || 'general writing'
+
+    const prompt = `You are a supportive ${targetLanguage} language tutor reviewing a student's complete ${type}.
+
+STUDENT'S DOCUMENT (${targetLanguage}):
+"""
+${document}
+"""
+
+YOUR TASK: Provide comprehensive feedback on the entire document.
+
+Analyze:
+1. Overall grammar and spelling accuracy
+2. Vocabulary usage and variety
+3. Sentence structure and flow
+4. Coherence and organization
+5. Naturalness - does it sound like a native speaker wrote it?
+
+Return JSON:
+{
+  "overallFeedback": {
+    "overallScore": <1-5, overall quality>,
+    "grammarScore": <1-5>,
+    "vocabularyScore": <1-5>,
+    "coherenceScore": <1-5>,
+    "naturalnessScore": <1-5>,
+    "summary": "2-3 sentence summary of the writing quality in ${sourceLang}",
+    "strengths": ["strength 1", "strength 2", ...],
+    "suggestions": ["suggestion 1", "suggestion 2", ...]
+  },
+  "lineByLineFeedback": [
+    {
+      "lineIndex": 0,
+      "original": "first sentence",
+      "modelSentence": "improved version if needed",
+      "feedback": {
+        "corrections": [
+          {
+            "category": "spelling" | "grammar" | "naturalness",
+            "original": "text",
+            "correction": "fixed text",
+            "explanation": "brief explanation"
+          }
+        ]
+      }
+    }
+  ]
+}
+
+Be encouraging while being thorough. Highlight what the student did well.
+Only return valid JSON, no other text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let result
+    try {
+      let text = response.output_text || ''
+      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      result = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Failed to parse document feedback response:', parseErr)
+      return res.status(500).json({ error: 'Failed to parse feedback response' })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Document feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get document feedback' })
   }
 })
 

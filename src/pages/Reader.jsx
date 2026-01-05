@@ -100,6 +100,7 @@ const Reader = ({ initialMode }) => {
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
   const [bookmarkIndex, setBookmarkIndex] = useState(null)
   const [isSavingBookmark, setIsSavingBookmark] = useState(false)
+  const [contentExpressions, setContentExpressions] = useState([])
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
   const sentenceAudioRef = useRef(null)
@@ -258,6 +259,12 @@ const Reader = ({ initialMode }) => {
         return
       }
 
+      // Check if this is a detected expression with pre-stored meaning
+      const normalizedPhrase = normaliseExpression(phrase)
+      const detectedExpr = contentExpressions.find(
+        (expr) => normaliseExpression(expr.text || '') === normalizedPhrase
+      )
+
       try {
         const response = await fetch('http://localhost:4000/api/translatePhrase', {
           method: 'POST',
@@ -272,15 +279,26 @@ const Reader = ({ initialMode }) => {
 
         if (response.ok) {
           const data = await response.json()
-          translation = data.translation || translation
+          // Use pre-stored expression meaning if available, otherwise use API translation
+          translation = detectedExpr?.meaning || data.translation || translation
           targetText = data.targetText || translation
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
         } else {
           console.error('Phrase translation failed:', await response.text())
+          // Fall back to pre-stored meaning if API fails
+          if (detectedExpr?.meaning) {
+            translation = detectedExpr.meaning
+            targetText = detectedExpr.meaning
+          }
         }
       } catch (err) {
         console.error('Error translating phrase:', err)
+        // Fall back to pre-stored meaning if API fails
+        if (detectedExpr?.meaning) {
+          translation = detectedExpr.meaning
+          targetText = detectedExpr.meaning
+        }
       }
 
       const { x, y } = getPopupPosition(rect)
@@ -559,6 +577,51 @@ const Reader = ({ initialMode }) => {
 
     loadStoryMeta()
   }, [user, id])
+
+  // Fetch content expressions (idioms detected by LLM)
+  useEffect(() => {
+    if (!user || !id || !language) {
+      setContentExpressions([])
+      return
+    }
+
+    let isActive = true
+
+    const fetchExpressions = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/content/expressions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: user.uid,
+            contentId: id,
+            contentType: 'story',
+            language: language,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch expressions')
+        }
+
+        const data = await response.json()
+        if (isActive && Array.isArray(data.expressions)) {
+          setContentExpressions(data.expressions)
+        }
+      } catch (err) {
+        console.error('Failed to fetch content expressions:', err)
+        if (isActive) {
+          setContentExpressions([])
+        }
+      }
+    }
+
+    fetchExpressions()
+
+    return () => {
+      isActive = false
+    }
+  }, [user, id, language])
 
   useEffect(() => {
     if (!user || !id || readerMode !== 'intensive') {
@@ -956,14 +1019,22 @@ const Reader = ({ initialMode }) => {
   }
 
   const renderWordSegments = (text = '') => {
-    const expressions = Object.keys(vocabEntries)
+    // Combine user's known expressions with content-detected expressions
+    const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
+
+    const detectedExpressions = contentExpressions
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((text) => text.includes(' '))
+
+    // Merge and dedupe, keeping user expressions first (they have status)
+    const allExpressions = [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
 
     const elements = []
 
-    const segments = segmentTextByExpressions(text || '', expressions)
+    const segments = segmentTextByExpressions(text || '', allExpressions)
 
     segments.forEach((segment, segmentIndex) => {
       if (segment.type === 'phrase') {

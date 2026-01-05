@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { TEXT_TYPES, createWritingPiece } from '../../services/writing'
+import { TEXT_TYPES } from '../../services/writing'
 import { ADAPTATION_LEVELS, createPracticeLesson, splitIntoSentences } from '../../services/practice'
+import { createFreeWritingLesson } from '../../services/freewriting'
 
 const MODES = [
   {
@@ -29,6 +30,7 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
 
   // Free writing state
   const [selectedType, setSelectedType] = useState('')
+  const [customType, setCustomType] = useState('')
   const [title, setTitle] = useState('')
 
   // Practice state
@@ -65,15 +67,26 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
       return
     }
 
+    if (selectedType === 'other' && !customType.trim()) {
+      setError('Please enter a custom text type')
+      return
+    }
+
     setLoading(true)
     setError('')
 
     try {
-      const newPiece = await createWritingPiece(user.uid, activeLanguage, selectedType, title)
-      onCreated(newPiece, 'free')
+      const textType = selectedType === 'other' ? customType.trim() : selectedType
+      const newLesson = await createFreeWritingLesson(user.uid, {
+        title: title.trim() || `Untitled ${textType}`,
+        textType,
+        targetLanguage: activeLanguage,
+        sourceLanguage: 'English',
+      })
+      onCreated(newLesson, 'free')
     } catch (err) {
-      console.error('Failed to create piece:', err)
-      setError('Failed to create piece. Please try again.')
+      console.error('Failed to create free writing:', err)
+      setError('Failed to create. Please try again.')
       setLoading(false)
     }
   }
@@ -165,7 +178,7 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
     }
   }
 
-  const canSubmitFree = selectedType
+  const canSubmitFree = selectedType && (selectedType !== 'other' || customType.trim())
   const canSubmitPractice = sourceType && (
     (sourceType === 'text' && textContent.trim()) ||
     (sourceType === 'youtube' && youtubeUrl.trim())
@@ -216,21 +229,42 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
           {mode === 'free' && (
             <>
               <div className="form-group">
-                <label className="form-label">What would you like to write?</label>
-                <div className="text-type-grid">
+                <label className="form-label" htmlFor="text-type">
+                  What would you like to write?
+                </label>
+                <select
+                  id="text-type"
+                  className="form-input form-select"
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="">Select a type...</option>
                   {TEXT_TYPES.map((type) => (
-                    <button
-                      key={type.id}
-                      className={`text-type-option ${selectedType === type.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedType(type.id)}
-                      type="button"
-                      disabled={loading}
-                    >
+                    <option key={type.id} value={type.id}>
                       {type.label}
-                    </button>
+                    </option>
                   ))}
-                </div>
+                  <option value="other">Other</option>
+                </select>
               </div>
+
+              {selectedType === 'other' && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="custom-type">
+                    Custom type
+                  </label>
+                  <input
+                    id="custom-type"
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g., Letter, Blog Post, Recipe..."
+                    value={customType}
+                    onChange={(e) => setCustomType(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+              )}
 
               <div className="form-group">
                 <label className="form-label" htmlFor="piece-title">
@@ -240,7 +274,7 @@ const NewWritingModal = ({ activeLanguage, initialMode, onClose, onCreated }) =>
                   id="piece-title"
                   type="text"
                   className="form-input"
-                  placeholder={selectedType ? `Untitled ${TEXT_TYPES.find(t => t.id === selectedType)?.label || ''}` : 'Enter a title...'}
+                  placeholder={selectedType && selectedType !== 'other' ? `Untitled ${TEXT_TYPES.find(t => t.id === selectedType)?.label || ''}` : 'Enter a title...'}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   disabled={loading}

@@ -11983,13 +11983,13 @@ body.active-pass-locked {
   padding: 0 2px;
   border-radius: 2px;
   outline: none;
-  caret-color: #3b82f6;
+  caret-color: #0f172a;
   cursor: text;
 }
 
 .practice-inline-display--editable:empty::before {
   content: '|';
-  color: #3b82f6;
+  color: #0f172a;
   animation: blink-cursor 1s step-end infinite;
 }
 
@@ -11998,11 +11998,11 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .practice-inline-display--editable {
-  caret-color: #60a5fa;
+  caret-color: #f1f5f9;
 }
 
 [data-theme='dark'] .practice-inline-display--editable:empty::before {
-  color: #60a5fa;
+  color: #f1f5f9;
 }
 
 /* Blinking cursor */

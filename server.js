@@ -23,6 +23,7 @@ const { EPub } = require('epub2')
 const serviceAccount = require('./serviceAccountKey.json')
 dotenv.config()
 import OpenAI from 'openai'
+import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic)
@@ -5072,6 +5073,428 @@ Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be co
 })
 
 // Free Writing Feedback Endpoint
+// =============================================================================
+// NOVEL GENERATOR API
+// =============================================================================
+
+// OpenAI wrapper with retry, timeout, and streaming support
+// Per planning doc Section 11.5: 3 attempts, exponential backoff (2s, 4s, 8s), 90s timeout
+async function callOpenAIWithRetry(options, { maxRetries = 3, timeoutMs = 90000, stream = false } = {}) {
+  const delays = [2000, 4000, 8000]
+  let lastError = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+      try {
+        if (stream) {
+          // Streaming mode for chapter generation
+          const response = await client.chat.completions.create({
+            ...options,
+            stream: true,
+          })
+          clearTimeout(timeoutId)
+          return response
+        } else {
+          // Non-streaming mode for bible phases
+          const response = await client.chat.completions.create({
+            ...options,
+            stream: false,
+          })
+          clearTimeout(timeoutId)
+          return response
+        }
+      } finally {
+        clearTimeout(timeoutId)
+      }
+    } catch (error) {
+      lastError = error
+      console.error(`OpenAI call attempt ${attempt + 1} failed:`, error.message)
+
+      // Don't retry on abort (timeout)
+      if (error.name === 'AbortError') {
+        throw new Error(`OpenAI call timed out after ${timeoutMs}ms`)
+      }
+
+      // Wait before retrying (unless last attempt)
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]))
+      }
+    }
+  }
+
+  throw lastError || new Error('OpenAI call failed after all retries')
+}
+
+// Parse JSON from LLM response, with retry instruction if parsing fails
+function parseJSONResponse(content) {
+  try {
+    // Try to extract JSON from markdown code blocks if present
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
+    const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim()
+    return { success: true, data: JSON.parse(jsonStr) }
+  } catch (error) {
+    return { success: false, error: error.message, raw: content }
+  }
+}
+
+// Validate coherence check fields are non-empty
+function validateCoherenceCheck(coherenceCheck, requiredFields) {
+  if (!coherenceCheck) return { valid: false, missing: requiredFields }
+  const missing = requiredFields.filter(field => !coherenceCheck[field] || coherenceCheck[field].trim() === '')
+  return { valid: missing.length === 0, missing }
+}
+
+// POST /api/generate/bible - Generate complete story bible (Phases 1-8)
+app.post('/api/generate/bible', async (req, res) => {
+  try {
+    const { uid, concept, level, lengthPreset, language, generateAudio = false } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!concept) return res.status(400).json({ error: 'concept is required' })
+    if (!level) return res.status(400).json({ error: 'level is required' })
+    if (!lengthPreset) return res.status(400).json({ error: 'lengthPreset is required' })
+    if (!language) return res.status(400).json({ error: 'language is required' })
+
+    // Validate level
+    const validLevels = ['Beginner', 'Intermediate', 'Native']
+    if (!validLevels.includes(level)) {
+      return res.status(400).json({ error: `level must be one of: ${validLevels.join(', ')}` })
+    }
+
+    // Validate lengthPreset
+    const validLengths = ['novella', 'novel']
+    if (!validLengths.includes(lengthPreset)) {
+      return res.status(400).json({ error: `lengthPreset must be one of: ${validLengths.join(', ')}` })
+    }
+
+    // Create initial book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc()
+    const bookId = bookRef.id
+
+    await bookRef.set({
+      concept,
+      language,
+      level,
+      genre: 'Romance', // Pilot genre
+      lengthPreset,
+      chapterCount: lengthPreset === 'novella' ? 12 : 35,
+      generateAudio,
+      status: 'planning',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      bible: {} // Will be populated by phases
+    })
+
+    // Generate the complete bible using the 8-phase pipeline
+    console.log(`Starting bible generation for book ${bookId}...`)
+    const result = await generateBible(concept, level, lengthPreset, language)
+
+    if (!result.success) {
+      // Update book status to failed
+      await bookRef.update({
+        status: 'failed',
+        error: result.error,
+        bible: result.partialBible || {}
+      })
+
+      return res.status(500).json({
+        success: false,
+        bookId,
+        error: result.error,
+        partialBible: result.partialBible
+      })
+    }
+
+    // Update book with completed bible
+    const finalStatus = result.validationStatus === 'PASS' || result.validationStatus === 'CONDITIONAL_PASS'
+      ? 'bible_complete'
+      : 'bible_needs_review'
+
+    await bookRef.update({
+      bible: result.bible,
+      status: finalStatus,
+      validationStatus: result.validationStatus,
+      validationAttempts: result.validationAttempts
+    })
+
+    return res.status(201).json({
+      success: true,
+      bookId,
+      status: finalStatus,
+      validationStatus: result.validationStatus,
+      validationAttempts: result.validationAttempts,
+      bible: result.bible
+    })
+
+  } catch (error) {
+    console.error('Generate bible error:', error)
+    return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
+  }
+})
+
+// POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
+app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
+  try {
+    const { bookId, chapterIndex } = req.params
+    const { uid } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const chapterNum = parseInt(chapterIndex, 10)
+    if (isNaN(chapterNum) || chapterNum < 1) {
+      return res.status(400).json({ error: 'chapterIndex must be a positive integer' })
+    }
+
+    // Get book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Validate chapter index
+    if (chapterNum > bookData.chapterCount) {
+      return res.status(400).json({
+        error: `Chapter ${chapterNum} exceeds book chapter count (${bookData.chapterCount})`
+      })
+    }
+
+    // Check if bible is complete
+    const validBibleStatuses = ['bible_complete', 'in_progress', 'complete']
+    if (!validBibleStatuses.includes(bookData.status)) {
+      return res.status(400).json({
+        error: 'Bible generation must be complete before generating chapters',
+        currentStatus: bookData.status
+      })
+    }
+
+    // Get previous chapter summaries for context
+    const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const previousSummaries = chaptersSnapshot.docs
+      .filter(doc => doc.data().index < chapterNum)
+      .map(doc => {
+        const data = doc.data()
+        return {
+          number: data.index,
+          pov: data.pov,
+          summary: data.summary,
+          compressedSummary: data.compressedSummary,
+          ultraSummary: data.ultraSummary
+        }
+      })
+
+    // Build context with appropriate compression
+    console.log(`Building context for Chapter ${chapterNum}...`)
+    const contextSummaries = await buildPreviousContext(chapterNum, previousSummaries)
+
+    // Generate the chapter
+    console.log(`Generating Chapter ${chapterNum}...`)
+    const result = await generateChapterWithValidation(
+      bookData.bible,
+      chapterNum,
+      contextSummaries,
+      bookData.language
+    )
+
+    // Get chapter info from bible
+    const bibleChapter = bookData.bible.chapters?.chapters?.[chapterNum - 1] || {}
+
+    // Build chapter document
+    const chapterDoc = {
+      index: chapterNum,
+      title: result.chapter?.chapter?.title || bibleChapter.title || `Chapter ${chapterNum}`,
+      pov: bibleChapter.pov || 'Unknown',
+      content: result.chapter?.chapter?.content || '',
+      wordCount: result.chapter?.validation?.wordCount || 0,
+      tensionRating: bibleChapter.tension_rating || 5,
+      summary: result.chapter?.summary || {},
+      compressedSummary: null,
+      ultraSummary: null,
+      audioUrl: null,
+      audioStatus: 'none',
+      validationPassed: result.success,
+      regenerationCount: result.attempts - 1,
+      needsReview: result.needsReview || false,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    // Save chapter to Firestore
+    const chapterRef = bookRef.collection('chapters').doc(String(chapterNum))
+    await chapterRef.set(chapterDoc)
+
+    // Update book status
+    if (bookData.status === 'bible_complete') {
+      await bookRef.update({ status: 'in_progress' })
+    }
+
+    // Check if this is the last chapter
+    if (chapterNum === bookData.chapterCount) {
+      await bookRef.update({ status: 'complete' })
+    }
+
+    return res.status(201).json({
+      success: result.success,
+      bookId,
+      chapterIndex: chapterNum,
+      attempts: result.attempts,
+      needsReview: result.needsReview || false,
+      chapter: {
+        ...chapterDoc,
+        generatedAt: new Date().toISOString()
+      }
+    })
+
+  } catch (error) {
+    console.error('Generate chapter error:', error)
+    return res.status(500).json({ error: 'Failed to generate chapter', details: error.message })
+  }
+})
+
+// GET /api/generate/book/:bookId - Get book status and bible
+app.get('/api/generate/book/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params
+    const { uid } = req.query
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid query parameter is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    // Get book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Get chapter summaries
+    const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const chapters = chaptersSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        index: data.index,
+        title: data.title,
+        pov: data.pov,
+        wordCount: data.wordCount,
+        validationPassed: data.validationPassed,
+        generatedAt: data.generatedAt
+      }
+    })
+
+    return res.json({
+      success: true,
+      book: {
+        id: bookId,
+        concept: bookData.concept,
+        language: bookData.language,
+        level: bookData.level,
+        genre: bookData.genre,
+        lengthPreset: bookData.lengthPreset,
+        chapterCount: bookData.chapterCount,
+        generateAudio: bookData.generateAudio,
+        status: bookData.status,
+        createdAt: bookData.createdAt,
+        bible: bookData.bible
+      },
+      chapters,
+      generatedChapterCount: chapters.length
+    })
+
+  } catch (error) {
+    console.error('Get book error:', error)
+    return res.status(500).json({ error: 'Failed to get book', details: error.message })
+  }
+})
+
+// GET /api/generate/books - List all generated books for a user
+app.get('/api/generate/books', async (req, res) => {
+  try {
+    const { uid } = req.query
+
+    if (!uid) return res.status(400).json({ error: 'uid query parameter is required' })
+
+    const booksSnapshot = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('generatedBooks')
+      .orderBy('createdAt', 'desc')
+      .get()
+
+    const books = booksSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        concept: data.concept,
+        language: data.language,
+        level: data.level,
+        genre: data.genre,
+        lengthPreset: data.lengthPreset,
+        chapterCount: data.chapterCount,
+        status: data.status,
+        createdAt: data.createdAt
+      }
+    })
+
+    return res.json({
+      success: true,
+      books,
+      count: books.length
+    })
+
+  } catch (error) {
+    console.error('List books error:', error)
+    return res.status(500).json({ error: 'Failed to list books', details: error.message })
+  }
+})
+
+// DELETE /api/generate/book/:bookId - Delete a generated book
+app.delete('/api/generate/book/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params
+    const { uid } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    // Delete all chapters first
+    const chaptersSnapshot = await bookRef.collection('chapters').get()
+    const batch = firestore.batch()
+    chaptersSnapshot.docs.forEach(doc => batch.delete(doc.ref))
+    await batch.commit()
+
+    // Delete the book document
+    await bookRef.delete()
+
+    return res.json({
+      success: true,
+      message: 'Book and all chapters deleted'
+    })
+
+  } catch (error) {
+    console.error('Delete book error:', error)
+    return res.status(500).json({ error: 'Failed to delete book', details: error.message })
+  }
+})
+
+// Free Writing Feedback Endpoint (line-by-line)
 app.post('/api/freewriting/feedback', async (req, res) => {
   try {
     const { userText, targetLanguage, sourceLanguage, textType, previousLines, feedbackInTarget, helpExpressions, fullDocument } = req.body || {}
@@ -5272,6 +5695,206 @@ Only return valid JSON, no other text.`
   } catch (error) {
     console.error('Document feedback error:', error)
     return res.status(500).json({ error: 'Failed to get document feedback' })
+  }
+})
+
+// ============================================
+// TUTOR CHAT API
+// ============================================
+
+/**
+ * Start a new tutor conversation or continue existing
+ */
+app.post('/api/tutor/start', async (req, res) => {
+  try {
+    const { targetLanguage, sourceLanguage, memory } = req.body || {}
+
+    if (!targetLanguage) {
+      return res.status(400).json({ error: 'targetLanguage is required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const isReturning = memory && (memory.userFacts?.length > 0 || memory.lastConversationSummary)
+
+    // Build memory context for returning users
+    let memoryContext = ''
+    if (isReturning) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const lastSummary = memory.lastConversationSummary || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      memoryContext = `
+WHAT YOU REMEMBER ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${lastSummary ? `- Last conversation: ${lastSummary}` : ''}
+${mistakes ? `- Common mistakes they make: ${mistakes}` : ''}
+`
+    }
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- ${isReturning ? 'Reference something from your past conversations naturally' : 'Introduce yourself briefly and ask something to get to know them'}
+- Keep it short and conversational (1-3 sentences max)
+- Write primarily in ${targetLanguage}, with occasional ${sourceLang} if helpful
+- Match your vocabulary to their level (${memory?.observedLevel || 'beginner'})
+
+Generate a natural, friendly opening message to start or continue the conversation.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: systemPrompt,
+    })
+
+    const greeting = response.output_text?.trim() || `¡Hola! ¿Cómo estás hoy?`
+
+    return res.json({
+      greeting,
+      isReturningUser: isReturning,
+    })
+  } catch (error) {
+    console.error('Tutor start error:', error)
+    return res.status(500).json({ error: 'Failed to start tutor conversation' })
+  }
+})
+
+/**
+ * Send a message to the tutor and get a response
+ */
+app.post('/api/tutor/message', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, memory } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    // Build memory context
+    let memoryContext = ''
+    if (memory) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      if (facts || mistakes) {
+        memoryContext = `
+WHAT YOU KNOW ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${mistakes ? `- Mistakes they often make: ${mistakes}` : ''}
+`
+      }
+    }
+
+    // Build conversation history
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'tutor' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Ask about their life, remember details they share
+- Keep the conversation flowing naturally
+- Correct mistakes NATURALLY within your response - don't make it a lesson
+- Write primarily in ${targetLanguage}, with ${sourceLang} only when explaining corrections
+- Keep responses conversational length (1-4 sentences typically)
+- Match vocabulary to their level (${memory?.observedLevel || 'beginner'})
+- Don't be overly encouraging or teacherly - just be real
+
+CORRECTION STYLE:
+When they make a mistake, work the correction into your natural response.
+Example: If they say "Yo soy hambre", you might respond:
+"Jaja yo también tengo hambre! (btw it's 'tengo hambre' not 'soy' - hunger uses tener in Spanish) ¿Qué vas a comer?"
+
+NOT like this:
+"Great try! Just a small correction: in Spanish we use 'tener' for hunger, so it should be 'tengo hambre'. Keep up the good work!"
+
+Respond naturally to the student's message.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.8,
+    })
+
+    const tutorResponse = response.choices?.[0]?.message?.content?.trim() || 'Lo siento, no entendí. ¿Puedes repetir?'
+
+    return res.json({
+      response: tutorResponse,
+    })
+  } catch (error) {
+    console.error('Tutor message error:', error)
+    return res.status(500).json({ error: 'Failed to get tutor response' })
+  }
+})
+
+/**
+ * End a session and extract memory updates
+ */
+app.post('/api/tutor/end-session', async (req, res) => {
+  try {
+    const { conversationHistory, targetLanguage, sourceLanguage } = req.body || {}
+
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return res.json({ memoryUpdates: null })
+    }
+
+    const conversationText = conversationHistory
+      .map((m) => `${m.role === 'tutor' ? 'Tutor' : 'Student'}: ${m.content}`)
+      .join('\n')
+
+    const prompt = `Analyze this conversation between a language tutor and a student learning ${targetLanguage}.
+Extract information to remember for future conversations.
+
+CONVERSATION:
+${conversationText}
+
+Return JSON with:
+{
+  "userFacts": ["fact1", "fact2"], // New things learned about the student (interests, job, life events)
+  "recurringMistakes": ["mistake1"], // Language mistakes they made (patterns, not one-offs)
+  "topicsDiscussed": ["topic1", "topic2"], // Main topics in this conversation
+  "summary": "2-3 sentence summary of what was discussed",
+  "observedLevel": "beginner" | "intermediate" | "advanced" // Your assessment of their level
+}
+
+Only include facts that would be useful to remember. Return ONLY valid JSON.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let memoryUpdates
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        memoryUpdates = JSON.parse(jsonMatch[0])
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse memory updates:', parseErr)
+      memoryUpdates = null
+    }
+
+    return res.json({ memoryUpdates })
+  } catch (error) {
+    console.error('Tutor end-session error:', error)
+    return res.status(500).json({ error: 'Failed to extract memory updates' })
   }
 })
 

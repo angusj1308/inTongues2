@@ -5072,6 +5072,35 @@ Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be co
   }
 })
 
+// Free Writing Save Beacon - for saving on page unload
+app.post('/api/freewriting/save-beacon', async (req, res) => {
+  try {
+    const { userId, lessonId, content, wordCount } = req.body || {}
+
+    if (!userId || !lessonId) {
+      return res.status(400).json({ error: 'userId and lessonId are required' })
+    }
+
+    // Update the lesson in Firestore
+    const lessonRef = admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('freewriting')
+      .doc(lessonId)
+
+    await lessonRef.update({
+      content: content || '',
+      wordCount: wordCount || 0,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    return res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Save beacon error:', error)
+    return res.status(500).json({ error: 'Failed to save' })
+  }
+})
+
 // Free Writing Feedback Endpoint
 // =============================================================================
 // NOVEL GENERATOR API

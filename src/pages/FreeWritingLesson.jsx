@@ -1211,98 +1211,115 @@ const FreeWritingLesson = () => {
               )
             })()}
 
-            {/* 2. Accuracy Section - naturalness + expression help + examples */}
+            {/* 2. Vocabulary Gaps - expression help requests (things you didn't know = error) */}
             {(() => {
-              const naturalnessItems = inlineFeedback.filter(f => f.category === 'naturalness')
               const expressionItems = inlineFeedback.filter(f => f.category === 'expression')
-              const accuracyCount = naturalnessItems.length + expressionItems.length
-              const isExpanded = expandedCategories['accuracy'] !== false
+              const errorCount = expressionItems.length
+              const isExpanded = expandedCategories['expression'] !== false
               return (
-                <div className={`feedback-check-item ${accuracyCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                <div className={`feedback-check-item ${errorCount > 0 ? 'fail' : 'pass'}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
-                    onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, expression: !isExpanded }))}
                     style={{ cursor: 'pointer' }}
                   >
                     <span className="check-label">
-                      Accuracy
-                      {accuracyCount > 0 && <span className="check-count" style={{ color: '#eab308' }}>({accuracyCount})</span>}
+                      Vocabulary Gaps
+                      {errorCount > 0 && <span className="check-count" style={{ color: '#ef4444' }}>({errorCount})</span>}
                     </span>
                     <span className="check-status">
-                      <span className={`check-icon ${accuracyCount > 0 ? 'acceptable' : 'pass'}`}>
-                        {getFeedbackIcon(accuracyCount > 0 ? 'acceptable' : 'pass')}
+                      <span className={`check-icon ${errorCount > 0 ? 'fail' : 'pass'}`}>
+                        {getFeedbackIcon(errorCount > 0 ? 'fail' : 'pass')}
                       </span>
                       <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
                     </span>
                   </div>
-                  {isExpanded && (
+                  {isExpanded && errorCount > 0 && (
                     <div className="feedback-corrections-list">
-                      {/* Expression help (bracketed requests) */}
-                      {expressionItems.length > 0 && (
-                        <div style={{ marginBottom: '12px' }}>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--color-info, #0ea5e9)', fontWeight: '600', marginBottom: '8px' }}>
-                            How to express this
-                          </div>
-                          {expressionItems.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
-                              onClick={() => setActiveUnderlineId(item.id)}
-                              style={{ cursor: 'pointer', background: 'var(--bg-accent, #f0f9ff)' }}
-                            >
-                              <span className="correction-original" style={{ fontStyle: 'italic' }}>{item.text}</span>
-                              <span className="correction-arrow">→</span>
-                              <span className="correction-fix" style={{ fontWeight: '600' }}>{item.correction}</span>
-                              {item.explanation && <p className="correction-explanation">{item.explanation}</p>}
-                            </div>
-                          ))}
+                      {expressionItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                          onClick={() => setActiveUnderlineId(item.id)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="correction-original" style={{ fontStyle: 'italic' }}>{item.text}</span>
+                          <span className="correction-arrow">→</span>
+                          <span className="correction-fix" style={{ fontWeight: '600' }}>{item.correction}</span>
+                          {item.explanation && <p className="correction-explanation">{item.explanation}</p>}
                         </div>
-                      )}
+                      ))}
+                    </div>
+                  )}
+                  {isExpanded && errorCount === 0 && (
+                    <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                      No vocabulary gaps detected.
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
 
-                      {/* Naturalness suggestions */}
-                      {naturalnessItems.length > 0 && (
-                        <div style={{ marginBottom: '12px' }}>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '8px' }}>
-                            More natural phrasing
-                          </div>
-                          {naturalnessItems.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
-                              onClick={() => setActiveUnderlineId(item.id)}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              <span className="correction-original">{item.text}</span>
-                              <span className="correction-arrow">→</span>
-                              <span className="correction-fix">{item.correction}</span>
-                              <p className="correction-explanation">{item.explanation}</p>
-                            </div>
-                          ))}
+            {/* 3. Naturalness - technically correct but not native-like (yellow/acceptable) */}
+            {(() => {
+              const naturalnessItems = inlineFeedback.filter(f => f.category === 'naturalness')
+              const count = naturalnessItems.length
+              const isExpanded = expandedCategories['naturalness'] !== false
+              return (
+                <div className={`feedback-check-item ${count > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                  <div
+                    className="feedback-check-header"
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, naturalness: !isExpanded }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="check-label">
+                      Naturalness
+                      {count > 0 && <span className="check-count" style={{ color: '#eab308' }}>({count})</span>}
+                    </span>
+                    <span className="check-status">
+                      <span className={`check-icon ${count > 0 ? 'acceptable' : 'pass'}`}>
+                        {getFeedbackIcon(count > 0 ? 'acceptable' : 'pass')}
+                      </span>
+                      <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                    </span>
+                  </div>
+                  {isExpanded && count > 0 && (
+                    <div className="feedback-corrections-list">
+                      {naturalnessItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                          onClick={() => setActiveUnderlineId(item.id)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="correction-original">{item.text}</span>
+                          <span className="correction-arrow">→</span>
+                          <span className="correction-fix">{item.correction}</span>
+                          <p className="correction-explanation">{item.explanation}</p>
                         </div>
-                      )}
+                      ))}
 
                       {/* Model sentence / example */}
                       {modelSentence && (
-                        <div className="practice-example-sentence" style={{ margin: 0 }}>
+                        <div className="practice-example-sentence" style={{ margin: '12px 0 0 0' }}>
                           <span className="example-label">Example:</span>
                           <p className="example-text" style={{ margin: '4px 0 0 0' }}>
                             {renderHighlightedModelSentence}
                           </p>
                         </div>
                       )}
-
-                      {accuracyCount === 0 && !modelSentence && (
-                        <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-                          Your writing sounds natural!
-                        </p>
-                      )}
                     </div>
+                  )}
+                  {isExpanded && count === 0 && (
+                    <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                      Your writing sounds natural!
+                    </p>
                   )}
                 </div>
               )
             })()}
 
-            {/* 3. Vocab Panel Section */}
+            {/* 4. Vocab Panel Section */}
             {(() => {
               const isExpanded = expandedCategories['vocab'] !== false
               const vocabCount = nurfWords.length

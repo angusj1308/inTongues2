@@ -5,7 +5,6 @@ import {
   deleteFreeWritingLesson,
   finalizeFreeWritingLine,
   getFreeWritingLesson,
-  getFullDocument,
   resetFreeWritingLesson,
   saveFreeWritingLine,
   updateFreeWritingLesson,
@@ -144,6 +143,7 @@ const FreeWritingLesson = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(() => Math.max(480, Math.floor(window.innerWidth / 3)))
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [popup, setPopup] = useState(null)
   const [submittedText, setSubmittedText] = useState('')
   const [expandedCategories, setExpandedCategories] = useState({})
@@ -391,8 +391,6 @@ const FreeWritingLesson = () => {
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
   }
-
-  const completedDocument = lesson ? getFullDocument(lesson) : ''
 
   // Handle word click for translation popup
   const handleWordClick = useCallback(async (word, event) => {
@@ -645,6 +643,9 @@ const FreeWritingLesson = () => {
       setModelSentence(data.modelSentence || '')
       setSubmittedText(userText.trim())
 
+      // Open panel to show feedback
+      setIsPanelOpen(true)
+
       setChatMessages((prev) => [
         ...prev,
         {
@@ -860,7 +861,8 @@ const FreeWritingLesson = () => {
       if (!feedback) {
         handleSubmitForFeedback()
       } else {
-        attemptFinalize(false)
+        // Auto-save and continue to next line
+        handleFinalize(false)
       }
     }
   }
@@ -929,67 +931,6 @@ const FreeWritingLesson = () => {
     }
   }
 
-  // Toggle feedback mode
-  const handleToggleFeedbackMode = async () => {
-    const newMode = lesson.feedbackMode === 'line' ? 'document' : 'line'
-    try {
-      await updateFreeWritingLesson(user.uid, lessonId, { feedbackMode: newMode })
-      setLesson(prev => ({ ...prev, feedbackMode: newMode }))
-    } catch (err) {
-      console.error('Failed to update feedback mode:', err)
-    }
-  }
-
-  // Submit full document for feedback
-  const handleSubmitDocument = async () => {
-    if (!lesson.lines?.length) return
-
-    setFeedbackLoading(true)
-    try {
-      const fullDocument = getFullDocument(lesson)
-
-      const response = await fetch('/api/freewriting/document-feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          document: fullDocument,
-          targetLanguage: lesson.targetLanguage,
-          sourceLanguage: lesson.sourceLanguage,
-          textType: lesson.textType,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to get document feedback')
-      }
-
-      const data = await response.json()
-
-      // Update lesson with document feedback
-      await updateFreeWritingLesson(user.uid, lessonId, {
-        documentFeedback: data.overallFeedback,
-      })
-
-      const updated = await getFreeWritingLesson(user.uid, lessonId)
-      setLesson(updated)
-
-      setChatMessages([{
-        role: 'assistant',
-        content: `Document Review:\n\n${data.overallFeedback?.summary || 'Feedback received.'}`,
-        hasDocumentFeedback: true,
-      }])
-    } catch (err) {
-      console.error('Document feedback error:', err)
-      setChatMessages([{
-        role: 'assistant',
-        content: 'Sorry, I had trouble reviewing your document. Please try again.',
-        isError: true,
-      }])
-    } finally {
-      setFeedbackLoading(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="practice-lesson-page">
@@ -1013,14 +954,13 @@ const FreeWritingLesson = () => {
     return null
   }
 
-  const isDocumentMode = lesson.feedbackMode === 'document'
   const lineCount = lesson.lines?.length || 0
   const wordCount = lesson.wordCount || 0
 
   return (
-    <div className="practice-lesson-page">
+    <div className="practice-lesson-page freewriting-page">
       {/* Header */}
-      <header className="dashboard-header practice-header">
+      <header className="dashboard-header practice-header" style={{ minHeight: '56px' }}>
         <div className="dashboard-brand-band practice-header-band">
           <div className="practice-header-left">
             <button
@@ -1032,37 +972,31 @@ const FreeWritingLesson = () => {
           </div>
 
           <div className="practice-header-center">
-            <div className="practice-nav-controls">
-              <span className="practice-nav-indicator">
-                {wordCount} words · {lineCount} lines
-              </span>
-            </div>
+            <span className="freewriting-stats">
+              {wordCount} words · {lineCount} lines
+            </span>
           </div>
 
           <div className="practice-header-actions">
-            {/* Feedback mode toggle */}
             <button
-              className={`practice-header-button ${isDocumentMode ? 'practice-header-button--active' : ''}`}
-              type="button"
-              onClick={handleToggleFeedbackMode}
-              title={isDocumentMode ? 'Document feedback mode' : 'Line-by-line feedback mode'}
-            >
-              {isDocumentMode ? 'Doc' : 'Line'}
-            </button>
-            <button
-              className={`practice-header-button ${showWordStatus ? 'practice-header-button--active' : ''}`}
+              className="practice-header-button"
               type="button"
               onClick={() => setShowWordStatus(!showWordStatus)}
               aria-pressed={showWordStatus}
-              style={{ color: showWordStatus ? '#F97316' : undefined }}
+              title="Toggle word highlighting"
             >
-              Aa
+              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke={showWordStatus ? '#F97316' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7V4h16v3" />
+                <path d="M9 20h6" />
+                <path d="M12 4v16" />
+              </svg>
             </button>
             <button
               className="practice-header-button"
               type="button"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               onClick={() => setDarkMode(!darkMode)}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
             >
               {darkMode ? (
                 <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1087,6 +1021,7 @@ const FreeWritingLesson = () => {
               type="button"
               aria-label="Reset lesson"
               onClick={() => setShowResetConfirm(true)}
+              title="Reset"
             >
               <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -1099,40 +1034,83 @@ const FreeWritingLesson = () => {
 
       {/* Main content */}
       <div className="practice-layout">
-        {/* Left panel - Feedback */}
-        <aside className="practice-chat-panel" style={{ width: panelWidth }}>
+        {/* Tutor panel toggle tab */}
+        <button
+          className="freewriting-panel-tab"
+          onClick={() => setIsPanelOpen(!isPanelOpen)}
+          title={isPanelOpen ? 'Hide tutor' : 'Show tutor'}
+          style={{
+            position: 'fixed',
+            left: isPanelOpen ? panelWidth : 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 100,
+            background: 'var(--bg-primary, #fff)',
+            border: '1px solid var(--border-color, #e2e8f0)',
+            borderLeft: isPanelOpen ? '1px solid var(--border-color, #e2e8f0)' : 'none',
+            borderRadius: isPanelOpen ? '0 8px 8px 0' : '0 8px 8px 0',
+            padding: '12px 8px',
+            cursor: 'pointer',
+            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            transition: 'left 0.2s ease',
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{ transform: isPanelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+
+        {/* Left panel - Feedback (collapsible) */}
+        <aside
+          className="practice-chat-panel"
+          style={{
+            width: panelWidth,
+            transform: isPanelOpen ? 'translateX(0)' : `translateX(-100%)`,
+            transition: 'transform 0.2s ease',
+            position: 'fixed',
+            left: 0,
+            top: '56px',
+            bottom: 0,
+            zIndex: 99,
+          }}
+        >
           <div className="practice-chat-header">
             <h2>Tutor</h2>
-            <div
-              className="practice-lang-toggle"
-              onClick={() => setFeedbackInTarget(!feedbackInTarget)}
-              title={feedbackInTarget ? 'Feedback in target language' : 'Feedback in English'}
+            <button
+              className="freewriting-panel-close"
+              onClick={() => setIsPanelOpen(false)}
+              title="Close panel"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <span className={`toggle-option ${!feedbackInTarget ? 'active' : ''}`}>EN</span>
-              <span className={`toggle-option ${feedbackInTarget ? 'active' : ''}`}>
-                {lesson?.targetLanguage?.slice(0, 2).toUpperCase() || 'TL'}
-              </span>
-            </div>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
           <div className="practice-chat-messages">
-            {/* Writing prompt area - no translation prompt, just encouragement */}
-            {!isDocumentMode && (
-              <div className="practice-tutor-prompt">
-                <span className="prompt-label">Write in {lesson.targetLanguage}:</span>
-                <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  Express your thoughts freely. Press Enter to get feedback on your sentence.
-                </p>
-              </div>
-            )}
-
-            {isDocumentMode && (
-              <div className="practice-tutor-prompt">
-                <span className="prompt-label">Document Mode</span>
-                <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  Write freely in the document. When you're done, click "Submit for Review" to get feedback on the entire document.
-                </p>
-              </div>
-            )}
+            {/* Instructions */}
+            <div className="practice-tutor-prompt">
+              <span className="prompt-label">Write in {lesson.targetLanguage}</span>
+              <p className="prompt-text" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                Press Enter to get feedback on your sentence.
+              </p>
+            </div>
 
             {/* Chat messages with feedback inline */}
             {chatMessages.map((msg, i) => (
@@ -1382,68 +1360,32 @@ const FreeWritingLesson = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Panel footer with input */}
+          {/* Panel footer - just for follow-up questions when feedback is shown */}
           <div className="practice-panel-footer">
-            {!isDocumentMode && (
-              <>
-                <div className="practice-input-row">
-                  <input
-                    type="text"
-                    className="practice-input-field"
-                    value={!feedback ? userText : followUpQuestion}
-                    onChange={(e) => {
-                      if (!feedback) {
-                        setUserText(e.target.value)
-                      } else {
-                        setFollowUpQuestion(e.target.value)
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        if (!feedback) {
-                          handleSubmitForFeedback()
-                        } else if (followUpQuestion.trim()) {
-                          handleFollowUp()
-                        }
-                      }
-                    }}
-                    placeholder={!feedback ? `Write in ${lesson.targetLanguage}...` : 'Ask a question...'}
-                    disabled={feedbackLoading || followUpLoading}
-                  />
-                  <button
-                    className="practice-submit-btn"
-                    onClick={() => {
-                      if (!feedback) {
-                        handleSubmitForFeedback()
-                      } else if (followUpQuestion.trim()) {
-                        handleFollowUp()
-                      }
-                    }}
-                    disabled={!feedback ? (!userText.trim() || feedbackLoading) : (!followUpQuestion.trim() || followUpLoading)}
-                  >
-                    {feedbackLoading || followUpLoading ? '...' : 'Submit'}
-                  </button>
-                </div>
+            {feedback && (
+              <div className="practice-input-row">
+                <input
+                  type="text"
+                  className="practice-input-field"
+                  value={followUpQuestion}
+                  onChange={(e) => setFollowUpQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && followUpQuestion.trim()) {
+                      e.preventDefault()
+                      handleFollowUp()
+                    }
+                  }}
+                  placeholder="Ask a question..."
+                  disabled={followUpLoading}
+                />
                 <button
-                  className="practice-continue-btn"
-                  onClick={() => attemptFinalize(false)}
-                  disabled={!feedback}
+                  className="practice-submit-btn"
+                  onClick={handleFollowUp}
+                  disabled={!followUpQuestion.trim() || followUpLoading}
                 >
-                  Save & Continue
+                  {followUpLoading ? '...' : 'Ask'}
                 </button>
-              </>
-            )}
-
-            {isDocumentMode && (
-              <button
-                className="practice-continue-btn"
-                onClick={handleSubmitDocument}
-                disabled={feedbackLoading || !lesson.lines?.length}
-                style={{ marginTop: 0 }}
-              >
-                {feedbackLoading ? 'Reviewing...' : 'Submit for Review'}
-              </button>
+              </div>
             )}
           </div>
 
@@ -1455,15 +1397,15 @@ const FreeWritingLesson = () => {
           />
         </aside>
 
-        {/* Right panel - Document */}
-        <main className="practice-document-panel">
-          <div className="practice-document-paper">
+        {/* Right panel - Document (takes full width) */}
+        <main className="practice-document-panel" style={{ marginLeft: 0, width: '100%' }}>
+          <div className="practice-document-paper" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Document title */}
             <h1 className="practice-document-title">{lesson.title}</h1>
 
             {/* Document body */}
             <div className="practice-document-body">
-              {/* Render all lines - finalized ones visible, current one shows live typing */}
+              {/* Render all finalized lines */}
               {lesson.lines?.filter(l => l.status === 'finalized').sort((a, b) => a.index - b.index).map((line) => (
                 <span
                   key={`finalized-${line.index}`}
@@ -1475,43 +1417,28 @@ const FreeWritingLesson = () => {
                 </span>
               ))}
 
-              {/* Current line input - only in line mode */}
-              {!isDocumentMode && (
-                <>
-                  {feedback && feedback.corrections?.length > 0 ? (
-                    <span className="practice-inline-display practice-inline-display--with-corrections">
-                      {renderTextWithCorrections(userText, feedback.corrections)}
-                    </span>
-                  ) : (
-                    <span
-                      className="practice-inline-display practice-inline-display--editable"
-                      contentEditable
-                      suppressContentEditableWarning
-                      ref={documentInputRef}
-                      onInput={handleDocumentInput}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleSubmitForFeedback()
-                        }
-                      }}
-                    />
-                  )}
-                </>
-              )}
-
-              {/* Document mode - editable textarea */}
-              {isDocumentMode && (
+              {/* Current line input */}
+              {feedback && feedback.corrections?.length > 0 ? (
+                <span className="practice-inline-display practice-inline-display--with-corrections">
+                  {renderTextWithCorrections(userText, feedback.corrections)}
+                </span>
+              ) : (
                 <span
                   className="practice-inline-display practice-inline-display--editable"
                   contentEditable
                   suppressContentEditableWarning
                   ref={documentInputRef}
-                  onInput={(e) => {
-                    // In document mode, we just let them type freely
-                    // The text will be processed when they submit
+                  onInput={handleDocumentInput}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (!feedback) {
+                        handleSubmitForFeedback()
+                      } else {
+                        handleFinalize(false)
+                      }
+                    }
                   }}
-                  style={{ display: 'block', minHeight: '200px' }}
                 />
               )}
             </div>

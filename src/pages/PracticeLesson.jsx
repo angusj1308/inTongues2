@@ -146,6 +146,8 @@ const PracticeLesson = () => {
   const [showNewWordsWarning, setShowNewWordsWarning] = useState(false)
   const [panelWidth, setPanelWidth] = useState(380)
   const [popup, setPopup] = useState(null) // Translation popup state
+  const [correctionPopup, setCorrectionPopup] = useState(null) // Correction popup state
+  const [expandedCategories, setExpandedCategories] = useState({}) // Track expanded checklist categories
   const attemptInputRef = useRef(null)
   const chatEndRef = useRef(null)
   const resizeRef = useRef(null)
@@ -468,8 +470,14 @@ const PracticeLesson = () => {
   // Close popup when clicking outside
   useEffect(() => {
     const handleGlobalClick = (event) => {
-      if (event.target.closest('.translate-popup')) return
-      setPopup(null)
+      // Close translation popup if clicking outside
+      if (!event.target.closest('.translate-popup')) {
+        setPopup(null)
+      }
+      // Close correction popup if clicking outside
+      if (!event.target.closest('.correction-popup') && !event.target.closest('.practice-correction-highlight')) {
+        setCorrectionPopup(null)
+      }
     }
     window.addEventListener('click', handleGlobalClick)
     return () => window.removeEventListener('click', handleGlobalClick)
@@ -514,6 +522,81 @@ const PracticeLesson = () => {
   const renderHighlightedModelSentence = useMemo(() => {
     return renderTextWithWordStatus(modelSentence, 'model-')
   }, [modelSentence, renderTextWithWordStatus])
+
+  // Render text with correction highlights (for inline error marking)
+  const renderTextWithCorrections = useCallback((text, corrections = []) => {
+    if (!text || !corrections || corrections.length === 0) {
+      return text
+    }
+
+    // Sort corrections by startIndex (handle any without positions)
+    const sortedCorrections = [...corrections]
+      .filter(c => typeof c.startIndex === 'number')
+      .sort((a, b) => a.startIndex - b.startIndex)
+
+    if (sortedCorrections.length === 0) {
+      return text
+    }
+
+    const elements = []
+    let lastIndex = 0
+
+    sortedCorrections.forEach((correction, idx) => {
+      // Add text before this correction
+      if (correction.startIndex > lastIndex) {
+        elements.push(
+          <span key={`text-${idx}`}>
+            {text.slice(lastIndex, correction.startIndex)}
+          </span>
+        )
+      }
+
+      // Add the error span with highlight
+      const categoryColors = {
+        grammar: '#ef4444', // red
+        spelling: '#ef4444', // red
+        naturalness: '#f59e0b', // amber/yellow
+        accuracy: '#3b82f6', // blue
+      }
+      const underlineColor = categoryColors[correction.category] || '#ef4444'
+
+      elements.push(
+        <span
+          key={`error-${idx}`}
+          className="practice-correction-highlight"
+          style={{
+            textDecoration: 'underline',
+            textDecorationColor: underlineColor,
+            textDecorationStyle: 'wavy',
+            textUnderlineOffset: '3px',
+            cursor: 'pointer',
+          }}
+          onClick={(e) => {
+            e.stopPropagation()
+            const rect = e.target.getBoundingClientRect()
+            setCorrectionPopup({
+              x: Math.min(rect.left, window.innerWidth - 320),
+              y: rect.bottom + 8,
+              correction,
+            })
+          }}
+        >
+          {text.slice(correction.startIndex, correction.endIndex)}
+        </span>
+      )
+
+      lastIndex = correction.endIndex
+    })
+
+    // Add remaining text after last correction
+    if (lastIndex < text.length) {
+      elements.push(
+        <span key="text-end">{text.slice(lastIndex)}</span>
+      )
+    }
+
+    return elements
+  }, [])
 
   const handleSubmitAttempt = useCallback(async () => {
     if (!userAttempt.trim() || feedbackLoading) return
@@ -1007,59 +1090,151 @@ const PracticeLesson = () => {
             {/* Chat messages with feedback inline */}
             {chatMessages.map((msg, i) => (
               <div key={i}>
-                {/* Render checklist BEFORE the assistant feedback message */}
+                {/* Render expandable checklist BEFORE the assistant feedback message */}
                 {msg.role === 'assistant' && msg.hasFeedback && (
                   <div className="practice-feedback-checklist">
+                    {/* Grammar & Spelling - expandable */}
                     {(() => {
                       const grammarState = getFeedbackState(feedback?.correctness)
+                      const grammarCorrections = feedback?.corrections?.filter(c => c.category === 'grammar' || c.category === 'spelling') || []
+                      const isExpanded = expandedCategories['grammar']
                       return (
-                        <div className={`feedback-check-item ${grammarState}`}>
-                          <span className="check-label">Grammar & Spelling</span>
-                          <span className="check-status">
-                            <span className={`check-icon ${grammarState}`}>
-                              {getFeedbackIcon(grammarState)}
+                        <div className={`feedback-check-item ${grammarState} ${isExpanded ? 'expanded' : ''}`}>
+                          <div
+                            className="feedback-check-header"
+                            onClick={() => grammarCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, grammar: !prev.grammar }))}
+                            style={{ cursor: grammarCorrections.length > 0 ? 'pointer' : 'default' }}
+                          >
+                            <span className="check-label">
+                              Grammar & Spelling
+                              {grammarCorrections.length > 0 && (
+                                <span className="check-count">({grammarCorrections.length})</span>
+                              )}
                             </span>
-                          </span>
+                            <span className="check-status">
+                              <span className={`check-icon ${grammarState}`}>
+                                {getFeedbackIcon(grammarState)}
+                              </span>
+                              {grammarCorrections.length > 0 && (
+                                <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                              )}
+                            </span>
+                          </div>
+                          {isExpanded && grammarCorrections.length > 0 && (
+                            <div className="feedback-corrections-list">
+                              {grammarCorrections.map((c, idx) => (
+                                <div key={idx} className="feedback-correction-item">
+                                  <span className="correction-original">{c.original}</span>
+                                  <span className="correction-arrow">→</span>
+                                  <span className="correction-fix">{c.correction}</span>
+                                  <p className="correction-explanation">{c.explanation}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })()}
+
+                    {/* Accuracy - expandable */}
                     {(() => {
                       const accuracyState = getFeedbackState(feedback?.accuracy)
+                      const accuracyCorrections = feedback?.corrections?.filter(c => c.category === 'accuracy') || []
+                      const isExpanded = expandedCategories['accuracy']
                       return (
-                        <div className={`feedback-check-item ${accuracyState}`}>
-                          <span className="check-label">Accuracy</span>
-                          <span className="check-status">
-                            <span className={`check-icon ${accuracyState}`}>
-                              {getFeedbackIcon(accuracyState)}
+                        <div className={`feedback-check-item ${accuracyState} ${isExpanded ? 'expanded' : ''}`}>
+                          <div
+                            className="feedback-check-header"
+                            onClick={() => accuracyCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, accuracy: !prev.accuracy }))}
+                            style={{ cursor: accuracyCorrections.length > 0 ? 'pointer' : 'default' }}
+                          >
+                            <span className="check-label">
+                              Accuracy
+                              {accuracyCorrections.length > 0 && (
+                                <span className="check-count">({accuracyCorrections.length})</span>
+                              )}
                             </span>
-                          </span>
+                            <span className="check-status">
+                              <span className={`check-icon ${accuracyState}`}>
+                                {getFeedbackIcon(accuracyState)}
+                              </span>
+                              {accuracyCorrections.length > 0 && (
+                                <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                              )}
+                            </span>
+                          </div>
+                          {isExpanded && accuracyCorrections.length > 0 && (
+                            <div className="feedback-corrections-list">
+                              {accuracyCorrections.map((c, idx) => (
+                                <div key={idx} className="feedback-correction-item">
+                                  <span className="correction-original">{c.original}</span>
+                                  <span className="correction-arrow">→</span>
+                                  <span className="correction-fix">{c.correction}</span>
+                                  <p className="correction-explanation">{c.explanation}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })()}
+
+                    {/* Naturalness - expandable */}
                     {(() => {
                       const naturalnessState = getFeedbackState(feedback?.naturalness)
+                      const naturalnessCorrections = feedback?.corrections?.filter(c => c.category === 'naturalness') || []
+                      const isExpanded = expandedCategories['naturalness']
                       return (
-                        <div className={`feedback-check-item ${naturalnessState}`}>
-                          <span className="check-label">Naturalness</span>
-                          <span className="check-status">
-                            <span className={`check-icon ${naturalnessState}`}>
-                              {getFeedbackIcon(naturalnessState)}
+                        <div className={`feedback-check-item ${naturalnessState} ${isExpanded ? 'expanded' : ''}`}>
+                          <div
+                            className="feedback-check-header"
+                            onClick={() => naturalnessCorrections.length > 0 && setExpandedCategories(prev => ({ ...prev, naturalness: !prev.naturalness }))}
+                            style={{ cursor: naturalnessCorrections.length > 0 ? 'pointer' : 'default' }}
+                          >
+                            <span className="check-label">
+                              Naturalness
+                              {naturalnessCorrections.length > 0 && (
+                                <span className="check-count">({naturalnessCorrections.length})</span>
+                              )}
                             </span>
-                          </span>
+                            <span className="check-status">
+                              <span className={`check-icon ${naturalnessState}`}>
+                                {getFeedbackIcon(naturalnessState)}
+                              </span>
+                              {naturalnessCorrections.length > 0 && (
+                                <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                              )}
+                            </span>
+                          </div>
+                          {isExpanded && naturalnessCorrections.length > 0 && (
+                            <div className="feedback-corrections-list">
+                              {naturalnessCorrections.map((c, idx) => (
+                                <div key={idx} className="feedback-correction-item">
+                                  <span className="correction-original">{c.original}</span>
+                                  <span className="correction-arrow">→</span>
+                                  <span className="correction-fix">{c.correction}</span>
+                                  <p className="correction-explanation">{c.explanation}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })()}
                   </div>
                 )}
 
-                <div
-                  className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
-                >
-                  {/* Apply word highlighting to assistant messages when showing in target language */}
-                  {msg.role === 'assistant' && feedbackInTarget && showWordStatus
-                    ? renderTextWithWordStatus(msg.content, `chat-${i}-`)
-                    : msg.content}
-                </div>
+                {/* Only show chat message for user messages and non-feedback assistant messages */}
+                {!(msg.role === 'assistant' && msg.hasFeedback) && (
+                  <div
+                    className={`practice-chat-message ${msg.role} ${msg.isError ? 'error' : ''}`}
+                  >
+                    {/* Apply word highlighting to assistant messages when showing in target language */}
+                    {msg.role === 'assistant' && feedbackInTarget && showWordStatus
+                      ? renderTextWithWordStatus(msg.content, `chat-${i}-`)
+                      : msg.content}
+                  </div>
+                )}
 
                 {/* Render example and word panel after feedback message */}
                 {msg.role === 'assistant' && msg.hasFeedback && (
@@ -1247,6 +1422,14 @@ const PracticeLesson = () => {
                 if (isFinalized) {
                   // If it's current (being revised), show current userAttempt
                   if (isCurrent && !isComplete) {
+                    // If feedback exists, show with correction highlights
+                    if (feedback && feedback.corrections?.length > 0) {
+                      return (
+                        <span key={`current-${i}`} className="practice-inline-display practice-inline-display--with-corrections">
+                          {renderTextWithCorrections(userAttempt, feedback.corrections)}
+                        </span>
+                      )
+                    }
                     return (
                       <span key={`current-${i}`} className="practice-inline-display">
                         {userAttempt || <span className="practice-cursor">|</span>}
@@ -1267,8 +1450,17 @@ const PracticeLesson = () => {
                   )
                 }
 
-                // Not finalized - show live typing from the input
+                // Not finalized - show live typing or corrections if feedback exists
                 if (isCurrent && !isComplete) {
+                  // If feedback exists, show attempt with correction highlights (no cursor)
+                  if (feedback && feedback.corrections?.length > 0) {
+                    return (
+                      <span key={`current-${i}`} className="practice-inline-display practice-inline-display--with-corrections">
+                        {renderTextWithCorrections(userAttempt, feedback.corrections)}
+                      </span>
+                    )
+                  }
+                  // Otherwise show live typing with cursor
                   return (
                     <span key={`current-${i}`} className="practice-inline-display">
                       {userAttempt || <span className="practice-cursor">|</span>}
@@ -1442,6 +1634,73 @@ const PracticeLesson = () => {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* Correction popup - shows when clicking on an error in the document */}
+      {correctionPopup && (
+        <div
+          className="correction-popup"
+          style={{
+            position: 'fixed',
+            top: correctionPopup.y,
+            left: correctionPopup.x,
+            zIndex: 1001,
+            background: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
+            padding: '1rem',
+            minWidth: '280px',
+            maxWidth: '360px',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                color: correctionPopup.correction.category === 'grammar' || correctionPopup.correction.category === 'spelling'
+                  ? '#ef4444'
+                  : correctionPopup.correction.category === 'naturalness'
+                    ? '#f59e0b'
+                    : '#3b82f6',
+              }}
+            >
+              {correctionPopup.correction.category}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCorrectionPopup(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+                color: '#94a3b8',
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ textDecoration: 'line-through', color: '#ef4444' }}>
+                {correctionPopup.correction.original}
+              </span>
+              <span style={{ color: '#94a3b8' }}>→</span>
+              <span style={{ color: '#16a34a', fontWeight: '500' }}>
+                {correctionPopup.correction.correction}
+              </span>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+            {correctionPopup.correction.explanation}
+          </p>
         </div>
       )}
     </div>

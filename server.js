@@ -4923,19 +4923,30 @@ Student's attempt (in ${targetLanguage}):
 
 Adaptation level: ${level} (${level === 'beginner' ? 'use simple vocabulary and shorter sentences' : level === 'intermediate' ? 'natural expressions with moderate complexity' : 'natural, native-level expression'})
 
-Analyze the student's attempt and provide feedback. Return a JSON object with this structure:
+Analyze the student's attempt and provide detailed, structured feedback. Return a JSON object with this structure:
 {
   "modelSentence": "A natural ${targetLanguage} way to express the same idea, appropriate for the adaptation level",
   "feedback": {
     "naturalness": <1-5 score, where 5 is perfectly natural for a native speaker>,
     "accuracy": <1-5 score, where 5 means the meaning is perfectly conveyed>,
-    "explanation": "Brief explanation of your feedback in ${feedbackLang}, noting what was good and what could be improved. Be encouraging but honest. If there are issues, explain why the model sentence is better.${hasUnknownWords ? ' Include the translations for the words the student asked about.' : ''}",
-    "grammarIssues": ["list of specific grammar issues if any, or empty array"],
-    "suggestions": ["list of alternative expressions or tips, or empty array"],
-    "correctness": <1-5 score, where 5 means no grammar or spelling errors>${hasUnknownWords ? `,
+    "correctness": <1-5 score, where 5 means no grammar or spelling errors>,
+    "corrections": [
+      {
+        "category": "grammar" | "spelling" | "naturalness" | "accuracy",
+        "original": "exact word or phrase from student's attempt that needs correction",
+        "correction": "the corrected word or phrase",
+        "explanation": "Brief explanation in ${feedbackLang} of why this change improves the sentence"
+      }
+    ]${hasUnknownWords ? `,
     "unknownWordTranslations": { "word in ${sourceLang}": "translation in ${targetLanguage}", ... }` : ''}
   }
 }
+
+IMPORTANT for corrections array:
+- Include ALL specific issues found (grammar errors, spelling mistakes, unnatural word choices, accuracy issues)
+- The "original" field MUST exactly match the text as it appears in the student's attempt (case-sensitive)
+- Category should be: "grammar" for grammatical errors, "spelling" for spelling mistakes, "naturalness" for unnatural but technically correct expressions, "accuracy" for meaning/translation issues
+- If no issues, return an empty corrections array []
 
 Return ONLY the JSON object, no additional text.`
 
@@ -4954,6 +4965,34 @@ Return ONLY the JSON object, no additional text.`
       if (jsonMatch) {
         result = JSON.parse(jsonMatch[0])
         console.log('Parsed feedback:', JSON.stringify(result.feedback, null, 2))
+
+        // Calculate positions for each correction
+        if (result.feedback?.corrections) {
+          result.feedback.corrections = result.feedback.corrections.map(correction => {
+            const startIndex = userAttempt.indexOf(correction.original)
+            if (startIndex !== -1) {
+              return {
+                ...correction,
+                startIndex,
+                endIndex: startIndex + correction.original.length
+              }
+            }
+            // If exact match not found, try case-insensitive search
+            const lowerAttempt = userAttempt.toLowerCase()
+            const lowerOriginal = correction.original.toLowerCase()
+            const caseInsensitiveStart = lowerAttempt.indexOf(lowerOriginal)
+            if (caseInsensitiveStart !== -1) {
+              return {
+                ...correction,
+                original: userAttempt.slice(caseInsensitiveStart, caseInsensitiveStart + correction.original.length),
+                startIndex: caseInsensitiveStart,
+                endIndex: caseInsensitiveStart + correction.original.length
+              }
+            }
+            // Return without position if not found
+            return correction
+          })
+        }
       } else {
         throw new Error('No JSON found in response')
       }
@@ -4966,9 +5005,7 @@ Return ONLY the JSON object, no additional text.`
           naturalness: 3,
           accuracy: 3,
           correctness: 3,
-          explanation: 'I was unable to fully analyze your attempt. Please try again.',
-          grammarIssues: [],
-          suggestions: [],
+          corrections: [],
         },
       }
     }

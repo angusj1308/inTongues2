@@ -19,11 +19,13 @@ import { spawn } from 'child_process'
 import { createRequire } from 'module'
 import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
+import OpenAI from 'openai'
+import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
+
+// Non-import statements must come after all imports
 const require = createRequire(import.meta.url)
 const { EPub } = require('epub2')
 dotenv.config()
-import OpenAI from 'openai'
-import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic)

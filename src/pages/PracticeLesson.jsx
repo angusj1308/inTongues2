@@ -854,7 +854,7 @@ const PracticeLesson = () => {
       // Get the translation for this word
       const normalised = normaliseExpression(word)
       const existingEntry = userVocab[normalised]
-      const translation = existingEntry?.translation || wordTranslations[normalised] || null
+      const translation = existingEntry?.translation || wordTranslations[normalised]?.translation || null
 
       // Map 'new' status to 'unknown' for database (new is UI-only)
       const dbStatus = newStatus === 'new' ? 'unknown' : newStatus

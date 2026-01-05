@@ -466,6 +466,13 @@ const FreeWritingLesson = () => {
     setFeedback(null)
     setSelectionFeedbackPopup(null)
 
+    // Detect bracketed expressions (user asking for help expressing something)
+    // Matches text in [], (), or 「」brackets
+    const bracketedExpressions = textToReview.match(/[\[(\u300c]([^\])\u300d]+)[\])\u300d]/g) || []
+    const helpExpressions = bracketedExpressions.map(expr =>
+      expr.slice(1, -1).trim() // Remove the brackets
+    )
+
     // Clear selection
     window.getSelection()?.removeAllRanges()
 
@@ -485,6 +492,7 @@ const FreeWritingLesson = () => {
           textType: lesson.textType,
           fullDocument: contentRef.current,
           feedbackInTarget,
+          helpExpressions, // Bracketed text user needs help expressing
         }),
       })
 
@@ -970,6 +978,59 @@ const FreeWritingLesson = () => {
                         </div>
                       )
                     })()}
+
+                    {/* Expression Help - for bracketed "help me say this" requests */}
+                    {(() => {
+                      const expressionHelp = feedback?.corrections?.filter(c => c.category === 'expression') || []
+                      if (expressionHelp.length === 0) return null
+                      const isExpanded = expandedCategories['expression'] !== false // Default to expanded
+                      return (
+                        <div
+                          className="feedback-check-item expression-help"
+                          style={{
+                            background: 'var(--bg-accent, #f0f9ff)',
+                            borderLeft: '3px solid var(--color-info, #0ea5e9)',
+                          }}
+                        >
+                          <div
+                            className="feedback-check-header"
+                            onClick={() => setExpandedCategories(prev => ({ ...prev, expression: !isExpanded }))}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <span className="check-label" style={{ color: 'var(--color-info, #0ea5e9)' }}>
+                              💡 How to express this
+                              <span className="check-count">({expressionHelp.length})</span>
+                            </span>
+                            <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
+                          </div>
+                          {isExpanded && (
+                            <div className="feedback-corrections-list">
+                              {/* Show the explanation first if available */}
+                              {feedback.explanation && (
+                                <p style={{
+                                  margin: '0 0 12px 0',
+                                  padding: '8px 12px',
+                                  background: 'var(--bg-primary, white)',
+                                  borderRadius: '6px',
+                                  fontSize: '0.9rem',
+                                  lineHeight: '1.5',
+                                }}>
+                                  {feedback.explanation}
+                                </p>
+                              )}
+                              {expressionHelp.map((c, idx) => (
+                                <div key={idx} className="feedback-correction-item" style={{ background: 'var(--bg-primary, white)' }}>
+                                  <span className="correction-original" style={{ fontStyle: 'italic' }}>{c.original}</span>
+                                  <span className="correction-arrow">→</span>
+                                  <span className="correction-fix" style={{ fontWeight: '600' }}>{c.correction}</span>
+                                  {c.explanation && <p className="correction-explanation">{c.explanation}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 
@@ -987,7 +1048,11 @@ const FreeWritingLesson = () => {
                   <>
                     {modelSentence && (
                       <div className="practice-example-sentence">
-                        <span className="example-label">A more natural way:</span>
+                        <span className="example-label">
+                          {feedback?.corrections?.some(c => c.category === 'expression')
+                            ? "Here's how to say it:"
+                            : 'A more natural way:'}
+                        </span>
                         <p className="example-text">
                           {renderHighlightedModelSentence}
                         </p>

@@ -5071,6 +5071,191 @@ Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be co
   }
 })
 
+// Free Writing Feedback Endpoint (line-by-line)
+app.post('/api/freewriting/feedback', async (req, res) => {
+  try {
+    const { userText, targetLanguage, sourceLanguage, textType, previousLines, feedbackInTarget } = req.body || {}
+
+    if (!userText || !targetLanguage) {
+      return res.status(400).json({ error: 'userText and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
+    const type = textType || 'general writing'
+
+    // Build context from previous lines
+    const contextSection = previousLines?.length > 0
+      ? `
+CONTEXT (previous sentences in this ${type}):
+${previousLines.map((line, i) => `${i + 1}. ${line}`).join('\n')}
+
+The student is continuing this ${type}. Consider the context when evaluating naturalness and coherence.
+`
+      : ''
+
+    const prompt = `You are a supportive ${targetLanguage} language tutor helping a student with free writing practice. The student is writing a ${type}.
+${contextSection}
+Student's sentence (${targetLanguage}): "${userText}"
+
+YOUR TASK: Analyze the student's writing for errors and naturalness. Be encouraging but thorough.
+
+WHAT TO FLAG AS ERRORS:
+1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
+   Examples: "difficil" → "difícil", "extramadamente" → "extremadamente"
+2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order
+   Examples: "la problema" → "el problema", "ellos tiene" → "ellos tienen"
+3. NATURALNESS - Awkward phrasing that a native speaker wouldn't use (mark as "naturalness" category)
+   Examples: Literal translations from English, unusual word order
+
+IMPORTANT: Since this is free writing (not translation), focus on:
+- Is the sentence grammatically correct?
+- Does it sound natural to a native speaker?
+- Are there better ways to express the same idea?
+
+Return JSON:
+{
+  "modelSentence": "A more natural way to express this in ${targetLanguage} (if needed, or the same sentence if perfect)",
+  "feedback": {
+    "correctness": <1-5, where 5 = no errors>,
+    "naturalness": <1-5, where 5 = sounds completely native>,
+    "corrections": [
+      {
+        "category": "spelling" | "grammar" | "naturalness",
+        "original": "exact text from student's writing",
+        "correction": "corrected/improved text",
+        "explanation": "Brief explanation in ${feedbackLang}"
+      }
+    ]
+  }
+}
+
+CRITICAL RULES:
+- "original" must EXACTLY match text in student's writing (for highlighting)
+- Flag EVERY spelling error including missing accents
+- If the sentence is perfect, return empty corrections array and set modelSentence to the student's text
+- Be encouraging - acknowledge what they did well
+- Only return valid JSON, no other text`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let result
+    try {
+      let text = response.output_text || ''
+      // Clean up markdown code blocks if present
+      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      result = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Failed to parse feedback response:', parseErr)
+      return res.status(500).json({ error: 'Failed to parse feedback response' })
+    }
+
+    // Add position indices for corrections
+    if (result.feedback?.corrections) {
+      result.feedback.corrections = result.feedback.corrections.map(c => {
+        const startIndex = userText.indexOf(c.original)
+        return {
+          ...c,
+          startIndex: startIndex >= 0 ? startIndex : 0,
+          endIndex: startIndex >= 0 ? startIndex + c.original.length : 0,
+        }
+      })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Free writing feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get feedback' })
+  }
+})
+
+// Free Writing Document Feedback Endpoint (full document review)
+app.post('/api/freewriting/document-feedback', async (req, res) => {
+  try {
+    const { document, targetLanguage, sourceLanguage, textType } = req.body || {}
+
+    if (!document || !targetLanguage) {
+      return res.status(400).json({ error: 'document and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const type = textType || 'general writing'
+
+    const prompt = `You are a supportive ${targetLanguage} language tutor reviewing a student's complete ${type}.
+
+STUDENT'S DOCUMENT (${targetLanguage}):
+"""
+${document}
+"""
+
+YOUR TASK: Provide comprehensive feedback on the entire document.
+
+Analyze:
+1. Overall grammar and spelling accuracy
+2. Vocabulary usage and variety
+3. Sentence structure and flow
+4. Coherence and organization
+5. Naturalness - does it sound like a native speaker wrote it?
+
+Return JSON:
+{
+  "overallFeedback": {
+    "overallScore": <1-5, overall quality>,
+    "grammarScore": <1-5>,
+    "vocabularyScore": <1-5>,
+    "coherenceScore": <1-5>,
+    "naturalnessScore": <1-5>,
+    "summary": "2-3 sentence summary of the writing quality in ${sourceLang}",
+    "strengths": ["strength 1", "strength 2", ...],
+    "suggestions": ["suggestion 1", "suggestion 2", ...]
+  },
+  "lineByLineFeedback": [
+    {
+      "lineIndex": 0,
+      "original": "first sentence",
+      "modelSentence": "improved version if needed",
+      "feedback": {
+        "corrections": [
+          {
+            "category": "spelling" | "grammar" | "naturalness",
+            "original": "text",
+            "correction": "fixed text",
+            "explanation": "brief explanation"
+          }
+        ]
+      }
+    }
+  ]
+}
+
+Be encouraging while being thorough. Highlight what the student did well.
+Only return valid JSON, no other text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let result
+    try {
+      let text = response.output_text || ''
+      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      result = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Failed to parse document feedback response:', parseErr)
+      return res.status(500).json({ error: 'Failed to parse feedback response' })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Document feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get document feedback' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

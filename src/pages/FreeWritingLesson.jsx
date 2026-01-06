@@ -1060,21 +1060,36 @@ const FreeWritingLesson = () => {
           </div>
 
           <div className="practice-header-actions">
-            <button
-              className="practice-header-button"
-              type="button"
-              onClick={() => setShowWordStatus(!showWordStatus)}
-              aria-pressed={showWordStatus}
-              title={showWordStatus ? 'Hide corrections' : 'Show corrections'}
-            >
-              {/* Pen icon for toggling squiggles */}
-              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 19l7-7 3 3-7 7-3-3z" />
-                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-                <path d="M2 2l7.586 7.586" />
-                <circle cx="11" cy="11" r="2" />
-              </svg>
-            </button>
+            {/* iOS-style toggle for corrections */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <span style={{ opacity: showWordStatus ? 1 : 0.5 }}>Corrections</span>
+              <div
+                onClick={() => setShowWordStatus(!showWordStatus)}
+                style={{
+                  width: '44px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  backgroundColor: showWordStatus ? '#1f2937' : '#d1d5db',
+                  position: 'relative',
+                  transition: 'background-color 0.2s ease',
+                  cursor: 'pointer',
+                }}
+              >
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: '#fff',
+                    position: 'absolute',
+                    top: '2px',
+                    left: showWordStatus ? '22px' : '2px',
+                    transition: 'left 0.2s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                />
+              </div>
+            </label>
             <button
               className="practice-header-button"
               type="button"

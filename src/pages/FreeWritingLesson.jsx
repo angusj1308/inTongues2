@@ -1321,18 +1321,12 @@ const FreeWritingLesson = () => {
                             key={item.id}
                             className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
                             onClick={() => setActiveUnderlineId(item.id)}
-                            style={{ cursor: 'pointer', borderLeft: isMinor ? '3px solid #eab308' : '3px solid #ef4444', paddingLeft: '8px' }}
+                            style={{ cursor: 'pointer' }}
                           >
-                            <span className="correction-original">{item.text}</span>
+                            <span className="correction-original" style={{ color: isMinor ? '#eab308' : '#ef4444', textDecoration: 'line-through' }}>{item.text}</span>
                             <span className="correction-arrow">→</span>
                             <span className="correction-fix">{item.correction}</span>
                             <p className="correction-explanation">{item.explanation}</p>
-                            {item.exampleSentence && (
-                              <details style={{ marginTop: '4px', fontSize: '0.85rem' }}>
-                                <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', userSelect: 'none' }}>Example</summary>
-                                <p style={{ margin: '4px 0 0 8px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{item.exampleSentence}</p>
-                              </details>
-                            )}
                           </div>
                         )
                       })}
@@ -1377,9 +1371,9 @@ const FreeWritingLesson = () => {
                             key={item.id}
                             className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
                             onClick={() => setActiveUnderlineId(item.id)}
-                            style={{ cursor: 'pointer', borderLeft: isMinor ? '3px solid #eab308' : '3px solid #ef4444', paddingLeft: '8px' }}
+                            style={{ cursor: 'pointer' }}
                           >
-                            <span className="correction-original" style={{ fontStyle: item.category === 'expression' ? 'italic' : 'normal' }}>{item.text}</span>
+                            <span className="correction-original" style={{ color: isMinor ? '#eab308' : '#ef4444', textDecoration: 'line-through', fontStyle: item.category === 'expression' ? 'italic' : 'normal' }}>{item.text}</span>
                             <span className="correction-arrow">→</span>
                             <span className="correction-fix" style={{ fontWeight: item.category === 'expression' ? '600' : 'normal' }}>{item.correction}</span>
                             {item.explanation && <p className="correction-explanation">{item.explanation}</p>}

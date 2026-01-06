@@ -210,8 +210,17 @@ const FreeWritingLesson = () => {
       console.log('Initializing contentEditable with:', contentRef.current.length, 'chars')
       documentRef.current.textContent = contentRef.current
       isInitialized.current = true
+
+      // Trigger immediate analysis if there's content
+      if (contentRef.current.trim()) {
+        console.log('Triggering immediate analysis on load')
+        // Small delay to let React finish rendering
+        setTimeout(() => {
+          analyzeTextForFeedback()
+        }, 100)
+      }
     }
-  }, [lesson, loading])
+  }, [lesson, loading, analyzeTextForFeedback])
 
   // Handle document input - update ref and trigger save
   const handleDocumentInput = useCallback(() => {

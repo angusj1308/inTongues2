@@ -166,6 +166,7 @@ const FreeWritingLesson = () => {
 
         // Load document content - store in ref and state
         const docContent = data.content || ''
+        console.log('Loaded content from database:', docContent.length, 'chars')
         contentRef.current = docContent
         lastSavedContentRef.current = docContent
         setContent(docContent)
@@ -246,10 +247,12 @@ const FreeWritingLesson = () => {
 
   // Core save function - reusable
   const saveContent = useCallback(async () => {
-    if (!user || !lessonId) return false
+    if (!user || !lessonId) {
+      console.error('Cannot save: user or lessonId missing')
+      return false
+    }
 
     const currentContent = contentRef.current
-    if (currentContent === lastSavedContentRef.current) return true // Already saved
 
     try {
       const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
@@ -259,6 +262,7 @@ const FreeWritingLesson = () => {
       })
       lastSavedContentRef.current = currentContent
       setLastSavedContent(currentContent)
+      console.log('Content saved successfully:', wordCount, 'words')
       return true
     } catch (err) {
       console.error('Save error:', err)
@@ -998,7 +1002,10 @@ const FreeWritingLesson = () => {
             <button
               className="dashboard-control ui-text"
               onClick={async () => {
-                await saveContent()
+                const saved = await saveContent()
+                if (!saved) {
+                  console.error('Failed to save before navigation')
+                }
                 navigate('/dashboard')
               }}
             >
@@ -1435,6 +1442,7 @@ const FreeWritingLesson = () => {
                 suppressContentEditableWarning
                 spellCheck={false}
                 onInput={handleDocumentInput}
+                onBlur={saveContent}
                 style={{
                   minHeight: '400px',
                   outline: 'none',

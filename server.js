@@ -5649,9 +5649,10 @@ ${helpSection}
 YOUR TASK: ${hasHelpRequests ? 'Help the student express the bracketed ideas in ' + targetLanguage + ', and also check for any errors in the non-bracketed parts.' : 'Analyze the student\'s writing for errors and naturalness. Be encouraging but thorough.'}
 
 WHAT TO FLAG AS ERRORS (in the non-bracketed parts):
-1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
+1. SPELLING ERRORS - Wrong letters, missing letters, extra letters, OR missing/wrong accents
 2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order
-3. NATURALNESS - Awkward phrasing that a native speaker wouldn't use
+3. PUNCTUATION - Missing or incorrect punctuation marks (commas, periods, question marks, etc.)
+4. NATURALNESS - Awkward phrasing that a native speaker wouldn't use
 
 Return JSON:
 {
@@ -5662,7 +5663,8 @@ Return JSON:
     "explanation": "${hasHelpRequests ? 'A friendly explanation of how to express the bracketed ideas. Start with something like: Here\'s how you can say that in ' + targetLanguage + '... Then explain each expression naturally.' : 'Optional brief overall feedback'}",
     "corrections": [
       {
-        "category": "spelling" | "grammar" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
+        "category": "spelling" | "grammar" | "punctuation" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
+        "severity": "minor" | "major",
         "original": "exact text from student's writing (including brackets for help requests)",
         "correction": "corrected/improved text",
         "explanation": "Brief explanation in ${feedbackLang}"
@@ -5673,7 +5675,8 @@ Return JSON:
 
 CRITICAL RULES:
 - "original" must EXACTLY match text in student's writing (for highlighting)
-- Flag EVERY spelling error including missing accents
+- severity "minor": accent-only spelling errors (word otherwise correct), all punctuation errors
+- severity "major": spelling errors with wrong/missing/extra letters, grammar errors
 ${hasHelpRequests ? '- For each bracketed expression, add a correction with category "expression" showing the ' + targetLanguage + ' equivalent' : ''}
 ${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor explaining how to express the ideas' : ''}
 - If the sentence is perfect (and no help requests), return empty corrections array

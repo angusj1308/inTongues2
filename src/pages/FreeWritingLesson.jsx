@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import {
   deleteFreeWritingLesson,
   getFreeWritingLesson,
-  resetFreeWritingLesson,
   updateFreeWritingLesson,
 } from '../services/freewriting'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -131,7 +130,6 @@ const FreeWritingLesson = () => {
 
   // UI state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [panelWidth, setPanelWidth] = useState(() => Math.max(480, Math.floor(window.innerWidth / 3)))
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [popup, setPopup] = useState(null)
@@ -770,33 +768,6 @@ const FreeWritingLesson = () => {
     }
   }
 
-  const handleReset = async () => {
-    try {
-      await resetFreeWritingLesson(user.uid, lessonId)
-      contentRef.current = ''
-      lastSavedContentRef.current = ''
-      lastAnalyzedContentRef.current = ''
-      setContent('')
-      setLastSavedContent('')
-      setFeedback(null)
-      setModelSentence('')
-      setChatMessages([])
-      setNurfWords([])
-      setWordTranslations({})
-      setInlineFeedback([])
-      setActiveUnderlineId(null)
-      setShowResetConfirm(false)
-
-      if (documentRef.current) {
-        documentRef.current.textContent = ''
-        documentRef.current.focus()
-      }
-    } catch (err) {
-      console.error('Reset error:', err)
-      setError('Failed to reset lesson.')
-    }
-  }
-
   // Handle clicking an inline underline - open panel and show that feedback
   const handleUnderlineClick = useCallback((feedbackItem) => {
     setActiveUnderlineId(feedbackItem.id)
@@ -1026,15 +997,17 @@ const FreeWritingLesson = () => {
           <div className="practice-header-left">
             <button
               className="dashboard-control ui-text"
-              onClick={() => navigate('/dashboard')}
+              onClick={async () => {
+                await saveContent()
+                navigate('/dashboard')
+              }}
             >
               Back to library
             </button>
           </div>
 
           <div className="practice-header-center">
-            {/* Saving indicator only */}
-            {isSaving && <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>Saving...</span>}
+            {/* Empty center for layout balance */}
           </div>
 
           <div className="practice-header-actions">
@@ -1077,18 +1050,6 @@ const FreeWritingLesson = () => {
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
               )}
-            </button>
-            <button
-              className="practice-header-button"
-              type="button"
-              aria-label="Reset lesson"
-              onClick={() => setShowResetConfirm(true)}
-              title="Reset"
-            >
-              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
             </button>
           </div>
         </div>
@@ -1210,13 +1171,13 @@ const FreeWritingLesson = () => {
               )
             })()}
 
-            {/* 2. Accuracy - expression help + naturalness (things you got wrong or could improve) */}
+            {/* 2. Accuracy - minor errors (punctuation, accents), naturalness, expression help */}
             {(() => {
-              const accuracyItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness')
+              const accuracyItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness' || f.category === 'punctuation' || f.severity === 'minor')
               const errorCount = accuracyItems.length
               const isExpanded = expandedCategories['accuracy'] !== false
               return (
-                <div className={`feedback-check-item ${errorCount > 0 ? 'fail' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                <div className={`feedback-check-item ${errorCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
                     onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
@@ -1224,11 +1185,11 @@ const FreeWritingLesson = () => {
                   >
                     <span className="check-label">
                       Accuracy
-                      <span className="check-count" style={{ color: errorCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>({errorCount})</span>
+                      <span className="check-count" style={{ color: errorCount > 0 ? '#eab308' : 'var(--text-muted)' }}>({errorCount})</span>
                     </span>
                     <span className="check-status">
-                      <span className={`check-icon ${errorCount > 0 ? 'fail' : 'pass'}`}>
-                        {getFeedbackIcon(errorCount > 0 ? 'fail' : 'pass')}
+                      <span className={`check-icon ${errorCount > 0 ? 'acceptable' : 'pass'}`}>
+                        {getFeedbackIcon(errorCount > 0 ? 'acceptable' : 'pass')}
                       </span>
                       <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
                     </span>
@@ -1434,7 +1395,7 @@ const FreeWritingLesson = () => {
                   }}
                 >
                   {getUnderlineRects().map((rect, idx) => {
-                    const isError = rect.category === 'grammar' || rect.category === 'spelling' || rect.category === 'expression'
+                    const isError = rect.severity === 'major' || (rect.category === 'grammar' && rect.severity !== 'minor') || (rect.category === 'spelling' && rect.severity !== 'minor')
                     const isActive = activeUnderlineId === rect.id
                     return (
                       <div
@@ -1529,24 +1490,6 @@ const FreeWritingLesson = () => {
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             or ⌘+Enter
           </span>
-        </div>
-      )}
-
-      {/* Reset confirmation modal */}
-      {showResetConfirm && (
-        <div className="modal-backdrop" onClick={() => setShowResetConfirm(false)}>
-          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
-            <h3>Reset Writing?</h3>
-            <p>This will clear all your written content and start over. Your saved vocabulary will not be affected.</p>
-            <div className="modal-actions">
-              <button className="button ghost" onClick={() => setShowResetConfirm(false)}>
-                Cancel
-              </button>
-              <button className="button primary" onClick={handleReset}>
-                Reset
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

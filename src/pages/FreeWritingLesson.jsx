@@ -1171,32 +1171,32 @@ const FreeWritingLesson = () => {
               )
             })()}
 
-            {/* 2. Improvement - expression help, naturalness, punctuation (suggestions for improvement) */}
+            {/* 2. Accuracy - minor errors (punctuation, accents), naturalness, expression help */}
             {(() => {
-              const improvementItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness' || f.category === 'punctuation')
-              const suggestionCount = improvementItems.length
+              const accuracyItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness' || f.category === 'punctuation' || f.severity === 'minor')
+              const errorCount = accuracyItems.length
               const isExpanded = expandedCategories['accuracy'] !== false
               return (
-                <div className={`feedback-check-item ${suggestionCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                <div className={`feedback-check-item ${errorCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
                     onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
                     style={{ cursor: 'pointer' }}
                   >
                     <span className="check-label">
-                      Improvement
-                      <span className="check-count" style={{ color: suggestionCount > 0 ? '#eab308' : 'var(--text-muted)' }}>({suggestionCount})</span>
+                      Accuracy
+                      <span className="check-count" style={{ color: errorCount > 0 ? '#eab308' : 'var(--text-muted)' }}>({errorCount})</span>
                     </span>
                     <span className="check-status">
-                      <span className={`check-icon ${suggestionCount > 0 ? 'acceptable' : 'pass'}`}>
-                        {getFeedbackIcon(suggestionCount > 0 ? 'acceptable' : 'pass')}
+                      <span className={`check-icon ${errorCount > 0 ? 'acceptable' : 'pass'}`}>
+                        {getFeedbackIcon(errorCount > 0 ? 'acceptable' : 'pass')}
                       </span>
                       <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
                     </span>
                   </div>
-                  {isExpanded && suggestionCount > 0 && (
+                  {isExpanded && errorCount > 0 && (
                     <div className="feedback-corrections-list">
-                      {improvementItems.map((item) => (
+                      {accuracyItems.map((item) => (
                         <div
                           key={item.id}
                           className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
@@ -1395,7 +1395,7 @@ const FreeWritingLesson = () => {
                   }}
                 >
                   {getUnderlineRects().map((rect, idx) => {
-                    const isError = rect.category === 'grammar' || rect.category === 'spelling' || rect.category === 'expression'
+                    const isError = rect.severity === 'major' || (rect.category === 'grammar' && rect.severity !== 'minor') || (rect.category === 'spelling' && rect.severity !== 'minor')
                     const isActive = activeUnderlineId === rect.id
                     return (
                       <div

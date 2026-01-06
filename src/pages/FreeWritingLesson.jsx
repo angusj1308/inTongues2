@@ -1033,11 +1033,8 @@ const FreeWritingLesson = () => {
           </div>
 
           <div className="practice-header-center">
-            <span className="freewriting-stats">
-              {wordCount} words
-              {isSaving && <span style={{ marginLeft: '8px', opacity: 0.6 }}>Saving...</span>}
-              {!isSaving && content !== lastSavedContent && <span style={{ marginLeft: '8px', opacity: 0.6 }}>•</span>}
-            </span>
+            {/* Saving indicator only */}
+            {isSaving && <span style={{ opacity: 0.6, fontSize: '0.85rem' }}>Saving...</span>}
           </div>
 
           <div className="practice-header-actions">
@@ -1046,12 +1043,14 @@ const FreeWritingLesson = () => {
               type="button"
               onClick={() => setShowWordStatus(!showWordStatus)}
               aria-pressed={showWordStatus}
-              title="Toggle word highlighting"
+              title={showWordStatus ? 'Hide corrections' : 'Show corrections'}
             >
+              {/* Pen icon for toggling squiggles */}
               <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke={showWordStatus ? '#F97316' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 7V4h16v3" />
-                <path d="M9 20h6" />
-                <path d="M12 4v16" />
+                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                <path d="M2 2l7.586 7.586" />
+                <circle cx="11" cy="11" r="2" />
               </svg>
             </button>
             <button
@@ -1181,7 +1180,7 @@ const FreeWritingLesson = () => {
                   >
                     <span className="check-label">
                       Spelling & Grammar
-                      {errorCount > 0 && <span className="check-count" style={{ color: '#ef4444' }}>({errorCount})</span>}
+                      <span className="check-count" style={{ color: errorCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>({errorCount})</span>
                     </span>
                     <span className="check-status">
                       <span className={`check-icon ${errorCount > 0 ? 'fail' : 'pass'}`}>
@@ -1207,30 +1206,25 @@ const FreeWritingLesson = () => {
                       ))}
                     </div>
                   )}
-                  {isExpanded && errorCount === 0 && (
-                    <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-                      No spelling or grammar issues detected.
-                    </p>
-                  )}
                 </div>
               )
             })()}
 
-            {/* 2. Vocabulary Gaps - expression help requests (things you didn't know = error) */}
+            {/* 2. Accuracy - expression help + naturalness (things you got wrong or could improve) */}
             {(() => {
-              const expressionItems = inlineFeedback.filter(f => f.category === 'expression')
-              const errorCount = expressionItems.length
-              const isExpanded = expandedCategories['expression'] !== false
+              const accuracyItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness')
+              const errorCount = accuracyItems.length
+              const isExpanded = expandedCategories['accuracy'] !== false
               return (
                 <div className={`feedback-check-item ${errorCount > 0 ? 'fail' : 'pass'}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
-                    onClick={() => setExpandedCategories(prev => ({ ...prev, expression: !isExpanded }))}
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
                     style={{ cursor: 'pointer' }}
                   >
                     <span className="check-label">
-                      Vocabulary Gaps
-                      {errorCount > 0 && <span className="check-count" style={{ color: '#ef4444' }}>({errorCount})</span>}
+                      Accuracy
+                      <span className="check-count" style={{ color: errorCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>({errorCount})</span>
                     </span>
                     <span className="check-status">
                       <span className={`check-icon ${errorCount > 0 ? 'fail' : 'pass'}`}>
@@ -1241,66 +1235,17 @@ const FreeWritingLesson = () => {
                   </div>
                   {isExpanded && errorCount > 0 && (
                     <div className="feedback-corrections-list">
-                      {expressionItems.map((item) => (
+                      {accuracyItems.map((item) => (
                         <div
                           key={item.id}
                           className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
                           onClick={() => setActiveUnderlineId(item.id)}
                           style={{ cursor: 'pointer' }}
                         >
-                          <span className="correction-original" style={{ fontStyle: 'italic' }}>{item.text}</span>
+                          <span className="correction-original" style={{ fontStyle: item.category === 'expression' ? 'italic' : 'normal' }}>{item.text}</span>
                           <span className="correction-arrow">→</span>
-                          <span className="correction-fix" style={{ fontWeight: '600' }}>{item.correction}</span>
+                          <span className="correction-fix" style={{ fontWeight: item.category === 'expression' ? '600' : 'normal' }}>{item.correction}</span>
                           {item.explanation && <p className="correction-explanation">{item.explanation}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {isExpanded && errorCount === 0 && (
-                    <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-                      No vocabulary gaps detected.
-                    </p>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* 3. Naturalness - technically correct but not native-like (yellow/acceptable) */}
-            {(() => {
-              const naturalnessItems = inlineFeedback.filter(f => f.category === 'naturalness')
-              const count = naturalnessItems.length
-              const isExpanded = expandedCategories['naturalness'] !== false
-              return (
-                <div className={`feedback-check-item ${count > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
-                  <div
-                    className="feedback-check-header"
-                    onClick={() => setExpandedCategories(prev => ({ ...prev, naturalness: !isExpanded }))}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span className="check-label">
-                      Naturalness
-                      {count > 0 && <span className="check-count" style={{ color: '#eab308' }}>({count})</span>}
-                    </span>
-                    <span className="check-status">
-                      <span className={`check-icon ${count > 0 ? 'acceptable' : 'pass'}`}>
-                        {getFeedbackIcon(count > 0 ? 'acceptable' : 'pass')}
-                      </span>
-                      <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                    </span>
-                  </div>
-                  {isExpanded && count > 0 && (
-                    <div className="feedback-corrections-list">
-                      {naturalnessItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
-                          onClick={() => setActiveUnderlineId(item.id)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <span className="correction-original">{item.text}</span>
-                          <span className="correction-arrow">→</span>
-                          <span className="correction-fix">{item.correction}</span>
-                          <p className="correction-explanation">{item.explanation}</p>
                         </div>
                       ))}
 
@@ -1315,16 +1260,11 @@ const FreeWritingLesson = () => {
                       )}
                     </div>
                   )}
-                  {isExpanded && count === 0 && (
-                    <p style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-                      Your writing sounds natural!
-                    </p>
-                  )}
                 </div>
               )
             })()}
 
-            {/* 4. Vocab Panel Section */}
+            {/* 3. Vocab Panel Section */}
             {(() => {
               const isExpanded = expandedCategories['vocab'] !== false
               const vocabCount = nurfWords.length
@@ -1539,6 +1479,8 @@ const FreeWritingLesson = () => {
                   whiteSpace: 'pre-wrap',
                   lineHeight: '1.8',
                   fontSize: '1.1rem',
+                  color: darkMode ? '#f1f5f9' : '#0f172a',
+                  caretColor: darkMode ? '#f1f5f9' : '#0f172a',
                 }}
               />
             </div>

@@ -407,35 +407,6 @@ const FreeWritingLesson = () => {
       const userProducedWords = contentWithoutBrackets.match(/[\p{L}\p{M}]+/gu) || []
       const uniqueUserWords = [...new Set(userProducedWords.map(w => w.toLowerCase()))]
 
-      // Auto-mark user-produced words as "known" (they produced it, so they know it)
-      if (user && uniqueUserWords.length > 0) {
-        const wordsToMarkKnown = uniqueUserWords.filter(word => {
-          const vocabEntry = userVocab[word]
-          // Only update if not already known (avoid unnecessary writes)
-          return !vocabEntry || vocabEntry.status !== 'known'
-        })
-
-        // Batch update words to known status (fire and forget, don't block feedback)
-        if (wordsToMarkKnown.length > 0) {
-          Promise.all(wordsToMarkKnown.slice(0, 20).map(async (word) => {
-            try {
-              await upsertVocabEntry(user.uid, lesson.targetLanguage, word, null, 'known')
-            } catch (err) {
-              // Silent fail - not critical
-            }
-          })).then(() => {
-            // Update local vocab state
-            setUserVocab(prev => {
-              const updated = { ...prev }
-              wordsToMarkKnown.forEach(word => {
-                updated[word] = { ...updated[word], status: 'known' }
-              })
-              return updated
-            })
-          })
-        }
-      }
-
       const response = await fetch('/api/freewriting/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -494,8 +465,79 @@ const FreeWritingLesson = () => {
             console.error('Failed to save corrections:', saveErr)
           }
         }
+
+        // Auto-mark vocab status based on corrections
+        // Words with spelling errors → "familiar" (they can produce but not perfectly)
+        // Words spelled correctly → "known"
+        if (user && uniqueUserWords.length > 0) {
+          // Get words that have spelling/grammar corrections (misspelled)
+          const misspelledWords = new Set(
+            newInlineFeedback
+              .filter(f => f.category === 'spelling' || f.category === 'grammar' || f.category === 'punctuation')
+              .flatMap(f => {
+                // Extract individual words from the original text
+                const words = f.text.match(/[\p{L}\p{M}]+/gu) || []
+                return words.map(w => w.toLowerCase())
+              })
+          )
+
+          const wordsToUpdate = uniqueUserWords.filter(word => {
+            const vocabEntry = userVocab[word]
+            // Skip if already known (don't downgrade)
+            if (vocabEntry?.status === 'known') return false
+            // Skip if already familiar and has error (no change needed)
+            if (vocabEntry?.status === 'familiar' && misspelledWords.has(word)) return false
+            return true
+          })
+
+          if (wordsToUpdate.length > 0) {
+            Promise.all(wordsToUpdate.slice(0, 20).map(async (word) => {
+              const status = misspelledWords.has(word) ? 'familiar' : 'known'
+              try {
+                await upsertVocabEntry(user.uid, lesson.targetLanguage, word, null, status)
+              } catch (err) {
+                // Silent fail - not critical
+              }
+            })).then(() => {
+              setUserVocab(prev => {
+                const updated = { ...prev }
+                wordsToUpdate.forEach(word => {
+                  const status = misspelledWords.has(word) ? 'familiar' : 'known'
+                  updated[word] = { ...updated[word], status }
+                })
+                return updated
+              })
+            })
+          }
+        }
       } else {
         setInlineFeedback([])
+
+        // No corrections - all words are spelled correctly, mark as known
+        if (user && uniqueUserWords.length > 0) {
+          const wordsToMarkKnown = uniqueUserWords.filter(word => {
+            const vocabEntry = userVocab[word]
+            return !vocabEntry || vocabEntry.status !== 'known'
+          })
+
+          if (wordsToMarkKnown.length > 0) {
+            Promise.all(wordsToMarkKnown.slice(0, 20).map(async (word) => {
+              try {
+                await upsertVocabEntry(user.uid, lesson.targetLanguage, word, null, 'known')
+              } catch (err) {
+                // Silent fail
+              }
+            })).then(() => {
+              setUserVocab(prev => {
+                const updated = { ...prev }
+                wordsToMarkKnown.forEach(word => {
+                  updated[word] = { ...updated[word], status: 'known' }
+                })
+                return updated
+              })
+            })
+          }
+        }
       }
     } catch (err) {
       console.error('Auto-feedback error:', err)

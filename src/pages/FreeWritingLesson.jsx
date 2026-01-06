@@ -958,9 +958,9 @@ const FreeWritingLesson = () => {
           rects.push({
             ...fb,
             left: rect.left - docRect.left,
-            top: rect.top - docRect.top,
+            top: rect.top - docRect.top + rect.height - 2,
             width: rect.width,
-            height: rect.height,
+            height: 2,
           })
         }
       } catch (e) {
@@ -1631,12 +1631,9 @@ const FreeWritingLesson = () => {
                           height: rect.height,
                           pointerEvents: 'auto',
                           cursor: 'pointer',
-                          // Semi-transparent highlight background
-                          background: isError
-                            ? 'rgba(239, 68, 68, 0.25)'
-                            : 'rgba(234, 179, 8, 0.25)',
-                          borderRadius: '2px',
-                          opacity: isActive ? 1 : 0.85,
+                          // Solid underline
+                          background: isError ? '#ef4444' : '#eab308',
+                          opacity: isActive ? 1 : 0.7,
                           transition: 'opacity 0.15s ease',
                         }}
                         title={`${rect.category}: ${rect.explanation}`}

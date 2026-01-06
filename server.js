@@ -5898,6 +5898,342 @@ Only include facts that would be useful to remember. Return ONLY valid JSON.`
   }
 })
 
+// ============================================================================
+// SPEECH ENDPOINTS
+// ============================================================================
+
+// Language code mapping for Whisper
+const SPEECH_LANGUAGE_CODES = {
+  'English': 'en',
+  'Spanish': 'es',
+  'French': 'fr',
+  'Italian': 'it',
+  'German': 'de',
+  'Portuguese': 'pt',
+  'Japanese': 'ja',
+  'Chinese': 'zh',
+  'Korean': 'ko'
+}
+
+/**
+ * Upload speech recording to Firebase Storage
+ */
+app.post('/api/speech/upload', upload.single('audio'), async (req, res) => {
+  try {
+    const { userId, language } = req.body
+    const audioFile = req.file
+
+    if (!audioFile) {
+      return res.status(400).json({ error: 'No audio file provided' })
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID required' })
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now()
+    const filename = `speech_${timestamp}.webm`
+    const storagePath = `audio/speech/${userId}/${filename}`
+
+    // Upload to Firebase Storage
+    const file = bucket.file(storagePath)
+    await file.save(audioFile.buffer, {
+      contentType: audioFile.mimetype || 'audio/webm',
+      metadata: {
+        cacheControl: 'public, max-age=31536000'
+      }
+    })
+    await file.makePublic()
+
+    const audioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+
+    res.json({ audioUrl, storagePath })
+  } catch (error) {
+    console.error('Speech upload error:', error)
+    res.status(500).json({ error: 'Failed to upload recording' })
+  }
+})
+
+/**
+ * Pronunciation assessment endpoint
+ * Uses Whisper for transcription and GPT for phoneme-level analysis
+ * Note: Full Azure Speech Services integration would go here when credentials are available
+ */
+app.post('/api/speech/assess-pronunciation', async (req, res) => {
+  try {
+    const { audioBase64, referenceText, language } = req.body
+
+    if (!audioBase64 || !referenceText) {
+      return res.status(400).json({ error: 'Audio and reference text required' })
+    }
+
+    const languageCode = SPEECH_LANGUAGE_CODES[language] || 'en'
+
+    // Convert base64 to buffer
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+
+    // Transcribe with Whisper
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
+    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+
+    const transcription = await client.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['word'],
+      language: languageCode
+    })
+
+    const spokenText = transcription.text || ''
+    const words = transcription.words || []
+
+    // Use GPT to analyze pronunciation accuracy
+    const analysisPrompt = `You are a pronunciation assessment expert for ${language} language learning.
+
+REFERENCE TEXT (what the student should have said):
+"${referenceText}"
+
+WHAT THE STUDENT SAID (transcribed):
+"${spokenText}"
+
+TRANSCRIBED WORDS WITH TIMING:
+${JSON.stringify(words, null, 2)}
+
+Analyze the pronunciation and provide a detailed assessment. Return JSON:
+{
+  "pronunciationScore": 0-100,
+  "accuracyScore": 0-100,
+  "fluencyScore": 0-100,
+  "completenessScore": 0-100,
+  "words": [
+    {
+      "word": "expected word",
+      "spoken": "what was said",
+      "accuracyScore": 0-100,
+      "errorType": "None" | "Mispronunciation" | "Omission" | "Insertion",
+      "phonemes": [
+        { "phoneme": "IPA symbol", "accuracyScore": 0-100 }
+      ]
+    }
+  ],
+  "articulatoryTips": [
+    { "word": "word", "phoneme": "IPA", "tip": "articulatory advice" }
+  ]
+}
+
+Be encouraging but accurate. Focus on the most important pronunciation issues.
+Return ONLY valid JSON.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: analysisPrompt
+    })
+
+    let assessment
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        assessment = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse pronunciation assessment:', parseErr)
+      // Return basic assessment
+      assessment = {
+        pronunciationScore: 70,
+        accuracyScore: 70,
+        fluencyScore: 75,
+        completenessScore: spokenText.length > 0 ? 80 : 0,
+        words: [],
+        articulatoryTips: []
+      }
+    }
+
+    res.json({
+      transcription: spokenText,
+      referenceText,
+      ...assessment
+    })
+  } catch (error) {
+    console.error('Pronunciation assessment error:', error)
+    res.status(500).json({ error: 'Failed to assess pronunciation' })
+  }
+})
+
+/**
+ * Full speech analysis endpoint
+ * Transcribes audio and provides comprehensive feedback on correctness, accuracy, fluency
+ */
+app.post('/api/speech/analyze', async (req, res) => {
+  try {
+    const { audioBase64, referenceText, language, nativeLanguage, type, topic } = req.body
+
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'Audio required' })
+    }
+
+    const languageCode = SPEECH_LANGUAGE_CODES[language] || 'en'
+
+    // Convert base64 to buffer and transcribe
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
+    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+
+    const transcription = await client.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['word', 'segment'],
+      language: languageCode
+    })
+
+    const spokenText = transcription.text || ''
+    const segments = transcription.segments || []
+    const duration = transcription.duration || 0
+
+    // Calculate basic fluency metrics
+    const wordCount = spokenText.split(/\s+/).filter(w => w.length > 0).length
+    const wordsPerMinute = duration > 0 ? Math.round((wordCount / duration) * 60) : 0
+
+    // Estimate pause count from segments
+    let pauseCount = 0
+    for (let i = 1; i < segments.length; i++) {
+      const gap = segments[i].start - segments[i - 1].end
+      if (gap > 0.5) pauseCount++
+    }
+
+    // Build analysis prompt based on type
+    let analysisPrompt
+    if (type === 'spontaneous') {
+      analysisPrompt = `You are a ${language} language tutor analyzing spontaneous speech from a student whose native language is ${nativeLanguage || 'English'}.
+
+${topic ? `TOPIC: ${topic}` : ''}
+
+TRANSCRIPTION OF STUDENT'S SPEECH:
+"${spokenText}"
+
+DURATION: ${Math.round(duration)} seconds
+WORDS PER MINUTE: ${wordsPerMinute}
+
+Analyze their speech and provide comprehensive feedback. Return JSON:
+{
+  "scores": {
+    "overall": 0-100,
+    "correctness": 0-100,
+    "accuracy": 0-100,
+    "fluency": 0-100
+  },
+  "corrections": [
+    {
+      "type": "grammar" | "vocabulary" | "pronunciation",
+      "original": "what they said",
+      "corrected": "better way to say it",
+      "explanation": "brief explanation"
+    }
+  ],
+  "fluencyAnalysis": {
+    "wordsPerMinute": ${wordsPerMinute},
+    "pauseCount": ${pauseCount},
+    "fillerWords": count of um/uh/etc,
+    "notes": ["note about fluency"]
+  },
+  "suggestions": ["focus area 1", "focus area 2"],
+  "encouragement": "encouraging message about their speaking"
+}
+
+Be constructive and encouraging. Focus on the most impactful improvements.
+Return ONLY valid JSON.`
+    } else {
+      // Reading analysis
+      analysisPrompt = `You are a ${language} language tutor analyzing a student reading aloud. Their native language is ${nativeLanguage || 'English'}.
+
+REFERENCE TEXT (what they were reading):
+"${referenceText || 'Not provided'}"
+
+TRANSCRIPTION OF STUDENT'S READING:
+"${spokenText}"
+
+DURATION: ${Math.round(duration)} seconds
+WORDS PER MINUTE: ${wordsPerMinute}
+
+Analyze their reading and provide comprehensive feedback. Return JSON:
+{
+  "scores": {
+    "overall": 0-100,
+    "correctness": 0-100,
+    "accuracy": 0-100,
+    "fluency": 0-100
+  },
+  "corrections": [
+    {
+      "type": "grammar" | "vocabulary" | "pronunciation",
+      "original": "what they said wrong",
+      "corrected": "correct version",
+      "explanation": "brief explanation"
+    }
+  ],
+  "fluencyAnalysis": {
+    "wordsPerMinute": ${wordsPerMinute},
+    "pauseCount": ${pauseCount},
+    "notes": ["note about reading fluency"]
+  },
+  "suggestions": ["focus area 1", "focus area 2"],
+  "encouragement": "encouraging message"
+}
+
+Compare the transcription to the reference text. Note mispronunciations, skipped words, and added words.
+Be constructive and encouraging.
+Return ONLY valid JSON.`
+    }
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: analysisPrompt
+    })
+
+    let analysis
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found')
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse speech analysis:', parseErr)
+      analysis = {
+        scores: {
+          overall: 70,
+          correctness: 70,
+          accuracy: 70,
+          fluency: 70
+        },
+        corrections: [],
+        fluencyAnalysis: {
+          wordsPerMinute,
+          pauseCount,
+          notes: []
+        },
+        suggestions: ['Keep practicing regularly'],
+        encouragement: 'Good effort! Keep practicing to improve your fluency.'
+      }
+    }
+
+    res.json({
+      transcription: spokenText,
+      duration,
+      ...analysis
+    })
+  } catch (error) {
+    console.error('Speech analysis error:', error)
+    res.status(500).json({ error: 'Failed to analyze speech' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

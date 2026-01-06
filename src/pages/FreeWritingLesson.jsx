@@ -231,19 +231,8 @@ const FreeWritingLesson = () => {
       console.log('Initializing contentEditable with:', contentRef.current.length, 'chars')
       documentRef.current.textContent = contentRef.current
       isInitialized.current = true
-
-      // Trigger immediate analysis if there's content AND no saved corrections
-      if (contentRef.current.trim() && inlineFeedback.length === 0) {
-        console.log('Triggering immediate analysis on load (no saved corrections)')
-        // Small delay to let React finish rendering
-        setTimeout(() => {
-          analyzeTextForFeedback()
-        }, 100)
-      } else if (inlineFeedback.length > 0) {
-        console.log('Skipping analysis - loaded', inlineFeedback.length, 'corrections from Firestore')
-      }
     }
-  }, [lesson, loading, analyzeTextForFeedback, inlineFeedback.length])
+  }, [lesson, loading])
 
   // Handle document input - update ref and trigger save
   const handleDocumentInput = useCallback(() => {
@@ -535,6 +524,25 @@ const FreeWritingLesson = () => {
       }
     }
   }, [content, lesson, analyzeTextForFeedback])
+
+  // Trigger analysis on initial load if there's content but no saved corrections
+  useEffect(() => {
+    if (!lesson || loading || !isInitialized.current) return
+    if (inlineFeedback.length > 0) {
+      console.log('Skipping initial analysis - loaded', inlineFeedback.length, 'corrections from Firestore')
+      return
+    }
+    if (!contentRef.current.trim()) return
+
+    console.log('Triggering initial analysis on load (no saved corrections)')
+    const timer = setTimeout(() => {
+      analyzeTextForFeedback()
+    }, 500)
+
+    return () => clearTimeout(timer)
+  // Only run once after initialization
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson, loading])
 
   // Extract NEW words from tutor corrections only (not words user already wrote)
   useEffect(() => {

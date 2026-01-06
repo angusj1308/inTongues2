@@ -142,6 +142,7 @@ const FreeWritingLesson = () => {
   const contentRef = useRef('') // Track content without triggering re-renders
   const lastSavedContentRef = useRef('') // Track last saved content (ref to avoid closure issues)
   const isInitialized = useRef(false)
+  const hasLoadedRef = useRef(false) // Prevent saves until initial load completes
   const wordCountUpdateRef = useRef(null) // Debounce word count updates
   const autoFeedbackTimeoutRef = useRef(null) // Debounce auto-feedback
   const lastAnalyzedContentRef = useRef('') // Track what we've already analyzed
@@ -175,6 +176,8 @@ const FreeWritingLesson = () => {
         lastSavedContentRef.current = docContent
         setContent(docContent)
         setLastSavedContent(docContent)
+        hasLoadedRef.current = true // Mark as loaded - now saves are allowed
+        console.log('Load complete, saves now enabled')
 
         // Load user's vocab for word status highlighting
         if (data.targetLanguage) {
@@ -230,6 +233,10 @@ const FreeWritingLesson = () => {
     }
     saveTimeoutRef.current = setTimeout(async () => {
       if (!user || !lessonId) return
+      if (!hasLoadedRef.current) {
+        console.log('Skipping save - initial load not complete')
+        return
+      }
       if (contentRef.current === lastSavedContentRef.current) return
 
       setIsSaving(true)
@@ -284,6 +291,12 @@ const FreeWritingLesson = () => {
       // Cancel any pending debounced save
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
+      }
+
+      // Don't save if initial load hasn't completed
+      if (!hasLoadedRef.current) {
+        console.log('Skipping beacon save - initial load not complete')
+        return
       }
 
       const currentContent = contentRef.current

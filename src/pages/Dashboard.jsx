@@ -5,6 +5,7 @@ import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardL
 import ListeningHub from '../components/listen/ListeningHub'
 import WritingHub from '../components/write/WritingHub'
 import TutorHome from '../components/tutor/TutorHome'
+import SpeakHub from '../components/speak/SpeakHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import ReviewModal from '../components/review/ReviewModal'
@@ -640,9 +641,10 @@ const Dashboard = () => {
           {activeTab === 'listen' && <ListeningHub embedded showBackButton={false} />}
 
           {activeTab === 'speak' && (
-            <div className="coming-soon">
-              <p className="muted">Speaking workouts will land here soon.</p>
-            </div>
+            <SpeakHub
+              activeLanguage={activeLanguage}
+              nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
+            />
           )}
 
           {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}

@@ -204,13 +204,14 @@ const FreeWritingLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  // Initialize contentEditable with content after lesson loads
+  // Initialize contentEditable with content after lesson loads AND loading is complete
   useEffect(() => {
-    if (lesson && documentRef.current && !isInitialized.current) {
+    if (lesson && !loading && documentRef.current && !isInitialized.current) {
+      console.log('Initializing contentEditable with:', contentRef.current.length, 'chars')
       documentRef.current.textContent = contentRef.current
       isInitialized.current = true
     }
-  }, [lesson])
+  }, [lesson, loading])
 
   // Handle document input - update ref and trigger save
   const handleDocumentInput = useCallback(() => {

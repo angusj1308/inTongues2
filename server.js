@@ -5056,7 +5056,17 @@ app.post('/api/practice/followup', async (req, res) => {
       return res.status(400).json({ error: 'question is required' })
     }
 
-    const { sourceSentence, userAttempt, modelSentence, feedback, targetLanguage, sourceLanguage, contextSummary } = context || {}
+    const { sourceSentence, userAttempt, modelSentence, feedback, targetLanguage, sourceLanguage, contextSummary, currentCorrections, fullDocument } = context || {}
+
+    // Detect if user is clarifying their intent (e.g., "no, I meant X", "I was trying to say Y")
+    const clarificationPatterns = [
+      /no,?\s*(i|I)\s*(was|meant|wanted|tried)/i,
+      /actually,?\s*(i|I)\s*(was|meant|wanted|tried)/i,
+      /(i|I)\s*(was|meant|wanted|tried)\s*to\s*say/i,
+      /what\s*(i|I)\s*(meant|wanted)/i,
+      /i\s*didn'?t\s*mean/i,
+    ]
+    const isClarification = clarificationPatterns.some(p => p.test(question))
 
     // Build context section if context summary is available
     const contextSection = contextSummary
@@ -5065,7 +5075,69 @@ Context: ${contextSummary}
 `
       : ''
 
-    const prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}. The student has a follow-up question.
+    let prompt
+    let returnUpdatedFeedback = false
+
+    if (isClarification && currentCorrections?.length > 0) {
+      // User is clarifying what they meant - re-analyze with this info
+      returnUpdatedFeedback = true
+      prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}.
+
+The student wrote: "${userAttempt || fullDocument || 'N/A'}"
+
+Your previous corrections were:
+${currentCorrections.map(c => `- "${c.original}" → "${c.correction}" (${c.category})`).join('\n')}
+
+The student is now clarifying: "${question}"
+
+Based on this clarification, you need to:
+1. Understand what the student actually meant to express
+2. Provide the correct way to say it in ${targetLanguage}
+3. Update any corrections that were based on misunderstanding their intent
+
+Return JSON:
+{
+  "response": "Your helpful response acknowledging their clarification and teaching them the correct expression",
+  "updatedCorrections": [
+    {
+      "originalText": "the text that was incorrectly corrected",
+      "newCategory": "spelling" | "grammar" | "accuracy" | "naturalness",
+      "newCorrection": "the correct form based on what they meant",
+      "newExplanation": "explanation of the correct form",
+      "exampleSentence": "example sentence using the correct form"
+    }
+  ],
+  "removedCorrections": ["original text of any corrections that should be removed"]
+}
+
+Only include updatedCorrections for corrections that need to change based on the clarification.
+Only include removedCorrections for corrections that were wrong and should be removed entirely.`
+
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: prompt,
+        text: { format: { type: 'json_object' } },
+      })
+
+      let result
+      try {
+        let text = response.output_text || ''
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        result = JSON.parse(text)
+      } catch (parseErr) {
+        console.error('Failed to parse clarification response:', parseErr)
+        return res.json({ response: response.output_text || 'I understand. Let me help you with that.' })
+      }
+
+      return res.json({
+        response: result.response || 'I understand what you meant now.',
+        updatedCorrections: result.updatedCorrections || [],
+        removedCorrections: result.removedCorrections || [],
+      })
+    }
+
+    // Regular follow-up question (not a clarification)
+    prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}. The student has a follow-up question.
 ${contextSection}
 Current exercise context:
 - Source sentence (${sourceLanguage || 'source language'}): "${sourceSentence || 'N/A'}"
@@ -5667,7 +5739,8 @@ Return JSON:
         "severity": "minor" | "major",
         "original": "exact text from student's writing (including brackets for help requests)",
         "correction": "corrected/improved text",
-        "explanation": "Brief explanation in ${feedbackLang}"
+        "explanation": "Brief explanation in ${feedbackLang}",
+        "exampleSentence": "A natural example sentence using the correction in context"
       }
     ]
   }
@@ -5702,12 +5775,27 @@ ${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor
       return res.status(500).json({ error: 'Failed to parse feedback response' })
     }
 
-    // Add position indices for corrections
+    // Add position indices for corrections and fix severity for accent-only errors
     if (result.feedback?.corrections) {
       result.feedback.corrections = result.feedback.corrections.map(c => {
         const startIndex = userText.indexOf(c.original)
+
+        // Detect accent-only errors and force them to minor severity
+        // Compare original and correction - if only difference is accents, it's minor
+        let severity = c.severity
+        if (c.category === 'spelling' && c.original && c.correction) {
+          const normalizeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+          const originalNorm = normalizeAccents(c.original)
+          const correctionNorm = normalizeAccents(c.correction)
+          // If removing accents makes them equal, it's an accent-only error
+          if (originalNorm === correctionNorm) {
+            severity = 'minor'
+          }
+        }
+
         return {
           ...c,
+          severity,
           startIndex: startIndex >= 0 ? startIndex : 0,
           endIndex: startIndex >= 0 ? startIndex + c.original.length : 0,
         }

@@ -406,8 +406,10 @@ const FreeWritingLesson = () => {
             startIndex: startIndex >= 0 ? startIndex : -1,
             endIndex: startIndex >= 0 ? startIndex + c.original.length : -1,
             category: c.category,
+            severity: c.severity || 'major',
             correction: c.correction,
             explanation: c.explanation,
+            exampleSentence: c.exampleSentence || null,
           }
         }).filter(f => f.startIndex >= 0) // Only keep feedback we can position
 
@@ -1191,13 +1193,16 @@ const FreeWritingLesson = () => {
             </button>
           </div>
           <div className="practice-chat-messages" style={{ padding: '16px' }}>
-            {/* 1. Spelling & Grammar Section */}
+            {/* 1. Spelling & Grammar Section - both major and minor */}
             {(() => {
-              const grammarItems = inlineFeedback.filter(f => (f.category === 'grammar' || f.category === 'spelling') && f.severity !== 'minor')
-              const errorCount = grammarItems.length
+              const spellingGrammarItems = inlineFeedback.filter(f => f.category === 'grammar' || f.category === 'spelling' || f.category === 'punctuation')
+              const majorCount = spellingGrammarItems.filter(f => f.severity !== 'minor').length
+              const minorCount = spellingGrammarItems.filter(f => f.severity === 'minor').length
+              const totalCount = spellingGrammarItems.length
               const isExpanded = expandedCategories['grammar'] !== false
+              const hasMajor = majorCount > 0
               return (
-                <div className={`feedback-check-item ${errorCount > 0 ? 'fail' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                <div className={`feedback-check-item ${hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
                     onClick={() => setExpandedCategories(prev => ({ ...prev, grammar: !isExpanded }))}
@@ -1205,49 +1210,55 @@ const FreeWritingLesson = () => {
                   >
                     <span className="check-label">
                       Spelling & Grammar
-                      <span className="check-count" style={{ color: errorCount > 0 ? '#ef4444' : 'var(--text-muted)' }}>({errorCount})</span>
+                      <span className="check-count" style={{ color: hasMajor ? '#ef4444' : (minorCount > 0 ? '#eab308' : 'var(--text-muted)') }}>({totalCount})</span>
                     </span>
                     <span className="check-status">
-                      <span className={`check-icon ${errorCount > 0 ? 'fail' : 'pass'}`}>
-                        {getFeedbackIcon(errorCount > 0 ? 'fail' : 'pass')}
+                      <span className={`check-icon ${hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')}`}>
+                        {getFeedbackIcon(hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass'))}
                       </span>
                       <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
                     </span>
                   </div>
-                  {isExpanded && errorCount > 0 && (
+                  {isExpanded && totalCount > 0 && (
                     <div className="feedback-corrections-list">
-                      {grammarItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
-                          onClick={() => setActiveUnderlineId(item.id)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <span className="correction-original">{item.text}</span>
-                          <span className="correction-arrow">→</span>
-                          <span className="correction-fix">{item.correction}</span>
-                          <p className="correction-explanation">{item.explanation}</p>
-                          {item.exampleSentence && (
-                            <details style={{ marginTop: '4px', fontSize: '0.85rem' }}>
-                              <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', userSelect: 'none' }}>Example</summary>
-                              <p style={{ margin: '4px 0 0 8px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{item.exampleSentence}</p>
-                            </details>
-                          )}
-                        </div>
-                      ))}
+                      {spellingGrammarItems.map((item) => {
+                        const isMinor = item.severity === 'minor'
+                        return (
+                          <div
+                            key={item.id}
+                            className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                            onClick={() => setActiveUnderlineId(item.id)}
+                            style={{ cursor: 'pointer', borderLeft: isMinor ? '3px solid #eab308' : '3px solid #ef4444', paddingLeft: '8px' }}
+                          >
+                            <span className="correction-original">{item.text}</span>
+                            <span className="correction-arrow">→</span>
+                            <span className="correction-fix">{item.correction}</span>
+                            <p className="correction-explanation">{item.explanation}</p>
+                            {item.exampleSentence && (
+                              <details style={{ marginTop: '4px', fontSize: '0.85rem' }}>
+                                <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', userSelect: 'none' }}>Example</summary>
+                                <p style={{ margin: '4px 0 0 8px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{item.exampleSentence}</p>
+                              </details>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
               )
             })()}
 
-            {/* 2. Accuracy - minor errors (punctuation, accents), naturalness, expression help */}
+            {/* 2. Accuracy Section - wrong word choice (major) or unnatural phrasing (minor) */}
             {(() => {
-              const accuracyItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness' || f.category === 'punctuation' || f.severity === 'minor')
-              const errorCount = accuracyItems.length
+              const accuracyItems = inlineFeedback.filter(f => f.category === 'accuracy' || f.category === 'naturalness' || f.category === 'expression')
+              const majorCount = accuracyItems.filter(f => f.severity !== 'minor').length
+              const minorCount = accuracyItems.filter(f => f.severity === 'minor').length
+              const totalCount = accuracyItems.length
               const isExpanded = expandedCategories['accuracy'] !== false
+              const hasMajor = majorCount > 0
               return (
-                <div className={`feedback-check-item ${errorCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
+                <div className={`feedback-check-item ${hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
                     onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
@@ -1255,24 +1266,26 @@ const FreeWritingLesson = () => {
                   >
                     <span className="check-label">
                       Accuracy
-                      <span className="check-count" style={{ color: errorCount > 0 ? '#eab308' : 'var(--text-muted)' }}>({errorCount})</span>
+                      <span className="check-count" style={{ color: hasMajor ? '#ef4444' : (minorCount > 0 ? '#eab308' : 'var(--text-muted)') }}>({totalCount})</span>
                     </span>
                     <span className="check-status">
-                      <span className={`check-icon ${errorCount > 0 ? 'acceptable' : 'pass'}`}>
-                        {getFeedbackIcon(errorCount > 0 ? 'acceptable' : 'pass')}
+                      <span className={`check-icon ${hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')}`}>
+                        {getFeedbackIcon(hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass'))}
                       </span>
                       <span className="check-expand-icon">{isExpanded ? '▲' : '▼'}</span>
                     </span>
                   </div>
-                  {isExpanded && errorCount > 0 && (
+                  {isExpanded && totalCount > 0 && (
                     <div className="feedback-corrections-list">
-                      {accuracyItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
-                          onClick={() => setActiveUnderlineId(item.id)}
-                          style={{ cursor: 'pointer' }}
-                        >
+                      {accuracyItems.map((item) => {
+                        const isMinor = item.severity === 'minor'
+                        return (
+                          <div
+                            key={item.id}
+                            className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}
+                            onClick={() => setActiveUnderlineId(item.id)}
+                            style={{ cursor: 'pointer', borderLeft: isMinor ? '3px solid #eab308' : '3px solid #ef4444', paddingLeft: '8px' }}
+                          >
                           <span className="correction-original" style={{ fontStyle: item.category === 'expression' ? 'italic' : 'normal' }}>{item.text}</span>
                           <span className="correction-arrow">→</span>
                           <span className="correction-fix" style={{ fontWeight: item.category === 'expression' ? '600' : 'normal' }}>{item.correction}</span>

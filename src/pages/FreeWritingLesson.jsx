@@ -902,6 +902,14 @@ const FreeWritingLesson = () => {
     ])
 
     try {
+      // Convert inlineFeedback to format expected by backend
+      const currentCorrections = inlineFeedback.map(f => ({
+        original: f.text,
+        correction: f.correction,
+        category: f.category,
+        explanation: f.explanation,
+      }))
+
       const response = await fetch('/api/practice/followup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -915,6 +923,8 @@ const FreeWritingLesson = () => {
             targetLanguage: lesson.targetLanguage,
             sourceLanguage: lesson.sourceLanguage,
             contextSummary: `Free writing (${lesson.textType})`,
+            currentCorrections,
+            fullDocument: contentRef.current,
           },
         }),
       })
@@ -922,6 +932,38 @@ const FreeWritingLesson = () => {
       if (!response.ok) throw new Error('Failed to get response')
 
       const data = await response.json()
+
+      // Handle updated corrections if the user clarified their intent
+      if (data.updatedCorrections?.length > 0 || data.removedCorrections?.length > 0) {
+        setInlineFeedback(prev => {
+          let updated = [...prev]
+
+          // Remove corrections that should be removed
+          if (data.removedCorrections?.length > 0) {
+            updated = updated.filter(f => !data.removedCorrections.includes(f.text))
+          }
+
+          // Update corrections that need to change
+          if (data.updatedCorrections?.length > 0) {
+            data.updatedCorrections.forEach(upd => {
+              const idx = updated.findIndex(f => f.text === upd.originalText)
+              if (idx >= 0) {
+                updated[idx] = {
+                  ...updated[idx],
+                  category: upd.newCategory === 'accuracy' ? 'naturalness' : upd.newCategory,
+                  correction: upd.newCorrection,
+                  explanation: upd.newExplanation,
+                  exampleSentence: upd.exampleSentence,
+                  severity: upd.newCategory === 'accuracy' ? 'minor' : updated[idx].severity,
+                }
+              }
+            })
+          }
+
+          return updated
+        })
+      }
+
       setChatMessages((prev) => [
         ...prev,
         { role: 'assistant', content: data.response },
@@ -1170,6 +1212,12 @@ const FreeWritingLesson = () => {
                           <span className="correction-arrow">→</span>
                           <span className="correction-fix">{item.correction}</span>
                           <p className="correction-explanation">{item.explanation}</p>
+                          {item.exampleSentence && (
+                            <details style={{ marginTop: '4px', fontSize: '0.85rem' }}>
+                              <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', userSelect: 'none' }}>Example</summary>
+                              <p style={{ margin: '4px 0 0 8px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{item.exampleSentence}</p>
+                            </details>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1214,6 +1262,12 @@ const FreeWritingLesson = () => {
                           <span className="correction-arrow">→</span>
                           <span className="correction-fix" style={{ fontWeight: item.category === 'expression' ? '600' : 'normal' }}>{item.correction}</span>
                           {item.explanation && <p className="correction-explanation">{item.explanation}</p>}
+                          {item.exampleSentence && (
+                            <details style={{ marginTop: '4px', fontSize: '0.85rem' }}>
+                              <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', userSelect: 'none' }}>Example</summary>
+                              <p style={{ margin: '4px 0 0 8px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{item.exampleSentence}</p>
+                            </details>
+                          )}
                         </div>
                       ))}
 

@@ -1069,7 +1069,7 @@ const FreeWritingLesson = () => {
                   width: '44px',
                   height: '24px',
                   borderRadius: '12px',
-                  backgroundColor: showWordStatus ? '#22c55e' : '#d1d5db',
+                  backgroundColor: showWordStatus ? '#1f2937' : '#d1d5db',
                   position: 'relative',
                   transition: 'background-color 0.2s ease',
                   cursor: 'pointer',

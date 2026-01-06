@@ -1382,7 +1382,7 @@ const FreeWritingLesson = () => {
               )}
 
               {/* Inline feedback underlines overlay */}
-              {inlineFeedback.length > 0 && (
+              {showWordStatus && inlineFeedback.length > 0 && (
                 <div
                   style={{
                     position: 'absolute',
@@ -1433,6 +1433,7 @@ const FreeWritingLesson = () => {
                 className="freewriting-document-body"
                 contentEditable
                 suppressContentEditableWarning
+                spellCheck={false}
                 onInput={handleDocumentInput}
                 style={{
                   minHeight: '400px',

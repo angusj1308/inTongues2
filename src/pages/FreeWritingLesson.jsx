@@ -143,6 +143,7 @@ const FreeWritingLesson = () => {
   const lastSavedContentRef = useRef('') // Track last saved content (ref to avoid closure issues)
   const isInitialized = useRef(false)
   const hasLoadedRef = useRef(false) // Prevent saves until initial load completes
+  const inlineFeedbackRef = useRef([]) // Track corrections for beacon save
   const wordCountUpdateRef = useRef(null) // Debounce word count updates
   const autoFeedbackTimeoutRef = useRef(null) // Debounce auto-feedback
   const lastAnalyzedContentRef = useRef('') // Track what we've already analyzed
@@ -179,6 +180,21 @@ const FreeWritingLesson = () => {
         hasLoadedRef.current = true // Mark as loaded - now saves are allowed
         console.log('Load complete, saves now enabled')
 
+        // Restore saved corrections if they exist
+        if (data.corrections && Array.isArray(data.corrections)) {
+          console.log('Restoring saved corrections:', data.corrections.length)
+          setInlineFeedback(data.corrections)
+          lastAnalyzedContentRef.current = docContent // Mark as already analyzed
+        }
+
+        // Restore feedback panel state if it exists
+        if (data.feedback) {
+          setFeedback(data.feedback)
+        }
+        if (data.modelSentence) {
+          setModelSentence(data.modelSentence)
+        }
+
         // Load user's vocab for word status highlighting
         if (data.targetLanguage) {
           try {
@@ -204,6 +220,11 @@ const FreeWritingLesson = () => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
+  // Keep inlineFeedbackRef in sync with state for beacon save
+  useEffect(() => {
+    inlineFeedbackRef.current = inlineFeedback
+  }, [inlineFeedback])
+
   // Initialize contentEditable with content after lesson loads AND loading is complete
   useEffect(() => {
     if (lesson && !loading && documentRef.current && !isInitialized.current) {
@@ -211,16 +232,18 @@ const FreeWritingLesson = () => {
       documentRef.current.textContent = contentRef.current
       isInitialized.current = true
 
-      // Trigger immediate analysis if there's content
-      if (contentRef.current.trim()) {
-        console.log('Triggering immediate analysis on load')
+      // Trigger immediate analysis if there's content AND no saved corrections
+      if (contentRef.current.trim() && inlineFeedback.length === 0) {
+        console.log('Triggering immediate analysis on load (no saved corrections)')
         // Small delay to let React finish rendering
         setTimeout(() => {
           analyzeTextForFeedback()
         }, 100)
+      } else if (inlineFeedback.length > 0) {
+        console.log('Skipping analysis - loaded', inlineFeedback.length, 'corrections from Firestore')
       }
     }
-  }, [lesson, loading, analyzeTextForFeedback])
+  }, [lesson, loading, analyzeTextForFeedback, inlineFeedback.length])
 
   // Handle document input - update ref and trigger save
   const handleDocumentInput = useCallback(() => {
@@ -256,6 +279,8 @@ const FreeWritingLesson = () => {
         await updateFreeWritingLesson(user.uid, lessonId, {
           content: contentRef.current,
           wordCount,
+          // Also save current corrections so they persist
+          corrections: inlineFeedback,
         })
         lastSavedContentRef.current = contentRef.current
         setLastSavedContent(contentRef.current)
@@ -266,7 +291,7 @@ const FreeWritingLesson = () => {
         setIsSaving(false)
       }
     }, 150) // Reduced from 500ms to 150ms for more reliable saves
-  }, [user, lessonId])
+  }, [user, lessonId, inlineFeedback])
 
   // Core save function - reusable
   const saveContent = useCallback(async () => {
@@ -324,6 +349,7 @@ const FreeWritingLesson = () => {
         lessonId,
         content: currentContent,
         wordCount,
+        corrections: inlineFeedbackRef.current,
       })
       const blob = new Blob([data], { type: 'application/json' })
       const sent = navigator.sendBeacon('/api/freewriting/save-beacon', blob)
@@ -465,6 +491,20 @@ const FreeWritingLesson = () => {
           setFeedback(data.feedback)
           setModelSentence(data.modelSentence || '')
         }
+
+        // Save corrections to Firestore so they persist
+        if (user && lessonId) {
+          try {
+            await updateFreeWritingLesson(user.uid, lessonId, {
+              corrections: newInlineFeedback,
+              feedback: data.feedback,
+              modelSentence: data.modelSentence || '',
+            })
+            console.log('Corrections saved to Firestore')
+          } catch (saveErr) {
+            console.error('Failed to save corrections:', saveErr)
+          }
+        }
       } else {
         setInlineFeedback([])
       }
@@ -473,7 +513,7 @@ const FreeWritingLesson = () => {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [lesson, isAnalyzing, feedbackInTarget, user, userVocab])
+  }, [lesson, isAnalyzing, feedbackInTarget, user, userVocab, lessonId])
 
   // Trigger auto-feedback after 3 seconds of inactivity
   useEffect(() => {

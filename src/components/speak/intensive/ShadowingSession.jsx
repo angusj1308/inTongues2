@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useAuth } from '../../../contexts/AuthContext'
+import { useAuth } from '../../../context/AuthContext'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { AudioRecorder, PlaybackComparison } from '../shared'

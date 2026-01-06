@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useAuth } from '../../../contexts/AuthContext'
+import { useAuth } from '../../../context/AuthContext'
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { ShadowingSession } from './ShadowingSession'

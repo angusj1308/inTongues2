@@ -206,21 +206,45 @@ const FreeWritingLesson = () => {
     }
   }, [lesson])
 
-  // Handle document input - update ref only, debounce state updates
+  // Handle document input - update ref and trigger save
   const handleDocumentInput = useCallback(() => {
     if (!documentRef.current) return
 
     const newContent = documentRef.current.textContent || ''
     contentRef.current = newContent
 
-    // Debounce state update to avoid re-renders during typing
+    // Debounce state update for word count display
     if (wordCountUpdateRef.current) {
       clearTimeout(wordCountUpdateRef.current)
     }
     wordCountUpdateRef.current = setTimeout(() => {
-      setContent(newContent) // Only update state after 300ms of inactivity
+      setContent(newContent)
     }, 300)
-  }, [])
+
+    // Debounce save - shorter delay for reliability
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (!user || !lessonId) return
+      if (contentRef.current === lastSavedContentRef.current) return
+
+      setIsSaving(true)
+      try {
+        const wordCount = contentRef.current.trim().split(/\s+/).filter(Boolean).length
+        await updateFreeWritingLesson(user.uid, lessonId, {
+          content: contentRef.current,
+          wordCount,
+        })
+        lastSavedContentRef.current = contentRef.current
+        setLastSavedContent(contentRef.current)
+      } catch (err) {
+        console.error('Auto-save error:', err)
+      } finally {
+        setIsSaving(false)
+      }
+    }, 500)
+  }, [user, lessonId])
 
   // Core save function - reusable
   const saveContent = useCallback(async () => {
@@ -244,33 +268,7 @@ const FreeWritingLesson = () => {
     }
   }, [user, lessonId])
 
-  // Auto-save with debounce - triggers on content changes
-  useEffect(() => {
-    if (!user || !lessonId) return
-
-    const currentContent = contentRef.current
-    if (currentContent === lastSavedContentRef.current) return
-
-    // Clear any pending save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-
-    // Save after 500ms of inactivity (faster for better UX)
-    saveTimeoutRef.current = setTimeout(async () => {
-      setIsSaving(true)
-      await saveContent()
-      setIsSaving(false)
-    }, 500)
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-    }
-  }, [content, user, lessonId, saveContent])
-
-  // Save immediately on page leave/refresh - use refs to avoid stale closures
+  // Save immediately on page leave/refresh/navigate - use refs to avoid stale closures
   useEffect(() => {
     if (!user || !lessonId) return
 
@@ -287,13 +285,10 @@ const FreeWritingLesson = () => {
         wordCount,
       })
       const blob = new Blob([data], { type: 'application/json' })
-      const success = navigator.sendBeacon('/api/freewriting/save-beacon', blob)
-      if (success) {
-        lastSavedContentRef.current = currentContent
-      }
+      navigator.sendBeacon('/api/freewriting/save-beacon', blob)
     }
 
-    const handleBeforeUnload = (e) => {
+    const handleBeforeUnload = () => {
       saveBeforeUnload()
     }
 
@@ -303,23 +298,33 @@ const FreeWritingLesson = () => {
       }
     }
 
-    // Also save on blur (switching tabs, clicking outside)
-    const handleBlur = () => {
-      if (contentRef.current !== lastSavedContentRef.current) {
-        saveContent()
+    // pagehide is more reliable than beforeunload on mobile/some browsers
+    const handlePageHide = () => {
+      saveBeforeUnload()
+    }
+
+    // Save when clicking links/buttons that navigate away
+    const handleClick = (e) => {
+      const target = e.target.closest('a, button')
+      if (target && contentRef.current !== lastSavedContentRef.current) {
+        saveBeforeUnload()
       }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handlePageHide)
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('blur', handleBlur)
+    document.addEventListener('click', handleClick, true)
 
     return () => {
+      // Save on unmount (React navigation)
+      saveBeforeUnload()
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handlePageHide)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('blur', handleBlur)
+      document.removeEventListener('click', handleClick, true)
     }
-  }, [user, lessonId, saveContent])
+  }, [user, lessonId])
 
   // Auto-analyze text for feedback after user pauses typing
   const analyzeTextForFeedback = useCallback(async () => {

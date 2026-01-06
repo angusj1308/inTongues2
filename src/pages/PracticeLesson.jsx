@@ -272,7 +272,7 @@ const PracticeLesson = () => {
     }
   }, [userAttempt, user, lessonId, lesson, saveDraft])
 
-  // Save on page leave/refresh
+  // Save on page leave/refresh/navigate - use refs where possible
   useEffect(() => {
     if (!user || !lessonId || !lesson) return
 
@@ -289,10 +289,7 @@ const PracticeLesson = () => {
         status: 'draft',
       })
       const blob = new Blob([data], { type: 'application/json' })
-      const success = navigator.sendBeacon('/api/practice/save-beacon', blob)
-      if (success) {
-        lastSavedAttemptRef.current = currentAttempt
-      }
+      navigator.sendBeacon('/api/practice/save-beacon', blob)
     }
 
     const handleBeforeUnload = () => {
@@ -305,22 +302,33 @@ const PracticeLesson = () => {
       }
     }
 
-    const handleBlur = () => {
-      if (userAttempt.trim() !== lastSavedAttemptRef.current) {
-        saveDraft()
+    // pagehide is more reliable than beforeunload on mobile/some browsers
+    const handlePageHide = () => {
+      saveBeforeUnload()
+    }
+
+    // Save when clicking links/buttons that navigate away
+    const handleClick = (e) => {
+      const target = e.target.closest('a, button')
+      if (target && userAttempt.trim() !== lastSavedAttemptRef.current) {
+        saveBeforeUnload()
       }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handlePageHide)
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('blur', handleBlur)
+    document.addEventListener('click', handleClick, true)
 
     return () => {
+      // Save on unmount (React navigation)
+      saveBeforeUnload()
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handlePageHide)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('blur', handleBlur)
+      document.removeEventListener('click', handleClick, true)
     }
-  }, [user, lessonId, lesson, userAttempt, saveDraft])
+  }, [user, lessonId, lesson, userAttempt])
 
   // Extract words from model sentence for review panel (includes all non-known initially)
   useEffect(() => {

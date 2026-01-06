@@ -5651,7 +5651,8 @@ YOUR TASK: ${hasHelpRequests ? 'Help the student express the bracketed ideas in 
 WHAT TO FLAG AS ERRORS (in the non-bracketed parts):
 1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
 2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order
-3. NATURALNESS - Awkward phrasing that a native speaker wouldn't use
+3. PUNCTUATION - Missing or incorrect punctuation marks (commas, periods, question marks, etc.)
+4. NATURALNESS - Awkward phrasing that a native speaker wouldn't use
 
 Return JSON:
 {
@@ -5662,7 +5663,7 @@ Return JSON:
     "explanation": "${hasHelpRequests ? 'A friendly explanation of how to express the bracketed ideas. Start with something like: Here\'s how you can say that in ' + targetLanguage + '... Then explain each expression naturally.' : 'Optional brief overall feedback'}",
     "corrections": [
       {
-        "category": "spelling" | "grammar" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
+        "category": "spelling" | "grammar" | "punctuation" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
         "original": "exact text from student's writing (including brackets for help requests)",
         "correction": "corrected/improved text",
         "explanation": "Brief explanation in ${feedbackLang}"

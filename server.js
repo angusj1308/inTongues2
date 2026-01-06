@@ -5782,14 +5782,15 @@ ${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor
 
         // Detect accent-only errors and force them to minor severity
         // Compare original and correction - if only difference is accents, it's minor
-        let severity = c.severity
-        if (c.category === 'spelling' && c.original && c.correction) {
+        let severity = c.severity || 'major'
+        if (c.original && c.correction) {
           const normalizeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
           const originalNorm = normalizeAccents(c.original)
           const correctionNorm = normalizeAccents(c.correction)
           // If removing accents makes them equal, it's an accent-only error
           if (originalNorm === correctionNorm) {
             severity = 'minor'
+            console.log(`Accent-only error detected: "${c.original}" → "${c.correction}", setting severity to minor`)
           }
         }
 

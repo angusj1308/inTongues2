@@ -5221,7 +5221,14 @@ app.post('/api/freewriting/save-beacon', async (req, res) => {
   try {
     const { userId, lessonId, content, wordCount } = req.body || {}
 
+    console.log('=== BEACON SAVE REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Lesson ID:', lessonId)
+    console.log('Content length:', content?.length || 0, 'chars')
+    console.log('Word count:', wordCount)
+
     if (!userId || !lessonId) {
+      console.error('Beacon save failed: missing userId or lessonId')
       return res.status(400).json({ error: 'userId and lessonId are required' })
     }
 
@@ -5238,6 +5245,7 @@ app.post('/api/freewriting/save-beacon', async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     })
 
+    console.log('Beacon save successful for lesson:', lessonId)
     return res.status(200).json({ success: true })
   } catch (error) {
     console.error('Save beacon error:', error)

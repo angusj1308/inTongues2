@@ -1129,7 +1129,7 @@ const FreeWritingLesson = () => {
           <div className="practice-chat-messages" style={{ padding: '16px' }}>
             {/* 1. Spelling & Grammar Section */}
             {(() => {
-              const grammarItems = inlineFeedback.filter(f => f.category === 'grammar' || f.category === 'spelling')
+              const grammarItems = inlineFeedback.filter(f => (f.category === 'grammar' || f.category === 'spelling') && f.severity !== 'minor')
               const errorCount = grammarItems.length
               const isExpanded = expandedCategories['grammar'] !== false
               return (

@@ -3,7 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
+  getDocFromServer,
   onSnapshot,
   query,
   serverTimestamp,
@@ -60,10 +60,11 @@ export const createFreeWritingLesson = async (userId, data) => {
 
 /**
  * Get a single free writing lesson
+ * Uses getDocFromServer to bypass cache and always get fresh data
  */
 export const getFreeWritingLesson = async (userId, lessonId) => {
   const ref = getFreeWritingDocRef(userId, lessonId)
-  const docSnap = await getDoc(ref)
+  const docSnap = await getDocFromServer(ref)
 
   if (!docSnap.exists()) {
     return null

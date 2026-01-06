@@ -1241,20 +1241,20 @@ const FreeWritingLesson = () => {
               )
             })()}
 
-            {/* 2. Accuracy - minor errors (punctuation, accents), naturalness, expression help */}
+            {/* 2. Minor Spelling & Grammar - accent errors, punctuation, capitalization */}
             {(() => {
-              const accuracyItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness' || f.category === 'punctuation' || f.severity === 'minor')
-              const errorCount = accuracyItems.length
-              const isExpanded = expandedCategories['accuracy'] !== false
+              const minorItems = inlineFeedback.filter(f => f.category === 'expression' || f.category === 'naturalness' || f.category === 'punctuation' || f.severity === 'minor')
+              const errorCount = minorItems.length
+              const isExpanded = expandedCategories['minor'] !== false
               return (
                 <div className={`feedback-check-item ${errorCount > 0 ? 'acceptable' : 'pass'}`} style={{ marginBottom: '12px' }}>
                   <div
                     className="feedback-check-header"
-                    onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !isExpanded }))}
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, minor: !isExpanded }))}
                     style={{ cursor: 'pointer' }}
                   >
                     <span className="check-label">
-                      Accuracy
+                      Minor
                       <span className="check-count" style={{ color: errorCount > 0 ? '#eab308' : 'var(--text-muted)' }}>({errorCount})</span>
                     </span>
                     <span className="check-status">
@@ -1266,7 +1266,7 @@ const FreeWritingLesson = () => {
                   </div>
                   {isExpanded && errorCount > 0 && (
                     <div className="feedback-corrections-list">
-                      {accuracyItems.map((item) => (
+                      {minorItems.map((item) => (
                         <div
                           key={item.id}
                           className={`feedback-correction-item ${activeUnderlineId === item.id ? 'active' : ''}`}

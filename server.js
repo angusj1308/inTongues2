@@ -5681,8 +5681,9 @@ ${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor
 - Only return valid JSON, no other text`
 
     const response = await client.responses.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       input: prompt,
+      text: { format: { type: 'json_object' } },
     })
 
     let result

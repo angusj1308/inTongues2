@@ -166,7 +166,11 @@ const FreeWritingLesson = () => {
 
         // Load document content - store in ref and state
         const docContent = data.content || ''
-        console.log('Loaded content from database:', docContent.length, 'chars')
+        console.log('=== LOAD FROM DATABASE ===')
+        console.log('Lesson ID:', lessonId)
+        console.log('Content length:', docContent.length, 'chars')
+        console.log('Content preview:', docContent.substring(0, 100))
+        console.log('Word count in DB:', data.wordCount)
         contentRef.current = docContent
         lastSavedContentRef.current = docContent
         setContent(docContent)
@@ -220,7 +224,7 @@ const FreeWritingLesson = () => {
       setContent(newContent)
     }, 300)
 
-    // Debounce save - shorter delay for reliability
+    // Save immediately with very short debounce (just to batch rapid keystrokes)
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
@@ -231,18 +235,20 @@ const FreeWritingLesson = () => {
       setIsSaving(true)
       try {
         const wordCount = contentRef.current.trim().split(/\s+/).filter(Boolean).length
+        console.log('Auto-saving content:', wordCount, 'words')
         await updateFreeWritingLesson(user.uid, lessonId, {
           content: contentRef.current,
           wordCount,
         })
         lastSavedContentRef.current = contentRef.current
         setLastSavedContent(contentRef.current)
+        console.log('Auto-save complete')
       } catch (err) {
         console.error('Auto-save error:', err)
       } finally {
         setIsSaving(false)
       }
-    }, 500)
+    }, 150) // Reduced from 500ms to 150ms for more reliable saves
   }, [user, lessonId])
 
   // Core save function - reusable
@@ -275,10 +281,20 @@ const FreeWritingLesson = () => {
     if (!user || !lessonId) return
 
     const saveBeforeUnload = () => {
+      // Cancel any pending debounced save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
       const currentContent = contentRef.current
-      if (currentContent === lastSavedContentRef.current) return
+      if (currentContent === lastSavedContentRef.current) {
+        console.log('No unsaved changes, skipping beacon save')
+        return
+      }
 
       const wordCount = currentContent.trim().split(/\s+/).filter(Boolean).length
+      console.log('Sending beacon save:', wordCount, 'words')
+
       // Use sendBeacon for reliable save on page unload
       const data = JSON.stringify({
         userId: user.uid,
@@ -287,11 +303,17 @@ const FreeWritingLesson = () => {
         wordCount,
       })
       const blob = new Blob([data], { type: 'application/json' })
-      navigator.sendBeacon('/api/freewriting/save-beacon', blob)
+      const sent = navigator.sendBeacon('/api/freewriting/save-beacon', blob)
+      console.log('Beacon sent:', sent)
     }
 
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = (e) => {
       saveBeforeUnload()
+      // If there are unsaved changes, prompt user (optional)
+      if (contentRef.current !== lastSavedContentRef.current) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
     }
 
     const handleVisibilityChange = () => {

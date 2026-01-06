@@ -5675,8 +5675,10 @@ Return JSON:
 
 CRITICAL RULES:
 - "original" must EXACTLY match text in student's writing (for highlighting)
-- severity "minor": accent-only spelling errors (word otherwise correct), all punctuation errors
-- severity "major": spelling errors with wrong/missing/extra letters, grammar errors
+- SEVERITY IS IMPORTANT:
+  * "minor": Missing/wrong ACCENTS ONLY (e.g., "pagina" → "página", "esta" → "está", "Todavia" → "Todavía"), punctuation errors, naturalness suggestions
+  * "major": Wrong letters, missing letters, extra letters, grammar errors (conjugation, agreement, word order)
+- If the ONLY issue is a missing accent mark, severity MUST be "minor"
 ${hasHelpRequests ? '- For each bracketed expression, add a correction with category "expression" showing the ' + targetLanguage + ' equivalent' : ''}
 ${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor explaining how to express the ideas' : ''}
 - If the sentence is perfect (and no help requests), return empty corrections array

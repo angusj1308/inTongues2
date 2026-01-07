@@ -3198,8 +3198,9 @@ textarea {
 
 .pronunciation-prompt {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 1rem;
-  color: #64748b;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #1e293b;
   margin: 0;
   text-align: center;
 }
@@ -3276,6 +3277,10 @@ textarea {
 
 /* Dark mode */
 [data-theme='dark'] .pronunciation-text {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .pronunciation-prompt {
   color: #f1f5f9;
 }
 

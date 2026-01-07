@@ -836,6 +836,9 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                 <p className="pronunciation-prompt">
                   {isRecording ? 'Recording... tap to stop' : 'Record yourself saying this phrase'}
                 </p>
+                <div className="pronunciation-progress-bar">
+                  <div className="pronunciation-progress-fill" style={{ width: '0%' }} />
+                </div>
                 <button
                   type="button"
                   className={`pronunciation-record-btn ${isRecording ? 'recording' : ''}`}
@@ -858,16 +861,13 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                 <p className="pronunciation-prompt">
                   Compare your pronunciation to the native speaker
                 </p>
-                {/* Hidden audio element for user recording */}
                 <audio ref={userAudioRef} src={userRecording.url} />
-                {/* Progress bar for user recording */}
                 <div className="pronunciation-progress-bar">
                   <div
                     className="pronunciation-progress-fill"
                     style={{ width: `${userProgress}%` }}
                   />
                 </div>
-                {/* Centered play button for user recording */}
                 <button
                   type="button"
                   className="pronunciation-play-btn"
@@ -885,7 +885,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                     </svg>
                   )}
                 </button>
-                {/* Record again */}
                 <button className="pronunciation-retry-btn" onClick={retryRecording}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M1 4v6h6" />

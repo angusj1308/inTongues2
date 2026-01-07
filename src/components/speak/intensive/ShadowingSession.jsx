@@ -272,28 +272,38 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const currentSegment = segments[currentSegmentIndex]
 
   // Load audio duration for stories (needed for proportional timestamps)
+  // Run after loading completes to ensure audio element is mounted
   useEffect(() => {
-    if (!isYouTube && content?.fullAudioUrl && audioRef.current) {
+    if (loading || isYouTube || !content?.fullAudioUrl) return
+
+    // Small delay to ensure audio element is mounted
+    const timer = setTimeout(() => {
       const audio = audioRef.current
+      if (!audio) return
 
       const handleLoadedMetadata = () => {
+        console.log('Audio duration loaded:', audio.duration)
         setAudioDuration(audio.duration)
       }
 
-      // Set source if needed
+      // Set source
       if (audio.src !== content.fullAudioUrl) {
         audio.src = content.fullAudioUrl
       }
 
       // If already loaded, get duration immediately
       if (audio.duration && !isNaN(audio.duration)) {
+        console.log('Audio duration already available:', audio.duration)
         setAudioDuration(audio.duration)
+      } else {
+        audio.addEventListener('loadedmetadata', handleLoadedMetadata)
       }
 
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata)
       return () => audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-    }
-  }, [content?.fullAudioUrl, isYouTube])
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [content?.fullAudioUrl, isYouTube, loading])
 
   // Stop playback (works for both YouTube and native audio)
   const stopPlayback = useCallback(() => {
@@ -366,6 +376,12 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       const audio = audioRef.current
       if (!audio || !content.fullAudioUrl) return
 
+      // For stories with ratio-based timestamps, wait for audioDuration
+      if (segment.startRatio !== undefined && !audioDuration) {
+        console.log('Waiting for audio duration to load...')
+        return
+      }
+
       if (audio.src !== content.fullAudioUrl) {
         audio.src = content.fullAudioUrl
       }
@@ -378,14 +394,19 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       if (segment.start !== undefined && segment.end !== undefined) {
         segStart = segment.start
         segEnd = segment.end
+        console.log('Using exact timestamps:', segStart, '-', segEnd)
       } else if (segment.startRatio !== undefined && segment.endRatio !== undefined && audioDuration) {
         // Use proportional timestamps for stories
         segStart = segment.startRatio * audioDuration
         segEnd = segment.endRatio * audioDuration
+        console.log('Calculated from ratios:', segment.startRatio, '*', audioDuration, '=', segStart, 'to', segEnd)
+      } else {
+        console.log('No timestamps available. segment:', segment, 'audioDuration:', audioDuration)
       }
 
       if (segStart !== undefined && segEnd !== undefined) {
         const segmentDuration = segEnd - segStart
+        console.log('Playing segment from', segStart.toFixed(2), 'to', segEnd.toFixed(2), '(', segmentDuration.toFixed(2), 's)')
 
         audio.currentTime = segStart
         audio.play()

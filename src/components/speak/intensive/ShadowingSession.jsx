@@ -6,6 +6,49 @@ import { AudioRecorder } from '../shared'
 import { PronunciationScore } from './PronunciationScore'
 
 /**
+ * Chunk text into smaller segments for pronunciation practice
+ * Target: 4-6 words per chunk for accurate repetition
+ * Only used in ShadowingSession - does not affect other modes
+ */
+const CHUNK_TARGET_WORDS = 5
+
+const chunkTextForPronunciation = (text, start, end) => {
+  const words = text.split(/\s+/).filter(w => w.length > 0)
+
+  // If already small enough, return as-is
+  if (words.length <= CHUNK_TARGET_WORDS + 2) {
+    return [{ text, start, end }]
+  }
+
+  const chunks = []
+  const totalWords = words.length
+  const hasTiming = start !== undefined && end !== undefined
+  const duration = hasTiming ? end - start : null
+
+  for (let i = 0; i < totalWords; i += CHUNK_TARGET_WORDS) {
+    const chunkWords = words.slice(i, Math.min(i + CHUNK_TARGET_WORDS, totalWords))
+    const chunkText = chunkWords.join(' ')
+
+    // Estimate timestamps proportionally based on word count
+    let chunkStart, chunkEnd
+    if (hasTiming && duration > 0) {
+      const startRatio = i / totalWords
+      const endRatio = Math.min(i + chunkWords.length, totalWords) / totalWords
+      chunkStart = start + (duration * startRatio)
+      chunkEnd = start + (duration * endRatio)
+    }
+
+    chunks.push({
+      text: chunkText,
+      start: chunkStart,
+      end: chunkEnd
+    })
+  }
+
+  return chunks
+}
+
+/**
  * Active shadowing practice session
  * Redesigned to match Intensive Listening mode aesthetic
  */
@@ -30,6 +73,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const segmentEndRef = useRef(null)
 
   // Load segments for the content
+  // Chunks sentences into smaller pieces (~5 words) for pronunciation practice
   useEffect(() => {
     const loadSegments = async () => {
       setLoading(true)
@@ -40,18 +84,26 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
           const pagesSnap = await getDocs(pagesQuery)
 
           const allSegments = []
+          let chunkIndex = 0
+
           pagesSnap.docs.forEach((doc, pageIndex) => {
             const pageData = doc.data()
             const sentences = (pageData.content || pageData.text || '')
               .split(/(?<=[.!?])\s+/)
               .filter(s => s.trim().length > 0)
 
-            sentences.forEach((sentence, sentenceIndex) => {
-              allSegments.push({
-                id: `${doc.id}-${sentenceIndex}`,
-                text: sentence.trim(),
-                pageIndex,
-                sentenceIndex
+            sentences.forEach((sentence) => {
+              // Chunk each sentence into smaller pieces for pronunciation
+              const chunks = chunkTextForPronunciation(sentence.trim())
+
+              chunks.forEach((chunk) => {
+                allSegments.push({
+                  id: `${doc.id}-chunk-${chunkIndex}`,
+                  text: chunk.text,
+                  pageIndex,
+                  chunkIndex
+                })
+                chunkIndex++
               })
             })
           })
@@ -66,13 +118,26 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
             const transcriptData = transcriptDoc.data()
             const sentenceSegments = transcriptData.sentenceSegments || transcriptData.segments || []
 
-            setSegments(sentenceSegments.map((seg, index) => ({
-              id: `${content.id}-${index}`,
-              text: seg.text,
-              start: seg.start,
-              end: seg.end,
-              index
-            })))
+            const allSegments = []
+            let chunkIndex = 0
+
+            sentenceSegments.forEach((seg) => {
+              // Chunk each sentence segment into smaller pieces with estimated timestamps
+              const chunks = chunkTextForPronunciation(seg.text, seg.start, seg.end)
+
+              chunks.forEach((chunk) => {
+                allSegments.push({
+                  id: `${content.id}-chunk-${chunkIndex}`,
+                  text: chunk.text,
+                  start: chunk.start,
+                  end: chunk.end,
+                  chunkIndex
+                })
+                chunkIndex++
+              })
+            })
+
+            setSegments(allSegments)
           }
         }
       } catch (err) {

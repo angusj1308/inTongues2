@@ -150,13 +150,21 @@ export function useAudioRecorder(options = {}) {
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data)
+          console.log('Audio chunk received:', event.data.size, 'bytes, total chunks:', chunksRef.current.length)
         }
       }
 
       mediaRecorder.onstop = () => {
+        console.log('MediaRecorder stopped, creating blob from', chunksRef.current.length, 'chunks')
+
+        // Calculate total size
+        const totalSize = chunksRef.current.reduce((acc, chunk) => acc + chunk.size, 0)
+        console.log('Total audio size:', totalSize, 'bytes')
+
         const blob = new Blob(chunksRef.current, {
           type: selectedMimeType || 'audio/webm'
         })
+        console.log('Blob created, size:', blob.size, 'type:', blob.type)
         setAudioBlob(blob)
 
         // Create URL for playback
@@ -168,7 +176,7 @@ export function useAudioRecorder(options = {}) {
           onRecordingComplete(blob, url)
         }
 
-        // Cleanup stream
+        // Cleanup stream tracks (but not audio context yet - that's done in cleanup/reset)
         stream.getTracks().forEach(track => track.stop())
       }
 
@@ -219,11 +227,9 @@ export function useAudioRecorder(options = {}) {
       mediaRecorderRef.current.stop()
     }
 
-    // Close audio context to prevent playback issues
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close()
-      audioContextRef.current = null
-    }
+    // Don't close audio context here - it shares the stream with MediaRecorder
+    // The onstop handler will clean up the stream tracks after the blob is created
+    // Audio context will be closed in cleanup() or resetRecording()
     analyserRef.current = null
 
     setIsRecording(false)

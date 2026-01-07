@@ -157,10 +157,34 @@ const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
 
     setTranscribing(true)
     try {
+      // First, upload audio to Firebase Storage for persistent URL
+      const uploadFormData = new FormData()
+      uploadFormData.append('audio', audioBlob, 'recording.webm')
+      uploadFormData.append('userId', 'tutor-voice') // Generic path for tutor messages
+      uploadFormData.append('language', activeLanguage || 'en')
+
+      let persistentAudioUrl = null
+      try {
+        const uploadResponse = await fetch('/api/speech/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        })
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json()
+          persistentAudioUrl = uploadData.audioUrl
+          console.log('Audio uploaded:', persistentAudioUrl)
+        }
+      } catch (uploadErr) {
+        console.error('Failed to upload audio:', uploadErr)
+        // Continue without persistent URL - playback won't work but message will still send
+      }
+
       // Transcribe audio
       const formData = new FormData()
       formData.append('audio', audioBlob, 'recording.webm')
       formData.append('language', activeLanguage || 'en')
+
+      console.log('Sending audio for transcription, size:', audioBlob.size, 'type:', audioBlob.type)
 
       const response = await fetch('/api/speech/transcribe', {
         method: 'POST',
@@ -169,11 +193,13 @@ const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
 
       if (response.ok) {
         const data = await response.json()
-        onSend(data.text, audioBlob, audioUrl)
+        console.log('Transcription result:', data.text)
+        onSend(data.text, audioBlob, persistentAudioUrl || audioUrl)
       } else {
+        const errorText = await response.text()
+        console.error('Transcription failed:', response.status, errorText)
         // Fallback: send without transcription
-        console.error('Transcription failed, sending audio only')
-        onSend('[Audio message]', audioBlob, audioUrl)
+        onSend('[Audio message - transcription failed]', audioBlob, persistentAudioUrl || audioUrl)
       }
     } catch (err) {
       console.error('Failed to transcribe:', err)

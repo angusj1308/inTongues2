@@ -6154,6 +6154,42 @@ const SPEECH_LANGUAGE_CODES = {
 }
 
 /**
+ * Simple audio transcription endpoint for tutor voice messages
+ */
+app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
+  try {
+    const audioFile = req.file
+    const language = req.body.language || 'en'
+
+    if (!audioFile) {
+      return res.status(400).json({ error: 'No audio file provided' })
+    }
+
+    // Get language code
+    const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
+
+    // Convert buffer to File object for OpenAI
+    const audioBlob = new Blob([audioFile.buffer], { type: audioFile.mimetype || 'audio/webm' })
+    const file = new File([audioBlob], audioFile.originalname || 'audio.webm', { type: audioFile.mimetype || 'audio/webm' })
+
+    // Transcribe using Whisper
+    const transcription = await client.audio.transcriptions.create({
+      file: file,
+      model: 'whisper-1',
+      language: languageCode
+    })
+
+    res.json({
+      text: transcription.text || '',
+      language: languageCode
+    })
+  } catch (error) {
+    console.error('Transcription error:', error)
+    res.status(500).json({ error: 'Failed to transcribe audio' })
+  }
+})
+
+/**
  * Upload speech recording to Firebase Storage
  */
 app.post('/api/speech/upload', upload.single('audio'), async (req, res) => {

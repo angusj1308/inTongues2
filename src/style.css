@@ -15393,15 +15393,15 @@ body.active-pass-locked {
   background: #fff;
   border-radius: 12px;
   padding: 1rem;
-  border: 2px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
 }
 
 .compare-waveform-item.native {
-  border-color: #3b82f6;
+  border-color: #1e293b;
 }
 
 .compare-waveform-item.yours {
-  border-color: #10b981;
+  border-color: #94a3b8;
 }
 
 [data-theme='dark'] .waveform-container {

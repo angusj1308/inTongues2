@@ -755,7 +755,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                     <WaveformPlayer
                       src={content.fullAudioUrl}
                       label="Native"
-                      color="#3b82f6"
+                      color="#1e293b"
                     />
                   </div>
 
@@ -763,7 +763,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                     <WaveformPlayer
                       src={userRecording.url}
                       label="Yours"
-                      color="#10b981"
+                      color="#64748b"
                     />
                   </div>
                 </div>

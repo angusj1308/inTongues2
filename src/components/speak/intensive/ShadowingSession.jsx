@@ -783,25 +783,33 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
           {/* Recording section */}
           <div className="pronunciation-record-zone">
             {!userRecording ? (
-              /* Simple record button matching play button style */
-              <button
-                type="button"
-                className={`pronunciation-record-btn ${isRecording ? 'recording' : ''}`}
-                onClick={toggleRecording}
-                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-              >
-                {isRecording ? (
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                ) : (
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="12" r="6" />
-                  </svg>
-                )}
-              </button>
+              <>
+                <p className="pronunciation-prompt">
+                  {isRecording ? 'Recording... tap to stop' : 'Record yourself saying this phrase'}
+                </p>
+                <button
+                  type="button"
+                  className={`pronunciation-record-btn ${isRecording ? 'recording' : ''}`}
+                  onClick={toggleRecording}
+                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                >
+                  {isRecording ? (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  ) : (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="12" r="6" />
+                    </svg>
+                  )}
+                </button>
+              </>
             ) : (
               <div className="pronunciation-compare">
+                <p className="pronunciation-prompt">
+                  Compare your pronunciation to the native speaker
+                </p>
+
                 {/* Waveform comparison */}
                 <div className="compare-waveforms">
                   <div className="compare-waveform-item native">

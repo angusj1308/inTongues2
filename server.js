@@ -6700,6 +6700,9 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
  * For advanced learners - brutal, specific articulatory feedback
  */
 app.post('/api/speech/compare-pronunciation', async (req, res) => {
+  let wavPath = null
+  let inputPath = null
+
   try {
     const { userAudioBase64, targetAudioUrl, targetStart, targetEnd, referenceText, language } = req.body
 
@@ -6710,10 +6713,19 @@ app.post('/api/speech/compare-pronunciation', async (req, res) => {
     console.log('Comparing pronunciation with GPT-4o audio...')
     console.log('Target:', targetAudioUrl, `${targetStart}s - ${targetEnd}s`)
 
-    // Fetch and extract target audio segment
+    // Convert user's webm to wav (GPT-4o only accepts wav/mp3)
+    const userAudioBuffer = Buffer.from(userAudioBase64, 'base64')
+    const conversion = await convertWebmToWav(userAudioBuffer)
+    wavPath = conversion.wavPath
+    inputPath = conversion.inputPath
+    const userWavBase64 = conversion.wavBuffer.toString('base64')
+    console.log('Converted user audio to WAV:', conversion.wavBuffer.length, 'bytes')
+
+    // Fetch target audio (already mp3)
     const targetResponse = await fetch(targetAudioUrl)
     const targetBuffer = Buffer.from(await targetResponse.arrayBuffer())
     const targetBase64 = targetBuffer.toString('base64')
+    console.log('Fetched target audio:', targetBuffer.length, 'bytes')
 
     // The prompt - brutal and specific
     const comparisonPrompt = `You are an expert phonetician and pronunciation coach for advanced ${language} learners. You will hear TWO audio recordings:
@@ -6780,8 +6792,8 @@ Give me a JSON response with this structure:
             {
               type: 'input_audio',
               input_audio: {
-                data: userAudioBase64,
-                format: 'webm'
+                data: userWavBase64,
+                format: 'wav'
               }
             }
           ]
@@ -6824,6 +6836,10 @@ Give me a JSON response with this structure:
       error: 'Failed to compare pronunciation',
       details: error.message
     })
+  } finally {
+    // Cleanup temp files
+    if (wavPath) try { await fs.unlink(wavPath) } catch {}
+    if (inputPath) try { await fs.unlink(inputPath) } catch {}
   }
 })
 

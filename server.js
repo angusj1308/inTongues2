@@ -6181,9 +6181,46 @@ app.post('/api/speech/upload', upload.single('audio'), async (req, res) => {
 })
 
 /**
+ * Convert audio from webm/ogg to wav format for GPT-4o-audio-preview
+ * Uses ffmpeg for reliable conversion
+ */
+async function convertWebmToWav(audioBuffer) {
+  const tmpDir = os.tmpdir()
+  const inputPath = path.join(tmpDir, `input-${Date.now()}.webm`)
+  const outputPath = path.join(tmpDir, `output-${Date.now()}.wav`)
+
+  try {
+    // Write input file
+    await fs.writeFile(inputPath, audioBuffer)
+
+    // Convert using ffmpeg
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputOptions([
+          '-acodec pcm_s16le',
+          '-ar 16000',
+          '-ac 1'
+        ])
+        .output(outputPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run()
+    })
+
+    // Read output file
+    const wavBuffer = await fs.readFile(outputPath)
+    return wavBuffer
+  } finally {
+    // Cleanup temp files
+    try { await fs.unlink(inputPath) } catch {}
+    try { await fs.unlink(outputPath) } catch {}
+  }
+}
+
+/**
  * Pronunciation assessment endpoint
- * Uses Whisper for transcription and GPT for phoneme-level analysis
- * Note: Full Azure Speech Services integration would go here when credentials are available
+ * Uses GPT-4o with AUDIO INPUT to actually listen to pronunciation
+ * This provides real phonetic analysis, not just text comparison
  */
 app.post('/api/speech/assess-pronunciation', async (req, res) => {
   try {
@@ -6193,71 +6230,99 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
       return res.status(400).json({ error: 'Audio and reference text required' })
     }
 
-    const languageCode = SPEECH_LANGUAGE_CODES[language] || 'en'
-
-    // Convert base64 to buffer
+    // Convert webm from browser to wav for GPT-4o-audio-preview
     const audioBuffer = Buffer.from(audioBase64, 'base64')
+    let wavBuffer
+    try {
+      wavBuffer = await convertWebmToWav(audioBuffer)
+      console.log('Converted audio to WAV:', wavBuffer.length, 'bytes')
+    } catch (convErr) {
+      console.error('Audio conversion failed:', convErr)
+      throw new Error('Audio format conversion failed')
+    }
 
-    // Transcribe with Whisper
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
-    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+    const wavBase64 = wavBuffer.toString('base64')
 
-    const transcription = await client.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['word'],
-      language: languageCode
-    })
+    // GPT-4o can directly listen to audio and assess pronunciation
+    // This is FAR more accurate than transcribing then comparing text
+    const analysisPrompt = `You are an expert ${language} pronunciation coach. Listen carefully to this audio recording of a language learner.
 
-    const spokenText = transcription.text || ''
-    const words = transcription.words || []
-
-    // Use GPT to analyze pronunciation accuracy
-    const analysisPrompt = `You are a pronunciation assessment expert for ${language} language learning.
-
-REFERENCE TEXT (what the student should have said):
+THE LEARNER SHOULD BE SAYING:
 "${referenceText}"
 
-WHAT THE STUDENT SAID (transcribed):
-"${spokenText}"
+CRITICALLY IMPORTANT - LISTEN TO THE ACTUAL PRONUNCIATION:
+- Do NOT just check if words are correct - listen to HOW they are pronounced
+- A native speaker would notice: vowel quality, consonant articulation, stress, rhythm, intonation
+- Heavy foreign accents should score MUCH lower than native-like pronunciation
+- If someone pronounces ${language} words with English phonemes, that's a significant error
+- Score 90+ ONLY for near-native pronunciation
+- Score 70-89 for understandable but clearly accented pronunciation
+- Score 50-69 for heavily accented but comprehensible
+- Score below 50 for poor pronunciation that natives would struggle with
 
-TRANSCRIBED WORDS WITH TIMING:
-${JSON.stringify(words, null, 2)}
+Listen for these specific issues:
+- Vowel substitutions (using English vowels instead of ${language} vowels)
+- Consonant mispronunciations (especially sounds that don't exist in English)
+- Wrong stress placement
+- English-style rhythm instead of ${language} rhythm
+- Missing or incorrect liaisons/elisions (for French, etc.)
 
-Analyze the pronunciation and provide a detailed assessment. Return JSON:
+Return JSON with your assessment:
 {
+  "transcription": "what you heard them actually say",
   "pronunciationScore": 0-100,
   "accuracyScore": 0-100,
   "fluencyScore": 0-100,
   "completenessScore": 0-100,
+  "accentAnalysis": "Brief description of their accent and main issues",
   "words": [
     {
       "word": "expected word",
-      "spoken": "what was said",
+      "spoken": "what it sounded like phonetically",
       "accuracyScore": 0-100,
       "errorType": "None" | "Mispronunciation" | "Omission" | "Insertion",
+      "issue": "specific pronunciation issue if any",
       "phonemes": [
-        { "phoneme": "IPA symbol", "accuracyScore": 0-100 }
+        { "phoneme": "IPA symbol", "accuracyScore": 0-100, "issue": "what was wrong" }
       ]
     }
   ],
   "articulatoryTips": [
-    { "word": "word", "phoneme": "IPA", "tip": "articulatory advice" }
+    { "word": "word", "phoneme": "IPA", "tip": "specific articulatory advice" }
   ]
 }
 
-Be encouraging but accurate. Focus on the most important pronunciation issues.
+Be honest and accurate. A learner benefits more from truthful feedback than false encouragement.
 Return ONLY valid JSON.`
 
-    const response = await client.responses.create({
-      model: 'gpt-4o',
-      input: analysisPrompt
+    // Use GPT-4o-audio-preview which can process audio input directly
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-audio-preview',
+      modalities: ['text'],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: analysisPrompt
+            },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: wavBase64,
+                format: 'wav'
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 2000
     })
 
     let assessment
     try {
-      const text = response.output_text || ''
+      const text = response.choices?.[0]?.message?.content || ''
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         assessment = JSON.parse(jsonMatch[0])
@@ -6268,23 +6333,62 @@ Return ONLY valid JSON.`
       console.error('Failed to parse pronunciation assessment:', parseErr)
       // Return basic assessment
       assessment = {
-        pronunciationScore: 70,
-        accuracyScore: 70,
-        fluencyScore: 75,
-        completenessScore: spokenText.length > 0 ? 80 : 0,
+        pronunciationScore: 50,
+        accuracyScore: 50,
+        fluencyScore: 50,
+        completenessScore: 50,
         words: [],
-        articulatoryTips: []
+        articulatoryTips: [],
+        accentAnalysis: 'Unable to analyze - please try again'
       }
     }
 
     res.json({
-      transcription: spokenText,
       referenceText,
       ...assessment
     })
   } catch (error) {
     console.error('Pronunciation assessment error:', error)
-    res.status(500).json({ error: 'Failed to assess pronunciation' })
+
+    // If audio model fails, fall back to whisper + text analysis with stricter prompt
+    try {
+      console.log('Falling back to Whisper + GPT-4o text analysis...')
+      const languageCode = SPEECH_LANGUAGE_CODES[language] || 'en'
+      const audioBuffer = Buffer.from(audioBase64, 'base64')
+      const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
+      const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+
+      const transcription = await client.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['word'],
+        language: languageCode
+      })
+
+      const spokenText = transcription.text || ''
+
+      // More conservative fallback - just check if words match, can't assess accent
+      const refWords = referenceText.toLowerCase().split(/\s+/)
+      const spokenWords = spokenText.toLowerCase().split(/\s+/)
+      const matchCount = refWords.filter(w => spokenWords.includes(w)).length
+      const completeness = Math.round((matchCount / refWords.length) * 100)
+
+      res.json({
+        transcription: spokenText,
+        referenceText,
+        pronunciationScore: Math.min(completeness, 75), // Cap at 75 since we can't assess accent
+        accuracyScore: Math.min(completeness, 75),
+        fluencyScore: 70,
+        completenessScore: completeness,
+        accentAnalysis: 'Audio analysis unavailable - showing word accuracy only. Accent quality not assessed.',
+        words: [],
+        articulatoryTips: []
+      })
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError)
+      res.status(500).json({ error: 'Failed to assess pronunciation' })
+    }
   }
 })
 

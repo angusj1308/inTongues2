@@ -11,7 +11,8 @@ export function PronunciationScore({ result, referenceText, language }) {
     accuracyScore = 0,
     fluencyScore = 0,
     completenessScore = 0,
-    words = []
+    words = [],
+    accentAnalysis = null
   } = result
 
   // Overall score color
@@ -77,6 +78,14 @@ export function PronunciationScore({ result, referenceText, language }) {
         </div>
       </div>
 
+      {/* Accent Analysis - shows what the AI heard and main issues */}
+      {accentAnalysis && (
+        <div className="accent-analysis">
+          <h5>Accent Feedback</h5>
+          <p className="accent-analysis-text">{accentAnalysis}</p>
+        </div>
+      )}
+
       {/* Word-by-word analysis */}
       {words.length > 0 && (
         <div className="word-analysis">
@@ -86,12 +95,15 @@ export function PronunciationScore({ result, referenceText, language }) {
               <div
                 key={index}
                 className={`word-item ${getWordStatus(word)}`}
-                title={`Score: ${Math.round(word.accuracyScore || 0)}`}
+                title={word.issue || (word.spoken && word.spoken !== word.word ? `Heard: "${word.spoken}"` : `Score: ${Math.round(word.accuracyScore || 0)}`)}
               >
                 <span className="word-text">{word.word}</span>
                 <span className="word-score">{Math.round(word.accuracyScore || 0)}</span>
                 {word.errorType && word.errorType !== 'None' && (
                   <span className="word-error-type">{word.errorType}</span>
+                )}
+                {word.issue && (
+                  <span className="word-issue">{word.issue}</span>
                 )}
               </div>
             ))}

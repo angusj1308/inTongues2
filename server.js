@@ -6442,6 +6442,16 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
       prosody: azureResult.prosodyScore
     })
 
+    // Log detailed phoneme analysis to understand what Azure is assessing
+    console.log('=== PHONEME BREAKDOWN ===')
+    azureResult.words?.forEach(word => {
+      console.log(`Word: "${word.word}" - Accuracy: ${word.accuracyScore}, Error: ${word.errorType}`)
+      word.phonemes?.forEach(p => {
+        console.log(`  Phoneme: /${p.phoneme}/ - Accuracy: ${p.accuracyScore}`)
+      })
+    })
+    console.log('=========================')
+
     // Format response for frontend
     const response = {
       referenceText,

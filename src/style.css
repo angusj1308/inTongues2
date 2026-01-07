@@ -14030,6 +14030,15 @@ body.active-pass-locked {
   background: #eff6ff;
 }
 
+.intensive-hub-list-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.intensive-hub-list-item.disabled:hover {
+  background: transparent;
+}
+
 .intensive-hub-list-empty {
   padding: 0.5rem 0.75rem;
   color: #94a3b8;

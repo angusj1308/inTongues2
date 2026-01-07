@@ -15147,6 +15147,141 @@ body.active-pass-locked {
   border-top: 1px solid #e2e8f0;
 }
 
+/* Self-Compare Pronunciation UI */
+.pronunciation-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.compare-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.compare-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.compare-players {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.compare-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  min-width: 140px;
+}
+
+.compare-player.native {
+  border-color: #3b82f6;
+}
+
+.compare-player.yours {
+  border-color: #10b981;
+}
+
+.compare-player-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compare-player.native .compare-player-label {
+  color: #3b82f6;
+}
+
+.compare-player.yours .compare-player-label {
+  color: #10b981;
+}
+
+.compare-play-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.compare-play-btn:hover {
+  background: #2563eb;
+  transform: scale(1.05);
+}
+
+.compare-audio {
+  width: 100%;
+  max-width: 200px;
+  height: 36px;
+}
+
+.compare-tip {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  text-align: center;
+  margin: 1rem 0 0;
+  font-style: italic;
+}
+
+.pronunciation-retry-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin: 0 auto;
+}
+
+.pronunciation-retry-btn:hover {
+  background: #e2e8f0;
+}
+
+[data-theme='dark'] .compare-section {
+  background: #1e293b;
+}
+
+[data-theme='dark'] .compare-player {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .compare-tip {
+  color: #64748b;
+}
+
+[data-theme='dark'] .pronunciation-retry-btn {
+  background: #334155;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
 /* Pronunciation Score */
 .pronunciation-score {
   background: #ffffff;

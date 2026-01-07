@@ -3,7 +3,6 @@ import { useAuth } from '../../../context/AuthContext'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { AudioRecorder } from '../shared'
-import { PronunciationScore } from './PronunciationScore'
 import YouTubePlayer from '../../YouTubePlayer'
 
 /**
@@ -136,8 +135,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const [segments, setSegments] = useState([])
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0)
   const [userRecording, setUserRecording] = useState(null)
-  const [assessmentResult, setAssessmentResult] = useState(null)
-  const [isAssessing, setIsAssessing] = useState(false)
   const [error, setError] = useState(null)
 
   // Audio player state
@@ -571,59 +568,10 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
     }
   }, [playbackRate, isYouTube])
 
-  // Handle user recording completion
-  const handleRecordingComplete = async (blob, url) => {
+  // Handle user recording completion - just save it, no AI assessment
+  const handleRecordingComplete = (blob, url) => {
     setUserRecording({ blob, url })
-    setIsAssessing(true)
-    setError(null)
-
-    try {
-      const reader = new FileReader()
-      reader.readAsDataURL(blob)
-      reader.onloadend = async () => {
-        const base64Audio = reader.result.split(',')[1]
-
-        // Use GPT-4o audio comparison for direct native vs learner comparison
-        const response = await fetch('/api/speech/compare-pronunciation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userAudioBase64: base64Audio,
-            targetAudioUrl: content.fullAudioUrl,
-            targetStart: currentSegment.start,
-            targetEnd: currentSegment.end,
-            referenceText: currentSegment.text,
-            language: activeLanguage
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error('Assessment failed')
-        }
-
-        const result = await response.json()
-        // Transform GPT-4o response to match UI expectations
-        setAssessmentResult({
-          pronunciationScore: result.overallScore,
-          errors: result.errors || [],
-          prosodyNotes: result.prosodyNotes,
-          summary: result.summary,
-          rawResponse: result.rawResponse,
-          // For backwards compatibility with PronunciationScore component
-          majorIssues: (result.errors || []).map(e => `${e.word}: ${e.issue}`),
-          articulatoryTips: (result.errors || []).map(e => ({
-            phoneme: e.sound,
-            issue: e.issue,
-            tip: e.fix
-          }))
-        })
-        setIsAssessing(false)
-      }
-    } catch (err) {
-      console.error('Assessment error:', err)
-      setError('Could not assess pronunciation. Please try again.')
-      setIsAssessing(false)
-    }
+    // No API call - user compares recordings themselves
   }
 
   // Navigation
@@ -640,7 +588,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
     stopPlayback()
     setProgress(0)
     setUserRecording(null)
-    setAssessmentResult(null)
     setError(null)
   }, [currentSegmentIndex, stopPlayback])
 
@@ -667,7 +614,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   const retryRecording = () => {
     setUserRecording(null)
-    setAssessmentResult(null)
     setError(null)
   }
 
@@ -801,30 +747,32 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                 autoSubmit={true}
               />
             ) : (
-              <div className="pronunciation-result">
-                {/* Your recording playback - small inline player */}
-                <div className="pronunciation-your-recording">
-                  <span className="pronunciation-recording-label">Your Recording</span>
-                  <audio src={userRecording.url} controls />
-                </div>
+              <div className="pronunciation-compare">
+                {/* A/B Compare - Native vs Yours */}
+                <div className="compare-section">
+                  <div className="compare-label">Compare yourself to the native speaker:</div>
 
-                {/* Assessment */}
-                {isAssessing ? (
-                  <div className="pronunciation-assessing">
-                    <div className="spinner" />
-                    <p className="muted">Analyzing pronunciation...</p>
+                  <div className="compare-players">
+                    <div className="compare-player native">
+                      <span className="compare-player-label">Native</span>
+                      <button
+                        className="compare-play-btn"
+                        onClick={togglePlayPause}
+                      >
+                        {isPlaying ? '⏸' : '▶'}
+                      </button>
+                    </div>
+
+                    <div className="compare-player yours">
+                      <span className="compare-player-label">Yours</span>
+                      <audio src={userRecording.url} controls className="compare-audio" />
+                    </div>
                   </div>
-                ) : assessmentResult ? (
-                  <PronunciationScore
-                    result={assessmentResult}
-                    referenceText={currentSegment?.text}
-                    language={activeLanguage}
-                  />
-                ) : error ? (
-                  <div className="pronunciation-error">
-                    <p>{error}</p>
-                  </div>
-                ) : null}
+
+                  <p className="compare-tip">
+                    Listen for differences in vowel quality, consonant sounds, and rhythm.
+                  </p>
+                </div>
 
                 {/* Try again */}
                 <button className="pronunciation-retry-btn" onClick={retryRecording}>
@@ -832,7 +780,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                     <path d="M1 4v6h6" />
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                   </svg>
-                  Try Again
+                  Record Again
                 </button>
               </div>
             )}

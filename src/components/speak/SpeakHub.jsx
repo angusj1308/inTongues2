@@ -151,10 +151,10 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
               <path d="M2 5h4M2 9h4M2 13h4" strokeLinecap="round" />
             </svg>
           </div>
-          <h3>Speaking Practice</h3>
+          <h3>Intensive Speaking</h3>
           <p className="speak-mode-subtitle">Interpretation</p>
           <p className="speak-mode-description">
-            See {nativeLanguage} text and speak the {activeLanguage} translation. Get feedback on accuracy and vocabulary.
+            See {nativeLanguage} sentences and practice producing them in {activeLanguage}.
           </p>
           <div className="speak-mode-focus">
             <span className="focus-tag">Translation</span>

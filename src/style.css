@@ -3072,6 +3072,7 @@ textarea {
   align-items: center;
   padding: 2rem 1.5rem;
   gap: 1.5rem;
+  min-height: 420px;
 }
 
 .pronunciation-text-zone {
@@ -3190,8 +3191,25 @@ textarea {
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  padding-top: 1rem;
+  padding: 1.5rem 0;
   border-top: 1px solid #e2e8f0;
+  min-height: 200px;
+}
+
+.pronunciation-prompt {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0;
+  text-align: center;
+}
+
+.pronunciation-compare {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
 }
 
 .pronunciation-result {
@@ -15439,6 +15457,7 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
 }
 
 .compare-waveform-item {

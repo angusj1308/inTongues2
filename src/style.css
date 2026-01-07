@@ -15407,6 +15407,157 @@ body.active-pass-locked {
   color: #475569;
 }
 
+/* GPT-4o Error Feedback Styles */
+.pronunciation-summary {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pronunciation-summary p {
+  margin: 0;
+  font-weight: 500;
+  color: #991b1b;
+}
+
+.pronunciation-errors {
+  margin-bottom: 1.5rem;
+}
+
+.pronunciation-errors h5 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.error-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.error-word {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.error-sound {
+  font-family: monospace;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.error-issue {
+  background: #fef3c7;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.error-issue strong {
+  color: #92400e;
+}
+
+.error-fix {
+  background: #dcfce7;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.error-fix strong {
+  color: #166534;
+}
+
+.prosody-notes {
+  background: #ede9fe;
+  border: 1px solid #c4b5fd;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.prosody-notes h5 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #5b21b6;
+}
+
+.prosody-notes p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6d28d9;
+}
+
+.score-interpretation {
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.score-interpretation p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.interp-excellent { background: #dcfce7; color: #166534; }
+.interp-good { background: #dbeafe; color: #1e40af; }
+.interp-fair { background: #fef3c7; color: #92400e; }
+.interp-poor { background: #fee2e2; color: #991b1b; }
+
+/* Dark mode for GPT-4o error styles */
+[data-theme='dark'] .pronunciation-summary {
+  background: #450a0a;
+  border-color: #7f1d1d;
+}
+
+[data-theme='dark'] .pronunciation-summary p {
+  color: #fecaca;
+}
+
+[data-theme='dark'] .error-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .error-word {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .error-issue {
+  background: #422006;
+}
+
+[data-theme='dark'] .error-fix {
+  background: #052e16;
+}
+
+[data-theme='dark'] .prosody-notes {
+  background: #2e1065;
+  border-color: #6b21a8;
+}
+
 /* New phonetic dimension styles */
 .dimension-details {
   display: flex;

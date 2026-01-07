@@ -167,13 +167,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
         <div className="intensive-overlay" onClick={() => setActiveMode(null)}>
           <div className="intensive-overlay-content" onClick={e => e.stopPropagation()}>
             <div className="intensive-overlay-header">
-              <button className="btn-back" onClick={() => setActiveMode(null)}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-                Back to modes
-              </button>
-              <h3>Intensive Mode</h3>
+              <h3>Select Practice Material</h3>
               <button className="intensive-overlay-close" onClick={() => setActiveMode(null)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />

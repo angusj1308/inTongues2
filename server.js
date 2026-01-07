@@ -6447,6 +6447,125 @@ Return ONLY valid JSON.`
   }
 })
 
+// Transcribe story audio with Whisper to get word-level timestamps
+// Used for pronunciation practice to sync audio segments precisely
+app.post('/api/story/transcribe', async (req, res) => {
+  const { uid, storyId, sessionId } = req.body || {}
+
+  if (!uid || !storyId) {
+    return res.status(400).json({ error: 'uid and storyId are required' })
+  }
+
+  try {
+    // Get story document
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storyDoc = await storyRef.get()
+
+    if (!storyDoc.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storyDoc.data()
+    const { fullAudioUrl, language, outputLanguage } = storyData
+
+    if (!fullAudioUrl) {
+      return res.status(400).json({ error: 'Story does not have audio generated yet' })
+    }
+
+    // Check if transcript already exists
+    const transcriptLang = (outputLanguage || language || 'en').toLowerCase()
+    const transcriptRef = storyRef.collection('transcripts').doc(transcriptLang)
+    const existingTranscript = await transcriptRef.get()
+
+    if (existingTranscript.exists) {
+      const data = existingTranscript.data()
+      if (data.sentenceSegments && data.sentenceSegments.length > 0) {
+        console.log(`Story ${storyId} already has transcript, returning cached`)
+
+        // Update session if provided
+        if (sessionId) {
+          await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+            status: 'ready',
+            updatedAt: new Date()
+          })
+        }
+
+        return res.json({
+          status: 'ready',
+          cached: true,
+          segmentCount: data.sentenceSegments.length
+        })
+      }
+    }
+
+    // Update session status to processing if provided
+    if (sessionId) {
+      await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+        status: 'processing',
+        updatedAt: new Date()
+      })
+    }
+
+    console.log(`Starting Whisper transcription for story ${storyId}`)
+    console.log(`Audio URL: ${fullAudioUrl}`)
+    console.log(`Language: ${transcriptLang}`)
+
+    // Transcribe with Whisper - this returns segments with word-level timestamps
+    const result = await transcribeWithWhisper({
+      audioUrl: fullAudioUrl,
+      languageCode: transcriptLang
+    })
+
+    // Store transcript with word-level timestamps
+    await transcriptRef.set({
+      storyId,
+      language: transcriptLang,
+      text: result.text || '',
+      sentenceSegments: result.sentenceSegments || result.segments || [],
+      createdAt: new Date()
+    })
+
+    // Update story to indicate transcript is available
+    await storyRef.update({
+      hasWordTimestamps: true,
+      transcriptLanguage: transcriptLang
+    })
+
+    // Update session status if provided
+    if (sessionId) {
+      await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+        status: 'ready',
+        updatedAt: new Date()
+      })
+    }
+
+    console.log(`Story ${storyId} transcription complete: ${(result.sentenceSegments || result.segments || []).length} segments`)
+
+    res.json({
+      status: 'ready',
+      cached: false,
+      segmentCount: (result.sentenceSegments || result.segments || []).length
+    })
+  } catch (error) {
+    console.error('Story transcription error:', error)
+
+    // Update session status to error if provided
+    if (sessionId) {
+      try {
+        await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+          status: 'error',
+          error: error.message,
+          updatedAt: new Date()
+        })
+      } catch (e) {
+        console.error('Failed to update session status:', e)
+      }
+    }
+
+    res.status(500).json({ error: 'Failed to transcribe story audio' })
+  }
+})
+
 app.listen(4000, () => {
   console.log('Proxy running on http://localhost:4000')
 })

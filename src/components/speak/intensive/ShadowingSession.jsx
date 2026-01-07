@@ -165,55 +165,107 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       setLoading(true)
       try {
         if (content.type === 'story') {
-          const pagesRef = collection(db, 'users', user.uid, 'stories', content.id, 'pages')
-          const pagesQuery = query(pagesRef, orderBy('index'))
-          const pagesSnap = await getDocs(pagesQuery)
+          // First, check if we have Whisper transcript with word-level timestamps
+          const transcriptsRef = collection(db, 'users', user.uid, 'stories', content.id, 'transcripts')
+          const transcriptsSnap = await getDocs(transcriptsRef)
 
-          const allChunks = []
-          let chunkIndex = 0
-          let totalWordCount = 0
+          let hasWhisperTranscript = false
 
-          // First pass: collect all chunks and count total words
-          pagesSnap.docs.forEach((doc, pageIndex) => {
-            const pageData = doc.data()
-            const sentences = (pageData.content || pageData.text || '')
-              .split(/(?<=[.!?])\s+/)
-              .filter(s => s.trim().length > 0)
+          if (!transcriptsSnap.empty) {
+            const transcriptDoc = transcriptsSnap.docs[0]
+            const transcriptData = transcriptDoc.data()
+            const sentenceSegments = transcriptData.sentenceSegments || []
 
-            sentences.forEach((sentence) => {
-              const chunks = chunkTextForPronunciation(sentence.trim())
+            // Check if we have word-level timestamps
+            if (sentenceSegments.length > 0 && sentenceSegments.some(seg => seg.words && seg.words.length > 0)) {
+              hasWhisperTranscript = true
 
-              chunks.forEach((chunk) => {
-                const wordCount = chunk.text.split(/\s+/).filter(w => w.length > 0).length
-                allChunks.push({
-                  id: `${doc.id}-chunk-${chunkIndex}`,
-                  text: chunk.text,
-                  pageIndex,
-                  chunkIndex,
-                  wordCount
+              const allSegments = []
+              let chunkIndex = 0
+
+              sentenceSegments.forEach((seg) => {
+                if (seg.words && seg.words.length > 0) {
+                  // Use word-level timestamps for precise chunking
+                  const chunks = chunkWordsForPronunciation(seg.words)
+                  chunks.forEach((chunk) => {
+                    allSegments.push({
+                      id: `${content.id}-chunk-${chunkIndex}`,
+                      text: chunk.text,
+                      start: chunk.start,
+                      end: chunk.end,
+                      chunkIndex
+                    })
+                    chunkIndex++
+                  })
+                } else {
+                  // Sentence without word timestamps - use as-is
+                  allSegments.push({
+                    id: `${content.id}-chunk-${chunkIndex}`,
+                    text: seg.text,
+                    start: seg.start,
+                    end: seg.end,
+                    chunkIndex
+                  })
+                  chunkIndex++
+                }
+              })
+
+              setSegments(allSegments)
+            }
+          }
+
+          // Fallback: No Whisper transcript, use proportional estimation
+          if (!hasWhisperTranscript) {
+
+            const pagesRef = collection(db, 'users', user.uid, 'stories', content.id, 'pages')
+            const pagesQuery = query(pagesRef, orderBy('index'))
+            const pagesSnap = await getDocs(pagesQuery)
+
+            const allChunks = []
+            let chunkIndex = 0
+            let totalWordCount = 0
+
+            // First pass: collect all chunks and count total words
+            pagesSnap.docs.forEach((doc, pageIndex) => {
+              const pageData = doc.data()
+              const sentences = (pageData.content || pageData.text || '')
+                .split(/(?<=[.!?])\s+/)
+                .filter(s => s.trim().length > 0)
+
+              sentences.forEach((sentence) => {
+                const chunks = chunkTextForPronunciation(sentence.trim())
+
+                chunks.forEach((chunk) => {
+                  const wordCount = chunk.text.split(/\s+/).filter(w => w.length > 0).length
+                  allChunks.push({
+                    id: `${doc.id}-chunk-${chunkIndex}`,
+                    text: chunk.text,
+                    pageIndex,
+                    chunkIndex,
+                    wordCount
+                  })
+                  totalWordCount += wordCount
+                  chunkIndex++
                 })
-                totalWordCount += wordCount
-                chunkIndex++
               })
             })
-          })
 
-          // Second pass: assign proportional timestamps (0-1 ratio)
-          // These will be multiplied by audio duration during playback
-          let cumulativeWords = 0
-          const allSegments = allChunks.map(chunk => {
-            const startRatio = cumulativeWords / totalWordCount
-            cumulativeWords += chunk.wordCount
-            const endRatio = cumulativeWords / totalWordCount
+            // Second pass: assign proportional timestamps (0-1 ratio)
+            let cumulativeWords = 0
+            const allSegments = allChunks.map(chunk => {
+              const startRatio = cumulativeWords / totalWordCount
+              cumulativeWords += chunk.wordCount
+              const endRatio = cumulativeWords / totalWordCount
 
-            return {
-              ...chunk,
-              startRatio,
-              endRatio
-            }
-          })
+              return {
+                ...chunk,
+                startRatio,
+                endRatio
+              }
+            })
 
-          setSegments(allSegments)
+            setSegments(allSegments)
+          }
         } else if (content.type === 'youtube') {
           const transcriptsRef = collection(db, 'users', user.uid, 'youtubeVideos', content.id, 'transcripts')
           const transcriptsSnap = await getDocs(transcriptsRef)
@@ -282,7 +334,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       if (!audio) return
 
       const handleLoadedMetadata = () => {
-        console.log('Audio duration loaded:', audio.duration)
         setAudioDuration(audio.duration)
       }
 
@@ -293,7 +344,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
       // If already loaded, get duration immediately
       if (audio.duration && !isNaN(audio.duration)) {
-        console.log('Audio duration already available:', audio.duration)
         setAudioDuration(audio.duration)
       } else {
         audio.addEventListener('loadedmetadata', handleLoadedMetadata)
@@ -378,7 +428,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
       // For stories with ratio-based timestamps, wait for audioDuration
       if (segment.startRatio !== undefined && !audioDuration) {
-        console.log('Waiting for audio duration to load...')
         return
       }
 
@@ -394,19 +443,14 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       if (segment.start !== undefined && segment.end !== undefined) {
         segStart = segment.start
         segEnd = segment.end
-        console.log('Using exact timestamps:', segStart, '-', segEnd)
       } else if (segment.startRatio !== undefined && segment.endRatio !== undefined && audioDuration) {
-        // Use proportional timestamps for stories
+        // Use proportional timestamps for stories (fallback)
         segStart = segment.startRatio * audioDuration
         segEnd = segment.endRatio * audioDuration
-        console.log('Calculated from ratios:', segment.startRatio, '*', audioDuration, '=', segStart, 'to', segEnd)
-      } else {
-        console.log('No timestamps available. segment:', segment, 'audioDuration:', audioDuration)
       }
 
       if (segStart !== undefined && segEnd !== undefined) {
         const segmentDuration = segEnd - segStart
-        console.log('Playing segment from', segStart.toFixed(2), 'to', segEnd.toFixed(2), '(', segmentDuration.toFixed(2), 's)')
 
         audio.currentTime = segStart
         audio.play()

@@ -14530,6 +14530,28 @@ body.active-pass-locked {
   text-align: center;
 }
 
+/* Small inline spinner */
+.spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: currentColor;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.intensive-hub-item-meta.preparing {
+  color: #f59e0b;
+}
+
+.intensive-hub-item-meta .spinner-small {
+  border-color: rgba(245, 158, 11, 0.3);
+  border-top-color: #f59e0b;
+}
+
 /* Import tab */
 .intensive-hub-import {
   padding: 1rem;

@@ -4,15 +4,67 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { AudioRecorder } from '../shared'
 import { PronunciationScore } from './PronunciationScore'
+import YouTubePlayer from '../../YouTubePlayer'
 
 /**
- * Chunk text into smaller segments for pronunciation practice
+ * Chunk configuration for pronunciation practice
  * - Min 3 words, max 10 words per chunk
- * - Always ends on punctuation (. , ; : ! ?) when possible
- * - Creates meaningful, complete phrases
+ * - Always ends on punctuation when possible
  */
 const CHUNK_MIN_WORDS = 3
 const CHUNK_MAX_WORDS = 10
+
+/**
+ * Chunk words with accurate timestamps for pronunciation practice
+ * Uses actual word timestamps for precise audio segments
+ */
+const chunkWordsForPronunciation = (words) => {
+  if (!words || words.length === 0) return []
+
+  // If small enough, return as single chunk
+  if (words.length <= CHUNK_MAX_WORDS) {
+    return [{
+      text: words.map(w => w.text).join(' '),
+      start: words[0].start,
+      end: words[words.length - 1].end
+    }]
+  }
+
+  const chunks = []
+  const endsWithPunctuation = (word) => /[.,;:!?]$/.test(word.text || '')
+
+  let i = 0
+  while (i < words.length) {
+    let chunkEndIndex = Math.min(i + CHUNK_MIN_WORDS - 1, words.length - 1)
+
+    // Look for punctuation between min and max
+    let foundPunctuation = false
+    for (let j = i + CHUNK_MIN_WORDS - 1; j < Math.min(i + CHUNK_MAX_WORDS, words.length); j++) {
+      if (endsWithPunctuation(words[j])) {
+        chunkEndIndex = j
+        foundPunctuation = true
+        break
+      }
+    }
+
+    // If no punctuation found, use max words or remaining
+    if (!foundPunctuation) {
+      chunkEndIndex = Math.min(i + CHUNK_MAX_WORDS - 1, words.length - 1)
+    }
+
+    // Extract chunk with accurate timestamps
+    const chunkWords = words.slice(i, chunkEndIndex + 1)
+    chunks.push({
+      text: chunkWords.map(w => w.text).join(' '),
+      start: chunkWords[0].start,
+      end: chunkWords[chunkWords.length - 1].end
+    })
+
+    i = chunkEndIndex + 1
+  }
+
+  return chunks
+}
 
 const chunkTextForPronunciation = (text, start, end) => {
   const words = text.split(/\s+/).filter(w => w.length > 0)
@@ -93,10 +145,18 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const [progress, setProgress] = useState(0)
   const [isLooping, setIsLooping] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1)
+  const [ytStatus, setYtStatus] = useState({ currentTime: 0, duration: 0, isPlaying: false })
 
+  // Refs
   const audioRef = useRef(null)
+  const ytPlayerRef = useRef(null)
   const progressIntervalRef = useRef(null)
   const segmentEndRef = useRef(null)
+  const [audioDuration, setAudioDuration] = useState(null)
+
+  // Determine content type
+  const isYouTube = content?.type === 'youtube'
+  const videoId = content?.videoId
 
   // Load segments for the content
   // Chunks sentences into smaller pieces (~5 words) for pronunciation practice
@@ -109,9 +169,11 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
           const pagesQuery = query(pagesRef, orderBy('index'))
           const pagesSnap = await getDocs(pagesQuery)
 
-          const allSegments = []
+          const allChunks = []
           let chunkIndex = 0
+          let totalWordCount = 0
 
+          // First pass: collect all chunks and count total words
           pagesSnap.docs.forEach((doc, pageIndex) => {
             const pageData = doc.data()
             const sentences = (pageData.content || pageData.text || '')
@@ -119,19 +181,36 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
               .filter(s => s.trim().length > 0)
 
             sentences.forEach((sentence) => {
-              // Chunk each sentence into smaller pieces for pronunciation
               const chunks = chunkTextForPronunciation(sentence.trim())
 
               chunks.forEach((chunk) => {
-                allSegments.push({
+                const wordCount = chunk.text.split(/\s+/).filter(w => w.length > 0).length
+                allChunks.push({
                   id: `${doc.id}-chunk-${chunkIndex}`,
                   text: chunk.text,
                   pageIndex,
-                  chunkIndex
+                  chunkIndex,
+                  wordCount
                 })
+                totalWordCount += wordCount
                 chunkIndex++
               })
             })
+          })
+
+          // Second pass: assign proportional timestamps (0-1 ratio)
+          // These will be multiplied by audio duration during playback
+          let cumulativeWords = 0
+          const allSegments = allChunks.map(chunk => {
+            const startRatio = cumulativeWords / totalWordCount
+            cumulativeWords += chunk.wordCount
+            const endRatio = cumulativeWords / totalWordCount
+
+            return {
+              ...chunk,
+              startRatio,
+              endRatio
+            }
           })
 
           setSegments(allSegments)
@@ -148,19 +227,30 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
             let chunkIndex = 0
 
             sentenceSegments.forEach((seg) => {
-              // Chunk each sentence segment into smaller pieces with estimated timestamps
-              const chunks = chunkTextForPronunciation(seg.text, seg.start, seg.end)
-
-              chunks.forEach((chunk) => {
+              // If segment has word-level timestamps, use them for accurate chunking
+              if (seg.words && seg.words.length > 0) {
+                const chunks = chunkWordsForPronunciation(seg.words)
+                chunks.forEach((chunk) => {
+                  allSegments.push({
+                    id: `${content.id}-chunk-${chunkIndex}`,
+                    text: chunk.text,
+                    start: chunk.start,
+                    end: chunk.end,
+                    chunkIndex
+                  })
+                  chunkIndex++
+                })
+              } else {
+                // No word timestamps - use sentence as-is (already has accurate start/end)
                 allSegments.push({
                   id: `${content.id}-chunk-${chunkIndex}`,
-                  text: chunk.text,
-                  start: chunk.start,
-                  end: chunk.end,
+                  text: seg.text,
+                  start: seg.start,
+                  end: seg.end,
                   chunkIndex
                 })
                 chunkIndex++
-              })
+              }
             })
 
             setSegments(allSegments)
@@ -181,131 +271,220 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   const currentSegment = segments[currentSegmentIndex]
 
-  // Stop playback
+  // Load audio duration for stories (needed for proportional timestamps)
+  useEffect(() => {
+    if (!isYouTube && content?.fullAudioUrl && audioRef.current) {
+      const audio = audioRef.current
+
+      const handleLoadedMetadata = () => {
+        setAudioDuration(audio.duration)
+      }
+
+      // Set source if needed
+      if (audio.src !== content.fullAudioUrl) {
+        audio.src = content.fullAudioUrl
+      }
+
+      // If already loaded, get duration immediately
+      if (audio.duration && !isNaN(audio.duration)) {
+        setAudioDuration(audio.duration)
+      }
+
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+      return () => audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    }
+  }, [content?.fullAudioUrl, isYouTube])
+
+  // Stop playback (works for both YouTube and native audio)
   const stopPlayback = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    audio.pause()
-    setIsPlaying(false)
-
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current)
       progressIntervalRef.current = null
     }
 
-    if (segmentEndRef.current) {
-      audio.removeEventListener('timeupdate', segmentEndRef.current)
-      segmentEndRef.current = null
+    if (isYouTube) {
+      ytPlayerRef.current?.pauseVideo?.()
+    } else {
+      const audio = audioRef.current
+      if (audio) {
+        audio.pause()
+        if (segmentEndRef.current) {
+          audio.removeEventListener('timeupdate', segmentEndRef.current)
+          segmentEndRef.current = null
+        }
+      }
     }
-  }, [])
+    setIsPlaying(false)
+  }, [isYouTube])
 
   // Play the current segment
   const playSegment = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio || !content.fullAudioUrl) return
-
-    // Set audio source if needed
-    if (audio.src !== content.fullAudioUrl) {
-      audio.src = content.fullAudioUrl
-    }
-
     const segment = currentSegment
     if (!segment) return
 
-    // Apply playback rate
-    audio.playbackRate = playbackRate
+    // Clear previous intervals
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+    }
 
-    // For YouTube with timestamps
-    if (segment.start !== undefined && segment.end !== undefined) {
-      const duration = segment.end - segment.start
+    if (isYouTube) {
+      // YouTube playback using iframe API
+      const player = ytPlayerRef.current
+      if (!player?.seekTo) return
 
-      audio.currentTime = segment.start
-      audio.play()
-        .then(() => setIsPlaying(true))
-        .catch(err => console.error('Playback failed', err))
+      const segmentDuration = segment.end - segment.start
 
-      // Clear previous listeners
-      if (segmentEndRef.current) {
-        audio.removeEventListener('timeupdate', segmentEndRef.current)
-      }
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current)
-      }
+      // Seek to segment start and play
+      player.seekTo(segment.start, true)
+      player.playVideo()
+      setIsPlaying(true)
 
-      // Update progress
+      // Monitor playback and stop at segment end
       progressIntervalRef.current = setInterval(() => {
-        if (audio.paused) return
-        const current = audio.currentTime
-        if (current >= segment.start && current <= segment.end) {
-          const prog = duration > 0 ? ((current - segment.start) / duration) * 100 : 0
+        const currentTime = player.getCurrentTime?.() || 0
+
+        if (currentTime >= segment.start && currentTime <= segment.end) {
+          const prog = segmentDuration > 0 ? ((currentTime - segment.start) / segmentDuration) * 100 : 0
           setProgress(Math.min(100, Math.max(0, prog)))
         }
-      }, 50)
 
-      // Handle segment end
-      const handleTimeUpdate = () => {
-        if (audio.currentTime >= segment.end) {
+        // Check if segment ended
+        if (currentTime >= segment.end) {
           if (isLooping) {
-            audio.currentTime = segment.start
+            player.seekTo(segment.start, true)
             setProgress(0)
           } else {
-            audio.pause()
+            player.pauseVideo()
             setIsPlaying(false)
             setProgress(100)
-            if (progressIntervalRef.current) {
-              clearInterval(progressIntervalRef.current)
-            }
-            audio.removeEventListener('timeupdate', handleTimeUpdate)
+            clearInterval(progressIntervalRef.current)
           }
         }
+      }, 50)
+    } else {
+      // Native audio playback (for stories)
+      const audio = audioRef.current
+      if (!audio || !content.fullAudioUrl) return
+
+      if (audio.src !== content.fullAudioUrl) {
+        audio.src = content.fullAudioUrl
       }
 
-      segmentEndRef.current = handleTimeUpdate
-      audio.addEventListener('timeupdate', handleTimeUpdate)
-    } else {
-      // For stories without timestamps, just play short segment
-      audio.play()
-        .then(() => setIsPlaying(true))
-        .catch(err => console.error('Playback failed', err))
+      audio.playbackRate = playbackRate
+
+      // Calculate segment timestamps
+      // Use exact timestamps if available, otherwise calculate from ratios
+      let segStart, segEnd
+      if (segment.start !== undefined && segment.end !== undefined) {
+        segStart = segment.start
+        segEnd = segment.end
+      } else if (segment.startRatio !== undefined && segment.endRatio !== undefined && audioDuration) {
+        // Use proportional timestamps for stories
+        segStart = segment.startRatio * audioDuration
+        segEnd = segment.endRatio * audioDuration
+      }
+
+      if (segStart !== undefined && segEnd !== undefined) {
+        const segmentDuration = segEnd - segStart
+
+        audio.currentTime = segStart
+        audio.play()
+          .then(() => setIsPlaying(true))
+          .catch(err => console.error('Playback failed', err))
+
+        if (segmentEndRef.current) {
+          audio.removeEventListener('timeupdate', segmentEndRef.current)
+        }
+
+        progressIntervalRef.current = setInterval(() => {
+          if (audio.paused) return
+          const current = audio.currentTime
+          if (current >= segStart && current <= segEnd) {
+            const prog = segmentDuration > 0 ? ((current - segStart) / segmentDuration) * 100 : 0
+            setProgress(Math.min(100, Math.max(0, prog)))
+          }
+        }, 50)
+
+        const handleTimeUpdate = () => {
+          if (audio.currentTime >= segEnd) {
+            if (isLooping) {
+              audio.currentTime = segStart
+              setProgress(0)
+            } else {
+              audio.pause()
+              setIsPlaying(false)
+              setProgress(100)
+              if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current)
+              }
+              audio.removeEventListener('timeupdate', handleTimeUpdate)
+            }
+          }
+        }
+
+        segmentEndRef.current = handleTimeUpdate
+        audio.addEventListener('timeupdate', handleTimeUpdate)
+      } else {
+        audio.play()
+          .then(() => setIsPlaying(true))
+          .catch(err => console.error('Playback failed', err))
+      }
     }
-  }, [content.fullAudioUrl, currentSegment, isLooping, playbackRate])
+  }, [content.fullAudioUrl, currentSegment, isLooping, playbackRate, isYouTube, audioDuration])
 
   // Toggle play/pause
   const togglePlayPause = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) {
-      playSegment()
-      return
-    }
-
     if (isPlaying) {
-      audio.pause()
-      setIsPlaying(false)
+      stopPlayback()
     } else {
       playSegment()
     }
-  }, [isPlaying, playSegment])
+  }, [isPlaying, playSegment, stopPlayback])
 
   // Scrub audio
   const scrubAudio = useCallback((seconds) => {
-    const audio = audioRef.current
-    if (!audio || !currentSegment) return
+    if (!currentSegment) return
 
-    if (currentSegment.start !== undefined && currentSegment.end !== undefined) {
+    if (isYouTube) {
+      const player = ytPlayerRef.current
+      if (!player?.getCurrentTime) return
+
+      const currentTime = player.getCurrentTime()
       const newTime = Math.max(
         currentSegment.start,
-        Math.min(currentSegment.end, audio.currentTime + seconds)
+        Math.min(currentSegment.end, currentTime + seconds)
       )
-      audio.currentTime = newTime
+      player.seekTo(newTime, true)
 
       const duration = currentSegment.end - currentSegment.start
       const prog = duration > 0 ? ((newTime - currentSegment.start) / duration) * 100 : 0
       setProgress(Math.min(100, Math.max(0, prog)))
     } else {
-      audio.currentTime = Math.max(0, audio.currentTime + seconds)
+      const audio = audioRef.current
+      if (!audio) return
+
+      // Calculate segment boundaries
+      let segStart, segEnd
+      if (currentSegment.start !== undefined && currentSegment.end !== undefined) {
+        segStart = currentSegment.start
+        segEnd = currentSegment.end
+      } else if (currentSegment.startRatio !== undefined && currentSegment.endRatio !== undefined && audioDuration) {
+        segStart = currentSegment.startRatio * audioDuration
+        segEnd = currentSegment.endRatio * audioDuration
+      }
+
+      if (segStart !== undefined && segEnd !== undefined) {
+        const newTime = Math.max(segStart, Math.min(segEnd, audio.currentTime + seconds))
+        audio.currentTime = newTime
+
+        const duration = segEnd - segStart
+        const prog = duration > 0 ? ((newTime - segStart) / duration) * 100 : 0
+        setProgress(Math.min(100, Math.max(0, prog)))
+      } else {
+        audio.currentTime = Math.max(0, audio.currentTime + seconds)
+      }
     }
-  }, [currentSegment])
+  }, [currentSegment, isYouTube, audioDuration])
 
   // Toggle loop
   const toggleLoop = useCallback(() => {
@@ -314,13 +493,18 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   // Toggle playback rate
   const togglePlaybackRate = useCallback(() => {
-    const audio = audioRef.current
     const newRate = playbackRate === 1 ? 0.75 : 1
     setPlaybackRate(newRate)
-    if (audio) {
-      audio.playbackRate = newRate
+
+    if (isYouTube) {
+      ytPlayerRef.current?.setPlaybackRate?.(newRate)
+    } else {
+      const audio = audioRef.current
+      if (audio) {
+        audio.playbackRate = newRate
+      }
     }
-  }, [playbackRate])
+  }, [playbackRate, isYouTube])
 
   // Handle user recording completion
   const handleRecordingComplete = async (blob, url) => {
@@ -429,7 +613,20 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   return (
     <>
-      <audio ref={audioRef} />
+      {/* Hidden audio/video elements */}
+      {isYouTube && videoId ? (
+        <div style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}>
+          <YouTubePlayer
+            ref={ytPlayerRef}
+            videoId={videoId}
+            controls={false}
+            onStatus={setYtStatus}
+          />
+        </div>
+      ) : (
+        <audio ref={audioRef} />
+      )}
+
       <div className="intensive-card">
         {/* Header */}
         <div className="intensive-card-header">

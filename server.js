@@ -232,7 +232,7 @@ function mapLevelToSimplified(level) {
 }
 
 const app = express()
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
 
 const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML !== '0'
 const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM !== '0'

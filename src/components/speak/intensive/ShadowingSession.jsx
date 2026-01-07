@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
-import { AudioRecorder, PlaybackComparison } from '../shared'
+import { AudioRecorder } from '../shared'
 import { PronunciationScore } from './PronunciationScore'
 
 /**
  * Active shadowing practice session
- * Plays segments, records user, provides pronunciation feedback
+ * Redesigned to match Intensive Listening mode aesthetic
  */
 export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
@@ -19,7 +19,15 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const [isAssessing, setIsAssessing] = useState(false)
   const [error, setError] = useState(null)
 
-  const originalAudioRef = useRef(null)
+  // Audio player state
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [isLooping, setIsLooping] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
+
+  const audioRef = useRef(null)
+  const progressIntervalRef = useRef(null)
+  const segmentEndRef = useRef(null)
 
   // Load segments for the content
   useEffect(() => {
@@ -27,16 +35,13 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       setLoading(true)
       try {
         if (content.type === 'story') {
-          // Fetch pages for story
           const pagesRef = collection(db, 'users', user.uid, 'stories', content.id, 'pages')
           const pagesQuery = query(pagesRef, orderBy('index'))
           const pagesSnap = await getDocs(pagesQuery)
 
-          // Convert pages to segments (sentences)
           const allSegments = []
           pagesSnap.docs.forEach((doc, pageIndex) => {
             const pageData = doc.data()
-            // Split into sentences
             const sentences = (pageData.content || pageData.text || '')
               .split(/(?<=[.!?])\s+/)
               .filter(s => s.trim().length > 0)
@@ -53,7 +58,6 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
           setSegments(allSegments)
         } else if (content.type === 'youtube') {
-          // Fetch transcript segments
           const transcriptsRef = collection(db, 'users', user.uid, 'youtubeVideos', content.id, 'transcripts')
           const transcriptsSnap = await getDocs(transcriptsRef)
 
@@ -86,47 +90,159 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   const currentSegment = segments[currentSegmentIndex]
 
-  // Play the original segment audio
-  const playOriginalSegment = () => {
-    if (!originalAudioRef.current || !content.fullAudioUrl) return
+  // Stop playback
+  const stopPlayback = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio) return
 
-    const audio = originalAudioRef.current
-    audio.src = content.fullAudioUrl
+    audio.pause()
+    setIsPlaying(false)
 
-    if (currentSegment?.start !== undefined) {
-      audio.currentTime = currentSegment.start
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+
+    if (segmentEndRef.current) {
+      audio.removeEventListener('timeupdate', segmentEndRef.current)
+      segmentEndRef.current = null
+    }
+  }, [])
+
+  // Play the current segment
+  const playSegment = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio || !content.fullAudioUrl) return
+
+    // Set audio source if needed
+    if (audio.src !== content.fullAudioUrl) {
+      audio.src = content.fullAudioUrl
+    }
+
+    const segment = currentSegment
+    if (!segment) return
+
+    // Apply playback rate
+    audio.playbackRate = playbackRate
+
+    // For YouTube with timestamps
+    if (segment.start !== undefined && segment.end !== undefined) {
+      const duration = segment.end - segment.start
+
+      audio.currentTime = segment.start
       audio.play()
+        .then(() => setIsPlaying(true))
+        .catch(err => console.error('Playback failed', err))
 
-      // Stop at segment end
-      const checkEnd = () => {
-        if (audio.currentTime >= currentSegment.end) {
-          audio.pause()
-          audio.removeEventListener('timeupdate', checkEnd)
+      // Clear previous listeners
+      if (segmentEndRef.current) {
+        audio.removeEventListener('timeupdate', segmentEndRef.current)
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+
+      // Update progress
+      progressIntervalRef.current = setInterval(() => {
+        if (audio.paused) return
+        const current = audio.currentTime
+        if (current >= segment.start && current <= segment.end) {
+          const prog = duration > 0 ? ((current - segment.start) / duration) * 100 : 0
+          setProgress(Math.min(100, Math.max(0, prog)))
+        }
+      }, 50)
+
+      // Handle segment end
+      const handleTimeUpdate = () => {
+        if (audio.currentTime >= segment.end) {
+          if (isLooping) {
+            audio.currentTime = segment.start
+            setProgress(0)
+          } else {
+            audio.pause()
+            setIsPlaying(false)
+            setProgress(100)
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current)
+            }
+            audio.removeEventListener('timeupdate', handleTimeUpdate)
+          }
         }
       }
-      audio.addEventListener('timeupdate', checkEnd)
+
+      segmentEndRef.current = handleTimeUpdate
+      audio.addEventListener('timeupdate', handleTimeUpdate)
     } else {
-      // For stories without timestamps, just play (user will need to stop manually)
+      // For stories without timestamps, just play short segment
       audio.play()
+        .then(() => setIsPlaying(true))
+        .catch(err => console.error('Playback failed', err))
     }
-  }
+  }, [content.fullAudioUrl, currentSegment, isLooping, playbackRate])
+
+  // Toggle play/pause
+  const togglePlayPause = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio) {
+      playSegment()
+      return
+    }
+
+    if (isPlaying) {
+      audio.pause()
+      setIsPlaying(false)
+    } else {
+      playSegment()
+    }
+  }, [isPlaying, playSegment])
+
+  // Scrub audio
+  const scrubAudio = useCallback((seconds) => {
+    const audio = audioRef.current
+    if (!audio || !currentSegment) return
+
+    if (currentSegment.start !== undefined && currentSegment.end !== undefined) {
+      const newTime = Math.max(
+        currentSegment.start,
+        Math.min(currentSegment.end, audio.currentTime + seconds)
+      )
+      audio.currentTime = newTime
+
+      const duration = currentSegment.end - currentSegment.start
+      const prog = duration > 0 ? ((newTime - currentSegment.start) / duration) * 100 : 0
+      setProgress(Math.min(100, Math.max(0, prog)))
+    } else {
+      audio.currentTime = Math.max(0, audio.currentTime + seconds)
+    }
+  }, [currentSegment])
+
+  // Toggle loop
+  const toggleLoop = useCallback(() => {
+    setIsLooping(prev => !prev)
+  }, [])
+
+  // Toggle playback rate
+  const togglePlaybackRate = useCallback(() => {
+    const audio = audioRef.current
+    const newRate = playbackRate === 1 ? 0.75 : 1
+    setPlaybackRate(newRate)
+    if (audio) {
+      audio.playbackRate = newRate
+    }
+  }, [playbackRate])
 
   // Handle user recording completion
   const handleRecordingComplete = async (blob, url) => {
     setUserRecording({ blob, url })
-
-    // Submit for assessment
     setIsAssessing(true)
     setError(null)
 
     try {
-      // Convert blob to base64
       const reader = new FileReader()
       reader.readAsDataURL(blob)
       reader.onloadend = async () => {
         const base64Audio = reader.result.split(',')[1]
 
-        // Send to pronunciation assessment endpoint
         const response = await fetch('/api/speech/assess-pronunciation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -153,162 +269,277 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   }
 
   // Navigation
-  const goToNextSegment = () => {
-    if (currentSegmentIndex < segments.length - 1) {
+  const goToSegment = useCallback((direction) => {
+    if (direction === 'next' && currentSegmentIndex < segments.length - 1) {
       setCurrentSegmentIndex(prev => prev + 1)
-      setUserRecording(null)
-      setAssessmentResult(null)
-    }
-  }
-
-  const goToPreviousSegment = () => {
-    if (currentSegmentIndex > 0) {
+    } else if (direction === 'previous' && currentSegmentIndex > 0) {
       setCurrentSegmentIndex(prev => prev - 1)
-      setUserRecording(null)
-      setAssessmentResult(null)
     }
-  }
+  }, [currentSegmentIndex, segments.length])
+
+  // Reset state when segment changes
+  useEffect(() => {
+    stopPlayback()
+    setProgress(0)
+    setUserRecording(null)
+    setAssessmentResult(null)
+    setError(null)
+  }, [currentSegmentIndex, stopPlayback])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+      if (e.code === 'Space') {
+        e.preventDefault()
+        togglePlayPause()
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        scrubAudio(-2)
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        scrubAudio(2)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [togglePlayPause, scrubAudio])
 
   const retryRecording = () => {
     setUserRecording(null)
     setAssessmentResult(null)
+    setError(null)
   }
 
   if (loading) {
     return (
-      <div className="shadowing-session loading">
-        <p className="muted">Loading content segments...</p>
+      <div className="intensive-overlay">
+        <div className="intensive-card intensive-card--speaking">
+          <div className="intensive-card-loading">
+            <p className="muted">Loading content...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (segments.length === 0) {
     return (
-      <div className="shadowing-session empty">
-        <p className="muted">No segments found in this content.</p>
-        <button className="btn btn-secondary" onClick={onBack}>
-          Go Back
-        </button>
+      <div className="intensive-overlay">
+        <div className="intensive-card intensive-card--speaking">
+          <div className="intensive-card-empty">
+            <p className="muted">No segments found in this content.</p>
+            <button className="btn btn-secondary" onClick={onBack}>
+              Go Back
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="shadowing-session">
-      <audio ref={originalAudioRef} />
+    <div className="intensive-overlay">
+      <audio ref={audioRef} />
 
-      {/* Progress indicator */}
-      <div className="session-progress">
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: `${((currentSegmentIndex + 1) / segments.length) * 100}%` }}
-          />
-        </div>
-        <span className="progress-text">
-          Segment {currentSegmentIndex + 1} of {segments.length}
-        </span>
-      </div>
-
-      {/* Current segment text */}
-      <div className="segment-display">
-        <p className="segment-text">{currentSegment?.text}</p>
-      </div>
-
-      {/* Original audio player */}
-      <div className="original-audio-section">
-        <button className="btn btn-secondary btn-play-original" onClick={playOriginalSegment}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          Listen to Original
-        </button>
-      </div>
-
-      {/* Recording section */}
-      {!userRecording ? (
-        <div className="recording-section">
-          <p className="recording-instruction muted">
-            Listen to the original, then record yourself saying the same phrase:
-          </p>
-          <AudioRecorder
-            onRecordingComplete={handleRecordingComplete}
-            maxDuration={30}
-            showPlayback={false}
-            autoSubmit={true}
-          />
-        </div>
-      ) : (
-        <>
-          {/* Playback comparison */}
-          <div className="comparison-section">
-            <PlaybackComparison
-              originalUrl={content.fullAudioUrl}
-              recordingUrl={userRecording.url}
-              originalLabel="Original"
-              recordingLabel="Your Recording"
-            />
+      <div className="intensive-card intensive-card--speaking">
+        {/* Header */}
+        <div className="intensive-card-header">
+          <div className="intensive-card-nav">
+            <button
+              type="button"
+              className="intensive-card-nav-btn"
+              onClick={() => goToSegment('previous')}
+              disabled={currentSegmentIndex === 0}
+              aria-label="Previous sentence"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span className="intensive-card-nav-counter">
+              {currentSegmentIndex + 1} / {segments.length}
+            </span>
+            <button
+              type="button"
+              className="intensive-card-nav-btn"
+              onClick={() => goToSegment('next')}
+              disabled={currentSegmentIndex >= segments.length - 1}
+              aria-label="Next sentence"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 6 15 12 9 18" />
+              </svg>
+            </button>
           </div>
 
-          {/* Assessment results */}
-          {isAssessing ? (
-            <div className="assessment-loading">
-              <div className="spinner"></div>
-              <p className="muted">Analyzing your pronunciation...</p>
-            </div>
-          ) : assessmentResult ? (
-            <PronunciationScore
-              result={assessmentResult}
-              referenceText={currentSegment?.text}
-              language={activeLanguage}
-            />
-          ) : error ? (
-            <div className="assessment-error">
-              <p>{error}</p>
-            </div>
-          ) : null}
-
-          {/* Retry button */}
-          <button className="btn btn-secondary" onClick={retryRecording}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 4v6h6" />
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          <button
+            type="button"
+            className="intensive-card-close"
+            onClick={onBack}
+            aria-label="End session"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
-            Try Again
           </button>
-        </>
-      )}
+        </div>
 
-      {/* Navigation */}
-      <div className="session-navigation">
-        <button
-          className="btn btn-secondary"
-          onClick={goToPreviousSegment}
-          disabled={currentSegmentIndex === 0}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Previous
-        </button>
+        {/* Main content */}
+        <div className="intensive-card-content intensive-card-content--speaking">
+          {/* Transcript zone */}
+          <div className="intensive-transcript-zone">
+            <div className="intensive-transcript intensive-transcript--speaking">
+              {currentSegment?.text || 'No text available'}
+            </div>
+          </div>
 
-        <button
-          className="btn btn-primary"
-          onClick={goToNextSegment}
-          disabled={currentSegmentIndex === segments.length - 1}
-        >
-          Next
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
+          {/* Player */}
+          <div className="intensive-player">
+            <div className="intensive-player-progress">
+              <div
+                className="intensive-player-progress-fill"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="intensive-player-controls">
+              <button
+                type="button"
+                className={`intensive-player-btn ${playbackRate === 0.75 ? 'is-active' : ''}`}
+                onClick={togglePlaybackRate}
+                aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
+                title={playbackRate === 0.75 ? '0.75x' : '1x'}
+              >
+                <svg width="22" height="22" viewBox="0 0 100 100" fill="currentColor">
+                  <ellipse cx="50" cy="50" rx="35" ry="25" />
+                  <circle cx="90" cy="50" r="12" />
+                  <ellipse cx="75" cy="72" rx="8" ry="12" />
+                  <ellipse cx="75" cy="28" rx="8" ry="12" />
+                  <ellipse cx="25" cy="72" rx="8" ry="12" />
+                  <ellipse cx="25" cy="28" rx="8" ry="12" />
+                  <ellipse cx="12" cy="50" rx="6" ry="4" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="intensive-player-btn"
+                onClick={() => scrubAudio(-2)}
+                aria-label="Back 2 seconds"
+              >
+                <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
+                  <g transform="translate(36 0) scale(-1 1)">
+                    <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                    <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                  </g>
+                  <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="intensive-player-btn intensive-player-btn-play"
+                onClick={togglePlayPause}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                className="intensive-player-btn"
+                onClick={() => scrubAudio(2)}
+                aria-label="Forward 2 seconds"
+              >
+                <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
+                  <circle className="scrub-arc" cx="18" cy="18" r="12" />
+                  <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
+                  <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={`intensive-player-btn ${isLooping ? 'is-active' : ''}`}
+                onClick={toggleLoop}
+                aria-label={isLooping ? 'Disable loop' : 'Enable loop'}
+                aria-pressed={isLooping}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 2l4 4-4 4" />
+                  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                  <path d="M7 22l-4-4 4-4" />
+                  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                </svg>
+              </button>
+            </div>
+          </div>
 
-      {/* Exit session */}
-      <div className="session-footer">
-        <button className="btn-link" onClick={onBack}>
-          End Session
-        </button>
+          {/* Recording zone */}
+          <div className="intensive-recording-zone">
+            {!userRecording ? (
+              <div className="intensive-recording-prompt">
+                <p className="intensive-recording-instruction">
+                  Listen, then record yourself:
+                </p>
+                <AudioRecorder
+                  onRecordingComplete={handleRecordingComplete}
+                  maxDuration={30}
+                  showPlayback={false}
+                  autoSubmit={true}
+                />
+              </div>
+            ) : (
+              <div className="intensive-recording-result">
+                {/* Playback comparison */}
+                <div className="intensive-playback-comparison">
+                  <div className="intensive-playback-item">
+                    <span className="intensive-playback-label">Original</span>
+                    <audio src={content.fullAudioUrl} controls />
+                  </div>
+                  <div className="intensive-playback-item">
+                    <span className="intensive-playback-label">Your Recording</span>
+                    <audio src={userRecording.url} controls />
+                  </div>
+                </div>
+
+                {/* Assessment */}
+                {isAssessing ? (
+                  <div className="intensive-assessment-loading">
+                    <div className="spinner" />
+                    <p className="muted">Analyzing pronunciation...</p>
+                  </div>
+                ) : assessmentResult ? (
+                  <PronunciationScore
+                    result={assessmentResult}
+                    referenceText={currentSegment?.text}
+                    language={activeLanguage}
+                  />
+                ) : error ? (
+                  <div className="intensive-assessment-error">
+                    <p>{error}</p>
+                  </div>
+                ) : null}
+
+                {/* Retry button */}
+                <button className="intensive-retry-btn" onClick={retryRecording}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 4v6h6" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  Try Again
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

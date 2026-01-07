@@ -2928,6 +2928,157 @@ textarea {
   color: #166534;
 }
 
+/* ===== INTENSIVE SPEAKING MODE ===== */
+
+.intensive-card--speaking {
+  max-width: 800px;
+}
+
+.intensive-card-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.intensive-card-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.intensive-card-loading,
+.intensive-card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1rem;
+}
+
+.intensive-card-content--speaking {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.intensive-transcript--speaking {
+  font-family: 'EB Garamond', 'Garamond', serif;
+  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.6rem);
+  font-weight: 400;
+  line-height: 1.6;
+  color: #0f172a;
+  text-align: center;
+}
+
+/* Recording zone */
+.intensive-recording-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.intensive-recording-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.intensive-recording-instruction {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.intensive-recording-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Playback comparison */
+.intensive-playback-comparison {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.intensive-playback-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.intensive-playback-label {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.intensive-playback-item audio {
+  height: 36px;
+  border-radius: 18px;
+}
+
+/* Assessment states */
+.intensive-assessment-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.intensive-assessment-error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+/* Retry button */
+.intensive-retry-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.intensive-retry-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
 .translate-popup {
   background: #ffffff;
   padding: 14px 16px 12px;

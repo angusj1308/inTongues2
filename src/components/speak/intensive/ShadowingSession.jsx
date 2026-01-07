@@ -3,6 +3,7 @@ import { useAuth } from '../../../context/AuthContext'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { AudioRecorder } from '../shared'
+import { WaveformPlayer } from './WaveformPlayer'
 import YouTubePlayer from '../../YouTubePlayer'
 
 /**
@@ -748,30 +749,23 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
               />
             ) : (
               <div className="pronunciation-compare">
-                {/* A/B Compare - Native vs Yours */}
-                <div className="compare-section">
-                  <div className="compare-label">Compare yourself to the native speaker:</div>
-
-                  <div className="compare-players">
-                    <div className="compare-player native">
-                      <span className="compare-player-label">Native</span>
-                      <button
-                        className="compare-play-btn"
-                        onClick={togglePlayPause}
-                      >
-                        {isPlaying ? '⏸' : '▶'}
-                      </button>
-                    </div>
-
-                    <div className="compare-player yours">
-                      <span className="compare-player-label">Yours</span>
-                      <audio src={userRecording.url} controls className="compare-audio" />
-                    </div>
+                {/* Waveform comparison */}
+                <div className="compare-waveforms">
+                  <div className="compare-waveform-item native">
+                    <WaveformPlayer
+                      src={content.fullAudioUrl}
+                      label="Native"
+                      color="#3b82f6"
+                    />
                   </div>
 
-                  <p className="compare-tip">
-                    Listen for differences in vowel quality, consonant sounds, and rhythm.
-                  </p>
+                  <div className="compare-waveform-item yours">
+                    <WaveformPlayer
+                      src={userRecording.url}
+                      label="Yours"
+                      color="#10b981"
+                    />
+                  </div>
                 </div>
 
                 {/* Try again */}

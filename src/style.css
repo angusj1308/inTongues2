@@ -2332,17 +2332,14 @@ textarea {
 /* Intensive listening - larger card layout */
 .intensive-overlay {
   position: fixed;
-  top: 56px; /* Below page header */
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
-  z-index: 40;
+  z-index: 100;
 }
 
 .intensive-card {
@@ -2929,10 +2926,6 @@ textarea {
 }
 
 /* ===== INTENSIVE SPEAKING MODE ===== */
-
-.intensive-card--speaking {
-  max-width: 800px;
-}
 
 .intensive-card-close {
   display: flex;
@@ -14535,19 +14528,7 @@ body.active-pass-locked {
   text-transform: uppercase;
 }
 
-/* Intensive Mode Overlay */
-.intensive-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 2rem;
-}
+/* Intensive Mode Overlay - Content selector specific styles */
 
 .intensive-overlay-content {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;

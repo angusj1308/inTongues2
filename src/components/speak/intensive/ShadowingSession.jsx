@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
-import { WaveformPlayer } from './WaveformPlayer'
 import YouTubePlayer from '../../YouTubePlayer'
 
 /**
@@ -139,8 +138,10 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   // Recording state
   const [isRecording, setIsRecording] = useState(false)
+  const [isPlayingUser, setIsPlayingUser] = useState(false)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
+  const userAudioRef = useRef(null)
 
   // Audio player state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -617,6 +618,29 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
     }
   }
 
+  // Toggle user recording playback
+  const toggleUserPlayback = () => {
+    if (!userAudioRef.current) return
+
+    if (isPlayingUser) {
+      userAudioRef.current.pause()
+      setIsPlayingUser(false)
+    } else {
+      userAudioRef.current.play()
+      setIsPlayingUser(true)
+    }
+  }
+
+  // Handle user audio ended
+  useEffect(() => {
+    const audio = userAudioRef.current
+    if (audio) {
+      const handleEnded = () => setIsPlayingUser(false)
+      audio.addEventListener('ended', handleEnded)
+      return () => audio.removeEventListener('ended', handleEnded)
+    }
+  }, [userRecording])
+
   // Navigation
   const goToSegment = useCallback((direction) => {
     if (direction === 'next' && currentSegmentIndex < segments.length - 1) {
@@ -657,6 +681,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   const retryRecording = () => {
     setUserRecording(null)
+    setIsPlayingUser(false)
     setError(null)
   }
 
@@ -805,31 +830,31 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                 </button>
               </>
             ) : (
-              <div className="pronunciation-compare">
+              <>
                 <p className="pronunciation-prompt">
                   Compare your pronunciation to the native speaker
                 </p>
-
-                {/* Waveform comparison */}
-                <div className="compare-waveforms">
-                  <div className="compare-waveform-item native">
-                    <WaveformPlayer
-                      src={content.fullAudioUrl}
-                      label="Native"
-                      color="#1e293b"
-                    />
-                  </div>
-
-                  <div className="compare-waveform-item yours">
-                    <WaveformPlayer
-                      src={userRecording.url}
-                      label="Yours"
-                      color="#64748b"
-                    />
-                  </div>
-                </div>
-
-                {/* Try again */}
+                {/* Hidden audio element for user recording */}
+                <audio ref={userAudioRef} src={userRecording.url} />
+                {/* Play button for user recording - same style as native */}
+                <button
+                  type="button"
+                  className="pronunciation-play-btn yours"
+                  onClick={toggleUserPlayback}
+                  aria-label={isPlayingUser ? 'Pause your recording' : 'Play your recording'}
+                >
+                  {isPlayingUser ? (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </button>
+                {/* Record again */}
                 <button className="pronunciation-retry-btn" onClick={retryRecording}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M1 4v6h6" />
@@ -837,7 +862,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                   </svg>
                   Record Again
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>

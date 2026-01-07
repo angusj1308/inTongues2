@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../firebase'
-import { ShadowingSession } from './ShadowingSession'
 import ImportYouTubePanel from '../../listen/ImportYouTubePanel'
 
 /**
@@ -10,6 +10,7 @@ import ImportYouTubePanel from '../../listen/ImportYouTubePanel'
  */
 export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('library') // 'library' | 'import'
   const [storiesLoading, setStoriesLoading] = useState(true)
   const [videosLoading, setVideosLoading] = useState(true)
@@ -18,7 +19,6 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   const [audiobooksExpanded, setAudiobooksExpanded] = useState(true)
   const [videosExpanded, setVideosExpanded] = useState(true)
   const [selectedContent, setSelectedContent] = useState(null)
-  const [activeSession, setActiveSession] = useState(null)
 
   // Subscribe to stories with audio
   useEffect(() => {
@@ -86,16 +86,10 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   // Filter to only show videos that have finished processing
   const readyVideos = youtubeVideos.filter(v => v.status === 'ready')
 
-  // Active shadowing session
-  if (activeSession) {
-    return (
-      <ShadowingSession
-        content={activeSession}
-        activeLanguage={activeLanguage}
-        nativeLanguage={nativeLanguage}
-        onBack={() => setActiveSession(null)}
-      />
-    )
+  // Navigate to pronunciation practice page
+  const startPractice = () => {
+    if (!selectedContent) return
+    navigate(`/pronunciation/${selectedContent.type}/${selectedContent.id}`)
   }
 
   return (
@@ -227,7 +221,7 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
                 <div className="intensive-hub-action">
                   <button
                     className="btn btn-primary"
-                    onClick={() => setActiveSession(selectedContent)}
+                    onClick={startPractice}
                   >
                     Start Practice
                   </button>

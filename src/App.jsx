@@ -23,6 +23,7 @@ import PracticeLesson from './pages/PracticeLesson'
 import FreeWritingLesson from './pages/FreeWritingLesson'
 import NovelGenerator from './pages/NovelGenerator'
 import TutorChat from './pages/TutorChat'
+import PronunciationPractice from './pages/PronunciationPractice'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -230,6 +231,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <PracticeLesson />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pronunciation/:contentType/:contentId"
+        element={
+          <ProtectedRoute>
+            <PronunciationPractice />
           </ProtectedRoute>
         }
       />

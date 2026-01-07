@@ -380,11 +380,9 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   if (loading) {
     return (
-      <div className="intensive-overlay">
-        <div className="intensive-card intensive-card--speaking">
-          <div className="intensive-card-loading">
-            <p className="muted">Loading content...</p>
-          </div>
+      <div className="intensive-card">
+        <div className="intensive-card-loading">
+          <p className="muted">Loading content...</p>
         </div>
       </div>
     )
@@ -392,24 +390,21 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
   if (segments.length === 0) {
     return (
-      <div className="intensive-overlay">
-        <div className="intensive-card intensive-card--speaking">
-          <div className="intensive-card-empty">
-            <p className="muted">No segments found in this content.</p>
-            <button className="btn btn-secondary" onClick={onBack}>
-              Go Back
-            </button>
-          </div>
+      <div className="intensive-card">
+        <div className="intensive-card-empty">
+          <p className="muted">No segments found in this content.</p>
+          <button className="btn btn-secondary" onClick={onBack}>
+            Go Back
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="intensive-overlay">
+    <>
       <audio ref={audioRef} />
-
-      <div className="intensive-card intensive-card--speaking">
+      <div className="intensive-card">
         {/* Header */}
         <div className="intensive-card-header">
           <div className="intensive-card-nav">
@@ -606,7 +601,7 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

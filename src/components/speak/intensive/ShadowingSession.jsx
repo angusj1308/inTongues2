@@ -139,9 +139,11 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   // Recording state
   const [isRecording, setIsRecording] = useState(false)
   const [isPlayingUser, setIsPlayingUser] = useState(false)
+  const [userProgress, setUserProgress] = useState(0)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const userAudioRef = useRef(null)
+  const userProgressIntervalRef = useRef(null)
 
   // Audio player state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -624,10 +626,22 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
 
     if (isPlayingUser) {
       userAudioRef.current.pause()
+      if (userProgressIntervalRef.current) {
+        clearInterval(userProgressIntervalRef.current)
+      }
       setIsPlayingUser(false)
     } else {
       userAudioRef.current.play()
       setIsPlayingUser(true)
+
+      // Track progress
+      userProgressIntervalRef.current = setInterval(() => {
+        const audio = userAudioRef.current
+        if (audio && audio.duration > 0) {
+          const prog = (audio.currentTime / audio.duration) * 100
+          setUserProgress(Math.min(100, Math.max(0, prog)))
+        }
+      }, 50)
     }
   }
 
@@ -635,7 +649,13 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   useEffect(() => {
     const audio = userAudioRef.current
     if (audio) {
-      const handleEnded = () => setIsPlayingUser(false)
+      const handleEnded = () => {
+        setIsPlayingUser(false)
+        setUserProgress(100)
+        if (userProgressIntervalRef.current) {
+          clearInterval(userProgressIntervalRef.current)
+        }
+      }
       audio.addEventListener('ended', handleEnded)
       return () => audio.removeEventListener('ended', handleEnded)
     }
@@ -682,6 +702,10 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const retryRecording = () => {
     setUserRecording(null)
     setIsPlayingUser(false)
+    setUserProgress(0)
+    if (userProgressIntervalRef.current) {
+      clearInterval(userProgressIntervalRef.current)
+    }
     setError(null)
   }
 
@@ -776,16 +800,15 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
             </p>
           </div>
 
-          {/* Simple progress bar */}
-          <div className="pronunciation-progress-bar">
-            <div
-              className="pronunciation-progress-fill"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-
-          {/* Centered play button */}
-          <div className="pronunciation-play-zone">
+          {/* Native audio section */}
+          <div className="pronunciation-audio-section">
+            <span className="pronunciation-label">Native</span>
+            <div className="pronunciation-progress-bar">
+              <div
+                className="pronunciation-progress-fill"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
             <button
               type="button"
               className="pronunciation-play-btn"
@@ -836,24 +859,33 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                 </p>
                 {/* Hidden audio element for user recording */}
                 <audio ref={userAudioRef} src={userRecording.url} />
-                {/* Play button for user recording - same style as native */}
-                <button
-                  type="button"
-                  className="pronunciation-play-btn yours"
-                  onClick={toggleUserPlayback}
-                  aria-label={isPlayingUser ? 'Pause your recording' : 'Play your recording'}
-                >
-                  {isPlayingUser ? (
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="4" width="4" height="16" rx="1" />
-                    </svg>
-                  ) : (
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                </button>
+                {/* User recording section - matches native */}
+                <div className="pronunciation-audio-section yours">
+                  <span className="pronunciation-label">Yours</span>
+                  <div className="pronunciation-progress-bar">
+                    <div
+                      className="pronunciation-progress-fill"
+                      style={{ width: `${userProgress}%` }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="pronunciation-play-btn"
+                    onClick={toggleUserPlayback}
+                    aria-label={isPlayingUser ? 'Pause your recording' : 'Play your recording'}
+                  >
+                    {isPlayingUser ? (
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 {/* Record again */}
                 <button className="pronunciation-retry-btn" onClick={retryRecording}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

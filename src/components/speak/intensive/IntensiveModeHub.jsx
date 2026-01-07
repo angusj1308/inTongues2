@@ -52,9 +52,9 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     return unsubscribe
   }, [user?.uid, activeLanguage])
 
-  // Subscribe to YouTube videos
+  // Subscribe to YouTube videos (no language filter - many videos don't have language set)
   useEffect(() => {
-    if (!user?.uid || !activeLanguage) {
+    if (!user?.uid) {
       setYoutubeVideos([])
       setVideosLoading(false)
       return
@@ -64,7 +64,6 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
     const videosQuery = query(
       videosRef,
-      where('language', '==', activeLanguage),
       orderBy('createdAt', 'desc')
     )
 
@@ -81,9 +80,10 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     )
 
     return unsubscribe
-  }, [user?.uid, activeLanguage])
+  }, [user?.uid])
 
   const loading = storiesLoading || videosLoading
+  // Filter to only show videos that have finished processing
   const readyVideos = youtubeVideos.filter(v => v.status === 'ready')
 
   // Active shadowing session
@@ -121,9 +121,9 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
         <div className="intensive-hub-library">
           {loading ? (
             <p className="muted small">Loading...</p>
-          ) : stories.length === 0 && readyVideos.length === 0 ? (
+          ) : stories.length === 0 && youtubeVideos.length === 0 ? (
             <div className="intensive-hub-empty">
-              <p className="muted">No audio content in {activeLanguage} yet.</p>
+              <p className="muted">No audio content yet.</p>
               <button className="btn btn-sm" onClick={() => setActiveTab('import')}>
                 Import something
               </button>
@@ -178,7 +178,7 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
                   onClick={() => setVideosExpanded(!videosExpanded)}
                 >
                   <span className="intensive-hub-section-title">
-                    YouTube Videos ({readyVideos.length})
+                    YouTube Videos ({youtubeVideos.length})
                   </span>
                   <svg
                     className={`intensive-hub-chevron ${videosExpanded ? 'expanded' : ''}`}
@@ -194,21 +194,29 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
                 </button>
                 {videosExpanded && (
                   <ul className="intensive-hub-list">
-                    {readyVideos.length === 0 ? (
-                      <li className="intensive-hub-list-empty">No videos ready</li>
+                    {youtubeVideos.length === 0 ? (
+                      <li className="intensive-hub-list-empty">No videos imported</li>
                     ) : (
-                      readyVideos.map(video => (
-                        <li
-                          key={video.id}
-                          className={`intensive-hub-list-item ${selectedContent?.id === video.id ? 'selected' : ''}`}
-                          onClick={() => setSelectedContent(video)}
-                        >
-                          <span className="intensive-hub-item-title">{video.title || 'Untitled'}</span>
-                          {video.channelTitle && (
-                            <span className="intensive-hub-item-meta">{video.channelTitle}</span>
-                          )}
-                        </li>
-                      ))
+                      youtubeVideos.map(video => {
+                        const isReady = video.status === 'ready'
+                        const isImporting = video.status === 'importing'
+                        const isFailed = video.status === 'failed'
+
+                        return (
+                          <li
+                            key={video.id}
+                            className={`intensive-hub-list-item ${selectedContent?.id === video.id ? 'selected' : ''} ${!isReady ? 'disabled' : ''}`}
+                            onClick={() => isReady && setSelectedContent(video)}
+                          >
+                            <span className="intensive-hub-item-title">{video.title || 'Untitled'}</span>
+                            <span className="intensive-hub-item-meta">
+                              {isImporting && 'Processing...'}
+                              {isFailed && 'Failed'}
+                              {isReady && video.channelTitle}
+                            </span>
+                          </li>
+                        )
+                      })
                     )}
                   </ul>
                 )}

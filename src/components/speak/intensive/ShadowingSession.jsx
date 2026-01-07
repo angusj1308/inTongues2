@@ -7,17 +7,19 @@ import { PronunciationScore } from './PronunciationScore'
 
 /**
  * Chunk text into smaller segments for pronunciation practice
- * Target: 4-6 words per chunk for accurate repetition
- * Only used in ShadowingSession - does not affect other modes
+ * - Min 3 words, max 10 words per chunk
+ * - Always ends on punctuation (. , ; : ! ?) when possible
+ * - Creates meaningful, complete phrases
  */
-const CHUNK_TARGET_WORDS = 5
+const CHUNK_MIN_WORDS = 3
+const CHUNK_MAX_WORDS = 10
 
 const chunkTextForPronunciation = (text, start, end) => {
   const words = text.split(/\s+/).filter(w => w.length > 0)
 
   // If already small enough, return as-is
-  if (words.length <= CHUNK_TARGET_WORDS + 2) {
-    return [{ text, start, end }]
+  if (words.length <= CHUNK_MAX_WORDS) {
+    return [{ text: text.trim(), start, end }]
   }
 
   const chunks = []
@@ -25,15 +27,37 @@ const chunkTextForPronunciation = (text, start, end) => {
   const hasTiming = start !== undefined && end !== undefined
   const duration = hasTiming ? end - start : null
 
-  for (let i = 0; i < totalWords; i += CHUNK_TARGET_WORDS) {
-    const chunkWords = words.slice(i, Math.min(i + CHUNK_TARGET_WORDS, totalWords))
+  // Check if a word ends with punctuation
+  const endsWithPunctuation = (word) => /[.,;:!?]$/.test(word)
+
+  let i = 0
+  while (i < totalWords) {
+    let chunkEndIndex = i + CHUNK_MIN_WORDS - 1
+
+    // Look for punctuation between min and max
+    let foundPunctuation = false
+    for (let j = i + CHUNK_MIN_WORDS - 1; j < Math.min(i + CHUNK_MAX_WORDS, totalWords); j++) {
+      if (endsWithPunctuation(words[j])) {
+        chunkEndIndex = j
+        foundPunctuation = true
+        break
+      }
+    }
+
+    // If no punctuation found, use max words or remaining
+    if (!foundPunctuation) {
+      chunkEndIndex = Math.min(i + CHUNK_MAX_WORDS - 1, totalWords - 1)
+    }
+
+    // Extract chunk
+    const chunkWords = words.slice(i, chunkEndIndex + 1)
     const chunkText = chunkWords.join(' ')
 
-    // Estimate timestamps proportionally based on word count
+    // Estimate timestamps proportionally
     let chunkStart, chunkEnd
     if (hasTiming && duration > 0) {
       const startRatio = i / totalWords
-      const endRatio = Math.min(i + chunkWords.length, totalWords) / totalWords
+      const endRatio = (chunkEndIndex + 1) / totalWords
       chunkStart = start + (duration * startRatio)
       chunkEnd = start + (duration * endRatio)
     }
@@ -43,6 +67,8 @@ const chunkTextForPronunciation = (text, start, end) => {
       start: chunkStart,
       end: chunkEnd
     })
+
+    i = chunkEndIndex + 1
   }
 
   return chunks

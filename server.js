@@ -2524,8 +2524,20 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
         ...(whisperLanguage ? { language: whisperLanguage } : {}),
       })
 
+      // Debug: log Whisper response structure
+      console.log('Whisper response keys:', Object.keys(transcription || {}))
+      console.log('Whisper words count:', transcription?.words?.length || 0)
+      if (transcription?.words?.length > 0) {
+        console.log('Sample word:', JSON.stringify(transcription.words[0]))
+      }
+
       allSegments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
       fullText = transcription?.text || ''
+
+      // Debug: check if segments have words
+      if (allSegments.length > 0) {
+        console.log('Sample segment words count:', allSegments[0]?.words?.length || 0)
+      }
     }
 
     console.log('Total segments:', allSegments.length)

@@ -1,5 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
+import { db } from '../../firebase'
+import { useAuth } from '../../context/AuthContext'
 import { IntensiveModeHub } from './intensive/IntensiveModeHub'
 import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
 import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
@@ -8,8 +11,38 @@ import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
  * Main hub for the Speaking tab - allows selection between different speaking practice modes
  */
 export function SpeakHub({ activeLanguage, nativeLanguage }) {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [activeMode, setActiveMode] = useState(null) // null | 'pronunciation' | 'speakingPractice' | 'voiceRecord' | 'conversation'
+  const [pronunciationSessions, setPronunciationSessions] = useState([])
+
+  // Subscribe to pronunciation sessions
+  useEffect(() => {
+    if (!user?.uid) {
+      setPronunciationSessions([])
+      return
+    }
+
+    const sessionsRef = collection(db, 'users', user.uid, 'pronunciationSessions')
+    const sessionsQuery = query(sessionsRef, orderBy('createdAt', 'desc'))
+
+    const unsubscribe = onSnapshot(
+      sessionsQuery,
+      (snapshot) => {
+        setPronunciationSessions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      },
+      (err) => {
+        console.error('Error loading pronunciation sessions:', err)
+      }
+    )
+
+    return unsubscribe
+  }, [user?.uid])
+
+  // Filter to sessions that are preparing or ready
+  const activeSessions = pronunciationSessions.filter(s =>
+    s.status === 'ready' || s.status === 'preparing' || s.status === 'processing'
+  )
 
   // Conversation mode - placeholder linking to tutor
   if (activeMode === 'conversation') {
@@ -180,6 +213,43 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           <span className="coming-soon-badge">Coming Soon</span>
         </button>
       </div>
+
+      {/* Active pronunciation sessions */}
+      {activeSessions.length > 0 && (
+        <div className="speak-sessions-section">
+          <h3>Your Sessions</h3>
+          <div className="speak-sessions-grid">
+            {activeSessions.map(session => {
+              const isPreparing = session.status === 'preparing' || session.status === 'processing'
+              const isReady = session.status === 'ready'
+
+              return (
+                <div
+                  key={session.id}
+                  className={`speak-session-card ${isPreparing ? 'preparing' : ''} ${isReady ? 'ready' : ''}`}
+                  onClick={() => isReady && navigate(`/pronunciation/${session.contentType}/${session.contentId}`)}
+                >
+                  <div className="speak-session-icon">
+                    {isPreparing ? (
+                      <div className="spinner-medium" />
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="speak-session-info">
+                    <span className="speak-session-title">{session.title}</span>
+                    <span className={`speak-session-status ${isPreparing ? 'preparing' : ''}`}>
+                      {isPreparing ? 'Preparing audio sync...' : 'Ready to practice'}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Quick stats or recent activity could go here */}
       <div className="speak-hub-footer">

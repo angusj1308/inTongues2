@@ -20,6 +20,7 @@ import { createRequire } from 'module'
 import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
+import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
 
 // Non-import statements must come after all imports
@@ -2524,8 +2525,20 @@ async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
         ...(whisperLanguage ? { language: whisperLanguage } : {}),
       })
 
+      // Debug: log Whisper response structure
+      console.log('Whisper response keys:', Object.keys(transcription || {}))
+      console.log('Whisper words count:', transcription?.words?.length || 0)
+      if (transcription?.words?.length > 0) {
+        console.log('Sample word:', JSON.stringify(transcription.words[0]))
+      }
+
       allSegments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
       fullText = transcription?.text || ''
+
+      // Debug: check if segments have words
+      if (allSegments.length > 0) {
+        console.log('Sample segment words count:', allSegments[0]?.words?.length || 0)
+      }
     }
 
     console.log('Total segments:', allSegments.length)
@@ -6181,11 +6194,233 @@ app.post('/api/speech/upload', upload.single('audio'), async (req, res) => {
 })
 
 /**
+ * Convert audio from webm/ogg to wav format for Azure Speech Services
+ * Uses ffmpeg for reliable conversion - 16kHz mono PCM required
+ */
+async function convertWebmToWav(audioBuffer) {
+  const tmpDir = os.tmpdir()
+  const inputPath = path.join(tmpDir, `input-${Date.now()}.webm`)
+  const outputPath = path.join(tmpDir, `output-${Date.now()}.wav`)
+
+  try {
+    // Write input file
+    await fs.writeFile(inputPath, audioBuffer)
+
+    // Convert using ffmpeg - Azure requires 16kHz mono PCM
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputOptions([
+          '-acodec pcm_s16le',
+          '-ar 16000',
+          '-ac 1'
+        ])
+        .output(outputPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run()
+    })
+
+    // Read output file and return paths for cleanup
+    const wavBuffer = await fs.readFile(outputPath)
+    return { wavBuffer, wavPath: outputPath, inputPath }
+  } catch (err) {
+    // Cleanup on error
+    try { await fs.unlink(inputPath) } catch {}
+    try { await fs.unlink(outputPath) } catch {}
+    throw err
+  }
+}
+
+/**
+ * Azure Speech Services Pronunciation Assessment
+ * Provides real acoustic phoneme-level analysis
+ */
+async function assessPronunciationWithAzure(wavPath, referenceText, language) {
+  const speechKey = process.env.AZURE_SPEECH_KEY
+  const speechRegion = process.env.AZURE_SPEECH_REGION
+
+  if (!speechKey || !speechRegion) {
+    throw new Error('Azure Speech credentials not configured')
+  }
+
+  // Map language names to Azure locale codes
+  const localeMap = {
+    'French': 'fr-FR',
+    'Spanish': 'es-ES',
+    'Italian': 'it-IT',
+    'German': 'de-DE',
+    'Portuguese': 'pt-BR',
+    'Japanese': 'ja-JP',
+    'Chinese': 'zh-CN',
+    'Korean': 'ko-KR',
+    'Russian': 'ru-RU',
+    'English': 'en-US'
+  }
+  const locale = localeMap[language] || 'en-US'
+
+  return new Promise((resolve, reject) => {
+    const speechConfig = sdk.SpeechConfig.fromSubscription(speechKey, speechRegion)
+    speechConfig.speechRecognitionLanguage = locale
+
+    // Configure pronunciation assessment with all metrics
+    const pronConfig = new sdk.PronunciationAssessmentConfig(
+      referenceText,
+      sdk.PronunciationAssessmentGradingSystem.HundredMark,
+      sdk.PronunciationAssessmentGranularity.Phoneme,
+      true // Enable miscue detection
+    )
+    pronConfig.enableProsodyAssessment = true
+
+    // Create audio config from file
+    const audioConfig = sdk.AudioConfig.fromWavFileInput(
+      require('fs').readFileSync(wavPath)
+    )
+
+    const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig)
+    pronConfig.applyTo(recognizer)
+
+    recognizer.recognizeOnceAsync(
+      (result) => {
+        if (result.reason === sdk.ResultReason.RecognizedSpeech) {
+          const pronResult = sdk.PronunciationAssessmentResult.fromResult(result)
+
+          // Extract detailed scores
+          const detailedResult = {
+            recognizedText: result.text,
+            pronunciationScore: pronResult.pronunciationScore,
+            accuracyScore: pronResult.accuracyScore,
+            fluencyScore: pronResult.fluencyScore,
+            completenessScore: pronResult.completenessScore,
+            prosodyScore: pronResult.prosodyScore,
+            words: []
+          }
+
+          // Get word-level and phoneme-level details from JSON
+          const jsonResult = result.properties.getProperty(
+            sdk.PropertyId.SpeechServiceResponse_JsonResult
+          )
+
+          if (jsonResult) {
+            try {
+              const parsed = JSON.parse(jsonResult)
+              const nBest = parsed.NBest?.[0]
+
+              if (nBest?.Words) {
+                detailedResult.words = nBest.Words.map(word => ({
+                  word: word.Word,
+                  accuracyScore: word.PronunciationAssessment?.AccuracyScore || 0,
+                  errorType: word.PronunciationAssessment?.ErrorType || 'None',
+                  phonemes: (word.Phonemes || []).map(p => ({
+                    phoneme: p.Phoneme,
+                    accuracyScore: p.PronunciationAssessment?.AccuracyScore || 0
+                  }))
+                }))
+              }
+
+              if (nBest?.PronunciationAssessment?.Prosody) {
+                detailedResult.prosodyDetails = nBest.PronunciationAssessment.Prosody
+              }
+            } catch (parseErr) {
+              console.error('Error parsing Azure JSON result:', parseErr)
+            }
+          }
+
+          recognizer.close()
+          resolve(detailedResult)
+        } else if (result.reason === sdk.ResultReason.NoMatch) {
+          recognizer.close()
+          reject(new Error('No speech could be recognized'))
+        } else {
+          recognizer.close()
+          reject(new Error(`Recognition failed: ${result.reason}`))
+        }
+      },
+      (err) => {
+        recognizer.close()
+        reject(err)
+      }
+    )
+  })
+}
+
+/**
+ * Generate accent analysis summary from Azure results
+ */
+function generateAccentAnalysis(result, language) {
+  const score = result.pronunciationScore || 0
+  const accuracy = result.accuracyScore || 0
+  const fluency = result.fluencyScore || 0
+  const prosody = result.prosodyScore || 0
+
+  const errors = result.words?.filter(w => w.errorType !== 'None') || []
+
+  let analysis = ''
+
+  if (score >= 90) {
+    analysis = `Excellent ${language} pronunciation. `
+  } else if (score >= 80) {
+    analysis = `Very good ${language} pronunciation with minor areas for improvement. `
+  } else if (score >= 70) {
+    analysis = `Good ${language} pronunciation. Clear accent but fully comprehensible. `
+  } else if (score >= 60) {
+    analysis = `Developing ${language} pronunciation. Some sounds need attention. `
+  } else {
+    analysis = `${language} pronunciation needs practice. Focus on individual sounds. `
+  }
+
+  if (accuracy < fluency - 10) {
+    analysis += 'Individual sounds need more work than overall flow. '
+  } else if (fluency < accuracy - 10) {
+    analysis += 'Good sounds but work on smoother delivery. '
+  }
+
+  if (prosody && prosody < 70) {
+    analysis += 'Pay attention to intonation and rhythm patterns. '
+  }
+
+  if (errors.length > 0) {
+    const omissions = errors.filter(e => e.errorType === 'Omission').length
+    const mispron = errors.filter(e => e.errorType === 'Mispronunciation').length
+    if (omissions > 0) analysis += `${omissions} word(s) were missed. `
+    if (mispron > 0) analysis += `${mispron} word(s) had pronunciation errors. `
+  }
+
+  return analysis.trim()
+}
+
+/**
+ * Get articulatory advice for a phoneme
+ */
+function getPhonemeAdvice(phoneme, language) {
+  const tips = {
+    'ʁ': 'Uvular R: constrict the back of your throat, not tongue tip',
+    'y': 'French U: say "ee" while rounding your lips like "oo"',
+    'ø': 'EU sound: say "ay" but round your lips',
+    'œ': 'EU sound: like "uh" but with rounded lips',
+    'ɑ̃': 'Nasal AN: say "ah" while letting air through your nose',
+    'ɛ̃': 'Nasal IN: say "eh" nasally',
+    'ɔ̃': 'Nasal ON: say "oh" nasally',
+    'ɾ': 'Tapped R: quick single tap of tongue behind teeth',
+    'r': 'Trilled R: let tongue vibrate against roof of mouth',
+    'β': 'Soft B: lips close but don\'t fully touch',
+    'ð': 'Soft D: tongue between teeth, like "th" in "this"',
+    'ɣ': 'Soft G: back of tongue raised but not touching',
+    'x': 'Friction at back of throat',
+    'ʎ': 'GL sound: press tongue flat against hard palate',
+    'ɲ': 'GN sound: flatten tongue against palate',
+    'ç': 'ICH-laut: tongue close to palate, like "h" in "hue"'
+  }
+  return tips[phoneme] || `Focus on matching the native ${language} sound`
+}
+
+/**
  * Pronunciation assessment endpoint
- * Uses Whisper for transcription and GPT for phoneme-level analysis
- * Note: Full Azure Speech Services integration would go here when credentials are available
+ * Uses Azure Speech Services for real acoustic phoneme-level analysis
  */
 app.post('/api/speech/assess-pronunciation', async (req, res) => {
+  let wavPath = null
+  let inputPath = null
+
   try {
     const { audioBase64, referenceText, language } = req.body
 
@@ -6193,98 +6428,122 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
       return res.status(400).json({ error: 'Audio and reference text required' })
     }
 
-    const languageCode = SPEECH_LANGUAGE_CODES[language] || 'en'
+    // Check Azure credentials
+    if (!process.env.AZURE_SPEECH_KEY || !process.env.AZURE_SPEECH_REGION) {
+      console.error('Azure Speech credentials not found in environment')
+      return res.status(500).json({ error: 'Speech service not configured' })
+    }
 
-    // Convert base64 to buffer
+    // Convert webm from browser to wav for Azure
     const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const conversion = await convertWebmToWav(audioBuffer)
+    wavPath = conversion.wavPath
+    inputPath = conversion.inputPath
 
-    // Transcribe with Whisper
-    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
-    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+    console.log('Converted audio to WAV:', conversion.wavBuffer.length, 'bytes')
+    console.log('Assessing pronunciation with Azure Speech Services...')
 
-    const transcription = await client.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['word'],
-      language: languageCode
+    // Get Azure pronunciation assessment
+    const azureResult = await assessPronunciationWithAzure(wavPath, referenceText, language)
+
+    console.log('Azure assessment complete:', {
+      pronunciation: azureResult.pronunciationScore,
+      accuracy: azureResult.accuracyScore,
+      fluency: azureResult.fluencyScore,
+      completeness: azureResult.completenessScore,
+      prosody: azureResult.prosodyScore
     })
 
-    const spokenText = transcription.text || ''
-    const words = transcription.words || []
-
-    // Use GPT to analyze pronunciation accuracy
-    const analysisPrompt = `You are a pronunciation assessment expert for ${language} language learning.
-
-REFERENCE TEXT (what the student should have said):
-"${referenceText}"
-
-WHAT THE STUDENT SAID (transcribed):
-"${spokenText}"
-
-TRANSCRIBED WORDS WITH TIMING:
-${JSON.stringify(words, null, 2)}
-
-Analyze the pronunciation and provide a detailed assessment. Return JSON:
-{
-  "pronunciationScore": 0-100,
-  "accuracyScore": 0-100,
-  "fluencyScore": 0-100,
-  "completenessScore": 0-100,
-  "words": [
-    {
-      "word": "expected word",
-      "spoken": "what was said",
-      "accuracyScore": 0-100,
-      "errorType": "None" | "Mispronunciation" | "Omission" | "Insertion",
-      "phonemes": [
-        { "phoneme": "IPA symbol", "accuracyScore": 0-100 }
-      ]
-    }
-  ],
-  "articulatoryTips": [
-    { "word": "word", "phoneme": "IPA", "tip": "articulatory advice" }
-  ]
-}
-
-Be encouraging but accurate. Focus on the most important pronunciation issues.
-Return ONLY valid JSON.`
-
-    const response = await client.responses.create({
-      model: 'gpt-4o',
-      input: analysisPrompt
-    })
-
-    let assessment
-    try {
-      const text = response.output_text || ''
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        assessment = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found in response')
-      }
-    } catch (parseErr) {
-      console.error('Failed to parse pronunciation assessment:', parseErr)
-      // Return basic assessment
-      assessment = {
-        pronunciationScore: 70,
-        accuracyScore: 70,
-        fluencyScore: 75,
-        completenessScore: spokenText.length > 0 ? 80 : 0,
-        words: [],
-        articulatoryTips: []
-      }
-    }
-
-    res.json({
-      transcription: spokenText,
+    // Format response for frontend
+    const response = {
       referenceText,
-      ...assessment
-    })
+      transcription: azureResult.recognizedText,
+      pronunciationScore: Math.round(azureResult.pronunciationScore || 0),
+      accuracyScore: Math.round(azureResult.accuracyScore || 0),
+      fluencyScore: Math.round(azureResult.fluencyScore || 0),
+      completenessScore: Math.round(azureResult.completenessScore || 0),
+      prosodyScore: Math.round(azureResult.prosodyScore || 0),
+
+      // Map to dimension scores format for UI
+      dimensionScores: {
+        segmental: {
+          vowels: Math.round((azureResult.accuracyScore || 0) * 0.2),
+          consonants: Math.round((azureResult.accuracyScore || 0) * 0.2),
+          notes: azureResult.words?.filter(w => w.errorType !== 'None').map(w =>
+            `${w.word}: ${w.errorType}`
+          ).join(', ') || 'Good segmental accuracy'
+        },
+        prosody: {
+          stress: Math.round((azureResult.prosodyScore || 70) * 0.12),
+          rhythm: Math.round((azureResult.prosodyScore || 70) * 0.12),
+          intonation: Math.round((azureResult.prosodyScore || 70) * 0.11),
+          notes: 'Prosody assessed by Azure'
+        },
+        connectedSpeech: {
+          liaison: Math.round((azureResult.fluencyScore || 70) * 0.08),
+          elision: Math.round((azureResult.fluencyScore || 70) * 0.07),
+          notes: 'Based on fluency metrics'
+        },
+        fluency: {
+          smoothness: Math.round((azureResult.fluencyScore || 70) * 0.05),
+          pace: Math.round((azureResult.fluencyScore || 70) * 0.05),
+          notes: `Fluency: ${Math.round(azureResult.fluencyScore || 0)}%`
+        }
+      },
+
+      // Word-level details with phonemes
+      words: azureResult.words?.map(w => ({
+        word: w.word,
+        score: Math.round(w.accuracyScore || 0),
+        accuracyScore: Math.round(w.accuracyScore || 0),
+        errorType: w.errorType,
+        phonemes: w.phonemes?.map(p => ({
+          phoneme: p.phoneme,
+          accuracyScore: Math.round(p.accuracyScore || 0)
+        })) || []
+      })) || [],
+
+      // Generate issues list from low-scoring words
+      majorIssues: azureResult.words
+        ?.filter(w => w.accuracyScore < 60 || w.errorType !== 'None')
+        .map(w => {
+          if (w.errorType === 'Omission') return `"${w.word}" was not pronounced`
+          if (w.errorType === 'Insertion') return `Extra word detected`
+          if (w.errorType === 'Mispronunciation') return `"${w.word}" mispronounced (${Math.round(w.accuracyScore)}%)`
+          if (w.accuracyScore < 60) return `"${w.word}" needs work (${Math.round(w.accuracyScore)}%)`
+          return null
+        })
+        .filter(Boolean)
+        .slice(0, 5) || [],
+
+      // Generate articulatory tips from low-scoring phonemes
+      articulatoryTips: azureResult.words
+        ?.flatMap(w =>
+          (w.phonemes || [])
+            .filter(p => p.accuracyScore < 70)
+            .map(p => ({
+              phoneme: p.phoneme,
+              issue: `Low accuracy in "${w.word}"`,
+              tip: getPhonemeAdvice(p.phoneme, language)
+            }))
+        )
+        .slice(0, 4) || [],
+
+      accentAnalysis: generateAccentAnalysis(azureResult, language)
+    }
+
+    res.json(response)
+
   } catch (error) {
     console.error('Pronunciation assessment error:', error)
-    res.status(500).json({ error: 'Failed to assess pronunciation' })
+    res.status(500).json({
+      error: 'Failed to assess pronunciation',
+      details: error.message
+    })
+  } finally {
+    // Cleanup temp files
+    if (wavPath) try { await fs.unlink(wavPath) } catch {}
+    if (inputPath) try { await fs.unlink(inputPath) } catch {}
   }
 })
 

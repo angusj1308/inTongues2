@@ -13990,6 +13990,104 @@ body.active-pass-locked {
   text-align: center;
 }
 
+/* Sessions Section */
+.speak-sessions-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.speak-sessions-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: #374151;
+}
+
+.speak-sessions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.speak-session-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.speak-session-card.ready:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+.speak-session-card.preparing {
+  cursor: default;
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.speak-session-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.speak-session-card.ready .speak-session-icon {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.speak-session-card.preparing .speak-session-icon {
+  background: #fef3c7;
+}
+
+.speak-session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.speak-session-title {
+  font-weight: 500;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.speak-session-status {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.speak-session-status.preparing {
+  color: #d97706;
+}
+
+/* Medium spinner for session cards */
+.spinner-medium {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(217, 119, 6, 0.3);
+  border-radius: 50%;
+  border-top-color: #d97706;
+  animation: spin 0.8s linear infinite;
+}
+
 /* Mode Selection Grid */
 .speak-mode-grid {
   display: grid;
@@ -14978,6 +15076,39 @@ body.active-pass-locked {
   font-size: 0.875rem;
 }
 
+/* Accent Analysis */
+.accent-analysis {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.accent-analysis h5 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.accent-analysis-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #78350f;
+}
+
+[data-theme='dark'] .accent-analysis {
+  background: #451a03;
+  border-color: #92400e;
+}
+
+[data-theme='dark'] .accent-analysis h5,
+[data-theme='dark'] .accent-analysis-text {
+  color: #fef3c7;
+}
+
 /* Word Analysis */
 .word-analysis {
   margin-bottom: 1.5rem;
@@ -15041,6 +15172,15 @@ body.active-pass-locked {
   text-transform: uppercase;
 }
 
+.word-issue {
+  font-size: 0.6875rem;
+  color: #b45309;
+  font-style: italic;
+  text-align: center;
+  max-width: 100px;
+  line-height: 1.3;
+}
+
 /* Phoneme Feedback */
 .phoneme-feedback {
   margin-bottom: 1.5rem;
@@ -15091,6 +15231,119 @@ body.active-pass-locked {
 
 .phoneme-tip {
   color: #475569;
+}
+
+/* New phonetic dimension styles */
+.dimension-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.dimension-note {
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.dimension-note strong {
+  color: #1e293b;
+}
+
+.major-issues {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.major-issues h5 {
+  margin: 0 0 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.issues-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.issues-list li {
+  color: #991b1b;
+  font-size: 0.8125rem;
+  margin-bottom: 0.25rem;
+}
+
+.word-ipa {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.ipa-expected {
+  color: #16a34a;
+}
+
+.ipa-arrow {
+  color: #94a3b8;
+}
+
+.ipa-heard {
+  color: #dc2626;
+}
+
+.tip-phoneme-symbol {
+  font-family: monospace;
+  background: #fef3c7;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.tip-issue {
+  display: block;
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin: 0.25rem 0;
+}
+
+.tip-instruction {
+  display: block;
+  font-size: 0.8125rem;
+  color: #475569;
+  margin-top: 0.25rem;
+}
+
+[data-theme='dark'] .dimension-details {
+  background: #1e293b;
+}
+
+[data-theme='dark'] .dimension-note {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .dimension-note strong {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .major-issues {
+  background: #450a0a;
+  border-color: #7f1d1d;
+}
+
+[data-theme='dark'] .major-issues h5 {
+  color: #fca5a5;
+}
+
+[data-theme='dark'] .issues-list li {
+  color: #fecaca;
 }
 
 .score-encouragement {

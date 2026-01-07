@@ -219,6 +219,13 @@ export function useAudioRecorder(options = {}) {
       mediaRecorderRef.current.stop()
     }
 
+    // Close audio context to prevent playback issues
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+    analyserRef.current = null
+
     setIsRecording(false)
     setIsPaused(false)
   }, [])
@@ -288,6 +295,7 @@ export function useAudioRecorder(options = {}) {
     audioUrl,
     error,
     permissionStatus,
+    permissionState: permissionStatus, // Alias for backwards compatibility
 
     // Actions
     requestPermission,

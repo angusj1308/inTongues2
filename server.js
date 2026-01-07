@@ -6303,6 +6303,8 @@ async function assessPronunciationWithAzure(wavPath, referenceText, language) {
           if (jsonResult) {
             try {
               const parsed = JSON.parse(jsonResult)
+              // Log raw structure to debug phoneme extraction
+              console.log('Raw Azure JSON (first word):', JSON.stringify(parsed.NBest?.[0]?.Words?.[0], null, 2))
               const nBest = parsed.NBest?.[0]
 
               if (nBest?.Words) {
@@ -6392,25 +6394,123 @@ function generateAccentAnalysis(result, language) {
  * Get articulatory advice for a phoneme
  */
 function getPhonemeAdvice(phoneme, language) {
-  const tips = {
-    'ʁ': 'Uvular R: constrict the back of your throat, not tongue tip',
-    'y': 'French U: say "ee" while rounding your lips like "oo"',
-    'ø': 'EU sound: say "ay" but round your lips',
-    'œ': 'EU sound: like "uh" but with rounded lips',
-    'ɑ̃': 'Nasal AN: say "ah" while letting air through your nose',
-    'ɛ̃': 'Nasal IN: say "eh" nasally',
-    'ɔ̃': 'Nasal ON: say "oh" nasally',
-    'ɾ': 'Tapped R: quick single tap of tongue behind teeth',
-    'r': 'Trilled R: let tongue vibrate against roof of mouth',
-    'β': 'Soft B: lips close but don\'t fully touch',
-    'ð': 'Soft D: tongue between teeth, like "th" in "this"',
-    'ɣ': 'Soft G: back of tongue raised but not touching',
-    'x': 'Friction at back of throat',
-    'ʎ': 'GL sound: press tongue flat against hard palate',
-    'ɲ': 'GN sound: flatten tongue against palate',
-    'ç': 'ICH-laut: tongue close to palate, like "h" in "hue"'
+  // Language-specific detailed articulatory instructions
+  const spanishPhonemes = {
+    // Vowels - Spanish has pure monophthongs, English speakers add glides
+    'a': {
+      error: "You're using English 'ah' which drifts. Spanish /a/ is pure and front.",
+      fix: "Open mouth wide, tongue low and forward, NO movement during the vowel. Hold steady."
+    },
+    'e': {
+      error: "You're saying English 'ay' with a glide to 'ee'. Spanish /e/ is a pure monophthong.",
+      fix: "Mid-front vowel, tongue halfway up. NO glide - freeze your tongue throughout."
+    },
+    'i': {
+      error: "English 'ee' has tongue movement. Spanish /i/ is tense and pure.",
+      fix: "Tongue high and front, touching side teeth. Keep it absolutely still. Short and crisp."
+    },
+    'o': {
+      error: "You're saying English 'oh' which glides to 'oo'. Spanish /o/ is pure.",
+      fix: "Mid-back rounded vowel. Lips rounded, tongue mid-height at back. NO movement."
+    },
+    'u': {
+      error: "English 'oo' often starts with a 'y' sound. Spanish /u/ is pure.",
+      fix: "Lips tightly rounded, tongue high and back. No glide. Start and stay back."
+    },
+    // The R sounds - biggest English speaker problem
+    'ɾ': {
+      error: "You're using English R (tongue curled back, never touches). Spanish uses alveolar tap.",
+      fix: "Single quick flick: tongue tip taps ONCE against alveolar ridge (bump behind upper teeth). Like 't' in American 'butter'. Very fast touch-and-release."
+    },
+    'r': {
+      error: "English R doesn't touch anything. Spanish trilled R requires tongue vibration.",
+      fix: "Tongue tip loosely against alveolar ridge. Push air to make tongue flutter. Practice 'butter' fast, sustain the middle. Keep tongue relaxed, not tense."
+    },
+    // Dental vs alveolar consonants
+    't': {
+      error: "English T is alveolar with aspiration (puff of air). Spanish T is dental, no aspiration.",
+      fix: "Tongue tip AGAINST back of upper front teeth (not the ridge). NO puff of air. Like T in 'stop'."
+    },
+    'd': {
+      error: "English D is alveolar. Spanish D is dental, and becomes fricative between vowels.",
+      fix: "Tongue tip touches back of upper front teeth. Between vowels, don't fully close - like 'th' in 'this'."
+    },
+    // Fricative allophones
+    'β': {
+      error: "Between vowels, Spanish B is a fricative - lips don't fully close.",
+      fix: "Lips come CLOSE but don't touch. Air flows continuously. Like blowing gently while saying 'b'."
+    },
+    'ð': {
+      error: "Between vowels, Spanish D becomes like 'th' in 'this'.",
+      fix: "Tongue tip between teeth, light contact. Air flows around tongue. NOT a full stop."
+    },
+    'ɣ': {
+      error: "Between vowels, Spanish G is a fricative - tongue doesn't touch.",
+      fix: "Back tongue approaches soft palate but doesn't touch. Air flows through. Like gentle gargling."
+    },
+    'x': {
+      error: "This is Spanish 'j' (jota). Not English 'h'.",
+      fix: "Back of tongue close to soft palate, strong friction. Like Scottish 'loch'. Much more friction than English H."
+    },
+    'ɲ': {
+      error: "This is 'ñ'. Not 'ny' as two sounds.",
+      fix: "Middle of tongue presses flat against hard palate. Single sound. Like 'canyon' but one gesture."
+    },
+    's': {
+      error: "Spanish S is crisp and high-frequency.",
+      fix: "Tongue tip behind lower teeth, blade creates narrow channel at alveolar ridge. Crisp, sharp hiss."
+    },
+    'l': {
+      error: "English has 'dark L' (back of tongue raised). Spanish L is always 'clear'.",
+      fix: "Tongue tip at ridge, but keep BACK of tongue LOW. Never use dark L like in 'full'."
+    },
+    'p': {
+      error: "English P has aspiration. Spanish P does not.",
+      fix: "NO puff of air. Like P in 'spin' (after S), not P in 'pin'."
+    },
+    'k': {
+      error: "English K has aspiration. Spanish K does not.",
+      fix: "NO puff of air. Like K in 'skin', not 'kin'."
+    }
   }
-  return tips[phoneme] || `Focus on matching the native ${language} sound`
+
+  const frenchPhonemes = {
+    'ʁ': {
+      error: "You're using tongue-tip R. French uses uvular R from throat.",
+      fix: "Constrict back of throat where you'd gargle. Tongue tip stays DOWN. Friction from uvula/back tongue."
+    },
+    'y': {
+      error: "This doesn't exist in English. It's /i/ lips with /u/ tongue position.",
+      fix: "Say 'ee' (tongue high front), then round lips like 'oo' WITHOUT moving tongue. Keep tongue front."
+    },
+    'ø': {
+      error: "English doesn't have this rounded front vowel.",
+      fix: "Say 'ay', then round lips WITHOUT moving tongue back. 'Ay' through an 'o' lip shape."
+    },
+    'œ': {
+      error: "Like /ø/ but more open.",
+      fix: "Say 'eh', round your lips. Tongue front and low-mid. More open than /ø/."
+    },
+    'ɑ̃': {
+      error: "This is nasal. Not 'ah' + 'n'.",
+      fix: "Say 'ah' while lowering soft palate for air through nose. NO tongue contact for N."
+    },
+    'ɛ̃': {
+      error: "Not 'eh' + 'n'. Single nasal vowel.",
+      fix: "Say 'eh' with air through nose. Soft palate down. No N consonant."
+    },
+    'ɔ̃': {
+      error: "Not 'oh' + 'n'. Single nasal vowel.",
+      fix: "Say 'oh' with air through nose. No N closure."
+    }
+  }
+
+  let tips = language === 'Spanish' ? spanishPhonemes : language === 'French' ? frenchPhonemes : {}
+  const advice = tips[phoneme]
+  if (advice) {
+    return `ERROR: ${advice.error} → FIX: ${advice.fix}`
+  }
+  return `Phoneme /${phoneme}/ not matching target. Listen to native audio and match exact mouth position.`
 }
 
 /**
@@ -6464,67 +6564,104 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
     })
     console.log('=========================')
 
+    // BRUTAL SCORING: Your weakest phoneme defines your score
+    // This is for advanced learners refining their accent - no mercy
+    const brutalWordScores = azureResult.words?.map(w => {
+      const phonemeScores = w.phonemes?.map(p => p.accuracyScore) || []
+      const minPhoneme = phonemeScores.length > 0 ? Math.min(...phonemeScores) : w.accuracyScore
+      const avgPhoneme = phonemeScores.length > 0
+        ? phonemeScores.reduce((a, b) => a + b, 0) / phonemeScores.length
+        : w.accuracyScore
+
+      // Brutal score: 70% weight on worst phoneme, 30% on average
+      let brutalScore = (minPhoneme * 0.7) + (avgPhoneme * 0.3)
+
+      // Error type penalties
+      if (w.errorType === 'Mispronunciation') {
+        brutalScore = Math.min(brutalScore, 35) // Hard cap
+      }
+      if (w.errorType === 'Omission') {
+        brutalScore = 0
+      }
+
+      console.log(`Brutal score for "${w.word}": ${Math.round(brutalScore)} (min phoneme: ${minPhoneme}, avg: ${Math.round(avgPhoneme)}, error: ${w.errorType})`)
+
+      return { word: w.word, brutalScore, minPhoneme, avgPhoneme, errorType: w.errorType }
+    }) || []
+
+    const brutalOverall = brutalWordScores.length > 0
+      ? brutalWordScores.reduce((a, b) => a + b.brutalScore, 0) / brutalWordScores.length
+      : 0
+
+    console.log(`BRUTAL OVERALL SCORE: ${Math.round(brutalOverall)} (Azure gave: ${Math.round(azureResult.pronunciationScore)})`)
+
     // Format response for frontend
     const response = {
       referenceText,
       transcription: azureResult.recognizedText,
-      pronunciationScore: Math.round(azureResult.pronunciationScore || 0),
-      accuracyScore: Math.round(azureResult.accuracyScore || 0),
+      // Use brutal score, not Azure's lenient one
+      pronunciationScore: Math.round(brutalOverall),
+      accuracyScore: Math.round(brutalOverall), // Override with brutal
       fluencyScore: Math.round(azureResult.fluencyScore || 0),
       completenessScore: Math.round(azureResult.completenessScore || 0),
       prosodyScore: Math.round(azureResult.prosodyScore || 0),
 
-      // Map to dimension scores format for UI
+      // Keep Azure's original for reference
+      azureOriginalScore: Math.round(azureResult.pronunciationScore || 0),
+
+      // Map to dimension scores format for UI - using brutal calculations
       dimensionScores: {
         segmental: {
-          vowels: Math.round((azureResult.accuracyScore || 0) * 0.2),
-          consonants: Math.round((azureResult.accuracyScore || 0) * 0.2),
-          notes: azureResult.words?.filter(w => w.errorType !== 'None').map(w =>
-            `${w.word}: ${w.errorType}`
-          ).join(', ') || 'Good segmental accuracy'
+          vowels: Math.round(brutalOverall * 0.2),
+          consonants: Math.round(brutalOverall * 0.2),
+          notes: brutalWordScores
+            .filter(w => w.brutalScore < 60)
+            .map(w => `"${w.word}": ${Math.round(w.brutalScore)}% (weakest phoneme: ${w.minPhoneme})`)
+            .join(', ') || 'Good segmental accuracy'
         },
         prosody: {
-          stress: Math.round((azureResult.prosodyScore || 70) * 0.12),
-          rhythm: Math.round((azureResult.prosodyScore || 70) * 0.12),
-          intonation: Math.round((azureResult.prosodyScore || 70) * 0.11),
-          notes: 'Prosody assessed by Azure'
+          stress: Math.round((azureResult.prosodyScore || 50) * 0.12),
+          rhythm: Math.round((azureResult.prosodyScore || 50) * 0.12),
+          intonation: Math.round((azureResult.prosodyScore || 50) * 0.11),
+          notes: `Prosody: ${Math.round(azureResult.prosodyScore || 0)}%`
         },
         connectedSpeech: {
-          liaison: Math.round((azureResult.fluencyScore || 70) * 0.08),
-          elision: Math.round((azureResult.fluencyScore || 70) * 0.07),
+          liaison: Math.round((azureResult.fluencyScore || 50) * 0.08),
+          elision: Math.round((azureResult.fluencyScore || 50) * 0.07),
           notes: 'Based on fluency metrics'
         },
         fluency: {
-          smoothness: Math.round((azureResult.fluencyScore || 70) * 0.05),
-          pace: Math.round((azureResult.fluencyScore || 70) * 0.05),
+          smoothness: Math.round((azureResult.fluencyScore || 50) * 0.05),
+          pace: Math.round((azureResult.fluencyScore || 50) * 0.05),
           notes: `Fluency: ${Math.round(azureResult.fluencyScore || 0)}%`
         }
       },
 
-      // Word-level details with phonemes
-      words: azureResult.words?.map(w => ({
-        word: w.word,
-        score: Math.round(w.accuracyScore || 0),
-        accuracyScore: Math.round(w.accuracyScore || 0),
-        errorType: w.errorType,
-        phonemes: w.phonemes?.map(p => ({
-          phoneme: p.phoneme,
-          accuracyScore: Math.round(p.accuracyScore || 0)
-        })) || []
-      })) || [],
+      // Word-level details with brutal scores
+      words: brutalWordScores.map(w => {
+        const original = azureResult.words?.find(aw => aw.word === w.word)
+        return {
+          word: w.word,
+          score: Math.round(w.brutalScore), // Brutal score
+          accuracyScore: Math.round(w.brutalScore),
+          minPhoneme: w.minPhoneme,
+          errorType: w.errorType,
+          phonemes: original?.phonemes?.map(p => ({
+            phoneme: p.phoneme,
+            accuracyScore: Math.round(p.accuracyScore || 0)
+          })) || []
+        }
+      }),
 
-      // Generate issues list from low-scoring words
-      majorIssues: azureResult.words
-        ?.filter(w => w.accuracyScore < 60 || w.errorType !== 'None')
+      // Generate issues from brutal scoring - be harsh
+      majorIssues: brutalWordScores
+        .filter(w => w.brutalScore < 70) // Anything below 70 is an issue
         .map(w => {
-          if (w.errorType === 'Omission') return `"${w.word}" was not pronounced`
-          if (w.errorType === 'Insertion') return `Extra word detected`
-          if (w.errorType === 'Mispronunciation') return `"${w.word}" mispronounced (${Math.round(w.accuracyScore)}%)`
-          if (w.accuracyScore < 60) return `"${w.word}" needs work (${Math.round(w.accuracyScore)}%)`
-          return null
+          if (w.errorType === 'Omission') return `"${w.word}" - not pronounced`
+          if (w.errorType === 'Mispronunciation') return `"${w.word}" - mispronounced (${Math.round(w.brutalScore)}%)`
+          return `"${w.word}" - ${Math.round(w.brutalScore)}% (weakest: ${w.minPhoneme}%)`
         })
-        .filter(Boolean)
-        .slice(0, 5) || [],
+        .slice(0, 5),
 
       // Generate articulatory tips from low-scoring phonemes
       articulatoryTips: azureResult.words

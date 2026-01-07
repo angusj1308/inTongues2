@@ -1,68 +1,118 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { ShadowingSession } from './ShadowingSession'
+import ImportYouTubePanel from '../../listen/ImportYouTubePanel'
+import ListeningMediaCard from '../../listen/ListeningMediaCard'
+import { getYouTubeThumbnailUrl } from '../../../utils/youtube'
 
 /**
  * Intensive Mode Hub - Select content for shadowing practice
+ * Users can select from their existing library or import new content
  */
 export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [audioContent, setAudioContent] = useState([])
+  const [activeTab, setActiveTab] = useState('library') // 'library' | 'import'
+  const [storiesLoading, setStoriesLoading] = useState(true)
+  const [videosLoading, setVideosLoading] = useState(true)
+  const [stories, setStories] = useState([])
+  const [youtubeVideos, setYoutubeVideos] = useState([])
   const [selectedContent, setSelectedContent] = useState(null)
   const [activeSession, setActiveSession] = useState(null)
 
-  // Fetch content with audio from library
+  // Subscribe to stories with audio (real-time updates)
   useEffect(() => {
-    if (!user?.uid || !activeLanguage) return
+    if (!user?.uid || !activeLanguage) {
+      setStories([])
+      setStoriesLoading(false)
+      return
+    }
 
-    const fetchAudioContent = async () => {
-      setLoading(true)
-      try {
-        // Fetch stories with audio
-        const storiesRef = collection(db, 'users', user.uid, 'stories')
-        const storiesQuery = query(
-          storiesRef,
-          where('language', '==', activeLanguage),
-          where('hasFullAudio', '==', true),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        )
-        const storiesSnap = await getDocs(storiesQuery)
-        const stories = storiesSnap.docs.map(doc => ({
+    setStoriesLoading(true)
+    const storiesRef = collection(db, 'users', user.uid, 'stories')
+    const storiesQuery = query(
+      storiesRef,
+      where('language', '==', activeLanguage),
+      where('hasFullAudio', '==', true),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(
+      storiesQuery,
+      (snapshot) => {
+        const nextStories = snapshot.docs.map(doc => ({
           id: doc.id,
           type: 'story',
           ...doc.data()
         }))
+        setStories(nextStories)
+        setStoriesLoading(false)
+      },
+      (err) => {
+        console.error('Error loading stories:', err)
+        setStoriesLoading(false)
+      }
+    )
 
-        // Fetch YouTube videos with transcripts
-        const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
-        const videosQuery = query(
-          videosRef,
-          where('language', '==', activeLanguage),
-          where('status', '==', 'ready'),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        )
-        const videosSnap = await getDocs(videosQuery)
-        const videos = videosSnap.docs.map(doc => ({
+    return unsubscribe
+  }, [user?.uid, activeLanguage])
+
+  // Subscribe to YouTube videos with transcripts (real-time updates)
+  useEffect(() => {
+    if (!user?.uid || !activeLanguage) {
+      setYoutubeVideos([])
+      setVideosLoading(false)
+      return
+    }
+
+    setVideosLoading(true)
+    const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
+    const videosQuery = query(
+      videosRef,
+      where('language', '==', activeLanguage),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(
+      videosQuery,
+      (snapshot) => {
+        const nextVideos = snapshot.docs.map(doc => ({
           id: doc.id,
           type: 'youtube',
           ...doc.data()
         }))
-
-        setAudioContent([...stories, ...videos])
-      } catch (err) {
-        console.error('Error fetching audio content:', err)
-      } finally {
-        setLoading(false)
+        setYoutubeVideos(nextVideos)
+        setVideosLoading(false)
+      },
+      (err) => {
+        console.error('Error loading YouTube videos:', err)
+        setVideosLoading(false)
       }
-    }
+    )
 
-    fetchAudioContent()
+    return unsubscribe
   }, [user?.uid, activeLanguage])
+
+  const loading = storiesLoading || videosLoading
+  const hasContent = stories.length > 0 || youtubeVideos.length > 0
+
+  // Handle content selection for practice
+  const handleSelectContent = (content) => {
+    setSelectedContent(content)
+  }
+
+  // Start shadowing session
+  const handleStartSession = () => {
+    if (selectedContent) {
+      setActiveSession(selectedContent)
+    }
+  }
+
+  // Handle successful YouTube import - switch to library tab
+  const handleImportSuccess = () => {
+    setActiveTab('library')
+  }
 
   // Active shadowing session
   if (activeSession) {
@@ -80,133 +130,186 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     <div className="intensive-mode-hub">
       <div className="intensive-mode-intro">
         <p className="muted">
-          Select audio content to practice. You'll listen to segments and record yourself mimicking each one,
-          then receive detailed pronunciation feedback.
+          Practice pronunciation by listening to audio segments and recording yourself repeating them.
+          You'll receive detailed feedback on your pronunciation.
         </p>
       </div>
 
-      {loading ? (
-        <div className="loading-state">
-          <p className="muted">Loading your audio content...</p>
-        </div>
-      ) : audioContent.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M9 18V5l12-2v13" />
-              <circle cx="6" cy="18" r="3" />
-              <circle cx="18" cy="16" r="3" />
-            </svg>
-          </div>
-          <h4>No Audio Content Yet</h4>
-          <p className="muted">
-            Add stories with audio or import YouTube videos in {activeLanguage} to start practicing.
-          </p>
-          <div className="empty-state-actions">
-            <button className="btn btn-secondary" onClick={() => window.location.href = '/dashboard?tab=listen'}>
-              Go to Library
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="content-selection">
-          <h4>Your Audio Content</h4>
+      {/* Tab navigation */}
+      <div className="intensive-tabs">
+        <button
+          className={`intensive-tab ${activeTab === 'library' ? 'active' : ''}`}
+          onClick={() => setActiveTab('library')}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+          Your Library
+        </button>
+        <button
+          className={`intensive-tab ${activeTab === 'import' ? 'active' : ''}`}
+          onClick={() => setActiveTab('import')}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Import New
+        </button>
+      </div>
 
-          {/* Stories with audio */}
-          {audioContent.filter(c => c.type === 'story').length > 0 && (
-            <div className="content-section">
-              <h5>Audiobooks</h5>
-              <div className="content-grid">
-                {audioContent
-                  .filter(c => c.type === 'story')
-                  .map(content => (
-                    <button
-                      key={content.id}
-                      className={`content-card ${selectedContent?.id === content.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedContent(content)}
-                    >
-                      <div className="content-card-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                        </svg>
-                      </div>
-                      <div className="content-card-info">
-                        <span className="content-title">{content.title}</span>
-                        <span className="content-meta">{content.level || 'Story'}</span>
-                      </div>
-                    </button>
-                  ))}
+      {/* Library Tab */}
+      {activeTab === 'library' && (
+        <div className="intensive-library">
+          {loading ? (
+            <div className="loading-state">
+              <p className="muted">Loading your audio content...</p>
+            </div>
+          ) : !hasContent ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M9 18V5l12-2v13" />
+                  <circle cx="6" cy="18" r="3" />
+                  <circle cx="18" cy="16" r="3" />
+                </svg>
+              </div>
+              <h4>No Audio Content Yet</h4>
+              <p className="muted">
+                Import a YouTube video or add stories with audio in {activeLanguage} to start practicing.
+              </p>
+              <div className="empty-state-actions">
+                <button className="btn btn-primary" onClick={() => setActiveTab('import')}>
+                  Import Content
+                </button>
               </div>
             </div>
-          )}
+          ) : (
+            <div className="content-selection">
+              {/* Audiobooks section */}
+              {stories.length > 0 && (
+                <div className="content-section">
+                  <h4>Audiobooks</h4>
+                  <div className="listen-shelf">
+                    {stories.map(story => {
+                      const isSelected = selectedContent?.id === story.id
+                      const isGeneratedStory = Boolean(
+                        story.source === 'generated' ||
+                        story.source === 'generator' ||
+                        story.origin === 'generator' ||
+                        story.generated === true ||
+                        story.generatorMetadata ||
+                        (!story.source && typeof story.genre === 'string' && story.genre)
+                      )
 
-          {/* YouTube videos */}
-          {audioContent.filter(c => c.type === 'youtube').length > 0 && (
-            <div className="content-section">
-              <h5>YouTube Videos</h5>
-              <div className="content-grid">
-                {audioContent
-                  .filter(c => c.type === 'youtube')
-                  .map(content => (
-                    <button
-                      key={content.id}
-                      className={`content-card ${selectedContent?.id === content.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedContent(content)}
-                    >
-                      {content.thumbnailUrl ? (
-                        <img
-                          src={content.thumbnailUrl}
-                          alt=""
-                          className="content-card-thumbnail"
-                        />
-                      ) : (
-                        <div className="content-card-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M23 7l-7 5 7 5V7z" />
-                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                          </svg>
+                      return (
+                        <div
+                          key={story.id}
+                          className={`intensive-content-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleSelectContent(story)}
+                        >
+                          <ListeningMediaCard
+                            type="audio"
+                            title={story.title || 'Untitled story'}
+                            channel={isGeneratedStory ? 'inTongues Generator' : story.author || story.language || 'Audio story'}
+                            thumbnailUrl={story.coverImageUrl || story.imageUrl || story.coverImage}
+                            tags={[story.level && `Level ${story.level}`]}
+                            actionLabel={isSelected ? 'Selected' : 'Select'}
+                            onPlay={() => handleSelectContent(story)}
+                          />
                         </div>
-                      )}
-                      <div className="content-card-info">
-                        <span className="content-title">{content.title}</span>
-                        <span className="content-meta">{content.channelTitle || 'Video'}</span>
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
-          {/* Start button */}
-          {selectedContent && (
-            <div className="content-selection-actions">
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={() => setActiveSession(selectedContent)}
-              >
-                Start Shadowing Practice
-              </button>
+              {/* YouTube videos section */}
+              {youtubeVideos.length > 0 && (
+                <div className="content-section">
+                  <h4>YouTube Videos</h4>
+                  <div className="listen-shelf">
+                    {youtubeVideos.map(video => {
+                      const isSelected = selectedContent?.id === video.id
+                      const isReady = video.status === 'ready'
+
+                      return (
+                        <div
+                          key={video.id}
+                          className={`intensive-content-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => isReady && handleSelectContent(video)}
+                        >
+                          <ListeningMediaCard
+                            type="youtube"
+                            title={video.title || 'Untitled video'}
+                            channel={video.channelTitle || video.channel || 'Unknown channel'}
+                            thumbnailUrl={getYouTubeThumbnailUrl(video.youtubeUrl)}
+                            status={video.status}
+                            actionLabel={isSelected ? 'Selected' : isReady ? 'Select' : undefined}
+                            onPlay={isReady ? () => handleSelectContent(video) : undefined}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Start button */}
+              {selectedContent && (
+                <div className="content-selection-actions">
+                  <div className="selected-content-preview">
+                    <span className="muted">Selected:</span>
+                    <strong>{selectedContent.title}</strong>
+                  </div>
+                  <button
+                    className="btn btn-primary btn-lg"
+                    onClick={handleStartSession}
+                  >
+                    Start Shadowing Practice
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Upload option */}
-      <div className="upload-section">
-        <div className="upload-divider">
-          <span>or</span>
+      {/* Import Tab */}
+      {activeTab === 'import' && (
+        <div className="intensive-import">
+          <div className="import-section">
+            <ImportYouTubePanel
+              headingLevel="h4"
+              layout="card"
+              language={activeLanguage}
+              onSuccess={handleImportSuccess}
+            />
+          </div>
+
+          {/* Audio file upload - coming soon */}
+          <div className="import-section">
+            <div className="preview-card import-audio-card">
+              <div className="section-header">
+                <h4>Upload Audio File</h4>
+                <span className="badge-coming-soon">Coming Soon</span>
+              </div>
+              <p className="muted small">
+                Upload MP3, WAV, or other audio files directly for shadowing practice.
+              </p>
+              <button className="button" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Upload Audio
+              </button>
+            </div>
+          </div>
         </div>
-        <button className="btn btn-secondary upload-btn" disabled>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Upload Audio File
-          <span className="badge-coming-soon">Soon</span>
-        </button>
-      </div>
+      )}
     </div>
   )
 }

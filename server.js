@@ -3227,7 +3227,7 @@ app.post('/api/generate', async (req, res) => {
 
 app.post('/api/translatePhrase', async (req, res) => {
   try {
-    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender, unknownWords, voiceId: requestedVoiceId } = req.body || {}
+    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender, unknownWords, voiceId: requestedVoiceId, context } = req.body || {}
 
     if (!phrase || typeof phrase !== 'string') {
       return res.status(400).json({ error: 'phrase is required' })
@@ -3264,9 +3264,9 @@ app.post('/api/translatePhrase', async (req, res) => {
     // Build prompt - if unknownWords provided, ask for word pairs too
     const hasUnknownWords = Array.isArray(unknownWords) && unknownWords.length > 0
 
-    // Try to get cached translation for single words
+    // Try to get cached translation for single words (skip cache if context provided for disambiguation)
     let cachedTranslation = null
-    if (isSingleWord && !hasUnknownWords) {
+    if (isSingleWord && !hasUnknownWords && !context) {
       cachedTranslation = await getTranslation(phrase, normalizedSourceLang, normalizedTargetLang)
     }
 
@@ -3307,9 +3307,13 @@ Return JSON in this exact format:
 Sentence: ${phrase}
 `.trim()
     } else {
+      // If context provided, use it for disambiguation (e.g., "haya" as verb vs noun)
+      const contextHint = context
+        ? `\nCONTEXT: This word appears in the following context: "${context}"\nUse this context to determine the correct meaning if the word has multiple meanings.`
+        : ''
       prompt = `
 Translate the following phrase from ${sourceLabel} to ${targetLabel}.
-Return only the translated phrase, with no extra commentary.
+Return only the translated phrase, with no extra commentary.${contextHint}
 
 ${phrase}
 `.trim()
@@ -5732,9 +5736,15 @@ YOUR TASK: ${hasHelpRequests ? 'Help the student express the bracketed ideas in 
 
 WHAT TO FLAG AS ERRORS (in the non-bracketed parts):
 1. SPELLING ERRORS - Wrong letters, missing letters, extra letters, OR missing/wrong accents
-2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order
+2. GRAMMAR ERRORS - ACTUAL MISTAKES like wrong verb conjugation, wrong gender/number agreement, incorrect word forms
 3. PUNCTUATION - Missing or incorrect punctuation marks (commas, periods, question marks, etc.)
-4. NATURALNESS - Awkward phrasing that a native speaker wouldn't use
+4. NATURALNESS - When the text is grammatically CORRECT but a native speaker would phrase it differently
+   * Example: "caso hay" is grammatically valid but unnatural → should be "en caso de que haya" (category: "naturalness")
+   * This is NOT a grammar error because nothing was conjugated/spelled wrong
+
+IMPORTANT CATEGORY DISTINCTION:
+- "grammar" = the student made a MISTAKE (wrong conjugation, wrong agreement, etc.)
+- "naturalness" = the student wrote something grammatically CORRECT but UNNATURAL
 
 Return JSON:
 {

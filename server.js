@@ -6244,55 +6244,122 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
     const wavBase64 = wavBuffer.toString('base64')
 
     // GPT-4o can directly listen to audio and assess pronunciation
-    // This is FAR more accurate than transcribing then comparing text
-    const analysisPrompt = `You are an expert ${language} pronunciation coach. Listen carefully to this audio recording of a language learner.
+    // Scientific assessment based on phonetic dimensions from L2 acquisition research
+    const analysisPrompt = `You are a phonetician and ${language} pronunciation expert. Assess this L2 learner's pronunciation using rigorous phonetic analysis.
 
-THE LEARNER SHOULD BE SAYING:
-"${referenceText}"
+TARGET TEXT: "${referenceText}"
 
-CRITICALLY IMPORTANT - LISTEN TO THE ACTUAL PRONUNCIATION:
-- Do NOT just check if words are correct - listen to HOW they are pronounced
-- A native speaker would notice: vowel quality, consonant articulation, stress, rhythm, intonation
-- Heavy foreign accents should score MUCH lower than native-like pronunciation
-- If someone pronounces ${language} words with English phonemes, that's a significant error
-- Score 90+ ONLY for near-native pronunciation
-- Score 70-89 for understandable but clearly accented pronunciation
-- Score 50-69 for heavily accented but comprehensible
-- Score below 50 for poor pronunciation that natives would struggle with
+## ASSESSMENT FRAMEWORK (Based on Applied Linguistics Research)
 
-Listen for these specific issues:
-- Vowel substitutions (using English vowels instead of ${language} vowels)
-- Consonant mispronunciations (especially sounds that don't exist in English)
-- Wrong stress placement
-- English-style rhythm instead of ${language} rhythm
-- Missing or incorrect liaisons/elisions (for French, etc.)
+You must evaluate FOUR phonetic dimensions, each with specific criteria:
 
-Return JSON with your assessment:
+### 1. SEGMENTAL ACCURACY (40% of total score)
+Evaluate individual sounds against native ${language} phonemes:
+
+**Vowels (20 points max):**
+- Are vowels the correct ${language} phonemes, not L1 substitutions?
+- For French: Check /y/ (tu), nasal vowels (an/en/on/un), /ø/ (peu), /œ/ (peur)
+- For Spanish: Check 5-vowel system is maintained, no schwa insertion
+- For Italian: Check open vs closed e/o distinction
+- Deduct 3-5 points per vowel substituted with English equivalent
+
+**Consonants (20 points max):**
+- For French: Uvular /ʁ/ (not English /ɹ/), correct /ʒ/ vs /dʒ/
+- For Spanish: Tapped /ɾ/ and trilled /r/, /b/ allophony (β), /d/ → /ð/
+- For Italian: Geminate consonants, /ʎ/ (gl), /ɲ/ (gn)
+- For German: /x/ vs /ç/, final devoicing
+- Deduct 2-4 points per consonant error based on functional load
+
+### 2. SUPRASEGMENTAL/PROSODIC FEATURES (35% of total score)
+
+**Word Stress (12 points max):**
+- Is stress on the correct syllable?
+- For Spanish: Follows rules (última, penúltima, antepenúltima)
+- For French: Word-final stress (but phrase-final in connected speech)
+- For Italian: Variable stress, must match target
+- Deduct 3-4 points per misplaced stress
+
+**Rhythm (12 points max):**
+- French/Spanish: Should be syllable-timed (equal syllable duration)
+- English rhythm pattern imposed? Major deduction (6-8 points)
+- Syllables unnaturally lengthened/shortened?
+
+**Intonation (11 points max):**
+- Appropriate pitch contours for statement/question?
+- Natural pitch range or monotone?
+- Language-appropriate terminal contours?
+
+### 3. CONNECTED SPEECH (15% of total score)
+
+**Liaison & Linking (8 points max):**
+- French: Obligatory liaisons present? (les amis → [lezami])
+- Enchaînement correct?
+- Spanish: Sinalefa between words?
+
+**Elision (7 points max):**
+- Silent letters handled correctly?
+- Appropriate reductions in unstressed syllables?
+- Word-final sounds appropriately produced or elided?
+
+### 4. FLUENCY/DELIVERY (10% of total score)
+
+**Smoothness (5 points max):**
+- Natural flow within the phrase?
+- Excessive hesitation or choppy delivery?
+
+**Pace (5 points max):**
+- Appropriate speech rate for ${language}?
+- Not unnaturally slow or rushed?
+
+## SCORING CALIBRATION
+
+The overall score should reflect what a NATIVE ${language} SPEAKER would perceive:
+
+- **90-100**: Near-native. A native speaker might not immediately identify them as non-native. All phonemes correct, natural prosody.
+- **80-89**: Excellent L2. Minor accent detectable but highly intelligible. 1-2 segmental errors, good prosody.
+- **70-79**: Good L2. Clear foreign accent but fully comprehensible. Several segmental substitutions, prosody mostly correct.
+- **60-69**: Intermediate. Noticeable L1 transfer. Multiple phoneme substitutions, some prosodic issues.
+- **50-59**: Developing. Heavy accent affecting comprehensibility. Systematic L1 phoneme substitution, English prosody.
+- **40-49**: Beginner. Difficult for natives to understand. Most sounds are L1 approximations.
+- **Below 40**: Severe difficulties. Would require significant effort to understand.
+
+## CRITICAL DETECTION RULES
+
+If the speaker uses ENGLISH phonemes for ${language} sounds, this is a MAJOR ERROR:
+- English /ɹ/ instead of French /ʁ/ or Spanish /r/: Deduct 8-10 points
+- English diphthongs instead of pure vowels: Deduct 5-7 points per instance
+- English stress-timing imposed on syllable-timed language: Deduct 10-12 points
+- Anglicized vowels (using schwa where inappropriate): Deduct 3-5 points each
+
+## OUTPUT FORMAT
+
+Return JSON:
 {
-  "transcription": "what you heard them actually say",
-  "pronunciationScore": 0-100,
-  "accuracyScore": 0-100,
-  "fluencyScore": 0-100,
-  "completenessScore": 0-100,
-  "accentAnalysis": "Brief description of their accent and main issues",
+  "transcription": "IPA transcription of what you heard",
+  "pronunciationScore": <0-100 calculated from dimensions>,
+  "dimensionScores": {
+    "segmental": { "vowels": <0-20>, "consonants": <0-20>, "notes": "specific issues" },
+    "prosody": { "stress": <0-12>, "rhythm": <0-12>, "intonation": <0-11>, "notes": "specific issues" },
+    "connectedSpeech": { "liaison": <0-8>, "elision": <0-7>, "notes": "specific issues" },
+    "fluency": { "smoothness": <0-5>, "pace": <0-5>, "notes": "specific issues" }
+  },
+  "accentAnalysis": "Overall assessment of accent characteristics and L1 transfer patterns",
+  "majorIssues": ["list of most significant pronunciation problems"],
   "words": [
     {
-      "word": "expected word",
-      "spoken": "what it sounded like phonetically",
-      "accuracyScore": 0-100,
-      "errorType": "None" | "Mispronunciation" | "Omission" | "Insertion",
-      "issue": "specific pronunciation issue if any",
-      "phonemes": [
-        { "phoneme": "IPA symbol", "accuracyScore": 0-100, "issue": "what was wrong" }
-      ]
+      "word": "target word",
+      "ipa_target": "expected IPA",
+      "ipa_heard": "what was heard in IPA",
+      "score": <0-100>,
+      "issues": ["specific phonetic issues"]
     }
   ],
   "articulatoryTips": [
-    { "word": "word", "phoneme": "IPA", "tip": "specific articulatory advice" }
+    { "phoneme": "IPA", "issue": "what's wrong", "tip": "articulatory instruction" }
   ]
 }
 
-Be honest and accurate. A learner benefits more from truthful feedback than false encouragement.
+Be rigorous and honest. False encouragement hinders language learning.
 Return ONLY valid JSON.`
 
     // Use GPT-4o-audio-preview which can process audio input directly

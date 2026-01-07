@@ -6454,67 +6454,104 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
     })
     console.log('=========================')
 
+    // BRUTAL SCORING: Your weakest phoneme defines your score
+    // This is for advanced learners refining their accent - no mercy
+    const brutalWordScores = azureResult.words?.map(w => {
+      const phonemeScores = w.phonemes?.map(p => p.accuracyScore) || []
+      const minPhoneme = phonemeScores.length > 0 ? Math.min(...phonemeScores) : w.accuracyScore
+      const avgPhoneme = phonemeScores.length > 0
+        ? phonemeScores.reduce((a, b) => a + b, 0) / phonemeScores.length
+        : w.accuracyScore
+
+      // Brutal score: 70% weight on worst phoneme, 30% on average
+      let brutalScore = (minPhoneme * 0.7) + (avgPhoneme * 0.3)
+
+      // Error type penalties
+      if (w.errorType === 'Mispronunciation') {
+        brutalScore = Math.min(brutalScore, 35) // Hard cap
+      }
+      if (w.errorType === 'Omission') {
+        brutalScore = 0
+      }
+
+      console.log(`Brutal score for "${w.word}": ${Math.round(brutalScore)} (min phoneme: ${minPhoneme}, avg: ${Math.round(avgPhoneme)}, error: ${w.errorType})`)
+
+      return { word: w.word, brutalScore, minPhoneme, avgPhoneme, errorType: w.errorType }
+    }) || []
+
+    const brutalOverall = brutalWordScores.length > 0
+      ? brutalWordScores.reduce((a, b) => a + b.brutalScore, 0) / brutalWordScores.length
+      : 0
+
+    console.log(`BRUTAL OVERALL SCORE: ${Math.round(brutalOverall)} (Azure gave: ${Math.round(azureResult.pronunciationScore)})`)
+
     // Format response for frontend
     const response = {
       referenceText,
       transcription: azureResult.recognizedText,
-      pronunciationScore: Math.round(azureResult.pronunciationScore || 0),
-      accuracyScore: Math.round(azureResult.accuracyScore || 0),
+      // Use brutal score, not Azure's lenient one
+      pronunciationScore: Math.round(brutalOverall),
+      accuracyScore: Math.round(brutalOverall), // Override with brutal
       fluencyScore: Math.round(azureResult.fluencyScore || 0),
       completenessScore: Math.round(azureResult.completenessScore || 0),
       prosodyScore: Math.round(azureResult.prosodyScore || 0),
 
-      // Map to dimension scores format for UI
+      // Keep Azure's original for reference
+      azureOriginalScore: Math.round(azureResult.pronunciationScore || 0),
+
+      // Map to dimension scores format for UI - using brutal calculations
       dimensionScores: {
         segmental: {
-          vowels: Math.round((azureResult.accuracyScore || 0) * 0.2),
-          consonants: Math.round((azureResult.accuracyScore || 0) * 0.2),
-          notes: azureResult.words?.filter(w => w.errorType !== 'None').map(w =>
-            `${w.word}: ${w.errorType}`
-          ).join(', ') || 'Good segmental accuracy'
+          vowels: Math.round(brutalOverall * 0.2),
+          consonants: Math.round(brutalOverall * 0.2),
+          notes: brutalWordScores
+            .filter(w => w.brutalScore < 60)
+            .map(w => `"${w.word}": ${Math.round(w.brutalScore)}% (weakest phoneme: ${w.minPhoneme})`)
+            .join(', ') || 'Good segmental accuracy'
         },
         prosody: {
-          stress: Math.round((azureResult.prosodyScore || 70) * 0.12),
-          rhythm: Math.round((azureResult.prosodyScore || 70) * 0.12),
-          intonation: Math.round((azureResult.prosodyScore || 70) * 0.11),
-          notes: 'Prosody assessed by Azure'
+          stress: Math.round((azureResult.prosodyScore || 50) * 0.12),
+          rhythm: Math.round((azureResult.prosodyScore || 50) * 0.12),
+          intonation: Math.round((azureResult.prosodyScore || 50) * 0.11),
+          notes: `Prosody: ${Math.round(azureResult.prosodyScore || 0)}%`
         },
         connectedSpeech: {
-          liaison: Math.round((azureResult.fluencyScore || 70) * 0.08),
-          elision: Math.round((azureResult.fluencyScore || 70) * 0.07),
+          liaison: Math.round((azureResult.fluencyScore || 50) * 0.08),
+          elision: Math.round((azureResult.fluencyScore || 50) * 0.07),
           notes: 'Based on fluency metrics'
         },
         fluency: {
-          smoothness: Math.round((azureResult.fluencyScore || 70) * 0.05),
-          pace: Math.round((azureResult.fluencyScore || 70) * 0.05),
+          smoothness: Math.round((azureResult.fluencyScore || 50) * 0.05),
+          pace: Math.round((azureResult.fluencyScore || 50) * 0.05),
           notes: `Fluency: ${Math.round(azureResult.fluencyScore || 0)}%`
         }
       },
 
-      // Word-level details with phonemes
-      words: azureResult.words?.map(w => ({
-        word: w.word,
-        score: Math.round(w.accuracyScore || 0),
-        accuracyScore: Math.round(w.accuracyScore || 0),
-        errorType: w.errorType,
-        phonemes: w.phonemes?.map(p => ({
-          phoneme: p.phoneme,
-          accuracyScore: Math.round(p.accuracyScore || 0)
-        })) || []
-      })) || [],
+      // Word-level details with brutal scores
+      words: brutalWordScores.map(w => {
+        const original = azureResult.words?.find(aw => aw.word === w.word)
+        return {
+          word: w.word,
+          score: Math.round(w.brutalScore), // Brutal score
+          accuracyScore: Math.round(w.brutalScore),
+          minPhoneme: w.minPhoneme,
+          errorType: w.errorType,
+          phonemes: original?.phonemes?.map(p => ({
+            phoneme: p.phoneme,
+            accuracyScore: Math.round(p.accuracyScore || 0)
+          })) || []
+        }
+      }),
 
-      // Generate issues list from low-scoring words
-      majorIssues: azureResult.words
-        ?.filter(w => w.accuracyScore < 60 || w.errorType !== 'None')
+      // Generate issues from brutal scoring - be harsh
+      majorIssues: brutalWordScores
+        .filter(w => w.brutalScore < 70) // Anything below 70 is an issue
         .map(w => {
-          if (w.errorType === 'Omission') return `"${w.word}" was not pronounced`
-          if (w.errorType === 'Insertion') return `Extra word detected`
-          if (w.errorType === 'Mispronunciation') return `"${w.word}" mispronounced (${Math.round(w.accuracyScore)}%)`
-          if (w.accuracyScore < 60) return `"${w.word}" needs work (${Math.round(w.accuracyScore)}%)`
-          return null
+          if (w.errorType === 'Omission') return `"${w.word}" - not pronounced`
+          if (w.errorType === 'Mispronunciation') return `"${w.word}" - mispronounced (${Math.round(w.brutalScore)}%)`
+          return `"${w.word}" - ${Math.round(w.brutalScore)}% (weakest: ${w.minPhoneme}%)`
         })
-        .filter(Boolean)
-        .slice(0, 5) || [],
+        .slice(0, 5),
 
       // Generate articulatory tips from low-scoring phonemes
       articulatoryTips: azureResult.words

@@ -6382,25 +6382,123 @@ function generateAccentAnalysis(result, language) {
  * Get articulatory advice for a phoneme
  */
 function getPhonemeAdvice(phoneme, language) {
-  const tips = {
-    'ʁ': 'Uvular R: constrict the back of your throat, not tongue tip',
-    'y': 'French U: say "ee" while rounding your lips like "oo"',
-    'ø': 'EU sound: say "ay" but round your lips',
-    'œ': 'EU sound: like "uh" but with rounded lips',
-    'ɑ̃': 'Nasal AN: say "ah" while letting air through your nose',
-    'ɛ̃': 'Nasal IN: say "eh" nasally',
-    'ɔ̃': 'Nasal ON: say "oh" nasally',
-    'ɾ': 'Tapped R: quick single tap of tongue behind teeth',
-    'r': 'Trilled R: let tongue vibrate against roof of mouth',
-    'β': 'Soft B: lips close but don\'t fully touch',
-    'ð': 'Soft D: tongue between teeth, like "th" in "this"',
-    'ɣ': 'Soft G: back of tongue raised but not touching',
-    'x': 'Friction at back of throat',
-    'ʎ': 'GL sound: press tongue flat against hard palate',
-    'ɲ': 'GN sound: flatten tongue against palate',
-    'ç': 'ICH-laut: tongue close to palate, like "h" in "hue"'
+  // Language-specific detailed articulatory instructions
+  const spanishPhonemes = {
+    // Vowels - Spanish has pure monophthongs, English speakers add glides
+    'a': {
+      error: "You're using English 'ah' which drifts. Spanish /a/ is pure and front.",
+      fix: "Open mouth wide, tongue low and forward, NO movement during the vowel. Hold steady."
+    },
+    'e': {
+      error: "You're saying English 'ay' with a glide to 'ee'. Spanish /e/ is a pure monophthong.",
+      fix: "Mid-front vowel, tongue halfway up. NO glide - freeze your tongue throughout."
+    },
+    'i': {
+      error: "English 'ee' has tongue movement. Spanish /i/ is tense and pure.",
+      fix: "Tongue high and front, touching side teeth. Keep it absolutely still. Short and crisp."
+    },
+    'o': {
+      error: "You're saying English 'oh' which glides to 'oo'. Spanish /o/ is pure.",
+      fix: "Mid-back rounded vowel. Lips rounded, tongue mid-height at back. NO movement."
+    },
+    'u': {
+      error: "English 'oo' often starts with a 'y' sound. Spanish /u/ is pure.",
+      fix: "Lips tightly rounded, tongue high and back. No glide. Start and stay back."
+    },
+    // The R sounds - biggest English speaker problem
+    'ɾ': {
+      error: "You're using English R (tongue curled back, never touches). Spanish uses alveolar tap.",
+      fix: "Single quick flick: tongue tip taps ONCE against alveolar ridge (bump behind upper teeth). Like 't' in American 'butter'. Very fast touch-and-release."
+    },
+    'r': {
+      error: "English R doesn't touch anything. Spanish trilled R requires tongue vibration.",
+      fix: "Tongue tip loosely against alveolar ridge. Push air to make tongue flutter. Practice 'butter' fast, sustain the middle. Keep tongue relaxed, not tense."
+    },
+    // Dental vs alveolar consonants
+    't': {
+      error: "English T is alveolar with aspiration (puff of air). Spanish T is dental, no aspiration.",
+      fix: "Tongue tip AGAINST back of upper front teeth (not the ridge). NO puff of air. Like T in 'stop'."
+    },
+    'd': {
+      error: "English D is alveolar. Spanish D is dental, and becomes fricative between vowels.",
+      fix: "Tongue tip touches back of upper front teeth. Between vowels, don't fully close - like 'th' in 'this'."
+    },
+    // Fricative allophones
+    'β': {
+      error: "Between vowels, Spanish B is a fricative - lips don't fully close.",
+      fix: "Lips come CLOSE but don't touch. Air flows continuously. Like blowing gently while saying 'b'."
+    },
+    'ð': {
+      error: "Between vowels, Spanish D becomes like 'th' in 'this'.",
+      fix: "Tongue tip between teeth, light contact. Air flows around tongue. NOT a full stop."
+    },
+    'ɣ': {
+      error: "Between vowels, Spanish G is a fricative - tongue doesn't touch.",
+      fix: "Back tongue approaches soft palate but doesn't touch. Air flows through. Like gentle gargling."
+    },
+    'x': {
+      error: "This is Spanish 'j' (jota). Not English 'h'.",
+      fix: "Back of tongue close to soft palate, strong friction. Like Scottish 'loch'. Much more friction than English H."
+    },
+    'ɲ': {
+      error: "This is 'ñ'. Not 'ny' as two sounds.",
+      fix: "Middle of tongue presses flat against hard palate. Single sound. Like 'canyon' but one gesture."
+    },
+    's': {
+      error: "Spanish S is crisp and high-frequency.",
+      fix: "Tongue tip behind lower teeth, blade creates narrow channel at alveolar ridge. Crisp, sharp hiss."
+    },
+    'l': {
+      error: "English has 'dark L' (back of tongue raised). Spanish L is always 'clear'.",
+      fix: "Tongue tip at ridge, but keep BACK of tongue LOW. Never use dark L like in 'full'."
+    },
+    'p': {
+      error: "English P has aspiration. Spanish P does not.",
+      fix: "NO puff of air. Like P in 'spin' (after S), not P in 'pin'."
+    },
+    'k': {
+      error: "English K has aspiration. Spanish K does not.",
+      fix: "NO puff of air. Like K in 'skin', not 'kin'."
+    }
   }
-  return tips[phoneme] || `Focus on matching the native ${language} sound`
+
+  const frenchPhonemes = {
+    'ʁ': {
+      error: "You're using tongue-tip R. French uses uvular R from throat.",
+      fix: "Constrict back of throat where you'd gargle. Tongue tip stays DOWN. Friction from uvula/back tongue."
+    },
+    'y': {
+      error: "This doesn't exist in English. It's /i/ lips with /u/ tongue position.",
+      fix: "Say 'ee' (tongue high front), then round lips like 'oo' WITHOUT moving tongue. Keep tongue front."
+    },
+    'ø': {
+      error: "English doesn't have this rounded front vowel.",
+      fix: "Say 'ay', then round lips WITHOUT moving tongue back. 'Ay' through an 'o' lip shape."
+    },
+    'œ': {
+      error: "Like /ø/ but more open.",
+      fix: "Say 'eh', round your lips. Tongue front and low-mid. More open than /ø/."
+    },
+    'ɑ̃': {
+      error: "This is nasal. Not 'ah' + 'n'.",
+      fix: "Say 'ah' while lowering soft palate for air through nose. NO tongue contact for N."
+    },
+    'ɛ̃': {
+      error: "Not 'eh' + 'n'. Single nasal vowel.",
+      fix: "Say 'eh' with air through nose. Soft palate down. No N consonant."
+    },
+    'ɔ̃': {
+      error: "Not 'oh' + 'n'. Single nasal vowel.",
+      fix: "Say 'oh' with air through nose. No N closure."
+    }
+  }
+
+  let tips = language === 'Spanish' ? spanishPhonemes : language === 'French' ? frenchPhonemes : {}
+  const advice = tips[phoneme]
+  if (advice) {
+    return `ERROR: ${advice.error} → FIX: ${advice.fix}`
+  }
+  return `Phoneme /${phoneme}/ not matching target. Listen to native audio and match exact mouth position.`
 }
 
 /**

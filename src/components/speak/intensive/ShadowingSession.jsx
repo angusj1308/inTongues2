@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../firebase'
-import { AudioRecorder } from '../shared'
 import { WaveformPlayer } from './WaveformPlayer'
 import YouTubePlayer from '../../YouTubePlayer'
 
@@ -137,6 +136,11 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0)
   const [userRecording, setUserRecording] = useState(null)
   const [error, setError] = useState(null)
+
+  // Recording state
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
 
   // Audio player state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -569,10 +573,48 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
     }
   }, [playbackRate, isYouTube])
 
-  // Handle user recording completion - just save it, no AI assessment
-  const handleRecordingComplete = (blob, url) => {
-    setUserRecording({ blob, url })
-    // No API call - user compares recordings themselves
+  // Simple recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const url = URL.createObjectURL(blob)
+        setUserRecording({ blob, url })
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Recording error:', err)
+      setError('Could not access microphone')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
   }
 
   // Navigation
@@ -741,12 +783,23 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
           {/* Recording section */}
           <div className="pronunciation-record-zone">
             {!userRecording ? (
-              <AudioRecorder
-                onRecordingComplete={handleRecordingComplete}
-                maxDuration={30}
-                showPlayback={false}
-                autoSubmit={true}
-              />
+              /* Simple record button matching play button style */
+              <button
+                type="button"
+                className={`pronunciation-record-btn ${isRecording ? 'recording' : ''}`}
+                onClick={toggleRecording}
+                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              >
+                {isRecording ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="6" />
+                  </svg>
+                )}
+              </button>
             ) : (
               <div className="pronunciation-compare">
                 {/* Waveform comparison */}

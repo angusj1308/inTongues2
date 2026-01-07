@@ -3132,6 +3132,58 @@ textarea {
   transform: scale(0.98);
 }
 
+/* Record button - matches play button exactly */
+.pronunciation-record-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.pronunciation-record-btn:hover {
+  background: #334155;
+  transform: scale(1.05);
+}
+
+.pronunciation-record-btn:active {
+  transform: scale(0.98);
+}
+
+.pronunciation-record-btn.recording {
+  background: #dc2626;
+  animation: recordPulse 1.5s ease-in-out infinite;
+}
+
+.pronunciation-record-btn.recording:hover {
+  background: #b91c1c;
+}
+
+@keyframes recordPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+}
+
+[data-theme='dark'] .pronunciation-record-btn {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+[data-theme='dark'] .pronunciation-record-btn:hover {
+  background: #e2e8f0;
+}
+
+[data-theme='dark'] .pronunciation-record-btn.recording {
+  background: #dc2626;
+  color: white;
+}
+
 .pronunciation-record-zone {
   width: 100%;
   display: flex;

@@ -6683,6 +6683,139 @@ app.post('/api/speech/assess-pronunciation', async (req, res) => {
 })
 
 /**
+ * GPT-4o Audio Pronunciation Comparison
+ * Compares user recording directly against native speaker recording
+ * For advanced learners - brutal, specific articulatory feedback
+ */
+app.post('/api/speech/compare-pronunciation', async (req, res) => {
+  try {
+    const { userAudioBase64, targetAudioUrl, targetStart, targetEnd, referenceText, language } = req.body
+
+    if (!userAudioBase64 || !targetAudioUrl || !referenceText) {
+      return res.status(400).json({ error: 'User audio, target audio URL, and reference text required' })
+    }
+
+    console.log('Comparing pronunciation with GPT-4o audio...')
+    console.log('Target:', targetAudioUrl, `${targetStart}s - ${targetEnd}s`)
+
+    // Fetch and extract target audio segment
+    const targetResponse = await fetch(targetAudioUrl)
+    const targetBuffer = Buffer.from(await targetResponse.arrayBuffer())
+    const targetBase64 = targetBuffer.toString('base64')
+
+    // The prompt - brutal and specific
+    const comparisonPrompt = `You are an expert phonetician and pronunciation coach for advanced ${language} learners. You will hear TWO audio recordings:
+
+1. FIRST: A native ${language} speaker saying: "${referenceText}"
+2. SECOND: A learner attempting the same phrase
+
+Your job is to be BRUTALLY SPECIFIC about pronunciation errors. This is for advanced learners refining their accent - they don't need encouragement, they need precision.
+
+ANALYZE EACH WORD and identify:
+
+For EACH error, you MUST specify:
+1. THE WORD containing the error
+2. THE SPECIFIC SOUND that's wrong (use IPA if helpful)
+3. WHAT THE LEARNER IS DOING (e.g., "using English retroflex R", "diphthongizing the vowel", "aspirating the consonant")
+4. EXACTLY HOW TO FIX IT with articulatory instructions (tongue position, lip shape, airflow)
+
+FOCUS ON:
+- Vowel quality (pure vs diphthongized, front/back position, rounding)
+- Consonant place/manner (dental vs alveolar, tapped vs approximant R, aspiration)
+- Prosody (stress placement, rhythm, intonation contour)
+- Connected speech (liaison, elision, assimilation)
+
+DO NOT say things like "try to match the native speaker" or "practice more". Give SPECIFIC PHYSICAL INSTRUCTIONS.
+
+Example good feedback:
+"WORD: 'pero' - Your /r/ is wrong. You're using an English approximant (tongue curled back, not touching anything). Spanish uses an alveolar tap: flick tongue tip ONCE against the ridge behind your upper teeth. Quick touch-and-release, like the 't' in American 'butter'."
+
+Example bad feedback:
+"Your R sounds a bit off. Try to make it more Spanish-like." (TOO VAGUE)
+
+Give me a JSON response with this structure:
+{
+  "overallScore": <0-100, be harsh>,
+  "errors": [
+    {
+      "word": "<the word>",
+      "sound": "<the problematic sound>",
+      "issue": "<what they're doing wrong>",
+      "fix": "<specific articulatory instruction>"
+    }
+  ],
+  "prosodyNotes": "<comments on stress, rhythm, intonation>",
+  "summary": "<one sentence brutal summary>"
+}`
+
+    // Call GPT-4o with both audio files
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-audio-preview',
+      modalities: ['text'],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: comparisonPrompt },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: targetBase64,
+                format: 'mp3'
+              }
+            },
+            { type: 'text', text: 'That was the native speaker. Now here is the learner:' },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: userAudioBase64,
+                format: 'webm'
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 2000
+    })
+
+    const responseText = response.choices[0]?.message?.content || ''
+    console.log('GPT-4o comparison response:', responseText)
+
+    // Parse JSON from response
+    let result
+    try {
+      // Extract JSON from response (might be wrapped in markdown code blocks)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse GPT response:', parseErr)
+      result = {
+        overallScore: 50,
+        errors: [{ word: 'unknown', sound: 'unknown', issue: responseText, fix: 'See full response' }],
+        prosodyNotes: '',
+        summary: 'Could not parse structured response'
+      }
+    }
+
+    res.json({
+      ...result,
+      rawResponse: responseText
+    })
+
+  } catch (error) {
+    console.error('GPT-4o comparison error:', error)
+    res.status(500).json({
+      error: 'Failed to compare pronunciation',
+      details: error.message
+    })
+  }
+})
+
+/**
  * Full speech analysis endpoint
  * Transcribes audio and provides comprehensive feedback on correctness, accuracy, fluency
  */

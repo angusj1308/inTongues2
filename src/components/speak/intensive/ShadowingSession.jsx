@@ -583,11 +583,15 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
       reader.onloadend = async () => {
         const base64Audio = reader.result.split(',')[1]
 
-        const response = await fetch('/api/speech/assess-pronunciation', {
+        // Use GPT-4o audio comparison for direct native vs learner comparison
+        const response = await fetch('/api/speech/compare-pronunciation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            audioBase64: base64Audio,
+            userAudioBase64: base64Audio,
+            targetAudioUrl: content.fullAudioUrl,
+            targetStart: currentSegment.start,
+            targetEnd: currentSegment.end,
             referenceText: currentSegment.text,
             language: activeLanguage
           })
@@ -598,7 +602,21 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
         }
 
         const result = await response.json()
-        setAssessmentResult(result)
+        // Transform GPT-4o response to match UI expectations
+        setAssessmentResult({
+          pronunciationScore: result.overallScore,
+          errors: result.errors || [],
+          prosodyNotes: result.prosodyNotes,
+          summary: result.summary,
+          rawResponse: result.rawResponse,
+          // For backwards compatibility with PronunciationScore component
+          majorIssues: (result.errors || []).map(e => `${e.word}: ${e.issue}`),
+          articulatoryTips: (result.errors || []).map(e => ({
+            phoneme: e.sound,
+            issue: e.issue,
+            tip: e.fix
+          }))
+        })
         setIsAssessing(false)
       }
     } catch (err) {

@@ -99,6 +99,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
 
   const handleTabClick = (tab) => {
     if (!tab || tab === activeTab) return
+    // Navigate to /tutor for tutor tab instead of showing inline
+    if (tab === 'tutor') {
+      navigate('/tutor')
+      return
+    }
     if (onTabChange) onTabChange(tab)
   }
 

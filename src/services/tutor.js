@@ -192,6 +192,26 @@ export const archiveTutorChat = async (userId, chatId) => {
 }
 
 /**
+ * Delete a chat permanently
+ */
+export const deleteTutorChat = async (userId, chatId) => {
+  const { deleteDoc } = await import('firebase/firestore')
+  const ref = getTutorChatRef(userId, chatId)
+  await deleteDoc(ref)
+}
+
+/**
+ * Rename a chat
+ */
+export const renameTutorChat = async (userId, chatId, title) => {
+  const ref = getTutorChatRef(userId, chatId)
+  await updateDoc(ref, {
+    title,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
  * Subscribe to a single chat (real-time)
  */
 export const subscribeToTutorChat = (userId, chatId, callback, onError) => {

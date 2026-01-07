@@ -66,6 +66,17 @@ export const updateTutorProfile = async (userId, updates) => {
 }
 
 /**
+ * Update tutor settings
+ */
+export const updateTutorSettings = async (userId, settings) => {
+  const ref = getTutorProfileRef(userId)
+  await updateDoc(ref, {
+    settings,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
  * Update tutor memory (merge with existing)
  */
 export const updateTutorMemory = async (userId, memoryUpdates) => {

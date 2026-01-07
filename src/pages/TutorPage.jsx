@@ -11,14 +11,38 @@ import {
   getConversationContext,
   deleteTutorChat,
   renameTutorChat,
+  updateTutorSettings,
 } from '../services/tutor'
 import TutorSidebar from '../components/tutor/TutorSidebar'
+import TutorControlPanel from '../components/tutor/TutorControlPanel'
+import TutorVoiceInput from '../components/tutor/TutorVoiceInput'
+import TutorVoiceCall from '../components/tutor/TutorVoiceCall'
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
   </svg>
 )
+
+const MicIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+)
+
+const DEFAULT_SETTINGS = {
+  showWordStatus: false,
+  correctionsEnabled: true,
+  languageLevel: 'intermediate',
+  responseStyle: 'encouraging',
+  responseLength: 'medium',
+  autoPlayResponses: false,
+  speechSpeed: 'normal',
+  focusAreas: [],
+}
 
 const TutorPage = () => {
   const { chatId } = useParams()
@@ -32,6 +56,11 @@ const TutorPage = () => {
   const [sending, setSending] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // Voice features state
+  const [isRecording, setIsRecording] = useState(false)
+  const [isInCall, setIsInCall] = useState(false)
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -48,6 +77,10 @@ const TutorPage = () => {
       try {
         const tp = await getTutorProfile(user.uid, activeLanguage, nativeLanguage)
         setTutorProfile(tp)
+        // Load settings from profile
+        if (tp.settings) {
+          setSettings((prev) => ({ ...prev, ...tp.settings }))
+        }
       } catch (err) {
         console.error('Failed to load tutor profile:', err)
       }
@@ -107,10 +140,10 @@ const TutorPage = () => {
 
   // Focus input when chat loads
   useEffect(() => {
-    if (currentChat && textareaRef.current) {
+    if (currentChat && textareaRef.current && !isRecording && !isInCall) {
       textareaRef.current.focus()
     }
-  }, [currentChat])
+  }, [currentChat, isRecording, isInCall])
 
   // Auto-resize textarea
   const handleTextareaChange = (e) => {
@@ -139,7 +172,6 @@ const TutorPage = () => {
 
     try {
       await deleteTutorChat(user.uid, chatIdToDelete)
-      // If deleting current chat, navigate to tutor home
       if (chatIdToDelete === chatId) {
         navigate('/tutor')
       }
@@ -158,10 +190,22 @@ const TutorPage = () => {
     }
   }, [user])
 
-  const handleSendMessage = useCallback(async () => {
-    if (!inputValue.trim() || !user || sending) return
+  const handleSettingsChange = useCallback(async (newSettings) => {
+    setSettings(newSettings)
+    // Persist settings
+    if (user) {
+      try {
+        await updateTutorSettings(user.uid, newSettings)
+      } catch (err) {
+        console.error('Failed to save settings:', err)
+      }
+    }
+  }, [user])
 
-    const messageText = inputValue.trim()
+  const handleSendMessage = useCallback(async (messageText, audioBlob, audioUrl) => {
+    const text = messageText || inputValue.trim()
+    if (!text || !user || sending) return
+
     setInputValue('')
 
     // Reset textarea height
@@ -184,23 +228,32 @@ const TutorPage = () => {
       // Add user message
       await addTutorMessage(user.uid, activeChatId, {
         role: 'user',
-        content: messageText,
+        content: text,
+        type: audioBlob ? 'voice' : 'text',
+        audioUrl: audioUrl || null,
       })
 
       // Get conversation context
       const history = currentChat ? getConversationContext(currentChat) : []
-      history.push({ role: 'user', content: messageText })
+      history.push({ role: 'user', content: text })
 
-      // Get tutor response
+      // Get tutor response with settings
       const response = await fetch('/api/tutor/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: messageText,
+          message: text,
           targetLanguage: activeLanguage,
           sourceLanguage: nativeLanguage,
           conversationHistory: history,
           memory: tutorProfile?.memory,
+          settings: {
+            correctionsEnabled: settings.correctionsEnabled,
+            languageLevel: settings.languageLevel,
+            responseStyle: settings.responseStyle,
+            responseLength: settings.responseLength,
+            focusAreas: settings.focusAreas,
+          },
         }),
       })
 
@@ -210,14 +263,31 @@ const TutorPage = () => {
           role: 'tutor',
           content: data.response,
         })
+
+        // Auto-play response if enabled
+        if (settings.autoPlayResponses) {
+          speakText(data.response)
+        }
       }
     } catch (err) {
       console.error('Failed to send message:', err)
     } finally {
       setSending(false)
+      setIsRecording(false)
       textareaRef.current?.focus()
     }
-  }, [inputValue, user, sending, chatId, currentChat, activeLanguage, nativeLanguage, tutorProfile?.memory, navigate])
+  }, [inputValue, user, sending, chatId, currentChat, activeLanguage, nativeLanguage, tutorProfile?.memory, settings, navigate])
+
+  const speakText = async (text) => {
+    try {
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : 'en'
+      utterance.rate = settings.speechSpeed === 'slow' ? 0.8 : settings.speechSpeed === 'fast' ? 1.2 : 1.0
+      window.speechSynthesis.speak(utterance)
+    } catch (err) {
+      console.error('TTS error:', err)
+    }
+  }
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -226,7 +296,40 @@ const TutorPage = () => {
     }
   }
 
+  const handleRecordAudio = () => {
+    if (isInCall) return
+    setIsRecording(!isRecording)
+  }
+
+  const handleVoiceCall = () => {
+    if (isRecording) return
+    setIsInCall(!isInCall)
+  }
+
+  const handleVoiceMessage = (text, audioBlob, audioUrl) => {
+    handleSendMessage(text, audioBlob, audioUrl)
+  }
+
+  const handleVoiceCallMessage = ({ role, content }) => {
+    // Messages are added directly in voice call, but we track them here
+    console.log('Voice call message:', role, content)
+  }
+
+  const handleVoiceCallEnd = () => {
+    setIsInCall(false)
+  }
+
   const messages = currentChat?.messages || []
+
+  // Render word status if enabled
+  const renderMessageText = (text, role) => {
+    if (!settings.showWordStatus || role !== 'tutor') {
+      return text
+    }
+    // TODO: Integrate with vocabulary service to highlight words
+    // For now, just return the text
+    return text
+  }
 
   return (
     <div className="tutor-page">
@@ -261,103 +364,149 @@ const TutorPage = () => {
           <div className="tutor-header-spacer" />
         </header>
 
+        {/* Voice Call Overlay */}
+        {isInCall && (
+          <TutorVoiceCall
+            onEnd={handleVoiceCallEnd}
+            onMessage={handleVoiceCallMessage}
+            activeLanguage={activeLanguage}
+            nativeLanguage={nativeLanguage}
+            tutorProfile={tutorProfile}
+            settings={settings}
+            conversationHistory={currentChat ? getConversationContext(currentChat) : []}
+          />
+        )}
+
         {/* Messages Container */}
-        <div className="tutor-messages-container">
-          {messages.length === 0 ? (
-            <div className="tutor-welcome">
-              <div className="tutor-welcome-icon">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                  <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3" strokeLinecap="round" />
-                  <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3" strokeLinecap="round" />
-                </svg>
+        {!isInCall && (
+          <div className="tutor-messages-container">
+            {messages.length === 0 ? (
+              <div className="tutor-welcome">
+                <div className="tutor-welcome-icon">
+                  <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h2>How can I help you today?</h2>
+                <p className="tutor-welcome-subtitle">
+                  {activeLanguage
+                    ? `Start a conversation in ${activeLanguage}. I'll help you practice and improve.`
+                    : 'Select a language to start learning.'}
+                </p>
               </div>
-              <h2>How can I help you today?</h2>
-              <p className="tutor-welcome-subtitle">
-                {activeLanguage
-                  ? `Start a conversation in ${activeLanguage}. I'll help you practice and improve.`
-                  : 'Select a language to start learning.'}
-              </p>
-            </div>
-          ) : (
-            <div className="tutor-messages-list">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`tutor-msg ${msg.role === 'user' ? 'tutor-msg-user' : 'tutor-msg-assistant'}`}
-                >
-                  <div className="tutor-msg-avatar">
-                    {msg.role === 'user' ? (
-                      <div className="tutor-avatar-user">
-                        {profile?.displayName?.[0]?.toUpperCase() || 'U'}
+            ) : (
+              <div className="tutor-messages-list">
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`tutor-msg ${msg.role === 'user' ? 'tutor-msg-user' : 'tutor-msg-assistant'}`}
+                  >
+                    <div className="tutor-msg-avatar">
+                      {msg.role === 'user' ? (
+                        <div className="tutor-avatar-user">
+                          {profile?.displayName?.[0]?.toUpperCase() || 'U'}
+                        </div>
+                      ) : (
+                        <div className="tutor-avatar-assistant">
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="tutor-msg-content">
+                      <div className="tutor-msg-role">
+                        {msg.role === 'user' ? 'You' : 'Tutor'}
+                        {msg.type === 'voice' && (
+                          <span className="tutor-msg-voice-badge">
+                            <MicIcon />
+                          </span>
+                        )}
                       </div>
-                    ) : (
+                      <div className="tutor-msg-text">
+                        {renderMessageText(msg.content, msg.role)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {sending && (
+                  <div className="tutor-msg tutor-msg-assistant">
+                    <div className="tutor-msg-avatar">
                       <div className="tutor-avatar-assistant">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
                         </svg>
                       </div>
-                    )}
-                  </div>
-                  <div className="tutor-msg-content">
-                    <div className="tutor-msg-role">
-                      {msg.role === 'user' ? 'You' : 'Tutor'}
                     </div>
-                    <div className="tutor-msg-text">{msg.content}</div>
-                  </div>
-                </div>
-              ))}
-              {sending && (
-                <div className="tutor-msg tutor-msg-assistant">
-                  <div className="tutor-msg-avatar">
-                    <div className="tutor-avatar-assistant">
-                      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-                      </svg>
+                    <div className="tutor-msg-content">
+                      <div className="tutor-msg-role">Tutor</div>
+                      <div className="tutor-msg-typing">
+                        <span className="typing-dot" />
+                        <span className="typing-dot" />
+                        <span className="typing-dot" />
+                      </div>
                     </div>
                   </div>
-                  <div className="tutor-msg-content">
-                    <div className="tutor-msg-role">Tutor</div>
-                    <div className="tutor-msg-typing">
-                      <span className="typing-dot" />
-                      <span className="typing-dot" />
-                      <span className="typing-dot" />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Input Area */}
-        <div className="tutor-input-wrapper">
-          <div className="tutor-input-box">
-            <textarea
-              ref={textareaRef}
-              className="tutor-textarea"
-              placeholder={activeLanguage ? `Message your ${activeLanguage} tutor...` : 'Select a language first...'}
-              value={inputValue}
-              onChange={handleTextareaChange}
-              onKeyDown={handleKeyDown}
-              disabled={sending || !activeLanguage}
-              rows={1}
+        {!isInCall && (
+          <div className="tutor-input-wrapper">
+            {/* Control Panel */}
+            <TutorControlPanel
+              settings={settings}
+              onSettingsChange={handleSettingsChange}
+              onRecordAudio={handleRecordAudio}
+              onVoiceCall={handleVoiceCall}
+              isRecording={isRecording}
+              isInCall={isInCall}
+              activeLanguage={activeLanguage}
             />
-            <button
-              className="tutor-send-btn"
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || sending || !activeLanguage}
-              aria-label="Send message"
-            >
-              <SendIcon />
-            </button>
+
+            {/* Voice Recording Input */}
+            {isRecording ? (
+              <TutorVoiceInput
+                onSend={handleVoiceMessage}
+                onCancel={() => setIsRecording(false)}
+                disabled={sending}
+                activeLanguage={activeLanguage}
+              />
+            ) : (
+              <div className="tutor-input-box">
+                <textarea
+                  ref={textareaRef}
+                  className="tutor-textarea"
+                  placeholder={activeLanguage ? `Message your ${activeLanguage} tutor...` : 'Select a language first...'}
+                  value={inputValue}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  disabled={sending || !activeLanguage}
+                  rows={1}
+                />
+                <button
+                  className="tutor-send-btn"
+                  onClick={() => handleSendMessage()}
+                  disabled={!inputValue.trim() || sending || !activeLanguage}
+                  aria-label="Send message"
+                >
+                  <SendIcon />
+                </button>
+              </div>
+            )}
+
+            <p className="tutor-input-hint">
+              Press Enter to send, Shift + Enter for new line
+            </p>
           </div>
-          <p className="tutor-input-hint">
-            Press Enter to send, Shift + Enter for new line
-          </p>
-        </div>
+        )}
       </main>
     </div>
   )

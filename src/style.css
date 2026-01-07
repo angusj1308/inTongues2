@@ -13990,6 +13990,104 @@ body.active-pass-locked {
   text-align: center;
 }
 
+/* Sessions Section */
+.speak-sessions-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.speak-sessions-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: #374151;
+}
+
+.speak-sessions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.speak-session-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.speak-session-card.ready:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+}
+
+.speak-session-card.preparing {
+  cursor: default;
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.speak-session-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.speak-session-card.ready .speak-session-icon {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.speak-session-card.preparing .speak-session-icon {
+  background: #fef3c7;
+}
+
+.speak-session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.speak-session-title {
+  font-weight: 500;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.speak-session-status {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.speak-session-status.preparing {
+  color: #d97706;
+}
+
+/* Medium spinner for session cards */
+.spinner-medium {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(217, 119, 6, 0.3);
+  border-radius: 50%;
+  border-top-color: #d97706;
+  animation: spin 0.8s linear infinite;
+}
+
 /* Mode Selection Grid */
 .speak-mode-grid {
   display: grid;

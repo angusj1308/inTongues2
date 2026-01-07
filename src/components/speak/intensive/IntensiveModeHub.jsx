@@ -197,8 +197,9 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
           })
         }).catch(err => console.error('Failed to trigger transcription:', err))
 
-        // Session will update via onSnapshot when ready
+        // Close modal and return to dashboard - session will show as "Preparing" there
         setPreparingSession(false)
+        if (onBack) onBack()
 
       } catch (err) {
         console.error('Error starting practice:', err)

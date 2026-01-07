@@ -66,6 +66,17 @@ export const updateTutorProfile = async (userId, updates) => {
 }
 
 /**
+ * Update tutor settings
+ */
+export const updateTutorSettings = async (userId, settings) => {
+  const ref = getTutorProfileRef(userId)
+  await updateDoc(ref, {
+    settings,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
  * Update tutor memory (merge with existing)
  */
 export const updateTutorMemory = async (userId, memoryUpdates) => {
@@ -187,6 +198,26 @@ export const archiveTutorChat = async (userId, chatId) => {
   const ref = getTutorChatRef(userId, chatId)
   await updateDoc(ref, {
     archived: true,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/**
+ * Delete a chat permanently
+ */
+export const deleteTutorChat = async (userId, chatId) => {
+  const { deleteDoc } = await import('firebase/firestore')
+  const ref = getTutorChatRef(userId, chatId)
+  await deleteDoc(ref)
+}
+
+/**
+ * Rename a chat
+ */
+export const renameTutorChat = async (userId, chatId, title) => {
+  const ref = getTutorChatRef(userId, chatId)
+  await updateDoc(ref, {
+    title,
     updatedAt: serverTimestamp(),
   })
 }

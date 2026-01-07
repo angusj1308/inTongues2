@@ -23,6 +23,7 @@ import PracticeLesson from './pages/PracticeLesson'
 import FreeWritingLesson from './pages/FreeWritingLesson'
 import NovelGenerator from './pages/NovelGenerator'
 import TutorChat from './pages/TutorChat'
+import TutorPage from './pages/TutorPage'
 import PronunciationPractice from './pages/PronunciationPractice'
 
 const LandingRedirect = () => {
@@ -251,10 +252,18 @@ const App = () => {
         }
       />
       <Route
+        path="/tutor"
+        element={
+          <ProtectedRoute>
+            <TutorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/tutor/:chatId"
         element={
           <ProtectedRoute>
-            <TutorChat />
+            <TutorPage />
           </ProtectedRoute>
         }
       />

@@ -4,12 +4,9 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { db } from '../../../firebase'
 import { ShadowingSession } from './ShadowingSession'
 import ImportYouTubePanel from '../../listen/ImportYouTubePanel'
-import ListeningMediaCard from '../../listen/ListeningMediaCard'
-import { getYouTubeThumbnailUrl } from '../../../utils/youtube'
 
 /**
- * Intensive Mode Hub - Select content for shadowing practice
- * Users can select from their existing library or import new content
+ * Intensive Mode Hub - Compact content selector for shadowing practice
  */
 export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
@@ -18,10 +15,12 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   const [videosLoading, setVideosLoading] = useState(true)
   const [stories, setStories] = useState([])
   const [youtubeVideos, setYoutubeVideos] = useState([])
+  const [audiobooksExpanded, setAudiobooksExpanded] = useState(true)
+  const [videosExpanded, setVideosExpanded] = useState(true)
   const [selectedContent, setSelectedContent] = useState(null)
   const [activeSession, setActiveSession] = useState(null)
 
-  // Subscribe to stories with audio (real-time updates)
+  // Subscribe to stories with audio
   useEffect(() => {
     if (!user?.uid || !activeLanguage) {
       setStories([])
@@ -41,12 +40,7 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     const unsubscribe = onSnapshot(
       storiesQuery,
       (snapshot) => {
-        const nextStories = snapshot.docs.map(doc => ({
-          id: doc.id,
-          type: 'story',
-          ...doc.data()
-        }))
-        setStories(nextStories)
+        setStories(snapshot.docs.map(doc => ({ id: doc.id, type: 'story', ...doc.data() })))
         setStoriesLoading(false)
       },
       (err) => {
@@ -58,7 +52,7 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     return unsubscribe
   }, [user?.uid, activeLanguage])
 
-  // Subscribe to YouTube videos with transcripts (real-time updates)
+  // Subscribe to YouTube videos
   useEffect(() => {
     if (!user?.uid || !activeLanguage) {
       setYoutubeVideos([])
@@ -77,12 +71,7 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
     const unsubscribe = onSnapshot(
       videosQuery,
       (snapshot) => {
-        const nextVideos = snapshot.docs.map(doc => ({
-          id: doc.id,
-          type: 'youtube',
-          ...doc.data()
-        }))
-        setYoutubeVideos(nextVideos)
+        setYoutubeVideos(snapshot.docs.map(doc => ({ id: doc.id, type: 'youtube', ...doc.data() })))
         setVideosLoading(false)
       },
       (err) => {
@@ -95,24 +84,7 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   }, [user?.uid, activeLanguage])
 
   const loading = storiesLoading || videosLoading
-  const hasContent = stories.length > 0 || youtubeVideos.length > 0
-
-  // Handle content selection for practice
-  const handleSelectContent = (content) => {
-    setSelectedContent(content)
-  }
-
-  // Start shadowing session
-  const handleStartSession = () => {
-    if (selectedContent) {
-      setActiveSession(selectedContent)
-    }
-  }
-
-  // Handle successful YouTube import - switch to library tab
-  const handleImportSuccess = () => {
-    setActiveTab('library')
-  }
+  const readyVideos = youtubeVideos.filter(v => v.status === 'ready')
 
   // Active shadowing session
   if (activeSession) {
@@ -127,186 +99,156 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   }
 
   return (
-    <div className="intensive-mode-hub">
-      <div className="intensive-mode-intro">
-        <p className="muted">
-          Practice pronunciation by listening to audio segments and recording yourself repeating them.
-          You'll receive detailed feedback on your pronunciation.
-        </p>
-      </div>
-
-      {/* Tab navigation */}
-      <div className="intensive-tabs">
+    <div className="intensive-hub-container">
+      {/* Tab bar */}
+      <div className="intensive-hub-tabs">
         <button
-          className={`intensive-tab ${activeTab === 'library' ? 'active' : ''}`}
+          className={`intensive-hub-tab ${activeTab === 'library' ? 'active' : ''}`}
           onClick={() => setActiveTab('library')}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>
-          Your Library
+          From Library
         </button>
         <button
-          className={`intensive-tab ${activeTab === 'import' ? 'active' : ''}`}
+          className={`intensive-hub-tab ${activeTab === 'import' ? 'active' : ''}`}
           onClick={() => setActiveTab('import')}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
           Import New
         </button>
       </div>
 
-      {/* Library Tab */}
+      {/* Library tab */}
       {activeTab === 'library' && (
-        <div className="intensive-library">
+        <div className="intensive-hub-library">
           {loading ? (
-            <div className="loading-state">
-              <p className="muted">Loading your audio content...</p>
-            </div>
-          ) : !hasContent ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M9 18V5l12-2v13" />
-                  <circle cx="6" cy="18" r="3" />
-                  <circle cx="18" cy="16" r="3" />
-                </svg>
-              </div>
-              <h4>No Audio Content Yet</h4>
-              <p className="muted">
-                Import a YouTube video or add stories with audio in {activeLanguage} to start practicing.
-              </p>
-              <div className="empty-state-actions">
-                <button className="btn btn-primary" onClick={() => setActiveTab('import')}>
-                  Import Content
-                </button>
-              </div>
+            <p className="muted small">Loading...</p>
+          ) : stories.length === 0 && readyVideos.length === 0 ? (
+            <div className="intensive-hub-empty">
+              <p className="muted">No audio content in {activeLanguage} yet.</p>
+              <button className="btn btn-sm" onClick={() => setActiveTab('import')}>
+                Import something
+              </button>
             </div>
           ) : (
-            <div className="content-selection">
+            <>
               {/* Audiobooks section */}
-              {stories.length > 0 && (
-                <div className="content-section">
-                  <h4>Audiobooks</h4>
-                  <div className="listen-shelf">
-                    {stories.map(story => {
-                      const isSelected = selectedContent?.id === story.id
-                      const isGeneratedStory = Boolean(
-                        story.source === 'generated' ||
-                        story.source === 'generator' ||
-                        story.origin === 'generator' ||
-                        story.generated === true ||
-                        story.generatorMetadata ||
-                        (!story.source && typeof story.genre === 'string' && story.genre)
-                      )
-
-                      return (
-                        <div
+              <div className="intensive-hub-section">
+                <button
+                  className="intensive-hub-section-header"
+                  onClick={() => setAudiobooksExpanded(!audiobooksExpanded)}
+                >
+                  <span className="intensive-hub-section-title">
+                    Audiobooks ({stories.length})
+                  </span>
+                  <svg
+                    className={`intensive-hub-chevron ${audiobooksExpanded ? 'expanded' : ''}`}
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {audiobooksExpanded && (
+                  <ul className="intensive-hub-list">
+                    {stories.length === 0 ? (
+                      <li className="intensive-hub-list-empty">No audiobooks</li>
+                    ) : (
+                      stories.map(story => (
+                        <li
                           key={story.id}
-                          className={`intensive-content-item ${isSelected ? 'selected' : ''}`}
-                          onClick={() => handleSelectContent(story)}
+                          className={`intensive-hub-list-item ${selectedContent?.id === story.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedContent(story)}
                         >
-                          <ListeningMediaCard
-                            type="audio"
-                            title={story.title || 'Untitled story'}
-                            channel={isGeneratedStory ? 'inTongues Generator' : story.author || story.language || 'Audio story'}
-                            thumbnailUrl={story.coverImageUrl || story.imageUrl || story.coverImage}
-                            tags={[story.level && `Level ${story.level}`]}
-                            actionLabel={isSelected ? 'Selected' : 'Select'}
-                            onPlay={() => handleSelectContent(story)}
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+                          <span className="intensive-hub-item-title">{story.title || 'Untitled'}</span>
+                          {story.level && <span className="intensive-hub-item-meta">Lvl {story.level}</span>}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
 
-              {/* YouTube videos section */}
-              {youtubeVideos.length > 0 && (
-                <div className="content-section">
-                  <h4>YouTube Videos</h4>
-                  <div className="listen-shelf">
-                    {youtubeVideos.map(video => {
-                      const isSelected = selectedContent?.id === video.id
-                      const isReady = video.status === 'ready'
-
-                      return (
-                        <div
+              {/* YouTube section */}
+              <div className="intensive-hub-section">
+                <button
+                  className="intensive-hub-section-header"
+                  onClick={() => setVideosExpanded(!videosExpanded)}
+                >
+                  <span className="intensive-hub-section-title">
+                    YouTube Videos ({readyVideos.length})
+                  </span>
+                  <svg
+                    className={`intensive-hub-chevron ${videosExpanded ? 'expanded' : ''}`}
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {videosExpanded && (
+                  <ul className="intensive-hub-list">
+                    {readyVideos.length === 0 ? (
+                      <li className="intensive-hub-list-empty">No videos ready</li>
+                    ) : (
+                      readyVideos.map(video => (
+                        <li
                           key={video.id}
-                          className={`intensive-content-item ${isSelected ? 'selected' : ''}`}
-                          onClick={() => isReady && handleSelectContent(video)}
+                          className={`intensive-hub-list-item ${selectedContent?.id === video.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedContent(video)}
                         >
-                          <ListeningMediaCard
-                            type="youtube"
-                            title={video.title || 'Untitled video'}
-                            channel={video.channelTitle || video.channel || 'Unknown channel'}
-                            thumbnailUrl={getYouTubeThumbnailUrl(video.youtubeUrl)}
-                            status={video.status}
-                            actionLabel={isSelected ? 'Selected' : isReady ? 'Select' : undefined}
-                            onPlay={isReady ? () => handleSelectContent(video) : undefined}
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+                          <span className="intensive-hub-item-title">{video.title || 'Untitled'}</span>
+                          {video.channelTitle && (
+                            <span className="intensive-hub-item-meta">{video.channelTitle}</span>
+                          )}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
 
               {/* Start button */}
               {selectedContent && (
-                <div className="content-selection-actions">
-                  <div className="selected-content-preview">
-                    <span className="muted">Selected:</span>
-                    <strong>{selectedContent.title}</strong>
-                  </div>
+                <div className="intensive-hub-action">
                   <button
-                    className="btn btn-primary btn-lg"
-                    onClick={handleStartSession}
+                    className="btn btn-primary"
+                    onClick={() => setActiveSession(selectedContent)}
                   >
-                    Start Shadowing Practice
+                    Start Practice
                   </button>
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       )}
 
-      {/* Import Tab */}
+      {/* Import tab */}
       {activeTab === 'import' && (
-        <div className="intensive-import">
-          <div className="import-section">
-            <ImportYouTubePanel
-              headingLevel="h4"
-              layout="card"
-              language={activeLanguage}
-              onSuccess={handleImportSuccess}
-            />
-          </div>
+        <div className="intensive-hub-import">
+          <ImportYouTubePanel
+            headingLevel="h4"
+            layout="section"
+            language={activeLanguage}
+            onSuccess={() => setActiveTab('library')}
+          />
 
-          {/* Audio file upload - coming soon */}
-          <div className="import-section">
-            <div className="preview-card import-audio-card">
-              <div className="section-header">
-                <h4>Upload Audio File</h4>
-                <span className="badge-coming-soon">Coming Soon</span>
-              </div>
-              <p className="muted small">
-                Upload MP3, WAV, or other audio files directly for shadowing practice.
-              </p>
-              <button className="button" disabled>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                Upload Audio
-              </button>
-            </div>
+          <div className="intensive-hub-import-divider" />
+
+          <div className="intensive-hub-import-audio">
+            <h4>Upload Audio File</h4>
+            <p className="muted small">MP3, WAV, or other audio formats</p>
+            <button className="btn btn-secondary" disabled>
+              Upload Audio
+              <span className="badge-soon">Soon</span>
+            </button>
           </div>
         </div>
       )}

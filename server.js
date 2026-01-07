@@ -6163,6 +6163,7 @@ const SPEECH_LANGUAGE_CODES = {
  * Simple audio transcription endpoint for tutor voice messages
  */
 app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
+  let tempFilePath = null
   try {
     const audioFile = req.file
     const language = req.body.language || 'en'
@@ -6171,19 +6172,30 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' })
     }
 
+    console.log('Transcribe request received:', {
+      size: audioFile.size,
+      mimetype: audioFile.mimetype,
+      language: language
+    })
+
     // Get language code
     const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
 
-    // Convert buffer to File object for OpenAI
-    const audioBlob = new Blob([audioFile.buffer], { type: audioFile.mimetype || 'audio/webm' })
-    const file = new File([audioBlob], audioFile.originalname || 'audio.webm', { type: audioFile.mimetype || 'audio/webm' })
+    // Save buffer to temporary file (OpenAI SDK needs a file stream in Node.js)
+    const tempDir = os.tmpdir()
+    tempFilePath = path.join(tempDir, `tutor-audio-${Date.now()}.webm`)
+    await fs.writeFile(tempFilePath, audioFile.buffer)
 
-    // Transcribe using Whisper
+    console.log('Temp file saved:', tempFilePath, 'Size:', audioFile.buffer.length)
+
+    // Transcribe using Whisper with file stream
     const transcription = await client.audio.transcriptions.create({
-      file: file,
+      file: createReadStream(tempFilePath),
       model: 'whisper-1',
       language: languageCode
     })
+
+    console.log('Transcription result:', transcription.text)
 
     res.json({
       text: transcription.text || '',
@@ -6192,6 +6204,15 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
   } catch (error) {
     console.error('Transcription error:', error)
     res.status(500).json({ error: 'Failed to transcribe audio' })
+  } finally {
+    // Clean up temp file
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
   }
 })
 

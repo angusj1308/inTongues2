@@ -116,18 +116,36 @@ const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const audioRef = useRef(null)
+  const resetRecordingRef = useRef(resetRecording)
+  const stopRecordingRef = useRef(stopRecording)
+
+  // Keep refs updated
+  useEffect(() => {
+    resetRecordingRef.current = resetRecording
+    stopRecordingRef.current = stopRecording
+  }, [resetRecording, stopRecording])
 
   // Auto-start recording when component mounts
   useEffect(() => {
+    let isMounted = true
+
     const initRecording = async () => {
       if (permissionState === 'prompt') {
         await requestPermission()
       }
-      if (permissionState !== 'denied') {
+      if (isMounted && permissionState !== 'denied') {
         startRecording()
       }
     }
     initRecording()
+
+    // Cleanup when component unmounts - ensure all recording stops
+    return () => {
+      isMounted = false
+      // Stop any active recording and clean up resources
+      stopRecordingRef.current()
+      resetRecordingRef.current()
+    }
   }, [])
 
   const handleStop = useCallback(() => {

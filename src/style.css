@@ -3062,6 +3062,180 @@ textarea {
   letter-spacing: 0.025em;
 }
 
+/* ===========================================
+   Simplified Pronunciation Practice Layout
+   =========================================== */
+
+.pronunciation-practice-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem;
+  gap: 1.5rem;
+}
+
+.pronunciation-text-zone {
+  width: 100%;
+  text-align: center;
+}
+
+.pronunciation-text {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.75rem;
+  line-height: 1.4;
+  color: #1e293b;
+  margin: 0;
+  font-weight: 400;
+}
+
+.pronunciation-progress-bar {
+  width: 100%;
+  max-width: 500px;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pronunciation-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.pronunciation-play-zone {
+  display: flex;
+  justify-content: center;
+}
+
+.pronunciation-play-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.pronunciation-play-btn:hover {
+  background: #334155;
+  transform: scale(1.05);
+}
+
+.pronunciation-play-btn:active {
+  transform: scale(0.98);
+}
+
+.pronunciation-record-zone {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pronunciation-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.pronunciation-your-recording {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pronunciation-recording-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pronunciation-your-recording audio {
+  height: 36px;
+  border-radius: 8px;
+}
+
+.pronunciation-assessing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+}
+
+.pronunciation-error {
+  color: #dc2626;
+  text-align: center;
+  padding: 1rem;
+}
+
+.pronunciation-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pronunciation-retry-btn:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+/* Dark mode */
+[data-theme='dark'] .pronunciation-text {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .pronunciation-progress-bar {
+  background: #334155;
+}
+
+[data-theme='dark'] .pronunciation-play-btn {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+[data-theme='dark'] .pronunciation-play-btn:hover {
+  background: #e2e8f0;
+}
+
+[data-theme='dark'] .pronunciation-record-zone {
+  border-top-color: #334155;
+}
+
+[data-theme='dark'] .pronunciation-retry-btn {
+  background: #334155;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .pronunciation-retry-btn:hover {
+  background: #475569;
+}
+
 .intensive-playback-item audio {
   height: 36px;
   border-radius: 18px;

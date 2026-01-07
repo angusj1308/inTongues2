@@ -735,132 +735,64 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
           </button>
         </div>
 
-        {/* Main content */}
-        <div className="intensive-card-content intensive-card-content--speaking">
-          {/* Transcript zone */}
-          <div className="intensive-transcript-zone">
-            <div className="intensive-transcript intensive-transcript--speaking">
+        {/* Main content - simplified layout */}
+        <div className="pronunciation-practice-content">
+          {/* Text with integrated play button */}
+          <div className="pronunciation-text-zone">
+            <p className="pronunciation-text">
               {currentSegment?.text || 'No text available'}
-            </div>
+            </p>
           </div>
 
-          {/* Player */}
-          <div className="intensive-player">
-            <div className="intensive-player-progress">
-              <div
-                className="intensive-player-progress-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="intensive-player-controls">
-              <button
-                type="button"
-                className={`intensive-player-btn ${playbackRate === 0.75 ? 'is-active' : ''}`}
-                onClick={togglePlaybackRate}
-                aria-label={playbackRate === 0.75 ? 'Normal speed' : 'Slow speed'}
-                title={playbackRate === 0.75 ? '0.75x' : '1x'}
-              >
-                <svg width="22" height="22" viewBox="0 0 100 100" fill="currentColor">
-                  <ellipse cx="50" cy="50" rx="35" ry="25" />
-                  <circle cx="90" cy="50" r="12" />
-                  <ellipse cx="75" cy="72" rx="8" ry="12" />
-                  <ellipse cx="75" cy="28" rx="8" ry="12" />
-                  <ellipse cx="25" cy="72" rx="8" ry="12" />
-                  <ellipse cx="25" cy="28" rx="8" ry="12" />
-                  <ellipse cx="12" cy="50" rx="6" ry="4" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="intensive-player-btn"
-                onClick={() => scrubAudio(-2)}
-                aria-label="Back 2 seconds"
-              >
-                <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
-                  <g transform="translate(36 0) scale(-1 1)">
-                    <circle className="scrub-arc" cx="18" cy="18" r="12" />
-                    <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
-                  </g>
-                  <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="intensive-player-btn intensive-player-btn-play"
-                onClick={togglePlayPause}
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-              >
-                {isPlaying ? (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                  </svg>
-                ) : (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                )}
-              </button>
-              <button
-                type="button"
-                className="intensive-player-btn"
-                onClick={() => scrubAudio(2)}
-                aria-label="Forward 2 seconds"
-              >
-                <svg className="scrub-svg" width="24" height="24" viewBox="-2 -2 40 40" fill="none">
-                  <circle className="scrub-arc" cx="18" cy="18" r="12" />
-                  <path className="scrub-arrowhead" d="M 22 6 L 16 4 L 16 8 Z" />
-                  <text className="scrub-text" x="18" y="19" textAnchor="middle" dominantBaseline="middle">2</text>
-                </svg>
-              </button>
-              <button
-                type="button"
-                className={`intensive-player-btn ${isLooping ? 'is-active' : ''}`}
-                onClick={toggleLoop}
-                aria-label={isLooping ? 'Disable loop' : 'Enable loop'}
-                aria-pressed={isLooping}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 2l4 4-4 4" />
-                  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                  <path d="M7 22l-4-4 4-4" />
-                  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-                </svg>
-              </button>
-            </div>
+          {/* Simple progress bar */}
+          <div className="pronunciation-progress-bar">
+            <div
+              className="pronunciation-progress-fill"
+              style={{ width: `${progress}%` }}
+            />
           </div>
 
-          {/* Recording zone */}
-          <div className="intensive-recording-zone">
+          {/* Centered play button */}
+          <div className="pronunciation-play-zone">
+            <button
+              type="button"
+              className="pronunciation-play-btn"
+              onClick={togglePlayPause}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* Recording section */}
+          <div className="pronunciation-record-zone">
             {!userRecording ? (
-              <div className="intensive-recording-prompt">
-                <p className="intensive-recording-instruction">
-                  Listen, then record yourself:
-                </p>
-                <AudioRecorder
-                  onRecordingComplete={handleRecordingComplete}
-                  maxDuration={30}
-                  showPlayback={false}
-                  autoSubmit={true}
-                />
-              </div>
+              <AudioRecorder
+                onRecordingComplete={handleRecordingComplete}
+                maxDuration={30}
+                showPlayback={false}
+                autoSubmit={true}
+              />
             ) : (
-              <div className="intensive-recording-result">
-                {/* Playback comparison */}
-                <div className="intensive-playback-comparison">
-                  <div className="intensive-playback-item">
-                    <span className="intensive-playback-label">Original</span>
-                    <audio src={content.fullAudioUrl} controls />
-                  </div>
-                  <div className="intensive-playback-item">
-                    <span className="intensive-playback-label">Your Recording</span>
-                    <audio src={userRecording.url} controls />
-                  </div>
+              <div className="pronunciation-result">
+                {/* Your recording playback - small inline player */}
+                <div className="pronunciation-your-recording">
+                  <span className="pronunciation-recording-label">Your Recording</span>
+                  <audio src={userRecording.url} controls />
                 </div>
 
                 {/* Assessment */}
                 {isAssessing ? (
-                  <div className="intensive-assessment-loading">
+                  <div className="pronunciation-assessing">
                     <div className="spinner" />
                     <p className="muted">Analyzing pronunciation...</p>
                   </div>
@@ -871,13 +803,13 @@ export function ShadowingSession({ content, activeLanguage, nativeLanguage, onBa
                     language={activeLanguage}
                   />
                 ) : error ? (
-                  <div className="intensive-assessment-error">
+                  <div className="pronunciation-error">
                     <p>{error}</p>
                   </div>
                 ) : null}
 
-                {/* Retry button */}
-                <button className="intensive-retry-btn" onClick={retryRecording}>
+                {/* Try again */}
+                <button className="pronunciation-retry-btn" onClick={retryRecording}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M1 4v6h6" />
                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />

@@ -1,68 +1,90 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { ShadowingSession } from './ShadowingSession'
+import ImportYouTubePanel from '../../listen/ImportYouTubePanel'
 
 /**
- * Intensive Mode Hub - Select content for shadowing practice
+ * Intensive Mode Hub - Compact content selector for shadowing practice
  */
 export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [audioContent, setAudioContent] = useState([])
+  const [activeTab, setActiveTab] = useState('library') // 'library' | 'import'
+  const [storiesLoading, setStoriesLoading] = useState(true)
+  const [videosLoading, setVideosLoading] = useState(true)
+  const [stories, setStories] = useState([])
+  const [youtubeVideos, setYoutubeVideos] = useState([])
+  const [audiobooksExpanded, setAudiobooksExpanded] = useState(true)
+  const [videosExpanded, setVideosExpanded] = useState(true)
   const [selectedContent, setSelectedContent] = useState(null)
   const [activeSession, setActiveSession] = useState(null)
 
-  // Fetch content with audio from library
+  // Subscribe to stories with audio
   useEffect(() => {
-    if (!user?.uid || !activeLanguage) return
-
-    const fetchAudioContent = async () => {
-      setLoading(true)
-      try {
-        // Fetch stories with audio
-        const storiesRef = collection(db, 'users', user.uid, 'stories')
-        const storiesQuery = query(
-          storiesRef,
-          where('language', '==', activeLanguage),
-          where('hasFullAudio', '==', true),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        )
-        const storiesSnap = await getDocs(storiesQuery)
-        const stories = storiesSnap.docs.map(doc => ({
-          id: doc.id,
-          type: 'story',
-          ...doc.data()
-        }))
-
-        // Fetch YouTube videos with transcripts
-        const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
-        const videosQuery = query(
-          videosRef,
-          where('language', '==', activeLanguage),
-          where('status', '==', 'ready'),
-          orderBy('createdAt', 'desc'),
-          limit(20)
-        )
-        const videosSnap = await getDocs(videosQuery)
-        const videos = videosSnap.docs.map(doc => ({
-          id: doc.id,
-          type: 'youtube',
-          ...doc.data()
-        }))
-
-        setAudioContent([...stories, ...videos])
-      } catch (err) {
-        console.error('Error fetching audio content:', err)
-      } finally {
-        setLoading(false)
-      }
+    if (!user?.uid || !activeLanguage) {
+      setStories([])
+      setStoriesLoading(false)
+      return
     }
 
-    fetchAudioContent()
+    setStoriesLoading(true)
+    const storiesRef = collection(db, 'users', user.uid, 'stories')
+    const storiesQuery = query(
+      storiesRef,
+      where('language', '==', activeLanguage),
+      where('hasFullAudio', '==', true),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(
+      storiesQuery,
+      (snapshot) => {
+        setStories(snapshot.docs.map(doc => ({ id: doc.id, type: 'story', ...doc.data() })))
+        setStoriesLoading(false)
+      },
+      (err) => {
+        console.error('Error loading stories:', err)
+        setStoriesLoading(false)
+      }
+    )
+
+    return unsubscribe
   }, [user?.uid, activeLanguage])
+
+  // Subscribe to YouTube videos
+  useEffect(() => {
+    if (!user?.uid || !activeLanguage) {
+      setYoutubeVideos([])
+      setVideosLoading(false)
+      return
+    }
+
+    setVideosLoading(true)
+    const videosRef = collection(db, 'users', user.uid, 'youtubeVideos')
+    const videosQuery = query(
+      videosRef,
+      where('language', '==', activeLanguage),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(
+      videosQuery,
+      (snapshot) => {
+        setYoutubeVideos(snapshot.docs.map(doc => ({ id: doc.id, type: 'youtube', ...doc.data() })))
+        setVideosLoading(false)
+      },
+      (err) => {
+        console.error('Error loading YouTube videos:', err)
+        setVideosLoading(false)
+      }
+    )
+
+    return unsubscribe
+  }, [user?.uid, activeLanguage])
+
+  const loading = storiesLoading || videosLoading
+  const readyVideos = youtubeVideos.filter(v => v.status === 'ready')
 
   // Active shadowing session
   if (activeSession) {
@@ -77,136 +99,159 @@ export function IntensiveModeHub({ activeLanguage, nativeLanguage, onBack }) {
   }
 
   return (
-    <div className="intensive-mode-hub">
-      <div className="intensive-mode-intro">
-        <p className="muted">
-          Select audio content to practice. You'll listen to segments and record yourself mimicking each one,
-          then receive detailed pronunciation feedback.
-        </p>
+    <div className="intensive-hub-container">
+      {/* Tab bar */}
+      <div className="intensive-hub-tabs">
+        <button
+          className={`intensive-hub-tab ${activeTab === 'library' ? 'active' : ''}`}
+          onClick={() => setActiveTab('library')}
+        >
+          From Library
+        </button>
+        <button
+          className={`intensive-hub-tab ${activeTab === 'import' ? 'active' : ''}`}
+          onClick={() => setActiveTab('import')}
+        >
+          Import New
+        </button>
       </div>
 
-      {loading ? (
-        <div className="loading-state">
-          <p className="muted">Loading your audio content...</p>
-        </div>
-      ) : audioContent.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M9 18V5l12-2v13" />
-              <circle cx="6" cy="18" r="3" />
-              <circle cx="18" cy="16" r="3" />
-            </svg>
-          </div>
-          <h4>No Audio Content Yet</h4>
-          <p className="muted">
-            Add stories with audio or import YouTube videos in {activeLanguage} to start practicing.
-          </p>
-          <div className="empty-state-actions">
-            <button className="btn btn-secondary" onClick={() => window.location.href = '/dashboard?tab=listen'}>
-              Go to Library
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="content-selection">
-          <h4>Your Audio Content</h4>
-
-          {/* Stories with audio */}
-          {audioContent.filter(c => c.type === 'story').length > 0 && (
-            <div className="content-section">
-              <h5>Audiobooks</h5>
-              <div className="content-grid">
-                {audioContent
-                  .filter(c => c.type === 'story')
-                  .map(content => (
-                    <button
-                      key={content.id}
-                      className={`content-card ${selectedContent?.id === content.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedContent(content)}
-                    >
-                      <div className="content-card-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                        </svg>
-                      </div>
-                      <div className="content-card-info">
-                        <span className="content-title">{content.title}</span>
-                        <span className="content-meta">{content.level || 'Story'}</span>
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* YouTube videos */}
-          {audioContent.filter(c => c.type === 'youtube').length > 0 && (
-            <div className="content-section">
-              <h5>YouTube Videos</h5>
-              <div className="content-grid">
-                {audioContent
-                  .filter(c => c.type === 'youtube')
-                  .map(content => (
-                    <button
-                      key={content.id}
-                      className={`content-card ${selectedContent?.id === content.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedContent(content)}
-                    >
-                      {content.thumbnailUrl ? (
-                        <img
-                          src={content.thumbnailUrl}
-                          alt=""
-                          className="content-card-thumbnail"
-                        />
-                      ) : (
-                        <div className="content-card-icon">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M23 7l-7 5 7 5V7z" />
-                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="content-card-info">
-                        <span className="content-title">{content.title}</span>
-                        <span className="content-meta">{content.channelTitle || 'Video'}</span>
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* Start button */}
-          {selectedContent && (
-            <div className="content-selection-actions">
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={() => setActiveSession(selectedContent)}
-              >
-                Start Shadowing Practice
+      {/* Library tab */}
+      {activeTab === 'library' && (
+        <div className="intensive-hub-library">
+          {loading ? (
+            <p className="muted small">Loading...</p>
+          ) : stories.length === 0 && readyVideos.length === 0 ? (
+            <div className="intensive-hub-empty">
+              <p className="muted">No audio content in {activeLanguage} yet.</p>
+              <button className="btn btn-sm" onClick={() => setActiveTab('import')}>
+                Import something
               </button>
             </div>
+          ) : (
+            <>
+              {/* Audiobooks section */}
+              <div className="intensive-hub-section">
+                <button
+                  className="intensive-hub-section-header"
+                  onClick={() => setAudiobooksExpanded(!audiobooksExpanded)}
+                >
+                  <span className="intensive-hub-section-title">
+                    Audiobooks ({stories.length})
+                  </span>
+                  <svg
+                    className={`intensive-hub-chevron ${audiobooksExpanded ? 'expanded' : ''}`}
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {audiobooksExpanded && (
+                  <ul className="intensive-hub-list">
+                    {stories.length === 0 ? (
+                      <li className="intensive-hub-list-empty">No audiobooks</li>
+                    ) : (
+                      stories.map(story => (
+                        <li
+                          key={story.id}
+                          className={`intensive-hub-list-item ${selectedContent?.id === story.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedContent(story)}
+                        >
+                          <span className="intensive-hub-item-title">{story.title || 'Untitled'}</span>
+                          {story.level && <span className="intensive-hub-item-meta">Lvl {story.level}</span>}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
+
+              {/* YouTube section */}
+              <div className="intensive-hub-section">
+                <button
+                  className="intensive-hub-section-header"
+                  onClick={() => setVideosExpanded(!videosExpanded)}
+                >
+                  <span className="intensive-hub-section-title">
+                    YouTube Videos ({readyVideos.length})
+                  </span>
+                  <svg
+                    className={`intensive-hub-chevron ${videosExpanded ? 'expanded' : ''}`}
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {videosExpanded && (
+                  <ul className="intensive-hub-list">
+                    {readyVideos.length === 0 ? (
+                      <li className="intensive-hub-list-empty">No videos ready</li>
+                    ) : (
+                      readyVideos.map(video => (
+                        <li
+                          key={video.id}
+                          className={`intensive-hub-list-item ${selectedContent?.id === video.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedContent(video)}
+                        >
+                          <span className="intensive-hub-item-title">{video.title || 'Untitled'}</span>
+                          {video.channelTitle && (
+                            <span className="intensive-hub-item-meta">{video.channelTitle}</span>
+                          )}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
+
+              {/* Start button */}
+              {selectedContent && (
+                <div className="intensive-hub-action">
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setActiveSession(selectedContent)}
+                  >
+                    Start Practice
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {/* Upload option */}
-      <div className="upload-section">
-        <div className="upload-divider">
-          <span>or</span>
+      {/* Import tab */}
+      {activeTab === 'import' && (
+        <div className="intensive-hub-import">
+          <ImportYouTubePanel
+            headingLevel="h4"
+            layout="section"
+            language={activeLanguage}
+            onSuccess={() => setActiveTab('library')}
+          />
+
+          <div className="intensive-hub-import-divider" />
+
+          <div className="intensive-hub-import-audio">
+            <h4>Upload Audio File</h4>
+            <p className="muted small">MP3, WAV, or other audio formats</p>
+            <button className="btn btn-secondary" disabled>
+              Upload Audio
+              <span className="badge-soon">Soon</span>
+            </button>
+          </div>
         </div>
-        <button className="btn btn-secondary upload-btn" disabled>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Upload Audio File
-          <span className="badge-coming-soon">Soon</span>
-        </button>
-      </div>
+      )}
     </div>
   )
 }

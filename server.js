@@ -6291,6 +6291,8 @@ async function assessPronunciationWithAzure(wavPath, referenceText, language) {
           if (jsonResult) {
             try {
               const parsed = JSON.parse(jsonResult)
+              // Log raw structure to debug phoneme extraction
+              console.log('Raw Azure JSON (first word):', JSON.stringify(parsed.NBest?.[0]?.Words?.[0], null, 2))
               const nBest = parsed.NBest?.[0]
 
               if (nBest?.Words) {

@@ -5747,8 +5747,8 @@ Return JSON:
       {
         "category": "spelling" | "grammar" | "punctuation" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
         "severity": "minor" | "major",
-        "original": "exact text from student's writing (including brackets for help requests)",
-        "correction": "corrected/improved text",
+        "original": "ONLY the specific word(s) with the error - NOT the entire sentence",
+        "correction": "corrected version of ONLY those word(s)",
         "explanation": "Brief explanation in ${feedbackLang}",
         "exampleSentence": "A natural example sentence using the correction in context"
       }
@@ -5757,7 +5757,10 @@ Return JSON:
 }
 
 CRITICAL RULES:
-- "original" must EXACTLY match text in student's writing (for highlighting)
+- "original" must contain ONLY the specific word(s) with the error, NOT the whole sentence
+  * CORRECT: "nade" (just the misspelled word)
+  * WRONG: "no hemos hecho nade." (the whole sentence)
+- "original" text must EXACTLY match what appears in the student's writing (for highlighting)
 - SEVERITY IS IMPORTANT:
   * "minor": Missing/wrong ACCENTS ONLY (e.g., "pagina" → "página", "esta" → "está", "Todavia" → "Todavía"), punctuation errors, naturalness suggestions
   * "major": Wrong letters, missing letters, extra letters, grammar errors (conjugation, agreement, word order)

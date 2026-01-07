@@ -960,7 +960,7 @@ const FreeWritingLesson = () => {
             left: rect.left - docRect.left,
             top: rect.top - docRect.top + rect.height - 2,
             width: rect.width,
-            height: 3,
+            height: 2,
           })
         }
       } catch (e) {
@@ -1631,12 +1631,9 @@ const FreeWritingLesson = () => {
                           height: rect.height,
                           pointerEvents: 'auto',
                           cursor: 'pointer',
-                          // Wavy underline using SVG pattern
-                          background: isError
-                            ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 3 Q1.5 0 3 3 T6 3' fill='none' stroke='%23ef4444' stroke-width='1'/%3E%3C/svg%3E")`
-                            : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='3' viewBox='0 0 6 3'%3E%3Cpath d='M0 3 Q1.5 0 3 3 T6 3' fill='none' stroke='%23eab308' stroke-width='1'/%3E%3C/svg%3E")`,
-                          backgroundRepeat: 'repeat-x',
-                          opacity: isActive ? 1 : 0.8,
+                          // Solid underline
+                          background: isError ? '#ef4444' : '#eab308',
+                          opacity: isActive ? 1 : 0.7,
                           transition: 'opacity 0.15s ease',
                         }}
                         title={`${rect.category}: ${rect.explanation}`}
@@ -1669,50 +1666,6 @@ const FreeWritingLesson = () => {
           </div>
         </main>
       </div>
-
-      {/* Selection feedback popup */}
-      {selectionFeedbackPopup && selection && !feedbackLoading && (
-        <div
-          className="selection-feedback-popup"
-          style={{
-            position: 'fixed',
-            left: selectionFeedbackPopup.x,
-            top: selectionFeedbackPopup.y,
-            transform: 'translate(-50%, -100%)',
-            zIndex: 1000,
-            background: 'var(--bg-primary, #fff)',
-            border: '1px solid var(--border-color, #e2e8f0)',
-            borderRadius: '8px',
-            padding: '6px 12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="button primary small"
-            onClick={handleSubmitSelectionForFeedback}
-            style={{
-              padding: '4px 12px',
-              fontSize: '0.875rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-            Get Feedback
-          </button>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            or ⌘+Enter
-          </span>
-        </div>
-      )}
 
       {/* Translation popup */}
       {popup && (

@@ -3079,6 +3079,282 @@ textarea {
   border-color: #cbd5e1;
 }
 
+/* ===== SPEAKING PRACTICE MODE ===== */
+
+.speaking-practice-source {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.speaking-practice-label {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.speaking-practice-text {
+  font-family: 'EB Garamond', 'Garamond', serif;
+  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.5rem);
+  font-weight: 400;
+  line-height: 1.6;
+  color: #0f172a;
+  text-align: center;
+  margin: 0;
+}
+
+.speaking-practice-recording {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.speaking-practice-instruction {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.speaking-practice-skip-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  background: transparent;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.speaking-practice-skip-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.speaking-practice-skip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.speaking-practice-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+}
+
+.speaking-practice-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #fef2f2;
+  border-radius: 12px;
+}
+
+.speaking-practice-error p {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.9rem;
+}
+
+.speaking-practice-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.speaking-practice-playback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.speaking-practice-playback audio {
+  height: 36px;
+  border-radius: 18px;
+}
+
+.speaking-practice-assessment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.speaking-practice-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-weight: 600;
+}
+
+.speaking-practice-score.pass {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.speaking-practice-score.acceptable {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.speaking-practice-score.fail {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.speaking-practice-score .score-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.speaking-practice-score .score-value {
+  font-size: 1rem;
+}
+
+.speaking-practice-explanation {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.speaking-practice-exemplar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.speaking-practice-exemplar-text {
+  font-family: 'EB Garamond', 'Garamond', serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #0f172a;
+  text-align: center;
+  margin: 0;
+}
+
+.speaking-practice-vocab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speaking-practice-vocab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speaking-practice-vocab-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.vocab-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.vocab-item-word {
+  font-family: 'EB Garamond', 'Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.vocab-item-translation {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.vocab-item-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vocab-item-save:hover:not(:disabled) {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.vocab-item-save.saved {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #22c55e;
+  cursor: default;
+}
+
+.vocab-item-save:disabled {
+  cursor: default;
+}
+
+.speaking-practice-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+/* Import panel tweaks for speaking practice */
+.speaking-practice-import .import-field label {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
 .translate-popup {
   background: #ffffff;
   padding: 14px 16px 12px;

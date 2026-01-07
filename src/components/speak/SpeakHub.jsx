@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IntensiveModeHub } from './intensive/IntensiveModeHub'
+import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
 import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
 
 /**
@@ -8,7 +9,7 @@ import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
  */
 export function SpeakHub({ activeLanguage, nativeLanguage }) {
   const navigate = useNavigate()
-  const [activeMode, setActiveMode] = useState(null) // null = mode selection, 'intensive' | 'voiceRecord' | 'conversation'
+  const [activeMode, setActiveMode] = useState(null) // null | 'pronunciation' | 'speakingPractice' | 'voiceRecord' | 'conversation'
 
   // Conversation mode - placeholder linking to tutor
   if (activeMode === 'conversation') {
@@ -68,7 +69,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     )
   }
 
-  // Mode selection view (with overlay for intensive mode)
+  // Mode selection view (with overlays for pronunciation and speaking practice)
   return (
     <div className="speak-hub">
       <div className="speak-hub-header">
@@ -77,10 +78,10 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       </div>
 
       <div className="speak-mode-grid">
-        {/* Intensive Mode Card */}
+        {/* Pronunciation Practice Card (was Intensive) */}
         <button
           className="speak-mode-card"
-          onClick={() => setActiveMode('intensive')}
+          onClick={() => setActiveMode('pronunciation')}
         >
           <div className="speak-mode-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -92,14 +93,39 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
               <path d="M20 8l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h3>Intensive</h3>
-          <p className="speak-mode-subtitle">Shadowing Practice</p>
+          <h3>Pronunciation Practice</h3>
+          <p className="speak-mode-subtitle">Shadowing</p>
           <p className="speak-mode-description">
-            Listen and repeat sentence by sentence. Get phoneme-level pronunciation feedback and articulatory tips.
+            Listen to {activeLanguage} audio and repeat. Get phoneme-level feedback on your accent and pronunciation.
           </p>
           <div className="speak-mode-focus">
             <span className="focus-tag">Pronunciation</span>
             <span className="focus-tag">Accent</span>
+          </div>
+        </button>
+
+        {/* Speaking Practice Card (NEW - interpretation) */}
+        <button
+          className="speak-mode-card"
+          onClick={() => setActiveMode('speakingPractice')}
+        >
+          <div className="speak-mode-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+              <path d="M2 5h4M2 9h4M2 13h4" strokeLinecap="round" />
+            </svg>
+          </div>
+          <h3>Speaking Practice</h3>
+          <p className="speak-mode-subtitle">Interpretation</p>
+          <p className="speak-mode-description">
+            See {nativeLanguage} text and speak the {activeLanguage} translation. Get feedback on accuracy and vocabulary.
+          </p>
+          <div className="speak-mode-focus">
+            <span className="focus-tag">Translation</span>
+            <span className="focus-tag">Vocabulary</span>
           </div>
         </button>
 
@@ -121,7 +147,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           <h3>Voice Record</h3>
           <p className="speak-mode-subtitle">Long-form Production</p>
           <p className="speak-mode-description">
-            Read aloud from library content, your own writing, or speak freely. Get comprehensive feedback on correctness, accuracy, and fluency.
+            Read aloud from library content, your own writing, or speak freely. Get comprehensive feedback.
           </p>
           <div className="speak-mode-focus">
             <span className="focus-tag">Fluency</span>
@@ -145,7 +171,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           <h3>Conversation</h3>
           <p className="speak-mode-subtitle">Voice Chat with Tutor</p>
           <p className="speak-mode-description">
-            Have real conversations with your AI tutor using voice. Practice spontaneous speaking and get natural corrections.
+            Have real conversations with your AI tutor using voice. Practice spontaneous speaking.
           </p>
           <div className="speak-mode-focus">
             <span className="focus-tag">Conversation</span>
@@ -158,12 +184,12 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       {/* Quick stats or recent activity could go here */}
       <div className="speak-hub-footer">
         <p className="muted small">
-          Tip: Start with Intensive mode to build pronunciation accuracy, then practice Voice Record for fluency.
+          Tip: Start with Pronunciation Practice to build accuracy, then Speaking Practice to build translation speed.
         </p>
       </div>
 
-      {/* Intensive Mode Overlay */}
-      {activeMode === 'intensive' && (
+      {/* Pronunciation Practice Overlay (was Intensive) */}
+      {activeMode === 'pronunciation' && (
         <div className="intensive-overlay" onClick={() => setActiveMode(null)}>
           <div className="intensive-overlay-content" onClick={e => e.stopPropagation()}>
             <div className="intensive-overlay-header">
@@ -175,6 +201,27 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
               </button>
             </div>
             <IntensiveModeHub
+              activeLanguage={activeLanguage}
+              nativeLanguage={nativeLanguage}
+              onBack={() => setActiveMode(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Speaking Practice Overlay */}
+      {activeMode === 'speakingPractice' && (
+        <div className="intensive-overlay" onClick={() => setActiveMode(null)}>
+          <div className="intensive-overlay-content" onClick={e => e.stopPropagation()}>
+            <div className="intensive-overlay-header">
+              <h3>Select Practice Material</h3>
+              <button className="intensive-overlay-close" onClick={() => setActiveMode(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <SpeakingPracticeHub
               activeLanguage={activeLanguage}
               nativeLanguage={nativeLanguage}
               onBack={() => setActiveMode(null)}

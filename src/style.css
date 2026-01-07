@@ -13912,6 +13912,131 @@ body.active-pass-locked {
   margin-bottom: 1.5rem;
 }
 
+/* Intensive Mode Tabs */
+.intensive-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.intensive-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.intensive-tab:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.intensive-tab.active {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.intensive-tab svg {
+  opacity: 0.7;
+}
+
+.intensive-tab.active svg {
+  opacity: 1;
+}
+
+/* Intensive Library */
+.intensive-library {
+  min-height: 200px;
+}
+
+.intensive-content-item {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.intensive-content-item.selected::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.intensive-content-item.selected::after {
+  content: '✓';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  z-index: 2;
+}
+
+/* Import Section */
+.intensive-import {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.import-section {
+  width: 100%;
+}
+
+.import-audio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-audio-card .section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.import-audio-card button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+}
+
+/* Selected content preview */
+.selected-content-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.selected-content-preview .muted {
+  color: #64748b;
+}
+
 .content-selection h4 {
   margin: 0 0 1rem;
 }

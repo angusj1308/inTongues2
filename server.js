@@ -5785,23 +5785,30 @@ ${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor
       return res.status(500).json({ error: 'Failed to parse feedback response' })
     }
 
-    // Add position indices for corrections and fix severity for accent-only errors
+    // Add position indices for corrections and fix severity based on error type
     if (result.feedback?.corrections) {
       result.feedback.corrections = result.feedback.corrections.map(c => {
         const startIndex = userText.indexOf(c.original)
 
-        // Detect accent-only errors and force them to minor severity
-        // Compare original and correction - if only difference is accents, it's minor
+        // Determine severity based on actual error type, not just what the model says
         let severity = c.severity || 'major'
         if (c.original && c.correction) {
           const normalizeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
           const originalNorm = normalizeAccents(c.original)
           const correctionNorm = normalizeAccents(c.correction)
-          // If removing accents makes them equal, it's an accent-only error
+
+          // If removing accents makes them equal, it's an accent-only error → minor
           if (originalNorm === correctionNorm) {
             severity = 'minor'
             console.log(`Accent-only error detected: "${c.original}" → "${c.correction}", setting severity to minor`)
           }
+          // If they differ after removing accents AND it's spelling/grammar → major (real mistake)
+          else if ((c.category === 'spelling' || c.category === 'grammar') && originalNorm !== correctionNorm) {
+            severity = 'major'
+            console.log(`Real spelling/grammar error: "${c.original}" → "${c.correction}", setting severity to major`)
+          }
+          // Punctuation stays as-is (usually minor)
+          // Naturalness stays as-is (usually minor)
         }
 
         return {

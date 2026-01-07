@@ -4976,6 +4976,7 @@ Return JSON:
 }
 
 CRITICAL RULES:
+- "original" must contain ONLY the specific word(s) with errors, NOT surrounding correct words
 - "original" must EXACTLY match text in student's attempt (for highlighting)
 - Flag EVERY spelling error including missing accents (á, é, í, ó, ú, ñ, ü)
 - Flag EVERY grammar error (conjugation, agreement, syntax)
@@ -5767,10 +5768,8 @@ Return JSON:
 }
 
 CRITICAL RULES:
-- "original" must contain ONLY the specific word(s) with the error, NOT the whole sentence
-  * CORRECT: "nade" (just the misspelled word)
-  * WRONG: "no hemos hecho nade." (the whole sentence)
-- "original" text must EXACTLY match what appears in the student's writing (for highlighting)
+- "original" must contain ONLY the specific word(s) with errors, NOT surrounding correct words. Example: if "hechu" is misspelled in "no hemos hechu nada", original should be "hechu" NOT the whole phrase
+- "original" must EXACTLY match text in student's writing (for highlighting)
 - SEVERITY IS IMPORTANT:
   * "minor": Missing/wrong ACCENTS ONLY (e.g., "pagina" → "página", "esta" → "está", "Todavia" → "Todavía"), punctuation errors, naturalness suggestions
   * "major": Wrong letters, missing letters, extra letters, grammar errors (conjugation, agreement, word order)

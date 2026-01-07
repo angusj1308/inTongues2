@@ -33,6 +33,53 @@ const MicIcon = () => (
   </svg>
 )
 
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+)
+
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <rect x="6" y="4" width="4" height="16" />
+    <rect x="14" y="4" width="4" height="16" />
+  </svg>
+)
+
+// Component for playing voice message audio
+const VoiceMessagePlayer = ({ audioUrl }) => {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const audioRef = useRef(null)
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.onended = () => setIsPlaying(false)
+      audioRef.current.onpause = () => setIsPlaying(false)
+      audioRef.current.onplay = () => setIsPlaying(true)
+    }
+  }, [])
+
+  const togglePlay = () => {
+    if (!audioRef.current) return
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      audioRef.current.play()
+    }
+  }
+
+  if (!audioUrl) return null
+
+  return (
+    <div className="tutor-voice-player">
+      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+      <button className="tutor-voice-play-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
+        {isPlaying ? <PauseIcon /> : <PlayIcon />}
+      </button>
+    </div>
+  )
+}
+
 const DEFAULT_SETTINGS = {
   showWordStatus: false,
   correctionsEnabled: true,
@@ -426,6 +473,10 @@ const TutorPage = () => {
                           </span>
                         )}
                       </div>
+                      {/* Audio player for voice messages */}
+                      {msg.type === 'voice' && msg.audioUrl && (
+                        <VoiceMessagePlayer audioUrl={msg.audioUrl} />
+                      )}
                       <div className="tutor-msg-text">
                         {renderMessageText(msg.content, msg.role)}
                       </div>

@@ -601,6 +601,7 @@ const FreeWritingLesson = () => {
     )
 
     // Extract words from corrections (tutor suggestions) that user didn't write
+    // Include context from the correction to help disambiguate homonyms
     const correctionWords = []
     feedback.corrections.forEach(c => {
       const words = (c.correction || '').match(/[\p{L}\p{M}]+/gu) || []
@@ -608,7 +609,9 @@ const FreeWritingLesson = () => {
         const normalised = word.toLowerCase()
         // Only include if user didn't produce this word themselves
         if (!userProducedWords.has(normalised)) {
-          correctionWords.push({ word, normalised })
+          // Store context from the correction to help disambiguate homonyms (e.g., "haya" verb vs tree)
+          const context = c.explanation || c.exampleSentence || c.correction
+          correctionWords.push({ word, normalised, context })
         }
       })
     })
@@ -617,7 +620,7 @@ const FreeWritingLesson = () => {
     const uniqueWords = [...new Map(correctionWords.map(w => [w.normalised, w])).values()]
 
     const wordList = uniqueWords
-      .map(({ word, normalised }) => {
+      .map(({ word, normalised, context }) => {
         const vocabEntry = userVocab[normalised]
         const status = vocabEntry?.status || 'new'
         // Only show words that aren't already known
@@ -631,6 +634,7 @@ const FreeWritingLesson = () => {
           translation: translationData.translation || vocabEntry?.translation || null,
           audioBase64: translationData.audioBase64 || null,
           audioUrl: translationData.audioUrl || null,
+          context, // Context for disambiguation when fetching translation
         }
       })
       .filter(Boolean)
@@ -655,6 +659,7 @@ const FreeWritingLesson = () => {
                   phrase: w.displayWord,
                   sourceLang: lesson.targetLanguage,
                   targetLang: lesson.sourceLanguage,
+                  context: w.context, // Pass context to disambiguate homonyms (e.g., "haya" verb vs tree)
                 }),
               })
               if (response.ok) {

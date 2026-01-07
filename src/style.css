@@ -2979,15 +2979,30 @@ textarea {
 .intensive-card-content--speaking {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 3rem 2rem;
+}
+
+.intensive-card-content--speaking .intensive-transcript-zone {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: auto;
+  padding: 0;
+}
+
+.intensive-card-content--speaking .intensive-player {
+  width: 100%;
+  max-width: 400px;
 }
 
 .intensive-transcript--speaking {
   font-family: 'EB Garamond', 'Garamond', serif;
-  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.6rem);
+  font-size: clamp(1.5rem, 2vw + 1rem, 2.25rem);
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.5;
   color: #0f172a;
   text-align: center;
 }

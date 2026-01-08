@@ -6127,6 +6127,44 @@ app.post('/api/tutor/tts', async (req, res) => {
 })
 
 /**
+ * Generate a chat title based on conversation content
+ */
+app.post('/api/tutor/generate-title', async (req, res) => {
+  try {
+    const { messages, language } = req.body || {}
+
+    if (!messages || messages.length < 2) {
+      return res.json({ title: null })
+    }
+
+    // Take first few messages for context
+    const contextMessages = messages.slice(0, 4)
+    const conversationText = contextMessages
+      .map((m) => `${m.role === 'user' ? 'User' : 'Tutor'}: ${m.content}`)
+      .join('\n')
+
+    const prompt = `Generate a short, descriptive title (3-6 words) for this ${language || 'language learning'} conversation. The title should capture the main topic or theme.
+
+CONVERSATION:
+${conversationText}
+
+Return ONLY the title, nothing else. No quotes, no punctuation at the end.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    const title = (response.output_text || '').trim().replace(/^["']|["']$/g, '')
+
+    res.json({ title: title || null })
+  } catch (error) {
+    console.error('Generate title error:', error)
+    res.json({ title: null })
+  }
+})
+
+/**
  * End a session and extract memory updates
  */
 app.post('/api/tutor/end-session', async (req, res) => {

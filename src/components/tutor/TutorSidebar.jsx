@@ -66,11 +66,16 @@ const formatChatDate = (timestamp) => {
 const getChatTitle = (chat) => {
   if (chat.title) return chat.title
 
-  // Get first user message as title
-  const firstUserMsg = chat.messages?.find((m) => m.role === 'user')
-  if (firstUserMsg) {
-    const text = firstUserMsg.content
-    return text.length > 30 ? text.slice(0, 30) + '...' : text
+  // Default title is the date and time it was started
+  const timestamp = chat.createdAt || chat.updatedAt
+  if (timestamp) {
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
   }
 
   return 'New conversation'
@@ -174,9 +179,6 @@ const ChatItem = ({ chat, isActive, onSelect, onDelete, onRename }) => {
       className={`tutor-sidebar-chat ${isActive ? 'active' : ''}`}
       onClick={() => !isEditing && onSelect(chat.id)}
     >
-      <div className="tutor-sidebar-chat-icon">
-        <ChatIcon />
-      </div>
       <div className="tutor-sidebar-chat-content">
         {isEditing ? (
           <input

@@ -212,6 +212,26 @@ const TutorPage = () => {
   const activeLanguage = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
 
+  // Get chat title for header
+  const getChatTitle = () => {
+    if (!currentChat) return 'New Chat'
+    if (currentChat.title) return currentChat.title
+
+    // Default title is date and time
+    const timestamp = currentChat.createdAt || currentChat.updatedAt
+    if (timestamp) {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+      return date.toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    }
+
+    return 'New Chat'
+  }
+
   // Load tutor profile
   useEffect(() => {
     if (!user || !activeLanguage) return
@@ -407,9 +427,28 @@ const TutorPage = () => {
           content: data.response,
         })
 
-        // Auto-play response if enabled
-        if (settings.autoPlayResponses) {
-          speakText(data.response)
+        // Always speak tutor response using ElevenLabs
+        speakText(data.response)
+
+        // Auto-generate title after first exchange (when chat has no custom title yet)
+        const updatedMessages = [...history, { role: 'user', content: text }, { role: 'tutor', content: data.response }]
+        if (updatedMessages.length === 2 && !currentChat?.title) {
+          try {
+            const titleResponse = await fetch('/api/tutor/generate-title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: updatedMessages,
+                language: activeLanguage,
+              }),
+            })
+            const titleData = await titleResponse.json()
+            if (titleData.title) {
+              await renameTutorChat(user.uid, activeChatId, titleData.title)
+            }
+          } catch (titleErr) {
+            console.error('Failed to generate title:', titleErr)
+          }
         }
       }
     } catch (err) {
@@ -534,7 +573,7 @@ const TutorPage = () => {
             </svg>
           </button>
           <h1 className="tutor-header-title">
-            {activeLanguage ? `${activeLanguage} Tutor` : 'Tutor'}
+            {getChatTitle()}
           </h1>
           <div className="tutor-header-spacer" />
         </header>

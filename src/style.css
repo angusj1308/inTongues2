@@ -2349,6 +2349,22 @@ textarea {
   gap: 1rem;
 }
 
+/* Speaking session full-page (rendered via portal at body level) */
+.speaking-session-fullpage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #f8fafc;
+  z-index: 9999;
+}
+
+[data-theme="dark"] .speaking-session-fullpage {
+  background: #0f172a;
+}
+
 /* Intensive listening - overlay layout (for content selection modals) */
 .intensive-overlay {
   position: fixed;

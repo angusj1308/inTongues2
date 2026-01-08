@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { IntensiveModeHub } from './intensive/IntensiveModeHub'
 import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
-import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
 
 /**
  * Main hub for the Speaking tab - allows selection between different speaking practice modes
@@ -43,7 +42,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     return unsubscribe
   }, [user?.uid])
 
-  // Subscribe to speaking practice lessons (filter importing ones in JS to avoid composite index)
+  // Subscribe to speaking practice lessons
   useEffect(() => {
     if (!user?.uid || !normalizedLanguage) {
       setSpeakingPracticeLessons([])
@@ -60,15 +59,13 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       lessonsQuery,
       (snapshot) => {
         const allLessons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        // Filter to only importing lessons and sort by createdAt
-        const importing = allLessons
-          .filter(l => l.status === 'importing')
-          .sort((a, b) => {
-            const aTime = a.createdAt?.toMillis?.() || 0
-            const bTime = b.createdAt?.toMillis?.() || 0
-            return bTime - aTime
-          })
-        setSpeakingPracticeLessons(importing)
+        // Sort by updatedAt/createdAt
+        allLessons.sort((a, b) => {
+          const aTime = a.updatedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0
+          const bTime = b.updatedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0
+          return bTime - aTime
+        })
+        setSpeakingPracticeLessons(allLessons)
       },
       (err) => {
         console.error('Error loading speaking practice lessons:', err)
@@ -78,9 +75,15 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     return unsubscribe
   }, [user?.uid, normalizedLanguage])
 
-  // Filter to sessions that are preparing or ready
-  const activeSessions = pronunciationSessions.filter(s =>
+  // Filter pronunciation sessions that are preparing or ready
+  const activePronunciationSessions = pronunciationSessions.filter(s =>
     s.status === 'ready' || s.status === 'preparing' || s.status === 'processing'
+  )
+
+  // Filter speaking practice lessons by status
+  const importingLessons = speakingPracticeLessons.filter(l => l.status === 'importing')
+  const activeSpeakingLessons = speakingPracticeLessons.filter(l =>
+    l.status === 'in_progress' || l.status === 'complete'
   )
 
   // Delete a practice lesson
@@ -94,26 +97,15 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     }
   }
 
-  // Voice Record mode - full page view
-  if (activeMode === 'voiceRecord') {
-    return (
-      <div className="speak-hub">
-        <div className="speak-hub-nav">
-          <button className="btn-back" onClick={() => setActiveMode(null)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to modes
-          </button>
-          <h2>Voice Record</h2>
-        </div>
-        <VoiceRecordHub
-          activeLanguage={activeLanguage}
-          nativeLanguage={nativeLanguage}
-          onBack={() => setActiveMode(null)}
-        />
-      </div>
-    )
+  // Delete a pronunciation session
+  const handleDeletePronunciationSession = async (sessionId, e) => {
+    e.stopPropagation()
+    if (!user?.uid || !sessionId) return
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'pronunciationSessions', sessionId))
+    } catch (err) {
+      console.error('Failed to delete session:', err)
+    }
   }
 
   // Mode selection view (with overlays for pronunciation and speaking practice)
@@ -172,10 +164,10 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           </div>
         </button>
 
-        {/* Voice Record Mode Card */}
+        {/* Voice Record Mode Card - navigates to full page */}
         <button
           className="speak-mode-card"
-          onClick={() => setActiveMode('voiceRecord')}
+          onClick={() => navigate('/voice-record')}
         >
           <div className="speak-mode-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -187,10 +179,10 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
               <path d="M20 12h2" />
             </svg>
           </div>
-          <h3>Voice Record</h3>
+          <h3>Free Speaking</h3>
           <p className="speak-mode-subtitle">Long-form Production</p>
           <p className="speak-mode-description">
-            Read aloud from library content, your own writing, or speak freely. Get comprehensive feedback.
+            Speak freely about any topic. Get comprehensive feedback on grammar, vocabulary, and expression.
           </p>
           <div className="speak-mode-focus">
             <span className="focus-tag">Fluency</span>
@@ -200,35 +192,126 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
 
       </div>
 
-      {/* Active pronunciation sessions */}
-      {activeSessions.length > 0 && (
+      {/* Intensive Speaking Sessions (interpretation practice) */}
+      {activeSpeakingLessons.length > 0 && (
         <div className="speak-sessions-section">
-          <h3>Your Sessions</h3>
-          <div className="speak-sessions-grid">
-            {activeSessions.map(session => {
+          <h3>Intensive Speaking Sessions</h3>
+          <div className="speak-media-grid">
+            {activeSpeakingLessons.map(lesson => {
+              const isComplete = lesson.status === 'complete'
+              const progress = lesson.sentences?.length > 0
+                ? Math.round((lesson.completedCount || 0) / lesson.sentences.length * 100)
+                : 0
+
+              return (
+                <div
+                  key={lesson.id}
+                  className="speak-media-card"
+                  onClick={() => navigate(`/practice/${lesson.id}`)}
+                >
+                  <div className="speak-media-card-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                  </div>
+                  <div className="speak-media-card-body">
+                    <div className="speak-media-card-title">{lesson.title}</div>
+                    <div className="speak-media-card-meta">
+                      <span className={`speak-media-card-status ${isComplete ? 'complete' : 'in-progress'}`}>
+                        {isComplete ? 'Completed' : `${lesson.completedCount || 0}/${lesson.sentences?.length || 0} sentences`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="speak-media-card-actions">
+                    <button
+                      className="button speak-media-card-primary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/practice/${lesson.id}`)
+                      }}
+                    >
+                      {isComplete ? 'Review →' : 'Continue →'}
+                    </button>
+                    <button
+                      className="speak-media-card-delete"
+                      onClick={(e) => handleDeleteLesson(lesson.id, e)}
+                      title="Delete session"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  {progress > 0 && (
+                    <div className="speak-media-card-progress">
+                      <div className="speak-media-card-progress-bar" style={{ width: `${progress}%` }} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Pronunciation Practice Sessions (audiobook shadowing) */}
+      {activePronunciationSessions.length > 0 && (
+        <div className="speak-sessions-section">
+          <h3>Pronunciation Practice Sessions</h3>
+          <div className="speak-media-grid">
+            {activePronunciationSessions.map(session => {
               const isPreparing = session.status === 'preparing' || session.status === 'processing'
               const isReady = session.status === 'ready'
 
               return (
                 <div
                   key={session.id}
-                  className={`speak-session-card ${isPreparing ? 'preparing' : ''} ${isReady ? 'ready' : ''}`}
+                  className={`speak-media-card ${isPreparing ? 'is-preparing' : ''}`}
                   onClick={() => isReady && navigate(`/pronunciation/${session.contentType}/${session.contentId}`)}
                 >
-                  <div className="speak-session-icon">
+                  <div className="speak-media-card-icon">
                     {isPreparing ? (
                       <div className="spinner-medium" />
                     ) : (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polygon points="5 3 19 12 5 21 5 3" />
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                        <path d="M4 8l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M20 8l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </div>
-                  <div className="speak-session-info">
-                    <span className="speak-session-title">{session.title}</span>
-                    <span className={`speak-session-status ${isPreparing ? 'preparing' : ''}`}>
-                      {isPreparing ? 'Preparing audio sync...' : 'Ready to practice'}
-                    </span>
+                  <div className="speak-media-card-body">
+                    <div className="speak-media-card-title">{session.title}</div>
+                    <div className="speak-media-card-meta">
+                      <span className={`speak-media-card-status ${isPreparing ? 'preparing' : 'ready'}`}>
+                        {isPreparing ? 'Preparing audio sync...' : 'Ready to practice'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="speak-media-card-actions">
+                    <button
+                      className={`button speak-media-card-primary ${isPreparing ? 'is-loading' : ''}`}
+                      disabled={isPreparing}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isReady) navigate(`/pronunciation/${session.contentType}/${session.contentId}`)
+                      }}
+                    >
+                      {isPreparing ? 'Preparing...' : 'Practice →'}
+                    </button>
+                    {isReady && (
+                      <button
+                        className="speak-media-card-delete"
+                        onClick={(e) => handleDeletePronunciationSession(session.id, e)}
+                        title="Delete session"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -238,33 +321,35 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       )}
 
       {/* Importing speaking practice lessons */}
-      {speakingPracticeLessons.length > 0 && (
+      {importingLessons.length > 0 && (
         <div className="speak-sessions-section">
           <h3>Importing</h3>
-          <div className="speak-sessions-grid">
-            {speakingPracticeLessons.map(lesson => (
+          <div className="speak-media-grid">
+            {importingLessons.map(lesson => (
               <div
                 key={lesson.id}
-                className="speak-session-card preparing"
+                className="speak-media-card is-preparing"
               >
-                <div className="speak-session-icon">
+                <div className="speak-media-card-icon">
                   <div className="spinner-medium" />
                 </div>
-                <div className="speak-session-info">
-                  <span className="speak-session-title">{lesson.title}</span>
-                  <span className="speak-session-status preparing">
-                    Importing for Intensive Speaking...
-                  </span>
+                <div className="speak-media-card-body">
+                  <div className="speak-media-card-title">{lesson.title}</div>
+                  <div className="speak-media-card-meta">
+                    <span className="speak-media-card-status preparing">
+                      Importing for Intensive Speaking...
+                    </span>
+                  </div>
                 </div>
-                <button
-                  className="speak-session-delete"
-                  onClick={(e) => handleDeleteLesson(lesson.id, e)}
-                  title="Cancel import"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="speak-media-card-actions">
+                  <button
+                    className="speak-media-card-delete"
+                    onClick={(e) => handleDeleteLesson(lesson.id, e)}
+                    title="Cancel import"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -274,7 +359,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       {/* Quick stats or recent activity could go here */}
       <div className="speak-hub-footer">
         <p className="muted small">
-          Tip: Start with Pronunciation Practice to build accuracy, then Speaking Practice to build translation speed.
+          Tip: Start with Pronunciation Practice to build accuracy, then Intensive Speaking to build translation speed.
         </p>
       </div>
 

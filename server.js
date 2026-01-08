@@ -6089,6 +6089,44 @@ Respond naturally to the student's message.`
 })
 
 /**
+ * Generate TTS audio for tutor response
+ */
+app.post('/api/tutor/tts', async (req, res) => {
+  try {
+    const { text, language, voiceGender } = req.body || {}
+
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' })
+    }
+
+    const lang = language || 'Spanish'
+    const gender = voiceGender || 'male'
+
+    // Resolve voice ID
+    let voiceId
+    try {
+      const resolved = resolveElevenLabsVoiceId(lang, gender)
+      voiceId = resolved.voiceId
+    } catch (voiceErr) {
+      console.error('Failed to resolve voice:', voiceErr)
+      return res.status(400).json({ error: 'Unsupported language or voice' })
+    }
+
+    // Generate TTS audio
+    const audioBuffer = await requestElevenLabsTts(text, voiceId)
+
+    // Return audio as base64
+    res.json({
+      audioBase64: audioBuffer.toString('base64'),
+      contentType: 'audio/mpeg'
+    })
+  } catch (error) {
+    console.error('Tutor TTS error:', error)
+    return res.status(500).json({ error: 'Failed to generate audio' })
+  }
+})
+
+/**
  * End a session and extract memory updates
  */
 app.post('/api/tutor/end-session', async (req, res) => {

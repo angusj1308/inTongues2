@@ -6991,13 +6991,18 @@ Give me a JSON response with this structure:
  */
 app.post('/api/speech/speaking-practice', async (req, res) => {
   try {
-    const { audioBase64, nativeSentence, targetLanguage, sourceLanguage, skipRecording, exemplar: preloadedExemplar } = req.body
+    const { audioBase64, nativeSentence, targetLanguage, sourceLanguage, skipRecording, exemplar: preloadedExemplar, contextSummary } = req.body
 
     if (!nativeSentence) {
       return res.status(400).json({ error: 'Native sentence required' })
     }
 
     const targetLangCode = SPEECH_LANGUAGE_CODES[targetLanguage] || 'es'
+
+    // Build context section if available
+    const contextSection = contextSummary
+      ? `\n\nIMPORTANT CONTEXT about this content:\n${contextSummary}\n\nUse this context to understand appropriate register, who is being addressed (e.g., singular vs plural "you"), and subject matter.`
+      : ''
 
     // If user skipped recording, just return the exemplar
     if (skipRecording) {
@@ -7007,7 +7012,7 @@ app.post('/api/speech/speaking-practice', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `You are a translation assistant. Translate the given ${sourceLanguage || 'English'} sentence into natural, conversational ${targetLanguage}. Return ONLY the translated sentence, nothing else.`
+            content: `You are a translation assistant. Translate the given ${sourceLanguage || 'English'} sentence into natural, conversational ${targetLanguage}. Return ONLY the translated sentence, nothing else.${contextSection}`
           },
           {
             role: 'user',
@@ -7067,7 +7072,15 @@ app.post('/api/speech/speaking-practice', async (req, res) => {
         {
           role: 'system',
           content: `You are a ${targetLanguage} language tutor assessing a spoken translation attempt.
-Compare the student's translation to the expected translation and provide detailed feedback.
+Compare the student's translation to the original meaning and provide detailed feedback.
+${contextSection}
+
+CRITICAL RULES:
+1. DO NOT correct valid alternative translations. There are MANY ways to say the same thing correctly.
+2. The "expected" translation is just ONE possible translation - the student's version may be equally correct.
+3. Only mark something as an error if it is ACTUALLY WRONG (grammatically incorrect, changes the meaning, or is not natural ${targetLanguage}).
+4. Different word choice is NOT an error if the meaning is preserved and the grammar is correct.
+5. Use the context to understand appropriate register (formal/informal, singular/plural "you", etc.).
 
 Return JSON with this exact structure:
 {
@@ -7085,24 +7098,25 @@ Return JSON with this exact structure:
   ]
 }
 
-Categories:
-- "grammar": verb conjugation, gender agreement, word order errors
+Categories (only use when there's an ACTUAL error):
+- "grammar": verb conjugation errors, gender agreement errors, word order errors
 - "spelling": pronunciation errors that would be spelling errors if written (wrong sound)
-- "accuracy": wrong word choice, missing words, or incorrect meaning
-- "naturalness": technically correct but sounds unnatural or awkward
+- "accuracy": ONLY if meaning is actually wrong or key words are missing
+- "naturalness": ONLY if it sounds genuinely awkward to native speakers (not just different)
 
 Severity:
 - "major": changes meaning or is clearly wrong
-- "minor": slightly unnatural but understandable
+- "minor": understandable but genuinely unnatural
 
-Include 1-3 useful vocab items from the exemplar. Only include corrections for actual errors.
-If the translation is perfect, return empty corrections array.`
+Include 1-3 useful vocab items from the sentence. Return EMPTY corrections array if the translation is valid.`
         },
         {
           role: 'user',
           content: `Original (${sourceLanguage}): "${nativeSentence}"
-Expected (${targetLanguage}): "${exemplar}"
-Student said: "${userTranscription}"`
+One possible translation (${targetLanguage}): "${exemplar}"
+Student said: "${userTranscription}"
+
+Remember: The student's translation may be a valid alternative. Only correct actual errors.`
         }
       ],
       temperature: 0.3,

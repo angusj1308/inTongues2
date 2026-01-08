@@ -601,104 +601,92 @@ const FreeSpeakingSession = () => {
 
   return (
     <div className="free-speaking-page" data-theme={darkMode ? 'dark' : 'light'}>
-      {/* Header */}
-      <header className="practice-header">
-        <div className="practice-header-left">
-          <button
-            className="practice-header-button"
-            onClick={() => navigate('/dashboard')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
+      {/* Hover-to-show header */}
+      <header className="free-speaking-header">
+        <button
+          className="free-speaking-back-btn"
+          onClick={() => navigate('/dashboard')}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back to dashboard</span>
+        </button>
+
+        <button
+          className="free-speaking-theme-btn"
+          type="button"
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          onClick={() => setDarkMode(!darkMode)}
+          title={darkMode ? 'Light mode' : 'Dark mode'}
+        >
+          {darkMode ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
-            <span style={{ fontSize: '0.9rem' }}>Back to dashboard</span>
-          </button>
-        </div>
-
-        <div className="practice-header-center">
-          {/* Empty center for layout balance */}
-        </div>
-
-        <div className="practice-header-actions">
-          <button
-            className="practice-header-button"
-            type="button"
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            onClick={() => setDarkMode(!darkMode)}
-            title={darkMode ? 'Light mode' : 'Dark mode'}
-          >
-            {darkMode ? (
-              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-            ) : (
-              <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-              </svg>
-            )}
-          </button>
-        </div>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+            </svg>
+          )}
+        </button>
       </header>
 
       {/* Main content */}
       <div className="practice-layout">
-        {/* Tutor panel toggle tab */}
-        <button
-          className="freewriting-panel-tab"
-          onClick={() => setIsPanelOpen(!isPanelOpen)}
-          title={isPanelOpen ? 'Hide tutor' : 'Show tutor'}
-          style={{
-            position: 'fixed',
-            left: isPanelOpen ? panelWidth : 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 100,
-            background: 'var(--bg-primary, #fff)',
-            border: '1px solid var(--border-color, #e2e8f0)',
-            borderLeft: isPanelOpen ? '1px solid var(--border-color, #e2e8f0)' : 'none',
-            borderRadius: '0 8px 8px 0',
-            padding: '12px 8px',
-            cursor: 'pointer',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-            transition: 'left 0.2s ease',
-          }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            style={{ transform: isPanelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+        {/* Tutor panel toggle tab - hidden during recording */}
+        {audioUrl && !isRecording && (
+          <button
+            className="freewriting-panel-tab"
+            onClick={() => setIsPanelOpen(!isPanelOpen)}
+            title={isPanelOpen ? 'Hide tutor' : 'Show tutor'}
+            style={{
+              position: 'fixed',
+              left: isPanelOpen ? panelWidth : 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 100,
+              background: 'var(--bg-primary, #fff)',
+              border: '1px solid var(--border-color, #e2e8f0)',
+              borderLeft: isPanelOpen ? '1px solid var(--border-color, #e2e8f0)' : 'none',
+              borderRadius: '0 8px 8px 0',
+              padding: '12px 8px',
+              cursor: 'pointer',
+              boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+              transition: 'left 0.2s ease',
+            }}
           >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{ transform: isPanelOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        )}
 
-        {/* Left panel - Feedback (collapsible) */}
-        <aside
-          className="practice-chat-panel"
-          style={{
-            width: panelWidth,
-            transform: isPanelOpen ? 'translateX(0)' : `translateX(-100%)`,
-            transition: 'transform 0.2s ease',
-            position: 'fixed',
-            left: 0,
-            top: '56px',
-            bottom: 0,
-            zIndex: 99,
-          }}
-        >
+        {/* Left panel - Feedback (collapsible) - hidden during recording */}
+        {audioUrl && !isRecording && (
+          <aside
+            className="practice-chat-panel"
+            style={{
+              width: panelWidth,
+              transform: isPanelOpen ? 'translateX(0)' : `translateX(-100%)`,
+              transition: 'transform 0.2s ease',
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              zIndex: 99,
+            }}
+          >
           <div className="practice-chat-header">
             <h2>Tutor</h2>
             <button
@@ -949,13 +937,14 @@ const FreeSpeakingSession = () => {
             className="practice-panel-resize"
             onMouseDown={startResize}
           />
-        </aside>
+          </aside>
+        )}
 
         {/* Right side - Document Area */}
         <main
           className="freewriting-document-area"
           style={{
-            marginLeft: isPanelOpen ? panelWidth : 0,
+            marginLeft: (audioUrl && !isRecording && isPanelOpen) ? panelWidth : 0,
             transition: 'margin-left 0.2s ease',
           }}
         >

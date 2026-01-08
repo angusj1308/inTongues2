@@ -179,8 +179,9 @@ const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage }) => {
 const DEFAULT_SETTINGS = {
   showWordStatus: false,
   correctionsEnabled: true,
+  grammarExplanations: true,
   languageLevel: 'intermediate',
-  responseStyle: 'encouraging',
+  responseStyle: 'neutral',
   responseLength: 'medium',
   autoPlayResponses: false,
   speechSpeed: 'normal',
@@ -655,9 +656,13 @@ const TutorPage = () => {
             <button
               className="tutor-header-btn"
               onClick={toggleDarkMode}
-              title={darkMode ? 'Light mode' : 'Dark mode'}
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {darkMode ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              ) : (
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="5" />
                   <line x1="12" y1="1" x2="12" y2="3" />
@@ -668,10 +673,6 @@ const TutorPage = () => {
                   <line x1="21" y1="12" x2="23" y2="12" />
                   <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
               )}
             </button>

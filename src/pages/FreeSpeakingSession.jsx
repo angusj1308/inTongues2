@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useRealtimeTranscription } from '../hooks/useRealtimeTranscription'
@@ -85,7 +85,6 @@ const FreeSpeakingSession = () => {
   // Feedback state
   const [inlineFeedback, setInlineFeedback] = useState([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [modelSentence, setModelSentence] = useState('')
   const [activeUnderlineId, setActiveUnderlineId] = useState(null)
   const [error, setError] = useState(null)
 
@@ -279,10 +278,6 @@ const FreeSpeakingSession = () => {
         setInlineFeedback(newInlineFeedback)
       }
 
-      if (data.modelSentence) {
-        setModelSentence(data.modelSentence)
-      }
-
       // Update vocab status for words user produced
       if (user) {
         const words = text.match(/[\p{L}\p{M}]+/gu) || []
@@ -366,7 +361,6 @@ const FreeSpeakingSession = () => {
     setAudioUrl(null)
     setAudioBlob(null)
     setInlineFeedback([])
-    setModelSentence('')
     setError(null)
     setIsSessionActive(false)
     setIsPanelOpen(false)
@@ -503,7 +497,6 @@ const FreeSpeakingSession = () => {
           question,
           context: {
             userAttempt: transcription,
-            modelSentence,
             targetLanguage: activeLanguage,
             sourceLanguage: nativeLanguage,
             contextSummary: 'Free speaking practice - user recorded their speech',
@@ -532,37 +525,6 @@ const FreeSpeakingSession = () => {
       setFollowUpLoading(false)
     }
   }
-
-  // Render model sentence with word status highlighting
-  const renderHighlightedModelSentence = useMemo(() => {
-    if (!modelSentence) return null
-
-    const tokens = modelSentence.match(/[\p{L}\p{M}]+|[^\p{L}\p{M}\s]+|\s+/gu) || []
-
-    return tokens.map((token, idx) => {
-      if (/^\s+$/.test(token) || !/[\p{L}\p{M}]/u.test(token)) {
-        return <span key={idx}>{token}</span>
-      }
-
-      const normalised = normaliseExpression(token)
-      const vocabEntry = userVocab[normalised]
-      const status = vocabEntry?.status || 'new'
-
-      const opacity = STATUS_OPACITY[status]
-      const base = status === 'new' ? '#F97316' : getLanguageColor(activeLanguage)
-      const highlighted = opacity && opacity > 0
-
-      return (
-        <span
-          key={idx}
-          className={`reader-word ${highlighted ? 'reader-word--highlighted' : ''}`}
-          style={highlighted ? { '--hlt-base': base, '--hlt-opacity': opacity } : {}}
-        >
-          {token}
-        </span>
-      )
-    })
-  }, [modelSentence, userVocab, activeLanguage])
 
   // Get display text
   const displayText = transcription || liveTranscript || ''
@@ -814,15 +776,6 @@ const FreeSpeakingSession = () => {
                         )
                       })}
 
-                      {/* Model sentence */}
-                      {modelSentence && (
-                        <div className="practice-example-sentence" style={{ margin: '12px 0 0 0' }}>
-                          <span className="example-label">Example:</span>
-                          <p className="example-text" style={{ margin: '4px 0 0 0' }}>
-                            {renderHighlightedModelSentence}
-                          </p>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

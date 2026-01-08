@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Crimson+Pro:wght@300&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
-  font-family: 'Garamond', 'Times New Roman', serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -12,6 +12,8 @@
   --accent-color: #111111;
   --dashboard-surface: #f5f5f7;
   --dashboard-surface-contrast: #ffffff;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 .ui-text {
@@ -59,8 +61,21 @@ a:hover {
 
 h1,
 h2,
-h3 {
+h3,
+h4,
+h5,
+h6 {
   margin: 0 0 0.5rem;
+  font-family: var(--font-ui);
+}
+
+/* Content text - use Inter for actual language content */
+.content-text,
+.example-sentence,
+.vocab-word,
+.original-text,
+.translation-text {
+  font-family: var(--font-content);
 }
 
 .muted {
@@ -3015,7 +3030,7 @@ textarea {
 }
 
 .intensive-transcript--speaking {
-  font-family: 'EB Garamond', 'Garamond', serif;
+  font-family: var(--font-content);
   font-size: clamp(1.5rem, 2vw + 1rem, 2.25rem);
   font-weight: 400;
   line-height: 1.5;
@@ -3398,7 +3413,7 @@ textarea {
 }
 
 .speaking-practice-text {
-  font-family: 'EB Garamond', 'Garamond', serif;
+  font-family: var(--font-content);
   font-size: clamp(1.25rem, 1vw + 0.9rem, 1.5rem);
   font-weight: 400;
   line-height: 1.6;
@@ -3555,7 +3570,7 @@ textarea {
 }
 
 .speaking-practice-exemplar-text {
-  font-family: 'EB Garamond', 'Garamond', serif;
+  font-family: var(--font-content);
   font-size: 1.25rem;
   font-weight: 400;
   line-height: 1.5;
@@ -3593,7 +3608,7 @@ textarea {
 }
 
 .vocab-item-word {
-  font-family: 'EB Garamond', 'Garamond', serif;
+  font-family: var(--font-content);
   font-size: 1.1rem;
   font-weight: 500;
   color: #0f172a;
@@ -5150,6 +5165,7 @@ body.active-pass-locked {
 }
 
 .word-status-row-word {
+  font-family: var(--font-content);
   font-size: 0.9rem;
   font-weight: 600;
   color: #1e293b;
@@ -5157,6 +5173,7 @@ body.active-pass-locked {
 }
 
 .word-status-row-translation {
+  font-family: var(--font-content);
   font-size: 0.85rem;
   color: #64748b;
   font-style: italic;
@@ -12166,7 +12183,7 @@ body.active-pass-locked {
 
 .practice-tutor-prompt .prompt-text {
   margin: 0;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.1rem;
   line-height: 1.5;
   color: #0f172a;
@@ -12193,7 +12210,7 @@ body.active-pass-locked {
 
 .practice-example-sentence .example-text {
   margin: 0;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.1rem;
   line-height: 1.5;
   color: #14532d;
@@ -12694,7 +12711,7 @@ body.active-pass-locked {
 /* Display span for showing live typing in document */
 .practice-inline-display {
   display: inline;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.8;
   color: #0f172a;
@@ -12813,7 +12830,7 @@ body.active-pass-locked {
 /* Document Title */
 .practice-document-title {
   margin: 0 0 2rem;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 2rem;
   font-weight: 400;
   color: #0f172a;
@@ -12823,7 +12840,7 @@ body.active-pass-locked {
 
 /* Document body - text flows naturally */
 .practice-document-body {
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.8;
   color: #0f172a;
@@ -12862,7 +12879,7 @@ body.active-pass-locked {
 /* Inline contenteditable that looks like writing on page */
 .practice-inline-input {
   display: inline;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.8;
   color: #0f172a;
@@ -12926,7 +12943,7 @@ body.active-pass-locked {
 
 .practice-model-sentence .model-text {
   margin: 0;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.6;
   color: #14532d;
@@ -13008,7 +13025,7 @@ body.active-pass-locked {
 
 .practice-source-sentence .source-text {
   margin: 0;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.25rem;
   line-height: 1.6;
   color: #0f172a;
@@ -13022,7 +13039,7 @@ body.active-pass-locked {
 
 .practice-attempt-area textarea {
   padding: 1rem;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.6;
   border: 1px solid #e2e8f0;
@@ -13048,7 +13065,7 @@ body.active-pass-locked {
 
 .practice-model-sentence .model-text {
   margin: 0 0 1rem;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.6;
   color: #0f172a;
@@ -13101,7 +13118,7 @@ body.active-pass-locked {
 
 .practice-complete-document p {
   margin: 0;
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: var(--font-content);
   font-size: 1.15rem;
   line-height: 1.7;
   color: #0f172a;

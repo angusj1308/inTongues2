@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'
+import { collection, query, orderBy, onSnapshot, where, doc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
@@ -82,6 +82,17 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
   const activeSessions = pronunciationSessions.filter(s =>
     s.status === 'ready' || s.status === 'preparing' || s.status === 'processing'
   )
+
+  // Delete a practice lesson
+  const handleDeleteLesson = async (lessonId, e) => {
+    e.stopPropagation()
+    if (!user?.uid || !lessonId) return
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'practiceLessons', lessonId))
+    } catch (err) {
+      console.error('Failed to delete lesson:', err)
+    }
+  }
 
   // Conversation mode - placeholder linking to tutor
   if (activeMode === 'conversation') {
@@ -309,6 +320,15 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
                     Importing for Intensive Speaking...
                   </span>
                 </div>
+                <button
+                  className="speak-session-delete"
+                  onClick={(e) => handleDeleteLesson(lesson.id, e)}
+                  title="Cancel import"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             ))}
           </div>

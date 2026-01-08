@@ -15973,6 +15973,23 @@ body.active-pass-locked {
   color: #d97706;
 }
 
+.speak-session-delete {
+  margin-left: auto;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.speak-session-delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
 /* Medium spinner for session cards */
 .spinner-medium {
   width: 20px;

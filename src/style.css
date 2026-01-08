@@ -15173,6 +15173,7 @@ body.active-pass-locked {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .tutor-settings-section {

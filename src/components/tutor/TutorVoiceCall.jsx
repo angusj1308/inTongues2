@@ -52,6 +52,7 @@ const TutorVoiceCall = ({
   tutorProfile,
   settings,
   conversationHistory,
+  userName,
 }) => {
   const [callState, setCallState] = useState('connecting') // connecting, listening, processing, speaking
   const [isMuted, setIsMuted] = useState(false)
@@ -93,7 +94,7 @@ const TutorVoiceCall = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Initialize call
+  // Initialize call with tutor greeting
   useEffect(() => {
     const initCall = async () => {
       try {
@@ -102,9 +103,38 @@ const TutorVoiceCall = ({
           setCallDuration((d) => d + 1)
         }, 1000)
 
-        // Start real-time streaming
-        await startStreaming()
+        // Get tutor greeting first
+        setCallState('connecting')
+        const greetingRes = await fetch('/api/tutor/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetLanguage: activeLanguage,
+            sourceLanguage: nativeLanguage || 'English',
+            memory: tutorProfile?.memory,
+            voiceCall: true,
+            userName: userName,
+          }),
+        })
+
+        if (greetingRes.ok) {
+          const { greeting } = await greetingRes.json()
+          setTutorText(greeting)
+
+          // Add greeting to conversation history
+          onMessage({ role: 'tutor', content: greeting })
+          localConversationRef.current.push({ role: 'tutor', content: greeting })
+
+          // Speak the greeting
+          setCallState('speaking')
+          await speakText(greeting)
+        }
+
+        // Now start listening for user
+        setTutorText('')
+        resetTranscription()
         setCallState('listening')
+        await startStreaming()
       } catch (err) {
         console.error('Failed to start call:', err)
         setError('Failed to start call. Please check microphone permissions.')

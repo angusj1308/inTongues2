@@ -325,14 +325,46 @@ const TutorPage = () => {
     }
   }, [inputValue, user, sending, chatId, currentChat, activeLanguage, nativeLanguage, tutorProfile?.memory, settings, navigate])
 
+  // Play tutor response using ElevenLabs TTS
   const speakText = async (text) => {
     try {
+      // Call the tutor TTS endpoint with male voice
+      const response = await fetch('/api/tutor/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          language: activeLanguage || 'Spanish',
+          voiceGender: 'male'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('TTS request failed')
+      }
+
+      const data = await response.json()
+
+      // Convert base64 to audio and play
+      const audioData = Uint8Array.from(atob(data.audioBase64), c => c.charCodeAt(0))
+      const audioBlob = new Blob([audioData], { type: 'audio/mpeg' })
+      const audioUrl = URL.createObjectURL(audioBlob)
+
+      const audio = new Audio(audioUrl)
+      audio.playbackRate = settings.speechSpeed === 'slow' ? 0.9 : settings.speechSpeed === 'fast' ? 1.1 : 1.0
+      await audio.play()
+
+      // Clean up URL after playback
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl)
+      }
+    } catch (err) {
+      console.error('TTS error:', err)
+      // Fallback to browser TTS
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : 'en'
       utterance.rate = settings.speechSpeed === 'slow' ? 0.8 : settings.speechSpeed === 'fast' ? 1.2 : 1.0
       window.speechSynthesis.speak(utterance)
-    } catch (err) {
-      console.error('TTS error:', err)
     }
   }
 

@@ -6961,21 +6961,43 @@ app.post('/api/speech/speaking-practice', async (req, res) => {
       exemplar = exemplarResponse.choices[0]?.message?.content?.trim() || ''
     }
 
-    // Quick assessment - compare user transcription to exemplar
+    // Detailed assessment - compare user transcription to exemplar with corrections
     const assessmentResponse = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are a ${targetLanguage} language tutor assessing a translation attempt.
-Compare the student's spoken translation to the expected translation.
-Return JSON only:
+          content: `You are a ${targetLanguage} language tutor assessing a spoken translation attempt.
+Compare the student's translation to the expected translation and provide detailed feedback.
+
+Return JSON with this exact structure:
 {
-  "accuracy": 0-100,
-  "explanation": "Brief feedback on their translation (1-2 sentences)",
-  "vocab": [{"text": "word in ${targetLanguage}", "translation": "English meaning"}]
+  "corrections": [
+    {
+      "category": "grammar" | "spelling" | "accuracy" | "naturalness",
+      "original": "what they said wrong",
+      "correction": "what they should have said",
+      "explanation": "brief explanation of the error",
+      "severity": "major" | "minor"
+    }
+  ],
+  "vocab": [
+    {"text": "word in ${targetLanguage}", "translation": "${sourceLanguage} meaning"}
+  ]
 }
-Include 1-3 useful vocab items from the exemplar sentence. Be encouraging but honest.`
+
+Categories:
+- "grammar": verb conjugation, gender agreement, word order errors
+- "spelling": pronunciation errors that would be spelling errors if written (wrong sound)
+- "accuracy": wrong word choice, missing words, or incorrect meaning
+- "naturalness": technically correct but sounds unnatural or awkward
+
+Severity:
+- "major": changes meaning or is clearly wrong
+- "minor": slightly unnatural but understandable
+
+Include 1-3 useful vocab items from the exemplar. Only include corrections for actual errors.
+If the translation is perfect, return empty corrections array.`
         },
         {
           role: 'user',
@@ -6989,11 +7011,17 @@ Student said: "${userTranscription}"`
     })
 
     const assessment = JSON.parse(assessmentResponse.choices[0]?.message?.content || '{}')
+    const corrections = assessment.corrections || []
+
+    // Calculate accuracy from corrections
+    const majorErrors = corrections.filter(c => c.severity === 'major').length
+    const minorErrors = corrections.filter(c => c.severity === 'minor').length
+    const accuracy = Math.max(0, Math.min(100, 100 - (majorErrors * 20) - (minorErrors * 5)))
 
     res.json({
       feedback: {
-        accuracy: assessment.accuracy || 50,
-        explanation: assessment.explanation || 'Keep practicing!',
+        accuracy,
+        corrections,
         userTranscription
       },
       exemplar,

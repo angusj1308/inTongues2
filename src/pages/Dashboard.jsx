@@ -6,7 +6,6 @@ import ListeningHub from '../components/listen/ListeningHub'
 import WritingHub from '../components/write/WritingHub'
 import TutorHome from '../components/tutor/TutorHome'
 import SpeakHub from '../components/speak/SpeakHub'
-import CommunityHub from '../components/community/CommunityHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import ReviewModal from '../components/review/ReviewModal'
@@ -655,10 +654,6 @@ const Dashboard = () => {
               activeLanguage={activeLanguage}
               nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
             />
-          )}
-
-          {activeTab === 'community' && (
-            <CommunityHub activeLanguage={activeLanguage} />
           )}
 
           {activeTab === 'review' && (

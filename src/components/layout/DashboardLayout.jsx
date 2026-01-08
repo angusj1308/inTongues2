@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 
-export const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review', 'tutor', 'community']
+export const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review', 'tutor']
 
 const LANGUAGE_NATIVE_NAMES = {
   English: 'English',

@@ -14248,27 +14248,38 @@ body.active-pass-locked {
 }
 
 .tutor-sidebar-header {
-  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.tutor-sidebar-new-chat {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #ffffff;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.15s;
+.tutor-sidebar-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.tutor-sidebar-new-chat:hover {
+.tutor-sidebar-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tutor-sidebar-new-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .tutor-sidebar-chats {
@@ -14861,6 +14872,7 @@ body.active-pass-locked {
   border-radius: 12px;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
   transition: border-color 0.15s, box-shadow 0.15s;
+  overflow: hidden;
 }
 
 .tutor-input-box:focus-within {
@@ -14892,7 +14904,7 @@ body.active-pass-locked {
   align-items: center;
   gap: 0.25rem;
   padding: 0.5rem;
-  padding-left: 0;
+  flex-shrink: 0;
 }
 
 .tutor-action-btn {
@@ -15104,8 +15116,8 @@ body.active-pass-locked {
    ============================================ */
 
 .tutor-control-panel {
-  max-width: 768px;
-  margin: 0 auto 0.75rem;
+  max-width: 900px;
+  margin: 0 auto 0.5rem;
 }
 
 .tutor-control-actions {

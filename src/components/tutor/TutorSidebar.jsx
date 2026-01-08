@@ -260,9 +260,9 @@ const TutorSidebar = ({
   return (
     <aside className={`tutor-sidebar ${isOpen ? 'open' : 'closed'}`}>
       <div className="tutor-sidebar-header">
-        <button className="tutor-sidebar-new-chat" onClick={onNewChat}>
+        <span className="tutor-sidebar-title">Chat History</span>
+        <button className="tutor-sidebar-new-btn" onClick={onNewChat} title="New chat">
           <PlusIcon />
-          <span>New chat</span>
         </button>
       </div>
 

@@ -20146,11 +20146,11 @@ body.active-pass-locked {
   top: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   background: var(--bg-primary, #fff);
   border-bottom: 1px solid var(--border-color, #e2e8f0);
   z-index: 1000;
@@ -20173,13 +20173,13 @@ body.active-pass-locked {
 .free-speaking-back-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 12px 18px;
   background: none;
   border: none;
   border-radius: 8px;
   color: var(--text-primary, #0f172a);
-  font-size: 0.9rem;
+  font-size: 1rem;
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -20200,8 +20200,8 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   background: none;
   border: none;

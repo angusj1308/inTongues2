@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase'
@@ -395,8 +396,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   }, [goToNext, goToPrevious, feedback, showExemplar])
 
   if (sentences.length === 0) {
-    return (
-      <div className="intensive-overlay">
+    return createPortal(
+      <div className="speaking-session-fullpage">
         <div className="intensive-card intensive-card--speaking">
           <div className="intensive-card-empty">
             <p className="muted">No sentences found in this lesson.</p>
@@ -405,14 +406,15 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )
   }
 
   const isComplete = currentIndex >= sentences.length - 1 && (feedback || showExemplar)
 
-  return (
-    <div className="intensive-overlay">
+  return createPortal(
+    <div className="speaking-session-fullpage">
       <div className="intensive-card intensive-card--speaking">
         {/* Header */}
         <div className="intensive-card-header">
@@ -742,7 +744,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

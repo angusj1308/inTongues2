@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useProfile } from '../context/ProfileContext'
 import { useRealtimeTranscription } from '../hooks/useRealtimeTranscription'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -70,9 +69,12 @@ const getFeedbackIcon = (state) => {
 }
 
 const FreeSpeakingSession = () => {
-  const { user } = useAuth()
-  const { activeLanguage, nativeLanguage } = useProfile()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
+
+  // Get languages from profile
+  const activeLanguage = profile?.lastUsedLanguage || ''
+  const nativeLanguage = profile?.nativeLanguage || 'English'
 
   // Recording state
   const [isSessionActive, setIsSessionActive] = useState(false)

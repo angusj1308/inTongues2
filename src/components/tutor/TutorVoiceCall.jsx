@@ -86,6 +86,8 @@ const TutorVoiceCall = ({
   const audioSourceRef = useRef(null)
   const audioContextRef = useRef(null)
   const localConversationRef = useRef([...conversationHistory])
+  const mountedRef = useRef(true)
+  const initCalledRef = useRef(false)
 
   // Format call duration
   const formatDuration = (seconds) => {
@@ -94,8 +96,23 @@ const TutorVoiceCall = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Stop any currently playing audio
+  const stopCurrentAudio = () => {
+    if (audioSourceRef.current) {
+      try {
+        audioSourceRef.current.stop()
+      } catch (e) {}
+      audioSourceRef.current = null
+    }
+    window.speechSynthesis.cancel()
+  }
+
   // Initialize call with tutor greeting
   useEffect(() => {
+    // Prevent double-execution from React Strict Mode
+    if (initCalledRef.current) return
+    initCalledRef.current = true
+
     const initCall = async () => {
       try {
         // Start call timer
@@ -117,6 +134,8 @@ const TutorVoiceCall = ({
           }),
         })
 
+        if (!mountedRef.current) return
+
         if (greetingRes.ok) {
           const { greeting } = await greetingRes.json()
           setTutorText(greeting)
@@ -130,6 +149,8 @@ const TutorVoiceCall = ({
           await speakText(greeting)
         }
 
+        if (!mountedRef.current) return
+
         // Now start listening for user
         setTutorText('')
         resetTranscription()
@@ -137,13 +158,16 @@ const TutorVoiceCall = ({
         await startStreaming()
       } catch (err) {
         console.error('Failed to start call:', err)
-        setError('Failed to start call. Please check microphone permissions.')
+        if (mountedRef.current) {
+          setError('Failed to start call. Please check microphone permissions.')
+        }
       }
     }
 
     initCall()
 
     return () => {
+      mountedRef.current = false
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current)
       }
@@ -151,11 +175,7 @@ const TutorVoiceCall = ({
         clearTimeout(silenceTimeoutRef.current)
       }
       // Stop any playing audio
-      if (audioSourceRef.current) {
-        try {
-          audioSourceRef.current.stop()
-        } catch (e) {}
-      }
+      stopCurrentAudio()
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close()
       }
@@ -278,6 +298,9 @@ const TutorVoiceCall = ({
 
   // Text-to-speech using ElevenLabs
   const speakText = async (text) => {
+    // Stop any currently playing audio first
+    stopCurrentAudio()
+
     try {
       const response = await fetch('/api/tutor/tts', {
         method: 'POST',

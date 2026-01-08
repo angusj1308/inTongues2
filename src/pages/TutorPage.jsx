@@ -19,6 +19,7 @@ import TutorSidebar from '../components/tutor/TutorSidebar'
 import TutorControlPanel from '../components/tutor/TutorControlPanel'
 import TutorVoiceInput from '../components/tutor/TutorVoiceInput'
 import TutorVoiceCall from '../components/tutor/TutorVoiceCall'
+import TutorVocabPanel from '../components/tutor/TutorVocabPanel'
 
 // Get highlight style for a word based on status
 const getHighlightStyle = (language, status, enableHighlight) => {
@@ -626,6 +627,14 @@ const TutorPage = () => {
     setIsInCall(false)
   }
 
+  // Handle vocab updates from the vocab panel
+  const handleVocabUpdate = useCallback((normalised, vocabEntry) => {
+    setUserVocab(prev => ({
+      ...prev,
+      [normalised]: vocabEntry
+    }))
+  }, [])
+
   const messages = currentChat?.messages || []
 
   // Render text with word status highlighting
@@ -857,46 +866,58 @@ const TutorPage = () => {
                 activeLanguage={activeLanguage}
               />
             ) : (
-              <div className="tutor-input-box">
-                <textarea
-                  ref={textareaRef}
-                  className="tutor-textarea"
-                  placeholder={activeLanguage ? `Message your ${activeLanguage} tutor...` : 'Select a language first...'}
-                  value={inputValue}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  disabled={sending || !activeLanguage}
-                  rows={1}
-                />
-                <div className="tutor-input-actions">
-                  <button
-                    className="tutor-action-btn"
-                    onClick={handleRecordAudio}
-                    disabled={!activeLanguage}
-                    aria-label="Record voice message"
-                    title="Record"
-                  >
-                    <MicIcon />
-                  </button>
-                  <button
-                    className="tutor-action-btn"
-                    onClick={handleVoiceCall}
-                    disabled={!activeLanguage}
-                    aria-label="Start voice call"
-                    title="Call"
-                  >
-                    <PhoneIcon />
-                  </button>
-                  <button
-                    className="tutor-action-btn send"
-                    onClick={() => handleSendMessage()}
-                    disabled={!inputValue.trim() || sending || !activeLanguage}
-                    aria-label="Send message"
-                    title="Send"
-                  >
-                    <SendIcon />
-                  </button>
+              <div className="tutor-input-wrapper">
+                <div className="tutor-input-box">
+                  <textarea
+                    ref={textareaRef}
+                    className="tutor-textarea"
+                    placeholder={activeLanguage ? `Message your ${activeLanguage} tutor...` : 'Select a language first...'}
+                    value={inputValue}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    disabled={sending || !activeLanguage}
+                    rows={1}
+                  />
+                  <div className="tutor-input-actions">
+                    <button
+                      className="tutor-action-btn"
+                      onClick={handleRecordAudio}
+                      disabled={!activeLanguage}
+                      aria-label="Record voice message"
+                      title="Record"
+                    >
+                      <MicIcon />
+                    </button>
+                    <button
+                      className="tutor-action-btn"
+                      onClick={handleVoiceCall}
+                      disabled={!activeLanguage}
+                      aria-label="Start voice call"
+                      title="Call"
+                    >
+                      <PhoneIcon />
+                    </button>
+                    <button
+                      className="tutor-action-btn send"
+                      onClick={() => handleSendMessage()}
+                      disabled={!inputValue.trim() || sending || !activeLanguage}
+                      aria-label="Send message"
+                      title="Send"
+                    >
+                      <SendIcon />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Vocab Panel - collapsible word list */}
+                <TutorVocabPanel
+                  messages={messages}
+                  userVocab={userVocab}
+                  language={activeLanguage}
+                  nativeLanguage={nativeLanguage}
+                  userId={user?.uid}
+                  onVocabUpdate={handleVocabUpdate}
+                />
               </div>
             )}
           </div>

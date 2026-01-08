@@ -22,6 +22,8 @@ import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
+import { WebSocketServer } from 'ws'
+import http from 'http'
 
 // Non-import statements must come after all imports
 const require = createRequire(import.meta.url)
@@ -7196,6 +7198,151 @@ app.post('/api/story/transcribe', async (req, res) => {
   }
 })
 
-app.listen(4000, () => {
-  console.log('Proxy running on http://localhost:4000')
+// ============================================
+// REAL-TIME TRANSCRIPTION WEBSOCKET SERVER
+// ============================================
+const server = http.createServer(app)
+const wss = new WebSocketServer({ server, path: '/ws/transcribe' })
+
+wss.on('connection', (ws) => {
+  console.log('WebSocket client connected for real-time transcription')
+
+  let audioChunks = []
+  let language = 'en'
+  let transcriptionInterval = null
+  let isProcessing = false
+  let lastTranscription = ''
+
+  // Process accumulated audio chunks every 1.5 seconds
+  const processAudioChunks = async () => {
+    if (isProcessing || audioChunks.length === 0) return
+
+    isProcessing = true
+    const chunksToProcess = [...audioChunks]
+
+    try {
+      // Combine audio chunks into a single buffer
+      const totalLength = chunksToProcess.reduce((acc, chunk) => acc + chunk.length, 0)
+      const combinedBuffer = Buffer.concat(chunksToProcess, totalLength)
+
+      if (combinedBuffer.length < 1000) {
+        // Too small, wait for more data
+        isProcessing = false
+        return
+      }
+
+      // Save to temp file
+      const tempDir = os.tmpdir()
+      const tempFilePath = path.join(tempDir, `realtime-audio-${Date.now()}.webm`)
+      await fs.writeFile(tempFilePath, combinedBuffer)
+
+      // Transcribe with Whisper
+      const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
+
+      const transcription = await client.audio.transcriptions.create({
+        file: createReadStream(tempFilePath),
+        model: 'whisper-1',
+        language: languageCode
+      })
+
+      // Clean up temp file
+      await fs.unlink(tempFilePath).catch(() => {})
+
+      const text = transcription.text || ''
+
+      // Only send if transcription changed
+      if (text && text !== lastTranscription) {
+        lastTranscription = text
+        ws.send(JSON.stringify({
+          type: 'transcription',
+          text: text,
+          isFinal: false
+        }))
+      }
+    } catch (error) {
+      console.error('Real-time transcription error:', error.message)
+    } finally {
+      isProcessing = false
+    }
+  }
+
+  ws.on('message', async (data) => {
+    try {
+      // Check if it's a control message (JSON) or audio data (binary)
+      if (typeof data === 'string' || (data instanceof Buffer && data[0] === 0x7b)) {
+        const message = JSON.parse(data.toString())
+
+        if (message.type === 'config') {
+          language = message.language || 'en'
+          console.log('Transcription config set:', { language })
+          ws.send(JSON.stringify({ type: 'ready' }))
+
+          // Start periodic transcription
+          transcriptionInterval = setInterval(processAudioChunks, 1500)
+        }
+
+        if (message.type === 'stop') {
+          // Process any remaining audio and send final transcription
+          if (transcriptionInterval) {
+            clearInterval(transcriptionInterval)
+            transcriptionInterval = null
+          }
+
+          // Final transcription with all audio
+          if (audioChunks.length > 0) {
+            const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0)
+            const combinedBuffer = Buffer.concat(audioChunks, totalLength)
+
+            const tempDir = os.tmpdir()
+            const tempFilePath = path.join(tempDir, `final-audio-${Date.now()}.webm`)
+            await fs.writeFile(tempFilePath, combinedBuffer)
+
+            const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
+
+            const transcription = await client.audio.transcriptions.create({
+              file: createReadStream(tempFilePath),
+              model: 'whisper-1',
+              language: languageCode
+            })
+
+            await fs.unlink(tempFilePath).catch(() => {})
+
+            ws.send(JSON.stringify({
+              type: 'transcription',
+              text: transcription.text || '',
+              isFinal: true
+            }))
+          }
+
+          audioChunks = []
+          lastTranscription = ''
+        }
+      } else {
+        // Binary audio data
+        audioChunks.push(Buffer.from(data))
+      }
+    } catch (error) {
+      console.error('WebSocket message error:', error)
+    }
+  })
+
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected')
+    if (transcriptionInterval) {
+      clearInterval(transcriptionInterval)
+    }
+    audioChunks = []
+  })
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error)
+    if (transcriptionInterval) {
+      clearInterval(transcriptionInterval)
+    }
+  })
+})
+
+server.listen(4000, () => {
+  console.log('Server running on http://localhost:4000')
+  console.log('WebSocket available at ws://localhost:4000/ws/transcribe')
 })

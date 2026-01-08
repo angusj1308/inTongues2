@@ -15139,6 +15139,119 @@ body.active-pass-locked {
   animation: pulse-recording 1s infinite;
 }
 
+/* Live transcription preview */
+.tutor-voice-live-transcript {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(16, 163, 127, 0.1);
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.tutor-voice-live-label {
+  color: #10a37f;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.tutor-voice-live-text {
+  color: #374151;
+  line-height: 1.4;
+}
+
+/* Transcript preview/edit in review state */
+.tutor-voice-transcript {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.tutor-voice-transcript-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tutor-voice-transcript-text {
+  flex: 1;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.tutor-voice-transcript-edit-btn {
+  flex-shrink: 0;
+  padding: 0.25rem;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.tutor-voice-transcript-edit-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.tutor-voice-transcript-edit {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.tutor-voice-transcript-edit:focus {
+  outline: none;
+  border-color: #10a37f;
+  box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.2);
+}
+
+/* Dark mode for live transcription */
+[data-theme='dark'] .tutor-voice-live-transcript {
+  background: rgba(16, 163, 127, 0.15);
+}
+
+[data-theme='dark'] .tutor-voice-live-text {
+  color: #ececf1;
+}
+
+[data-theme='dark'] .tutor-voice-transcript {
+  background: #40414f;
+}
+
+[data-theme='dark'] .tutor-voice-transcript-text {
+  color: #ececf1;
+}
+
+[data-theme='dark'] .tutor-voice-transcript-edit-btn {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .tutor-voice-transcript-edit-btn:hover {
+  background: #565869;
+  color: #ececf1;
+}
+
+[data-theme='dark'] .tutor-voice-transcript-edit {
+  background: #343541;
+  border-color: #565869;
+  color: #ececf1;
+}
+
+[data-theme='dark'] .tutor-voice-transcript-edit:focus {
+  border-color: #10a37f;
+}
+
 /* Message voice badge */
 .tutor-msg-voice-badge {
   display: inline-flex;
@@ -15344,6 +15457,31 @@ body.active-pass-locked {
 .tutor-call-avatar-inner svg {
   width: 48px;
   height: 48px;
+}
+
+.tutor-call-avatar-ring.listening {
+  animation: avatar-listen 2s infinite;
+}
+
+@keyframes avatar-listen {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 163, 127, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(16, 163, 127, 0);
+  }
+}
+
+.tutor-call-hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.tutor-call-hint:hover {
+  color: #ffffff;
 }
 
 .tutor-call-name {

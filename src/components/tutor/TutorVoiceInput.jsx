@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import useAudioRecorder from '../../hooks/useAudioRecorder'
+import useRealtimeTranscription from '../../hooks/useRealtimeTranscription'
 
 const MicIcon = () => (
   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -41,12 +41,19 @@ const PauseIcon = () => (
   </svg>
 )
 
-const WaveformVisualizer = ({ analyserNode, isRecording }) => {
+const EditIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+)
+
+const WaveformVisualizer = ({ analyserNode, isActive }) => {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
 
   useEffect(() => {
-    if (!canvasRef.current || !analyserNode || !isRecording) return
+    if (!canvasRef.current || !analyserNode || !isActive) return
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
@@ -83,7 +90,7 @@ const WaveformVisualizer = ({ analyserNode, isRecording }) => {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [analyserNode, isRecording])
+  }, [analyserNode, isActive])
 
   return (
     <canvas
@@ -96,123 +103,128 @@ const WaveformVisualizer = ({ analyserNode, isRecording }) => {
 }
 
 const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
-  const {
-    isRecording,
-    isPaused,
-    recordingTime,
-    formattedTime,
-    audioBlob,
-    audioUrl,
-    analyserNode,
-    permissionState,
-    requestPermission,
-    startRecording,
-    stopRecording,
-    pauseRecording,
-    resumeRecording,
-    resetRecording,
-  } = useAudioRecorder({ maxDuration: 120 }) // 2 minute max
-
+  const [recordingTime, setRecordingTime] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [transcribing, setTranscribing] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const [editedText, setEditedText] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [reviewData, setReviewData] = useState(null) // { text, audioBlob, audioUrl }
+
   const audioRef = useRef(null)
-  const resetRecordingRef = useRef(resetRecording)
-  const stopRecordingRef = useRef(stopRecording)
+  const timerRef = useRef(null)
+  const startTimeRef = useRef(null)
 
-  // Keep refs updated
-  useEffect(() => {
-    resetRecordingRef.current = resetRecording
-    stopRecordingRef.current = stopRecording
-  }, [resetRecording, stopRecording])
-
-  // Auto-start recording when component mounts
-  useEffect(() => {
-    let isMounted = true
-
-    const initRecording = async () => {
-      if (permissionState === 'prompt') {
-        await requestPermission()
-      }
-      if (isMounted && permissionState !== 'denied') {
-        startRecording()
-      }
+  const {
+    isConnected,
+    isStreaming,
+    transcript,
+    finalTranscript,
+    error,
+    analyserNode,
+    startStreaming,
+    stopStreaming,
+    reset
+  } = useRealtimeTranscription({
+    language: activeLanguage || 'en',
+    onTranscription: (text) => {
+      console.log('Live transcription:', text)
+    },
+    onFinalTranscription: (text) => {
+      console.log('Final transcription:', text)
+    },
+    onError: (err) => {
+      console.error('Transcription error:', err)
     }
-    initRecording()
+  })
 
-    // Cleanup when component unmounts - ensure all recording stops
+  // Auto-start streaming when component mounts
+  useEffect(() => {
+    startStreaming()
+
     return () => {
-      isMounted = false
-      // Stop any active recording and clean up resources
-      stopRecordingRef.current()
-      resetRecordingRef.current()
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
     }
   }, [])
 
-  const handleStop = useCallback(() => {
-    stopRecording()
-  }, [stopRecording])
+  // Start timer when streaming begins
+  useEffect(() => {
+    if (isStreaming && !timerRef.current) {
+      startTimeRef.current = Date.now()
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
+        setRecordingTime(elapsed)
+      }, 100)
+    } else if (!isStreaming && timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }, [isStreaming])
+
+  // Format time as MM:SS
+  const formattedTime = useCallback(() => {
+    const minutes = Math.floor(recordingTime / 60)
+    const seconds = recordingTime % 60
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }, [recordingTime])
+
+  const handleStop = useCallback(async () => {
+    const result = await stopStreaming()
+    setReviewData({
+      text: result.text || '',
+      audioBlob: result.audioBlob,
+      audioUrl: result.audioUrl
+    })
+    setEditedText(result.text || '')
+  }, [stopStreaming])
 
   const handleSend = useCallback(async () => {
-    if (!audioBlob) return
+    if (!reviewData) return
 
-    setTranscribing(true)
+    setIsSending(true)
     try {
-      // First, upload audio to Firebase Storage for persistent URL
-      const uploadFormData = new FormData()
-      uploadFormData.append('audio', audioBlob, 'recording.webm')
-      uploadFormData.append('userId', 'tutor-voice') // Generic path for tutor messages
-      uploadFormData.append('language', activeLanguage || 'en')
+      // Upload audio to Firebase Storage for persistent URL
+      let persistentAudioUrl = reviewData.audioUrl
+      if (reviewData.audioBlob) {
+        const uploadFormData = new FormData()
+        uploadFormData.append('audio', reviewData.audioBlob, 'recording.webm')
+        uploadFormData.append('userId', 'tutor-voice')
+        uploadFormData.append('language', activeLanguage || 'en')
 
-      let persistentAudioUrl = null
-      try {
-        const uploadResponse = await fetch('/api/speech/upload', {
-          method: 'POST',
-          body: uploadFormData,
-        })
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json()
-          persistentAudioUrl = uploadData.audioUrl
-          console.log('Audio uploaded:', persistentAudioUrl)
+        try {
+          const uploadResponse = await fetch('/api/speech/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          })
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json()
+            persistentAudioUrl = uploadData.audioUrl
+            console.log('Audio uploaded:', persistentAudioUrl)
+          }
+        } catch (uploadErr) {
+          console.error('Failed to upload audio:', uploadErr)
         }
-      } catch (uploadErr) {
-        console.error('Failed to upload audio:', uploadErr)
-        // Continue without persistent URL - playback won't work but message will still send
       }
 
-      // Transcribe audio
-      const formData = new FormData()
-      formData.append('audio', audioBlob, 'recording.webm')
-      formData.append('language', activeLanguage || 'en')
-
-      console.log('Sending audio for transcription, size:', audioBlob.size, 'type:', audioBlob.type)
-
-      const response = await fetch('/api/speech/transcribe', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Transcription result:', data.text)
-        onSend(data.text, audioBlob, persistentAudioUrl || audioUrl)
-      } else {
-        const errorText = await response.text()
-        console.error('Transcription failed:', response.status, errorText)
-        // Fallback: send without transcription
-        onSend('[Audio message - transcription failed]', audioBlob, persistentAudioUrl || audioUrl)
-      }
+      // Use edited text if user modified it, otherwise use transcription
+      const textToSend = isEditing ? editedText : (reviewData.text || '[Audio message]')
+      onSend(textToSend, reviewData.audioBlob, persistentAudioUrl)
     } catch (err) {
-      console.error('Failed to transcribe:', err)
-      onSend('[Audio message]', audioBlob, audioUrl)
+      console.error('Failed to send:', err)
+      onSend('[Audio message]', reviewData.audioBlob, reviewData.audioUrl)
     } finally {
-      setTranscribing(false)
+      setIsSending(false)
     }
-  }, [audioBlob, audioUrl, activeLanguage, onSend])
+  }, [reviewData, editedText, isEditing, activeLanguage, onSend])
 
   const handleDiscard = useCallback(() => {
-    resetRecording()
+    reset()
+    setReviewData(null)
+    setEditedText('')
+    setIsEditing(false)
     onCancel()
-  }, [resetRecording, onCancel])
+  }, [reset, onCancel])
 
   const togglePlayback = useCallback(() => {
     if (!audioRef.current) return
@@ -229,13 +241,16 @@ const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
     if (audioRef.current) {
       audioRef.current.onended = () => setIsPlaying(false)
     }
-  }, [audioUrl])
+  }, [reviewData?.audioUrl])
 
-  if (permissionState === 'denied') {
+  // Display current transcription
+  const displayText = transcript || finalTranscript || ''
+
+  if (error) {
     return (
       <div className="tutor-voice-input tutor-voice-denied">
-        <p>Microphone access denied</p>
-        <p className="muted small">Please enable microphone access in your browser settings</p>
+        <p>Microphone error</p>
+        <p className="muted small">{error}</p>
         <button className="button ghost small" onClick={onCancel}>
           Cancel
         </button>
@@ -243,16 +258,87 @@ const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
     )
   }
 
-  return (
-    <div className="tutor-voice-input">
-      {isRecording ? (
-        // Recording state
+  // Review state - after stopping
+  if (reviewData) {
+    return (
+      <div className="tutor-voice-input">
+        <div className="tutor-voice-review">
+          {reviewData.audioUrl && (
+            <>
+              <audio ref={audioRef} src={reviewData.audioUrl} />
+              <button
+                className="tutor-voice-btn play"
+                onClick={togglePlayback}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <PauseIcon /> : <PlayIcon />}
+              </button>
+            </>
+          )}
+          <span className="tutor-voice-time">{formattedTime()}</span>
+          <div className="tutor-voice-review-actions">
+            <button
+              className="tutor-voice-btn discard"
+              onClick={handleDiscard}
+              title="Discard"
+              disabled={isSending}
+            >
+              <TrashIcon />
+            </button>
+            <button
+              className="tutor-voice-btn send"
+              onClick={handleSend}
+              title="Send"
+              disabled={isSending}
+            >
+              {isSending ? (
+                <span className="tutor-voice-sending">...</span>
+              ) : (
+                <SendIcon />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Transcription preview/edit */}
+        <div className="tutor-voice-transcript">
+          {isEditing ? (
+            <textarea
+              className="tutor-voice-transcript-edit"
+              value={editedText}
+              onChange={(e) => setEditedText(e.target.value)}
+              placeholder="Edit transcription..."
+              rows={2}
+            />
+          ) : (
+            <div className="tutor-voice-transcript-preview">
+              <span className="tutor-voice-transcript-text">
+                {reviewData.text || 'No transcription available'}
+              </span>
+              <button
+                className="tutor-voice-transcript-edit-btn"
+                onClick={() => setIsEditing(true)}
+                title="Edit transcription"
+              >
+                <EditIcon />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Recording state - streaming
+  if (isStreaming) {
+    return (
+      <div className="tutor-voice-input">
         <div className="tutor-voice-recording">
           <div className="tutor-voice-indicator">
             <span className="tutor-voice-dot recording" />
-            <span className="tutor-voice-time">{formattedTime}</span>
+            <span className="tutor-voice-time">{formattedTime()}</span>
           </div>
-          <WaveformVisualizer analyserNode={analyserNode} isRecording={isRecording} />
+          <WaveformVisualizer analyserNode={analyserNode} isActive={isStreaming} />
           <div className="tutor-voice-actions">
             <button
               className="tutor-voice-btn stop"
@@ -263,48 +349,25 @@ const TutorVoiceInput = ({ onSend, onCancel, disabled, activeLanguage }) => {
             </button>
           </div>
         </div>
-      ) : audioBlob ? (
-        // Review state
-        <div className="tutor-voice-review">
-          <audio ref={audioRef} src={audioUrl} />
-          <button
-            className="tutor-voice-btn play"
-            onClick={togglePlayback}
-            title={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? <PauseIcon /> : <PlayIcon />}
-          </button>
-          <span className="tutor-voice-time">{formattedTime}</span>
-          <div className="tutor-voice-review-actions">
-            <button
-              className="tutor-voice-btn discard"
-              onClick={handleDiscard}
-              title="Discard"
-              disabled={transcribing}
-            >
-              <TrashIcon />
-            </button>
-            <button
-              className="tutor-voice-btn send"
-              onClick={handleSend}
-              title="Send"
-              disabled={transcribing}
-            >
-              {transcribing ? (
-                <span className="tutor-voice-sending">...</span>
-              ) : (
-                <SendIcon />
-              )}
-            </button>
+
+        {/* Live transcription preview */}
+        {displayText && (
+          <div className="tutor-voice-live-transcript">
+            <span className="tutor-voice-live-label">Live:</span>
+            <span className="tutor-voice-live-text">{displayText}</span>
           </div>
-        </div>
-      ) : (
-        // Initializing
-        <div className="tutor-voice-init">
-          <span className="tutor-voice-dot" />
-          <span>Starting microphone...</span>
-        </div>
-      )}
+        )}
+      </div>
+    )
+  }
+
+  // Initializing state
+  return (
+    <div className="tutor-voice-input">
+      <div className="tutor-voice-init">
+        <span className="tutor-voice-dot" />
+        <span>{isConnected ? 'Starting microphone...' : 'Connecting...'}</span>
+      </div>
     </div>
   )
 }

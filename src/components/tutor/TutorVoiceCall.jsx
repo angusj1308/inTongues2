@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import useAudioRecorder from '../../hooks/useAudioRecorder'
+import useRealtimeTranscription from '../../hooks/useRealtimeTranscription'
 
 const PhoneOffIcon = () => (
   <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2">
@@ -52,25 +52,35 @@ const TutorVoiceCall = ({
 }) => {
   const [callState, setCallState] = useState('connecting') // connecting, listening, processing, speaking
   const [isMuted, setIsMuted] = useState(false)
-  const [transcript, setTranscript] = useState('')
+  const [userText, setUserText] = useState('')
   const [tutorText, setTutorText] = useState('')
   const [error, setError] = useState(null)
   const [callDuration, setCallDuration] = useState(0)
 
   const {
-    isRecording,
-    audioBlob,
+    isConnected,
+    isStreaming,
+    transcript,
+    finalTranscript,
     analyserNode,
-    permissionState,
-    requestPermission,
-    startRecording,
-    stopRecording,
-    resetRecording,
-  } = useAudioRecorder({ maxDuration: 30 }) // 30 seconds per turn
+    startStreaming,
+    stopStreaming,
+    reset: resetTranscription
+  } = useRealtimeTranscription({
+    language: activeLanguage || 'en',
+    onTranscription: (text) => {
+      setUserText(text)
+    },
+    onFinalTranscription: (text) => {
+      console.log('Final user transcript:', text)
+    }
+  })
 
-  const audioContextRef = useRef(null)
   const silenceTimeoutRef = useRef(null)
   const callTimerRef = useRef(null)
+  const audioSourceRef = useRef(null)
+  const audioContextRef = useRef(null)
+  const localConversationRef = useRef([...conversationHistory])
 
   // Format call duration
   const formatDuration = (seconds) => {
@@ -83,24 +93,17 @@ const TutorVoiceCall = ({
   useEffect(() => {
     const initCall = async () => {
       try {
-        if (permissionState === 'prompt') {
-          await requestPermission()
-        }
-        if (permissionState === 'denied') {
-          setError('Microphone access required for voice call')
-          return
-        }
-
         // Start call timer
         callTimerRef.current = setInterval(() => {
           setCallDuration((d) => d + 1)
         }, 1000)
 
+        // Start real-time streaming
+        await startStreaming()
         setCallState('listening')
-        startRecording()
       } catch (err) {
         console.error('Failed to start call:', err)
-        setError('Failed to start call')
+        setError('Failed to start call. Please check microphone permissions.')
       }
     }
 
@@ -113,27 +116,35 @@ const TutorVoiceCall = ({
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current)
       }
+      // Stop any playing audio
+      if (audioSourceRef.current) {
+        try {
+          audioSourceRef.current.stop()
+        } catch (e) {}
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close()
+      }
     }
   }, [])
 
-  // Detect silence to auto-stop recording
+  // Detect silence to trigger processing
   useEffect(() => {
-    if (!analyserNode || !isRecording || isMuted) return
+    if (!analyserNode || !isStreaming || isMuted || callState !== 'listening') return
 
     const checkSilence = () => {
       const dataArray = new Uint8Array(analyserNode.frequencyBinCount)
       analyserNode.getByteFrequencyData(dataArray)
-
       const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
 
-      // If very quiet for a while, stop recording
-      if (average < 5) {
+      // If very quiet and we have some transcript, process it
+      if (average < 5 && (transcript || finalTranscript)) {
         if (!silenceTimeoutRef.current) {
-          silenceTimeoutRef.current = setTimeout(() => {
-            if (isRecording) {
-              stopRecording()
+          silenceTimeoutRef.current = setTimeout(async () => {
+            if (isStreaming && (transcript || finalTranscript)) {
+              await processUserSpeech()
             }
-          }, 2000) // 2 seconds of silence
+          }, 1500) // 1.5 seconds of silence
         }
       } else {
         if (silenceTimeoutRef.current) {
@@ -144,99 +155,92 @@ const TutorVoiceCall = ({
     }
 
     const interval = setInterval(checkSilence, 200)
-    return () => clearInterval(interval)
-  }, [analyserNode, isRecording, isMuted, stopRecording])
-
-  // Process recorded audio when stopped
-  useEffect(() => {
-    if (!audioBlob || callState !== 'listening') return
-
-    const processAudio = async () => {
-      setCallState('processing')
-
-      try {
-        // Transcribe audio
-        const formData = new FormData()
-        formData.append('audio', audioBlob, 'recording.webm')
-        formData.append('language', activeLanguage || 'en')
-
-        const transcribeRes = await fetch('/api/speech/transcribe', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!transcribeRes.ok) throw new Error('Transcription failed')
-
-        const { text } = await transcribeRes.json()
-        setTranscript(text)
-
-        if (!text.trim()) {
-          // No speech detected, go back to listening
-          resetRecording()
-          setCallState('listening')
-          startRecording()
-          return
-        }
-
-        // Add user message to history
-        onMessage({ role: 'user', content: text })
-
-        // Get tutor response
-        const tutorRes = await fetch('/api/tutor/message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text,
-            targetLanguage: activeLanguage,
-            sourceLanguage: nativeLanguage || 'English',
-            conversationHistory: [...conversationHistory, { role: 'user', content: text }],
-            memory: tutorProfile?.memory,
-            voiceCall: true,
-            settings: {
-              correctionsEnabled: settings?.correctionsEnabled,
-              languageLevel: settings?.languageLevel,
-              responseStyle: settings?.responseStyle,
-              responseLength: 'short', // Keep responses short for voice
-              focusAreas: settings?.focusAreas,
-            },
-          }),
-        })
-
-        if (!tutorRes.ok) throw new Error('Failed to get tutor response')
-
-        const { response: tutorResponse } = await tutorRes.json()
-        setTutorText(tutorResponse)
-
-        // Add tutor message to history
-        onMessage({ role: 'tutor', content: tutorResponse })
-
-        // Speak the response
-        setCallState('speaking')
-        await speakText(tutorResponse)
-
-        // Go back to listening
-        resetRecording()
-        setTranscript('')
-        setTutorText('')
-        setCallState('listening')
-        startRecording()
-
-      } catch (err) {
-        console.error('Voice call error:', err)
-        setError('Something went wrong. Trying again...')
-
-        // Try to recover
-        setTimeout(() => {
-          setError(null)
-          resetRecording()
-          setCallState('listening')
-          startRecording()
-        }, 2000)
+    return () => {
+      clearInterval(interval)
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current)
+        silenceTimeoutRef.current = null
       }
     }
+  }, [analyserNode, isStreaming, isMuted, callState, transcript, finalTranscript])
 
-    processAudio()
-  }, [audioBlob])
+  // Process user speech and get tutor response
+  const processUserSpeech = async () => {
+    // Stop streaming and get final transcript
+    const result = await stopStreaming()
+    const userSpeech = result.text || transcript || finalTranscript
+
+    if (!userSpeech || !userSpeech.trim()) {
+      // No speech detected, restart listening
+      resetTranscription()
+      await startStreaming()
+      return
+    }
+
+    setCallState('processing')
+    setUserText(userSpeech)
+
+    try {
+      // Add user message to history
+      onMessage({ role: 'user', content: userSpeech })
+      localConversationRef.current.push({ role: 'user', content: userSpeech })
+
+      // Get tutor response
+      const tutorRes = await fetch('/api/tutor/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userSpeech,
+          targetLanguage: activeLanguage,
+          sourceLanguage: nativeLanguage || 'English',
+          conversationHistory: localConversationRef.current,
+          memory: tutorProfile?.memory,
+          voiceCall: true,
+          settings: {
+            correctionsEnabled: settings?.correctionsEnabled,
+            languageLevel: settings?.languageLevel,
+            responseStyle: settings?.responseStyle,
+            responseLength: 'short', // Keep responses short for voice
+            focusAreas: settings?.focusAreas,
+          },
+        }),
+      })
+
+      if (!tutorRes.ok) throw new Error('Failed to get tutor response')
+
+      const { response: tutorResponse } = await tutorRes.json()
+      setTutorText(tutorResponse)
+
+      // Add tutor message to history
+      onMessage({ role: 'tutor', content: tutorResponse })
+      localConversationRef.current.push({ role: 'tutor', content: tutorResponse })
+
+      // Speak the response
+      setCallState('speaking')
+      await speakText(tutorResponse)
+
+      // Go back to listening
+      setUserText('')
+      setTutorText('')
+      resetTranscription()
+      setCallState('listening')
+      await startStreaming()
+
+    } catch (err) {
+      console.error('Voice call error:', err)
+      setError('Something went wrong. Trying again...')
+
+      // Try to recover
+      setTimeout(async () => {
+        setError(null)
+        setUserText('')
+        setTutorText('')
+        resetTranscription()
+        setCallState('listening')
+        await startStreaming()
+      }, 2000)
+    }
+  }
 
   // Text-to-speech using ElevenLabs
   const speakText = async (text) => {
@@ -255,57 +259,94 @@ const TutorVoiceCall = ({
 
       if (!response.ok) {
         // Fallback to browser TTS
-        const utterance = new SpeechSynthesisUtterance(text)
-        utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : 'en'
-        window.speechSynthesis.speak(utterance)
-
-        return new Promise((resolve) => {
-          utterance.onend = resolve
-        })
+        return speakWithBrowserTTS(text)
       }
 
       const audioData = await response.arrayBuffer()
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-      const audioBuffer = await audioContext.decodeAudioData(audioData)
+      audioContextRef.current = audioContext
 
+      const audioBuffer = await audioContext.decodeAudioData(audioData)
       const source = audioContext.createBufferSource()
+      audioSourceRef.current = source
+
       source.buffer = audioBuffer
       source.connect(audioContext.destination)
       source.start()
 
       return new Promise((resolve) => {
-        source.onended = resolve
+        source.onended = () => {
+          audioSourceRef.current = null
+          resolve()
+        }
       })
     } catch (err) {
       console.error('TTS error:', err)
-      // Fallback to browser TTS
+      return speakWithBrowserTTS(text)
+    }
+  }
+
+  const speakWithBrowserTTS = (text) => {
+    return new Promise((resolve) => {
       const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : 'en'
+      utterance.rate = settings?.speechSpeed === 'slow' ? 0.8 : settings?.speechSpeed === 'fast' ? 1.2 : 1.0
+      utterance.onend = resolve
       window.speechSynthesis.speak(utterance)
+    })
+  }
 
-      return new Promise((resolve) => {
-        utterance.onend = resolve
-      })
+  const handleMuteToggle = async () => {
+    if (isMuted) {
+      // Unmute - restart streaming
+      setIsMuted(false)
+      if (!isStreaming && callState === 'listening') {
+        await startStreaming()
+      }
+    } else {
+      // Mute - stop streaming
+      setIsMuted(true)
+      if (isStreaming) {
+        await stopStreaming()
+        resetTranscription()
+      }
     }
   }
 
-  const handleMuteToggle = () => {
-    setIsMuted(!isMuted)
-    if (isRecording && !isMuted) {
-      stopRecording()
-    } else if (!isRecording && isMuted) {
-      resetRecording()
-      startRecording()
+  // Barge-in: interrupt tutor while speaking
+  const handleBargeIn = async () => {
+    if (callState === 'speaking') {
+      // Stop TTS
+      if (audioSourceRef.current) {
+        try {
+          audioSourceRef.current.stop()
+        } catch (e) {}
+        audioSourceRef.current = null
+      }
+      window.speechSynthesis.cancel() // Stop browser TTS if active
+
+      // Switch to listening
+      setTutorText('')
+      resetTranscription()
+      setCallState('listening')
+      await startStreaming()
     }
   }
 
-  const handleEndCall = () => {
+  const handleEndCall = async () => {
     if (callTimerRef.current) {
       clearInterval(callTimerRef.current)
     }
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current)
     }
-    stopRecording()
+    if (audioSourceRef.current) {
+      try {
+        audioSourceRef.current.stop()
+      } catch (e) {}
+    }
+    window.speechSynthesis.cancel()
+    await stopStreaming()
     onEnd()
   }
 
@@ -324,6 +365,9 @@ const TutorVoiceCall = ({
     }
   }
 
+  // Current text to display (live transcript or user text)
+  const displayUserText = userText || transcript || ''
+
   return (
     <div className="tutor-voice-call">
       <div className="tutor-call-header">
@@ -335,19 +379,22 @@ const TutorVoiceCall = ({
       </div>
 
       <div className="tutor-call-content">
-        <div className="tutor-call-avatar">
-          <div className={`tutor-call-avatar-ring ${callState === 'speaking' ? 'speaking' : ''}`}>
+        <div className="tutor-call-avatar" onClick={handleBargeIn}>
+          <div className={`tutor-call-avatar-ring ${callState === 'speaking' ? 'speaking' : ''} ${callState === 'listening' && !isMuted ? 'listening' : ''}`}>
             <div className="tutor-call-avatar-inner">
               <VolumeIcon />
             </div>
           </div>
           <span className="tutor-call-name">{activeLanguage} Tutor</span>
+          {callState === 'speaking' && (
+            <span className="tutor-call-hint">Tap to interrupt</span>
+          )}
         </div>
 
-        {transcript && (
+        {displayUserText && (
           <div className="tutor-call-transcript">
-            <span className="tutor-call-label">You said:</span>
-            <p>{transcript}</p>
+            <span className="tutor-call-label">You:</span>
+            <p>{displayUserText}</p>
           </div>
         )}
 

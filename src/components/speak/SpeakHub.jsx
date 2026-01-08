@@ -43,7 +43,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     return unsubscribe
   }, [user?.uid])
 
-  // Subscribe to speaking practice lessons (importing ones)
+  // Subscribe to speaking practice lessons (filter importing ones in JS to avoid composite index)
   useEffect(() => {
     if (!user?.uid || !normalizedLanguage) {
       setSpeakingPracticeLessons([])
@@ -53,15 +53,22 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     const lessonsRef = collection(db, 'users', user.uid, 'practiceLessons')
     const lessonsQuery = query(
       lessonsRef,
-      where('targetLanguage', '==', normalizedLanguage),
-      where('status', '==', 'importing'),
-      orderBy('createdAt', 'desc')
+      where('targetLanguage', '==', normalizedLanguage)
     )
 
     const unsubscribe = onSnapshot(
       lessonsQuery,
       (snapshot) => {
-        setSpeakingPracticeLessons(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+        const allLessons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        // Filter to only importing lessons and sort by createdAt
+        const importing = allLessons
+          .filter(l => l.status === 'importing')
+          .sort((a, b) => {
+            const aTime = a.createdAt?.toMillis?.() || 0
+            const bTime = b.createdAt?.toMillis?.() || 0
+            return bTime - aTime
+          })
+        setSpeakingPracticeLessons(importing)
       },
       (err) => {
         console.error('Error loading speaking practice lessons:', err)

@@ -83,25 +83,28 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
     return chunks
   }
 
-  // Handle import
-  const handleImport = async () => {
+  // Handle import - source can be passed directly for the new UI layout
+  const handleImport = async (sourceOverride) => {
     if (!user?.uid) return
 
-    if (importSource === 'text' && !importText.trim()) {
+    const source = sourceOverride || importSource
+
+    if (source === 'text' && !importText.trim()) {
       setImportError('Please enter some text to import')
       return
     }
 
-    if (importSource === 'youtube' && !importYoutubeUrl.trim()) {
+    if (source === 'youtube' && !importYoutubeUrl.trim()) {
       setImportError('Please enter a YouTube URL')
       return
     }
 
     setIsImporting(true)
     setImportError(null)
+    setImportSource(source)
 
     try {
-      if (importSource === 'text') {
+      if (source === 'text') {
         // Split into chunks for speaking
         const chunks = splitForSpeaking(importText)
 
@@ -131,7 +134,7 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
         setImportTitle('')
         setImportText('')
         setActiveTab('library')
-      } else if (importSource === 'youtube') {
+      } else if (source === 'youtube') {
         // Create lesson with importing status, trigger background transcription
         const lessonData = {
           title: importTitle.trim() || 'YouTube Speaking Practice',
@@ -316,76 +319,88 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
 
       {/* Import tab */}
       {activeTab === 'import' && (
-        <div className="intensive-hub-import speaking-practice-import">
-          {/* Source toggle */}
-          <div className="import-source-toggle">
+        <div className="intensive-hub-import">
+          {/* Paste Text section */}
+          <div className="intensive-hub-import-section">
+            <h4>Paste {nativeLanguage} Text</h4>
+            <p className="muted small">Enter text you want to practice translating into {activeLanguage}.</p>
+
+            <div className="form-grid">
+              <label className="form-field">
+                <span>Title (optional)</span>
+                <input
+                  type="text"
+                  placeholder="My speaking practice..."
+                  value={importTitle}
+                  onChange={(e) => setImportTitle(e.target.value)}
+                />
+              </label>
+
+              <label className="form-field">
+                <span>{nativeLanguage} text</span>
+                <textarea
+                  placeholder={`Paste ${nativeLanguage} sentences here...`}
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  rows={4}
+                />
+              </label>
+            </div>
+
+            {importError && importSource === 'text' && (
+              <p className="error small">{importError}</p>
+            )}
+
             <button
-              className={`import-source-btn ${importSource === 'text' ? 'active' : ''}`}
-              onClick={() => setImportSource('text')}
+              className="btn btn-primary"
+              onClick={() => handleImport('text')}
+              disabled={isImporting || !importText.trim()}
             >
-              Paste Text
-            </button>
-            <button
-              className={`import-source-btn ${importSource === 'youtube' ? 'active' : ''}`}
-              onClick={() => setImportSource('youtube')}
-            >
-              YouTube URL
+              {isImporting && importSource === 'text' ? 'Importing...' : 'Import text'}
             </button>
           </div>
 
-          {/* Title input */}
-          <div className="import-field">
-            <label>Title (optional)</label>
-            <input
-              type="text"
-              placeholder="My speaking practice..."
-              value={importTitle}
-              onChange={(e) => setImportTitle(e.target.value)}
-            />
+          <div className="intensive-hub-import-divider" />
+
+          {/* YouTube section */}
+          <div className="intensive-hub-import-section">
+            <h4>Import from YouTube</h4>
+            <p className="muted small">Import a {nativeLanguage} video to practice interpreting.</p>
+
+            <div className="form-grid">
+              <label className="form-field">
+                <span>Title</span>
+                <input
+                  type="text"
+                  placeholder="My favorite talk..."
+                  value={importTitle}
+                  onChange={(e) => setImportTitle(e.target.value)}
+                />
+              </label>
+
+              <label className="form-field">
+                <span>YouTube URL</span>
+                <input
+                  type="url"
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={importYoutubeUrl}
+                  onChange={(e) => setImportYoutubeUrl(e.target.value)}
+                />
+              </label>
+            </div>
+
+            {importError && importSource === 'youtube' && (
+              <p className="error small">{importError}</p>
+            )}
+
+            <button
+              className="btn btn-primary"
+              onClick={() => handleImport('youtube')}
+              disabled={isImporting || !importYoutubeUrl.trim()}
+            >
+              {isImporting && importSource === 'youtube' ? 'Importing...' : 'Import video'}
+            </button>
           </div>
-
-          {/* Text input */}
-          {importSource === 'text' && (
-            <div className="import-field">
-              <label>Paste {nativeLanguage} text to practice</label>
-              <textarea
-                placeholder={`Enter ${nativeLanguage} text here. You'll practice speaking the ${activeLanguage} translation.`}
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                rows={6}
-              />
-            </div>
-          )}
-
-          {/* YouTube input */}
-          {importSource === 'youtube' && (
-            <div className="import-field">
-              <label>YouTube URL ({nativeLanguage} video)</label>
-              <input
-                type="url"
-                placeholder="https://youtube.com/watch?v=..."
-                value={importYoutubeUrl}
-                onChange={(e) => setImportYoutubeUrl(e.target.value)}
-              />
-              <p className="muted small">
-                Video will be transcribed and split into short segments for speaking practice.
-              </p>
-            </div>
-          )}
-
-          {/* Error */}
-          {importError && (
-            <p className="import-error">{importError}</p>
-          )}
-
-          {/* Submit */}
-          <button
-            className="btn btn-primary"
-            onClick={handleImport}
-            disabled={isImporting}
-          >
-            {isImporting ? 'Importing...' : 'Import for Speaking Practice'}
-          </button>
         </div>
       )}
     </div>

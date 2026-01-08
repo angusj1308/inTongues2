@@ -16165,6 +16165,54 @@ body.active-pass-locked {
   margin: 1.25rem 0;
 }
 
+.intensive-hub-import-section h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.intensive-hub-import-section .form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.intensive-hub-import-section .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.intensive-hub-import-section .form-field span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.intensive-hub-import-section .form-field input,
+.intensive-hub-import-section .form-field textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.intensive-hub-import-section .form-field input:focus,
+.intensive-hub-import-section .form-field textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.intensive-hub-import-section .form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.intensive-hub-import-section .btn {
+  margin-top: 0.75rem;
+}
+
 .intensive-hub-import-audio h4 {
   margin: 0 0 0.25rem;
   font-size: 0.95rem;

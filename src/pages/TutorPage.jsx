@@ -429,6 +429,27 @@ const TutorPage = () => {
 
         // Always speak tutor response using ElevenLabs
         speakText(data.response)
+
+        // Auto-generate title after first exchange (when chat has no custom title yet)
+        const updatedMessages = [...history, { role: 'user', content: text }, { role: 'tutor', content: data.response }]
+        if (updatedMessages.length === 2 && !currentChat?.title) {
+          try {
+            const titleResponse = await fetch('/api/tutor/generate-title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: updatedMessages,
+                language: activeLanguage,
+              }),
+            })
+            const titleData = await titleResponse.json()
+            if (titleData.title) {
+              await renameTutorChat(user.uid, activeChatId, titleData.title)
+            }
+          } catch (titleErr) {
+            console.error('Failed to generate title:', titleErr)
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to send message:', err)

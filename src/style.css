@@ -14208,6 +14208,7 @@ body.active-pass-locked {
 
 /* Sidebar */
 .tutor-sidebar {
+  position: relative;
   width: 260px;
   background: #202123;
   display: flex;
@@ -14217,10 +14218,45 @@ body.active-pass-locked {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
+.tutor-sidebar-handle {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 48px;
+  background: #202123;
+  border: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.15s;
+  z-index: 10;
+}
+
+.tutor-sidebar-handle:hover {
+  background: #2a2b2e;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tutor-sidebar.closed .tutor-sidebar-handle {
+  right: -12px;
+  left: auto;
+  transform: translateX(260px) translateY(-50%);
+}
+
 .tutor-sidebar.closed {
   width: 0;
   transform: translateX(-260px);
-  overflow: hidden;
+}
+
+.tutor-sidebar.closed .tutor-sidebar-header,
+.tutor-sidebar.closed .tutor-sidebar-chats {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .tutor-sidebar-header {

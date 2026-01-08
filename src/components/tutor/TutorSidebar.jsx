@@ -259,6 +259,21 @@ const TutorSidebar = ({
 
   return (
     <aside className={`tutor-sidebar ${isOpen ? 'open' : 'closed'}`}>
+      {/* Pull handle on the edge */}
+      <button
+        className="tutor-sidebar-handle"
+        onClick={onToggle}
+        aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
+      >
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+          {isOpen ? (
+            <polyline points="15 18 9 12 15 6" />
+          ) : (
+            <polyline points="9 18 15 12 9 6" />
+          )}
+        </svg>
+      </button>
+
       <div className="tutor-sidebar-header">
         <span className="tutor-sidebar-title">Chat History</span>
         <button className="tutor-sidebar-new-btn" onClick={onNewChat} title="New chat">

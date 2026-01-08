@@ -48,10 +48,6 @@ const ToggleSwitch = ({ checked, onChange, label, description }) => (
 const TutorControlPanel = ({
   settings,
   onSettingsChange,
-  onRecordAudio,
-  onVoiceCall,
-  isRecording,
-  isInCall,
   activeLanguage,
 }) => {
   const [showSettings, setShowSettings] = useState(false)
@@ -62,32 +58,15 @@ const TutorControlPanel = ({
 
   return (
     <div className="tutor-control-panel">
-      {/* Main action buttons */}
+      {/* Settings toggle */}
       <div className="tutor-control-actions">
         <button
-          className={`tutor-control-btn ${isRecording ? 'active recording' : ''}`}
-          onClick={onRecordAudio}
-          title="Record audio message"
-        >
-          <MicIcon />
-          <span>{isRecording ? 'Recording...' : 'Record'}</span>
-        </button>
-
-        <button
-          className={`tutor-control-btn ${isInCall ? 'active in-call' : ''}`}
-          onClick={onVoiceCall}
-          title="Start voice call"
-        >
-          <PhoneIcon />
-          <span>{isInCall ? 'End Call' : 'Voice Call'}</span>
-        </button>
-
-        <button
-          className={`tutor-control-btn settings-btn ${showSettings ? 'active' : ''}`}
+          className={`tutor-settings-toggle ${showSettings ? 'active' : ''}`}
           onClick={() => setShowSettings(!showSettings)}
           title="Settings"
         >
           <SettingsIcon />
+          <span>Settings</span>
           <ChevronDownIcon />
         </button>
       </div>

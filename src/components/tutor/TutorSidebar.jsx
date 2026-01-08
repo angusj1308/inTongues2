@@ -39,13 +39,28 @@ const formatChatDate = (timestamp) => {
 
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
   const now = new Date()
-  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) return 'Today'
+  // Today: show time
+  if (diffDays === 0) {
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  }
+
+  // Yesterday
   if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  return date.toLocaleDateString()
+
+  // This week: show day name
+  if (diffDays < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' })
+  }
+
+  // Older: show date
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
 const getChatTitle = (chat) => {
@@ -162,20 +177,25 @@ const ChatItem = ({ chat, isActive, onSelect, onDelete, onRename }) => {
       <div className="tutor-sidebar-chat-icon">
         <ChatIcon />
       </div>
-      {isEditing ? (
-        <input
-          ref={inputRef}
-          type="text"
-          className="tutor-sidebar-chat-edit"
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleSaveEdit}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <span className="tutor-sidebar-chat-title">{getChatTitle(chat)}</span>
-      )}
+      <div className="tutor-sidebar-chat-content">
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            className="tutor-sidebar-chat-edit"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleSaveEdit}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <>
+            <span className="tutor-sidebar-chat-title">{getChatTitle(chat)}</span>
+            <span className="tutor-sidebar-chat-date">{formatChatDate(chat.updatedAt)}</span>
+          </>
+        )}
+      </div>
       <div className="tutor-sidebar-chat-actions" ref={menuRef}>
         <button
           className="tutor-sidebar-chat-menu-btn"

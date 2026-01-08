@@ -33,31 +33,86 @@ const MicIcon = () => (
   </svg>
 )
 
+const PhoneIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+)
+
 const PlayIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <polygon points="5 3 19 12 5 21 5 3" />
   </svg>
 )
 
 const PauseIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
     <rect x="6" y="4" width="4" height="16" />
     <rect x="14" y="4" width="4" height="16" />
   </svg>
 )
 
-// Component for playing voice message audio
-const VoiceMessagePlayer = ({ audioUrl }) => {
+const ChevronDownIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
+
+const ChevronUpIcon = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="18 15 12 9 6 15" />
+  </svg>
+)
+
+// WhatsApp-style voice message player with collapsible transcript
+const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage }) => {
   const [isPlaying, setIsPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [showTranscript, setShowTranscript] = useState(false)
   const audioRef = useRef(null)
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.onended = () => setIsPlaying(false)
-      audioRef.current.onpause = () => setIsPlaying(false)
-      audioRef.current.onplay = () => setIsPlaying(true)
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handleLoadedMetadata = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration)
+      }
     }
-  }, [])
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+    }
+
+    const handleEnded = () => {
+      setIsPlaying(false)
+      setCurrentTime(0)
+    }
+
+    const handlePause = () => setIsPlaying(false)
+    const handlePlay = () => setIsPlaying(true)
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('pause', handlePause)
+    audio.addEventListener('play', handlePlay)
+
+    // Try to get duration if already loaded
+    if (audio.readyState >= 1 && audio.duration && isFinite(audio.duration)) {
+      setDuration(audio.duration)
+    }
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('pause', handlePause)
+      audio.removeEventListener('play', handlePlay)
+    }
+  }, [audioUrl])
 
   const togglePlay = () => {
     if (!audioRef.current) return
@@ -68,14 +123,55 @@ const VoiceMessagePlayer = ({ audioUrl }) => {
     }
   }
 
+  const formatTime = (seconds) => {
+    if (!seconds || !isFinite(seconds)) return '0:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
   if (!audioUrl) return null
 
   return (
-    <div className="tutor-voice-player">
+    <div className={`voice-message ${isUserMessage ? 'user' : 'assistant'}`}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      <button className="tutor-voice-play-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
-        {isPlaying ? <PauseIcon /> : <PlayIcon />}
-      </button>
+
+      <div className="voice-message-main">
+        <button className="voice-message-play" onClick={togglePlay}>
+          {isPlaying ? <PauseIcon /> : <PlayIcon />}
+        </button>
+
+        <div className="voice-message-waveform">
+          <div className="voice-message-progress" style={{ width: `${progress}%` }} />
+          <div className="voice-message-bars">
+            {[...Array(20)].map((_, i) => (
+              <div key={i} className="voice-message-bar" style={{ height: `${20 + Math.random() * 60}%` }} />
+            ))}
+          </div>
+        </div>
+
+        <span className="voice-message-time">
+          {isPlaying ? formatTime(currentTime) : formatTime(duration)}
+        </span>
+      </div>
+
+      {transcript && (
+        <button
+          className="voice-message-transcript-toggle"
+          onClick={() => setShowTranscript(!showTranscript)}
+        >
+          {showTranscript ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          <span>{showTranscript ? 'Hide transcript' : 'Show transcript'}</span>
+        </button>
+      )}
+
+      {showTranscript && transcript && (
+        <div className="voice-message-transcript">
+          {transcript}
+        </div>
+      )}
     </div>
   )
 }
@@ -497,21 +593,19 @@ const TutorPage = () => {
                       )}
                     </div>
                     <div className="tutor-msg-content">
-                      <div className="tutor-msg-role">
-                        {msg.role === 'user' ? 'You' : 'Tutor'}
-                        {msg.type === 'voice' && (
-                          <span className="tutor-msg-voice-badge">
-                            <MicIcon />
-                          </span>
-                        )}
-                      </div>
-                      {/* Audio player for voice messages */}
-                      {msg.type === 'voice' && msg.audioUrl && (
-                        <VoiceMessagePlayer audioUrl={msg.audioUrl} />
+                      {/* Voice message - WhatsApp style */}
+                      {msg.type === 'voice' && msg.audioUrl ? (
+                        <VoiceMessagePlayer
+                          audioUrl={msg.audioUrl}
+                          transcript={msg.content}
+                          isUserMessage={msg.role === 'user'}
+                        />
+                      ) : (
+                        /* Text message */
+                        <div className="tutor-msg-text">
+                          {renderMessageText(msg.content, msg.role)}
+                        </div>
                       )}
-                      <div className="tutor-msg-text">
-                        {renderMessageText(msg.content, msg.role)}
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -543,14 +637,10 @@ const TutorPage = () => {
         {/* Input Area */}
         {!isInCall && (
           <div className="tutor-input-wrapper">
-            {/* Control Panel */}
+            {/* Control Panel - Settings only */}
             <TutorControlPanel
               settings={settings}
               onSettingsChange={handleSettingsChange}
-              onRecordAudio={handleRecordAudio}
-              onVoiceCall={handleVoiceCall}
-              isRecording={isRecording}
-              isInCall={isInCall}
               activeLanguage={activeLanguage}
             />
 
@@ -574,20 +664,37 @@ const TutorPage = () => {
                   disabled={sending || !activeLanguage}
                   rows={1}
                 />
-                <button
-                  className="tutor-send-btn"
-                  onClick={() => handleSendMessage()}
-                  disabled={!inputValue.trim() || sending || !activeLanguage}
-                  aria-label="Send message"
-                >
-                  <SendIcon />
-                </button>
+                <div className="tutor-input-actions">
+                  <button
+                    className="tutor-action-btn"
+                    onClick={handleRecordAudio}
+                    disabled={!activeLanguage}
+                    aria-label="Record voice message"
+                    title="Record"
+                  >
+                    <MicIcon />
+                  </button>
+                  <button
+                    className="tutor-action-btn"
+                    onClick={handleVoiceCall}
+                    disabled={!activeLanguage}
+                    aria-label="Start voice call"
+                    title="Call"
+                  >
+                    <PhoneIcon />
+                  </button>
+                  <button
+                    className="tutor-action-btn send"
+                    onClick={() => handleSendMessage()}
+                    disabled={!inputValue.trim() || sending || !activeLanguage}
+                    aria-label="Send message"
+                    title="Send"
+                  >
+                    <SendIcon />
+                  </button>
+                </div>
               </div>
             )}
-
-            <p className="tutor-input-hint">
-              Press Enter to send, Shift + Enter for new line
-            </p>
           </div>
         )}
       </main>

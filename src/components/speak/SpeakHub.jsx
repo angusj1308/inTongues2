@@ -14,7 +14,7 @@ import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
 export function SpeakHub({ activeLanguage, nativeLanguage }) {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [activeMode, setActiveMode] = useState(null) // null | 'pronunciation' | 'speakingPractice' | 'voiceRecord' | 'conversation'
+  const [activeMode, setActiveMode] = useState(null) // null | 'pronunciation' | 'speakingPractice' | 'voiceRecord'
   const [pronunciationSessions, setPronunciationSessions] = useState([])
   const [speakingPracticeLessons, setSpeakingPracticeLessons] = useState([])
 
@@ -94,42 +94,6 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     }
   }
 
-  // Conversation mode - placeholder linking to tutor
-  if (activeMode === 'conversation') {
-    return (
-      <div className="speak-hub">
-        <div className="speak-hub-nav">
-          <button className="btn-back" onClick={() => setActiveMode(null)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to modes
-          </button>
-        </div>
-
-        <div className="speak-conversation-placeholder">
-          <div className="placeholder-icon">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              <path d="M12 8v4M12 16h.01" />
-            </svg>
-          </div>
-          <h3>Voice Conversations Coming Soon</h3>
-          <p className="muted">
-            Real-time voice conversations with your AI tutor are under development.
-            In the meantime, you can practice text-based conversations in the Tutor tab.
-          </p>
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate('/dashboard', { state: { initialTab: 'tutor' } })}
-          >
-            Go to Tutor Chat
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   // Voice Record mode - full page view
   if (activeMode === 'voiceRecord') {
     return (
@@ -155,10 +119,6 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
   // Mode selection view (with overlays for pronunciation and speaking practice)
   return (
     <div className="speak-hub">
-      <div className="speak-hub-header">
-        <h2>Speaking Practice</h2>
-        <p className="muted">Choose how you want to practice speaking {activeLanguage}</p>
-      </div>
 
       <div className="speak-mode-grid">
         {/* Pronunciation Practice Card (was Intensive) */}
@@ -238,30 +198,6 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           </div>
         </button>
 
-        {/* Conversation Mode Card */}
-        <button
-          className="speak-mode-card speak-mode-card-coming-soon"
-          onClick={() => setActiveMode('conversation')}
-        >
-          <div className="speak-mode-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              <circle cx="9" cy="10" r="1" fill="currentColor" />
-              <circle cx="12" cy="10" r="1" fill="currentColor" />
-              <circle cx="15" cy="10" r="1" fill="currentColor" />
-            </svg>
-          </div>
-          <h3>Conversation</h3>
-          <p className="speak-mode-subtitle">Voice Chat with Tutor</p>
-          <p className="speak-mode-description">
-            Have real conversations with your AI tutor using voice. Practice spontaneous speaking.
-          </p>
-          <div className="speak-mode-focus">
-            <span className="focus-tag">Conversation</span>
-            <span className="focus-tag">Real-time</span>
-          </div>
-          <span className="coming-soon-badge">Coming Soon</span>
-        </button>
       </div>
 
       {/* Active pronunciation sessions */}

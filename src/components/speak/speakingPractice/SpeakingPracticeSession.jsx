@@ -65,10 +65,9 @@ const getFeedbackIcon = (state) => {
 }
 
 /**
- * Speaking Practice Session - Interpretation practice
- * User sees native language text and speaks the target language translation
- * Uses simple record button like Pronunciation Practice
- * Prefetches exemplars in batches of 5 for faster response
+ * Speaking Practice Session - Side-by-side layout
+ * Left: Feedback panel with tutor chat
+ * Right: Recording panel with collapsible prompt
  */
 export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
@@ -82,6 +81,15 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   const [vocabToSave, setVocabToSave] = useState([])
   const [savedVocab, setSavedVocab] = useState({})
   const [expandedCategories, setExpandedCategories] = useState({ grammar: true, accuracy: true, vocab: true })
+
+  // Collapsible prompt state
+  const [promptCollapsed, setPromptCollapsed] = useState(false)
+
+  // Tutor chat state
+  const [tutorMessages, setTutorMessages] = useState([])
+  const [tutorInput, setTutorInput] = useState('')
+  const [tutorSending, setTutorSending] = useState(false)
+  const tutorMessagesEndRef = useRef(null)
 
   // Recording state (simple like pronunciation practice)
   const [isRecording, setIsRecording] = useState(false)
@@ -106,10 +114,17 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     setError(null)
     setVocabToSave([])
     setSavedVocab({})
+    setPromptCollapsed(false)
+    setTutorMessages([])
+    setTutorInput('')
   }, [currentIndex, exemplarCache])
 
+  // Scroll tutor messages
+  useEffect(() => {
+    tutorMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [tutorMessages])
+
   // Prefetch exemplars in batches of 5
-  // Fetch when: on mount, or when 2 left in current batch
   const prefetchExemplars = useCallback(async (startIndex) => {
     if (fetchingExemplars || startIndex < 0 || startIndex >= sentences.length) return
 
@@ -119,7 +134,6 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     const batchStart = batchNumber * 5
     const batchEnd = Math.min(batchStart + 5, sentences.length)
 
-    // Get sentences that need exemplars
     const sentencesToFetch = []
     const indices = []
     for (let i = batchStart; i < batchEnd; i++) {
@@ -166,15 +180,13 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
 
   // Initial prefetch and trigger when 2 left in batch
   useEffect(() => {
-    // Initial fetch (batch 0)
     if (lastFetchedBatchRef.current < 0 && sentences.length > 0) {
       prefetchExemplars(0)
     }
 
-    // When 2 left in current batch, fetch next batch
     const currentBatch = Math.floor(currentIndex / 5)
     const positionInBatch = currentIndex % 5
-    if (positionInBatch >= 3) { // At position 3 or 4 in batch (0-indexed)
+    if (positionInBatch >= 3) {
       prefetchExemplars((currentBatch + 1) * 5)
     }
   }, [currentIndex, sentences.length, prefetchExemplars])
@@ -191,7 +203,6 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
       }
 
       if (completed) {
-        // Mark sentence as completed
         const updatedSentences = [...sentences]
         if (updatedSentences[index]) {
           updatedSentences[index] = { ...updatedSentences[index], status: 'completed' }
@@ -199,7 +210,6 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
         updates.sentences = updatedSentences
         updates.completedCount = updatedSentences.filter(s => s.status === 'completed').length
 
-        // Check if lesson is complete
         if (updates.completedCount >= sentences.length) {
           updates.status = 'complete'
         }
@@ -211,7 +221,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     }
   }, [user?.uid, lesson.id, sentences])
 
-  // Simple recording functions (like Pronunciation Practice)
+  // Recording functions
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -230,6 +240,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
         const url = URL.createObjectURL(blob)
         setUserRecording({ blob, url })
         stream.getTracks().forEach(track => track.stop())
+        setPromptCollapsed(true) // Collapse prompt after recording
 
         // Auto-submit for assessment
         await handleAssessment(blob)
@@ -264,13 +275,10 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     setError(null)
 
     try {
-      // Convert blob to base64
       const reader = new FileReader()
       reader.readAsDataURL(blob)
       reader.onloadend = async () => {
         const base64Audio = reader.result.split(',')[1]
-
-        // Use cached exemplar if available for faster response
         const cachedExemplar = exemplarCache[currentIndex]
 
         const response = await fetch('/api/speech/speaking-practice', {
@@ -281,8 +289,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
             nativeSentence: currentSentence.text,
             targetLanguage: activeLanguage,
             sourceLanguage: nativeLanguage,
-            exemplar: cachedExemplar, // Pass preloaded exemplar
-            contextSummary: lesson.contextSummary || '' // Pass context for accurate feedback
+            exemplar: cachedExemplar,
+            contextSummary: lesson.contextSummary || ''
           })
         })
 
@@ -303,10 +311,11 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     }
   }
 
-  // Handle "I'm not sure" button - reveal exemplar without recording
+  // Handle "I'm not sure" button
   const handleNotSure = async () => {
     setIsAssessing(true)
     setError(null)
+    setPromptCollapsed(true)
 
     try {
       const response = await fetch('/api/speech/speaking-practice', {
@@ -337,21 +346,40 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     }
   }
 
-  // Save a vocabulary word
-  const handleSaveVocab = async (word) => {
-    if (!user?.uid || savedVocab[word.text]) return
+  // Tutor chat - ask follow-up questions
+  const handleTutorSend = async () => {
+    if (!tutorInput.trim() || tutorSending) return
+
+    const question = tutorInput.trim()
+    setTutorInput('')
+    setTutorSending(true)
+
+    // Add user message immediately
+    setTutorMessages(prev => [...prev, { role: 'user', content: question }])
 
     try {
-      await upsertVocabEntry(
-        user.uid,
-        activeLanguage,
-        word.text,
-        word.translation,
-        'unknown'
-      )
-      setSavedVocab(prev => ({ ...prev, [word.text]: true }))
+      const response = await fetch('/api/tutor/speak-followup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          nativeSentence: currentSentence.text,
+          exemplar,
+          feedback,
+          targetLanguage: activeLanguage,
+          sourceLanguage: nativeLanguage
+        })
+      })
+
+      if (!response.ok) throw new Error('Failed to get response')
+
+      const data = await response.json()
+      setTutorMessages(prev => [...prev, { role: 'tutor', content: data.response }])
     } catch (err) {
-      console.error('Failed to save vocab:', err)
+      console.error('Tutor error:', err)
+      setTutorMessages(prev => [...prev, { role: 'tutor', content: 'Sorry, I could not process your question. Please try again.' }])
+    } finally {
+      setTutorSending(false)
     }
   }
 
@@ -377,6 +405,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     setUserRecording(null)
     setFeedback(null)
     setError(null)
+    setPromptCollapsed(false)
+    setTutorMessages([])
   }
 
   // Keyboard shortcuts
@@ -400,8 +430,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   if (sentences.length === 0) {
     return createPortal(
       <div className="speaking-session-fullpage">
-        <div className="intensive-card intensive-card--speaking">
-          <div className="intensive-card-empty">
+        <div className="speaking-practice-container">
+          <div className="speaking-practice-empty">
             <p className="muted">No sentences found in this lesson.</p>
             <button className="btn btn-secondary" onClick={onBack}>
               Go Back
@@ -414,75 +444,313 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   }
 
   const isComplete = currentIndex >= sentences.length - 1 && (feedback || showExemplar)
+  const hasFeedback = feedback || showExemplar
+  const languageColor = getLanguageColor(activeLanguage)
+
+  // Render feedback categories
+  const renderGrammarSection = () => {
+    const corrections = feedback?.corrections || []
+    const grammarCorrections = corrections.filter(c => c.category === 'grammar' || c.category === 'spelling')
+    const majorCount = grammarCorrections.filter(c => c.severity !== 'minor').length
+    const minorCount = grammarCorrections.filter(c => c.severity === 'minor').length
+    const totalCount = grammarCorrections.length
+    const isExpanded = expandedCategories.grammar
+    const hasMajor = majorCount > 0
+    const state = hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')
+
+    return (
+      <div className={`speaking-feedback-section ${state}`}>
+        <div
+          className="speaking-feedback-header"
+          onClick={() => setExpandedCategories(prev => ({ ...prev, grammar: !prev.grammar }))}
+        >
+          <span className="speaking-feedback-title">
+            Grammar & Spelling
+            <span className={`speaking-feedback-count ${hasMajor ? 'error' : minorCount > 0 ? 'warn' : ''}`}>
+              ({totalCount})
+            </span>
+          </span>
+          <span className="speaking-feedback-status">
+            <span className={`speaking-feedback-icon ${state}`}>{getFeedbackIcon(state)}</span>
+            <span className="speaking-feedback-chevron">{isExpanded ? '▲' : '▼'}</span>
+          </span>
+        </div>
+        {isExpanded && totalCount > 0 && (
+          <div className="speaking-feedback-corrections">
+            {grammarCorrections.map((c, idx) => (
+              <div key={idx} className="speaking-correction-item">
+                <span className={`correction-original ${c.severity === 'minor' ? 'minor' : ''}`}>{c.original}</span>
+                <span className="correction-arrow">→</span>
+                <span className="correction-fix">{c.correction}</span>
+                {c.explanation && <p className="correction-explanation">{c.explanation}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderAccuracySection = () => {
+    const corrections = feedback?.corrections || []
+    const accuracyCorrections = corrections.filter(c => c.category === 'accuracy' || c.category === 'naturalness')
+    const majorCount = accuracyCorrections.filter(c => c.severity !== 'minor').length
+    const minorCount = accuracyCorrections.filter(c => c.severity === 'minor').length
+    const totalCount = accuracyCorrections.length
+    const isExpanded = expandedCategories.accuracy
+    const hasMajor = majorCount > 0
+    const state = hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')
+
+    return (
+      <div className={`speaking-feedback-section ${state}`}>
+        <div
+          className="speaking-feedback-header"
+          onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !prev.accuracy }))}
+        >
+          <span className="speaking-feedback-title">
+            Accuracy
+            <span className={`speaking-feedback-count ${hasMajor ? 'error' : minorCount > 0 ? 'warn' : ''}`}>
+              ({totalCount})
+            </span>
+          </span>
+          <span className="speaking-feedback-status">
+            <span className={`speaking-feedback-icon ${state}`}>{getFeedbackIcon(state)}</span>
+            <span className="speaking-feedback-chevron">{isExpanded ? '▲' : '▼'}</span>
+          </span>
+        </div>
+        {isExpanded && totalCount > 0 && (
+          <div className="speaking-feedback-corrections">
+            {accuracyCorrections.map((c, idx) => (
+              <div key={idx} className="speaking-correction-item">
+                <span className={`correction-original ${c.severity === 'minor' ? 'minor' : ''}`}>{c.original}</span>
+                <span className="correction-arrow">→</span>
+                <span className="correction-fix">{c.correction}</span>
+                {c.explanation && <p className="correction-explanation">{c.explanation}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderVocabSection = () => {
+    if (vocabToSave.length === 0) return null
+
+    const isExpanded = expandedCategories.vocab
+
+    return (
+      <div className="speaking-feedback-section vocab">
+        <div
+          className="speaking-feedback-header"
+          onClick={() => setExpandedCategories(prev => ({ ...prev, vocab: !prev.vocab }))}
+        >
+          <span className="speaking-feedback-title">
+            Vocabulary
+            <span className="speaking-feedback-count">({vocabToSave.length})</span>
+          </span>
+          <span className="speaking-feedback-chevron">{isExpanded ? '▲' : '▼'}</span>
+        </div>
+        {isExpanded && (
+          <div className="speaking-vocab-list">
+            {vocabToSave.map((word, idx) => {
+              const currentStatus = savedVocab[word.text] || 'new'
+              const statusIndex = STATUS_LEVELS.indexOf(currentStatus)
+              const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
+
+              return (
+                <div key={idx} className="speaking-vocab-row">
+                  <div className="speaking-vocab-text">
+                    <span className="speaking-vocab-word">{word.text}</span>
+                    <span className="speaking-vocab-translation">{word.translation}</span>
+                  </div>
+                  <div className="speaking-vocab-status">
+                    {STATUS_ABBREV.map((abbrev, i) => {
+                      const isActive = i === validStatusIndex
+                      const style = getStatusButtonStyle(STATUS_LEVELS[i], isActive, languageColor)
+
+                      return (
+                        <button
+                          key={abbrev}
+                          type="button"
+                          className={`speaking-status-btn ${isActive ? 'active' : ''}`}
+                          style={style}
+                          onClick={async () => {
+                            if (!user?.uid) return
+                            const newStatus = STATUS_LEVELS[i] === 'new' ? 'unknown' : STATUS_LEVELS[i]
+                            try {
+                              await upsertVocabEntry(user.uid, activeLanguage, word.text, word.translation, newStatus)
+                              setSavedVocab(prev => ({ ...prev, [word.text]: STATUS_LEVELS[i] }))
+                            } catch (err) {
+                              console.error('Failed to save vocab:', err)
+                            }
+                          }}
+                        >
+                          {abbrev}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return createPortal(
     <div className="speaking-session-fullpage">
-      <div className="intensive-card intensive-card--speaking">
+      <div className="speaking-practice-container">
         {/* Header */}
-        <div className="intensive-card-header">
-          <div className="intensive-card-nav">
+        <div className="speaking-practice-header">
+          <div className="speaking-practice-nav">
             <button
               type="button"
-              className="intensive-card-nav-btn"
+              className="speaking-nav-btn"
               onClick={goToPrevious}
               disabled={currentIndex === 0}
-              aria-label="Previous sentence"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             </button>
-            <span className="intensive-card-nav-counter">
-              {currentIndex + 1} / {sentences.length}
-            </span>
+            <span className="speaking-nav-counter">{currentIndex + 1} / {sentences.length}</span>
             <button
               type="button"
-              className="intensive-card-nav-btn"
+              className="speaking-nav-btn"
               onClick={goToNext}
               disabled={currentIndex >= sentences.length - 1}
-              aria-label="Next sentence"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="9 6 15 12 9 18" />
               </svg>
             </button>
           </div>
-
-          <button
-            type="button"
-            className="intensive-card-close"
-            onClick={onBack}
-            aria-label="End session"
-          >
+          <button type="button" className="speaking-close-btn" onClick={onBack}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Main content */}
-        <div className="intensive-card-content intensive-card-content--speaking">
-          {/* Source text (native language) */}
-          <div className="speaking-practice-source">
-            <span className="speaking-practice-label">{nativeLanguage}</span>
-            <p className="speaking-practice-text">
-              {currentSentence?.text || 'No text available'}
-            </p>
+        {/* Two-column layout */}
+        <div className="speaking-practice-columns">
+          {/* Left Panel - Feedback & Tutor */}
+          <div className="speaking-panel-left">
+            {!hasFeedback ? (
+              <div className="speaking-panel-empty">
+                <div className="speaking-panel-empty-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                </div>
+                <p>Record to get feedback</p>
+              </div>
+            ) : (
+              <div className="speaking-feedback-content">
+                {/* Feedback sections */}
+                {feedback && (
+                  <>
+                    {renderGrammarSection()}
+                    {renderAccuracySection()}
+                  </>
+                )}
+
+                {/* Exemplar */}
+                {exemplar && (
+                  <div className="speaking-exemplar">
+                    <span className="speaking-exemplar-label">Example ({activeLanguage})</span>
+                    <p className="speaking-exemplar-text">{exemplar}</p>
+                  </div>
+                )}
+
+                {/* Vocab section */}
+                {renderVocabSection()}
+
+                {/* Tutor chat area */}
+                <div className="speaking-tutor-section">
+                  {tutorMessages.length > 0 && (
+                    <div className="speaking-tutor-messages">
+                      {tutorMessages.map((msg, idx) => (
+                        <div key={idx} className={`speaking-tutor-message ${msg.role}`}>
+                          {msg.content}
+                        </div>
+                      ))}
+                      {tutorSending && (
+                        <div className="speaking-tutor-message tutor typing">
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                        </div>
+                      )}
+                      <div ref={tutorMessagesEndRef} />
+                    </div>
+                  )}
+                  <div className="speaking-tutor-input">
+                    <input
+                      type="text"
+                      placeholder="Ask about the feedback..."
+                      value={tutorInput}
+                      onChange={(e) => setTutorInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleTutorSend()}
+                      disabled={tutorSending}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTutorSend}
+                      disabled={!tutorInput.trim() || tutorSending}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Recording zone (before feedback) */}
-          {!feedback && !showExemplar && (
-            <div className="speaking-practice-recording">
+          {/* Right Panel - Recording */}
+          <div className="speaking-panel-right">
+            {/* Collapsible prompt */}
+            <div className={`speaking-prompt ${promptCollapsed ? 'collapsed' : ''}`}>
+              {promptCollapsed ? (
+                <button
+                  type="button"
+                  className="speaking-prompt-collapsed"
+                  onClick={() => setPromptCollapsed(false)}
+                >
+                  <span className="speaking-prompt-label">{nativeLanguage}:</span>
+                  <span className="speaking-prompt-preview">{currentSentence?.text?.slice(0, 40)}...</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              ) : (
+                <>
+                  <span className="speaking-prompt-label">{nativeLanguage}</span>
+                  <p className="speaking-prompt-text">{currentSentence?.text || 'No text available'}</p>
+                </>
+              )}
+            </div>
+
+            {/* Recording zone */}
+            <div className="speaking-record-zone">
               {!userRecording && !isAssessing ? (
                 <>
-                  <p className="speaking-practice-instruction">
-                    {isRecording ? 'Recording... tap to stop' : `Speak the ${activeLanguage} translation:`}
+                  <p className="speaking-record-instruction">
+                    {isRecording ? 'Recording... tap to stop' : `Speak in ${activeLanguage}`}
                   </p>
                   <button
                     type="button"
-                    className={`pronunciation-record-btn ${isRecording ? 'recording' : ''}`}
+                    className={`speaking-record-btn ${isRecording ? 'recording' : ''}`}
                     onClick={toggleRecording}
-                    aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                   >
                     {isRecording ? (
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
@@ -495,255 +763,48 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
                     )}
                   </button>
                   {!isRecording && (
-                    <button
-                      className="speaking-practice-skip-btn"
-                      onClick={handleNotSure}
-                      disabled={isAssessing}
-                    >
+                    <button className="speaking-skip-btn" onClick={handleNotSure} disabled={isAssessing}>
                       I'm not sure
                     </button>
                   )}
                 </>
               ) : isAssessing ? (
-                <div className="speaking-practice-loading">
+                <div className="speaking-loading">
                   <div className="spinner" />
-                  <p className="muted">Analyzing your translation...</p>
+                  <p className="muted">{userRecording ? 'Analyzing...' : 'Getting translation...'}</p>
                 </div>
               ) : null}
-            </div>
-          )}
 
-          {/* Loading state for "I'm not sure" */}
-          {isAssessing && !userRecording && (
-            <div className="speaking-practice-loading">
-              <div className="spinner" />
-              <p className="muted">Getting translation...</p>
-            </div>
-          )}
+              {/* Error state */}
+              {error && (
+                <div className="speaking-error">
+                  <p>{error}</p>
+                  <button className="btn btn-secondary" onClick={retryRecording}>Try Again</button>
+                </div>
+              )}
 
-          {/* Error state */}
-          {error && (
-            <div className="speaking-practice-error">
-              <p>{error}</p>
-              <button className="btn btn-secondary" onClick={retryRecording}>
-                Try Again
-              </button>
-            </div>
-          )}
-
-          {/* Feedback zone (after recording or "I'm not sure") */}
-          {(feedback || showExemplar) && (
-            <div className="speaking-practice-feedback">
-              {/* User's recording playback (if they recorded) */}
-              {userRecording && (
-                <div className="speaking-practice-playback">
-                  <span className="speaking-practice-label">Your recording</span>
+              {/* Playback & actions (after feedback) */}
+              {hasFeedback && userRecording && (
+                <div className="speaking-playback">
+                  <span className="speaking-playback-label">Your recording</span>
                   <audio src={userRecording.url} controls />
                 </div>
               )}
 
-              {/* Expandable Feedback Checklist (if they recorded) */}
-              {feedback && (
-                <div className="speaking-practice-checklist" style={{ marginTop: '16px' }}>
-                  {/* Grammar & Spelling Section */}
-                  {(() => {
-                    const corrections = feedback.corrections || []
-                    const grammarCorrections = corrections.filter(c => c.category === 'grammar' || c.category === 'spelling')
-                    const majorCount = grammarCorrections.filter(c => c.severity !== 'minor').length
-                    const minorCount = grammarCorrections.filter(c => c.severity === 'minor').length
-                    const totalCount = grammarCorrections.length
-                    const isExpanded = expandedCategories.grammar
-                    const hasMajor = majorCount > 0
-                    const state = hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')
-                    return (
-                      <div className={`feedback-check-item ${state}`} style={{ marginBottom: '8px' }}>
-                        <div
-                          className="feedback-check-header"
-                          onClick={() => setExpandedCategories(prev => ({ ...prev, grammar: !prev.grammar }))}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <span className="check-label">
-                            Grammar & Spelling
-                            <span className="check-count" style={{ marginLeft: '6px', color: hasMajor ? '#ef4444' : (minorCount > 0 ? '#eab308' : 'var(--text-muted)') }}>({totalCount})</span>
-                          </span>
-                          <span className="check-status">
-                            <span className={`check-icon ${state}`}>
-                              {getFeedbackIcon(state)}
-                            </span>
-                            <span className="check-expand-icon" style={{ marginLeft: '8px' }}>{isExpanded ? '▲' : '▼'}</span>
-                          </span>
-                        </div>
-                        {isExpanded && totalCount > 0 && (
-                          <div className="feedback-corrections-list" style={{ marginTop: '8px', paddingLeft: '8px' }}>
-                            {grammarCorrections.map((c, idx) => {
-                              const isMinor = c.severity === 'minor'
-                              return (
-                                <div key={idx} className="feedback-correction-item" style={{ marginBottom: '8px' }}>
-                                  <span className="correction-original" style={{ color: isMinor ? '#eab308' : '#ef4444', textDecoration: 'line-through' }}>{c.original}</span>
-                                  <span className="correction-arrow" style={{ margin: '0 6px' }}>→</span>
-                                  <span className="correction-fix">{c.correction}</span>
-                                  <p className="correction-explanation" style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{c.explanation}</p>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-
-                  {/* Accuracy Section */}
-                  {(() => {
-                    const corrections = feedback.corrections || []
-                    const accuracyCorrections = corrections.filter(c => c.category === 'accuracy' || c.category === 'naturalness')
-                    const majorCount = accuracyCorrections.filter(c => c.severity !== 'minor').length
-                    const minorCount = accuracyCorrections.filter(c => c.severity === 'minor').length
-                    const totalCount = accuracyCorrections.length
-                    const isExpanded = expandedCategories.accuracy
-                    const hasMajor = majorCount > 0
-                    const state = hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')
-                    return (
-                      <div className={`feedback-check-item ${state}`} style={{ marginBottom: '8px' }}>
-                        <div
-                          className="feedback-check-header"
-                          onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !prev.accuracy }))}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <span className="check-label">
-                            Accuracy
-                            <span className="check-count" style={{ marginLeft: '6px', color: hasMajor ? '#ef4444' : (minorCount > 0 ? '#eab308' : 'var(--text-muted)') }}>({totalCount})</span>
-                          </span>
-                          <span className="check-status">
-                            <span className={`check-icon ${state}`}>
-                              {getFeedbackIcon(state)}
-                            </span>
-                            <span className="check-expand-icon" style={{ marginLeft: '8px' }}>{isExpanded ? '▲' : '▼'}</span>
-                          </span>
-                        </div>
-                        {isExpanded && totalCount > 0 && (
-                          <div className="feedback-corrections-list" style={{ marginTop: '8px', paddingLeft: '8px' }}>
-                            {accuracyCorrections.map((c, idx) => {
-                              const isMinor = c.severity === 'minor'
-                              return (
-                                <div key={idx} className="feedback-correction-item" style={{ marginBottom: '8px' }}>
-                                  <span className="correction-original" style={{ color: isMinor ? '#eab308' : '#ef4444', textDecoration: 'line-through' }}>{c.original}</span>
-                                  <span className="correction-arrow" style={{ margin: '0 6px' }}>→</span>
-                                  <span className="correction-fix">{c.correction}</span>
-                                  {c.explanation && <p className="correction-explanation" style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{c.explanation}</p>}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
-
-              {/* Exemplar sentence */}
-              {exemplar && (
-                <div className="speaking-practice-exemplar" style={{ marginTop: '16px' }}>
-                  <span className="speaking-practice-label">Example ({activeLanguage})</span>
-                  <p className="speaking-practice-exemplar-text">{exemplar}</p>
-                </div>
-              )}
-
-              {/* Vocabulary Panel with Status Buttons */}
-              {vocabToSave.length > 0 && (
-                <div className={`feedback-check-item ${expandedCategories.vocab ? 'expanded' : ''}`} style={{ marginTop: '16px' }}>
-                  <div
-                    className="feedback-check-header"
-                    onClick={() => setExpandedCategories(prev => ({ ...prev, vocab: !prev.vocab }))}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span className="check-label">
-                      Vocabulary
-                      <span className="check-count" style={{ marginLeft: '6px' }}>({vocabToSave.length})</span>
-                    </span>
-                    <span className="check-status">
-                      <span className="check-expand-icon">{expandedCategories.vocab ? '▲' : '▼'}</span>
-                    </span>
-                  </div>
-                  {expandedCategories.vocab && (
-                    <div className="practice-word-panel-list" style={{ marginTop: '8px' }}>
-                      {vocabToSave.map((word, idx) => {
-                        const currentStatus = savedVocab[word.text] || 'new'
-                        const statusIndex = STATUS_LEVELS.indexOf(currentStatus)
-                        const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
-                        const languageColor = getLanguageColor(activeLanguage)
-
-                        return (
-                          <div key={idx} className="practice-word-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-color, #e5e7eb)' }}>
-                            <div className="practice-word-row-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span className="practice-word-row-word" style={{ fontWeight: '500' }}>{word.text}</span>
-                              <span className="practice-word-row-translation" style={{ color: 'var(--text-secondary)' }}>{word.translation}</span>
-                            </div>
-                            <div className="practice-word-status-selector" style={{ display: 'flex', gap: '4px' }}>
-                              {STATUS_ABBREV.map((abbrev, i) => {
-                                const isActive = i === validStatusIndex
-                                const style = getStatusButtonStyle(STATUS_LEVELS[i], isActive, languageColor)
-
-                                return (
-                                  <button
-                                    key={abbrev}
-                                    type="button"
-                                    className={`practice-status-option ${isActive ? 'active' : ''}`}
-                                    style={{
-                                      width: '28px',
-                                      height: '28px',
-                                      borderRadius: '4px',
-                                      border: '1px solid var(--border-color, #e5e7eb)',
-                                      cursor: 'pointer',
-                                      fontSize: '0.75rem',
-                                      fontWeight: '500',
-                                      ...style
-                                    }}
-                                    onClick={async () => {
-                                      if (!user?.uid) return
-                                      const newStatus = STATUS_LEVELS[i] === 'new' ? 'unknown' : STATUS_LEVELS[i]
-                                      try {
-                                        await upsertVocabEntry(user.uid, activeLanguage, word.text, word.translation, newStatus)
-                                        setSavedVocab(prev => ({ ...prev, [word.text]: STATUS_LEVELS[i] }))
-                                      } catch (err) {
-                                        console.error('Failed to save vocab:', err)
-                                      }
-                                    }}
-                                    aria-label={`Set ${word.text} status to ${STATUS_LEVELS[i]}`}
-                                    aria-pressed={isActive}
-                                  >
-                                    {abbrev}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+              {hasFeedback && (
+                <div className="speaking-actions">
+                  {userRecording && (
+                    <button className="btn btn-secondary" onClick={retryRecording}>Try Again</button>
+                  )}
+                  {!isComplete ? (
+                    <button className="btn btn-primary" onClick={goToNext}>Continue</button>
+                  ) : (
+                    <button className="btn btn-primary" onClick={onBack}>Finish</button>
                   )}
                 </div>
               )}
-
-              {/* Actions */}
-              <div className="speaking-practice-actions" style={{ marginTop: '16px' }}>
-                {userRecording && (
-                  <button className="btn btn-secondary" onClick={retryRecording}>
-                    Try Again
-                  </button>
-                )}
-                {!isComplete ? (
-                  <button className="btn btn-primary" onClick={goToNext}>
-                    Continue
-                  </button>
-                ) : (
-                  <button className="btn btn-primary" onClick={onBack}>
-                    Finish
-                  </button>
-                )}
-              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>,

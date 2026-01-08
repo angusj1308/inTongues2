@@ -6220,6 +6220,68 @@ Only include facts that would be useful to remember. Return ONLY valid JSON.`
   }
 })
 
+/**
+ * Speaking practice follow-up questions - contextual tutor help
+ * Allows users to ask questions about feedback they received during speaking practice
+ */
+app.post('/api/tutor/speak-followup', async (req, res) => {
+  try {
+    const { question, nativeSentence, exemplar, feedback, targetLanguage, sourceLanguage } = req.body || {}
+
+    if (!question) {
+      return res.status(400).json({ error: 'Question is required' })
+    }
+
+    // Build context from the speaking practice session
+    let context = `The student is practicing ${targetLanguage} speaking (native language: ${sourceLanguage}).
+
+ORIGINAL PROMPT (${sourceLanguage}):
+"${nativeSentence || 'Not provided'}"
+`
+
+    if (exemplar) {
+      context += `
+EXAMPLE TRANSLATION (${targetLanguage}):
+"${exemplar}"
+`
+    }
+
+    if (feedback?.corrections?.length > 0) {
+      context += `
+FEEDBACK ON THEIR ATTEMPT:
+${feedback.corrections.map(c => `- ${c.category}: "${c.original}" → "${c.correction}" (${c.explanation || 'no explanation'})`).join('\n')}
+`
+    }
+
+    const prompt = `You are a helpful ${targetLanguage} language tutor. A student just completed a speaking practice exercise and has a follow-up question.
+
+${context}
+
+STUDENT'S QUESTION:
+"${question}"
+
+Provide a helpful, concise response that:
+1. Answers their specific question clearly
+2. Uses simple language they can understand
+3. Gives examples in ${targetLanguage} when helpful (with ${sourceLanguage} translations)
+4. Stays focused on the question - don't overwhelm with extra information
+
+Keep your response under 150 words. Be encouraging but honest.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    const tutorResponse = response.output_text || 'I apologize, I could not generate a response. Please try again.'
+
+    return res.json({ response: tutorResponse })
+  } catch (error) {
+    console.error('Tutor speak-followup error:', error)
+    return res.status(500).json({ error: 'Failed to get tutor response' })
+  }
+})
+
 // ============================================================================
 // SPEECH ENDPOINTS
 // ============================================================================

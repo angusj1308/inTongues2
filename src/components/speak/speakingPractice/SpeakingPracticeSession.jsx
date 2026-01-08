@@ -3,6 +3,65 @@ import { useAuth } from '../../../context/AuthContext'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { upsertVocabEntry } from '../../../services/vocab'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../../constants/highlightColors'
+
+// Word status constants for the vocab panel
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+// Helper to get language color with case-insensitive lookup
+const getLanguageColor = (language) => {
+  if (!language) return LANGUAGE_HIGHLIGHT_COLORS?.default || '#3b82f6'
+  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS?.[language]
+  if (exactMatch) return exactMatch
+  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
+  return LANGUAGE_HIGHLIGHT_COLORS?.[capitalized] || LANGUAGE_HIGHLIGHT_COLORS?.default || '#3b82f6'
+}
+
+// Get background style for a status button when active
+const getStatusButtonStyle = (statusLevel, isActive, languageColor) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'new':
+      return {
+        background: `color-mix(in srgb, #F97316 ${(STATUS_OPACITY?.new || 0.5) * 100}%, white)`,
+        color: '#9a3412'
+      }
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${(STATUS_OPACITY?.unknown || 0.4) * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${(STATUS_OPACITY?.recognised || 0.3) * 100}%, white)`,
+        color: '#1e293b'
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${languageColor} ${(STATUS_OPACITY?.familiar || 0.2) * 100}%, white)`,
+        color: '#64748b'
+      }
+    case 'known':
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534'
+      }
+    default:
+      return {}
+  }
+}
+
+// Get the icon for feedback state
+const getFeedbackIcon = (state) => {
+  switch (state) {
+    case 'pass': return '✓'
+    case 'acceptable': return '~'
+    case 'fail': return '✗'
+    default: return '?'
+  }
+}
 
 /**
  * Speaking Practice Session - Interpretation practice
@@ -21,6 +80,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   const [error, setError] = useState(null)
   const [vocabToSave, setVocabToSave] = useState([])
   const [savedVocab, setSavedVocab] = useState({})
+  const [expandedCategories, setExpandedCategories] = useState({ grammar: true, accuracy: true, vocab: true })
 
   // Recording state (simple like pronunciation practice)
   const [isRecording, setIsRecording] = useState(false)
@@ -478,62 +538,191 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
                 </div>
               )}
 
-              {/* Feedback on accuracy (if they recorded) */}
+              {/* Expandable Feedback Checklist (if they recorded) */}
               {feedback && (
-                <div className="speaking-practice-assessment">
-                  <div className={`speaking-practice-score ${feedback.accuracy >= 80 ? 'pass' : feedback.accuracy >= 50 ? 'acceptable' : 'fail'}`}>
-                    <span className="score-label">Accuracy</span>
-                    <span className="score-value">{feedback.accuracy}%</span>
-                  </div>
-                  {feedback.explanation && (
-                    <p className="speaking-practice-explanation">{feedback.explanation}</p>
-                  )}
+                <div className="speaking-practice-checklist" style={{ marginTop: '16px' }}>
+                  {/* Grammar & Spelling Section */}
+                  {(() => {
+                    const corrections = feedback.corrections || []
+                    const grammarCorrections = corrections.filter(c => c.category === 'grammar' || c.category === 'spelling')
+                    const majorCount = grammarCorrections.filter(c => c.severity !== 'minor').length
+                    const minorCount = grammarCorrections.filter(c => c.severity === 'minor').length
+                    const totalCount = grammarCorrections.length
+                    const isExpanded = expandedCategories.grammar
+                    const hasMajor = majorCount > 0
+                    const state = hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')
+                    return (
+                      <div className={`feedback-check-item ${state}`} style={{ marginBottom: '8px' }}>
+                        <div
+                          className="feedback-check-header"
+                          onClick={() => setExpandedCategories(prev => ({ ...prev, grammar: !prev.grammar }))}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="check-label">
+                            Grammar & Spelling
+                            <span className="check-count" style={{ marginLeft: '6px', color: hasMajor ? '#ef4444' : (minorCount > 0 ? '#eab308' : 'var(--text-muted)') }}>({totalCount})</span>
+                          </span>
+                          <span className="check-status">
+                            <span className={`check-icon ${state}`}>
+                              {getFeedbackIcon(state)}
+                            </span>
+                            <span className="check-expand-icon" style={{ marginLeft: '8px' }}>{isExpanded ? '▲' : '▼'}</span>
+                          </span>
+                        </div>
+                        {isExpanded && totalCount > 0 && (
+                          <div className="feedback-corrections-list" style={{ marginTop: '8px', paddingLeft: '8px' }}>
+                            {grammarCorrections.map((c, idx) => {
+                              const isMinor = c.severity === 'minor'
+                              return (
+                                <div key={idx} className="feedback-correction-item" style={{ marginBottom: '8px' }}>
+                                  <span className="correction-original" style={{ color: isMinor ? '#eab308' : '#ef4444', textDecoration: 'line-through' }}>{c.original}</span>
+                                  <span className="correction-arrow" style={{ margin: '0 6px' }}>→</span>
+                                  <span className="correction-fix">{c.correction}</span>
+                                  <p className="correction-explanation" style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{c.explanation}</p>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Accuracy Section */}
+                  {(() => {
+                    const corrections = feedback.corrections || []
+                    const accuracyCorrections = corrections.filter(c => c.category === 'accuracy' || c.category === 'naturalness')
+                    const majorCount = accuracyCorrections.filter(c => c.severity !== 'minor').length
+                    const minorCount = accuracyCorrections.filter(c => c.severity === 'minor').length
+                    const totalCount = accuracyCorrections.length
+                    const isExpanded = expandedCategories.accuracy
+                    const hasMajor = majorCount > 0
+                    const state = hasMajor ? 'fail' : (minorCount > 0 ? 'acceptable' : 'pass')
+                    return (
+                      <div className={`feedback-check-item ${state}`} style={{ marginBottom: '8px' }}>
+                        <div
+                          className="feedback-check-header"
+                          onClick={() => setExpandedCategories(prev => ({ ...prev, accuracy: !prev.accuracy }))}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="check-label">
+                            Accuracy
+                            <span className="check-count" style={{ marginLeft: '6px', color: hasMajor ? '#ef4444' : (minorCount > 0 ? '#eab308' : 'var(--text-muted)') }}>({totalCount})</span>
+                          </span>
+                          <span className="check-status">
+                            <span className={`check-icon ${state}`}>
+                              {getFeedbackIcon(state)}
+                            </span>
+                            <span className="check-expand-icon" style={{ marginLeft: '8px' }}>{isExpanded ? '▲' : '▼'}</span>
+                          </span>
+                        </div>
+                        {isExpanded && totalCount > 0 && (
+                          <div className="feedback-corrections-list" style={{ marginTop: '8px', paddingLeft: '8px' }}>
+                            {accuracyCorrections.map((c, idx) => {
+                              const isMinor = c.severity === 'minor'
+                              return (
+                                <div key={idx} className="feedback-correction-item" style={{ marginBottom: '8px' }}>
+                                  <span className="correction-original" style={{ color: isMinor ? '#eab308' : '#ef4444', textDecoration: 'line-through' }}>{c.original}</span>
+                                  <span className="correction-arrow" style={{ margin: '0 6px' }}>→</span>
+                                  <span className="correction-fix">{c.correction}</span>
+                                  {c.explanation && <p className="correction-explanation" style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{c.explanation}</p>}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 
               {/* Exemplar sentence */}
               {exemplar && (
-                <div className="speaking-practice-exemplar">
+                <div className="speaking-practice-exemplar" style={{ marginTop: '16px' }}>
                   <span className="speaking-practice-label">Example ({activeLanguage})</span>
                   <p className="speaking-practice-exemplar-text">{exemplar}</p>
-                  {/* TTS playback for exemplar could be added here */}
                 </div>
               )}
 
-              {/* Vocabulary to save */}
+              {/* Vocabulary Panel with Status Buttons */}
               {vocabToSave.length > 0 && (
-                <div className="speaking-practice-vocab">
-                  <span className="speaking-practice-label">Vocabulary</span>
-                  <div className="speaking-practice-vocab-list">
-                    {vocabToSave.map((word, idx) => (
-                      <div key={idx} className="speaking-practice-vocab-item">
-                        <div className="vocab-item-content">
-                          <span className="vocab-item-word">{word.text}</span>
-                          <span className="vocab-item-translation">{word.translation}</span>
-                        </div>
-                        <button
-                          className={`vocab-item-save ${savedVocab[word.text] ? 'saved' : ''}`}
-                          onClick={() => handleSaveVocab(word)}
-                          disabled={savedVocab[word.text]}
-                        >
-                          {savedVocab[word.text] ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 5v14M5 12h14" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    ))}
+                <div className={`feedback-check-item ${expandedCategories.vocab ? 'expanded' : ''}`} style={{ marginTop: '16px' }}>
+                  <div
+                    className="feedback-check-header"
+                    onClick={() => setExpandedCategories(prev => ({ ...prev, vocab: !prev.vocab }))}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="check-label">
+                      Vocabulary
+                      <span className="check-count" style={{ marginLeft: '6px' }}>({vocabToSave.length})</span>
+                    </span>
+                    <span className="check-status">
+                      <span className="check-expand-icon">{expandedCategories.vocab ? '▲' : '▼'}</span>
+                    </span>
                   </div>
+                  {expandedCategories.vocab && (
+                    <div className="practice-word-panel-list" style={{ marginTop: '8px' }}>
+                      {vocabToSave.map((word, idx) => {
+                        const currentStatus = savedVocab[word.text] || 'new'
+                        const statusIndex = STATUS_LEVELS.indexOf(currentStatus)
+                        const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
+                        const languageColor = getLanguageColor(activeLanguage)
+
+                        return (
+                          <div key={idx} className="practice-word-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-color, #e5e7eb)' }}>
+                            <div className="practice-word-row-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span className="practice-word-row-word" style={{ fontWeight: '500' }}>{word.text}</span>
+                              <span className="practice-word-row-translation" style={{ color: 'var(--text-secondary)' }}>{word.translation}</span>
+                            </div>
+                            <div className="practice-word-status-selector" style={{ display: 'flex', gap: '4px' }}>
+                              {STATUS_ABBREV.map((abbrev, i) => {
+                                const isActive = i === validStatusIndex
+                                const style = getStatusButtonStyle(STATUS_LEVELS[i], isActive, languageColor)
+
+                                return (
+                                  <button
+                                    key={abbrev}
+                                    type="button"
+                                    className={`practice-status-option ${isActive ? 'active' : ''}`}
+                                    style={{
+                                      width: '28px',
+                                      height: '28px',
+                                      borderRadius: '4px',
+                                      border: '1px solid var(--border-color, #e5e7eb)',
+                                      cursor: 'pointer',
+                                      fontSize: '0.75rem',
+                                      fontWeight: '500',
+                                      ...style
+                                    }}
+                                    onClick={async () => {
+                                      if (!user?.uid) return
+                                      const newStatus = STATUS_LEVELS[i] === 'new' ? 'unknown' : STATUS_LEVELS[i]
+                                      try {
+                                        await upsertVocabEntry(user.uid, activeLanguage, word.text, word.translation, newStatus)
+                                        setSavedVocab(prev => ({ ...prev, [word.text]: STATUS_LEVELS[i] }))
+                                      } catch (err) {
+                                        console.error('Failed to save vocab:', err)
+                                      }
+                                    }}
+                                    aria-label={`Set ${word.text} status to ${STATUS_LEVELS[i]}`}
+                                    aria-pressed={isActive}
+                                  >
+                                    {abbrev}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Actions */}
-              <div className="speaking-practice-actions">
+              <div className="speaking-practice-actions" style={{ marginTop: '16px' }}>
                 {userRecording && (
                   <button className="btn btn-secondary" onClick={retryRecording}>
                     Try Again

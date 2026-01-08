@@ -21,13 +21,13 @@ const PlayIcon = () => (
 )
 
 const ChevronUpIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="18 15 12 9 6 15" />
   </svg>
 )
 
 const ChevronDownIcon = () => (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="6 9 12 15 18 9" />
   </svg>
 )
@@ -137,7 +137,7 @@ const WordRow = ({
 }
 
 const TutorVocabPanel = ({
-  messages = [],
+  messageText = '',
   userVocab = {},
   language,
   nativeLanguage = 'English',
@@ -151,17 +151,12 @@ const TutorVocabPanel = ({
   const languageColor = getLanguageColor(language)
   const fetchedWordsRef = useRef(new Set())
 
-  // Extract words from the latest tutor message
+  // Extract words from the message text
   const words = useMemo(() => {
-    // Find the last tutor message
-    const tutorMessages = messages.filter(m => m.role === 'tutor' || m.role === 'assistant')
-    if (tutorMessages.length === 0) return []
-
-    const lastMessage = tutorMessages[tutorMessages.length - 1]
-    const text = lastMessage.content || ''
+    if (!messageText) return []
 
     // Tokenize: split into words
-    const tokens = text.split(/([^\p{L}\p{N}]+)/gu).filter(Boolean)
+    const tokens = messageText.split(/([^\p{L}\p{N}]+)/gu).filter(Boolean)
     const wordSet = new Map()
 
     tokens.forEach((token) => {
@@ -185,7 +180,7 @@ const TutorVocabPanel = ({
     })
 
     return Array.from(wordSet.values())
-  }, [messages, userVocab, wordTranslations])
+  }, [messageText, userVocab, wordTranslations])
 
   // Filter to show only non-known words
   const visibleWords = useMemo(() => {
@@ -333,47 +328,38 @@ const TutorVocabPanel = ({
     }
   }, [userId, language, wordTranslations, userVocab, onVocabUpdate])
 
-  // Don't render if no messages or no words
-  if (messages.length === 0) return null
-
+  // Don't render if no words to review
   const wordCount = visibleWords.length
+  if (wordCount === 0) return null
 
   return (
-    <div className={`tutor-vocab-panel ${isExpanded ? 'expanded' : ''}`}>
+    <div className={`tutor-msg-vocab-panel ${isExpanded ? 'expanded' : ''}`}>
       <button
         type="button"
-        className="tutor-vocab-panel-toggle"
+        className="tutor-msg-vocab-toggle"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="tutor-vocab-panel-toggle-text">
-          {wordCount > 0 ? `${wordCount} word${wordCount !== 1 ? 's' : ''} to review` : 'No new words'}
-        </span>
-        {isExpanded ? <ChevronDownIcon /> : <ChevronUpIcon />}
+        <span>{wordCount} word{wordCount !== 1 ? 's' : ''}</span>
+        {isExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
       </button>
 
       {isExpanded && (
-        <div className="tutor-vocab-panel-body">
-          {visibleWords.length === 0 ? (
-            <div className="tutor-vocab-panel-empty">
-              <p>All words are known!</p>
-            </div>
-          ) : (
-            <div className="tutor-vocab-row-list">
-              {visibleWords.map((wordData) => (
-                <WordRow
-                  key={wordData.normalised}
-                  word={wordData.word}
-                  translation={wordData.translation}
-                  status={wordData.status}
-                  audioUrl={wordData.audioUrl}
-                  languageColor={languageColor}
-                  onStatusChange={handleStatusChange}
-                  onPlayAudio={handlePlayAudio}
-                  isLoadingAudio={loadingWords.has(wordData.normalised)}
-                />
-              ))}
-            </div>
-          )}
+        <div className="tutor-msg-vocab-body">
+          <div className="tutor-vocab-row-list">
+            {visibleWords.map((wordData) => (
+              <WordRow
+                key={wordData.normalised}
+                word={wordData.word}
+                translation={wordData.translation}
+                status={wordData.status}
+                audioUrl={wordData.audioUrl}
+                languageColor={languageColor}
+                onStatusChange={handleStatusChange}
+                onPlayAudio={handlePlayAudio}
+                isLoadingAudio={loadingWords.has(wordData.normalised)}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -165,9 +165,9 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            url: importYoutubeUrl.trim(),
             lessonId: docRef.id,
-            userId: user.uid,
-            youtubeUrl: importYoutubeUrl.trim(),
+            uid: user.uid,
             chunkForSpeaking: true,
           })
         }).catch(err => console.error('Background transcription trigger failed:', err))

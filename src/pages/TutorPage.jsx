@@ -205,9 +205,17 @@ const TutorPage = () => {
   const [isInCall, setIsInCall] = useState(false)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
 
+  // Header state
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editTitleValue, setEditTitleValue] = useState('')
+  const [darkMode, setDarkMode] = useState(() => {
+    return document.documentElement.getAttribute('data-theme') === 'dark'
+  })
+
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const textareaRef = useRef(null)
+  const titleInputRef = useRef(null)
 
   const activeLanguage = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
@@ -230,6 +238,39 @@ const TutorPage = () => {
     }
 
     return 'New Chat'
+  }
+
+  // Handle title click to edit
+  const handleTitleClick = () => {
+    if (!currentChat) return
+    setEditTitleValue(getChatTitle())
+    setIsEditingTitle(true)
+    setTimeout(() => titleInputRef.current?.focus(), 0)
+  }
+
+  // Save edited title
+  const handleTitleSave = async () => {
+    if (editTitleValue.trim() && currentChat && user) {
+      await renameTutorChat(user.uid, currentChat.id, editTitleValue.trim())
+    }
+    setIsEditingTitle(false)
+  }
+
+  // Handle title input keydown
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleTitleSave()
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false)
+    }
+  }
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newMode = !darkMode
+    setDarkMode(newMode)
+    document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light')
   }
 
   // Load tutor profile
@@ -563,19 +604,78 @@ const TutorPage = () => {
       <main className={`tutor-main ${sidebarOpen ? '' : 'sidebar-closed'}`}>
         {/* Header */}
         <header className="tutor-header">
-          <button
-            className="tutor-sidebar-toggle"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-label="Toggle sidebar"
-          >
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
-          </button>
-          <h1 className="tutor-header-title">
-            {getChatTitle()}
-          </h1>
-          <div className="tutor-header-spacer" />
+          <div className="tutor-header-left">
+            <button
+              className="tutor-sidebar-toggle"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label="Toggle sidebar"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
+            <a href="/dashboard" className="tutor-back-link">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span>Dashboard</span>
+            </a>
+          </div>
+
+          <div className="tutor-header-center">
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                className="tutor-header-title-input"
+                value={editTitleValue}
+                onChange={(e) => setEditTitleValue(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={handleTitleKeyDown}
+              />
+            ) : (
+              <h1
+                className="tutor-header-title"
+                onClick={handleTitleClick}
+                title="Click to rename"
+              >
+                {getChatTitle()}
+              </h1>
+            )}
+          </div>
+
+          <div className="tutor-header-right">
+            <button
+              className={`tutor-header-btn ${settings.showWordStatus ? 'active' : ''}`}
+              onClick={() => handleSettingsChange({ ...settings, showWordStatus: !settings.showWordStatus })}
+              title="Word Status"
+            >
+              <span className="tutor-header-aa">Aa</span>
+            </button>
+            <button
+              className="tutor-header-btn"
+              onClick={toggleDarkMode}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
+            >
+              {darkMode ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </header>
 
         {/* Voice Call Overlay */}

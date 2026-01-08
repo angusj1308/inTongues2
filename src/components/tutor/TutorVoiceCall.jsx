@@ -34,6 +34,16 @@ const VolumeIcon = () => (
   </svg>
 )
 
+const TextIcon = () => (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
+  </svg>
+)
+
 const TutorVoiceCall = ({
   onEnd,
   onMessage,
@@ -45,6 +55,7 @@ const TutorVoiceCall = ({
 }) => {
   const [callState, setCallState] = useState('connecting') // connecting, listening, processing, speaking
   const [isMuted, setIsMuted] = useState(false)
+  const [showTranscript, setShowTranscript] = useState(true)
   const [userText, setUserText] = useState('')
   const [tutorText, setTutorText] = useState('')
   const [error, setError] = useState(null)
@@ -391,17 +402,18 @@ const TutorVoiceCall = ({
           )}
         </div>
 
-        {displayUserText && (
-          <div className="tutor-call-transcript">
-            <span className="tutor-call-label">You:</span>
-            <p>{displayUserText}</p>
-          </div>
-        )}
-
-        {tutorText && (
-          <div className="tutor-call-response">
-            <span className="tutor-call-label">Tutor:</span>
-            <p>{tutorText}</p>
+        {showTranscript && (displayUserText || tutorText) && (
+          <div className="tutor-call-messages">
+            {displayUserText && (
+              <div className="tutor-call-bubble user">
+                <p>{displayUserText}</p>
+              </div>
+            )}
+            {tutorText && (
+              <div className="tutor-call-bubble tutor">
+                <p>{tutorText}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -427,6 +439,14 @@ const TutorVoiceCall = ({
           title="End call"
         >
           <PhoneOffIcon />
+        </button>
+
+        <button
+          className={`tutor-call-btn transcript ${showTranscript ? 'active' : ''}`}
+          onClick={() => setShowTranscript(!showTranscript)}
+          title={showTranscript ? 'Hide transcript' : 'Show transcript'}
+        >
+          <TextIcon />
         </button>
       </div>
     </div>

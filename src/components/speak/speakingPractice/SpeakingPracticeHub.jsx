@@ -134,10 +134,10 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
 
         await addDoc(collection(db, 'users', user.uid, 'practiceLessons'), lessonData)
 
-        // Reset form and switch to library
+        // Reset form and close overlay to return to dashboard
         setImportTitle('')
         setImportText('')
-        setActiveTab('library')
+        if (onBack) onBack()
       } else if (source === 'youtube') {
         // Create lesson with importing status, trigger background transcription
         const lessonData = {
@@ -171,10 +171,10 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
           })
         }).catch(err => console.error('Background transcription trigger failed:', err))
 
-        // Reset form and switch to library
+        // Reset form and close overlay to return to dashboard
         setImportTitle('')
         setImportYoutubeUrl('')
-        setActiveTab('library')
+        if (onBack) onBack()
       }
     } catch (err) {
       console.error('Import failed:', err)

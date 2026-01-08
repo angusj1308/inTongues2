@@ -70,7 +70,6 @@ const TutorControlPanel = ({
           title="Tutor Settings"
         >
           <SlidersIcon />
-          <span>Tutor</span>
           <ChevronDownIcon />
         </button>
       </div>

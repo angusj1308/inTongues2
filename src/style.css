@@ -14851,6 +14851,8 @@ body.active-pass-locked {
 }
 
 .tutor-input-box {
+  max-width: 900px;
+  margin: 0 auto;
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -14899,16 +14901,15 @@ body.active-pass-locked {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: #6b7280;
+  color: #9ca3af;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s;
 }
 
 .tutor-action-btn:hover:not(:disabled) {
-  background: #f3f4f6;
   color: #374151;
 }
 
@@ -14917,19 +14918,17 @@ body.active-pass-locked {
   cursor: not-allowed;
 }
 
-/* Send button - highlighted */
+/* Send button */
 .tutor-action-btn.send {
-  background: #1c1c1e;
-  color: #ffffff;
+  color: #6b7280;
 }
 
 .tutor-action-btn.send:hover:not(:disabled) {
-  background: #2c2c2e;
+  color: #10a37f;
 }
 
 .tutor-action-btn.send:disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
+  color: #d1d5db;
 }
 
 /* Dark mode for tutor page */
@@ -15063,11 +15062,10 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .tutor-action-btn {
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 [data-theme='dark'] .tutor-action-btn:hover:not(:disabled) {
-  background: #565869;
   color: #ececf1;
 }
 
@@ -15076,17 +15074,15 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .tutor-action-btn.send {
-  background: #ececf1;
-  color: #1c1c1e;
+  color: #8e8ea0;
 }
 
 [data-theme='dark'] .tutor-action-btn.send:hover:not(:disabled) {
-  background: #ffffff;
+  color: #10a37f;
 }
 
 [data-theme='dark'] .tutor-action-btn.send:disabled {
-  background: #565869;
-  color: #8e8ea0;
+  color: #565869;
 }
 
 [data-theme='dark'] .tutor-settings-toggle {

@@ -16152,12 +16152,19 @@ body.active-pass-locked {
 
 .intensive-hub-import-section .form-field input,
 .intensive-hub-import-section .form-field textarea {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   padding: 0.5rem 0.75rem;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   font-size: 0.9rem;
   background: #fff;
   transition: border-color 0.15s;
+}
+
+.intensive-hub-import-section .form-field input::placeholder,
+.intensive-hub-import-section .form-field textarea::placeholder {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  color: #94a3b8;
 }
 
 .intensive-hub-import-section .form-field input:focus,

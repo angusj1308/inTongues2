@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
+import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'
 import { db } from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
+import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { IntensiveModeHub } from './intensive/IntensiveModeHub'
 import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
 import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
@@ -15,6 +16,9 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
   const navigate = useNavigate()
   const [activeMode, setActiveMode] = useState(null) // null | 'pronunciation' | 'speakingPractice' | 'voiceRecord' | 'conversation'
   const [pronunciationSessions, setPronunciationSessions] = useState([])
+  const [speakingPracticeLessons, setSpeakingPracticeLessons] = useState([])
+
+  const normalizedLanguage = resolveSupportedLanguageLabel(activeLanguage, activeLanguage)
 
   // Subscribe to pronunciation sessions
   useEffect(() => {
@@ -38,6 +42,34 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
 
     return unsubscribe
   }, [user?.uid])
+
+  // Subscribe to speaking practice lessons (importing ones)
+  useEffect(() => {
+    if (!user?.uid || !normalizedLanguage) {
+      setSpeakingPracticeLessons([])
+      return
+    }
+
+    const lessonsRef = collection(db, 'users', user.uid, 'practiceLessons')
+    const lessonsQuery = query(
+      lessonsRef,
+      where('targetLanguage', '==', normalizedLanguage),
+      where('status', '==', 'importing'),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(
+      lessonsQuery,
+      (snapshot) => {
+        setSpeakingPracticeLessons(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      },
+      (err) => {
+        console.error('Error loading speaking practice lessons:', err)
+      }
+    )
+
+    return unsubscribe
+  }, [user?.uid, normalizedLanguage])
 
   // Filter to sessions that are preparing or ready
   const activeSessions = pronunciationSessions.filter(s =>
@@ -247,6 +279,31 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Importing speaking practice lessons */}
+      {speakingPracticeLessons.length > 0 && (
+        <div className="speak-sessions-section">
+          <h3>Importing</h3>
+          <div className="speak-sessions-grid">
+            {speakingPracticeLessons.map(lesson => (
+              <div
+                key={lesson.id}
+                className="speak-session-card preparing"
+              >
+                <div className="speak-session-icon">
+                  <div className="spinner-medium" />
+                </div>
+                <div className="speak-session-info">
+                  <span className="speak-session-title">{lesson.title}</span>
+                  <span className="speak-session-status preparing">
+                    Importing for Intensive Speaking...
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

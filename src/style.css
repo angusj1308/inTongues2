@@ -14846,8 +14846,6 @@ body.active-pass-locked {
 
 /* Input Area */
 .tutor-input-wrapper {
-  max-width: 768px;
-  margin: 0 auto;
   padding: 1rem 1.5rem 1.5rem;
   background: linear-gradient(180deg, rgba(247, 247, 248, 0) 0%, #f7f7f8 50%);
 }

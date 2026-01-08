@@ -115,7 +115,7 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
         const lessonData = {
           title: importTitle.trim() || `Speaking Practice - ${new Date().toLocaleDateString()}`,
           sourceLanguage: nativeLanguage,
-          targetLanguage: activeLanguage,
+          targetLanguage: normalizedLanguage, // Use normalized language for consistent querying
           adaptationLevel: 'native',
           sourceType: 'text',
           sentences: chunks.map((chunk, index) => ({
@@ -129,21 +129,19 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           attempts: [],
-          speakingPractice: true, // Mark as created for speaking practice
+          speakingPractice: true,
         }
 
         await addDoc(collection(db, 'users', user.uid, 'practiceLessons'), lessonData)
 
-        // Reset form and close overlay to return to dashboard
-        setImportTitle('')
-        setImportText('')
+        // Close overlay immediately to return to dashboard
         if (onBack) onBack()
       } else if (source === 'youtube') {
         // Create lesson with importing status, trigger background transcription
         const lessonData = {
           title: importTitle.trim() || 'YouTube Speaking Practice',
           sourceLanguage: nativeLanguage,
-          targetLanguage: activeLanguage,
+          targetLanguage: normalizedLanguage, // Use normalized language for consistent querying
           adaptationLevel: 'native',
           sourceType: 'youtube',
           youtubeUrl: importYoutubeUrl.trim(),
@@ -159,7 +157,10 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
 
         const docRef = await addDoc(collection(db, 'users', user.uid, 'practiceLessons'), lessonData)
 
-        // Trigger background transcription
+        // Close overlay immediately - lesson will show as "importing" on dashboard
+        if (onBack) onBack()
+
+        // Trigger background transcription (fire and forget)
         fetch('/api/transcribe/background', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -167,14 +168,9 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
             lessonId: docRef.id,
             userId: user.uid,
             youtubeUrl: importYoutubeUrl.trim(),
-            chunkForSpeaking: true, // Tell backend to use smaller chunks
+            chunkForSpeaking: true,
           })
         }).catch(err => console.error('Background transcription trigger failed:', err))
-
-        // Reset form and close overlay to return to dashboard
-        setImportTitle('')
-        setImportYoutubeUrl('')
-        if (onBack) onBack()
       }
     } catch (err) {
       console.error('Import failed:', err)

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
@@ -13,10 +13,35 @@ import {
   renameTutorChat,
   updateTutorSettings,
 } from '../services/tutor'
+import { loadUserVocab, normaliseExpression } from '../services/vocab'
+import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../constants/highlightColors'
 import TutorSidebar from '../components/tutor/TutorSidebar'
 import TutorControlPanel from '../components/tutor/TutorControlPanel'
 import TutorVoiceInput from '../components/tutor/TutorVoiceInput'
 import TutorVoiceCall from '../components/tutor/TutorVoiceCall'
+
+// Get highlight style for a word based on status
+const getHighlightStyle = (language, status, enableHighlight) => {
+  if (!enableHighlight) return {}
+
+  const opacity = STATUS_OPACITY[status]
+  if (!opacity || opacity === 0) return {}
+
+  // Get language-specific color
+  const langColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
+
+  // 'new' words use orange
+  const baseColor = status === 'new' ? '#F97316' : langColor
+
+  return {
+    '--hlt-color': baseColor,
+    '--hlt-opacity': opacity,
+    backgroundColor: `color-mix(in srgb, ${baseColor} ${opacity * 100}%, transparent)`,
+    borderRadius: '2px',
+    padding: '0 2px',
+    margin: '0 -2px',
+  }
+}
 
 const SendIcon = () => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -65,12 +90,18 @@ const ChevronUpIcon = () => (
 )
 
 // WhatsApp-style voice message player with collapsible transcript
-const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage }) => {
+const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage, showTranscriptByDefault = false }) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
-  const [showTranscript, setShowTranscript] = useState(false)
+  const [showTranscript, setShowTranscript] = useState(showTranscriptByDefault)
   const audioRef = useRef(null)
+
+  // Generate stable random bar heights (won't change on re-render)
+  const barHeights = useMemo(() =>
+    [...Array(20)].map(() => 20 + Math.random() * 60),
+    [] // Empty deps = generate once per component mount
+  )
 
   useEffect(() => {
     const audio = audioRef.current
@@ -146,8 +177,8 @@ const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage }) => {
         <div className="voice-message-waveform">
           <div className="voice-message-progress" style={{ width: `${progress}%` }} />
           <div className="voice-message-bars">
-            {[...Array(20)].map((_, i) => (
-              <div key={i} className="voice-message-bar" style={{ height: `${20 + Math.random() * 60}%` }} />
+            {barHeights.map((height, i) => (
+              <div key={i} className="voice-message-bar" style={{ height: `${height}%` }} />
             ))}
           </div>
         </div>
@@ -179,8 +210,10 @@ const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage }) => {
 const DEFAULT_SETTINGS = {
   showWordStatus: false,
   correctionsEnabled: true,
+  grammarExplanations: true,
+  showAudioTranscript: false,
   languageLevel: 'intermediate',
-  responseStyle: 'encouraging',
+  responseStyle: 'neutral',
   responseLength: 'medium',
   autoPlayResponses: false,
   speechSpeed: 'normal',
@@ -204,6 +237,9 @@ const TutorPage = () => {
   const [isRecording, setIsRecording] = useState(false)
   const [isInCall, setIsInCall] = useState(false)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+
+  // Word status vocabulary
+  const [userVocab, setUserVocab] = useState({})
 
   // Header state
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -292,6 +328,22 @@ const TutorPage = () => {
 
     loadProfile()
   }, [user, activeLanguage, nativeLanguage])
+
+  // Load user vocabulary for word status highlighting
+  useEffect(() => {
+    if (!user || !activeLanguage) return
+
+    const loadVocab = async () => {
+      try {
+        const vocab = await loadUserVocab(user.uid, activeLanguage)
+        setUserVocab(vocab)
+      } catch (err) {
+        console.warn('Could not load vocab:', err)
+      }
+    }
+
+    loadVocab()
+  }, [user, activeLanguage])
 
   // Subscribe to all chats for sidebar
   useEffect(() => {
@@ -576,15 +628,36 @@ const TutorPage = () => {
 
   const messages = currentChat?.messages || []
 
-  // Render word status if enabled
-  const renderMessageText = (text, role) => {
-    if (!settings.showWordStatus || role !== 'tutor') {
+  // Render text with word status highlighting
+  const renderMessageText = useCallback((text, role) => {
+    if (!settings.showWordStatus || role !== 'tutor' || !text) {
       return text
     }
-    // TODO: Integrate with vocabulary service to highlight words
-    // For now, just return the text
-    return text
-  }
+
+    // Tokenize: split into words and non-word characters
+    const tokens = text.split(/(\s+|[.,!?;:""''«»„"‚'¿¡—–\-()[\]{}])/g).filter(Boolean)
+
+    return tokens.map((token, idx) => {
+      // Skip whitespace and punctuation
+      if (/^\s+$/.test(token) || /^[.,!?;:""''«»„"‚'¿¡—–\-()[\]{}]+$/.test(token)) {
+        return <span key={idx}>{token}</span>
+      }
+
+      // Check word status in vocab
+      const normalised = normaliseExpression(token)
+      const vocabEntry = userVocab[normalised]
+      const status = vocabEntry?.status || 'new'
+
+      // Get highlight style
+      const style = getHighlightStyle(activeLanguage, status, true)
+
+      return (
+        <span key={idx} style={style}>
+          {token}
+        </span>
+      )
+    })
+  }, [settings.showWordStatus, userVocab, activeLanguage])
 
   return (
     <div className="tutor-page">
@@ -655,9 +728,13 @@ const TutorPage = () => {
             <button
               className="tutor-header-btn"
               onClick={toggleDarkMode}
-              title={darkMode ? 'Light mode' : 'Dark mode'}
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {darkMode ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              ) : (
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="5" />
                   <line x1="12" y1="1" x2="12" y2="3" />
@@ -668,10 +745,6 @@ const TutorPage = () => {
                   <line x1="21" y1="12" x2="23" y2="12" />
                   <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
               )}
             </button>
@@ -729,6 +802,7 @@ const TutorPage = () => {
                           audioUrl={msg.audioUrl}
                           transcript={msg.content}
                           isUserMessage={msg.role === 'user'}
+                          showTranscriptByDefault={settings.showAudioTranscript}
                         />
                       ) : (
                         /* Text message */

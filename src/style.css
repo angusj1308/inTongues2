@@ -16297,6 +16297,56 @@ body.active-pass-locked {
   background: #dc2626;
 }
 
+.tutor-call-btn.transcript {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.tutor-call-btn.transcript:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tutor-call-btn.transcript.active {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Chat-style message bubbles for voice call */
+.tutor-call-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 500px;
+  padding: 0 1rem;
+}
+
+.tutor-call-bubble {
+  padding: 0.625rem 0.875rem;
+  border-radius: 18px;
+  max-width: 85%;
+}
+
+.tutor-call-bubble p {
+  margin: 0;
+  font-family: 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.tutor-call-bubble.user {
+  align-self: flex-end;
+  background: #1c1c1e;
+  color: #ffffff;
+  border-radius: 18px 18px 4px 18px;
+}
+
+.tutor-call-bubble.tutor {
+  align-self: flex-start;
+  background: #e9e9eb;
+  color: #000000;
+  border-radius: 18px 18px 18px 4px;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .tutor-sidebar {

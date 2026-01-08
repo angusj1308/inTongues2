@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase'
+import { resolveSupportedLanguageLabel } from '../../../constants/languages'
 import { SpeakingPracticeSession } from './SpeakingPracticeSession'
 
 /**
@@ -26,8 +27,11 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
   const [importError, setImportError] = useState(null)
 
   // Subscribe to speaking practice lessons (uses same collection as writing practice)
+  // Normalize language to match how practice service stores it
+  const normalizedLanguage = resolveSupportedLanguageLabel(activeLanguage, activeLanguage)
+
   useEffect(() => {
-    if (!user?.uid) {
+    if (!user?.uid || !normalizedLanguage) {
       setLessons([])
       setLessonsLoading(false)
       return
@@ -37,7 +41,7 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
     const lessonsRef = collection(db, 'users', user.uid, 'practiceLessons')
     const lessonsQuery = query(
       lessonsRef,
-      where('targetLanguage', '==', activeLanguage),
+      where('targetLanguage', '==', normalizedLanguage),
       orderBy('createdAt', 'desc')
     )
 
@@ -54,7 +58,7 @@ export function SpeakingPracticeHub({ activeLanguage, nativeLanguage, onBack }) 
     )
 
     return unsubscribe
-  }, [user?.uid, activeLanguage])
+  }, [user?.uid, normalizedLanguage])
 
   // Split text into smaller chunks for speaking (~5 words)
   const splitForSpeaking = (text) => {

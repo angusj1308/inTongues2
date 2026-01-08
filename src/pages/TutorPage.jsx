@@ -212,6 +212,26 @@ const TutorPage = () => {
   const activeLanguage = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')
 
+  // Get chat title for header
+  const getChatTitle = () => {
+    if (!currentChat) return 'New Chat'
+    if (currentChat.title) return currentChat.title
+
+    // Default title is date and time
+    const timestamp = currentChat.createdAt || currentChat.updatedAt
+    if (timestamp) {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+      return date.toLocaleDateString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    }
+
+    return 'New Chat'
+  }
+
   // Load tutor profile
   useEffect(() => {
     if (!user || !activeLanguage) return
@@ -532,7 +552,7 @@ const TutorPage = () => {
             </svg>
           </button>
           <h1 className="tutor-header-title">
-            {activeLanguage ? `${activeLanguage} Tutor` : 'Tutor'}
+            {getChatTitle()}
           </h1>
           <div className="tutor-header-spacer" />
         </header>

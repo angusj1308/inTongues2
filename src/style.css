@@ -20140,6 +20140,87 @@ body.active-pass-locked {
   background: var(--bg-secondary, #f8fafc);
 }
 
+/* Hover-to-show header */
+.free-speaking-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  background: var(--bg-primary, #fff);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-100%);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.free-speaking-page:hover .free-speaking-header,
+.free-speaking-header:hover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-theme='dark'] .free-speaking-header {
+  background: var(--bg-primary, #1e293b);
+  border-color: #334155;
+}
+
+.free-speaking-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary, #0f172a);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.free-speaking-back-btn:hover {
+  background: var(--bg-secondary, #f1f5f9);
+}
+
+[data-theme='dark'] .free-speaking-back-btn {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .free-speaking-back-btn:hover {
+  background: #334155;
+}
+
+.free-speaking-theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.free-speaking-theme-btn:hover {
+  background: var(--bg-secondary, #f1f5f9);
+  color: var(--text-primary, #0f172a);
+}
+
+[data-theme='dark'] .free-speaking-theme-btn:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
 .free-speaking-page .practice-layout {
   flex: 1;
   display: flex;
@@ -20196,29 +20277,36 @@ body.active-pass-locked {
   color: #f1f5f9;
 }
 
-/* Recording Card inside document area */
+/* Large Recording Card - covers most of the page like intensive modes */
 .free-speaking-recording-card {
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto 2rem;
+  width: 90%;
+  max-width: 700px;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme='dark'] .free-speaking-recording-card {
   background: #1e293b;
   border-color: #334155;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .free-speaking-recording-card .floating-recording-waveform {
+  width: 100%;
+  max-width: 500px;
   background: #f8fafc;
-  border-radius: 10px;
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  min-height: 80px;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  min-height: 120px;
 }
 
 [data-theme='dark'] .free-speaking-recording-card .floating-recording-waveform {
@@ -20226,17 +20314,89 @@ body.active-pass-locked {
 }
 
 .free-speaking-recording-card .floating-recording-timer {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  font-size: 4rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  margin-bottom: 2rem;
+  color: var(--text-primary, #0f172a);
+}
+
+[data-theme='dark'] .free-speaking-recording-card .floating-recording-timer {
+  color: #f1f5f9;
+}
+
+.free-speaking-recording-card .floating-recording-timer.recording {
+  color: #ef4444;
 }
 
 .free-speaking-recording-card .floating-recording-controls {
-  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .free-speaking-recording-card .floating-btn {
-  padding: 0.75rem 1.25rem;
-  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.free-speaking-recording-card .floating-btn-record {
+  background: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.free-speaking-recording-card .floating-btn-record:hover {
+  background: #dc2626;
+  transform: scale(1.02);
+}
+
+.free-speaking-recording-card .floating-btn-stop {
+  background: #64748b;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.free-speaking-recording-card .floating-btn-stop:hover {
+  background: #475569;
+}
+
+.free-speaking-recording-card .floating-btn-secondary {
+  background: var(--bg-secondary, #f1f5f9);
+  color: var(--text-primary, #0f172a);
+  border: 1px solid var(--border-color, #e2e8f0);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.free-speaking-recording-card .floating-btn-secondary:hover {
+  background: var(--bg-tertiary, #e2e8f0);
+}
+
+[data-theme='dark'] .free-speaking-recording-card .floating-btn-secondary {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+[data-theme='dark'] .free-speaking-recording-card .floating-btn-secondary:hover {
+  background: #475569;
+}
+
+.free-speaking-recording-card .floating-recording-tip {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-muted, #94a3b8);
+  text-align: center;
 }
 
 /* Dark Mode */

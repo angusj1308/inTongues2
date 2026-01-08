@@ -106,7 +106,6 @@ const FreeSpeakingSession = () => {
   const [darkMode, setDarkMode] = useState(() => {
     return document.documentElement.getAttribute('data-theme') === 'dark'
   })
-  const [showCorrections, setShowCorrections] = useState(true)
 
   // Refs
   const documentRef = useRef(null)
@@ -605,12 +604,16 @@ const FreeSpeakingSession = () => {
       {/* Header */}
       <header className="practice-header">
         <div className="practice-header-left">
-          <button className="practice-header-button" onClick={() => navigate('/dashboard')}>
+          <button
+            className="practice-header-button"
+            onClick={() => navigate('/dashboard')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
             <svg className="practice-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
+            <span style={{ fontSize: '0.9rem' }}>Back to dashboard</span>
           </button>
-          <h1 className="practice-title">Free Speaking</h1>
         </div>
 
         <div className="practice-header-center">
@@ -618,36 +621,6 @@ const FreeSpeakingSession = () => {
         </div>
 
         <div className="practice-header-actions">
-          {/* iOS-style toggle for corrections */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span style={{ opacity: showCorrections ? 1 : 0.5 }}>Corrections</span>
-            <div
-              onClick={() => setShowCorrections(!showCorrections)}
-              style={{
-                width: '44px',
-                height: '24px',
-                borderRadius: '12px',
-                backgroundColor: showCorrections ? '#1f2937' : '#d1d5db',
-                position: 'relative',
-                transition: 'background-color 0.2s ease',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: '#fff',
-                  position: 'absolute',
-                  top: '2px',
-                  left: showCorrections ? '22px' : '2px',
-                  transition: 'left 0.2s ease',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                }}
-              />
-            </div>
-          </label>
           <button
             className="practice-header-button"
             type="button"
@@ -986,146 +959,154 @@ const FreeSpeakingSession = () => {
             transition: 'margin-left 0.2s ease',
           }}
         >
-          {/* Floating Recording Card */}
-          <div className="free-speaking-recording-card">
-            {error && (
-              <div className="floating-recording-error">
-                {error}
+          {/* Full-screen Recording Overlay - covers document during recording */}
+          {(!audioUrl || isRecording) && (
+            <div className="free-speaking-recording-overlay">
+              <div className="free-speaking-recording-card">
+                {error && (
+                  <div className="floating-recording-error">
+                    {error}
+                  </div>
+                )}
+
+                {/* Waveform */}
+                <div className="floating-recording-waveform">
+                  <WaveformVisualizer
+                    analyserNode={transcriptionAnalyser || recorderAnalyser}
+                    isRecording={isRecording && !isPaused}
+                    height={80}
+                    barColor={isRecording ? '#ef4444' : '#64748b'}
+                  />
+                </div>
+
+                {/* Timer */}
+                <div className={`floating-recording-timer ${isRecording ? 'recording' : ''}`}>
+                  {isRecording && !isPaused && (
+                    <span className="recording-indicator">
+                      <span className="recording-dot"></span>
+                    </span>
+                  )}
+                  <span className="timer-display">{formatTime(recordingTime)}</span>
+                </div>
+
+                {/* Controls */}
+                <div className="floating-recording-controls">
+                  {!isRecording && !audioUrl ? (
+                    <button
+                      className="floating-btn floating-btn-record"
+                      onClick={handleStart}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="8" />
+                      </svg>
+                      <span>Start Recording</span>
+                    </button>
+                  ) : isRecording ? (
+                    <>
+                      <button
+                        className="floating-btn floating-btn-secondary"
+                        onClick={isPaused ? resumeRecording : pauseRecording}
+                      >
+                        {isPaused ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="4" width="4" height="16" rx="1" />
+                            <rect x="14" y="4" width="4" height="16" rx="1" />
+                          </svg>
+                        )}
+                        <span>{isPaused ? 'Resume' : 'Pause'}</span>
+                      </button>
+                      <button
+                        className="floating-btn floating-btn-stop"
+                        onClick={handleStop}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="6" y="6" width="12" height="12" rx="2" />
+                        </svg>
+                        <span>Stop</span>
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+
+                {/* Tip text */}
+                <p className="floating-recording-tip">
+                  {!isRecording
+                    ? 'Speak freely about any topic in your target language'
+                    : 'Your speech is being transcribed in real-time'}
+                </p>
               </div>
-            )}
-
-            {/* Waveform */}
-            <div className="floating-recording-waveform">
-              <WaveformVisualizer
-                analyserNode={transcriptionAnalyser || recorderAnalyser}
-                isRecording={isRecording && !isPaused}
-                height={60}
-                barColor={isRecording ? '#ef4444' : '#64748b'}
-              />
             </div>
+          )}
 
-            {/* Timer */}
-            <div className={`floating-recording-timer ${isRecording ? 'recording' : ''}`}>
-              {isRecording && !isPaused && (
-                <span className="recording-indicator">
-                  <span className="recording-dot"></span>
-                </span>
-              )}
-              <span className="timer-display">{formatTime(recordingTime)}</span>
-            </div>
+          {/* Document - only visible after recording stops */}
+          {audioUrl && !isRecording && (
+            <div className="freewriting-document">
+              <div
+                className="freewriting-document-content"
+                ref={documentRef}
+                style={{
+                  minHeight: '300px',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.8',
+                  fontSize: '1.1rem',
+                }}
+              >
+                {displayText ? (
+                  displayText
+                ) : (
+                  <span className="muted" style={{ fontStyle: 'italic' }}>
+                    No transcript available.
+                  </span>
+                )}
+              </div>
 
-            {/* Controls */}
-            <div className="floating-recording-controls">
-              {!isRecording && !audioUrl ? (
-                <button
-                  className="floating-btn floating-btn-record"
-                  onClick={handleStart}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="12" r="8" />
-                  </svg>
-                  <span>Start Recording</span>
-                </button>
-              ) : isRecording ? (
-                <>
-                  <button
-                    className="floating-btn floating-btn-secondary"
-                    onClick={isPaused ? resumeRecording : pauseRecording}
-                  >
-                    {isPaused ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="4" width="4" height="16" rx="1" />
-                        <rect x="14" y="4" width="4" height="16" rx="1" />
-                      </svg>
-                    )}
-                    <span>{isPaused ? 'Resume' : 'Pause'}</span>
-                  </button>
-                  <button
-                    className="floating-btn floating-btn-stop"
-                    onClick={handleStop}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="6" width="12" height="12" rx="2" />
-                    </svg>
-                    <span>Stop</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="floating-btn floating-btn-secondary"
-                  onClick={handleReset}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1 4v6h6" />
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                  </svg>
-                  <span>Start Over</span>
-                </button>
-              )}
-            </div>
-
-            {/* Status text */}
-            {isAnalyzing && (
-              <p className="floating-recording-tip" style={{ color: '#3b82f6' }}>
-                Analyzing...
-              </p>
-            )}
-          </div>
-
-          {/* Document */}
-          <div className="freewriting-document">
-            <div
-              className="freewriting-document-content"
-              ref={documentRef}
-              style={{
-                minHeight: '300px',
-                whiteSpace: 'pre-wrap',
-                lineHeight: '1.8',
-                fontSize: '1.1rem',
-              }}
-            >
-              {displayText ? (
-                <>
-                  {displayText}
-                  {isRecording && <span className="typing-cursor">|</span>}
-                </>
-              ) : (
-                <span className="muted" style={{ fontStyle: 'italic' }}>
-                  {isRecording
-                    ? 'Listening... Start speaking and your words will appear here.'
-                    : 'Click "Start Recording" and speak freely. Your speech will be transcribed here and analyzed for feedback.'}
-                </span>
-              )}
-            </div>
-
-            {/* Audio playback at bottom */}
-            {audioUrl && !isRecording && (
+              {/* Audio playback at bottom */}
               <div className="spontaneous-playback-section">
                 <audio
                   ref={playbackRef}
                   src={audioUrl}
                   onEnded={() => setIsPlaying(false)}
                 />
-                <button className="btn-playback-large" onClick={togglePlayback}>
-                  {isPlaying ? (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="4" width="4" height="16" rx="1" />
-                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <button className="btn-playback-large" onClick={togglePlayback}>
+                    {isPlaying ? (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                    <span>{isPlaying ? 'Pause Recording' : 'Play Your Recording'}</span>
+                  </button>
+                  <button
+                    className="floating-btn floating-btn-secondary"
+                    onClick={handleReset}
+                    style={{ padding: '10px 16px' }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 4v6h6" />
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                     </svg>
-                  ) : (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  )}
-                  <span>{isPlaying ? 'Pause Recording' : 'Play Your Recording'}</span>
-                </button>
+                    <span>Record Again</span>
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Analyzing indicator */}
+              {isAnalyzing && (
+                <div style={{ textAlign: 'center', padding: '12px', color: '#3b82f6' }}>
+                  Analyzing your speech...
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>

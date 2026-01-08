@@ -20153,6 +20153,25 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+}
+
+/* Full-screen recording overlay */
+.free-speaking-recording-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #f8fafc);
+  z-index: 10;
+}
+
+[data-theme='dark'] .free-speaking-recording-overlay {
+  background: var(--bg-secondary, #0f172a);
 }
 
 .free-speaking-page .freewriting-document {

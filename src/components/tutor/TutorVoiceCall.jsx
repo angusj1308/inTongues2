@@ -34,13 +34,6 @@ const VolumeIcon = () => (
   </svg>
 )
 
-const VOICE_IDS = {
-  English: { male: 'NFG5qt843uXKj4pFvR7C', female: 'ZF6FPAbjXT4488VcRRnw' },
-  Spanish: { male: 'kulszILr6ees0ArU8miO', female: '1WXz8v08ntDcSTeVXMN2' },
-  French: { male: 'UBXZKOKbt62aLQHhc1Jm', female: 'sANWqF1bCMzR6eyZbCGw' },
-  Italian: { male: 'W71zT1VwIFFx3mMGH2uZ', female: 'gfKKsLN1k0oYYN9n2dXX' },
-}
-
 const TutorVoiceCall = ({
   onEnd,
   onMessage,
@@ -245,15 +238,13 @@ const TutorVoiceCall = ({
   // Text-to-speech using ElevenLabs
   const speakText = async (text) => {
     try {
-      const voiceId = VOICE_IDS[activeLanguage]?.female || VOICE_IDS.English.female
-
-      const response = await fetch('/api/tts/elevenlabs', {
+      const response = await fetch('/api/tutor/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          voiceId,
-          speed: settings?.speechSpeed === 'slow' ? 0.8 : settings?.speechSpeed === 'fast' ? 1.2 : 1.0,
+          language: activeLanguage || 'English',
+          voiceGender: 'female',
         }),
       })
 
@@ -262,7 +253,16 @@ const TutorVoiceCall = ({
         return speakWithBrowserTTS(text)
       }
 
-      const audioData = await response.arrayBuffer()
+      const { audioBase64 } = await response.json()
+
+      // Decode base64 to ArrayBuffer
+      const binaryString = atob(audioBase64)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      const audioData = bytes.buffer
+
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
       audioContextRef.current = audioContext
 

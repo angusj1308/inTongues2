@@ -112,6 +112,11 @@ const TutorControlPanel = ({
               checked={settings.grammarExplanations}
               onChange={(v) => handleSettingChange('grammarExplanations', v)}
             />
+            <ToggleRow
+              label="Show audio transcript"
+              checked={settings.showAudioTranscript}
+              onChange={(v) => handleSettingChange('showAudioTranscript', v)}
+            />
           </div>
         </div>
       )}

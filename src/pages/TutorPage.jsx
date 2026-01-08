@@ -65,11 +65,11 @@ const ChevronUpIcon = () => (
 )
 
 // WhatsApp-style voice message player with collapsible transcript
-const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage }) => {
+const VoiceMessagePlayer = ({ audioUrl, transcript, isUserMessage, showTranscriptByDefault = false }) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
-  const [showTranscript, setShowTranscript] = useState(false)
+  const [showTranscript, setShowTranscript] = useState(showTranscriptByDefault)
   const audioRef = useRef(null)
 
   useEffect(() => {
@@ -180,6 +180,7 @@ const DEFAULT_SETTINGS = {
   showWordStatus: false,
   correctionsEnabled: true,
   grammarExplanations: true,
+  showAudioTranscript: false,
   languageLevel: 'intermediate',
   responseStyle: 'neutral',
   responseLength: 'medium',
@@ -730,6 +731,7 @@ const TutorPage = () => {
                           audioUrl={msg.audioUrl}
                           transcript={msg.content}
                           isUserMessage={msg.role === 'user'}
+                          showTranscriptByDefault={settings.showAudioTranscript}
                         />
                       ) : (
                         /* Text message */

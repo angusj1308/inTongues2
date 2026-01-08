@@ -14571,36 +14571,16 @@ body.active-pass-locked {
 .tutor-welcome {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  text-align: center;
 }
 
-.tutor-welcome-icon {
-  width: 72px;
-  height: 72px;
-  background: #10a37f;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  margin-bottom: 1.5rem;
-}
-
-.tutor-welcome h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #202123;
-}
-
-.tutor-welcome-subtitle {
-  color: #6b6b6b;
-  font-size: 1rem;
-  max-width: 400px;
+.tutor-welcome-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 1.125rem;
+  color: #9ca3af;
+  margin: 0;
 }
 
 /* Messages List */
@@ -14989,12 +14969,8 @@ body.active-pass-locked {
   color: #f97316;
 }
 
-[data-theme='dark'] .tutor-welcome h2 {
-  color: #ececf1;
-}
-
-[data-theme='dark'] .tutor-welcome-subtitle {
-  color: #8e8ea0;
+[data-theme='dark'] .tutor-welcome-text {
+  color: #6b7280;
 }
 
 /* Dark mode for iMessage-style bubbles */

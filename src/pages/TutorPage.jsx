@@ -696,19 +696,10 @@ const TutorPage = () => {
           <div className="tutor-messages-container">
             {messages.length === 0 ? (
               <div className="tutor-welcome">
-                <div className="tutor-welcome-icon">
-                  <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                    <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3" strokeLinecap="round" />
-                    <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <h2>How can I help you today?</h2>
-                <p className="tutor-welcome-subtitle">
+                <p className="tutor-welcome-text">
                   {activeLanguage
-                    ? `Start a conversation in ${activeLanguage}. I'll help you practice and improve.`
-                    : 'Select a language to start learning.'}
+                    ? `Start a conversation in ${activeLanguage}`
+                    : 'Select a language to begin'}
                 </p>
               </div>
             ) : (

@@ -281,7 +281,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
             nativeSentence: currentSentence.text,
             targetLanguage: activeLanguage,
             sourceLanguage: nativeLanguage,
-            exemplar: cachedExemplar // Pass preloaded exemplar
+            exemplar: cachedExemplar, // Pass preloaded exemplar
+            contextSummary: lesson.contextSummary || '' // Pass context for accurate feedback
           })
         })
 
@@ -315,7 +316,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
           nativeSentence: currentSentence.text,
           targetLanguage: activeLanguage,
           sourceLanguage: nativeLanguage,
-          skipRecording: true
+          skipRecording: true,
+          contextSummary: lesson.contextSummary || ''
         })
       })
 

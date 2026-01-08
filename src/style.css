@@ -19276,6 +19276,97 @@ body.active-pass-locked {
   flex-shrink: 0;
 }
 
+/* =========================================
+   Free Speaking Session Page
+   ========================================= */
+
+.free-speaking-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.free-speaking-page .practice-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.free-speaking-page .freewriting-document-area {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.free-speaking-page .freewriting-document {
+  width: 100%;
+  max-width: 800px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 2rem 3rem;
+  min-height: 400px;
+}
+
+[data-theme='dark'] .free-speaking-page .freewriting-document {
+  background: #1e293b;
+}
+
+.free-speaking-page .freewriting-document-content {
+  color: var(--text-primary, #0f172a);
+}
+
+[data-theme='dark'] .free-speaking-page .freewriting-document-content {
+  color: #f1f5f9;
+}
+
+/* Recording Card inside document area */
+.free-speaking-recording-card {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto 2rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] .free-speaking-recording-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.free-speaking-recording-card .floating-recording-waveform {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  min-height: 80px;
+}
+
+[data-theme='dark'] .free-speaking-recording-card .floating-recording-waveform {
+  background: #0f172a;
+}
+
+.free-speaking-recording-card .floating-recording-timer {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.free-speaking-recording-card .floating-recording-controls {
+  margin-bottom: 0.5rem;
+}
+
+.free-speaking-recording-card .floating-btn {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+}
+
 /* Dark Mode */
 [data-theme='dark'] .speak-mode-card,
 [data-theme='dark'] .source-type-card {

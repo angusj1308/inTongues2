@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { IntensiveModeHub } from './intensive/IntensiveModeHub'
 import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
-import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
 
 /**
  * Main hub for the Speaking tab - allows selection between different speaking practice modes
@@ -109,28 +108,6 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     }
   }
 
-  // Voice Record mode - full page view
-  if (activeMode === 'voiceRecord') {
-    return (
-      <div className="speak-hub">
-        <div className="speak-hub-nav">
-          <button className="btn-back" onClick={() => setActiveMode(null)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to modes
-          </button>
-          <h2>Voice Record</h2>
-        </div>
-        <VoiceRecordHub
-          activeLanguage={activeLanguage}
-          nativeLanguage={nativeLanguage}
-          onBack={() => setActiveMode(null)}
-        />
-      </div>
-    )
-  }
-
   // Mode selection view (with overlays for pronunciation and speaking practice)
   return (
     <div className="speak-hub">
@@ -187,10 +164,10 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
           </div>
         </button>
 
-        {/* Voice Record Mode Card */}
+        {/* Voice Record Mode Card - navigates to full page */}
         <button
           className="speak-mode-card"
-          onClick={() => setActiveMode('voiceRecord')}
+          onClick={() => navigate('/voice-record')}
         >
           <div className="speak-mode-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -202,7 +179,7 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
               <path d="M20 12h2" />
             </svg>
           </div>
-          <h3>Voice Record</h3>
+          <h3>Free Speaking</h3>
           <p className="speak-mode-subtitle">Long-form Production</p>
           <p className="speak-mode-description">
             Speak freely about any topic. Get comprehensive feedback on grammar, vocabulary, and expression.

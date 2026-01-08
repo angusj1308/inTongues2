@@ -18,12 +18,22 @@ const formatRelativeTime = (timestamp) => {
   return date.toLocaleDateString()
 }
 
-export function PostCard({ post, userVote, onClick }) {
+// Language badge colors
+const LANGUAGE_COLORS = {
+  Spanish: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  French: { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+  Italian: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  English: { bg: '#f3e8ff', text: '#6b21a8', border: '#d8b4fe' },
+  General: { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+}
+
+export function PostCard({ post, userVote, onClick, isPlaceholder = false }) {
   const hasAcceptedAnswer = !!post.acceptedAnswerId
+  const langColors = LANGUAGE_COLORS[post.language] || LANGUAGE_COLORS.General
 
   return (
-    <div
-      className="community-post-card"
+    <article
+      className={`community-card ${isPlaceholder ? 'is-placeholder' : ''}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -33,43 +43,77 @@ export function PostCard({ post, userVote, onClick }) {
         }
       }}
     >
-      <div className="post-card-vote">
-        <VoteButtons
-          targetId={post.id}
-          targetType="post"
-          initialScore={post.score || 0}
-          initialVote={userVote}
-          compact
-        />
+      {/* Vote Section */}
+      <div className="community-card-votes">
+        {isPlaceholder ? (
+          <div className="community-card-vote-display">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+            <span className={`vote-count ${post.score > 0 ? 'positive' : ''}`}>{post.score}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        ) : (
+          <VoteButtons
+            targetId={post.id}
+            targetType="post"
+            initialScore={post.score || 0}
+            initialVote={userVote}
+            compact
+          />
+        )}
       </div>
 
-      <div className="post-card-content">
-        <h3 className="post-card-title">{post.title}</h3>
-        <p className="post-card-excerpt">
-          {post.body.length > 150 ? post.body.substring(0, 150) + '...' : post.body}
-        </p>
-        <div className="post-card-meta">
-          <span className="post-card-author">@{post.authorName}</span>
-          <span className="post-card-dot">·</span>
-          <span className="post-card-language">{post.language}</span>
-          <span className="post-card-dot">·</span>
-          <span className="post-card-time">{formatRelativeTime(post.createdAt)}</span>
-        </div>
-        <div className="post-card-stats">
-          <span className={`post-card-comments ${hasAcceptedAnswer ? 'has-accepted' : ''}`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            {post.commentCount || 0} {post.commentCount === 1 ? 'answer' : 'answers'}
-            {hasAcceptedAnswer && (
-              <svg className="accepted-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      {/* Content Section */}
+      <div className="community-card-body">
+        <div className="community-card-header">
+          <span
+            className="community-card-lang"
+            style={{
+              backgroundColor: langColors.bg,
+              color: langColors.text,
+              borderColor: langColors.border,
+            }}
+          >
+            {post.language}
+          </span>
+          {hasAcceptedAnswer && (
+            <span className="community-card-solved">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-            )}
-          </span>
+              Solved
+            </span>
+          )}
+        </div>
+
+        <h3 className="community-card-title">{post.title}</h3>
+
+        <p className="community-card-excerpt">
+          {post.body.length > 140 ? post.body.substring(0, 140) + '...' : post.body}
+        </p>
+
+        <div className="community-card-footer">
+          <div className="community-card-author">
+            <div className="community-card-avatar">
+              {post.authorName?.charAt(0).toUpperCase()}
+            </div>
+            <span>{post.authorName}</span>
+          </div>
+          <div className="community-card-stats">
+            <span className="community-card-stat">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              {post.commentCount || 0}
+            </span>
+            <span className="community-card-time">{formatRelativeTime(post.createdAt)}</span>
+          </div>
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 

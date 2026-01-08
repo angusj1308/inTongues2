@@ -5,12 +5,41 @@ import PostDetail from './PostDetail'
 import CreatePostModal from './CreatePostModal'
 
 const SORT_OPTIONS = [
-  { id: 'hot', label: 'Hot' },
-  { id: 'new', label: 'New' },
-  { id: 'top', label: 'Top' },
+  { id: 'hot', label: 'Trending', icon: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </svg>
+  )},
+  { id: 'new', label: 'Latest', icon: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  )},
+  { id: 'top', label: 'Top', icon: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  )},
 ]
 
-const LANGUAGE_FILTERS = ['All', 'General', 'English', 'Spanish', 'French', 'Italian']
+const LANGUAGE_FILTERS = [
+  { id: 'All', label: 'All Languages' },
+  { id: 'General', label: 'General' },
+  { id: 'English', label: 'English' },
+  { id: 'Spanish', label: 'Spanish' },
+  { id: 'French', label: 'French' },
+  { id: 'Italian', label: 'Italian' },
+]
+
+const PenIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 19l7-7 3 3-7 7-3-3z" />
+    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+    <path d="M2 2l7.586 7.586" />
+    <circle cx="11" cy="11" r="2" />
+  </svg>
+)
 
 export function CommunityHub({ activeLanguage }) {
   const { user } = useAuth()
@@ -18,14 +47,13 @@ export function CommunityHub({ activeLanguage }) {
   const [languageFilter, setLanguageFilter] = useState('All')
   const [selectedPost, setSelectedPost] = useState(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [feedKey, setFeedKey] = useState(0) // Force refresh
+  const [feedKey, setFeedKey] = useState(0)
 
   const handlePostCreated = (newPost) => {
-    setFeedKey((prev) => prev + 1) // Refresh feed
-    setSelectedPost(newPost) // Navigate to new post
+    setFeedKey((prev) => prev + 1)
+    setSelectedPost(newPost)
   }
 
-  // Show post detail view
   if (selectedPost) {
     return (
       <div className="community-hub">
@@ -39,35 +67,47 @@ export function CommunityHub({ activeLanguage }) {
 
   return (
     <div className="community-hub">
-      <div className="community-header">
-        <h2>Community</h2>
-        <p className="muted">Ask questions and help fellow learners</p>
+      {/* Hero Header */}
+      <div className="community-hero">
+        <div className="community-hero-content">
+          <h1>Community</h1>
+          <p>Connect with fellow learners, ask questions, and share your knowledge</p>
+        </div>
+        {user && (
+          <button
+            className="community-ask-btn"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <PenIcon />
+            <span>Ask a Question</span>
+          </button>
+        )}
       </div>
 
-      <div className="community-controls">
-        {/* Sort Tabs */}
-        <div className="sort-tabs">
+      {/* Filter Bar */}
+      <div className="community-filter-bar">
+        <div className="community-sort-pills">
           {SORT_OPTIONS.map((option) => (
             <button
               key={option.id}
-              className={`sort-tab ${sortBy === option.id ? 'active' : ''}`}
+              className={`community-pill ${sortBy === option.id ? 'active' : ''}`}
               onClick={() => setSortBy(option.id)}
             >
-              {option.label}
+              {option.icon}
+              <span>{option.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Language Filter */}
-        <div className="language-filter">
+        <div className="community-lang-filter">
           <select
             value={languageFilter}
             onChange={(e) => setLanguageFilter(e.target.value)}
-            className="filter-select"
+            className="community-lang-select"
           >
             {LANGUAGE_FILTERS.map((lang) => (
-              <option key={lang} value={lang}>
-                {lang === 'All' ? 'All Languages' : lang}
+              <option key={lang.id} value={lang.id}>
+                {lang.label}
               </option>
             ))}
           </select>
@@ -82,10 +122,10 @@ export function CommunityHub({ activeLanguage }) {
         onPostClick={setSelectedPost}
       />
 
-      {/* Create Post FAB */}
+      {/* Mobile FAB */}
       {user && (
         <button
-          className="create-post-fab"
+          className="community-fab"
           onClick={() => setShowCreateModal(true)}
           title="Ask a question"
         >
@@ -96,7 +136,6 @@ export function CommunityHub({ activeLanguage }) {
         </button>
       )}
 
-      {/* Create Post Modal */}
       {showCreateModal && (
         <CreatePostModal
           onClose={() => setShowCreateModal(false)}

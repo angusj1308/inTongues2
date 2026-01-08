@@ -407,10 +407,8 @@ const TutorPage = () => {
           content: data.response,
         })
 
-        // Auto-play response if enabled
-        if (settings.autoPlayResponses) {
-          speakText(data.response)
-        }
+        // Always speak tutor response using ElevenLabs
+        speakText(data.response)
       }
     } catch (err) {
       console.error('Failed to send message:', err)

@@ -15451,6 +15451,31 @@ body.active-pass-locked {
   height: 48px;
 }
 
+.tutor-call-avatar-ring.listening {
+  animation: avatar-listen 2s infinite;
+}
+
+@keyframes avatar-listen {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 163, 127, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(16, 163, 127, 0);
+  }
+}
+
+.tutor-call-hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.tutor-call-hint:hover {
+  color: #ffffff;
+}
+
 .tutor-call-name {
   font-size: 1.25rem;
   font-weight: 600;

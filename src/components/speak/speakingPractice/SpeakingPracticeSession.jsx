@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase'
-import { AudioRecorder } from '../shared'
 import { upsertVocabEntry } from '../../../services/vocab'
 
 /**
  * Speaking Practice Session - Interpretation practice
  * User sees native language text and speaks the target language translation
+ * Uses simple record button like Pronunciation Practice
+ * Prefetches exemplars in batches of 5 for faster response
  */
 export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage, onBack }) {
   const { user } = useAuth()
@@ -21,6 +22,16 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   const [vocabToSave, setVocabToSave] = useState([])
   const [savedVocab, setSavedVocab] = useState({})
 
+  // Recording state (simple like pronunciation practice)
+  const [isRecording, setIsRecording] = useState(false)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+
+  // Exemplar prefetch state
+  const [exemplarCache, setExemplarCache] = useState({}) // index -> exemplar
+  const [fetchingExemplars, setFetchingExemplars] = useState(false)
+  const lastFetchedBatchRef = useRef(-1)
+
   const sentences = lesson.sentences || []
   const currentSentence = sentences[currentIndex]
 
@@ -28,12 +39,84 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   useEffect(() => {
     setUserRecording(null)
     setFeedback(null)
-    setExemplar(null)
+    // Use cached exemplar if available
+    setExemplar(exemplarCache[currentIndex] || null)
     setShowExemplar(false)
     setError(null)
     setVocabToSave([])
     setSavedVocab({})
-  }, [currentIndex])
+  }, [currentIndex, exemplarCache])
+
+  // Prefetch exemplars in batches of 5
+  // Fetch when: on mount, or when 2 left in current batch
+  const prefetchExemplars = useCallback(async (startIndex) => {
+    if (fetchingExemplars || startIndex < 0 || startIndex >= sentences.length) return
+
+    const batchNumber = Math.floor(startIndex / 5)
+    if (batchNumber <= lastFetchedBatchRef.current) return
+
+    const batchStart = batchNumber * 5
+    const batchEnd = Math.min(batchStart + 5, sentences.length)
+
+    // Get sentences that need exemplars
+    const sentencesToFetch = []
+    const indices = []
+    for (let i = batchStart; i < batchEnd; i++) {
+      if (!exemplarCache[i] && sentences[i]?.text) {
+        sentencesToFetch.push(sentences[i].text)
+        indices.push(i)
+      }
+    }
+
+    if (sentencesToFetch.length === 0) {
+      lastFetchedBatchRef.current = batchNumber
+      return
+    }
+
+    setFetchingExemplars(true)
+    try {
+      const response = await fetch('/api/speech/exemplars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sentences: sentencesToFetch,
+          targetLanguage: activeLanguage,
+          sourceLanguage: nativeLanguage
+        })
+      })
+
+      if (response.ok) {
+        const { exemplars } = await response.json()
+        setExemplarCache(prev => {
+          const updated = { ...prev }
+          indices.forEach((idx, i) => {
+            if (exemplars[i]) updated[idx] = exemplars[i]
+          })
+          return updated
+        })
+        lastFetchedBatchRef.current = batchNumber
+      }
+    } catch (err) {
+      console.error('Exemplar prefetch failed:', err)
+    } finally {
+      setFetchingExemplars(false)
+    }
+  }, [sentences, activeLanguage, nativeLanguage, exemplarCache, fetchingExemplars])
+
+  // Initial prefetch and trigger when 2 left in batch
+  useEffect(() => {
+    // Initial fetch (batch 0)
+    if (lastFetchedBatchRef.current < 0 && sentences.length > 0) {
+      prefetchExemplars(0)
+    }
+
+    // When 2 left in current batch, fetch next batch
+    const currentBatch = Math.floor(currentIndex / 5)
+    const positionInBatch = currentIndex % 5
+    if (positionInBatch >= 3) { // At position 3 or 4 in batch (0-indexed)
+      prefetchExemplars((currentBatch + 1) * 5)
+    }
+  }, [currentIndex, sentences.length, prefetchExemplars])
 
   // Update lesson progress in Firestore
   const updateProgress = useCallback(async (index, completed = false) => {
@@ -67,9 +150,55 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     }
   }, [user?.uid, lesson.id, sentences])
 
-  // Handle recording completion - send to assessment
-  const handleRecordingComplete = async (blob, url) => {
-    setUserRecording({ blob, url })
+  // Simple recording functions (like Pronunciation Practice)
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        const url = URL.createObjectURL(blob)
+        setUserRecording({ blob, url })
+        stream.getTracks().forEach(track => track.stop())
+
+        // Auto-submit for assessment
+        await handleAssessment(blob)
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Recording error:', err)
+      setError('Could not access microphone')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
+  }
+
+  // Handle assessment after recording stops
+  const handleAssessment = async (blob) => {
     setIsAssessing(true)
     setError(null)
 
@@ -80,7 +209,9 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
       reader.onloadend = async () => {
         const base64Audio = reader.result.split(',')[1]
 
-        // Call the speaking practice feedback endpoint
+        // Use cached exemplar if available for faster response
+        const cachedExemplar = exemplarCache[currentIndex]
+
         const response = await fetch('/api/speech/speaking-practice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -88,7 +219,8 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
             audioBase64: base64Audio,
             nativeSentence: currentSentence.text,
             targetLanguage: activeLanguage,
-            sourceLanguage: nativeLanguage
+            sourceLanguage: nativeLanguage,
+            exemplar: cachedExemplar // Pass preloaded exemplar
           })
         })
 
@@ -277,24 +409,36 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
           {/* Recording zone (before feedback) */}
           {!feedback && !showExemplar && (
             <div className="speaking-practice-recording">
-              {!userRecording ? (
+              {!userRecording && !isAssessing ? (
                 <>
                   <p className="speaking-practice-instruction">
-                    Speak the {activeLanguage} translation:
+                    {isRecording ? 'Recording... tap to stop' : `Speak the ${activeLanguage} translation:`}
                   </p>
-                  <AudioRecorder
-                    onRecordingComplete={handleRecordingComplete}
-                    maxDuration={30}
-                    showPlayback={false}
-                    autoSubmit={true}
-                  />
                   <button
-                    className="speaking-practice-skip-btn"
-                    onClick={handleNotSure}
-                    disabled={isAssessing}
+                    type="button"
+                    className={`pronunciation-record-btn ${isRecording ? 'recording' : ''}`}
+                    onClick={toggleRecording}
+                    aria-label={isRecording ? 'Stop recording' : 'Start recording'}
                   >
-                    I'm not sure
+                    {isRecording ? (
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                      </svg>
+                    ) : (
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="6" />
+                      </svg>
+                    )}
                   </button>
+                  {!isRecording && (
+                    <button
+                      className="speaking-practice-skip-btn"
+                      onClick={handleNotSure}
+                      disabled={isAssessing}
+                    >
+                      I'm not sure
+                    </button>
+                  )}
                 </>
               ) : isAssessing ? (
                 <div className="speaking-practice-loading">

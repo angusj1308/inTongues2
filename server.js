@@ -6886,6 +6886,170 @@ Give me a JSON response with this structure:
 })
 
 /**
+ * Speaking Practice Assessment Endpoint
+ * For translation practice: user sees native text, speaks target language translation
+ * Transcribes audio, compares to exemplar, returns feedback
+ */
+app.post('/api/speech/speaking-practice', async (req, res) => {
+  try {
+    const { audioBase64, nativeSentence, targetLanguage, sourceLanguage, skipRecording, exemplar: preloadedExemplar } = req.body
+
+    if (!nativeSentence) {
+      return res.status(400).json({ error: 'Native sentence required' })
+    }
+
+    const targetLangCode = SPEECH_LANGUAGE_CODES[targetLanguage] || 'es'
+
+    // If user skipped recording, just return the exemplar
+    if (skipRecording) {
+      // Generate exemplar translation
+      const exemplarResponse = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a translation assistant. Translate the given ${sourceLanguage || 'English'} sentence into natural, conversational ${targetLanguage}. Return ONLY the translated sentence, nothing else.`
+          },
+          {
+            role: 'user',
+            content: nativeSentence
+          }
+        ],
+        temperature: 0.3
+      })
+
+      const exemplar = exemplarResponse.choices[0]?.message?.content?.trim() || ''
+
+      return res.json({
+        exemplar,
+        vocab: []
+      })
+    }
+
+    // User recorded audio - transcribe and assess
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'Audio required when not skipping recording' })
+    }
+
+    // Transcribe the audio
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
+    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+
+    const transcription = await client.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      language: targetLangCode
+    })
+
+    const userTranscription = transcription.text || ''
+
+    // Use preloaded exemplar if available, otherwise generate one
+    let exemplar = preloadedExemplar
+    if (!exemplar) {
+      const exemplarResponse = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Translate this ${sourceLanguage || 'English'} sentence into natural ${targetLanguage}. Return ONLY the translation.`
+          },
+          { role: 'user', content: nativeSentence }
+        ],
+        temperature: 0.3
+      })
+      exemplar = exemplarResponse.choices[0]?.message?.content?.trim() || ''
+    }
+
+    // Quick assessment - compare user transcription to exemplar
+    const assessmentResponse = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a ${targetLanguage} language tutor assessing a translation attempt.
+Compare the student's spoken translation to the expected translation.
+Return JSON only:
+{
+  "accuracy": 0-100,
+  "explanation": "Brief feedback on their translation (1-2 sentences)",
+  "vocab": [{"text": "word in ${targetLanguage}", "translation": "English meaning"}]
+}
+Include 1-3 useful vocab items from the exemplar sentence. Be encouraging but honest.`
+        },
+        {
+          role: 'user',
+          content: `Original (${sourceLanguage}): "${nativeSentence}"
+Expected (${targetLanguage}): "${exemplar}"
+Student said: "${userTranscription}"`
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    })
+
+    const assessment = JSON.parse(assessmentResponse.choices[0]?.message?.content || '{}')
+
+    res.json({
+      feedback: {
+        accuracy: assessment.accuracy || 50,
+        explanation: assessment.explanation || 'Keep practicing!',
+        userTranscription
+      },
+      exemplar,
+      vocab: assessment.vocab || []
+    })
+
+  } catch (error) {
+    console.error('Speaking practice error:', error)
+    res.status(500).json({ error: 'Assessment failed', details: error.message })
+  }
+})
+
+/**
+ * Batch Exemplar Prefetch Endpoint
+ * Fetches translations for multiple sentences at once
+ */
+app.post('/api/speech/exemplars', async (req, res) => {
+  try {
+    const { sentences, targetLanguage, sourceLanguage } = req.body
+
+    if (!sentences || !Array.isArray(sentences) || sentences.length === 0) {
+      return res.status(400).json({ error: 'Sentences array required' })
+    }
+
+    // Batch translate all sentences
+    const translationResponse = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a translation assistant. Translate each ${sourceLanguage || 'English'} sentence into natural, conversational ${targetLanguage}.
+Return a JSON array with translations in the same order:
+{"translations": ["translation1", "translation2", ...]}`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify(sentences)
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    })
+
+    const result = JSON.parse(translationResponse.choices[0]?.message?.content || '{"translations":[]}')
+
+    res.json({
+      exemplars: result.translations || []
+    })
+
+  } catch (error) {
+    console.error('Exemplar prefetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch exemplars', details: error.message })
+  }
+})
+
+/**
  * Full speech analysis endpoint
  * Transcribes audio and provides comprehensive feedback on correctness, accuracy, fluency
  */

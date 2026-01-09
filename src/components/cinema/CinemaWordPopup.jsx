@@ -1,14 +1,5 @@
 import { useCallback, useRef } from 'react'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
-
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../../constants/highlightColors'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
@@ -21,36 +12,36 @@ const PlayIcon = () => (
 
 // Get background style for a status button when active
 // Light mode: mix with white, Dark mode: mix with black
-const getStatusStyle = (statusLevel, isActive, languageColor, darkMode) => {
+const getStatusStyle = (statusLevel, isActive, darkMode) => {
   if (!isActive) return {}
 
   const mixBase = darkMode ? 'black' : 'white'
-  const textLight = darkMode ? '#f8fafc' : '#1e293b'
+  const textOrange = darkMode ? '#fdba74' : '#9a3412'
   const textMuted = darkMode ? '#94a3b8' : '#64748b'
 
   switch (statusLevel) {
     case 'new':
       return {
-        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, ${mixBase})`,
-        color: darkMode ? '#fdba74' : '#9a3412',
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, ${mixBase})`,
+        color: textOrange,
       }
     case 'unknown':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, ${mixBase})`,
-        color: textLight,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, ${mixBase})`,
+        color: textOrange,
       }
     case 'recognised':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, ${mixBase})`,
-        color: textLight,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, ${mixBase})`,
+        color: textOrange,
       }
     case 'familiar':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, ${mixBase})`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, ${mixBase})`,
         color: textMuted,
       }
     case 'known':
-      // Soft green - "mastered" indicator, matches WordStatusPanel
+      // Soft green - "mastered" indicator
       return {
         background: darkMode
           ? 'color-mix(in srgb, #22c55e 40%, black)'
@@ -68,7 +59,6 @@ const CinemaWordPopup = ({
   status = 'new',
   audioBase64,
   audioUrl,
-  language,
   darkMode = true,
   isClosing = false,
   onStatusChange,
@@ -76,7 +66,6 @@ const CinemaWordPopup = ({
   style = {},
 }) => {
   const audioRef = useRef(null)
-  const languageColor = getLanguageColor(language)
   const statusIndex = STATUS_LEVELS.indexOf(status)
   const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
   const hasAudio = Boolean(audioBase64 || audioUrl)
@@ -127,7 +116,7 @@ const CinemaWordPopup = ({
       <div className="cinema-word-popup-status">
         {STATUS_ABBREV.map((abbrev, i) => {
           const isActive = i === validStatusIndex
-          const statusStyle = getStatusStyle(STATUS_LEVELS[i], isActive, languageColor, darkMode)
+          const statusStyle = getStatusStyle(STATUS_LEVELS[i], isActive, darkMode)
 
           return (
             <button

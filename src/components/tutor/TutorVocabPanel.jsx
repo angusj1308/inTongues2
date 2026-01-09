@@ -1,18 +1,9 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../../constants/highlightColors'
 import { normaliseExpression, upsertVocabEntry } from '../../services/vocab'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
-
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -33,28 +24,28 @@ const ChevronDownIcon = () => (
 )
 
 // Get background style for a status button when active
-const getStatusStyle = (statusLevel, isActive, languageColor) => {
+const getStatusStyle = (statusLevel, isActive) => {
   if (!isActive) return {}
 
   switch (statusLevel) {
     case 'new':
       return {
-        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
         color: '#9a3412'
       }
     case 'unknown':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
-        color: '#1e293b'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, white)`,
+        color: '#9a3412'
       }
     case 'recognised':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
-        color: '#1e293b'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#9a3412'
       }
     case 'familiar':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, white)`,
         color: '#64748b'
       }
     case 'known':
@@ -72,7 +63,6 @@ const WordRow = ({
   translation,
   status = 'new',
   audioUrl,
-  languageColor,
   onStatusChange,
   onPlayAudio,
   isLoadingAudio,
@@ -115,7 +105,7 @@ const WordRow = ({
       <div className="tutor-vocab-status-selector">
         {STATUS_ABBREV.map((abbrev, i) => {
           const isActive = i === validStatusIndex
-          const style = getStatusStyle(STATUS_LEVELS[i], isActive, languageColor)
+          const style = getStatusStyle(STATUS_LEVELS[i], isActive)
 
           return (
             <button
@@ -148,7 +138,6 @@ const TutorVocabPanel = ({
   const [wordTranslations, setWordTranslations] = useState({})
   const [loadingWords, setLoadingWords] = useState(new Set())
   const audioRef = useRef(null)
-  const languageColor = getLanguageColor(language)
   const fetchedWordsRef = useRef(new Set())
 
   // Extract words from the message text
@@ -353,7 +342,6 @@ const TutorVocabPanel = ({
                 translation={wordData.translation}
                 status={wordData.status}
                 audioUrl={wordData.audioUrl}
-                languageColor={languageColor}
                 onStatusChange={handleStatusChange}
                 onPlayAudio={handlePlayAudio}
                 isLoadingAudio={loadingWords.has(wordData.normalised)}

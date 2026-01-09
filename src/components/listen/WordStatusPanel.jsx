@@ -1,18 +1,8 @@
 import { useCallback, useMemo, useRef } from 'react'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../../constants/highlightColors'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
-
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  // Try exact match first, then capitalized version
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -23,32 +13,28 @@ const PlayIcon = () => (
 // Get background style for a status button when active
 // Uses exact same color codes and opacity values as the word highlighting system
 // Mixes with white (not transparent) to match highlight appearance on white text background
-const getStatusStyle = (statusLevel, isActive, languageColor) => {
+const getStatusStyle = (statusLevel, isActive) => {
   if (!isActive) return {}
 
   switch (statusLevel) {
     case 'new':
-      // Always orange #F97316 at STATUS_OPACITY.new
       return {
-        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
         color: '#9a3412'
       }
     case 'unknown':
-      // Language color at STATUS_OPACITY.unknown
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
-        color: '#1e293b'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, white)`,
+        color: '#9a3412'
       }
     case 'recognised':
-      // Language color at STATUS_OPACITY.recognised
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
-        color: '#1e293b'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#9a3412'
       }
     case 'familiar':
-      // Language color at STATUS_OPACITY.familiar
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, white)`,
         color: '#64748b'
       }
     case 'known':
@@ -68,7 +54,6 @@ const WordRow = ({
   status = 'new',
   audioBase64,
   audioUrl,
-  languageColor,
   onStatusChange,
   onPlayAudio,
 }) => {
@@ -106,7 +91,7 @@ const WordRow = ({
       <div className="status-selector">
         {STATUS_ABBREV.map((abbrev, i) => {
           const isActive = i === validStatusIndex
-          const style = getStatusStyle(STATUS_LEVELS[i], isActive, languageColor)
+          const style = getStatusStyle(STATUS_LEVELS[i], isActive)
 
           return (
             <button
@@ -129,14 +114,12 @@ const WordRow = ({
 
 const WordStatusPanel = ({
   words = [],
-  language,
   onStatusChange,
   onSaveAndContinue,
   passNavigation,
 }) => {
   const audioRef = useRef(null)
   const initialWordsRef = useRef(null)
-  const languageColor = getLanguageColor(language)
 
   // Capture initial non-known words on first render
   // Words that start as 'known' are excluded, but words moved to 'known' during session stay visible
@@ -190,7 +173,6 @@ const WordStatusPanel = ({
                 status={wordData.status}
                 audioBase64={wordData.audioBase64}
                 audioUrl={wordData.audioUrl}
-                languageColor={languageColor}
                 onStatusChange={onStatusChange}
                 onPlayAudio={handlePlayAudio}
               />

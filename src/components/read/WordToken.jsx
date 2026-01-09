@@ -1,21 +1,16 @@
 import {
-  LANGUAGE_HIGHLIGHT_COLORS,
+  HIGHLIGHT_COLOR,
   STATUS_OPACITY,
 } from '../../constants/highlightColors'
 
-function getHighlightStyle({ language, status, mode }) {
+function getHighlightStyle({ status, mode }) {
   if (mode === 'extensive') return {}
 
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
 
-  // New words are always orange, others use language color
-  const base = status === 'new'
-    ? '#F97316'
-    : (LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default)
-
   return {
-    '--hlt-base': base,
+    '--hlt-base': HIGHLIGHT_COLOR,
     '--hlt-opacity': opacity,
   }
 }
@@ -28,10 +23,9 @@ const normaliseStatus = (status) => {
   return 'new'
 }
 
-const WordToken = ({ text, status, language, readerMode, onWordClick }) => {
+const WordToken = ({ text, status, readerMode, onWordClick }) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
-    language,
     status: normalisedStatus,
     mode: readerMode,
   })

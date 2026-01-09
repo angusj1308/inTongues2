@@ -536,54 +536,23 @@ textarea {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #0f172a;
+  color: #64748b;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color 0.15s ease;
   scroll-snap-align: center;
-  position: relative;
 }
 
 .dashboard-nav-button.active {
   color: #0f172a;
-  font-weight: 700;
 }
 
 .dashboard-nav-button:hover {
-  color: #000;
-}
-
-.dashboard-nav-button.active:hover {
-  color: #000;
-}
-
-.dashboard-nav-button::after {
-  content: '';
-  position: absolute;
-  left: 0.8rem;
-  right: 0.8rem;
-  bottom: 0.35rem;
-  height: 2px;
-  background: #0f172a;
-  border-radius: 999px;
-  transform: scaleX(0);
-  opacity: 0;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.dashboard-nav-button:not(.active):hover::after {
-  opacity: 0.45;
-  transform: scaleX(1);
-  height: 1px;
-}
-
-.dashboard-nav-button.active::after {
-  opacity: 1;
-  transform: scaleX(1);
+  color: #0f172a;
 }
 
 .dashboard-brand-button {

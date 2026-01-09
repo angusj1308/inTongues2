@@ -10,6 +10,46 @@ const LANGUAGE_NATIVE_NAMES = {
   French: 'Français',
   Spanish: 'Español',
   Italian: 'Italiano',
+  German: 'Deutsch',
+  Portuguese: 'Português',
+  Japanese: '日本語',
+  Chinese: '中文',
+  Korean: '한국어',
+  Russian: 'Русский',
+  Arabic: 'العربية',
+  Dutch: 'Nederlands',
+  Swedish: 'Svenska',
+  Norwegian: 'Norsk',
+  Danish: 'Dansk',
+  Polish: 'Polski',
+  Turkish: 'Türkçe',
+  Greek: 'Ελληνικά',
+  Hebrew: 'עברית',
+  Hindi: 'हिन्दी',
+}
+
+// "in" translated to each language
+const LANGUAGE_PREFIX = {
+  English: 'in',
+  French: 'en',
+  Spanish: 'en',
+  Italian: 'in',
+  German: 'auf',
+  Portuguese: 'em',
+  Japanese: 'で',
+  Chinese: '用',
+  Korean: '로',
+  Russian: 'на',
+  Arabic: 'بـ',
+  Dutch: 'in',
+  Swedish: 'på',
+  Norwegian: 'på',
+  Danish: 'på',
+  Polish: 'po',
+  Turkish: 'de',
+  Greek: 'στα',
+  Hebrew: 'ב',
+  Hindi: 'में',
 }
 
 const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
@@ -51,6 +91,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     if (!activeLanguage) return '...'
     const nativeName = LANGUAGE_NATIVE_NAMES[activeLanguage] || activeLanguage
     return nativeName.replace(/\s+/g, '')
+  }, [activeLanguage])
+
+  const brandPrefix = useMemo(() => {
+    if (!activeLanguage) return 'in'
+    return LANGUAGE_PREFIX[activeLanguage] || 'in'
   }, [activeLanguage])
 
   const filteredLanguages = useMemo(() => {
@@ -127,7 +172,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
         <div className="dashboard-brand-band">
           <button className="dashboard-brand-button" onClick={() => handleTabClick('home')}>
             <div className="dashboard-brand">
-              <span className="dashboard-brand-prefix">in</span>
+              <span className="dashboard-brand-prefix">{brandPrefix}</span>
               <span className="dashboard-brand-language">{brandLanguage}</span>
               <span className="brand-dot">.</span>
             </div>

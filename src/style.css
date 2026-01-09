@@ -295,7 +295,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  padding: 1rem 0 1rem;
+  padding: 1.75rem 0 1.5rem;
 }
 
 .dashboard-main {

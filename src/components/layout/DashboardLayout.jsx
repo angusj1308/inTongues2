@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
+import { resetVocabProgress } from '../../services/vocab'
 
 export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review', 'tutor']
 
@@ -58,6 +59,8 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [languageSearch, setLanguageSearch] = useState('')
+  const [confirmReset, setConfirmReset] = useState(null) // language being confirmed for reset
+  const [resetting, setResetting] = useState(false)
 
   const languageMenuRef = useRef(null)
   const accountMenuRef = useRef(null)
@@ -132,6 +135,28 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     setLanguageSearch('')
   }
 
+  const handleResetProgress = async (language) => {
+    if (!user || !language || resetting) return
+
+    // If not confirmed, show confirmation
+    if (confirmReset !== language) {
+      setConfirmReset(language)
+      return
+    }
+
+    // Confirmed - do the reset
+    setResetting(true)
+    try {
+      const count = await resetVocabProgress(user.uid, language)
+      console.log(`Reset ${count} words for ${language}`)
+      setConfirmReset(null)
+    } catch (err) {
+      console.error('Failed to reset progress:', err)
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const handleAddLanguage = async () => {
     const trimmed = languageSearch.trim()
     if (!trimmed) return
@@ -156,6 +181,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     const handleClickOutside = (event) => {
       if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
         setLanguageMenuOpen(false)
+        setConfirmReset(null)
       }
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
         setAccountMenuOpen(false)
@@ -207,70 +233,90 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                 My languages
               </button>
               {languageMenuOpen && (
-                <div className="dashboard-menu">
-                  <div className="menu-search">
+                <div className="dashboard-menu lang-menu">
+                  <div className="lang-menu-search">
                     <input
                       type="text"
-                      placeholder="Search or add language"
+                      placeholder="Search or add language..."
                       value={languageSearch}
                       onChange={(event) => setLanguageSearch(event.target.value)}
                     />
-                    <button className="menu-add" onClick={handleAddLanguage} disabled={!languageSearch.trim()}>
-                      Add
-                    </button>
-                  </div>
-                  <div className="menu-section">
-                    <p className="menu-label">Native language</p>
-                    {nativeLanguage ? (
-                      <div className="menu-row">
-                        <div className="menu-language">
-                          <span>{nativeLanguage}</span>
-                          <span className="pill">Native</span>
-                        </div>
-                        <button
-                          className="menu-action"
-                          onClick={() => handleLanguageChange(nativeLanguage)}
-                          disabled={activeLanguage === nativeLanguage}
-                        >
-                          {activeLanguage === nativeLanguage ? 'Active' : 'Use'}
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="muted small">Set your native language inside My account.</p>
+                    {languageSearch.trim() && (
+                      <button className="lang-menu-add" onClick={handleAddLanguage}>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                      </button>
                     )}
                   </div>
-                  <div className="menu-section">
-                    <p className="menu-label">Studying</p>
+
+                  <div className="lang-menu-section">
+                    <p className="lang-menu-label">Studying</p>
                     {filteredLanguages.length ? (
                       filteredLanguages.map((language) => (
-                        <div key={language} className="menu-row">
-                          <div className="menu-language">
-                            <span>{language}</span>
-                            {activeLanguage === language && <span className="pill">Active</span>}
-                          </div>
-                          <div className="menu-actions-inline">
-                            <button
-                              className="menu-action"
-                              onClick={() => handleLanguageChange(language)}
-                              disabled={activeLanguage === language}
-                            >
-                              {activeLanguage === language ? 'Current' : 'Use'}
-                            </button>
-                            <button
-                              className="menu-action subtle"
-                              onClick={() => handleRemoveLanguage(language)}
-                              disabled={languages.length <= 1}
-                            >
-                              Remove
-                            </button>
-                          </div>
+                        <div key={language} className="lang-menu-item">
+                          {confirmReset === language ? (
+                            <div className="lang-menu-confirm">
+                              <span className="lang-menu-confirm-text">Reset all progress?</span>
+                              <div className="lang-menu-confirm-actions">
+                                <button
+                                  className="lang-menu-confirm-yes"
+                                  onClick={() => handleResetProgress(language)}
+                                  disabled={resetting}
+                                >
+                                  {resetting ? '...' : 'Yes'}
+                                </button>
+                                <button
+                                  className="lang-menu-confirm-no"
+                                  onClick={() => setConfirmReset(null)}
+                                >
+                                  No
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                className={`lang-menu-name ${activeLanguage === language ? 'active' : ''}`}
+                                onClick={() => handleLanguageChange(language)}
+                              >
+                                <span className="lang-menu-name-text">{language}</span>
+                                {activeLanguage === language && (
+                                  <span className="lang-menu-active-dot" />
+                                )}
+                              </button>
+                              <div className="lang-menu-actions">
+                                <button
+                                  className="lang-menu-icon-btn"
+                                  onClick={() => handleResetProgress(language)}
+                                  title="Reset progress"
+                                >
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M1 4v6h6" />
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="lang-menu-icon-btn danger"
+                                  onClick={() => handleRemoveLanguage(language)}
+                                  disabled={languages.length <= 1}
+                                  title="Remove language"
+                                >
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))
                     ) : (
-                      <p className="muted small">No matches. Add a new language above.</p>
+                      <p className="lang-menu-empty">No matches. Type above to add.</p>
                     )}
                   </div>
-                  <button className="menu-footer" onClick={() => navigate('/select-language')}>
+
+                  <button className="lang-menu-footer" onClick={() => navigate('/select-language')}>
                     Open language finder
                   </button>
                 </div>

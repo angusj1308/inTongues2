@@ -495,6 +495,242 @@ textarea {
   background: #f8fafc;
 }
 
+/* ===========================================
+   Language Menu - Redesigned
+   =========================================== */
+
+.lang-menu {
+  min-width: 280px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.lang-menu-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.lang-menu-search input {
+  flex: 1;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  background: #fafafa;
+  font-family: 'Garamond', serif;
+  font-size: 0.9rem;
+}
+
+.lang-menu-search input:focus {
+  outline: none;
+  border-color: #0f172a;
+  background: #fff;
+}
+
+.lang-menu-add {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease;
+}
+
+.lang-menu-add:hover {
+  background: #1e293b;
+}
+
+.lang-menu-section {
+  padding: 0.5rem 0;
+}
+
+.lang-menu-label {
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.lang-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.5rem;
+}
+
+.lang-menu-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.5rem;
+  border: none;
+  background: transparent;
+  font-family: 'Garamond', serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 150ms ease;
+  text-align: left;
+}
+
+.lang-menu-name:hover {
+  background: #f8fafc;
+}
+
+.lang-menu-name.active {
+  font-weight: 600;
+}
+
+.lang-menu-name-text {
+  flex: 1;
+}
+
+.lang-menu-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+.lang-menu-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.lang-menu-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.lang-menu-icon-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.lang-menu-icon-btn.danger:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.lang-menu-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.lang-menu-icon-btn:disabled:hover {
+  background: transparent;
+  color: #94a3b8;
+}
+
+/* Reset confirmation */
+.lang-menu-confirm {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: #fef2f2;
+  border-radius: 6px;
+  margin: 0.25rem 0;
+}
+
+.lang-menu-confirm-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #991b1b;
+}
+
+.lang-menu-confirm-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.lang-menu-confirm-yes,
+.lang-menu-confirm-no {
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lang-menu-confirm-yes {
+  background: #ef4444;
+  color: #fff;
+}
+
+.lang-menu-confirm-yes:hover {
+  background: #dc2626;
+}
+
+.lang-menu-confirm-yes:disabled {
+  opacity: 0.7;
+}
+
+.lang-menu-confirm-no {
+  background: #fff;
+  color: #64748b;
+  border: 1px solid #e5e5e5;
+}
+
+.lang-menu-confirm-no:hover {
+  background: #f8fafc;
+}
+
+.lang-menu-empty {
+  padding: 1rem 0.75rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.lang-menu-footer {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-top: 1px solid #e5e5e5;
+  background: #fafafa;
+  font-family: 'Garamond', serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 150ms ease;
+  text-align: center;
+}
+
+.lang-menu-footer:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
 .dashboard-nav {
   display: flex;
   align-items: center;

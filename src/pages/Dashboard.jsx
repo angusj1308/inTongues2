@@ -527,63 +527,9 @@ const Dashboard = () => {
         >
           {activeTab === 'home' && (
             <div className="home-content">
-              {/* Two Column Layout: Today's Routine + Level */}
+              {/* Row 1: Level + Progress Graph */}
               <div className="home-grid-two">
-                {/* Today's Routine - Left */}
-                <div className="home-card">
-                  <h3 className="home-card-title">Today</h3>
-                  {todayActivities.length > 0 ? (
-                    <div className="home-today-list">
-                      {todayActivities.map((activity) => {
-                        const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
-                        return (
-                          <button
-                            key={activity.id}
-                            className="home-today-item"
-                            onClick={() => {
-                              const tabMap = {
-                                reading: 'read',
-                                listening: 'listen',
-                                speaking: 'speak',
-                                review: 'review',
-                                writing: 'write',
-                                tutor: 'tutor',
-                              }
-                              handleTabClick(tabMap[activity.activityType] || 'read')
-                            }}
-                          >
-                            <span className="home-today-time">{activity.time || '—'}</span>
-                            <span className="home-today-activity">{activityConfig.label}</span>
-                            <span className="home-today-duration">{activity.duration}m</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="home-suggested-routine">
-                      <p className="home-suggested-label">Suggested for {levelInfo.level}</p>
-                      <div className="home-suggested-breakdown">
-                        <div className="home-suggested-item">
-                          <span className="home-suggested-percent">80%</span>
-                          <span className="home-suggested-desc">Intensive reading with audio</span>
-                        </div>
-                        <div className="home-suggested-item">
-                          <span className="home-suggested-percent">10%</span>
-                          <span className="home-suggested-desc">Extensive listening to studied material</span>
-                        </div>
-                        <div className="home-suggested-item">
-                          <span className="home-suggested-percent">10%</span>
-                          <span className="home-suggested-desc">Optional review</span>
-                        </div>
-                      </div>
-                      <p className="home-suggested-goal">
-                        Acquire foundational vocabulary and familiarise yourself with the sound of the language.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Level - Right */}
+                {/* Level - Left */}
                 <div className="home-card">
                   <h3 className="home-card-title">Level</h3>
                   <div className="home-level-display">
@@ -604,33 +550,95 @@ const Dashboard = () => {
                     </span>
                   )}
                 </div>
+
+                {/* Progress Graph - Right */}
+                <div className="home-card">
+                  <div className="home-card-header">
+                    <h3 className="home-card-title">Progress</h3>
+                    <div className="home-progress-periods">
+                      <button className="home-period-btn active">W</button>
+                      <button className="home-period-btn">M</button>
+                      <button className="home-period-btn">Y</button>
+                      <button className="home-period-btn">5Y</button>
+                    </div>
+                  </div>
+                  <div className="home-progress-chart">
+                    <div className="home-progress-line">
+                      {/* Placeholder line graph - will be replaced with real data */}
+                      <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="home-progress-svg">
+                        <polyline
+                          fill="none"
+                          stroke="#0f172a"
+                          strokeWidth="1.5"
+                          points="0,50 30,45 60,48 90,40 120,35 150,30 180,25 200,20"
+                        />
+                      </svg>
+                    </div>
+                    <div className="home-progress-bars">
+                      {/* Placeholder accumulation bars */}
+                      {[20, 35, 15, 45, 30, 55, 40].map((h, i) => (
+                        <div key={i} className="home-progress-bar" style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Stats Row - Minimal */}
-              <div className="home-stats-minimal">
-                <div className="home-stat">
-                  <span className="home-stat-value">
-                    {homeStatsLoading ? '—' : homeStats.wordsRead.toLocaleString()}
-                  </span>
-                  <span className="home-stat-label">words read</span>
-                </div>
-                <span className="home-stat-divider">·</span>
-                <div className="home-stat">
-                  <span className="home-stat-value">
-                    {homeStatsLoading ? '—' : homeStats.listeningFormatted}
-                  </span>
-                  <span className="home-stat-label">listened</span>
-                </div>
-                <span className="home-stat-divider">·</span>
-                <div className="home-stat">
-                  <span className="home-stat-value">
-                    {homeStatsLoading ? '—' : homeStats.knownWords.toLocaleString()}
-                  </span>
-                  <span className="home-stat-label">known</span>
-                </div>
+              {/* Row 2: Today's Routine - Full Width */}
+              <div className="home-card home-card-wide">
+                <h3 className="home-card-title">Today</h3>
+                {todayActivities.length > 0 ? (
+                  <div className="home-today-list home-today-horizontal">
+                    {todayActivities.map((activity) => {
+                      const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
+                      return (
+                        <button
+                          key={activity.id}
+                          className="home-today-item"
+                          onClick={() => {
+                            const tabMap = {
+                              reading: 'read',
+                              listening: 'listen',
+                              speaking: 'speak',
+                              review: 'review',
+                              writing: 'write',
+                              tutor: 'tutor',
+                            }
+                            handleTabClick(tabMap[activity.activityType] || 'read')
+                          }}
+                        >
+                          <span className="home-today-time">{activity.time || '—'}</span>
+                          <span className="home-today-activity">{activityConfig.label}</span>
+                          <span className="home-today-duration">{activity.duration}m</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="home-suggested-routine">
+                    <p className="home-suggested-label">Suggested for {levelInfo.level}</p>
+                    <div className="home-suggested-breakdown">
+                      <div className="home-suggested-item">
+                        <span className="home-suggested-percent">80%</span>
+                        <span className="home-suggested-desc">Intensive reading with audio</span>
+                      </div>
+                      <div className="home-suggested-item">
+                        <span className="home-suggested-percent">10%</span>
+                        <span className="home-suggested-desc">Extensive listening to studied material</span>
+                      </div>
+                      <div className="home-suggested-item">
+                        <span className="home-suggested-percent">10%</span>
+                        <span className="home-suggested-desc">Optional review</span>
+                      </div>
+                    </div>
+                    <p className="home-suggested-goal">
+                      Acquire foundational vocabulary and familiarise yourself with the sound of the language.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Routine Builder */}
+              {/* Row 3: Weekly Study Plan */}
               <RoutineBuilder userId={user?.uid} language={activeLanguage} />
             </div>
           )}

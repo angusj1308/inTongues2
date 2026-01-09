@@ -20722,6 +20722,106 @@ body.active-pass-locked {
   margin-top: 0.5rem;
 }
 
+/* Card Header with Controls */
+.home-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.home-card-header .home-card-title {
+  margin: 0;
+}
+
+/* Progress Graph Card */
+.home-progress-periods {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.home-period-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.home-period-btn:hover {
+  color: #64748b;
+  background: #f5f5f5;
+}
+
+.home-period-btn.active {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.home-progress-chart {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 80px;
+}
+
+.home-progress-line {
+  flex: 1;
+  position: relative;
+}
+
+.home-progress-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.home-progress-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 30px;
+}
+
+.home-progress-bar {
+  flex: 1;
+  background: #e5e5e5;
+  border-radius: 2px;
+  transition: height 300ms ease;
+}
+
+/* Wide Card */
+.home-card-wide {
+  min-height: auto;
+}
+
+/* Horizontal Today List */
+.home-today-horizontal {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.home-today-horizontal .home-today-item {
+  flex: none;
+  width: auto;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.home-today-horizontal .home-today-item:hover {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: #fafafa;
+}
+
 /* Suggested Routine */
 .home-suggested-routine {
   flex: 1;

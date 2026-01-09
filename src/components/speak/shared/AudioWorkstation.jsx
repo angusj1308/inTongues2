@@ -4,9 +4,9 @@ import './AudioWorkstation.css'
 /**
  * DAW-style audio workstation for recording, editing, and finalizing audio
  * Features:
- * - Waveform timeline display
+ * - Waveform timeline display with moving playhead
+ * - Draggable region handles to select a section
  * - Playback with seek/scrub
- * - Region selection for loop or punch-in
  * - Recording with countdown
  * - Finalize to complete
  */
@@ -30,11 +30,10 @@ const AudioWorkstation = ({
   const [duration, setDuration] = useState(0)
   const [isLooping, setIsLooping] = useState(false)
 
-  // Region selection state
+  // Region selection state (in seconds)
   const [regionStart, setRegionStart] = useState(null)
   const [regionEnd, setRegionEnd] = useState(null)
-  const [isDraggingRegion, setIsDraggingRegion] = useState(false)
-  const [dragType, setDragType] = useState(null) // 'start', 'end', 'move'
+  const [isDragging, setIsDragging] = useState(null) // 'start', 'end', 'playhead', or null
 
   // Waveform state
   const [waveformData, setWaveformData] = useState([])
@@ -42,10 +41,10 @@ const AudioWorkstation = ({
 
   // Refs
   const audioRef = useRef(null)
-  const canvasRef = useRef(null)
   const timelineRef = useRef(null)
   const animationRef = useRef(null)
   const liveWaveformRef = useRef([])
+  const playheadAnimationRef = useRef(null)
 
   // Format time as MM:SS
   const formatTime = (seconds) => {
@@ -66,7 +65,7 @@ const AudioWorkstation = ({
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
 
       const channelData = audioBuffer.getChannelData(0)
-      const samples = 200 // Number of bars in waveform
+      const samples = 200
       const blockSize = Math.floor(channelData.length / samples)
       const waveform = []
 
@@ -78,7 +77,6 @@ const AudioWorkstation = ({
         waveform.push(sum / blockSize)
       }
 
-      // Normalize
       const max = Math.max(...waveform)
       const normalized = waveform.map(v => v / max)
 
@@ -109,17 +107,14 @@ const AudioWorkstation = ({
       const dataArray = new Uint8Array(bufferLength)
       analyserNode.getByteTimeDomainData(dataArray)
 
-      // Get average amplitude
       let sum = 0
       for (let i = 0; i < bufferLength; i++) {
         sum += Math.abs(dataArray[i] - 128)
       }
       const amplitude = sum / bufferLength / 128
 
-      // Add to live waveform
       liveWaveformRef.current.push(amplitude)
 
-      // Keep last 200 samples for display
       if (liveWaveformRef.current.length > 200) {
         liveWaveformRef.current = liveWaveformRef.current.slice(-200)
       }
@@ -147,22 +142,45 @@ const AudioWorkstation = ({
     }
   }, [isRecording, recordingTime])
 
-  // Update current time during playback
+  // Smooth playhead animation during playback
+  useEffect(() => {
+    if (!isPlaying || !audioRef.current) {
+      if (playheadAnimationRef.current) {
+        cancelAnimationFrame(playheadAnimationRef.current)
+      }
+      return
+    }
+
+    const updatePlayhead = () => {
+      if (audioRef.current) {
+        setCurrentTime(audioRef.current.currentTime)
+
+        // Handle region looping
+        if (isLooping && regionStart !== null && regionEnd !== null) {
+          if (audioRef.current.currentTime >= regionEnd) {
+            audioRef.current.currentTime = regionStart
+          }
+        }
+      }
+      if (isPlaying) {
+        playheadAnimationRef.current = requestAnimationFrame(updatePlayhead)
+      }
+    }
+
+    playheadAnimationRef.current = requestAnimationFrame(updatePlayhead)
+
+    return () => {
+      if (playheadAnimationRef.current) {
+        cancelAnimationFrame(playheadAnimationRef.current)
+      }
+    }
+  }, [isPlaying, isLooping, regionStart, regionEnd])
+
+  // Audio event handlers
   useEffect(() => {
     if (!audioRef.current) return
 
     const audio = audioRef.current
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime)
-
-      // Handle region looping
-      if (isLooping && regionStart !== null && regionEnd !== null) {
-        if (audio.currentTime >= regionEnd) {
-          audio.currentTime = regionStart
-        }
-      }
-    }
 
     const handleEnded = () => {
       if (isLooping && regionStart !== null && regionEnd !== null) {
@@ -181,16 +199,107 @@ const AudioWorkstation = ({
       setDuration(audio.duration)
     }
 
-    audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
     }
   }, [isLooping, regionStart, regionEnd])
+
+  // Get time from mouse position
+  const getTimeFromMouseEvent = useCallback((e) => {
+    if (!timelineRef.current || duration <= 0) return 0
+    const rect = timelineRef.current.getBoundingClientRect()
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+    return (x / rect.width) * duration
+  }, [duration])
+
+  // Mouse down on timeline
+  const handleTimelineMouseDown = useCallback((e) => {
+    if (isRecording || !audioUrl) return
+
+    const rect = timelineRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const percent = x / rect.width
+    const clickTime = percent * duration
+
+    // Check if clicking near region handles
+    if (regionStart !== null && regionEnd !== null) {
+      const startPercent = (regionStart / duration) * 100
+      const endPercent = (regionEnd / duration) * 100
+      const clickPercent = percent * 100
+      const handleThreshold = 2 // percent
+
+      if (Math.abs(clickPercent - startPercent) < handleThreshold) {
+        setIsDragging('start')
+        return
+      }
+      if (Math.abs(clickPercent - endPercent) < handleThreshold) {
+        setIsDragging('end')
+        return
+      }
+    }
+
+    // Otherwise, move playhead
+    setIsDragging('playhead')
+    if (audioRef.current) {
+      audioRef.current.currentTime = clickTime
+      setCurrentTime(clickTime)
+    }
+  }, [isRecording, audioUrl, duration, regionStart, regionEnd])
+
+  // Mouse move for dragging
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e) => {
+      const time = getTimeFromMouseEvent(e)
+
+      if (isDragging === 'playhead') {
+        if (audioRef.current) {
+          audioRef.current.currentTime = time
+          setCurrentTime(time)
+        }
+      } else if (isDragging === 'start') {
+        if (regionEnd !== null && time < regionEnd) {
+          setRegionStart(time)
+        }
+      } else if (isDragging === 'end') {
+        if (regionStart !== null && time > regionStart) {
+          setRegionEnd(time)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(null)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, getTimeFromMouseEvent, regionStart, regionEnd])
+
+  // Double click to create region
+  const handleTimelineDoubleClick = useCallback((e) => {
+    if (isRecording || !audioUrl || duration <= 0) return
+
+    const clickTime = getTimeFromMouseEvent(e)
+
+    // Create a region around the click point (20% of duration)
+    const regionSize = duration * 0.2
+    const start = Math.max(0, clickTime - regionSize / 2)
+    const end = Math.min(duration, clickTime + regionSize / 2)
+
+    setRegionStart(start)
+    setRegionEnd(end)
+  }, [isRecording, audioUrl, duration, getTimeFromMouseEvent])
 
   // Play/pause toggle
   const togglePlayback = useCallback(() => {
@@ -200,44 +309,16 @@ const AudioWorkstation = ({
       audioRef.current.pause()
       setIsPlaying(false)
     } else {
-      // If region is selected, start from region start
-      if (regionStart !== null && !isPlaying) {
-        audioRef.current.currentTime = regionStart
+      // If region is selected and playhead is outside, start from region start
+      if (regionStart !== null && regionEnd !== null) {
+        if (currentTime < regionStart || currentTime >= regionEnd) {
+          audioRef.current.currentTime = regionStart
+        }
       }
       audioRef.current.play()
       setIsPlaying(true)
     }
-  }, [isPlaying, audioUrl, regionStart])
-
-  // Seek to position
-  const handleTimelineClick = useCallback((e) => {
-    if (!timelineRef.current || !audioRef.current || isRecording) return
-
-    const rect = timelineRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const percent = x / rect.width
-    const newTime = percent * duration
-
-    // If shift key held, set region
-    if (e.shiftKey) {
-      if (regionStart === null) {
-        setRegionStart(newTime)
-      } else if (regionEnd === null) {
-        setRegionEnd(Math.max(regionStart, newTime))
-        if (newTime < regionStart) {
-          setRegionStart(newTime)
-          setRegionEnd(regionStart)
-        }
-      } else {
-        // Reset and start new region
-        setRegionStart(newTime)
-        setRegionEnd(null)
-      }
-    } else {
-      audioRef.current.currentTime = newTime
-      setCurrentTime(newTime)
-    }
-  }, [duration, isRecording, regionStart, regionEnd])
+  }, [isPlaying, audioUrl, regionStart, regionEnd, currentTime])
 
   // Clear region selection
   const clearRegion = useCallback(() => {
@@ -268,11 +349,8 @@ const AudioWorkstation = ({
     onReset()
   }, [isPlaying, clearRegion, onReset])
 
-  // Calculate playhead position
+  // Calculate positions
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
-  const recordingProgress = isRecording ? 100 : 0
-
-  // Calculate region positions
   const regionStartPercent = regionStart !== null && duration > 0 ? (regionStart / duration) * 100 : null
   const regionEndPercent = regionEnd !== null && duration > 0 ? (regionEnd / duration) * 100 : null
 
@@ -286,22 +364,29 @@ const AudioWorkstation = ({
       {/* Waveform Timeline */}
       <div className="daw-timeline-container">
         <div
-          className="daw-timeline"
+          className={`daw-timeline ${isDragging ? 'dragging' : ''}`}
           ref={timelineRef}
-          onClick={handleTimelineClick}
+          onMouseDown={handleTimelineMouseDown}
+          onDoubleClick={handleTimelineDoubleClick}
         >
           {/* Waveform bars */}
           <div className="daw-waveform">
-            {waveformData.map((amplitude, i) => (
-              <div
-                key={i}
-                className="daw-waveform-bar"
-                style={{
-                  height: `${Math.max(4, amplitude * 100)}%`,
-                  opacity: isRecording ? 1 : 0.7,
-                }}
-              />
-            ))}
+            {waveformData.map((amplitude, i) => {
+              const barPercent = (i / waveformData.length) * 100
+              const isInRegion = regionStartPercent !== null && regionEndPercent !== null &&
+                barPercent >= regionStartPercent && barPercent <= regionEndPercent
+              const isBeforePlayhead = barPercent <= playheadPosition
+
+              return (
+                <div
+                  key={i}
+                  className={`daw-waveform-bar ${isInRegion ? 'in-region' : ''} ${isBeforePlayhead && !isRecording ? 'played' : ''}`}
+                  style={{
+                    height: `${Math.max(4, amplitude * 100)}%`,
+                  }}
+                />
+              )
+            })}
             {waveformData.length === 0 && !isRecording && (
               <div className="daw-waveform-empty">
                 {isGeneratingWaveform ? 'Loading waveform...' : 'Press record to start'}
@@ -309,7 +394,7 @@ const AudioWorkstation = ({
             )}
           </div>
 
-          {/* Region selection overlay */}
+          {/* Region selection overlay with draggable handles */}
           {regionStartPercent !== null && regionEndPercent !== null && (
             <div
               className="daw-region"
@@ -318,17 +403,35 @@ const AudioWorkstation = ({
                 width: `${regionEndPercent - regionStartPercent}%`,
               }}
             >
-              <div className="daw-region-handle daw-region-handle-start" />
-              <div className="daw-region-handle daw-region-handle-end" />
+              <div
+                className="daw-region-handle daw-region-handle-start"
+                onMouseDown={(e) => {
+                  e.stopPropagation()
+                  setIsDragging('start')
+                }}
+              />
+              <div
+                className="daw-region-handle daw-region-handle-end"
+                onMouseDown={(e) => {
+                  e.stopPropagation()
+                  setIsDragging('end')
+                }}
+              />
+              <div className="daw-region-time">
+                {formatTime(regionEnd - regionStart)}
+              </div>
             </div>
           )}
 
           {/* Playhead */}
           {!isRecording && duration > 0 && (
             <div
-              className="daw-playhead"
+              className={`daw-playhead ${isPlaying ? 'playing' : ''}`}
               style={{ left: `${playheadPosition}%` }}
-            />
+            >
+              <div className="daw-playhead-head" />
+              <div className="daw-playhead-line" />
+            </div>
           )}
 
           {/* Recording indicator */}
@@ -349,89 +452,31 @@ const AudioWorkstation = ({
           <span className="daw-time-duration">
             {isRecording ? '--:--' : formatTime(duration)}
           </span>
+          {regionStart !== null && regionEnd !== null && (
+            <span className="daw-time-region">
+              (selection: {formatTime(regionEnd - regionStart)})
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Transport Controls */}
+      {/* Transport Controls - Centralized */}
       <div className="daw-transport">
-        {/* Left side - playback controls */}
-        <div className="daw-transport-left">
-          {audioUrl && !isRecording && (
-            <>
-              <button
-                className="daw-btn daw-btn-transport"
-                onClick={() => {
-                  if (audioRef.current) {
-                    audioRef.current.currentTime = 0
-                    setCurrentTime(0)
-                  }
-                }}
-                title="Go to start"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 6h2v12H6V6zm3.5 6 8.5 6V6l-8.5 6z" />
-                </svg>
-              </button>
-
-              <button
-                className={`daw-btn daw-btn-play ${isPlaying ? 'playing' : ''}`}
-                onClick={togglePlayback}
-                title={isPlaying ? 'Pause' : 'Play'}
-              >
-                {isPlaying ? (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                  </svg>
-                ) : (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                )}
-              </button>
-
-              <button
-                className={`daw-btn daw-btn-transport ${isLooping ? 'active' : ''}`}
-                onClick={() => setIsLooping(!isLooping)}
-                title={isLooping ? 'Disable loop' : 'Enable loop'}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 2l4 4-4 4" />
-                  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                  <path d="M7 22l-4-4 4-4" />
-                  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-                </svg>
-              </button>
-
-              {regionStart !== null && (
-                <button
-                  className="daw-btn daw-btn-transport"
-                  onClick={clearRegion}
-                  title="Clear selection"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Center - record controls */}
-        <div className="daw-transport-center">
+        <div className="daw-transport-controls">
+          {/* Initial record button */}
           {!isRecording && !audioUrl && (
             <button
-              className="daw-btn daw-btn-record"
+              className="daw-btn daw-btn-record daw-btn-large"
               onClick={onStartRecording}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                 <circle cx="12" cy="12" r="8" />
               </svg>
               <span>Record</span>
             </button>
           )}
 
+          {/* Recording controls */}
           {isRecording && (
             <>
               <button
@@ -463,24 +508,81 @@ const AudioWorkstation = ({
             </>
           )}
 
-          {audioUrl && !isRecording && (
-            <button
-              className="daw-btn daw-btn-record-again"
-              onClick={onStartRecording}
-              title="Record again (replaces current)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="12" r="6" />
-              </svg>
-              <span>Re-record</span>
-            </button>
-          )}
-        </div>
-
-        {/* Right side - finalize/reset */}
-        <div className="daw-transport-right">
+          {/* Playback controls - when audio exists */}
           {audioUrl && !isRecording && (
             <>
+              <button
+                className="daw-btn daw-btn-transport"
+                onClick={() => {
+                  if (audioRef.current) {
+                    audioRef.current.currentTime = regionStart ?? 0
+                    setCurrentTime(regionStart ?? 0)
+                  }
+                }}
+                title="Go to start"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 6h2v12H6V6zm3.5 6 8.5 6V6l-8.5 6z" />
+                </svg>
+              </button>
+
+              <button
+                className={`daw-btn daw-btn-play ${isPlaying ? 'playing' : ''}`}
+                onClick={togglePlayback}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              <button
+                className={`daw-btn daw-btn-transport ${isLooping ? 'active' : ''}`}
+                onClick={() => setIsLooping(!isLooping)}
+                title={isLooping ? 'Disable loop' : 'Enable loop'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 2l4 4-4 4" />
+                  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                  <path d="M7 22l-4-4 4-4" />
+                  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                </svg>
+              </button>
+
+              <div className="daw-transport-divider" />
+
+              <button
+                className="daw-btn daw-btn-record-again"
+                onClick={onStartRecording}
+                title="Record again"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="12" r="6" />
+                </svg>
+                <span>Re-record</span>
+              </button>
+
+              {regionStart !== null && (
+                <button
+                  className="daw-btn daw-btn-transport"
+                  onClick={clearRegion}
+                  title="Clear selection"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+
+              <div className="daw-transport-divider" />
+
               <button
                 className="daw-btn daw-btn-reset"
                 onClick={handleReset}
@@ -510,7 +612,7 @@ const AudioWorkstation = ({
         {isRecording ? (
           <span>Recording in progress... Click Stop when finished.</span>
         ) : audioUrl ? (
-          <span>Shift+click on timeline to select a region. Click Finalize when ready.</span>
+          <span>Double-click timeline to select a region. Drag handles to adjust. Click Finalize when ready.</span>
         ) : (
           <span>Click Record to start. You can re-record until you're happy.</span>
         )}

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../../constants/languages'
 import { IntensiveModeHub } from './intensive/IntensiveModeHub'
 import { SpeakingPracticeHub } from './speakingPractice/SpeakingPracticeHub'
+import { SpeakingPracticeSession } from './speakingPractice/SpeakingPracticeSession'
 import { VoiceRecordHub } from './voiceRecord/VoiceRecordHub'
 
 /**
@@ -17,6 +18,8 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
   const [activeMode, setActiveMode] = useState(null) // null | 'pronunciation' | 'speakingPractice' | 'voiceRecord'
   const [pronunciationSessions, setPronunciationSessions] = useState([])
   const [speakingPracticeLessons, setSpeakingPracticeLessons] = useState([])
+  const [readySpeakingLessons, setReadySpeakingLessons] = useState([])
+  const [activeSpeakingSession, setActiveSpeakingSession] = useState(null)
 
   const normalizedLanguage = resolveSupportedLanguageLabel(activeLanguage, activeLanguage)
 
@@ -43,10 +46,11 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     return unsubscribe
   }, [user?.uid])
 
-  // Subscribe to speaking practice lessons (filter importing ones in JS to avoid composite index)
+  // Subscribe to speaking practice lessons
   useEffect(() => {
     if (!user?.uid || !normalizedLanguage) {
       setSpeakingPracticeLessons([])
+      setReadySpeakingLessons([])
       return
     }
 
@@ -60,7 +64,8 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
       lessonsQuery,
       (snapshot) => {
         const allLessons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        // Filter to only importing lessons and sort by createdAt
+
+        // Filter to importing lessons
         const importing = allLessons
           .filter(l => l.status === 'importing')
           .sort((a, b) => {
@@ -69,6 +74,16 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
             return bTime - aTime
           })
         setSpeakingPracticeLessons(importing)
+
+        // Filter to ready lessons (not importing, not failed)
+        const ready = allLessons
+          .filter(l => l.status !== 'importing' && l.status !== 'import_failed')
+          .sort((a, b) => {
+            const aTime = a.updatedAt?.toMillis?.() || a.createdAt?.toMillis?.() || 0
+            const bTime = b.updatedAt?.toMillis?.() || b.createdAt?.toMillis?.() || 0
+            return bTime - aTime
+          })
+        setReadySpeakingLessons(ready)
       },
       (err) => {
         console.error('Error loading speaking practice lessons:', err)
@@ -92,6 +107,18 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
     } catch (err) {
       console.error('Failed to delete lesson:', err)
     }
+  }
+
+  // Active speaking practice session - full page view
+  if (activeSpeakingSession) {
+    return (
+      <SpeakingPracticeSession
+        lesson={activeSpeakingSession}
+        activeLanguage={activeLanguage}
+        nativeLanguage={nativeLanguage}
+        onBack={() => setActiveSpeakingSession(null)}
+      />
+    )
   }
 
   // Voice Record mode - full page view
@@ -230,6 +257,50 @@ export function SpeakHub({ activeLanguage, nativeLanguage }) {
                       {isPreparing ? 'Preparing audio sync...' : 'Ready to practice'}
                     </span>
                   </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Ready speaking practice lessons */}
+      {readySpeakingLessons.length > 0 && (
+        <div className="speak-sessions-section">
+          <h3>Intensive Speaking Sessions</h3>
+          <div className="speak-sessions-grid">
+            {readySpeakingLessons.map(lesson => {
+              const sentenceCount = lesson.sentences?.length || 0
+              const progress = sentenceCount > 0
+                ? Math.round((lesson.completedCount || 0) / sentenceCount * 100)
+                : 0
+
+              return (
+                <div
+                  key={lesson.id}
+                  className="speak-session-card ready"
+                  onClick={() => setActiveSpeakingSession(lesson)}
+                >
+                  <div className="speak-session-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  </div>
+                  <div className="speak-session-info">
+                    <span className="speak-session-title">{lesson.title}</span>
+                    <span className="speak-session-status">
+                      {sentenceCount} segments • {progress}% complete
+                    </span>
+                  </div>
+                  <button
+                    className="speak-session-delete"
+                    onClick={(e) => handleDeleteLesson(lesson.id, e)}
+                    title="Delete lesson"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               )
             })}

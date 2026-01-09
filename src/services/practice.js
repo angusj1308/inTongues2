@@ -252,13 +252,10 @@ export const subscribeToPracticeLessons = (userId, language, callback, onError) 
   return onSnapshot(
     practiceQuery,
     (snapshot) => {
-      const lessons = snapshot.docs
-        .map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }))
-        // Filter out speaking practice lessons - they have their own mode
-        .filter((lesson) => !lesson.speakingPractice)
+      const lessons = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }))
       // Sort by updatedAt descending (client-side)
       lessons.sort((a, b) => {
         const aTime = a.updatedAt?.toMillis?.() || 0

@@ -10,60 +10,22 @@ import {
   updateActivity,
 } from '../../services/routine'
 
-const ActivityIcon = ({ type, size = 16 }) => {
-  const iconMap = {
-    reading: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-      </svg>
-    ),
-    listening: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-      </svg>
-    ),
-    speaking: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-        <line x1="12" y1="19" x2="12" y2="23" />
-        <line x1="8" y1="23" x2="16" y2="23" />
-      </svg>
-    ),
-    review: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="4" width="20" height="16" rx="2" />
-        <path d="M12 8v4" />
-        <path d="M12 16h.01" />
-      </svg>
-    ),
-    writing: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 19l7-7 3 3-7 7-3-3z" />
-        <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-        <path d="M2 2l7.586 7.586" />
-        <circle cx="11" cy="11" r="2" />
-      </svg>
-    ),
-    tutor: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-  }
-
-  return iconMap[type] || iconMap.reading
+// Short labels for activity types
+const ACTIVITY_SHORT_LABELS = {
+  reading: 'Read',
+  listening: 'Listen',
+  speaking: 'Speak',
+  review: 'Review',
+  writing: 'Write',
+  tutor: 'Tutor',
 }
 
 const ActivityChip = ({ activity, onRemove, onClick }) => {
-  const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
+  const shortLabel = ACTIVITY_SHORT_LABELS[activity.activityType] || 'Activity'
 
   return (
     <div
       className="routine-activity-chip"
-      style={{ '--activity-color': activityConfig.color }}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -71,13 +33,8 @@ const ActivityChip = ({ activity, onRemove, onClick }) => {
         if (e.key === 'Enter' || e.key === ' ') onClick?.()
       }}
     >
-      <div className="routine-activity-chip-icon">
-        <ActivityIcon type={activity.activityType} size={14} />
-      </div>
-      <div className="routine-activity-chip-content">
-        <span className="routine-activity-chip-type">{activityConfig.label}</span>
-        {activity.title && <span className="routine-activity-chip-title">{activity.title}</span>}
-      </div>
+      <span className="routine-activity-chip-time">{activity.time || '—'}</span>
+      <span className="routine-activity-chip-label">{shortLabel}</span>
       <button
         className="routine-activity-chip-remove"
         onClick={(e) => {
@@ -86,10 +43,7 @@ const ActivityChip = ({ activity, onRemove, onClick }) => {
         }}
         aria-label="Remove activity"
       >
-        <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        ×
       </button>
     </div>
   )
@@ -124,18 +78,18 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="routine-modal-form">
-          <div className="routine-activity-type-grid">
+          <div className="routine-activity-type-list">
             {ACTIVITY_TYPES.map((type) => (
-              <button
-                key={type.id}
-                type="button"
-                className={`routine-activity-type-btn ${activityType === type.id ? 'active' : ''}`}
-                style={{ '--type-color': type.color }}
-                onClick={() => setActivityType(type.id)}
-              >
-                <ActivityIcon type={type.id} size={20} />
+              <label key={type.id} className="routine-activity-type-option">
+                <input
+                  type="radio"
+                  name="activityType"
+                  value={type.id}
+                  checked={activityType === type.id}
+                  onChange={() => setActivityType(type.id)}
+                />
                 <span>{type.label}</span>
-              </button>
+              </label>
             ))}
           </div>
 
@@ -166,7 +120,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day }) => {
               Cancel
             </button>
             <button type="submit" className="button">
-              Add Activity
+              Add
             </button>
           </div>
         </form>
@@ -182,7 +136,7 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
     <div className={`routine-day-column ${isToday ? 'routine-day-today' : ''}`}>
       <div className="routine-day-header">
         <span className="routine-day-label">{DAY_LABELS[day]}</span>
-        {isToday && <span className="routine-today-badge">Today</span>}
+        {isToday && <span className="routine-today-dot" />}
       </div>
 
       <div className="routine-day-activities">
@@ -200,10 +154,7 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
           onClick={() => setShowAddModal(true)}
           aria-label={`Add activity to ${DAY_LABELS[day]}`}
         >
-          <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          +
         </button>
       </div>
 
@@ -334,10 +285,7 @@ const RoutineBuilder = ({ userId, language }) => {
 
   return (
     <div className="routine-builder">
-      <div className="routine-builder-header">
-        <h3>Weekly Routine</h3>
-        <p className="muted small">Plan your learning activities for each day</p>
-      </div>
+      <h3 className="home-section-title">Weekly Routine</h3>
 
       <div className="routine-week-grid">
         {DAYS_OF_WEEK.map((day) => (

@@ -527,111 +527,64 @@ const Dashboard = () => {
         >
           {activeTab === 'home' && (
             <div className="home-content">
-              {/* Level Card */}
-              <div className="level-card">
-                <div className="level-card-header">
-                  <div className="level-card-info">
-                    <div className="level-card-icon">
-                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    </div>
-                    <div className="level-card-text">
-                      <h3>{homeStatsLoading ? '...' : levelInfo.level}</h3>
-                      <p className="level-subtitle">
-                        {levelInfo.nextLevel
-                          ? `${levelInfo.wordsToNext.toLocaleString()} words to ${levelInfo.nextLevel}`
-                          : 'Maximum level achieved'}
-                      </p>
-                    </div>
+              {/* Level Section */}
+              <div className="home-level-section">
+                <div className="home-level-header">
+                  <div className="home-level-title">
+                    <span className="home-level-name">{homeStatsLoading ? '...' : levelInfo.level}</span>
+                    <span className="home-level-words">
+                      {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
+                    </span>
                   </div>
-                  <div className="level-card-words">
-                    <div className="word-count">
-                      {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()}
-                    </div>
-                    <div className="word-label">known words</div>
-                  </div>
+                  {levelInfo.nextLevel && (
+                    <span className="home-level-next">
+                      {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
+                    </span>
+                  )}
                 </div>
-                <div className="level-progress-container">
-                  <div className="level-progress-labels">
-                    <span className="level-progress-current">{levelInfo.level}</span>
-                    {levelInfo.nextLevel && (
-                      <span className="level-progress-next">{levelInfo.nextLevel}</span>
-                    )}
-                  </div>
-                  <div className="level-progress-bar">
-                    <div
-                      className="level-progress-fill"
-                      style={{ width: `${levelInfo.progressPercent}%` }}
-                    />
-                  </div>
-                  <div className="level-progress-meta">
-                    <span>{levelInfo.currentMin.toLocaleString()}</span>
-                    <span>{levelInfo.currentMax === Infinity ? '40,000+' : levelInfo.currentMax.toLocaleString()}</span>
-                  </div>
+                <div className="home-level-bar">
+                  <div
+                    className="home-level-fill"
+                    style={{ width: `${levelInfo.progressPercent}%` }}
+                  />
                 </div>
               </div>
 
-              {/* Stats Row */}
-              <div className="home-stats-row">
-                <div className="stat-card">
-                  <div className="stat-card-icon">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                    </svg>
-                  </div>
-                  <div className="stat-label ui-text">Words Read</div>
-                  <div className="stat-value">
-                    {homeStatsLoading ? '...' : homeStats.wordsRead.toLocaleString()}
-                  </div>
-                  <div className="stat-subtitle">From your reading</div>
+              {/* Stats Row - Minimal */}
+              <div className="home-stats-minimal">
+                <div className="home-stat">
+                  <span className="home-stat-value">
+                    {homeStatsLoading ? '—' : homeStats.wordsRead.toLocaleString()}
+                  </span>
+                  <span className="home-stat-label">words read</span>
                 </div>
-
-                <div className="stat-card">
-                  <div className="stat-card-icon">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-                      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-                    </svg>
-                  </div>
-                  <div className="stat-label ui-text">Time Listened</div>
-                  <div className="stat-value">
-                    {homeStatsLoading ? '...' : homeStats.listeningFormatted}
-                  </div>
-                  <div className="stat-subtitle">Audio & speech practice</div>
+                <span className="home-stat-divider">·</span>
+                <div className="home-stat">
+                  <span className="home-stat-value">
+                    {homeStatsLoading ? '—' : homeStats.listeningFormatted}
+                  </span>
+                  <span className="home-stat-label">listened</span>
                 </div>
-
-                <div className="stat-card">
-                  <div className="stat-card-icon">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                      <polyline points="22 4 12 14.01 9 11.01" />
-                    </svg>
-                  </div>
-                  <div className="stat-label ui-text">Known Words</div>
-                  <div className="stat-value">
-                    {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()}
-                  </div>
-                  <div className="stat-subtitle">Mastered vocabulary</div>
+                <span className="home-stat-divider">·</span>
+                <div className="home-stat">
+                  <span className="home-stat-value">
+                    {homeStatsLoading ? '—' : homeStats.knownWords.toLocaleString()}
+                  </span>
+                  <span className="home-stat-label">known</span>
                 </div>
               </div>
 
-              {/* Today's Activities */}
+              {/* Today's Plan - Minimal */}
               {todayActivities.length > 0 && (
-                <div className="today-activities">
-                  <div className="today-activities-header">
-                    <h3>Today's Plan</h3>
-                  </div>
-                  <div className="today-activities-list">
+                <div className="home-today">
+                  <h3 className="home-section-title">Today</h3>
+                  <div className="home-today-list">
                     {todayActivities.map((activity) => {
                       const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
                       return (
-                        <div
+                        <button
                           key={activity.id}
-                          className="today-activity-card"
-                          role="button"
-                          tabIndex={0}
+                          className="home-today-item"
                           onClick={() => {
                             const tabMap = {
                               reading: 'read',
@@ -641,78 +594,13 @@ const Dashboard = () => {
                               writing: 'write',
                               tutor: 'tutor',
                             }
-                            const tab = tabMap[activity.activityType] || 'read'
-                            handleTabClick(tab)
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              const tabMap = {
-                                reading: 'read',
-                                listening: 'listen',
-                                speaking: 'speak',
-                                review: 'review',
-                                writing: 'write',
-                                tutor: 'tutor',
-                              }
-                              const tab = tabMap[activity.activityType] || 'read'
-                              handleTabClick(tab)
-                            }
+                            handleTabClick(tabMap[activity.activityType] || 'read')
                           }}
                         >
-                          <div className={`today-activity-icon ${activity.activityType}`}>
-                            {activity.activityType === 'reading' && (
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                              </svg>
-                            )}
-                            {activity.activityType === 'listening' && (
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-                              </svg>
-                            )}
-                            {activity.activityType === 'speaking' && (
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                <line x1="12" y1="19" x2="12" y2="23" />
-                                <line x1="8" y1="23" x2="16" y2="23" />
-                              </svg>
-                            )}
-                            {activity.activityType === 'review' && (
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="2" y="4" width="20" height="16" rx="2" />
-                                <path d="M12 8v4" />
-                                <path d="M12 16h.01" />
-                              </svg>
-                            )}
-                            {activity.activityType === 'writing' && (
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 19l7-7 3 3-7 7-3-3z" />
-                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-                              </svg>
-                            )}
-                            {activity.activityType === 'tutor' && (
-                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="today-activity-content">
-                            <div className="today-activity-type">{activityConfig.label}</div>
-                            <div className="today-activity-meta">
-                              {activity.time && `${activity.time} · `}
-                              {activity.duration}min
-                              {activity.title && ` · ${activity.title}`}
-                            </div>
-                          </div>
-                          <div className="today-activity-arrow">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="9 18 15 12 9 6" />
-                            </svg>
-                          </div>
-                        </div>
+                          <span className="home-today-time">{activity.time || '—'}</span>
+                          <span className="home-today-activity">{activityConfig.label}</span>
+                          <span className="home-today-duration">{activity.duration}m</span>
+                        </button>
                       )
                     })}
                   </div>

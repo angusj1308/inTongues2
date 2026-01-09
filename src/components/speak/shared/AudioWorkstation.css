@@ -50,29 +50,29 @@
   flex: 1;
   max-width: 6px;
   min-height: 4px;
-  background: linear-gradient(to top, #64748b, #94a3b8);
+  background: linear-gradient(to top, #1e1e1e, #3a3a3a);
   border-radius: 2px;
   transition: background 0.1s ease;
 }
 
 .daw-waveform-bar.played {
-  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  background: linear-gradient(to top, #0a0a0a, #2a2a2a);
 }
 
 .daw-waveform-bar.in-region {
-  background: linear-gradient(to top, #8b5cf6, #a78bfa);
+  background: linear-gradient(to top, #da7756, #e8956f);
 }
 
 .daw-waveform-bar.in-region.played {
-  background: linear-gradient(to top, #7c3aed, #8b5cf6);
+  background: linear-gradient(to top, #c5603d, #da7756);
 }
 
 [data-theme='dark'] .daw-waveform-bar {
-  background: linear-gradient(to top, #475569, #64748b);
+  background: linear-gradient(to top, #4a4a4a, #6a6a6a);
 }
 
 [data-theme='dark'] .daw-waveform-bar.played {
-  background: linear-gradient(to top, #3b82f6, #93c5fd);
+  background: linear-gradient(to top, #3a3a3a, #5a5a5a);
 }
 
 .daw-waveform-empty {
@@ -98,7 +98,7 @@
   transform: translateX(-50%);
   width: 14px;
   height: 14px;
-  background: #ef4444;
+  background: #da7756;
   border-radius: 50% 50% 50% 50%;
   clip-path: polygon(50% 100%, 0 0, 100% 0);
   border-radius: 2px;
@@ -110,13 +110,13 @@
   bottom: 0;
   left: 50%;
   width: 2px;
-  background: #ef4444;
+  background: #da7756;
   transform: translateX(-50%);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 8px rgba(218, 119, 86, 0.5);
 }
 
 .daw-playhead.playing .daw-playhead-line {
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 12px rgba(218, 119, 86, 0.7);
 }
 
 /* Region Selection */
@@ -124,9 +124,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(139, 92, 246, 0.15);
-  border-left: 2px solid #8b5cf6;
-  border-right: 2px solid #8b5cf6;
+  background: rgba(218, 119, 86, 0.15);
+  border-left: 2px solid #da7756;
+  border-right: 2px solid #da7756;
   z-index: 5;
 }
 
@@ -141,7 +141,7 @@
 }
 
 .daw-region-handle:hover {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(218, 119, 86, 0.3);
 }
 
 .daw-region-handle::after {
@@ -152,7 +152,7 @@
   transform: translate(-50%, -50%);
   width: 4px;
   height: 40px;
-  background: #8b5cf6;
+  background: #da7756;
   border-radius: 2px;
   opacity: 0.7;
 }
@@ -175,7 +175,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(139, 92, 246, 0.9);
+  background: rgba(218, 119, 86, 0.9);
   color: white;
   padding: 4px 10px;
   border-radius: 4px;
@@ -246,7 +246,7 @@
 
 .daw-time-region {
   font-size: 0.9rem;
-  color: #8b5cf6;
+  color: #da7756;
   margin-left: 8px;
 }
 
@@ -313,7 +313,7 @@
 }
 
 .daw-btn-transport.active {
-  background: #8b5cf6;
+  background: #da7756;
   color: white;
 }
 
@@ -327,23 +327,23 @@
 }
 
 [data-theme='dark'] .daw-btn-transport.active {
-  background: #7c3aed;
+  background: #c5603d;
 }
 
 .daw-btn-play {
-  background: #3b82f6;
+  background: #da7756;
   color: white;
   padding: 14px;
   border-radius: 50%;
 }
 
 .daw-btn-play:hover {
-  background: #2563eb;
+  background: #c5603d;
   transform: scale(1.05);
 }
 
 .daw-btn-play.playing {
-  background: #1e40af;
+  background: #b04d2a;
 }
 
 .daw-btn-record {

@@ -8,18 +8,12 @@ import {
 } from '../services/freewriting'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import {
-  LANGUAGE_HIGHLIGHT_COLORS,
+  HIGHLIGHT_COLOR,
   STATUS_OPACITY,
 } from '../constants/highlightColors'
 
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
+// Helper to get language color (unified brand color)
+const getLanguageColor = () => HIGHLIGHT_COLOR
 
 // Word status constants for the vocab panel
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']

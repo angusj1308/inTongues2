@@ -4,20 +4,14 @@ import { useAuth } from '../../../context/AuthContext'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase'
 import { upsertVocabEntry } from '../../../services/vocab'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../../constants/highlightColors'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../../../constants/highlightColors'
 
 // Word status constants for the vocab panel
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS?.default || '#3b82f6'
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS?.[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS?.[capitalized] || LANGUAGE_HIGHLIGHT_COLORS?.default || '#3b82f6'
-}
+// Helper to get language color (unified brand color)
+const getLanguageColor = () => HIGHLIGHT_COLOR
 
 // Get background style for a status button when active
 const getStatusButtonStyle = (statusLevel, isActive, languageColor) => {

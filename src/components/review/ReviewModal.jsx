@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../constants/highlightColors'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../../constants/highlightColors'
 import {
   loadDueCards,
   loadCardsByStatus,
@@ -11,14 +11,8 @@ import {
   VOCAB_STATUSES,
 } from '../../services/vocab'
 
-// Helper to get language color (needed by some editors/linters)
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS?.default || '#6366f1'
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS?.[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS?.[capitalized] || LANGUAGE_HIGHLIGHT_COLORS?.default || '#6366f1'
-}
+// Helper to get language color (unified brand color)
+const getLanguageColor = () => HIGHLIGHT_COLOR
 
 // Icons
 const PlayIcon = () => (

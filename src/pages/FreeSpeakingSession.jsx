@@ -84,6 +84,11 @@ const FreeSpeakingSession = () => {
   const [audioBlob, setAudioBlob] = useState(null)
   const [showCountdown, setShowCountdown] = useState(false)
   const [isFinalized, setIsFinalized] = useState(false)
+  const [recordingTitle, setRecordingTitle] = useState('')
+  const [recordingNumber, setRecordingNumber] = useState(() => {
+    const saved = localStorage.getItem('freeSpeakingRecordingCount')
+    return saved ? parseInt(saved, 10) + 1 : 1
+  })
 
   // Feedback state
   const [inlineFeedback, setInlineFeedback] = useState([])
@@ -357,6 +362,9 @@ const FreeSpeakingSession = () => {
   const handleFinalize = async () => {
     setIsFinalized(true)
 
+    // Save recording count to localStorage
+    localStorage.setItem('freeSpeakingRecordingCount', recordingNumber.toString())
+
     // Do final analysis
     const textToAnalyze = transcription || liveTranscript
     if (textToAnalyze && textToAnalyze.length > 10) {
@@ -366,6 +374,9 @@ const FreeSpeakingSession = () => {
     // Open panel to show feedback
     setIsPanelOpen(true)
   }
+
+  // Get display title
+  const displayTitle = recordingTitle.trim() || `Untitled Recording ${String(recordingNumber).padStart(2, '0')}`
 
   // Reset session completely
   const handleReset = () => {
@@ -956,13 +967,19 @@ const FreeSpeakingSession = () => {
                 onResumeRecording={resumeRecording}
                 onFinalize={handleFinalize}
                 onAudioUpdate={handleAudioUpdate}
+                title={recordingTitle}
+                onTitleChange={setRecordingTitle}
+                defaultTitle={`Untitled Recording ${String(recordingNumber).padStart(2, '0')}`}
               />
             </div>
           )}
 
           {/* Document - only visible after finalization */}
           {isFinalized && (
-            <div className="freewriting-document">
+            <div className="freewriting-document" style={{ marginTop: '80px' }}>
+              {/* Document title */}
+              <h1 className="freewriting-document-title">{displayTitle}</h1>
+
               <div
                 className="freewriting-document-content"
                 ref={documentRef}

@@ -19424,6 +19424,21 @@ body.active-pass-locked {
   color: #f1f5f9;
 }
 
+.free-speaking-page .freewriting-document-title {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin: 0 0 2rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+[data-theme='dark'] .free-speaking-page .freewriting-document-title {
+  color: #f1f5f9;
+  border-bottom-color: #334155;
+}
+
 /* Large Recording Card - covers most of the page like intensive modes */
 .free-speaking-recording-card {
   width: 90%;

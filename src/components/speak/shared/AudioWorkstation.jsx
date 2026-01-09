@@ -22,7 +22,10 @@ const AudioWorkstation = ({
   onPauseRecording,
   onResumeRecording,
   onFinalize,
-  onAudioUpdate, // New: callback to update audio after punch-in splice
+  onAudioUpdate, // Callback to update audio after punch-in splice
+  title, // Recording title
+  onTitleChange, // Callback to update title
+  defaultTitle, // Default title shown as placeholder
 }) => {
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -593,6 +596,19 @@ const AudioWorkstation = ({
           )}
         </div>
       </div>
+
+      {/* Title input - shown before recording starts */}
+      {!audioUrl && !isRecording && onTitleChange && (
+        <div className="daw-title-input-container">
+          <input
+            type="text"
+            className="daw-title-input"
+            placeholder={defaultTitle || 'Add a title (optional)'}
+            value={title || ''}
+            onChange={(e) => onTitleChange(e.target.value)}
+          />
+        </div>
+      )}
 
       {/* Transport Controls - Centralized */}
       <div className="daw-transport">

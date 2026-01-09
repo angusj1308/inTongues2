@@ -20,11 +20,16 @@
 
 .daw-timeline {
   position: relative;
-  height: 120px;
+  height: 140px;
   background: var(--bg-secondary, #f1f5f9);
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
+  user-select: none;
+}
+
+.daw-timeline.dragging {
+  cursor: grabbing;
 }
 
 [data-theme='dark'] .daw-timeline {
@@ -45,12 +50,28 @@
   flex: 1;
   max-width: 6px;
   min-height: 4px;
-  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  background: linear-gradient(to top, #64748b, #94a3b8);
   border-radius: 2px;
-  transition: height 0.05s ease;
+  transition: background 0.1s ease;
+}
+
+.daw-waveform-bar.played {
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+}
+
+.daw-waveform-bar.in-region {
+  background: linear-gradient(to top, #8b5cf6, #a78bfa);
+}
+
+.daw-waveform-bar.in-region.played {
+  background: linear-gradient(to top, #7c3aed, #8b5cf6);
 }
 
 [data-theme='dark'] .daw-waveform-bar {
+  background: linear-gradient(to top, #475569, #64748b);
+}
+
+[data-theme='dark'] .daw-waveform-bar.played {
   background: linear-gradient(to top, #3b82f6, #93c5fd);
 }
 
@@ -65,21 +86,37 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #ef4444;
   z-index: 10;
   pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.daw-playhead-head {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  background: #ef4444;
+  border-radius: 50% 50% 50% 50%;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+  border-radius: 2px;
+}
+
+.daw-playhead-line {
+  position: absolute;
+  top: 12px;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: #ef4444;
+  transform: translateX(-50%);
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
 }
 
-.daw-playhead::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -4px;
-  width: 10px;
-  height: 10px;
-  background: #ef4444;
-  border-radius: 50%;
+.daw-playhead.playing .daw-playhead-line {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
 }
 
 /* Region Selection */
@@ -87,9 +124,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(59, 130, 246, 0.2);
-  border-left: 2px solid #3b82f6;
-  border-right: 2px solid #3b82f6;
+  background: rgba(139, 92, 246, 0.15);
+  border-left: 2px solid #8b5cf6;
+  border-right: 2px solid #8b5cf6;
   z-index: 5;
 }
 
@@ -97,46 +134,84 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 12px;
   cursor: ew-resize;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.daw-region-handle:hover {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+.daw-region-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 40px;
+  background: #8b5cf6;
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.daw-region-handle:hover::after {
+  opacity: 1;
+  height: 50px;
 }
 
 .daw-region-handle-start {
-  left: -4px;
+  left: -6px;
 }
 
 .daw-region-handle-end {
-  right: -4px;
+  right: -6px;
+}
+
+.daw-region-time {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(139, 92, 246, 0.9);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 /* Recording Indicator */
 .daw-recording-indicator {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: rgba(239, 68, 68, 0.9);
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.95);
   color: white;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 6px;
   letter-spacing: 0.05em;
 }
 
 .daw-recording-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: white;
   border-radius: 50%;
   animation: recordingPulse 1s infinite;
 }
 
 @keyframes recordingPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
 }
 
 /* Time Display */
@@ -145,12 +220,12 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 16px;
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
 .daw-time-current {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 500;
   color: var(--text-primary, #0f172a);
 }
@@ -161,19 +236,25 @@
 
 .daw-time-separator {
   color: var(--text-muted, #94a3b8);
+  font-size: 1.5rem;
 }
 
 .daw-time-duration {
-  font-size: 1rem;
+  font-size: 1.25rem;
   color: var(--text-muted, #94a3b8);
 }
 
-/* Transport Controls */
+.daw-time-region {
+  font-size: 0.9rem;
+  color: #8b5cf6;
+  margin-left: 8px;
+}
+
+/* Transport Controls - Centered */
 .daw-transport {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 0;
+  justify-content: center;
+  padding: 1.25rem 0;
   border-top: 1px solid var(--border-color, #e2e8f0);
   border-bottom: 1px solid var(--border-color, #e2e8f0);
   margin-bottom: 1rem;
@@ -183,21 +264,23 @@
   border-color: #334155;
 }
 
-.daw-transport-left,
-.daw-transport-center,
-.daw-transport-right {
+.daw-transport-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.daw-transport-left {
-  min-width: 180px;
+.daw-transport-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color, #e2e8f0);
+  margin: 0 8px;
 }
 
-.daw-transport-right {
-  min-width: 180px;
-  justify-content: flex-end;
+[data-theme='dark'] .daw-transport-divider {
+  background: #475569;
 }
 
 /* Buttons */
@@ -214,10 +297,15 @@
   transition: all 0.15s ease;
 }
 
+.daw-btn-large {
+  padding: 16px 32px;
+  font-size: 1.1rem;
+}
+
 .daw-btn-transport {
   background: var(--bg-secondary, #f1f5f9);
   color: var(--text-primary, #0f172a);
-  padding: 10px;
+  padding: 10px 14px;
 }
 
 .daw-btn-transport:hover {
@@ -225,7 +313,7 @@
 }
 
 .daw-btn-transport.active {
-  background: #3b82f6;
+  background: #8b5cf6;
   color: white;
 }
 
@@ -238,10 +326,14 @@
   background: #475569;
 }
 
+[data-theme='dark'] .daw-btn-transport.active {
+  background: #7c3aed;
+}
+
 .daw-btn-play {
   background: #3b82f6;
   color: white;
-  padding: 12px;
+  padding: 14px;
   border-radius: 50%;
 }
 
@@ -257,8 +349,6 @@
 .daw-btn-record {
   background: #ef4444;
   color: white;
-  padding: 14px 28px;
-  font-size: 1rem;
 }
 
 .daw-btn-record:hover {
@@ -268,8 +358,9 @@
 
 .daw-btn-record-again {
   background: var(--bg-secondary, #f1f5f9);
-  color: var(--text-primary, #0f172a);
-  border: 2px solid #ef4444;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 8px 14px;
 }
 
 .daw-btn-record-again:hover {
@@ -277,12 +368,12 @@
 }
 
 [data-theme='dark'] .daw-btn-record-again {
-  background: #334155;
-  color: #f1f5f9;
+  background: transparent;
+  border-color: #ef4444;
 }
 
 [data-theme='dark'] .daw-btn-record-again:hover {
-  background: #450a0a;
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .daw-btn-stop {
@@ -312,7 +403,7 @@
 }
 
 [data-theme='dark'] .daw-btn-reset:hover {
-  background: #450a0a;
+  background: rgba(239, 68, 68, 0.1);
   border-color: #ef4444;
   color: #ef4444;
 }

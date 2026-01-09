@@ -21460,3 +21460,174 @@ body.active-pass-locked {
   margin: 0;
 }
 
+/* ===========================================
+   Day Calendar - 24 Hour View
+   =========================================== */
+
+.day-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.day-calendar-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0.5rem;
+}
+
+.day-calendar-total {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.day-calendar-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.day-calendar-grid {
+  position: relative;
+  /* 24 hours * 60px per hour */
+  height: 1440px;
+}
+
+.day-calendar-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.day-calendar-hour:nth-child(1) { top: 0; }
+.day-calendar-hour:nth-child(2) { top: 60px; }
+.day-calendar-hour:nth-child(3) { top: 120px; }
+.day-calendar-hour:nth-child(4) { top: 180px; }
+.day-calendar-hour:nth-child(5) { top: 240px; }
+.day-calendar-hour:nth-child(6) { top: 300px; }
+.day-calendar-hour:nth-child(7) { top: 360px; }
+.day-calendar-hour:nth-child(8) { top: 420px; }
+.day-calendar-hour:nth-child(9) { top: 480px; }
+.day-calendar-hour:nth-child(10) { top: 540px; }
+.day-calendar-hour:nth-child(11) { top: 600px; }
+.day-calendar-hour:nth-child(12) { top: 660px; }
+.day-calendar-hour:nth-child(13) { top: 720px; }
+.day-calendar-hour:nth-child(14) { top: 780px; }
+.day-calendar-hour:nth-child(15) { top: 840px; }
+.day-calendar-hour:nth-child(16) { top: 900px; }
+.day-calendar-hour:nth-child(17) { top: 960px; }
+.day-calendar-hour:nth-child(18) { top: 1020px; }
+.day-calendar-hour:nth-child(19) { top: 1080px; }
+.day-calendar-hour:nth-child(20) { top: 1140px; }
+.day-calendar-hour:nth-child(21) { top: 1200px; }
+.day-calendar-hour:nth-child(22) { top: 1260px; }
+.day-calendar-hour:nth-child(23) { top: 1320px; }
+.day-calendar-hour:nth-child(24) { top: 1380px; }
+
+.day-calendar-hour-label {
+  width: 48px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.day-calendar-hour-line {
+  flex: 1;
+  height: 1px;
+  background: #f1f5f9;
+  margin-top: 0.55rem;
+}
+
+/* Activity blocks */
+.day-calendar-activities {
+  position: absolute;
+  top: 0;
+  left: 56px;
+  right: 8px;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.day-calendar-activity {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  transition: background 150ms ease, transform 150ms ease;
+  overflow: hidden;
+  text-align: left;
+}
+
+.day-calendar-activity:hover {
+  background: #1e293b;
+  transform: scale(1.01);
+}
+
+.day-calendar-activity-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.day-calendar-activity-duration {
+  font-size: 0.65rem;
+  opacity: 0.7;
+}
+
+/* Current time indicator */
+.day-calendar-now {
+  position: absolute;
+  left: 48px;
+  right: 0;
+  height: 2px;
+  background: #ef4444;
+  z-index: 10;
+}
+
+.day-calendar-now::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .day-calendar-scroll {
+    max-height: 350px;
+  }
+
+  .day-calendar-hour-label {
+    width: 40px;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.25rem;
+  }
+
+  .day-calendar-activities {
+    left: 48px;
+  }
+}
+

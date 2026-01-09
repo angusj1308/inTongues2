@@ -21188,6 +21188,7 @@ body.active-pass-locked {
 
 .routine-week-container {
   display: flex;
+  flex-direction: column;
   margin-top: 0.75rem;
   border: 1px solid #e5e5e5;
   border-radius: 8px;
@@ -21195,13 +21196,78 @@ body.active-pass-locked {
   background: #fff;
 }
 
-/* Hour labels on the left */
+/* Sticky day headers row */
+.routine-day-headers {
+  display: flex;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.routine-hour-labels-spacer {
+  flex-shrink: 0;
+  width: 36px;
+  background: #fafafa;
+  border-right: 1px solid #e5e5e5;
+}
+
+.routine-day-header-cell {
+  flex: 1;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  height: 32px;
+  border-right: 1px solid #f1f5f9;
+}
+
+.routine-day-header-cell:last-child {
+  border-right: none;
+}
+
+.routine-day-header-cell.routine-day-today {
+  background: #fafafa;
+}
+
+.routine-day-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.routine-day-header-cell.routine-day-today .routine-day-label {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.routine-today-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #0f172a;
+}
+
+/* Scrollable week area */
+.routine-week-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.routine-week-inner {
+  display: flex;
+  min-width: fit-content;
+}
+
+/* Hour labels on the left - scrolls with content */
 .routine-hour-labels {
   flex-shrink: 0;
   width: 36px;
   background: #fafafa;
   border-right: 1px solid #e5e5e5;
-  padding-top: 32px; /* Space for day headers */
 }
 
 .routine-hour-label {
@@ -21215,18 +21281,12 @@ body.active-pass-locked {
   transform: translateY(-0.4em);
 }
 
-/* Scrollable week area */
-.routine-week-scroll {
-  flex: 1;
-  max-height: 400px;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
+/* Week grid */
 .routine-week-grid {
   position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(80px, 1fr));
+  flex: 1;
   min-width: 560px;
   /* 24 hours * 40px per hour */
   height: 960px;
@@ -21237,7 +21297,6 @@ body.active-pass-locked {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  padding-top: 32px; /* Space for day headers */
 }
 
 .routine-hour-line {
@@ -21257,7 +21316,6 @@ body.active-pass-locked {
   height: 2px;
   background: #ef4444;
   z-index: 10;
-  margin-top: 32px; /* Offset for day headers */
 }
 
 .routine-current-time::before {
@@ -21281,45 +21339,8 @@ body.active-pass-locked {
   border-right: none;
 }
 
-.routine-day-today {
+.routine-day-column.routine-day-today {
   background: rgba(15, 23, 42, 0.02);
-}
-
-.routine-day-header {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  height: 32px;
-  background: #fff;
-  border-bottom: 1px solid #e5e5e5;
-}
-
-.routine-day-today .routine-day-header {
-  background: #fafafa;
-}
-
-.routine-day-label {
-  font-size: 0.65rem;
-  font-weight: 500;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.routine-day-today .routine-day-label {
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.routine-today-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #0f172a;
 }
 
 /* Day Timeline */
@@ -21432,6 +21453,7 @@ body.active-pass-locked {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .routine-hour-labels-spacer,
   .routine-hour-labels {
     width: 28px;
   }
@@ -21447,6 +21469,10 @@ body.active-pass-locked {
 
   .routine-day-label {
     font-size: 0.6rem;
+  }
+
+  .routine-day-header-cell {
+    min-width: 68px;
   }
 }
 

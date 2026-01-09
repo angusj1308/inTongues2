@@ -175,11 +175,6 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
 
   return (
     <div className={`routine-day-column ${isToday ? 'routine-day-today' : ''}`}>
-      <div className="routine-day-header">
-        <span className="routine-day-label">{DAY_LABELS[day]}</span>
-        {isToday && <span className="routine-today-dot" />}
-      </div>
-
       <div className="routine-day-timeline">
         {/* Clickable hour slots */}
         {HOURS.map((hour) => (
@@ -370,40 +365,57 @@ const RoutineBuilder = ({ userId, language }) => {
       <h3 className="home-section-title">Weekly Routine</h3>
 
       <div className="routine-week-container">
-        {/* Hour labels column */}
-        <div className="routine-hour-labels">
-          {HOURS.map((hour) => (
-            <div key={hour} className="routine-hour-label">
-              {formatHour(hour)}
+        {/* Sticky day headers row */}
+        <div className="routine-day-headers">
+          <div className="routine-hour-labels-spacer" />
+          {DAYS_OF_WEEK.map((day) => (
+            <div
+              key={day}
+              className={`routine-day-header-cell ${day === today ? 'routine-day-today' : ''}`}
+            >
+              <span className="routine-day-label">{DAY_LABELS[day]}</span>
+              {day === today && <span className="routine-today-dot" />}
             </div>
           ))}
         </div>
 
-        {/* Scrollable week grid */}
+        {/* Scrollable area with hour labels + grid */}
         <div className="routine-week-scroll" ref={scrollRef}>
-          <div className="routine-week-grid">
-            {/* Hour grid lines */}
-            <div className="routine-hour-lines">
+          <div className="routine-week-inner">
+            {/* Hour labels column - scrolls with content */}
+            <div className="routine-hour-labels">
               {HOURS.map((hour) => (
-                <div key={hour} className="routine-hour-line" />
+                <div key={hour} className="routine-hour-label">
+                  {formatHour(hour)}
+                </div>
               ))}
             </div>
 
-            {/* Current time indicator */}
-            <CurrentTimeIndicator />
+            {/* Week grid */}
+            <div className="routine-week-grid">
+              {/* Hour grid lines */}
+              <div className="routine-hour-lines">
+                {HOURS.map((hour) => (
+                  <div key={hour} className="routine-hour-line" />
+                ))}
+              </div>
 
-            {/* Day columns */}
-            {DAYS_OF_WEEK.map((day) => (
-              <DayColumn
-                key={day}
-                day={day}
-                activities={routine.schedule?.[day] || []}
-                onAddActivity={handleAddActivity}
-                onRemoveActivity={handleRemoveActivity}
-                onActivityClick={handleActivityClick}
-                isToday={day === today}
-              />
-            ))}
+              {/* Current time indicator */}
+              <CurrentTimeIndicator />
+
+              {/* Day columns */}
+              {DAYS_OF_WEEK.map((day) => (
+                <DayColumn
+                  key={day}
+                  day={day}
+                  activities={routine.schedule?.[day] || []}
+                  onAddActivity={handleAddActivity}
+                  onRemoveActivity={handleRemoveActivity}
+                  onActivityClick={handleActivityClick}
+                  isToday={day === today}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

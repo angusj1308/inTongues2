@@ -6,8 +6,8 @@ import './AudioWorkstation.css'
  * Features:
  * - Waveform timeline display with moving playhead
  * - Draggable region handles to select a section (always visible)
- * - Region-based playback and recording
- * - Punch-in recording from playhead position
+ * - Region-based playback and punch-in recording
+ * - Auto-stop when recording selected region
  * - Finalize to complete
  */
 const AudioWorkstation = ({
@@ -22,6 +22,7 @@ const AudioWorkstation = ({
   onPauseRecording,
   onResumeRecording,
   onFinalize,
+  onAudioUpdate, // New: callback to update audio after punch-in splice
 }) => {
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -33,6 +34,11 @@ const AudioWorkstation = ({
   const [regionStart, setRegionStart] = useState(0)
   const [regionEnd, setRegionEnd] = useState(0)
   const [isDragging, setIsDragging] = useState(null) // 'start', 'end', 'playhead', or null
+
+  // Punch-in recording state
+  const [isPunchIn, setIsPunchIn] = useState(false)
+  const [punchInDuration, setPunchInDuration] = useState(0)
+  const originalAudioRef = useRef(null) // Store original audio for splicing
 
   // Waveform state
   const [waveformData, setWaveformData] = useState([])
@@ -51,6 +57,118 @@ const AudioWorkstation = ({
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Splice new recording into original audio at the punch-in region
+  const spliceAudio = useCallback(async (originalBlob, newBlob, spliceStart, spliceEnd) => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+
+      // Decode both audio blobs
+      const [originalBuffer, newBuffer] = await Promise.all([
+        originalBlob.arrayBuffer().then(buf => audioContext.decodeAudioData(buf)),
+        newBlob.arrayBuffer().then(buf => audioContext.decodeAudioData(buf))
+      ])
+
+      const sampleRate = originalBuffer.sampleRate
+      const numChannels = originalBuffer.numberOfChannels
+
+      // Calculate sample positions
+      const spliceStartSample = Math.floor(spliceStart * sampleRate)
+      const spliceEndSample = Math.floor(spliceEnd * sampleRate)
+
+      // New total length: before + new recording + after
+      const beforeLength = spliceStartSample
+      const newLength = newBuffer.length
+      const afterLength = Math.max(0, originalBuffer.length - spliceEndSample)
+      const totalLength = beforeLength + newLength + afterLength
+
+      // Create new buffer
+      const outputBuffer = audioContext.createBuffer(numChannels, totalLength, sampleRate)
+
+      // Copy data for each channel
+      for (let channel = 0; channel < numChannels; channel++) {
+        const outputData = outputBuffer.getChannelData(channel)
+        const originalData = originalBuffer.getChannelData(channel)
+        const newData = newBuffer.getChannelData(Math.min(channel, newBuffer.numberOfChannels - 1))
+
+        // Copy before section
+        for (let i = 0; i < beforeLength; i++) {
+          outputData[i] = originalData[i]
+        }
+
+        // Copy new recording
+        for (let i = 0; i < newLength; i++) {
+          outputData[beforeLength + i] = newData[i]
+        }
+
+        // Copy after section
+        for (let i = 0; i < afterLength; i++) {
+          outputData[beforeLength + newLength + i] = originalData[spliceEndSample + i]
+        }
+      }
+
+      // Convert AudioBuffer to WAV blob
+      const wavBlob = audioBufferToWav(outputBuffer)
+
+      await audioContext.close()
+      return wavBlob
+    } catch (err) {
+      console.error('Error splicing audio:', err)
+      return null
+    }
+  }, [])
+
+  // Convert AudioBuffer to WAV Blob
+  const audioBufferToWav = (buffer) => {
+    const numChannels = buffer.numberOfChannels
+    const sampleRate = buffer.sampleRate
+    const format = 1 // PCM
+    const bitDepth = 16
+
+    const bytesPerSample = bitDepth / 8
+    const blockAlign = numChannels * bytesPerSample
+    const byteRate = sampleRate * blockAlign
+    const dataSize = buffer.length * blockAlign
+    const headerSize = 44
+    const totalSize = headerSize + dataSize
+
+    const arrayBuffer = new ArrayBuffer(totalSize)
+    const view = new DataView(arrayBuffer)
+
+    // WAV header
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+
+    writeString(0, 'RIFF')
+    view.setUint32(4, totalSize - 8, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true) // fmt chunk size
+    view.setUint16(20, format, true)
+    view.setUint16(22, numChannels, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, byteRate, true)
+    view.setUint16(32, blockAlign, true)
+    view.setUint16(34, bitDepth, true)
+    writeString(36, 'data')
+    view.setUint32(40, dataSize, true)
+
+    // Interleave channels and write samples
+    let offset = 44
+    for (let i = 0; i < buffer.length; i++) {
+      for (let channel = 0; channel < numChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]))
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
+        view.setInt16(offset, intSample, true)
+        offset += 2
+      }
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' })
   }
 
   // Generate waveform data from audio blob
@@ -143,6 +261,42 @@ const AudioWorkstation = ({
       liveWaveformRef.current = []
     }
   }, [isRecording, recordingTime])
+
+  // Auto-stop recording when punch-in duration is reached
+  useEffect(() => {
+    if (!isRecording || !isPunchIn || punchInDuration <= 0) return
+
+    if (recordingTime >= punchInDuration) {
+      // Automatically stop recording when we've recorded enough
+      onStopRecording()
+    }
+  }, [isRecording, isPunchIn, punchInDuration, recordingTime, onStopRecording])
+
+  // Handle punch-in splice when recording stops
+  const punchInRegionRef = useRef({ start: 0, end: 0 })
+
+  useEffect(() => {
+    // When recording stops and we were in punch-in mode, splice the audio
+    if (!isRecording && isPunchIn && audioBlob && originalAudioRef.current && onAudioUpdate) {
+      const doSplice = async () => {
+        const { start, end } = punchInRegionRef.current
+        const splicedBlob = await spliceAudio(
+          originalAudioRef.current,
+          audioBlob,
+          start,
+          end
+        )
+        if (splicedBlob) {
+          onAudioUpdate(splicedBlob)
+        }
+        // Reset punch-in state
+        setIsPunchIn(false)
+        setPunchInDuration(0)
+        originalAudioRef.current = null
+      }
+      doSplice()
+    }
+  }, [isRecording, isPunchIn, audioBlob, onAudioUpdate, spliceAudio])
 
   // Smooth playhead animation during playback
   useEffect(() => {
@@ -295,6 +449,22 @@ const AudioWorkstation = ({
     setRegionEnd(duration)
   }, [duration])
 
+  // Handle record button - either full recording or punch-in
+  const handleRecord = useCallback(() => {
+    if (!audioBlob || isFullRegion) {
+      // No existing audio or full region selected - do normal recording
+      onStartRecording()
+    } else {
+      // Punch-in mode: record only the selected region
+      // Store the original audio and region info for splicing later
+      originalAudioRef.current = audioBlob
+      punchInRegionRef.current = { start: regionStart, end: regionEnd }
+      setIsPunchIn(true)
+      setPunchInDuration(regionEnd - regionStart)
+      onStartRecording()
+    }
+  }, [audioBlob, isFullRegion, regionStart, regionEnd, onStartRecording])
+
   // Handle finalize
   const handleFinalize = useCallback(() => {
     if (isPlaying) {
@@ -399,9 +569,9 @@ const AudioWorkstation = ({
 
           {/* Recording indicator */}
           {isRecording && (
-            <div className="daw-recording-indicator">
+            <div className={`daw-recording-indicator ${isPunchIn ? 'punch-in' : ''}`}>
               <span className="daw-recording-dot" />
-              REC
+              {isPunchIn ? 'PUNCH' : 'REC'}
             </div>
           )}
         </div>
@@ -413,9 +583,9 @@ const AudioWorkstation = ({
           </span>
           <span className="daw-time-separator">/</span>
           <span className="daw-time-duration">
-            {isRecording ? '--:--' : formatTime(duration)}
+            {isRecording && isPunchIn ? formatTime(punchInDuration) : isRecording ? '--:--' : formatTime(duration)}
           </span>
-          {!isFullRegion && (
+          {!isFullRegion && !isRecording && (
             <span className="daw-time-region">
               (selection: {formatTime(regionEnd - regionStart)})
             </span>
@@ -524,8 +694,8 @@ const AudioWorkstation = ({
               {/* Record button - just the red circle */}
               <button
                 className="daw-btn daw-btn-record-again"
-                onClick={onStartRecording}
-                title="Record"
+                onClick={handleRecord}
+                title={isFullRegion ? "Re-record" : "Record selection"}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="12" cy="12" r="8" />
@@ -563,10 +733,12 @@ const AudioWorkstation = ({
 
       {/* Help text */}
       <div className="daw-help">
-        {isRecording ? (
+        {isRecording && isPunchIn ? (
+          <span>Recording selection... Will auto-stop at {formatTime(punchInDuration)}.</span>
+        ) : isRecording ? (
           <span>Recording in progress... Click Stop when finished.</span>
         ) : audioUrl ? (
-          <span>Drag the handles to select a section. Click Finalize when ready.</span>
+          <span>Drag handles to select a section. Record to punch-in. Finalize when ready.</span>
         ) : (
           <span>Click Record to start.</span>
         )}

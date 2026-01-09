@@ -333,7 +333,7 @@ textarea {
   display: flex;
   align-items: baseline;
   gap: 0.05rem;
-  font-size: 2.4rem;
+  font-size: 2.8rem;
   font-weight: 300;
   font-family: 'Garamond', serif;
   color: inherit;
@@ -363,7 +363,6 @@ textarea {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-size: 1rem;
   font-weight: 600;
-  margin-top: 0.2rem;
   line-height: 1.1;
   cursor: pointer;
   transition: color 0.15s ease;
@@ -532,14 +531,14 @@ textarea {
 }
 
 .dashboard-nav-button {
-  padding: 0.5rem 0.95rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 0;
   background: transparent;
   color: #64748b;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   cursor: pointer;

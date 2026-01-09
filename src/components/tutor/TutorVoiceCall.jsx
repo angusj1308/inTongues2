@@ -107,6 +107,17 @@ const TutorVoiceCall = ({
     window.speechSynthesis.cancel()
   }
 
+  // Helper: wrap promise with timeout
+  const withTimeout = (promise, ms, fallback) => {
+    const timeout = new Promise((resolve) => {
+      setTimeout(() => {
+        console.warn(`Promise timed out after ${ms}ms`)
+        resolve(fallback)
+      }, ms)
+    })
+    return Promise.race([promise, timeout])
+  }
+
   // Initialize call with tutor greeting
   useEffect(() => {
     // Prevent double-execution from React Strict Mode
@@ -120,31 +131,49 @@ const TutorVoiceCall = ({
           setCallDuration((d) => d + 1)
         }, 1000)
 
-        // Get tutor greeting first
+        // Get tutor greeting first (with timeout)
         setCallState('connecting')
-        const greetingRes = await fetch('/api/tutor/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            targetLanguage: activeLanguage,
-            sourceLanguage: nativeLanguage || 'English',
-            memory: tutorProfile?.memory,
-            voiceCall: true,
-            userName: userName,
-          }),
-        })
+
+        let greeting = null
+        try {
+          const greetingRes = await withTimeout(
+            fetch('/api/tutor/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                targetLanguage: activeLanguage,
+                sourceLanguage: nativeLanguage || 'English',
+                memory: tutorProfile?.memory,
+                voiceCall: true,
+                userName: userName,
+              }),
+            }),
+            10000, // 10 second timeout for greeting
+            null
+          )
+
+          if (!mountedRef.current) return
+
+          if (greetingRes && greetingRes.ok) {
+            const data = await greetingRes.json()
+            greeting = data.greeting
+          } else if (greetingRes) {
+            console.warn('Greeting fetch failed with status:', greetingRes.status)
+          } else {
+            console.warn('Greeting fetch timed out')
+          }
+        } catch (greetingErr) {
+          console.error('Error fetching greeting:', greetingErr)
+        }
 
         if (!mountedRef.current) return
 
-        if (greetingRes.ok) {
-          const { greeting } = await greetingRes.json()
+        // Speak greeting if we got one
+        if (greeting) {
           setTutorText(greeting)
-
-          // Add greeting to conversation history
           onMessage({ role: 'tutor', content: greeting })
           localConversationRef.current.push({ role: 'tutor', content: greeting })
 
-          // Speak the greeting
           setCallState('speaking')
           await speakText(greeting)
         }
@@ -313,7 +342,7 @@ const TutorVoiceCall = ({
       })
 
       if (!response.ok) {
-        // Fallback to browser TTS
+        console.warn('TTS API returned non-OK, falling back to browser TTS')
         return speakWithBrowserTTS(text)
       }
 
@@ -338,12 +367,15 @@ const TutorVoiceCall = ({
       source.connect(audioContext.destination)
       source.start()
 
-      return new Promise((resolve) => {
+      // Promise with timeout - audio should complete within 30 seconds max
+      const audioPromise = new Promise((resolve) => {
         source.onended = () => {
           audioSourceRef.current = null
-          resolve()
+          resolve('completed')
         }
       })
+
+      return withTimeout(audioPromise, 30000, 'timeout')
     } catch (err) {
       console.error('TTS error:', err)
       return speakWithBrowserTTS(text)
@@ -351,13 +383,19 @@ const TutorVoiceCall = ({
   }
 
   const speakWithBrowserTTS = (text) => {
-    return new Promise((resolve) => {
+    const ttsPromise = new Promise((resolve) => {
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = activeLanguage === 'Spanish' ? 'es' : activeLanguage === 'French' ? 'fr' : activeLanguage === 'Italian' ? 'it' : 'en'
       utterance.rate = settings?.speechSpeed === 'slow' ? 0.8 : settings?.speechSpeed === 'fast' ? 1.2 : 1.0
-      utterance.onend = resolve
+      utterance.onend = () => resolve('completed')
+      utterance.onerror = (e) => {
+        console.warn('Browser TTS error:', e)
+        resolve('error')
+      }
       window.speechSynthesis.speak(utterance)
     })
+    // Timeout after 15 seconds for browser TTS
+    return withTimeout(ttsPromise, 15000, 'timeout')
   }
 
   const handleMuteToggle = async () => {

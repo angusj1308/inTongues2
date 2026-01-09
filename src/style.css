@@ -3003,12 +3003,12 @@ textarea {
 }
 
 .speaking-action-btn.primary {
-  background: #3b82f6;
+  background: #1e293b;
   color: #fff;
 }
 
 .speaking-action-btn.primary:hover {
-  background: #2563eb;
+  background: #0f172a;
 }
 
 .speaking-record-instruction {
@@ -3270,11 +3270,12 @@ textarea {
 }
 
 [data-theme="dark"] .speaking-action-btn.primary {
-  background: #2563eb;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 [data-theme="dark"] .speaking-action-btn.primary:hover {
-  background: #1d4ed8;
+  background: #fff;
 }
 
 /* Keep old styles for compatibility */

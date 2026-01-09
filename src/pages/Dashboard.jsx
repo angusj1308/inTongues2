@@ -527,26 +527,78 @@ const Dashboard = () => {
         >
           {activeTab === 'home' && (
             <div className="home-content">
-              {/* Level Section */}
-              <div className="home-level-section">
-                <div className="home-level-header">
-                  <div className="home-level-title">
+              {/* Two Column Layout: Today's Routine + Level */}
+              <div className="home-grid-two">
+                {/* Today's Routine - Left */}
+                <div className="home-card">
+                  <h3 className="home-card-title">Today</h3>
+                  {todayActivities.length > 0 ? (
+                    <div className="home-today-list">
+                      {todayActivities.map((activity) => {
+                        const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
+                        return (
+                          <button
+                            key={activity.id}
+                            className="home-today-item"
+                            onClick={() => {
+                              const tabMap = {
+                                reading: 'read',
+                                listening: 'listen',
+                                speaking: 'speak',
+                                review: 'review',
+                                writing: 'write',
+                                tutor: 'tutor',
+                              }
+                              handleTabClick(tabMap[activity.activityType] || 'read')
+                            }}
+                          >
+                            <span className="home-today-time">{activity.time || '—'}</span>
+                            <span className="home-today-activity">{activityConfig.label}</span>
+                            <span className="home-today-duration">{activity.duration}m</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="home-suggested-routine">
+                      <p className="home-suggested-label">Suggested for {levelInfo.level}</p>
+                      <div className="home-suggested-breakdown">
+                        <div className="home-suggested-item">
+                          <span className="home-suggested-percent">90%</span>
+                          <span className="home-suggested-desc">Intensive reading & listening</span>
+                        </div>
+                        <div className="home-suggested-item">
+                          <span className="home-suggested-percent">10%</span>
+                          <span className="home-suggested-desc">Optional review</span>
+                        </div>
+                      </div>
+                      <p className="home-suggested-goal">
+                        Acquire foundational vocabulary and familiarise yourself with the sound of the language.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Level - Right */}
+                <div className="home-card">
+                  <h3 className="home-card-title">Level</h3>
+                  <div className="home-level-display">
                     <span className="home-level-name">{homeStatsLoading ? '...' : levelInfo.level}</span>
                     <span className="home-level-words">
                       {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
                     </span>
+                  </div>
+                  <div className="home-level-bar">
+                    <div
+                      className="home-level-fill"
+                      style={{ width: `${levelInfo.progressPercent}%` }}
+                    />
                   </div>
                   {levelInfo.nextLevel && (
                     <span className="home-level-next">
                       {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
                     </span>
                   )}
-                </div>
-                <div className="home-level-bar">
-                  <div
-                    className="home-level-fill"
-                    style={{ width: `${levelInfo.progressPercent}%` }}
-                  />
                 </div>
               </div>
 
@@ -573,39 +625,6 @@ const Dashboard = () => {
                   <span className="home-stat-label">known</span>
                 </div>
               </div>
-
-              {/* Today's Plan - Minimal */}
-              {todayActivities.length > 0 && (
-                <div className="home-today">
-                  <h3 className="home-section-title">Today</h3>
-                  <div className="home-today-list">
-                    {todayActivities.map((activity) => {
-                      const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
-                      return (
-                        <button
-                          key={activity.id}
-                          className="home-today-item"
-                          onClick={() => {
-                            const tabMap = {
-                              reading: 'read',
-                              listening: 'listen',
-                              speaking: 'speak',
-                              review: 'review',
-                              writing: 'write',
-                              tutor: 'tutor',
-                            }
-                            handleTabClick(tabMap[activity.activityType] || 'read')
-                          }}
-                        >
-                          <span className="home-today-time">{activity.time || '—'}</span>
-                          <span className="home-today-activity">{activityConfig.label}</span>
-                          <span className="home-today-duration">{activity.duration}m</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
 
               {/* Routine Builder */}
               <RoutineBuilder userId={user?.uid} language={activeLanguage} />

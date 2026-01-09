@@ -76,6 +76,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   const [isAssessing, setIsAssessing] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [exemplar, setExemplar] = useState(null)
+  const [transcript, setTranscript] = useState(null)
   const [showExemplar, setShowExemplar] = useState(false)
   const [error, setError] = useState(null)
   const [vocabToSave, setVocabToSave] = useState([])
@@ -108,6 +109,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   useEffect(() => {
     setUserRecording(null)
     setFeedback(null)
+    setTranscript(null)
     // Use cached exemplar if available
     setExemplar(exemplarCache[currentIndex] || null)
     setShowExemplar(false)
@@ -301,6 +303,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
         const result = await response.json()
         setFeedback(result.feedback)
         setExemplar(result.exemplar)
+        setTranscript(result.feedback?.userTranscription || null)
         setVocabToSave(result.vocab || [])
         setIsAssessing(false)
       }
@@ -404,6 +407,7 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   const retryRecording = () => {
     setUserRecording(null)
     setFeedback(null)
+    setTranscript(null)
     setError(null)
     setPromptCollapsed(false)
     setTutorMessages([])
@@ -661,14 +665,6 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
                   </>
                 )}
 
-                {/* Exemplar */}
-                {exemplar && (
-                  <div className="speaking-exemplar">
-                    <span className="speaking-exemplar-label">Example ({activeLanguage})</span>
-                    <p className="speaking-exemplar-text">{exemplar}</p>
-                  </div>
-                )}
-
                 {/* Vocab section */}
                 {renderVocabSection()}
 
@@ -783,11 +779,19 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
                 </div>
               )}
 
-              {/* Playback & actions (after feedback) */}
-              {hasFeedback && userRecording && (
-                <div className="speaking-playback">
-                  <span className="speaking-playback-label">Your recording</span>
-                  <audio src={userRecording.url} controls />
+              {/* User's transcript (after feedback) */}
+              {hasFeedback && transcript && (
+                <div className="speaking-transcript">
+                  <span className="speaking-transcript-label">You said ({activeLanguage})</span>
+                  <p className="speaking-transcript-text">{transcript}</p>
+                </div>
+              )}
+
+              {/* Exemplar (after feedback) */}
+              {hasFeedback && exemplar && (
+                <div className="speaking-exemplar">
+                  <span className="speaking-exemplar-label">Example ({activeLanguage})</span>
+                  <p className="speaking-exemplar-text">{exemplar}</p>
                 </div>
               )}
 

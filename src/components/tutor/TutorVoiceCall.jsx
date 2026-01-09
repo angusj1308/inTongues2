@@ -125,70 +125,78 @@ const TutorVoiceCall = ({
     initCalledRef.current = true
 
     const initCall = async () => {
+      console.log('[VoiceCall] Starting init...')
+
+      // Start call timer
+      callTimerRef.current = setInterval(() => {
+        setCallDuration((d) => d + 1)
+      }, 1000)
+
+      // Get tutor greeting first (with timeout)
+      let greeting = null
       try {
-        // Start call timer
-        callTimerRef.current = setInterval(() => {
-          setCallDuration((d) => d + 1)
-        }, 1000)
-
-        // Get tutor greeting first (with timeout)
-        setCallState('connecting')
-
-        let greeting = null
-        try {
-          const greetingRes = await withTimeout(
-            fetch('/api/tutor/start', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                targetLanguage: activeLanguage,
-                sourceLanguage: nativeLanguage || 'English',
-                memory: tutorProfile?.memory,
-                voiceCall: true,
-                userName: userName,
-              }),
+        console.log('[VoiceCall] Fetching greeting...')
+        const greetingRes = await withTimeout(
+          fetch('/api/tutor/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetLanguage: activeLanguage,
+              sourceLanguage: nativeLanguage || 'English',
+              memory: tutorProfile?.memory,
+              voiceCall: true,
+              userName: userName,
             }),
-            10000, // 10 second timeout for greeting
-            null
-          )
-
-          if (!mountedRef.current) return
-
-          if (greetingRes && greetingRes.ok) {
-            const data = await greetingRes.json()
-            greeting = data.greeting
-          } else if (greetingRes) {
-            console.warn('Greeting fetch failed with status:', greetingRes.status)
-          } else {
-            console.warn('Greeting fetch timed out')
-          }
-        } catch (greetingErr) {
-          console.error('Error fetching greeting:', greetingErr)
-        }
+          }),
+          10000,
+          null
+        )
 
         if (!mountedRef.current) return
 
-        // Speak greeting if we got one
-        if (greeting) {
+        if (greetingRes && greetingRes.ok) {
+          const data = await greetingRes.json()
+          greeting = data.greeting
+          console.log('[VoiceCall] Got greeting:', greeting)
+        } else {
+          console.warn('[VoiceCall] Greeting fetch failed or timed out')
+        }
+      } catch (greetingErr) {
+        console.error('[VoiceCall] Error fetching greeting:', greetingErr)
+      }
+
+      if (!mountedRef.current) return
+
+      // Speak greeting if we got one
+      if (greeting) {
+        try {
           setTutorText(greeting)
           onMessage({ role: 'tutor', content: greeting })
           localConversationRef.current.push({ role: 'tutor', content: greeting })
 
           setCallState('speaking')
           await speakText(greeting)
+          console.log('[VoiceCall] Finished speaking greeting')
+        } catch (speakErr) {
+          console.error('[VoiceCall] Error speaking greeting:', speakErr)
         }
+      }
 
-        if (!mountedRef.current) return
+      if (!mountedRef.current) return
 
-        // Now start listening for user
-        setTutorText('')
-        resetTranscription()
-        setCallState('listening')
+      // Now start listening for user - always try to reach this state
+      console.log('[VoiceCall] Starting to listen...')
+      setTutorText('')
+      resetTranscription()
+      setCallState('listening')
+
+      try {
         await startStreaming()
-      } catch (err) {
-        console.error('Failed to start call:', err)
+        console.log('[VoiceCall] Streaming started successfully')
+      } catch (streamErr) {
+        console.error('[VoiceCall] Error starting stream:', streamErr)
         if (mountedRef.current) {
-          setError('Failed to start call. Please check microphone permissions.')
+          setError('Microphone error. Please check permissions and refresh.')
         }
       }
     }

@@ -449,6 +449,10 @@ const AudioWorkstation = ({
     setRegionEnd(duration)
   }, [duration])
 
+  // Calculate if region is the full duration (no custom selection)
+  // Must be defined before handleRecord which depends on it
+  const isFullRegion = regionStart === 0 && regionEnd === duration
+
   // Handle record button - either full recording or punch-in
   const handleRecord = useCallback(() => {
     if (!audioBlob || isFullRegion) {
@@ -478,9 +482,6 @@ const AudioWorkstation = ({
   const playheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0
   const regionStartPercent = duration > 0 ? (regionStart / duration) * 100 : 0
   const regionEndPercent = duration > 0 ? (regionEnd / duration) * 100 : 100
-
-  // Check if region is the full duration (no custom selection)
-  const isFullRegion = regionStart === 0 && regionEnd === duration
 
   return (
     <div className="audio-workstation">

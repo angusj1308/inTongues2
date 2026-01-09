@@ -121,11 +121,14 @@ const TutorVoiceCall = ({
   // Initialize call with tutor greeting
   useEffect(() => {
     // Prevent double-execution from React Strict Mode
-    if (initCalledRef.current) return
+    if (initCalledRef.current) {
+      console.log('[VoiceCall] Init already called, skipping')
+      return
+    }
     initCalledRef.current = true
 
     const initCall = async () => {
-      console.log('[VoiceCall] Starting init...')
+      console.log('[VoiceCall] Starting init, mountedRef:', mountedRef.current)
 
       // Start call timer
       callTimerRef.current = setInterval(() => {
@@ -152,7 +155,7 @@ const TutorVoiceCall = ({
           null
         )
 
-        if (!mountedRef.current) return
+        console.log('[VoiceCall] After greeting fetch, mountedRef:', mountedRef.current)
 
         if (greetingRes && greetingRes.ok) {
           const data = await greetingRes.json()
@@ -165,10 +168,8 @@ const TutorVoiceCall = ({
         console.error('[VoiceCall] Error fetching greeting:', greetingErr)
       }
 
-      if (!mountedRef.current) return
-
       // Speak greeting if we got one
-      if (greeting) {
+      if (greeting && mountedRef.current) {
         try {
           setTutorText(greeting)
           onMessage({ role: 'tutor', content: greeting })
@@ -182,10 +183,8 @@ const TutorVoiceCall = ({
         }
       }
 
-      if (!mountedRef.current) return
-
-      // Now start listening for user - always try to reach this state
-      console.log('[VoiceCall] Starting to listen...')
+      // Always try to start listening (React ignores state updates on unmounted components)
+      console.log('[VoiceCall] Starting to listen, mountedRef:', mountedRef.current)
       setTutorText('')
       resetTranscription()
       setCallState('listening')
@@ -195,15 +194,14 @@ const TutorVoiceCall = ({
         console.log('[VoiceCall] Streaming started successfully')
       } catch (streamErr) {
         console.error('[VoiceCall] Error starting stream:', streamErr)
-        if (mountedRef.current) {
-          setError('Microphone error. Please check permissions and refresh.')
-        }
+        setError('Microphone error. Please check permissions and refresh.')
       }
     }
 
     initCall()
 
     return () => {
+      console.log('[VoiceCall] Cleanup running')
       mountedRef.current = false
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current)

@@ -1,0 +1,67 @@
+/* Recording Countdown - Photo Booth style */
+.recording-countdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.recording-countdown-container {
+  text-align: center;
+}
+
+.recording-countdown-number {
+  font-size: 12rem;
+  font-weight: 200;
+  color: #fff;
+  line-height: 1;
+  animation: countdownPulse 1s ease-out;
+  min-height: 14rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes countdownPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.recording-countdown-text {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 1rem 0 2rem;
+}
+
+.recording-countdown-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recording-countdown-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+}

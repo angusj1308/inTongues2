@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { useRealtimeTranscription } from '../hooks/useRealtimeTranscription'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
-import { WaveformVisualizer } from '../components/speak/shared/WaveformVisualizer'
+import RecordingCountdown from '../components/speak/shared/RecordingCountdown'
+import AudioWorkstation from '../components/speak/shared/AudioWorkstation'
 import {
   LANGUAGE_HIGHLIGHT_COLORS,
   STATUS_OPACITY,
@@ -81,6 +82,8 @@ const FreeSpeakingSession = () => {
   const [transcription, setTranscription] = useState('')
   const [audioUrl, setAudioUrl] = useState(null)
   const [audioBlob, setAudioBlob] = useState(null)
+  const [showCountdown, setShowCountdown] = useState(false)
+  const [isFinalized, setIsFinalized] = useState(false)
 
   // Feedback state
   const [inlineFeedback, setInlineFeedback] = useState([])
@@ -148,13 +151,6 @@ const FreeSpeakingSession = () => {
   } = useAudioRecorder({
     maxDuration: 600 // 10 minutes max
   })
-
-  // Format time as MM:SS
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
 
   // Sync dark mode with document
   useEffect(() => {
@@ -306,11 +302,18 @@ const FreeSpeakingSession = () => {
     }
   }
 
-  // Start recording session
-  const handleStart = async () => {
+  // Initiate recording - shows countdown first
+  const handleStartRecording = () => {
     setError(null)
+    setShowCountdown(true)
+  }
+
+  // Called when countdown finishes - actually start recording
+  const handleCountdownComplete = async () => {
+    setShowCountdown(false)
     setTranscription('')
     setInlineFeedback([])
+    setIsFinalized(false)
     lastAnalyzedTextRef.current = ''
 
     try {
@@ -325,7 +328,12 @@ const FreeSpeakingSession = () => {
     }
   }
 
-  // Stop recording
+  // Cancel countdown
+  const handleCountdownCancel = () => {
+    setShowCountdown(false)
+  }
+
+  // Stop recording - but don't analyze yet (user can re-record)
   const handleStop = async () => {
     try {
       stopRecording()
@@ -336,24 +344,30 @@ const FreeSpeakingSession = () => {
         setAudioUrl(result.audioUrl)
       }
 
-      // Final transcript
+      // Store transcript but don't analyze yet
       const finalText = result.text || transcription || liveTranscript
       setTranscription(finalText)
-
-      // Do final analysis
-      if (finalText && finalText.length > 10) {
-        await analyzeTranscription(finalText)
-      }
-
-      // Open panel to show feedback
-      setIsPanelOpen(true)
     } catch (err) {
       console.error('Error stopping:', err)
       setError('Error stopping recording')
     }
   }
 
-  // Reset session
+  // Finalize recording - triggers analysis and shows results
+  const handleFinalize = async () => {
+    setIsFinalized(true)
+
+    // Do final analysis
+    const textToAnalyze = transcription || liveTranscript
+    if (textToAnalyze && textToAnalyze.length > 10) {
+      await analyzeTranscription(textToAnalyze)
+    }
+
+    // Open panel to show feedback
+    setIsPanelOpen(true)
+  }
+
+  // Reset session completely
   const handleReset = () => {
     resetRecording()
     resetTranscription()
@@ -364,6 +378,7 @@ const FreeSpeakingSession = () => {
     setError(null)
     setIsSessionActive(false)
     setIsPanelOpen(false)
+    setIsFinalized(false)
     setChatMessages([])
     lastAnalyzedTextRef.current = ''
   }
@@ -604,8 +619,8 @@ const FreeSpeakingSession = () => {
 
       {/* Main content */}
       <div className="practice-layout">
-        {/* Tutor panel toggle tab - hidden during recording */}
-        {audioUrl && !isRecording && (
+        {/* Tutor panel toggle tab - only after finalization */}
+        {isFinalized && (
           <button
             className="freewriting-panel-tab"
             onClick={() => setIsPanelOpen(!isPanelOpen)}
@@ -640,8 +655,8 @@ const FreeSpeakingSession = () => {
           </button>
         )}
 
-        {/* Left panel - Feedback (collapsible) - hidden during recording */}
-        {audioUrl && !isRecording && (
+        {/* Left panel - Feedback (collapsible) - only after finalization */}
+        {isFinalized && (
           <aside
             className="practice-chat-panel"
             style={{
@@ -903,95 +918,40 @@ const FreeSpeakingSession = () => {
         <main
           className="freewriting-document-area"
           style={{
-            marginLeft: (audioUrl && !isRecording && isPanelOpen) ? panelWidth : 0,
+            marginLeft: (isFinalized && isPanelOpen) ? panelWidth : 0,
             transition: 'margin-left 0.2s ease',
           }}
         >
-          {/* Full-screen Recording Overlay - covers document during recording */}
-          {(!audioUrl || isRecording) && (
+          {/* Countdown overlay */}
+          {showCountdown && (
+            <RecordingCountdown
+              onComplete={handleCountdownComplete}
+              onCancel={handleCountdownCancel}
+            />
+          )}
+
+          {/* DAW Workstation - shown before finalization */}
+          {!isFinalized && (
             <div className="free-speaking-recording-overlay">
-              <div className="free-speaking-recording-card">
-                {error && (
-                  <div className="floating-recording-error">
-                    {error}
-                  </div>
-                )}
-
-                {/* Waveform */}
-                <div className="floating-recording-waveform">
-                  <WaveformVisualizer
-                    analyserNode={transcriptionAnalyser || recorderAnalyser}
-                    isRecording={isRecording && !isPaused}
-                    height={80}
-                    barColor={isRecording ? '#ef4444' : '#64748b'}
-                  />
-                </div>
-
-                {/* Timer */}
-                <div className={`floating-recording-timer ${isRecording ? 'recording' : ''}`}>
-                  {isRecording && !isPaused && (
-                    <span className="recording-indicator">
-                      <span className="recording-dot"></span>
-                    </span>
-                  )}
-                  <span className="timer-display">{formatTime(recordingTime)}</span>
-                </div>
-
-                {/* Controls */}
-                <div className="floating-recording-controls">
-                  {!isRecording && !audioUrl ? (
-                    <button
-                      className="floating-btn floating-btn-record"
-                      onClick={handleStart}
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="8" />
-                      </svg>
-                      <span>Start Recording</span>
-                    </button>
-                  ) : isRecording ? (
-                    <>
-                      <button
-                        className="floating-btn floating-btn-secondary"
-                        onClick={isPaused ? resumeRecording : pauseRecording}
-                      >
-                        {isPaused ? (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        ) : (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <rect x="6" y="4" width="4" height="16" rx="1" />
-                            <rect x="14" y="4" width="4" height="16" rx="1" />
-                          </svg>
-                        )}
-                        <span>{isPaused ? 'Resume' : 'Pause'}</span>
-                      </button>
-                      <button
-                        className="floating-btn floating-btn-stop"
-                        onClick={handleStop}
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                          <rect x="6" y="6" width="12" height="12" rx="2" />
-                        </svg>
-                        <span>Stop</span>
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-
-                {/* Tip text */}
-                <p className="floating-recording-tip">
-                  {!isRecording
-                    ? 'Speak freely about any topic in your target language'
-                    : 'Your speech is being transcribed in real-time'}
-                </p>
-              </div>
+              <AudioWorkstation
+                audioBlob={audioBlob}
+                audioUrl={audioUrl}
+                isRecording={isRecording}
+                isPaused={isPaused}
+                recordingTime={recordingTime}
+                analyserNode={transcriptionAnalyser || recorderAnalyser}
+                onStartRecording={handleStartRecording}
+                onStopRecording={handleStop}
+                onPauseRecording={pauseRecording}
+                onResumeRecording={resumeRecording}
+                onFinalize={handleFinalize}
+                onReset={handleReset}
+              />
             </div>
           )}
 
-          {/* Document - only visible after recording stops */}
-          {audioUrl && !isRecording && (
+          {/* Document - only visible after finalization */}
+          {isFinalized && (
             <div className="freewriting-document">
               <div
                 className="freewriting-document-content"
@@ -1013,39 +973,41 @@ const FreeSpeakingSession = () => {
               </div>
 
               {/* Audio playback at bottom */}
-              <div className="spontaneous-playback-section">
-                <audio
-                  ref={playbackRef}
-                  src={audioUrl}
-                  onEnded={() => setIsPlaying(false)}
-                />
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <button className="btn-playback-large" onClick={togglePlayback}>
-                    {isPlaying ? (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="4" width="4" height="16" rx="1" />
-                        <rect x="14" y="4" width="4" height="16" rx="1" />
+              {audioUrl && (
+                <div className="spontaneous-playback-section">
+                  <audio
+                    ref={playbackRef}
+                    src={audioUrl}
+                    onEnded={() => setIsPlaying(false)}
+                  />
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <button className="btn-playback-large" onClick={togglePlayback}>
+                      {isPlaying ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="6" y="4" width="4" height="16" rx="1" />
+                          <rect x="14" y="4" width="4" height="16" rx="1" />
+                        </svg>
+                      ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                      <span>{isPlaying ? 'Pause' : 'Play Recording'}</span>
+                    </button>
+                    <button
+                      className="floating-btn floating-btn-secondary"
+                      onClick={handleReset}
+                      style={{ padding: '10px 16px' }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 4v6h6" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                       </svg>
-                    ) : (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    )}
-                    <span>{isPlaying ? 'Pause Recording' : 'Play Your Recording'}</span>
-                  </button>
-                  <button
-                    className="floating-btn floating-btn-secondary"
-                    onClick={handleReset}
-                    style={{ padding: '10px 16px' }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 4v6h6" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
-                    <span>Record Again</span>
-                  </button>
+                      <span>New Recording</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Analyzing indicator */}
               {isAnalyzing && (

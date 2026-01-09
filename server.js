@@ -6138,6 +6138,163 @@ app.post('/api/tutor/tts', async (req, res) => {
 })
 
 /**
+ * Streaming tutor response with real-time TTS
+ * Streams LLM response and immediately starts TTS for faster playback
+ */
+app.post('/api/tutor/stream', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, memory, settings } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    // Resolve voice ID upfront
+    let voiceId
+    try {
+      const resolved = resolveElevenLabsVoiceId(targetLanguage, 'female')
+      voiceId = resolved.voiceId
+    } catch (voiceErr) {
+      console.error('Failed to resolve voice:', voiceErr)
+      return res.status(400).json({ error: 'Unsupported language' })
+    }
+
+    // Build memory context
+    let memoryContext = ''
+    if (memory) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+      if (facts || mistakes) {
+        memoryContext = `
+WHAT YOU KNOW ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${mistakes ? `- Mistakes they often make: ${mistakes}` : ''}`
+      }
+    }
+
+    // Build conversation history
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'tutor' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Keep responses SHORT - 1-2 sentences max for voice chat
+- Correct mistakes NATURALLY within your response
+- Write primarily in ${targetLanguage}
+- Match vocabulary to their level (${memory?.observedLevel || 'beginner'})
+
+VOICE CHAT: This is a real-time voice conversation. Keep it snappy and natural.
+
+CORRECTION STYLE:
+Work corrections into your natural response briefly.
+Example: "Ah sí, *tengo* hambre también! ¿Qué comemos?"
+
+Respond naturally to the student's message.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    // Set up SSE for streaming
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+
+    // Stream LLM response
+    const stream = await client.chat.completions.create({
+      model: 'gpt-4o-mini', // Faster model for voice
+      messages,
+      temperature: 0.8,
+      stream: true,
+    })
+
+    let fullText = ''
+    let sentenceBuffer = ''
+    const sentenceEnders = /[.!?。！？¿¡]/
+
+    // Helper to send TTS for a chunk
+    const sendTTSChunk = async (text) => {
+      if (!text.trim()) return
+
+      try {
+        const apiKey = process.env.ELEVENLABS_API_KEY
+        const ttsResponse = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'xi-api-key': apiKey,
+            },
+            body: JSON.stringify({
+              text,
+              model_id: 'eleven_turbo_v2_5', // Fastest model
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.75,
+              },
+            }),
+          }
+        )
+
+        if (ttsResponse.ok) {
+          const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+          const audioBase64 = audioBuffer.toString('base64')
+          res.write(`data: ${JSON.stringify({ type: 'audio', audio: audioBase64 })}\n\n`)
+        }
+      } catch (ttsErr) {
+        console.error('Streaming TTS error:', ttsErr)
+      }
+    }
+
+    // Process stream
+    for await (const chunk of stream) {
+      const content = chunk.choices?.[0]?.delta?.content || ''
+      if (content) {
+        fullText += content
+        sentenceBuffer += content
+
+        // Send text chunk for display
+        res.write(`data: ${JSON.stringify({ type: 'text', text: content })}\n\n`)
+
+        // Check for sentence boundary
+        if (sentenceEnders.test(content)) {
+          await sendTTSChunk(sentenceBuffer.trim())
+          sentenceBuffer = ''
+        }
+      }
+    }
+
+    // Send any remaining text
+    if (sentenceBuffer.trim()) {
+      await sendTTSChunk(sentenceBuffer.trim())
+    }
+
+    // Send completion
+    res.write(`data: ${JSON.stringify({ type: 'done', fullText })}\n\n`)
+    res.end()
+
+  } catch (error) {
+    console.error('Tutor stream error:', error)
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Stream failed' })
+    }
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
+    res.end()
+  }
+})
+
+/**
  * Generate a chat title based on conversation content
  */
 app.post('/api/tutor/generate-title', async (req, res) => {

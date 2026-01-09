@@ -8,6 +8,7 @@ import {
   setDoc,
   Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
@@ -509,4 +510,53 @@ export const updateVocabTranslation = async (userId, language, text, translation
     },
     { merge: true }
   )
+}
+
+/**
+ * Reset all vocab progress for a language
+ * Sets all words back to 'unknown' status and resets SRS data
+ * Preserves translations and pronunciations
+ */
+export const resetVocabProgress = async (userId, language) => {
+  const normalisedLang = normaliseLanguage(language)
+  const vocabCollection = collection(doc(collection(db, 'users'), userId), 'vocab')
+  const vocabQuery = query(vocabCollection, where('language', '==', normalisedLang))
+  const snapshot = await getDocs(vocabQuery)
+
+  if (snapshot.empty) return 0
+
+  // Batch updates (Firestore allows up to 500 per batch)
+  const BATCH_SIZE = 500
+  let totalReset = 0
+  let batch = writeBatch(db)
+  let batchCount = 0
+
+  for (const docSnap of snapshot.docs) {
+    batch.update(docSnap.ref, {
+      status: 'unknown',
+      intervalDays: null,
+      easeFactor: DEFAULT_EASE_FACTOR,
+      correctStreak: 0,
+      recallStreak: 0,
+      nextReviewAt: null,
+      updatedAt: serverTimestamp(),
+    })
+
+    batchCount++
+    totalReset++
+
+    // Commit batch when it reaches the limit
+    if (batchCount >= BATCH_SIZE) {
+      await batch.commit()
+      batch = writeBatch(db)
+      batchCount = 0
+    }
+  }
+
+  // Commit any remaining updates
+  if (batchCount > 0) {
+    await batch.commit()
+  }
+
+  return totalReset
 }

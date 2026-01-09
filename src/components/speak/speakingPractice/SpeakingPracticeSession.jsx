@@ -1,14 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../firebase'
-import { upsertVocabEntry } from '../../../services/vocab'
+import { upsertVocabEntry, normaliseExpression } from '../../../services/vocab'
 import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../../../constants/highlightColors'
 
 // Word status constants for the vocab panel
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+// Play icon for pronunciation button
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+)
 
 // Helper to get language color with case-insensitive lookup
 const getLanguageColor = (language) => {
@@ -101,6 +108,11 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
   const [exemplarCache, setExemplarCache] = useState({}) // index -> exemplar
   const [fetchingExemplars, setFetchingExemplars] = useState(false)
   const lastFetchedBatchRef = useRef(-1)
+
+  // Audio playback state for vocab pronunciation
+  const [vocabAudioCache, setVocabAudioCache] = useState({}) // word -> audioUrl
+  const [loadingAudio, setLoadingAudio] = useState(new Set())
+  const audioRef = useRef(null)
 
   const sentences = lesson.sentences || []
   const currentSentence = sentences[currentIndex]
@@ -301,10 +313,23 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
         }
 
         const result = await response.json()
+        const userTranscript = result.feedback?.userTranscription || ''
+
+        // Auto-mark words as 'known' if they appear in user's transcription
+        const transcriptLower = userTranscript.toLowerCase()
+        const vocabWithAutoStatus = (result.vocab || []).map(word => {
+          const wordNormalised = normaliseExpression(word.text)
+          const wordInTranscript = transcriptLower.includes(wordNormalised.toLowerCase())
+          return {
+            ...word,
+            autoStatus: wordInTranscript ? 'known' : 'new'
+          }
+        })
+
         setFeedback(result.feedback)
         setExemplar(result.exemplar)
-        setTranscript(result.feedback?.userTranscription || null)
-        setVocabToSave(result.vocab || [])
+        setTranscript(userTranscript)
+        setVocabToSave(vocabWithAutoStatus)
         setIsAssessing(false)
       }
     } catch (err) {
@@ -386,6 +411,61 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     }
   }
 
+  // Play pronunciation for a vocab word
+  const playPronunciation = useCallback(async (word) => {
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+
+    const normalised = normaliseExpression(word)
+
+    // Check cache first
+    if (vocabAudioCache[normalised]) {
+      const audio = new Audio(vocabAudioCache[normalised])
+      audio.play().catch(err => console.error('Audio playback failed:', err))
+      audioRef.current = audio
+      return
+    }
+
+    // Fetch pronunciation
+    setLoadingAudio(prev => new Set([...prev, normalised]))
+
+    try {
+      const response = await fetch('/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: word,
+          sourceLang: activeLanguage,
+          targetLang: nativeLanguage,
+          voiceGender: 'male'
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.audioUrl) {
+          // Cache the audio URL
+          setVocabAudioCache(prev => ({ ...prev, [normalised]: data.audioUrl }))
+          // Play it
+          const audio = new Audio(data.audioUrl)
+          audio.play().catch(err => console.error('Audio playback failed:', err))
+          audioRef.current = audio
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch pronunciation:', err)
+    } finally {
+      setLoadingAudio(prev => {
+        const next = new Set(prev)
+        next.delete(normalised)
+        return next
+      })
+    }
+  }, [activeLanguage, nativeLanguage, vocabAudioCache])
+
   // Navigation
   const goToNext = useCallback(() => {
     if (currentIndex < sentences.length - 1) {
@@ -412,6 +492,54 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
     setPromptCollapsed(false)
     setTutorMessages([])
   }
+
+  // Build vocab status lookup for highlighting
+  const vocabStatusMap = useMemo(() => {
+    const map = {}
+    vocabToSave.forEach(word => {
+      const normalised = normaliseExpression(word.text)
+      const status = savedVocab[word.text] || word.autoStatus || 'new'
+      map[normalised] = status
+    })
+    return map
+  }, [vocabToSave, savedVocab])
+
+  // Render exemplar text with word highlighting based on status
+  const renderHighlightedExemplar = useCallback((text) => {
+    if (!text) return null
+
+    // Tokenize: split into words and non-word tokens
+    const tokens = text.split(/([^\p{L}\p{N}]+)/gu).filter(Boolean)
+
+    return tokens.map((token, idx) => {
+      // Check if this is a word token
+      if (!/[\p{L}\p{N}]/u.test(token)) {
+        return <span key={idx}>{token}</span>
+      }
+
+      const normalised = normaliseExpression(token)
+      const status = vocabStatusMap[normalised]
+
+      // Only highlight non-known words that are in our vocab
+      if (!status || status === 'known') {
+        return <span key={idx}>{token}</span>
+      }
+
+      return (
+        <span
+          key={idx}
+          className={`speaking-word-highlight speaking-word-${status}`}
+          style={{
+            backgroundColor: status === 'new'
+              ? `color-mix(in srgb, #F97316 ${(STATUS_OPACITY?.new || 0.5) * 100}%, transparent)`
+              : `color-mix(in srgb, ${languageColor} ${(STATUS_OPACITY?.[status] || 0.3) * 100}%, transparent)`
+          }}
+        >
+          {token}
+        </span>
+      )
+    })
+  }, [vocabStatusMap, languageColor])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -558,12 +686,27 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
         {isExpanded && (
           <div className="speaking-vocab-list">
             {vocabToSave.map((word, idx) => {
-              const currentStatus = savedVocab[word.text] || 'new'
+              const currentStatus = savedVocab[word.text] || word.autoStatus || 'new'
               const statusIndex = STATUS_LEVELS.indexOf(currentStatus)
               const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
+              const normalised = normaliseExpression(word.text)
+              const isLoadingThisAudio = loadingAudio.has(normalised)
 
               return (
                 <div key={idx} className="speaking-vocab-row">
+                  <button
+                    type="button"
+                    className={`speaking-vocab-play ${isLoadingThisAudio ? 'loading' : ''}`}
+                    onClick={() => playPronunciation(word.text)}
+                    disabled={isLoadingThisAudio}
+                    aria-label={`Play pronunciation of ${word.text}`}
+                  >
+                    {isLoadingThisAudio ? (
+                      <span className="speaking-vocab-loading-dot" />
+                    ) : (
+                      <PlayIcon />
+                    )}
+                  </button>
                   <div className="speaking-vocab-text">
                     <span className="speaking-vocab-word">{word.text}</span>
                     <span className="speaking-vocab-translation">{word.translation}</span>
@@ -609,32 +752,30 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
       <div className="speaking-practice-container">
         {/* Header */}
         <div className="speaking-practice-header">
-          <div className="speaking-header-left">
-            <div className="speaking-practice-nav">
-              <button
-                type="button"
-                className="speaking-nav-btn"
-                onClick={goToPrevious}
-                disabled={currentIndex === 0}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
-              <span className="speaking-nav-counter">{currentIndex + 1} / {sentences.length}</span>
-              <button
-                type="button"
-                className="speaking-nav-btn"
-                onClick={goToNext}
-                disabled={currentIndex >= sentences.length - 1}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 6 15 12 9 18" />
-                </svg>
-              </button>
-            </div>
-            <h2 className="speaking-lesson-title">{lesson.title || 'Speaking Practice'}</h2>
+          <div className="speaking-practice-nav">
+            <button
+              type="button"
+              className="speaking-nav-btn"
+              onClick={goToPrevious}
+              disabled={currentIndex === 0}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span className="speaking-nav-counter">{currentIndex + 1} / {sentences.length}</span>
+            <button
+              type="button"
+              className="speaking-nav-btn"
+              onClick={goToNext}
+              disabled={currentIndex >= sentences.length - 1}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 6 15 12 9 18" />
+              </svg>
+            </button>
           </div>
+          <h2 className="speaking-lesson-title">{lesson.title || 'Speaking Practice'}</h2>
           <button type="button" className="speaking-close-btn" onClick={onBack}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -790,7 +931,9 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
                 {/* Tutor's example */}
                 <div className="speaking-section speaking-example">
                   <span className="speaking-section-label">Tutor's example</span>
-                  <p className="speaking-section-text">{exemplar || '—'}</p>
+                  <p className="speaking-section-text">
+                    {exemplar ? renderHighlightedExemplar(exemplar) : '—'}
+                  </p>
                 </div>
 
                 {/* Action buttons */}

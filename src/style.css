@@ -2399,6 +2399,7 @@ textarea {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
   flex-shrink: 0;
+  position: relative;
 }
 
 .speaking-practice-nav {
@@ -2440,22 +2441,20 @@ textarea {
   text-align: center;
 }
 
-.speaking-header-left {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
 .speaking-lesson-title {
   font-family: var(--font-ui);
   font-size: 1rem;
   font-weight: 600;
   color: #334155;
   margin: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 400px;
+  max-width: 50%;
+  text-align: center;
 }
 
 .speaking-close-btn {
@@ -2723,14 +2722,63 @@ textarea {
 
 .speaking-vocab-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .speaking-vocab-row:last-child {
   border-bottom: none;
+}
+
+/* Play button for pronunciation */
+.speaking-vocab-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #1e293b;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 150ms ease;
+}
+
+.speaking-vocab-play:hover {
+  background: #0f172a;
+}
+
+.speaking-vocab-play:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.speaking-vocab-play.loading {
+  background: #64748b;
+}
+
+.speaking-vocab-loading-dot {
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 50%;
+  animation: speaking-vocab-pulse 1s ease-in-out infinite;
+}
+
+@keyframes speaking-vocab-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* Word highlighting in exemplar */
+.speaking-word-highlight {
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  margin: 0 -0.125rem;
 }
 
 .speaking-vocab-text {
@@ -3307,6 +3355,24 @@ textarea {
 
 [data-theme="dark"] .speaking-vocab-word {
   color: #f1f5f9;
+}
+
+[data-theme="dark"] .speaking-vocab-play {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .speaking-vocab-play:hover {
+  background: #fff;
+}
+
+[data-theme="dark"] .speaking-vocab-play.loading {
+  background: #64748b;
+  color: #fff;
+}
+
+[data-theme="dark"] .speaking-vocab-loading-dot {
+  background: #0f172a;
 }
 
 [data-theme="dark"] .speaking-tutor-section {

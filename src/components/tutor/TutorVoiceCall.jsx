@@ -220,6 +220,71 @@ const TutorVoiceCall = ({
     }
   }, [])
 
+  // Check if utterance seems complete or if user is still thinking
+  const getSmartSilenceTimeout = (text) => {
+    if (!text) return 800
+
+    const trimmed = text.trim().toLowerCase()
+
+    // Filler words / thinking sounds (multi-language)
+    const fillerWords = [
+      'um', 'uh', 'uhh', 'umm', 'er', 'eh', 'ehh', 'like', 'so', 'and', 'but', 'or',
+      // Spanish
+      'eh', 'ehh', 'pues', 'este', 'entonces', 'y', 'pero', 'o', 'como', 'bueno',
+      // French
+      'euh', 'bah', 'ben', 'donc', 'et', 'mais', 'ou', 'alors',
+      // Italian
+      'ehm', 'allora', 'quindi', 'e', 'ma', 'cioè',
+      // German
+      'ähm', 'äh', 'also', 'und', 'aber', 'oder', 'na'
+    ]
+
+    // Check if ends with filler word
+    const words = trimmed.split(/\s+/)
+    const lastWord = words[words.length - 1]?.replace(/[.,!?]+$/, '')
+
+    if (fillerWords.includes(lastWord)) {
+      console.log('[VoiceCall] Detected filler word, waiting longer:', lastWord)
+      return 2500 // Wait 2.5s when thinking
+    }
+
+    // Check if ends with incomplete indicators
+    const incompleteEndings = [
+      /\.\.\.$/, // trailing dots
+      /[,;:\-]$/, // trailing punctuation suggesting continuation
+      /\s(the|a|an|my|your|to|of|in|that|which|who|what|where|when|how)$/i, // incomplete phrase
+      /\s(el|la|los|las|un|una|mi|tu|de|en|que|cual)$/i, // Spanish incomplete
+      /\s(le|la|les|un|une|mon|ton|de|en|que|qui)$/i, // French incomplete
+    ]
+
+    for (const pattern of incompleteEndings) {
+      if (pattern.test(trimmed)) {
+        console.log('[VoiceCall] Detected incomplete phrase, waiting longer')
+        return 2500
+      }
+    }
+
+    // Very short utterances - probably not complete
+    if (words.length <= 2 && !/[.!?]$/.test(trimmed)) {
+      console.log('[VoiceCall] Very short utterance, waiting longer')
+      return 2000
+    }
+
+    // Looks complete - sentence-ending punctuation
+    if (/[.!?。！？]$/.test(trimmed)) {
+      console.log('[VoiceCall] Complete sentence detected')
+      return 800
+    }
+
+    // Medium length without clear ending - wait a bit longer
+    if (words.length >= 3 && words.length <= 6) {
+      return 1200
+    }
+
+    // Default for longer utterances
+    return 1000
+  }
+
   // Detect silence to trigger processing
   useEffect(() => {
     if (!analyserNode || !isStreaming || isMuted || callState !== 'listening') {
@@ -237,13 +302,15 @@ const TutorVoiceCall = ({
       // If very quiet and we have some transcript, process it
       if (average < 5 && (transcript || finalTranscript)) {
         if (!silenceTimeoutRef.current) {
-          console.log('[VoiceCall] Silence detected, will process in 0.8s. Transcript:', transcript || finalTranscript)
+          const currentText = transcript || finalTranscript
+          const timeout = getSmartSilenceTimeout(currentText)
+          console.log(`[VoiceCall] Silence detected, will process in ${timeout}ms. Transcript:`, currentText)
           silenceTimeoutRef.current = setTimeout(async () => {
             if (isStreaming && (transcript || finalTranscript)) {
               console.log('[VoiceCall] Processing speech after silence')
               await processUserSpeech()
             }
-          }, 800) // 0.8 seconds of silence for faster response
+          }, timeout)
         }
       } else {
         if (silenceTimeoutRef.current) {

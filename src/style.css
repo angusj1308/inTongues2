@@ -20714,18 +20714,7 @@ body.active-pass-locked {
   justify-content: center;
   margin-bottom: 0.5rem;
   color: #fff;
-}
-
-.stat-card-icon.words-read {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
-}
-
-.stat-card-icon.hours-listened {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
-}
-
-.stat-card-icon.known-words {
-  background: linear-gradient(135deg, #10B981, #059669);
+  background: linear-gradient(135deg, #E36B37, #D4580A);
 }
 
 .stat-label {
@@ -20746,6 +20735,280 @@ body.active-pass-locked {
   font-size: 0.75rem;
   color: #94a3b8;
   margin-top: 0.25rem;
+}
+
+/* Level Card with Progress */
+.level-card {
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px solid #e2e2e2;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.level-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.level-card-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.level-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #E36B37, #D4580A);
+}
+
+.level-card-text h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.15rem;
+}
+
+.level-card-text .level-subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.level-card-words {
+  text-align: right;
+}
+
+.level-card-words .word-count {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.level-card-words .word-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.level-progress-container {
+  margin-top: 0.5rem;
+}
+
+.level-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.level-progress-current {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #E36B37;
+}
+
+.level-progress-next {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.level-progress-bar {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.level-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #E36B37, #F59E0B);
+  border-radius: 4px;
+  transition: width 500ms ease;
+}
+
+.level-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+/* Goal Setting */
+.goal-setting-card {
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px solid #e2e2e2;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.goal-setting-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.goal-setting-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.goal-setting-header .goal-edit-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.goal-setting-header .goal-edit-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.goals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .goals-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.goal-item {
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.goal-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.goal-item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #E36B37, #D4580A);
+  color: #fff;
+}
+
+.goal-item-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.goal-item-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.goal-item-bar {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goal-item-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #E36B37, #F59E0B);
+  border-radius: 3px;
+  transition: width 300ms ease;
+}
+
+.goal-item-fill.complete {
+  background: linear-gradient(90deg, #10B981, #059669);
+}
+
+.goal-item-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  min-width: 50px;
+  text-align: right;
+}
+
+.goal-item-count.complete {
+  color: #10B981;
+}
+
+/* Goal Edit Modal */
+.goal-modal-form {
+  padding: 1.25rem 1.5rem;
+}
+
+.goal-input-group {
+  margin-bottom: 1.25rem;
+}
+
+.goal-input-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.goal-input-group .goal-input-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.goal-input-group input {
+  padding: 0.65rem 0.85rem;
+}
+
+.goal-input-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+.empty-goals {
+  text-align: center;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.empty-goals p {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.empty-goals .button {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.85rem;
 }
 
 /* Routine Builder */

@@ -17,6 +17,33 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES } from '../services/routine'
 
+// Level thresholds based on known word count
+const LEVEL_THRESHOLDS = [
+  { min: 0, max: 2000, level: 'Beginner', nextLevel: 'Upper Beginner' },
+  { min: 2000, max: 5000, level: 'Upper Beginner', nextLevel: 'Intermediate' },
+  { min: 5000, max: 12000, level: 'Intermediate', nextLevel: 'Upper Intermediate' },
+  { min: 12000, max: 24000, level: 'Upper Intermediate', nextLevel: 'Advanced' },
+  { min: 24000, max: 40000, level: 'Advanced', nextLevel: 'Native-like' },
+  { min: 40000, max: Infinity, level: 'Native-like', nextLevel: null },
+]
+
+const getLevelInfo = (knownWords) => {
+  const threshold = LEVEL_THRESHOLDS.find((t) => knownWords >= t.min && knownWords < t.max) || LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]
+  const progressInLevel = knownWords - threshold.min
+  const levelRange = threshold.max === Infinity ? 10000 : threshold.max - threshold.min
+  const progressPercent = Math.min(100, (progressInLevel / levelRange) * 100)
+  const wordsToNext = threshold.max === Infinity ? 0 : threshold.max - knownWords
+
+  return {
+    level: threshold.level,
+    nextLevel: threshold.nextLevel,
+    progressPercent,
+    wordsToNext,
+    currentMin: threshold.min,
+    currentMax: threshold.max,
+  }
+}
+
 const PinIcon = ({ filled }) => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
     <path d="M9 4v6l-2 4v2h10v-2l-2-4V4" />
@@ -428,6 +455,8 @@ const Dashboard = () => {
     return pinnedDecks.some((p) => p.key === key)
   }
 
+  const levelInfo = useMemo(() => getLevelInfo(homeStats.knownWords), [homeStats.knownWords])
+
   const handleTabClick = (tab) => {
     if (tab === activeTab) return
 
@@ -498,10 +527,55 @@ const Dashboard = () => {
         >
           {activeTab === 'home' && (
             <div className="home-content">
+              {/* Level Card */}
+              <div className="level-card">
+                <div className="level-card-header">
+                  <div className="level-card-info">
+                    <div className="level-card-icon">
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </div>
+                    <div className="level-card-text">
+                      <h3>{homeStatsLoading ? '...' : levelInfo.level}</h3>
+                      <p className="level-subtitle">
+                        {levelInfo.nextLevel
+                          ? `${levelInfo.wordsToNext.toLocaleString()} words to ${levelInfo.nextLevel}`
+                          : 'Maximum level achieved'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="level-card-words">
+                    <div className="word-count">
+                      {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()}
+                    </div>
+                    <div className="word-label">known words</div>
+                  </div>
+                </div>
+                <div className="level-progress-container">
+                  <div className="level-progress-labels">
+                    <span className="level-progress-current">{levelInfo.level}</span>
+                    {levelInfo.nextLevel && (
+                      <span className="level-progress-next">{levelInfo.nextLevel}</span>
+                    )}
+                  </div>
+                  <div className="level-progress-bar">
+                    <div
+                      className="level-progress-fill"
+                      style={{ width: `${levelInfo.progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="level-progress-meta">
+                    <span>{levelInfo.currentMin.toLocaleString()}</span>
+                    <span>{levelInfo.currentMax === Infinity ? '40,000+' : levelInfo.currentMax.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Stats Row */}
               <div className="home-stats-row">
                 <div className="stat-card">
-                  <div className="stat-card-icon words-read">
+                  <div className="stat-card-icon">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
@@ -515,7 +589,7 @@ const Dashboard = () => {
                 </div>
 
                 <div className="stat-card">
-                  <div className="stat-card-icon hours-listened">
+                  <div className="stat-card-icon">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
                       <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
@@ -529,7 +603,7 @@ const Dashboard = () => {
                 </div>
 
                 <div className="stat-card">
-                  <div className="stat-card-icon known-words">
+                  <div className="stat-card-icon">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                       <polyline points="22 4 12 14.01 9 11.01" />

@@ -609,28 +609,31 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
       <div className="speaking-practice-container">
         {/* Header */}
         <div className="speaking-practice-header">
-          <div className="speaking-practice-nav">
-            <button
-              type="button"
-              className="speaking-nav-btn"
-              onClick={goToPrevious}
-              disabled={currentIndex === 0}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <span className="speaking-nav-counter">{currentIndex + 1} / {sentences.length}</span>
-            <button
-              type="button"
-              className="speaking-nav-btn"
-              onClick={goToNext}
-              disabled={currentIndex >= sentences.length - 1}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="9 6 15 12 9 18" />
-              </svg>
-            </button>
+          <div className="speaking-header-left">
+            <div className="speaking-practice-nav">
+              <button
+                type="button"
+                className="speaking-nav-btn"
+                onClick={goToPrevious}
+                disabled={currentIndex === 0}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <span className="speaking-nav-counter">{currentIndex + 1} / {sentences.length}</span>
+              <button
+                type="button"
+                className="speaking-nav-btn"
+                onClick={goToNext}
+                disabled={currentIndex >= sentences.length - 1}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 6 15 12 9 18" />
+                </svg>
+              </button>
+            </div>
+            <h2 className="speaking-lesson-title">{lesson.title || 'Speaking Practice'}</h2>
           </div>
           <button type="button" className="speaking-close-btn" onClick={onBack}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -712,102 +715,97 @@ export function SpeakingPracticeSession({ lesson, activeLanguage, nativeLanguage
             )}
           </div>
 
-          {/* Right Panel - Recording */}
+          {/* Right Panel - Recording & Results */}
           <div className="speaking-panel-right">
-            {/* Collapsible prompt */}
-            <div className={`speaking-prompt ${promptCollapsed ? 'collapsed' : ''}`}>
-              {promptCollapsed ? (
-                <button
-                  type="button"
-                  className="speaking-prompt-collapsed"
-                  onClick={() => setPromptCollapsed(false)}
-                >
-                  <span className="speaking-prompt-label">{nativeLanguage}:</span>
-                  <span className="speaking-prompt-preview">{currentSentence?.text?.slice(0, 40)}...</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              ) : (
-                <>
-                  <span className="speaking-prompt-label">{nativeLanguage}</span>
-                  <p className="speaking-prompt-text">{currentSentence?.text || 'No text available'}</p>
-                </>
-              )}
-            </div>
+            {/* Before feedback: Recording interface */}
+            {!hasFeedback && (
+              <div className="speaking-record-zone">
+                {/* Original prompt */}
+                <div className="speaking-section speaking-original">
+                  <span className="speaking-section-label">Original</span>
+                  <p className="speaking-section-text">{currentSentence?.text || 'No text available'}</p>
+                </div>
 
-            {/* Recording zone */}
-            <div className="speaking-record-zone">
-              {!userRecording && !isAssessing ? (
-                <>
-                  <p className="speaking-record-instruction">
-                    {isRecording ? 'Recording... tap to stop' : `Speak in ${activeLanguage}`}
-                  </p>
-                  <button
-                    type="button"
-                    className={`speaking-record-btn ${isRecording ? 'recording' : ''}`}
-                    onClick={toggleRecording}
-                  >
-                    {isRecording ? (
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="6" width="12" height="12" rx="2" />
-                      </svg>
-                    ) : (
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="6" />
-                      </svg>
-                    )}
-                  </button>
-                  {!isRecording && (
-                    <button className="speaking-skip-btn" onClick={handleNotSure} disabled={isAssessing}>
-                      I'm not sure
-                    </button>
+                {/* Recording controls */}
+                <div className="speaking-record-controls">
+                  {!isAssessing ? (
+                    <>
+                      <p className="speaking-record-instruction">
+                        {isRecording ? 'Recording... tap to stop' : `Speak in ${activeLanguage}`}
+                      </p>
+                      <button
+                        type="button"
+                        className={`speaking-record-btn ${isRecording ? 'recording' : ''}`}
+                        onClick={toggleRecording}
+                      >
+                        {isRecording ? (
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="6" width="12" height="12" rx="2" />
+                          </svg>
+                        ) : (
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="6" />
+                          </svg>
+                        )}
+                      </button>
+                      {!isRecording && (
+                        <button className="speaking-skip-btn" onClick={handleNotSure} disabled={isAssessing}>
+                          I'm not sure
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="speaking-loading">
+                      <div className="spinner" />
+                      <p className="muted">{userRecording ? 'Analyzing...' : 'Getting translation...'}</p>
+                    </div>
                   )}
-                </>
-              ) : isAssessing ? (
-                <div className="speaking-loading">
-                  <div className="spinner" />
-                  <p className="muted">{userRecording ? 'Analyzing...' : 'Getting translation...'}</p>
-                </div>
-              ) : null}
 
-              {/* Error state */}
-              {error && (
-                <div className="speaking-error">
-                  <p>{error}</p>
-                  <button className="btn btn-secondary" onClick={retryRecording}>Try Again</button>
+                  {/* Error state */}
+                  {error && (
+                    <div className="speaking-error">
+                      <p>{error}</p>
+                      <button className="speaking-action-btn secondary" onClick={retryRecording}>Try Again</button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* User's transcript (after feedback) */}
-              {hasFeedback && transcript && (
-                <div className="speaking-transcript">
-                  <span className="speaking-transcript-label">You said ({activeLanguage})</span>
-                  <p className="speaking-transcript-text">{transcript}</p>
+            {/* After feedback: Three sections in thirds */}
+            {hasFeedback && (
+              <div className="speaking-results-grid">
+                {/* Original */}
+                <div className="speaking-section speaking-original">
+                  <span className="speaking-section-label">Original</span>
+                  <p className="speaking-section-text">{currentSentence?.text || 'No text available'}</p>
                 </div>
-              )}
 
-              {/* Exemplar (after feedback) */}
-              {hasFeedback && exemplar && (
-                <div className="speaking-exemplar">
-                  <span className="speaking-exemplar-label">Example ({activeLanguage})</span>
-                  <p className="speaking-exemplar-text">{exemplar}</p>
+                {/* Your translation */}
+                <div className="speaking-section speaking-translation">
+                  <span className="speaking-section-label">Your translation</span>
+                  <p className="speaking-section-text">{transcript || '—'}</p>
                 </div>
-              )}
 
-              {hasFeedback && (
+                {/* Tutor's example */}
+                <div className="speaking-section speaking-example">
+                  <span className="speaking-section-label">Tutor's example</span>
+                  <p className="speaking-section-text">{exemplar || '—'}</p>
+                </div>
+
+                {/* Action buttons */}
                 <div className="speaking-actions">
                   {userRecording && (
-                    <button className="btn btn-secondary" onClick={retryRecording}>Try Again</button>
+                    <button className="speaking-action-btn secondary" onClick={retryRecording}>Try Again</button>
                   )}
                   {!isComplete ? (
-                    <button className="btn btn-primary" onClick={goToNext}>Continue</button>
+                    <button className="speaking-action-btn primary" onClick={goToNext}>Continue</button>
                   ) : (
-                    <button className="btn btn-primary" onClick={onBack}>Finish</button>
+                    <button className="speaking-action-btn primary" onClick={onBack}>Finish</button>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

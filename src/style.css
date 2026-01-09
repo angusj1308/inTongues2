@@ -2440,6 +2440,24 @@ textarea {
   text-align: center;
 }
 
+.speaking-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.speaking-lesson-title {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
 .speaking-close-btn {
   display: flex;
   align-items: center;
@@ -2852,7 +2870,7 @@ textarea {
   cursor: not-allowed;
 }
 
-/* Right Panel - Recording */
+/* Right Panel - Recording & Results */
 .speaking-panel-right {
   display: flex;
   flex-direction: column;
@@ -2860,81 +2878,137 @@ textarea {
   overflow-y: auto;
 }
 
-/* Collapsible prompt */
-.speaking-prompt {
-  margin-bottom: 1.5rem;
-}
-
-.speaking-prompt.collapsed {
-  margin-bottom: 1rem;
-}
-
-.speaking-prompt-label {
-  font-family: var(--font-ui);
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.speaking-prompt-text {
-  font-family: var(--font-content);
-  font-size: 1.25rem;
-  line-height: 1.5;
-  color: #0f172a;
-  margin: 0;
-}
-
-.speaking-prompt-collapsed {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 150ms ease;
-  text-align: left;
-}
-
-.speaking-prompt-collapsed:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.speaking-prompt-collapsed .speaking-prompt-label {
-  margin: 0;
-  flex-shrink: 0;
-}
-
-.speaking-prompt-preview {
-  font-family: var(--font-content);
-  font-size: 0.9rem;
-  color: #64748b;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.speaking-prompt-collapsed svg {
-  color: #94a3b8;
-  flex-shrink: 0;
-}
-
-/* Recording zone */
+/* Recording zone (before feedback) */
 .speaking-record-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.speaking-record-controls {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1rem;
+}
+
+/* Results grid (after feedback) - three equal sections */
+.speaking-results-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Section styling for Original, Your translation, Tutor's example */
+.speaking-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  border-radius: 12px;
+  min-height: 0;
+}
+
+.speaking-section-label {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.speaking-section-text {
+  font-family: var(--font-content);
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin: 0;
+  overflow-y: auto;
+}
+
+/* Original section - neutral gray */
+.speaking-original {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.speaking-original .speaking-section-label {
+  color: #64748b;
+}
+
+.speaking-original .speaking-section-text {
+  color: #334155;
+}
+
+/* Your translation section - blue tint */
+.speaking-translation {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+.speaking-translation .speaking-section-label {
+  color: #0284c7;
+}
+
+.speaking-translation .speaking-section-text {
+  color: #0c4a6e;
+}
+
+/* Tutor's example section - green tint */
+.speaking-example {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.speaking-example .speaking-section-label {
+  color: #16a34a;
+}
+
+.speaking-example .speaking-section-text {
+  color: #166534;
+}
+
+/* Action buttons */
+.speaking-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  padding-top: 0.5rem;
+}
+
+.speaking-action-btn {
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.625rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.speaking-action-btn.secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.speaking-action-btn.secondary:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.speaking-action-btn.primary {
+  background: #1e293b;
+  color: #fff;
+}
+
+.speaking-action-btn.primary:hover {
+  background: #0f172a;
 }
 
 .speaking-record-instruction {
@@ -3140,6 +3214,71 @@ textarea {
   color: #e2e8f0;
 }
 
+[data-theme="dark"] .speaking-lesson-title {
+  color: #e2e8f0;
+}
+
+/* Dark mode for new sections */
+[data-theme="dark"] .speaking-original {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .speaking-original .speaking-section-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .speaking-original .speaking-section-text {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .speaking-translation {
+  background: #0c4a6e;
+  border-color: #0369a1;
+}
+
+[data-theme="dark"] .speaking-translation .speaking-section-label {
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .speaking-translation .speaking-section-text {
+  color: #e0f2fe;
+}
+
+[data-theme="dark"] .speaking-example {
+  background: #14532d;
+  border-color: #166534;
+}
+
+[data-theme="dark"] .speaking-example .speaking-section-label {
+  color: #86efac;
+}
+
+[data-theme="dark"] .speaking-example .speaking-section-text {
+  color: #bbf7d0;
+}
+
+[data-theme="dark"] .speaking-action-btn.secondary {
+  background: #334155;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+[data-theme="dark"] .speaking-action-btn.secondary:hover {
+  background: #475569;
+  border-color: #64748b;
+}
+
+[data-theme="dark"] .speaking-action-btn.primary {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .speaking-action-btn.primary:hover {
+  background: #fff;
+}
+
+/* Keep old styles for compatibility */
 [data-theme="dark"] .speaking-exemplar {
   background: #14532d;
   border-color: #166534;

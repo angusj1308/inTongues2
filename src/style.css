@@ -20795,6 +20795,21 @@ body.active-pass-locked {
   transition: height 300ms ease;
 }
 
+.home-progress-loading,
+.home-progress-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-progress-gain {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
 /* Wide Card */
 .home-card-wide {
   min-height: auto;

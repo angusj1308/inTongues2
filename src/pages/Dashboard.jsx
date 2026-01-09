@@ -10,6 +10,7 @@ import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
+import ProgressChart from '../components/home/ProgressChart'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -552,36 +553,11 @@ const Dashboard = () => {
                 </div>
 
                 {/* Progress Graph - Right */}
-                <div className="home-card">
-                  <div className="home-card-header">
-                    <h3 className="home-card-title">Progress</h3>
-                    <div className="home-progress-periods">
-                      <button className="home-period-btn active">W</button>
-                      <button className="home-period-btn">M</button>
-                      <button className="home-period-btn">Y</button>
-                      <button className="home-period-btn">5Y</button>
-                    </div>
-                  </div>
-                  <div className="home-progress-chart">
-                    <div className="home-progress-line">
-                      {/* Placeholder line graph - will be replaced with real data */}
-                      <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="home-progress-svg">
-                        <polyline
-                          fill="none"
-                          stroke="#0f172a"
-                          strokeWidth="1.5"
-                          points="0,50 30,45 60,48 90,40 120,35 150,30 180,25 200,20"
-                        />
-                      </svg>
-                    </div>
-                    <div className="home-progress-bars">
-                      {/* Placeholder accumulation bars */}
-                      {[20, 35, 15, 45, 30, 55, 40].map((h, i) => (
-                        <div key={i} className="home-progress-bar" style={{ height: `${h}%` }} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ProgressChart
+                  userId={user?.uid}
+                  language={activeLanguage}
+                  currentKnownWords={homeStats.knownWords}
+                />
               </div>
 
               {/* Row 2: Today's Routine - Full Width */}

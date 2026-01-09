@@ -219,7 +219,12 @@ const TutorVoiceCall = ({
 
   // Detect silence to trigger processing
   useEffect(() => {
-    if (!analyserNode || !isStreaming || isMuted || callState !== 'listening') return
+    if (!analyserNode || !isStreaming || isMuted || callState !== 'listening') {
+      console.log('[VoiceCall] Silence detection skipped:', { analyserNode: !!analyserNode, isStreaming, isMuted, callState })
+      return
+    }
+
+    console.log('[VoiceCall] Silence detection started')
 
     const checkSilence = () => {
       const dataArray = new Uint8Array(analyserNode.frequencyBinCount)
@@ -229,8 +234,10 @@ const TutorVoiceCall = ({
       // If very quiet and we have some transcript, process it
       if (average < 5 && (transcript || finalTranscript)) {
         if (!silenceTimeoutRef.current) {
+          console.log('[VoiceCall] Silence detected, will process in 1.5s. Transcript:', transcript || finalTranscript)
           silenceTimeoutRef.current = setTimeout(async () => {
             if (isStreaming && (transcript || finalTranscript)) {
+              console.log('[VoiceCall] Processing speech after silence')
               await processUserSpeech()
             }
           }, 1500) // 1.5 seconds of silence
@@ -245,6 +252,7 @@ const TutorVoiceCall = ({
 
     const interval = setInterval(checkSilence, 200)
     return () => {
+      console.log('[VoiceCall] Silence detection cleanup')
       clearInterval(interval)
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current)
@@ -309,11 +317,13 @@ const TutorVoiceCall = ({
       await speakText(tutorResponse)
 
       // Go back to listening
+      console.log('[VoiceCall] Response complete, restarting listening...')
       setUserText('')
       setTutorText('')
       resetTranscription()
       setCallState('listening')
       await startStreaming()
+      console.log('[VoiceCall] Streaming restarted, ready for next input')
 
     } catch (err) {
       console.error('Voice call error:', err)

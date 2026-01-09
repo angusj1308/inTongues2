@@ -770,6 +770,7 @@ const TutorPage = () => {
             tutorProfile={tutorProfile}
             settings={settings}
             conversationHistory={currentChat ? getConversationContext(currentChat) : []}
+            userName={profile?.displayName}
           />
         )}
 

@@ -25,6 +25,7 @@ import NovelGenerator from './pages/NovelGenerator'
 import TutorChat from './pages/TutorChat'
 import TutorPage from './pages/TutorPage'
 import PronunciationPractice from './pages/PronunciationPractice'
+import FreeSpeakingSession from './pages/FreeSpeakingSession'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -248,6 +249,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <FreeWritingLesson />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/voice-record"
+        element={
+          <ProtectedRoute>
+            <FreeSpeakingSession />
           </ProtectedRoute>
         }
       />

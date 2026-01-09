@@ -17,6 +17,7 @@ export function useRealtimeTranscription(options = {}) {
   const [transcript, setTranscript] = useState('')
   const [finalTranscript, setFinalTranscript] = useState('')
   const [error, setError] = useState(null)
+  const [analyserNode, setAnalyserNode] = useState(null)
 
   const wsRef = useRef(null)
   const mediaRecorderRef = useRef(null)
@@ -138,6 +139,7 @@ export function useRealtimeTranscription(options = {}) {
       analyser.fftSize = 2048
       analyser.smoothingTimeConstant = 0.8
       analyserRef.current = analyser
+      setAnalyserNode(analyser)
 
       const source = audioContext.createMediaStreamSource(stream)
       source.connect(analyser)
@@ -205,6 +207,7 @@ export function useRealtimeTranscription(options = {}) {
         audioContextRef.current = null
       }
       analyserRef.current = null
+      setAnalyserNode(null)
 
       setIsStreaming(false)
 
@@ -296,7 +299,7 @@ export function useRealtimeTranscription(options = {}) {
     reset,
 
     // For visualizations
-    analyserNode: analyserRef.current
+    analyserNode
   }
 }
 

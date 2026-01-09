@@ -5947,7 +5947,7 @@ Only return valid JSON, no other text.`
  */
 app.post('/api/tutor/start', async (req, res) => {
   try {
-    const { targetLanguage, sourceLanguage, memory } = req.body || {}
+    const { targetLanguage, sourceLanguage, memory, voiceCall, userName } = req.body || {}
 
     if (!targetLanguage) {
       return res.status(400).json({ error: 'targetLanguage is required' })
@@ -5965,24 +5965,35 @@ app.post('/api/tutor/start', async (req, res) => {
 
       memoryContext = `
 WHAT YOU REMEMBER ABOUT THIS PERSON:
+${userName ? `- Their name: ${userName}` : ''}
 ${facts ? `- Facts: ${facts}` : ''}
 ${lastSummary ? `- Last conversation: ${lastSummary}` : ''}
 ${mistakes ? `- Common mistakes they make: ${mistakes}` : ''}
 `
     }
 
+    // Different prompts for voice call vs text chat
+    const voiceCallInstructions = voiceCall ? `
+THIS IS A PHONE CALL - speak like you just answered the phone:
+- Say something like "Hey!" or "Hi ${userName || 'there'}!"
+- Ask how they are, what's up, what's going on - normal phone conversation openers
+- Keep it very short (1 sentence, maybe 2)
+- Sound natural and casual, like calling a friend
+- Examples: "Hey, how's it going?", "Hi! What's up?", "Hey ${userName || ''}! How are you today?"
+` : `
+- ${isReturning ? 'Reference something from your past conversations naturally' : 'Introduce yourself briefly and ask something to get to know them'}
+- Keep it short and conversational (1-3 sentences max)
+`
+
     const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
 Their native language is ${sourceLang}.
 ${memoryContext}
 HOW TO BE:
-- Talk like a real person texting a friend
-- Be warm, curious, genuine
-- ${isReturning ? 'Reference something from your past conversations naturally' : 'Introduce yourself briefly and ask something to get to know them'}
-- Keep it short and conversational (1-3 sentences max)
-- Write primarily in ${targetLanguage}, with occasional ${sourceLang} if helpful
+- Talk like a real person, warm and genuine
+- Write primarily in ${targetLanguage}
 - Match your vocabulary to their level (${memory?.observedLevel || 'beginner'})
-
-Generate a natural, friendly opening message to start or continue the conversation.`
+${voiceCallInstructions}
+Generate a natural, friendly opening message.`
 
     const response = await client.responses.create({
       model: 'gpt-4o',

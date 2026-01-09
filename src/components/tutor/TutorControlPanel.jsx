@@ -102,11 +102,6 @@ const TutorControlPanel = ({
 
           <div className="tutor-settings-toggles">
             <ToggleRow
-              label="Provide corrections"
-              checked={settings.correctionsEnabled}
-              onChange={(v) => handleSettingChange('correctionsEnabled', v)}
-            />
-            <ToggleRow
               label="Grammatical explanations"
               checked={settings.grammarExplanations}
               onChange={(v) => handleSettingChange('grammarExplanations', v)}

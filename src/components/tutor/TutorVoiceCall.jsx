@@ -34,12 +34,15 @@ const VolumeIcon = () => (
   </svg>
 )
 
-const VOICE_IDS = {
-  English: { male: 'NFG5qt843uXKj4pFvR7C', female: 'ZF6FPAbjXT4488VcRRnw' },
-  Spanish: { male: 'kulszILr6ees0ArU8miO', female: '1WXz8v08ntDcSTeVXMN2' },
-  French: { male: 'UBXZKOKbt62aLQHhc1Jm', female: 'sANWqF1bCMzR6eyZbCGw' },
-  Italian: { male: 'W71zT1VwIFFx3mMGH2uZ', female: 'gfKKsLN1k0oYYN9n2dXX' },
-}
+const TextIcon = () => (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
+  </svg>
+)
 
 const TutorVoiceCall = ({
   onEnd,
@@ -49,9 +52,11 @@ const TutorVoiceCall = ({
   tutorProfile,
   settings,
   conversationHistory,
+  userName,
 }) => {
   const [callState, setCallState] = useState('connecting') // connecting, listening, processing, speaking
   const [isMuted, setIsMuted] = useState(false)
+  const [showTranscript, setShowTranscript] = useState(true)
   const [userText, setUserText] = useState('')
   const [tutorText, setTutorText] = useState('')
   const [error, setError] = useState(null)
@@ -81,6 +86,8 @@ const TutorVoiceCall = ({
   const audioSourceRef = useRef(null)
   const audioContextRef = useRef(null)
   const localConversationRef = useRef([...conversationHistory])
+  const mountedRef = useRef(true)
+  const initCalledRef = useRef(false)
 
   // Format call duration
   const formatDuration = (seconds) => {
@@ -89,8 +96,23 @@ const TutorVoiceCall = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Initialize call
+  // Stop any currently playing audio
+  const stopCurrentAudio = () => {
+    if (audioSourceRef.current) {
+      try {
+        audioSourceRef.current.stop()
+      } catch (e) {}
+      audioSourceRef.current = null
+    }
+    window.speechSynthesis.cancel()
+  }
+
+  // Initialize call with tutor greeting
   useEffect(() => {
+    // Prevent double-execution from React Strict Mode
+    if (initCalledRef.current) return
+    initCalledRef.current = true
+
     const initCall = async () => {
       try {
         // Start call timer
@@ -98,18 +120,54 @@ const TutorVoiceCall = ({
           setCallDuration((d) => d + 1)
         }, 1000)
 
-        // Start real-time streaming
-        await startStreaming()
+        // Get tutor greeting first
+        setCallState('connecting')
+        const greetingRes = await fetch('/api/tutor/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetLanguage: activeLanguage,
+            sourceLanguage: nativeLanguage || 'English',
+            memory: tutorProfile?.memory,
+            voiceCall: true,
+            userName: userName,
+          }),
+        })
+
+        if (!mountedRef.current) return
+
+        if (greetingRes.ok) {
+          const { greeting } = await greetingRes.json()
+          setTutorText(greeting)
+
+          // Add greeting to conversation history
+          onMessage({ role: 'tutor', content: greeting })
+          localConversationRef.current.push({ role: 'tutor', content: greeting })
+
+          // Speak the greeting
+          setCallState('speaking')
+          await speakText(greeting)
+        }
+
+        if (!mountedRef.current) return
+
+        // Now start listening for user
+        setTutorText('')
+        resetTranscription()
         setCallState('listening')
+        await startStreaming()
       } catch (err) {
         console.error('Failed to start call:', err)
-        setError('Failed to start call. Please check microphone permissions.')
+        if (mountedRef.current) {
+          setError('Failed to start call. Please check microphone permissions.')
+        }
       }
     }
 
     initCall()
 
     return () => {
+      mountedRef.current = false
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current)
       }
@@ -117,11 +175,7 @@ const TutorVoiceCall = ({
         clearTimeout(silenceTimeoutRef.current)
       }
       // Stop any playing audio
-      if (audioSourceRef.current) {
-        try {
-          audioSourceRef.current.stop()
-        } catch (e) {}
-      }
+      stopCurrentAudio()
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close()
       }
@@ -244,16 +298,17 @@ const TutorVoiceCall = ({
 
   // Text-to-speech using ElevenLabs
   const speakText = async (text) => {
-    try {
-      const voiceId = VOICE_IDS[activeLanguage]?.female || VOICE_IDS.English.female
+    // Stop any currently playing audio first
+    stopCurrentAudio()
 
-      const response = await fetch('/api/tts/elevenlabs', {
+    try {
+      const response = await fetch('/api/tutor/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          voiceId,
-          speed: settings?.speechSpeed === 'slow' ? 0.8 : settings?.speechSpeed === 'fast' ? 1.2 : 1.0,
+          language: activeLanguage || 'English',
+          voiceGender: 'female',
         }),
       })
 
@@ -262,7 +317,16 @@ const TutorVoiceCall = ({
         return speakWithBrowserTTS(text)
       }
 
-      const audioData = await response.arrayBuffer()
+      const { audioBase64 } = await response.json()
+
+      // Decode base64 to ArrayBuffer
+      const binaryString = atob(audioBase64)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      const audioData = bytes.buffer
+
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
       audioContextRef.current = audioContext
 
@@ -391,17 +455,18 @@ const TutorVoiceCall = ({
           )}
         </div>
 
-        {displayUserText && (
-          <div className="tutor-call-transcript">
-            <span className="tutor-call-label">You:</span>
-            <p>{displayUserText}</p>
-          </div>
-        )}
-
-        {tutorText && (
-          <div className="tutor-call-response">
-            <span className="tutor-call-label">Tutor:</span>
-            <p>{tutorText}</p>
+        {showTranscript && (displayUserText || tutorText) && (
+          <div className="tutor-call-messages">
+            {displayUserText && (
+              <div className="tutor-call-bubble user">
+                <p>{displayUserText}</p>
+              </div>
+            )}
+            {tutorText && (
+              <div className="tutor-call-bubble tutor">
+                <p>{tutorText}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -427,6 +492,14 @@ const TutorVoiceCall = ({
           title="End call"
         >
           <PhoneOffIcon />
+        </button>
+
+        <button
+          className={`tutor-call-btn transcript ${showTranscript ? 'active' : ''}`}
+          onClick={() => setShowTranscript(!showTranscript)}
+          title={showTranscript ? 'Hide transcript' : 'Show transcript'}
+        >
+          <TextIcon />
         </button>
       </div>
     </div>

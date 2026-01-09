@@ -569,7 +569,11 @@ const Dashboard = () => {
                         </div>
                         <div className="home-suggested-item">
                           <span className="home-suggested-percent">10%</span>
-                          <span className="home-suggested-desc">Extensive listening to material you have read</span>
+                          <span className="home-suggested-desc">Extensive listening to studied material</span>
+                        </div>
+                        <div className="home-suggested-item">
+                          <span className="home-suggested-percent">10%</span>
+                          <span className="home-suggested-desc">Optional review</span>
                         </div>
                       </div>
                       <p className="home-suggested-goal">

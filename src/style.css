@@ -20669,3 +20669,540 @@ body.active-pass-locked {
   border-color: #3b82f6;
 }
 
+/* ========================================
+   Home Page Stats & Routine Builder
+   ======================================== */
+
+.home-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Stats Cards - Updated */
+.home-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .home-stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px solid #e2e2e2;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.stat-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.stat-card-icon.words-read {
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+}
+
+.stat-card-icon.hours-listened {
+  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+}
+
+.stat-card-icon.known-words {
+  background: linear-gradient(135deg, #10B981, #059669);
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.stat-subtitle {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+/* Routine Builder */
+.routine-builder {
+  border: 1px solid #e2e2e2;
+  border-radius: 14px;
+  background: #fff;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.routine-builder-loading,
+.routine-builder-error,
+.routine-builder-empty {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.routine-builder-header {
+  margin-bottom: 1rem;
+}
+
+.routine-builder-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem;
+}
+
+.routine-builder-header .muted {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Week Grid */
+.routine-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .routine-week-grid {
+    grid-template-columns: repeat(7, minmax(100px, 1fr));
+  }
+}
+
+/* Day Column */
+.routine-day-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 0.75rem 0.5rem;
+}
+
+.routine-day-today {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+.routine-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.routine-day-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.routine-day-today .routine-day-label {
+  color: #0284c7;
+}
+
+.routine-today-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fff;
+  background: #0ea5e9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Day Activities */
+.routine-day-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+/* Activity Chip */
+.routine-activity-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid var(--activity-color, #3B82F6);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.routine-activity-chip:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.routine-activity-chip-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--activity-color, #3B82F6) 15%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--activity-color, #3B82F6);
+  flex-shrink: 0;
+}
+
+.routine-activity-chip-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.routine-activity-chip-type {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.2;
+}
+
+.routine-activity-chip-title {
+  font-size: 0.65rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.routine-activity-chip-remove {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+}
+
+.routine-activity-chip:hover .routine-activity-chip-remove {
+  opacity: 1;
+}
+
+.routine-activity-chip-remove:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+/* Add Activity Button */
+.routine-add-activity-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 150ms ease;
+  margin-top: auto;
+}
+
+.routine-add-activity-btn:hover {
+  border-color: #3B82F6;
+  color: #3B82F6;
+  background: #f0f9ff;
+}
+
+/* Modal Overlay */
+.routine-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.routine-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: min(400px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.routine-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.routine-modal-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.routine-modal-day {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+}
+
+.routine-modal-form {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Activity Type Grid */
+.routine-activity-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.routine-activity-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.routine-activity-type-btn:hover {
+  border-color: var(--type-color, #3B82F6);
+  background: color-mix(in srgb, var(--type-color, #3B82F6) 8%, #fff);
+}
+
+.routine-activity-type-btn.active {
+  border-color: var(--type-color, #3B82F6);
+  background: color-mix(in srgb, var(--type-color, #3B82F6) 12%, #fff);
+  color: var(--type-color, #3B82F6);
+}
+
+.routine-activity-type-btn span {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* Modal Form Row */
+.routine-modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.routine-modal-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.routine-label-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.routine-modal-row input {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Modal Actions */
+.routine-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.routine-modal-actions .button {
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9rem;
+}
+
+.routine-modal-actions .button.ghost {
+  background: transparent;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.routine-modal-actions .button.ghost:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Today's Activities Section */
+.today-activities {
+  margin-top: 1.5rem;
+}
+
+.today-activities-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.today-activities-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.today-activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.today-activity-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.today-activity-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.today-activity-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.today-activity-icon.reading {
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+}
+
+.today-activity-icon.listening {
+  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+}
+
+.today-activity-icon.speaking {
+  background: linear-gradient(135deg, #EC4899, #DB2777);
+}
+
+.today-activity-icon.review {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+}
+
+.today-activity-icon.writing {
+  background: linear-gradient(135deg, #10B981, #059669);
+}
+
+.today-activity-icon.tutor {
+  background: linear-gradient(135deg, #06B6D4, #0891B2);
+}
+
+.today-activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.today-activity-type {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.15rem;
+}
+
+.today-activity-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.today-activity-arrow {
+  color: #94a3b8;
+}
+
+.today-activities-empty {
+  padding: 2rem;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.today-activities-empty .muted {
+  margin: 0;
+}
+

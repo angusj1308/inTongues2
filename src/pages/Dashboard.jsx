@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
@@ -9,10 +9,13 @@ import SpeakHub from '../components/speak/SpeakHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import ReviewModal from '../components/review/ReviewModal'
+import RoutineBuilder from '../components/home/RoutineBuilder'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../constants/languages'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
+import { getHomeStats } from '../services/stats'
+import { getTodayActivities, ACTIVITY_TYPES } from '../services/routine'
 
 const PinIcon = ({ filled }) => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
@@ -129,6 +132,15 @@ const Dashboard = () => {
     }
   })
 
+  // Home tab state
+  const [homeStats, setHomeStats] = useState({
+    wordsRead: 0,
+    listeningFormatted: '0m',
+    knownWords: 0,
+  })
+  const [homeStatsLoading, setHomeStatsLoading] = useState(true)
+  const [todayActivities, setTodayActivities] = useState([])
+
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
     [profile?.myLanguages],
@@ -168,6 +180,44 @@ const Dashboard = () => {
       setLastUsedLanguage(activeLanguage)
     }
   }, [activeLanguage, setLastUsedLanguage])
+
+  // Load home stats when user or language changes
+  useEffect(() => {
+    if (!user || !activeLanguage) {
+      setHomeStats({ wordsRead: 0, listeningFormatted: '0m', knownWords: 0 })
+      setHomeStatsLoading(false)
+      setTodayActivities([])
+      return
+    }
+
+    let isMounted = true
+
+    const loadStats = async () => {
+      setHomeStatsLoading(true)
+      try {
+        const [stats, activities] = await Promise.all([
+          getHomeStats(user.uid, activeLanguage),
+          getTodayActivities(user.uid, activeLanguage),
+        ])
+        if (isMounted) {
+          setHomeStats(stats)
+          setTodayActivities(activities)
+        }
+      } catch (err) {
+        console.error('Failed to load home stats:', err)
+      } finally {
+        if (isMounted) {
+          setHomeStatsLoading(false)
+        }
+      }
+    }
+
+    loadStats()
+
+    return () => {
+      isMounted = false
+    }
+  }, [user, activeLanguage])
 
   useEffect(() => {
     if (!user || !activeLanguage) {
@@ -447,27 +497,156 @@ const Dashboard = () => {
           key={activeTab}
         >
           {activeTab === 'home' && (
-            <div className="home-grid">
-              <div className="stat-card">
-                <div className="stat-label ui-text">Daily streak</div>
-                <div className="stat-value">— days</div>
-                <p className="muted small">Keep showing up each day to grow your streak.</p>
+            <div className="home-content">
+              {/* Stats Row */}
+              <div className="home-stats-row">
+                <div className="stat-card">
+                  <div className="stat-card-icon words-read">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                    </svg>
+                  </div>
+                  <div className="stat-label ui-text">Words Read</div>
+                  <div className="stat-value">
+                    {homeStatsLoading ? '...' : homeStats.wordsRead.toLocaleString()}
+                  </div>
+                  <div className="stat-subtitle">From your reading</div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-card-icon hours-listened">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                      <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+                    </svg>
+                  </div>
+                  <div className="stat-label ui-text">Time Listened</div>
+                  <div className="stat-value">
+                    {homeStatsLoading ? '...' : homeStats.listeningFormatted}
+                  </div>
+                  <div className="stat-subtitle">Audio & speech practice</div>
+                </div>
+
+                <div className="stat-card">
+                  <div className="stat-card-icon known-words">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  </div>
+                  <div className="stat-label ui-text">Known Words</div>
+                  <div className="stat-value">
+                    {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()}
+                  </div>
+                  <div className="stat-subtitle">Mastered vocabulary</div>
+                </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-label ui-text">Minutes today</div>
-                <div className="stat-value">00:00</div>
-                <p className="muted small">Track how much time you spend practicing.</p>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label ui-text">Words reviewed</div>
-                <div className="stat-value">0</div>
-                <p className="muted small">Your spaced repetition stats will appear here.</p>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label ui-text">Sessions this week</div>
-                <div className="stat-value">0</div>
-                <p className="muted small">See your weekly rhythm at a glance.</p>
-              </div>
+
+              {/* Today's Activities */}
+              {todayActivities.length > 0 && (
+                <div className="today-activities">
+                  <div className="today-activities-header">
+                    <h3>Today's Plan</h3>
+                  </div>
+                  <div className="today-activities-list">
+                    {todayActivities.map((activity) => {
+                      const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
+                      return (
+                        <div
+                          key={activity.id}
+                          className="today-activity-card"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            const tabMap = {
+                              reading: 'read',
+                              listening: 'listen',
+                              speaking: 'speak',
+                              review: 'review',
+                              writing: 'write',
+                              tutor: 'tutor',
+                            }
+                            const tab = tabMap[activity.activityType] || 'read'
+                            handleTabClick(tab)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              const tabMap = {
+                                reading: 'read',
+                                listening: 'listen',
+                                speaking: 'speak',
+                                review: 'review',
+                                writing: 'write',
+                                tutor: 'tutor',
+                              }
+                              const tab = tabMap[activity.activityType] || 'read'
+                              handleTabClick(tab)
+                            }
+                          }}
+                        >
+                          <div className={`today-activity-icon ${activity.activityType}`}>
+                            {activity.activityType === 'reading' && (
+                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                              </svg>
+                            )}
+                            {activity.activityType === 'listening' && (
+                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+                              </svg>
+                            )}
+                            {activity.activityType === 'speaking' && (
+                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                              </svg>
+                            )}
+                            {activity.activityType === 'review' && (
+                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="2" y="4" width="20" height="16" rx="2" />
+                                <path d="M12 8v4" />
+                                <path d="M12 16h.01" />
+                              </svg>
+                            )}
+                            {activity.activityType === 'writing' && (
+                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                              </svg>
+                            )}
+                            {activity.activityType === 'tutor' && (
+                              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="today-activity-content">
+                            <div className="today-activity-type">{activityConfig.label}</div>
+                            <div className="today-activity-meta">
+                              {activity.time && `${activity.time} · `}
+                              {activity.duration}min
+                              {activity.title && ` · ${activity.title}`}
+                            </div>
+                          </div>
+                          <div className="today-activity-arrow">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Routine Builder */}
+              <RoutineBuilder userId={user?.uid} language={activeLanguage} />
             </div>
           )}
 

@@ -564,12 +564,12 @@ const Dashboard = () => {
                       <p className="home-suggested-label">Suggested for {levelInfo.level}</p>
                       <div className="home-suggested-breakdown">
                         <div className="home-suggested-item">
-                          <span className="home-suggested-percent">90%</span>
-                          <span className="home-suggested-desc">Intensive reading & listening</span>
+                          <span className="home-suggested-percent">80%</span>
+                          <span className="home-suggested-desc">Intensive reading with audio</span>
                         </div>
                         <div className="home-suggested-item">
                           <span className="home-suggested-percent">10%</span>
-                          <span className="home-suggested-desc">Optional review</span>
+                          <span className="home-suggested-desc">Extensive listening to material you have read</span>
                         </div>
                       </div>
                       <p className="home-suggested-goal">

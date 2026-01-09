@@ -2667,6 +2667,34 @@ textarea {
   margin: 0;
 }
 
+/* User transcript */
+.speaking-transcript {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.speaking-transcript-label {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.speaking-transcript-text {
+  font-family: var(--font-content);
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #334155;
+  margin: 0;
+}
+
 /* Vocab list */
 .speaking-vocab-list {
   padding: 0 1rem 1rem;
@@ -3119,6 +3147,19 @@ textarea {
 
 [data-theme="dark"] .speaking-exemplar-text {
   color: #bbf7d0;
+}
+
+[data-theme="dark"] .speaking-transcript {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .speaking-transcript-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .speaking-transcript-text {
+  color: #e2e8f0;
 }
 
 [data-theme="dark"] .speaking-vocab-row {

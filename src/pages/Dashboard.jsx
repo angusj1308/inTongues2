@@ -20,12 +20,12 @@ import { getTodayActivities, ACTIVITY_TYPES } from '../services/routine'
 
 // Level thresholds based on known word count
 const LEVEL_THRESHOLDS = [
-  { min: 0, max: 2000, level: 'Beginner', nextLevel: 'Upper Beginner' },
-  { min: 2000, max: 5000, level: 'Upper Beginner', nextLevel: 'Intermediate' },
-  { min: 5000, max: 12000, level: 'Intermediate', nextLevel: 'Upper Intermediate' },
-  { min: 12000, max: 24000, level: 'Upper Intermediate', nextLevel: 'Advanced' },
-  { min: 24000, max: 40000, level: 'Advanced', nextLevel: 'Native-like' },
-  { min: 40000, max: Infinity, level: 'Native-like', nextLevel: null },
+  { min: 0, max: 2000, level: 'Beginner', nextLevel: 'Upper Beginner', goal: 'Acquire foundational vocabulary and familiarise yourself with the sound of the language.' },
+  { min: 2000, max: 5000, level: 'Upper Beginner', nextLevel: 'Intermediate', goal: 'Build core vocabulary and start understanding simple texts and conversations.' },
+  { min: 5000, max: 12000, level: 'Intermediate', nextLevel: 'Upper Intermediate', goal: 'Expand vocabulary range and develop fluency with everyday topics.' },
+  { min: 12000, max: 24000, level: 'Upper Intermediate', nextLevel: 'Advanced', goal: 'Refine comprehension and express nuanced ideas with confidence.' },
+  { min: 24000, max: 40000, level: 'Advanced', nextLevel: 'Native-like', goal: 'Master sophisticated vocabulary and engage with complex content.' },
+  { min: 40000, max: Infinity, level: 'Native-like', nextLevel: null, goal: 'Maintain and deepen your mastery across all domains.' },
 ]
 
 const getLevelInfo = (knownWords) => {
@@ -42,6 +42,7 @@ const getLevelInfo = (knownWords) => {
     wordsToNext,
     currentMin: threshold.min,
     currentMax: threshold.max,
+    goal: threshold.goal,
   }
 }
 
@@ -539,6 +540,7 @@ const Dashboard = () => {
                       {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
                     </span>
                   </div>
+                  <p className="home-level-goal">{levelInfo.goal}</p>
                   <div className="home-level-bar">
                     <div
                       className="home-level-fill"
@@ -607,9 +609,6 @@ const Dashboard = () => {
                         <span className="home-suggested-desc">Optional review</span>
                       </div>
                     </div>
-                    <p className="home-suggested-goal">
-                      Acquire foundational vocabulary and familiarise yourself with the sound of the language.
-                    </p>
                   </div>
                 )}
               </div>

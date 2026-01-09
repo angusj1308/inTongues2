@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
+import { incrementWordsLearned } from './progress'
 
 export const VOCAB_STATUSES = ['unknown', 'recognised', 'familiar', 'known']
 
@@ -201,6 +202,10 @@ export const upsertVocabEntry = async (
   const ref = getVocabDocRef(userId, normalisedLang, text)
   const existingDoc = await getDoc(ref)
 
+  // Track if this is a new "known" word for progress tracking
+  const previousStatus = existingDoc.exists() ? existingDoc.data().status : null
+  const isNewlyKnown = status === 'known' && previousStatus !== 'known'
+
   // Check if translation is a fallback/placeholder string
   const isFallbackTranslation = !translation ||
     translation === 'No translation found' ||
@@ -262,6 +267,11 @@ export const upsertVocabEntry = async (
   }
 
   await setDoc(ref, updates, { merge: true })
+
+  // Track progress when word becomes known
+  if (isNewlyKnown) {
+    incrementWordsLearned(userId, normalisedLang).catch(console.error)
+  }
 }
 
 export const addSourceContentId = async (userId, language, text, contentId) => {
@@ -337,7 +347,8 @@ const shouldPromoteStatus = (currentStatus, correctStreak, recallStreak, interva
  * @param {boolean} isRecallMode - Whether review was in recall mode (translation → word)
  */
 export const updateVocabSRS = async (userId, language, text, quality, isRecallMode = false) => {
-  const ref = getVocabDocRef(userId, language, text)
+  const normalisedLang = normaliseLanguage(language)
+  const ref = getVocabDocRef(userId, normalisedLang, text)
   const docSnap = await getDoc(ref)
 
   if (!docSnap.exists()) {
@@ -346,7 +357,8 @@ export const updateVocabSRS = async (userId, language, text, quality, isRecallMo
 
   const data = docSnap.data() || {}
 
-  let status = data.status || 'unknown'
+  const previousStatus = data.status || 'unknown'
+  let status = previousStatus
   let intervalDays = Number.isFinite(data.intervalDays) ? data.intervalDays : 0
   let easeFactor = Number.isFinite(data.easeFactor) ? data.easeFactor : DEFAULT_EASE_FACTOR
   let correctStreak = Number.isFinite(data.correctStreak) ? data.correctStreak : 0
@@ -437,6 +449,11 @@ export const updateVocabSRS = async (userId, language, text, quality, isRecallMo
     { merge: true }
   )
 
+  // Track progress when word is promoted to known
+  if (status === 'known' && previousStatus !== 'known') {
+    incrementWordsLearned(userId, normalisedLang).catch(console.error)
+  }
+
   return { status, intervalDays, easeFactor, correctStreak, recallStreak }
 }
 
@@ -448,12 +465,15 @@ export const setVocabStatus = async (userId, language, text, newStatus) => {
     throw new Error(`Invalid vocab status: ${newStatus}`)
   }
 
-  const ref = getVocabDocRef(userId, language, text)
+  const normalisedLang = normaliseLanguage(language)
+  const ref = getVocabDocRef(userId, normalisedLang, text)
   const docSnap = await getDoc(ref)
 
   if (!docSnap.exists()) {
     throw new Error('Vocab entry not found')
   }
+
+  const previousStatus = docSnap.data().status
 
   await setDoc(
     ref,
@@ -463,6 +483,11 @@ export const setVocabStatus = async (userId, language, text, newStatus) => {
     },
     { merge: true }
   )
+
+  // Track progress when word becomes known
+  if (newStatus === 'known' && previousStatus !== 'known') {
+    incrementWordsLearned(userId, normalisedLang).catch(console.error)
+  }
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getProgressData, recordDailyProgress } from '../../services/progress'
+import { getProgressData } from '../../services/progress'
 
 const PERIODS = [
   { key: 'week', label: 'W', days: 7 },
@@ -13,14 +13,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Record today's progress when component mounts (if we have data)
-  useEffect(() => {
-    if (userId && language && currentKnownWords > 0) {
-      recordDailyProgress(userId, language, currentKnownWords).catch(console.error)
-    }
-  }, [userId, language, currentKnownWords])
-
-  // Fetch progress data when period or language changes
+  // Fetch progress data when period, language, or known words changes
   useEffect(() => {
     if (!userId || !language) {
       setLoading(false)
@@ -30,7 +23,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
     let mounted = true
     setLoading(true)
 
-    getProgressData(userId, language, period)
+    getProgressData(userId, language, period, currentKnownWords)
       .then((result) => {
         if (mounted) {
           setData(result)
@@ -47,7 +40,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
     return () => {
       mounted = false
     }
-  }, [userId, language, period])
+  }, [userId, language, period, currentKnownWords])
 
   // Generate SVG path for line graph
   const linePath = useMemo(() => {
@@ -77,10 +70,10 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
       // Return placeholder bars
       return Array.from({ length: 7 }, () => ({ height: 5 }))
     }
-    // Ensure minimum height for visibility
+    // Ensure minimum height for visibility when there's data
     return data.bars.map((b) => ({
       ...b,
-      height: Math.max(b.height, 3),
+      height: b.value > 0 ? Math.max(b.height, 8) : 3,
     }))
   }, [data])
 

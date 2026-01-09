@@ -20700,6 +20700,14 @@ body.active-pass-locked {
   margin-top: 0.25rem;
 }
 
+.home-level-goal {
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0.75rem 0 0;
+  font-style: italic;
+}
+
 .home-level-bar {
   height: 4px;
   background: #e5e5e5;

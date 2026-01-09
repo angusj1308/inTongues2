@@ -14,7 +14,7 @@ import {
   updateTutorSettings,
 } from '../services/tutor'
 import { loadUserVocab, normaliseExpression } from '../services/vocab'
-import { LANGUAGE_HIGHLIGHT_COLORS, STATUS_OPACITY } from '../constants/highlightColors'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../constants/highlightColors'
 import TutorSidebar from '../components/tutor/TutorSidebar'
 import TutorControlPanel from '../components/tutor/TutorControlPanel'
 import TutorVoiceInput from '../components/tutor/TutorVoiceInput'
@@ -22,22 +22,16 @@ import TutorVoiceCall from '../components/tutor/TutorVoiceCall'
 import TutorVocabPanel from '../components/tutor/TutorVocabPanel'
 
 // Get highlight style for a word based on status
-const getHighlightStyle = (language, status, enableHighlight) => {
+const getHighlightStyle = (status, enableHighlight) => {
   if (!enableHighlight) return {}
 
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
 
-  // Get language-specific color
-  const langColor = LANGUAGE_HIGHLIGHT_COLORS[language] || LANGUAGE_HIGHLIGHT_COLORS.default
-
-  // 'new' words use orange
-  const baseColor = status === 'new' ? '#F97316' : langColor
-
   return {
-    '--hlt-color': baseColor,
+    '--hlt-color': HIGHLIGHT_COLOR,
     '--hlt-opacity': opacity,
-    backgroundColor: `color-mix(in srgb, ${baseColor} ${opacity * 100}%, transparent)`,
+    backgroundColor: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${opacity * 100}%, transparent)`,
     borderRadius: '2px',
     padding: '0 2px',
     margin: '0 -2px',
@@ -658,7 +652,7 @@ const TutorPage = () => {
       const status = vocabEntry?.status || 'new'
 
       // Get highlight style
-      const style = getHighlightStyle(activeLanguage, status, true)
+      const style = getHighlightStyle(status, true)
 
       return (
         <span key={idx} style={style}>

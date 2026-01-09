@@ -4122,22 +4122,22 @@ textarea {
   color: #9a3412;
 }
 
-/* U - Unknown: language color at 40% (matches STATUS_OPACITY.unknown) */
+/* U - Unknown: orange at 40% (matches STATUS_OPACITY.unknown) */
 .intensive-status-pill--unknown.is-active {
-  background: color-mix(in srgb, #DC2626 40%, white);
-  color: #991b1b;
+  background: color-mix(in srgb, #F97316 40%, white);
+  color: #9a3412;
 }
 
-/* R - Recognised: language color at 28% (matches STATUS_OPACITY.recognised) */
+/* R - Recognised: orange at 28% (matches STATUS_OPACITY.recognised) */
 .intensive-status-pill--recognised.is-active {
-  background: color-mix(in srgb, #DC2626 28%, white);
-  color: #b91c1c;
+  background: color-mix(in srgb, #F97316 28%, white);
+  color: #9a3412;
 }
 
-/* F - Familiar: language color at 16% (matches STATUS_OPACITY.familiar) */
+/* F - Familiar: orange at 16% (matches STATUS_OPACITY.familiar) */
 .intensive-status-pill--familiar.is-active {
-  background: color-mix(in srgb, #DC2626 16%, white);
-  color: #dc2626;
+  background: color-mix(in srgb, #F97316 16%, white);
+  color: #64748b;
 }
 
 /* K - Known: green at 40% (matches WordStatusPanel known style) */
@@ -8377,7 +8377,7 @@ body.active-pass-locked {
   /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
   color: color-mix(
     in srgb,
-    var(--hlt-base, #DC2626) calc(var(--hlt-opacity, 0) * 250%),
+    var(--hlt-base, #F97316) calc(var(--hlt-opacity, 0) * 250%),
     rgba(255, 255, 255, 0.85)
   );
   background: none;
@@ -9824,15 +9824,15 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-status-pill--unknown.is-active {
-  background: #DC2626;
+  background: #F97316;
 }
 
 .intensive-vocab-item .intensive-status-pill--recognised.is-active {
-  background: #ef4444;
+  background: #fb923c;
 }
 
 .intensive-vocab-item .intensive-status-pill--familiar.is-active {
-  background: #fca5a5;
+  background: #fdba74;
 }
 
 .intensive-vocab-item .intensive-status-pill--known.is-active {
@@ -10114,8 +10114,7 @@ body.active-pass-locked {
 /* Word status colors for cinema subtitles - text color on dark background
    Matches the app's established color system:
    - New words: Always orange #F97316
-   - Unknown/Recognised/Familiar: Language color (e.g. red #DC2626 for Spanish)
-     shown as light tints matching the highlight opacity levels (40%, 28%, 16%)
+   - Unknown/Recognised/Familiar: Orange at fading opacity levels (40%, 28%, 16%)
    - Known: White (mastered, blends in) */
 .cinema-subtitle-overlay .word-known {
   color: #ffffff;
@@ -10123,20 +10122,20 @@ body.active-pass-locked {
 }
 
 .cinema-subtitle-overlay .word-familiar {
-  /* Language color at 16% opacity equivalent - very light tint */
-  color: #F9DCDC;
+  /* Orange at 16% opacity equivalent - very light tint */
+  color: #FDE5D3;
   font-weight: 500;
 }
 
 .cinema-subtitle-overlay .word-recognised {
-  /* Language color at 28% opacity equivalent - light tint */
-  color: #F0AFAF;
+  /* Orange at 28% opacity equivalent - light tint */
+  color: #FBC89A;
   font-weight: 500;
 }
 
 .cinema-subtitle-overlay .word-unknown {
-  /* Language color at 40% opacity equivalent - medium tint */
-  color: #E88A8A;
+  /* Orange at 40% opacity equivalent - medium tint */
+  color: #F9A15A;
   font-weight: 500;
 }
 

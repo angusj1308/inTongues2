@@ -1,5 +1,5 @@
 import { useMemo, memo, useState } from 'react'
-import { LANGUAGE_HIGHLIGHT_COLORS } from '../../constants/highlightColors'
+import { HIGHLIGHT_COLOR } from '../../constants/highlightColors'
 
 // Eye icon for tracking toggle
 const EyeIcon = ({ open }) => (
@@ -19,19 +19,11 @@ const EyeIcon = ({ open }) => (
   </svg>
 )
 
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
-
-// Blend intensity based on status (how much of the language color vs white)
+// Blend intensity based on status (how much of the orange color vs white)
 // Higher = more color, lower = more white
 const STATUS_INTENSITY = {
-  unknown: 1.0,      // full language color intensity
+  new: 1.0,          // full orange intensity
+  unknown: 1.0,      // full orange intensity
   recognised: 0.7,   // 70% color, 30% white
   familiar: 0.4,     // 40% color, 60% white
 }
@@ -49,17 +41,14 @@ const blendWithWhite = (hex, intensity) => {
   return `rgb(${blendedR}, ${blendedG}, ${blendedB})`
 }
 
-// Get highlight color based on word status and language
-function getWordColor({ language, status }) {
+// Get highlight color based on word status - all orange, fading to white
+function getWordColor({ status }) {
   // Known words are white
   if (status === 'known') return '#ffffff'
-  // New words are always orange
-  if (status === 'new') return '#F97316'
 
-  // Learning words use language color blended with white based on status
-  const langColor = getLanguageColor(language)
+  // All learning statuses use orange blended with white based on status
   const intensity = STATUS_INTENSITY[status] || 1.0
-  return blendWithWhite(langColor, intensity)
+  return blendWithWhite(HIGHLIGHT_COLOR, intensity)
 }
 
 const KaraokeWord = memo(({
@@ -67,11 +56,10 @@ const KaraokeWord = memo(({
   isActive,
   isPast,
   status,
-  language,
   onWordClick,
   trackingEnabled,
 }) => {
-  const color = getWordColor({ language, status })
+  const color = getWordColor({ status })
 
   const classNames = ['karaoke-word']
   if (trackingEnabled && isActive) classNames.push('karaoke-word--active')
@@ -182,7 +170,6 @@ const KaraokeSubtitles = ({
                 isActive={index === activeWordIndex}
                 isPast={index < activeWordIndex || isInGap}
                 status={status}
-                language={language}
                 onWordClick={onWordClick}
                 trackingEnabled={trackingEnabled}
               />
@@ -216,7 +203,7 @@ const KaraokeSubtitles = ({
           const normalised = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
           const entry = vocabEntries[normalised]
           const status = entry?.status || 'new'
-          const color = getWordColor({ language, status })
+          const color = getWordColor({ status })
 
           return (
             <span

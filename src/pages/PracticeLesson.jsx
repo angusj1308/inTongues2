@@ -12,46 +12,37 @@ import {
 } from '../services/practice'
 import { loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import {
-  LANGUAGE_HIGHLIGHT_COLORS,
+  HIGHLIGHT_COLOR,
   STATUS_OPACITY,
 } from '../constants/highlightColors'
-
-// Helper to get language color with case-insensitive lookup
-const getLanguageColor = (language) => {
-  if (!language) return LANGUAGE_HIGHLIGHT_COLORS.default
-  const exactMatch = LANGUAGE_HIGHLIGHT_COLORS[language]
-  if (exactMatch) return exactMatch
-  const capitalized = language.charAt(0).toUpperCase() + language.slice(1).toLowerCase()
-  return LANGUAGE_HIGHLIGHT_COLORS[capitalized] || LANGUAGE_HIGHLIGHT_COLORS.default
-}
 
 // Word status constants for the vocab panel
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
 
 // Get background style for a status button when active
-const getStatusButtonStyle = (statusLevel, isActive, languageColor) => {
+const getStatusButtonStyle = (statusLevel, isActive) => {
   if (!isActive) return {}
 
   switch (statusLevel) {
     case 'new':
       return {
-        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
         color: '#9a3412'
       }
     case 'unknown':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.unknown * 100}%, white)`,
-        color: '#1e293b'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, white)`,
+        color: '#9a3412'
       }
     case 'recognised':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.recognised * 100}%, white)`,
-        color: '#1e293b'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#9a3412'
       }
     case 'familiar':
       return {
-        background: `color-mix(in srgb, ${languageColor} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, white)`,
         color: '#64748b'
       }
     case 'known':
@@ -89,17 +80,14 @@ const getFeedbackIcon = (state) => {
 }
 
 // Get highlight style for a word based on status
-const getHighlightStyle = (language, status, enableHighlight) => {
+const getHighlightStyle = (status, enableHighlight) => {
   if (!enableHighlight) return {}
 
   const opacity = STATUS_OPACITY[status]
   if (!opacity || opacity === 0) return {}
 
-  // New words are always orange, others use language color
-  const base = status === 'new' ? '#F97316' : getLanguageColor(language)
-
   return {
-    '--hlt-base': base,
+    '--hlt-base': HIGHLIGHT_COLOR,
     '--hlt-opacity': opacity,
   }
 }
@@ -674,7 +662,7 @@ const PracticeLesson = () => {
       const status = vocabEntry?.status || 'new'
 
       // Get highlight style using app's standard approach
-      const style = getHighlightStyle(lesson?.targetLanguage, status, showWordStatus)
+      const style = getHighlightStyle(status, showWordStatus)
       const highlighted = Boolean(style['--hlt-opacity'])
 
       return (
@@ -1428,7 +1416,6 @@ const PracticeLesson = () => {
                           {nurfWords.map((wordData) => {
                             const statusIndex = STATUS_LEVELS.indexOf(wordData.status)
                             const validStatusIndex = statusIndex >= 0 ? statusIndex : 0
-                            const languageColor = getLanguageColor(lesson?.targetLanguage)
                             const translationData = wordTranslations[wordData.normalised] || {}
                             const translation = safeTranslation(translationData.translation) || safeTranslation(wordData.translation) || '...'
                             const hasAudio = Boolean(wordData.audioBase64 || wordData.audioUrl || translationData.audioBase64 || translationData.audioUrl)
@@ -1453,7 +1440,7 @@ const PracticeLesson = () => {
                                 <div className="practice-word-status-selector">
                                   {STATUS_ABBREV.map((abbrev, i) => {
                                     const isActive = i === validStatusIndex
-                                    const style = getStatusButtonStyle(STATUS_LEVELS[i], isActive, languageColor)
+                                    const style = getStatusButtonStyle(STATUS_LEVELS[i], isActive)
 
                                     return (
                                       <button

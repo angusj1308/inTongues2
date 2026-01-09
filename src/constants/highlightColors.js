@@ -1,3 +1,5 @@
+console.log('highlightColors.js loading...')
+
 export const LANGUAGE_HIGHLIGHT_COLORS = {
   // Blue languages
   English: '#2563EB',

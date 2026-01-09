@@ -383,6 +383,16 @@ const FreeSpeakingSession = () => {
     lastAnalyzedTextRef.current = ''
   }
 
+  // Handle audio update from punch-in splice
+  const handleAudioUpdate = useCallback((newBlob) => {
+    // Update the audio blob and create new URL
+    setAudioBlob(newBlob)
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl)
+    }
+    setAudioUrl(URL.createObjectURL(newBlob))
+  }, [audioUrl])
+
   // Toggle playback
   const togglePlayback = () => {
     if (!playbackRef.current) return
@@ -945,6 +955,7 @@ const FreeSpeakingSession = () => {
                 onPauseRecording={pauseRecording}
                 onResumeRecording={resumeRecording}
                 onFinalize={handleFinalize}
+                onAudioUpdate={handleAudioUpdate}
               />
             </div>
           )}

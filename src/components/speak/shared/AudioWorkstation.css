@@ -212,6 +212,10 @@
   letter-spacing: 0.05em;
 }
 
+.daw-recording-indicator.punch-in {
+  background: rgba(218, 119, 86, 0.95);
+}
+
 .daw-recording-dot {
   width: 10px;
   height: 10px;

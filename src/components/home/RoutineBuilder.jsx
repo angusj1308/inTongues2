@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ACTIVITY_TYPES,
@@ -7,8 +7,11 @@ import {
   addActivity,
   getOrCreateActiveRoutine,
   removeActivity,
-  updateActivity,
 } from '../../services/routine'
+
+// Constants
+const HOUR_HEIGHT = 40 // pixels per hour (smaller than day view since we have 7 columns)
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 // Short labels for activity types
 const ACTIVITY_SHORT_LABELS = {
@@ -20,23 +23,51 @@ const ACTIVITY_SHORT_LABELS = {
   tutor: 'Tutor',
 }
 
-const ActivityChip = ({ activity, onRemove, onClick }) => {
+// Format hour for display
+const formatHour = (hour) => {
+  if (hour === 0) return '12a'
+  if (hour === 12) return '12p'
+  if (hour < 12) return `${hour}a`
+  return `${hour - 12}p`
+}
+
+// Parse time string to minutes from midnight
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return 0
+  const [hours, minutes] = timeStr.split(':').map(Number)
+  return hours * 60 + (minutes || 0)
+}
+
+// Activity block positioned on the timeline
+const ActivityBlock = ({ activity, onRemove, onClick }) => {
+  const startMinutes = parseTimeToMinutes(activity.time)
+  const duration = activity.duration || 30
   const shortLabel = ACTIVITY_SHORT_LABELS[activity.activityType] || 'Activity'
+
+  const topPx = (startMinutes / 60) * HOUR_HEIGHT
+  const heightPx = Math.max((duration / 60) * HOUR_HEIGHT, 20)
 
   return (
     <div
-      className="routine-activity-chip"
+      className="routine-activity-block"
+      style={{
+        top: `${topPx}px`,
+        height: `${heightPx}px`,
+      }}
       onClick={onClick}
       role="button"
       tabIndex={0}
+      title={`${shortLabel} at ${activity.time} (${duration}m)`}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') onClick?.()
       }}
     >
-      <span className="routine-activity-chip-time">{activity.time || '—'}</span>
-      <span className="routine-activity-chip-label">{shortLabel}</span>
+      <span className="routine-activity-block-label">{shortLabel}</span>
+      {heightPx >= 32 && (
+        <span className="routine-activity-block-time">{activity.time}</span>
+      )}
       <button
-        className="routine-activity-chip-remove"
+        className="routine-activity-block-remove"
         onClick={(e) => {
           e.stopPropagation()
           onRemove?.()
@@ -49,10 +80,14 @@ const ActivityChip = ({ activity, onRemove, onClick }) => {
   )
 }
 
-const AddActivityModal = ({ isOpen, onClose, onAdd, day }) => {
+const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime }) => {
   const [activityType, setActivityType] = useState('reading')
-  const [time, setTime] = useState('09:00')
+  const [time, setTime] = useState(defaultTime || '09:00')
   const [duration, setDuration] = useState(30)
+
+  useEffect(() => {
+    if (defaultTime) setTime(defaultTime)
+  }, [defaultTime])
 
   if (!isOpen) return null
 
@@ -131,6 +166,12 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day }) => {
 
 const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivityClick, isToday }) => {
   const [showAddModal, setShowAddModal] = useState(false)
+  const [clickedHour, setClickedHour] = useState(null)
+
+  const handleTimeSlotClick = (hour) => {
+    setClickedHour(`${hour.toString().padStart(2, '0')}:00`)
+    setShowAddModal(true)
+  }
 
   return (
     <div className={`routine-day-column ${isToday ? 'routine-day-today' : ''}`}>
@@ -139,37 +180,69 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
         {isToday && <span className="routine-today-dot" />}
       </div>
 
-      <div className="routine-day-activities">
+      <div className="routine-day-timeline">
+        {/* Clickable hour slots */}
+        {HOURS.map((hour) => (
+          <div
+            key={hour}
+            className="routine-hour-slot"
+            onClick={() => handleTimeSlotClick(hour)}
+            title={`Add activity at ${formatHour(hour)}`}
+          />
+        ))}
+
+        {/* Activity blocks */}
         {activities.map((activity) => (
-          <ActivityChip
+          <ActivityBlock
             key={activity.id}
             activity={activity}
             onRemove={() => onRemoveActivity(day, activity.id)}
             onClick={() => onActivityClick?.(activity)}
           />
         ))}
-
-        <button
-          className="routine-add-activity-btn"
-          onClick={() => setShowAddModal(true)}
-          aria-label={`Add activity to ${DAY_LABELS[day]}`}
-        >
-          +
-        </button>
       </div>
 
       <AddActivityModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false)
+          setClickedHour(null)
+        }}
         day={day}
+        defaultTime={clickedHour}
         onAdd={(activity) => onAddActivity(day, activity)}
       />
     </div>
   )
 }
 
+// Current time indicator
+const CurrentTimeIndicator = () => {
+  const [position, setPosition] = useState(0)
+
+  useEffect(() => {
+    const updatePosition = () => {
+      const now = new Date()
+      const minutes = now.getHours() * 60 + now.getMinutes()
+      setPosition((minutes / 60) * HOUR_HEIGHT)
+    }
+
+    updatePosition()
+    const interval = setInterval(updatePosition, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div
+      className="routine-current-time"
+      style={{ top: `${position}px` }}
+    />
+  )
+}
+
 const RoutineBuilder = ({ userId, language }) => {
   const navigate = useNavigate()
+  const scrollRef = useRef(null)
   const [routine, setRoutine] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -177,6 +250,18 @@ const RoutineBuilder = ({ userId, language }) => {
   const today = useMemo(() => {
     return new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
   }, [])
+
+  // Auto-scroll to current time on mount
+  useEffect(() => {
+    if (scrollRef.current && !loading) {
+      const now = new Date()
+      const minutes = now.getHours() * 60 + now.getMinutes()
+      const position = (minutes / 60) * HOUR_HEIGHT
+      const containerHeight = scrollRef.current.clientHeight
+      const scrollTarget = Math.max(0, position - containerHeight / 3)
+      scrollRef.current.scrollTop = scrollTarget
+    }
+  }, [loading])
 
   const loadRoutine = useCallback(async () => {
     if (!userId || !language) {
@@ -231,7 +316,6 @@ const RoutineBuilder = ({ userId, language }) => {
 
   const handleActivityClick = useCallback(
     (activity) => {
-      // Navigate to the appropriate section based on activity type
       const tabMap = {
         reading: 'read',
         listening: 'listen',
@@ -243,13 +327,11 @@ const RoutineBuilder = ({ userId, language }) => {
 
       const tab = tabMap[activity.activityType] || 'read'
 
-      // If activity has specific content, navigate to it
       if (activity.contentId && activity.contentType === 'story') {
         navigate(`/reader/${activity.contentId}`)
       } else if (activity.contentId && activity.contentType === 'youtube') {
         navigate(`/listen/${activity.contentId}`)
       } else {
-        // Navigate to the tab
         navigate('/dashboard', { state: { initialTab: tab } })
       }
     },
@@ -287,18 +369,43 @@ const RoutineBuilder = ({ userId, language }) => {
     <div className="routine-builder">
       <h3 className="home-section-title">Weekly Routine</h3>
 
-      <div className="routine-week-grid">
-        {DAYS_OF_WEEK.map((day) => (
-          <DayColumn
-            key={day}
-            day={day}
-            activities={routine.schedule?.[day] || []}
-            onAddActivity={handleAddActivity}
-            onRemoveActivity={handleRemoveActivity}
-            onActivityClick={handleActivityClick}
-            isToday={day === today}
-          />
-        ))}
+      <div className="routine-week-container">
+        {/* Hour labels column */}
+        <div className="routine-hour-labels">
+          {HOURS.map((hour) => (
+            <div key={hour} className="routine-hour-label">
+              {formatHour(hour)}
+            </div>
+          ))}
+        </div>
+
+        {/* Scrollable week grid */}
+        <div className="routine-week-scroll" ref={scrollRef}>
+          <div className="routine-week-grid">
+            {/* Hour grid lines */}
+            <div className="routine-hour-lines">
+              {HOURS.map((hour) => (
+                <div key={hour} className="routine-hour-line" />
+              ))}
+            </div>
+
+            {/* Current time indicator */}
+            <CurrentTimeIndicator />
+
+            {/* Day columns */}
+            {DAYS_OF_WEEK.map((day) => (
+              <DayColumn
+                key={day}
+                day={day}
+                activities={routine.schedule?.[day] || []}
+                onAddActivity={handleAddActivity}
+                onRemoveActivity={handleRemoveActivity}
+                onActivityClick={handleActivityClick}
+                isToday={day === today}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

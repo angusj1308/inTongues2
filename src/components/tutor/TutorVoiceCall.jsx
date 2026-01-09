@@ -120,6 +120,9 @@ const TutorVoiceCall = ({
 
   // Initialize call with tutor greeting
   useEffect(() => {
+    // Reset mountedRef in case Strict Mode cleanup set it to false
+    mountedRef.current = true
+
     // Prevent double-execution from React Strict Mode
     if (initCalledRef.current) {
       console.log('[VoiceCall] Init already called, skipping')

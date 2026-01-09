@@ -119,6 +119,13 @@ export function useRealtimeTranscription(options = {}) {
             reject(new Error('Connection timeout'))
           }, 5000)
         })
+      } else {
+        // WebSocket already open - send config to reset server state
+        console.log('WebSocket already open, sending config to restart transcription')
+        wsRef.current.send(JSON.stringify({
+          type: 'config',
+          language: language
+        }))
       }
 
       // Get microphone stream
@@ -186,7 +193,7 @@ export function useRealtimeTranscription(options = {}) {
       setError(err.message)
       onError?.(err)
     }
-  }, [connect, onError])
+  }, [connect, onError, language])
 
   // Stop streaming and get final transcription
   const stopStreaming = useCallback(async () => {

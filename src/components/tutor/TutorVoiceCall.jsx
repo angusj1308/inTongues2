@@ -237,13 +237,13 @@ const TutorVoiceCall = ({
       // If very quiet and we have some transcript, process it
       if (average < 5 && (transcript || finalTranscript)) {
         if (!silenceTimeoutRef.current) {
-          console.log('[VoiceCall] Silence detected, will process in 1.5s. Transcript:', transcript || finalTranscript)
+          console.log('[VoiceCall] Silence detected, will process in 0.8s. Transcript:', transcript || finalTranscript)
           silenceTimeoutRef.current = setTimeout(async () => {
             if (isStreaming && (transcript || finalTranscript)) {
               console.log('[VoiceCall] Processing speech after silence')
               await processUserSpeech()
             }
-          }, 1500) // 1.5 seconds of silence
+          }, 800) // 0.8 seconds of silence for faster response
         }
       } else {
         if (silenceTimeoutRef.current) {
@@ -264,7 +264,47 @@ const TutorVoiceCall = ({
     }
   }, [analyserNode, isStreaming, isMuted, callState, transcript, finalTranscript])
 
-  // Process user speech and get tutor response
+  // Audio queue for streaming playback
+  const audioQueueRef = useRef([])
+  const isPlayingRef = useRef(false)
+
+  // Play next audio chunk from queue
+  const playNextChunk = async () => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0) return
+
+    isPlayingRef.current = true
+    const audioBase64 = audioQueueRef.current.shift()
+
+    try {
+      const binaryString = atob(audioBase64)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+      audioContextRef.current = audioContext
+
+      const audioBuffer = await audioContext.decodeAudioData(bytes.buffer)
+      const source = audioContext.createBufferSource()
+      audioSourceRef.current = source
+
+      source.buffer = audioBuffer
+      source.connect(audioContext.destination)
+      source.onended = () => {
+        isPlayingRef.current = false
+        audioSourceRef.current = null
+        playNextChunk() // Play next chunk
+      }
+      source.start()
+    } catch (err) {
+      console.error('Error playing audio chunk:', err)
+      isPlayingRef.current = false
+      playNextChunk() // Try next chunk
+    }
+  }
+
+  // Process user speech with streaming response
   const processUserSpeech = async () => {
     // Stop streaming and get final transcript
     const result = await stopStreaming()
@@ -280,13 +320,17 @@ const TutorVoiceCall = ({
     setCallState('processing')
     setUserText(userSpeech)
 
-    try {
-      // Add user message to history
-      onMessage({ role: 'user', content: userSpeech })
-      localConversationRef.current.push({ role: 'user', content: userSpeech })
+    // Add user message to history
+    onMessage({ role: 'user', content: userSpeech })
+    localConversationRef.current.push({ role: 'user', content: userSpeech })
 
-      // Get tutor response
-      const tutorRes = await fetch('/api/tutor/message', {
+    // Reset audio queue
+    audioQueueRef.current = []
+    isPlayingRef.current = false
+
+    try {
+      // Use streaming endpoint for faster response
+      const response = await fetch('/api/tutor/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -295,29 +339,66 @@ const TutorVoiceCall = ({
           sourceLanguage: nativeLanguage || 'English',
           conversationHistory: localConversationRef.current,
           memory: tutorProfile?.memory,
-          voiceCall: true,
           settings: {
-            correctionsEnabled: settings?.correctionsEnabled,
             languageLevel: settings?.languageLevel,
-            responseStyle: settings?.responseStyle,
-            responseLength: 'short', // Keep responses short for voice
-            focusAreas: settings?.focusAreas,
           },
         }),
       })
 
-      if (!tutorRes.ok) throw new Error('Failed to get tutor response')
+      if (!response.ok) throw new Error('Stream failed')
 
-      const { response: tutorResponse } = await tutorRes.json()
-      setTutorText(tutorResponse)
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let streamingText = ''
 
-      // Add tutor message to history
-      onMessage({ role: 'tutor', content: tutorResponse })
-      localConversationRef.current.push({ role: 'tutor', content: tutorResponse })
-
-      // Speak the response
       setCallState('speaking')
-      await speakText(tutorResponse)
+      setTutorText('')
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.type === 'text') {
+                // Update streaming text display
+                streamingText += data.text
+                setTutorText(streamingText)
+              } else if (data.type === 'audio') {
+                // Queue audio for playback
+                audioQueueRef.current.push(data.audio)
+                playNextChunk() // Start playing if not already
+              } else if (data.type === 'done') {
+                // Add final message to history
+                onMessage({ role: 'tutor', content: data.fullText })
+                localConversationRef.current.push({ role: 'tutor', content: data.fullText })
+              }
+            } catch (parseErr) {
+              // Ignore parse errors from partial chunks
+            }
+          }
+        }
+      }
+
+      // Wait for audio to finish playing
+      const waitForAudio = () => new Promise((resolve) => {
+        const check = () => {
+          if (!isPlayingRef.current && audioQueueRef.current.length === 0) {
+            resolve()
+          } else {
+            setTimeout(check, 100)
+          }
+        }
+        check()
+      })
+
+      await withTimeout(waitForAudio(), 15000, 'timeout')
 
       // Go back to listening
       console.log('[VoiceCall] Response complete, restarting listening...')

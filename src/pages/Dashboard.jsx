@@ -210,7 +210,7 @@ const Dashboard = () => {
     }
   }, [activeLanguage, setLastUsedLanguage])
 
-  // Load home stats when user or language changes
+  // Load home stats when user, language, or tab changes to home
   useEffect(() => {
     if (!user || !activeLanguage) {
       setHomeStats({ wordsRead: 0, listeningFormatted: '0m', knownWords: 0 })
@@ -218,6 +218,9 @@ const Dashboard = () => {
       setTodayActivities([])
       return
     }
+
+    // Only load stats when on the home tab
+    if (activeTab !== 'home') return
 
     let isMounted = true
 
@@ -246,7 +249,7 @@ const Dashboard = () => {
     return () => {
       isMounted = false
     }
-  }, [user, activeLanguage])
+  }, [user, activeLanguage, activeTab])
 
   useEffect(() => {
     if (!user || !activeLanguage) {

@@ -945,7 +945,6 @@ const FreeSpeakingSession = () => {
                 onPauseRecording={pauseRecording}
                 onResumeRecording={resumeRecording}
                 onFinalize={handleFinalize}
-                onReset={handleReset}
               />
             </div>
           )}

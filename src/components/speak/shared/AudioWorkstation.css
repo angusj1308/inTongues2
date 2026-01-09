@@ -1,0 +1,336 @@
+/* DAW-style Audio Workstation */
+.audio-workstation {
+  width: 100%;
+  max-width: 900px;
+  background: var(--bg-primary, #fff);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .audio-workstation {
+  background: #1e293b;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Timeline Container */
+.daw-timeline-container {
+  margin-bottom: 1.5rem;
+}
+
+.daw-timeline {
+  position: relative;
+  height: 120px;
+  background: var(--bg-secondary, #f1f5f9);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+[data-theme='dark'] .daw-timeline {
+  background: #0f172a;
+}
+
+/* Waveform */
+.daw-waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 8px;
+  gap: 2px;
+}
+
+.daw-waveform-bar {
+  flex: 1;
+  max-width: 6px;
+  min-height: 4px;
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  border-radius: 2px;
+  transition: height 0.05s ease;
+}
+
+[data-theme='dark'] .daw-waveform-bar {
+  background: linear-gradient(to top, #3b82f6, #93c5fd);
+}
+
+.daw-waveform-empty {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.9rem;
+}
+
+/* Playhead */
+.daw-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ef4444;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+
+.daw-playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+/* Region Selection */
+.daw-region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(59, 130, 246, 0.2);
+  border-left: 2px solid #3b82f6;
+  border-right: 2px solid #3b82f6;
+  z-index: 5;
+}
+
+.daw-region-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.daw-region-handle-start {
+  left: -4px;
+}
+
+.daw-region-handle-end {
+  right: -4px;
+}
+
+/* Recording Indicator */
+.daw-recording-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.daw-recording-dot {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: recordingPulse 1s infinite;
+}
+
+@keyframes recordingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Time Display */
+.daw-time-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.daw-time-current {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary, #0f172a);
+}
+
+[data-theme='dark'] .daw-time-current {
+  color: #f1f5f9;
+}
+
+.daw-time-separator {
+  color: var(--text-muted, #94a3b8);
+}
+
+.daw-time-duration {
+  font-size: 1rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* Transport Controls */
+.daw-transport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  margin-bottom: 1rem;
+}
+
+[data-theme='dark'] .daw-transport {
+  border-color: #334155;
+}
+
+.daw-transport-left,
+.daw-transport-center,
+.daw-transport-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.daw-transport-left {
+  min-width: 180px;
+}
+
+.daw-transport-right {
+  min-width: 180px;
+  justify-content: flex-end;
+}
+
+/* Buttons */
+.daw-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.daw-btn-transport {
+  background: var(--bg-secondary, #f1f5f9);
+  color: var(--text-primary, #0f172a);
+  padding: 10px;
+}
+
+.daw-btn-transport:hover {
+  background: var(--bg-tertiary, #e2e8f0);
+}
+
+.daw-btn-transport.active {
+  background: #3b82f6;
+  color: white;
+}
+
+[data-theme='dark'] .daw-btn-transport {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .daw-btn-transport:hover {
+  background: #475569;
+}
+
+.daw-btn-play {
+  background: #3b82f6;
+  color: white;
+  padding: 12px;
+  border-radius: 50%;
+}
+
+.daw-btn-play:hover {
+  background: #2563eb;
+  transform: scale(1.05);
+}
+
+.daw-btn-play.playing {
+  background: #1e40af;
+}
+
+.daw-btn-record {
+  background: #ef4444;
+  color: white;
+  padding: 14px 28px;
+  font-size: 1rem;
+}
+
+.daw-btn-record:hover {
+  background: #dc2626;
+  transform: scale(1.02);
+}
+
+.daw-btn-record-again {
+  background: var(--bg-secondary, #f1f5f9);
+  color: var(--text-primary, #0f172a);
+  border: 2px solid #ef4444;
+}
+
+.daw-btn-record-again:hover {
+  background: #fef2f2;
+}
+
+[data-theme='dark'] .daw-btn-record-again {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .daw-btn-record-again:hover {
+  background: #450a0a;
+}
+
+.daw-btn-stop {
+  background: #64748b;
+  color: white;
+}
+
+.daw-btn-stop:hover {
+  background: #475569;
+}
+
+.daw-btn-reset {
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.daw-btn-reset:hover {
+  background: var(--bg-secondary, #f1f5f9);
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+[data-theme='dark'] .daw-btn-reset {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .daw-btn-reset:hover {
+  background: #450a0a;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.daw-btn-finalize {
+  background: #22c55e;
+  color: white;
+  padding: 12px 24px;
+}
+
+.daw-btn-finalize:hover {
+  background: #16a34a;
+  transform: scale(1.02);
+}
+
+/* Help Text */
+.daw-help {
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+}

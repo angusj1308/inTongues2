@@ -254,16 +254,15 @@ const Settings = () => {
   }
 
   return (
-    <div className="page settings-page">
-      <div className="settings-container">
-        <div className="settings-header">
-          <button className="settings-back-btn" onClick={() => navigate('/dashboard')}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to Dashboard
-          </button>
+    <div className="settings-overlay" onClick={() => navigate('/dashboard')}>
+      <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-modal-header">
           <h1 className="settings-title">Settings</h1>
+          <button className="settings-close-btn" onClick={() => navigate('/dashboard')}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div className="settings-layout">

@@ -202,6 +202,27 @@ export async function getListeningTime(userId, language) {
     }
   })
 
+  // Get from stories with audio (audiobooks) - only count if duration is set
+  const storiesRef = collection(db, 'users', userId, 'stories')
+
+  let storiesQuery
+  if (language) {
+    const normalisedLang = normaliseLanguage(language)
+    storiesQuery = query(storiesRef, where('language', '==', normalisedLang))
+  } else {
+    storiesQuery = query(storiesRef)
+  }
+
+  const storiesSnapshot = await getDocs(storiesQuery)
+  storiesSnapshot.forEach((docSnap) => {
+    const data = docSnap.data()
+    // Only count if story has audio duration (audiobook)
+    if (data.duration && data.duration > 0) {
+      const progress = data.progress || 0
+      totalSeconds += Math.floor(data.duration * (progress / 100))
+    }
+  })
+
   return totalSeconds
 }
 

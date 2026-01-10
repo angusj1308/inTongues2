@@ -638,6 +638,7 @@ const Dashboard = () => {
                   language={activeLanguage}
                   selectedStat={selectedStat}
                   homeStats={homeStats}
+                  levelThreshold={levelInfo.currentMax}
                 />
               </div>
 

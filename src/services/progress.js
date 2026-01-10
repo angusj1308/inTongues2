@@ -102,8 +102,9 @@ const STAT_CONFIGS = {
  * @param {string} period - 'week' | 'month' | 'year' | '5year'
  * @param {number} currentTotal - Current total for cumulative stats
  * @param {string} statType - 'knownWords' | 'wordsRead' | 'listeningSeconds' | 'reviews' | 'wordsWritten' | 'speakingSeconds'
+ * @param {number} yAxisMax - Optional fixed max value for y-axis (e.g., level threshold for knownWords)
  */
-export const getProgressData = async (userId, language, period = 'week', currentTotal = 0, statType = 'knownWords') => {
+export const getProgressData = async (userId, language, period = 'week', currentTotal = 0, statType = 'knownWords', yAxisMax = null) => {
   if (!userId || !language) return { points: [], bars: [], isEmpty: true }
 
   const statConfig = STAT_CONFIGS[statType] || STAT_CONFIGS.knownWords
@@ -147,15 +148,15 @@ export const getProgressData = async (userId, language, period = 'week', current
 
     // If no data, return empty state
     if (rawData.length === 0) {
-      return generateEmptyData(period, statConfig)
+      return generateEmptyData(period, statConfig, yAxisMax)
     }
 
     // Process tally data into chart format
     const transformedTotal = statConfig.transform ? statConfig.transform(currentTotal) : currentTotal
-    return processTallyData(rawData, period, config, transformedTotal, statConfig)
+    return processTallyData(rawData, period, config, transformedTotal, statConfig, yAxisMax)
   } catch (error) {
     console.error('Error fetching progress data:', error)
-    return generateEmptyData(period, statConfig)
+    return generateEmptyData(period, statConfig, yAxisMax)
   }
 }
 
@@ -163,7 +164,7 @@ export const getProgressData = async (userId, language, period = 'week', current
  * Process daily tally data into chart-friendly format
  * Always shows full period (7 days, 30 days, etc.) like a Bitcoin chart
  */
-const processTallyData = (rawData, period, config, currentTotal, statConfig) => {
+const processTallyData = (rawData, period, config, currentTotal, statConfig, yAxisMax = null) => {
   // Create a map of date -> value for quick lookup
   const dataByDate = {}
   rawData.forEach((d) => {
@@ -211,7 +212,8 @@ const processTallyData = (rawData, period, config, currentTotal, statConfig) => 
 
     // Get min/max for y-axis scaling
     minValue = Math.max(0, Math.min(...points.map((p) => p.y)))
-    maxValue = Math.max(...points.map((p) => p.y))
+    // Use yAxisMax if provided (e.g., level threshold), otherwise use calculated max
+    maxValue = yAxisMax || Math.max(...points.map((p) => p.y))
   } else {
     // For non-cumulative stats, just show daily values
     points = dailyValues.map((d, i) => ({
@@ -223,7 +225,7 @@ const processTallyData = (rawData, period, config, currentTotal, statConfig) => 
 
     // Get min/max for y-axis scaling
     minValue = 0
-    maxValue = Math.max(...points.map((p) => p.y), 1)
+    maxValue = yAxisMax || Math.max(...points.map((p) => p.y), 1)
   }
 
   return {
@@ -241,7 +243,7 @@ const processTallyData = (rawData, period, config, currentTotal, statConfig) => 
  * Generate empty data structure when no data exists
  * Always shows full period like a Bitcoin chart
  */
-const generateEmptyData = (period, statConfig = { label: 'words' }) => {
+const generateEmptyData = (period, statConfig = { label: 'words' }, yAxisMax = null) => {
   const periodConfig = {
     week: { days: 7 },
     month: { days: 30 },
@@ -269,7 +271,7 @@ const generateEmptyData = (period, statConfig = { label: 'words' }) => {
     points,
     bars,
     minWords: 0,
-    maxWords: 0,
+    maxWords: yAxisMax || 0,
     totalGain: 0,
     isEmpty: true,
     label: statConfig.label,

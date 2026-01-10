@@ -21649,12 +21649,17 @@ body.active-pass-locked {
 .routine-day-column {
   grid-row: 1;
   position: relative;
-  border-right: 1px solid #e5e5e5;
+  border-right: 1px solid #d1d5db;
   height: calc(24 * 40px);
 }
 
 .routine-day-column:last-child {
   border-right: none;
+}
+
+/* Left border on first day column for symmetry */
+.routine-day-column:first-of-type {
+  border-left: 1px solid #d1d5db;
 }
 
 .routine-day-column.routine-day-today {
@@ -21665,6 +21670,7 @@ body.active-pass-locked {
 .routine-day-timeline {
   position: relative;
   height: calc(24 * 40px); /* 24 hours * 40px */
+  z-index: 5;
 }
 
 /* Clickable hour slots */
@@ -21674,11 +21680,13 @@ body.active-pass-locked {
   right: 0;
   height: 40px;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: background-color 150ms ease;
+  z-index: 1;
+  background-color: transparent;
 }
 
 .routine-hour-slot:hover {
-  background: rgba(139, 35, 50, 0.08);
+  background-color: rgba(139, 35, 50, 0.1);
 }
 
 .routine-hour-slot::after {
@@ -21687,15 +21695,16 @@ body.active-pass-locked {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 300;
   color: #8B2332;
   opacity: 0;
   transition: opacity 150ms ease;
+  pointer-events: none;
 }
 
 .routine-hour-slot:hover::after {
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .routine-hour-slot:nth-child(1) { top: 0; }

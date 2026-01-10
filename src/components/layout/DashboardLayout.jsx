@@ -291,10 +291,13 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
         {/* Centered brand below nav */}
         <div className="dashboard-brand-row">
           <span className="dashboard-brand-line" />
-          <div className="dashboard-brand">
-            <span className="dashboard-brand-prefix">{brandPrefix}</span>
-            <span className="dashboard-brand-language">{brandLanguage}</span>
-            <span className="brand-dot">.</span>
+          <div className="dashboard-brand-center">
+            <div className="dashboard-brand">
+              <span className="dashboard-brand-prefix">{brandPrefix}</span>
+              <span className="dashboard-brand-language">{brandLanguage}</span>
+              <span className="brand-dot">.</span>
+            </div>
+            <p className="dashboard-tagline">Y comenzaron hablar en otras lenguas</p>
           </div>
           <span className="dashboard-brand-line" />
         </div>

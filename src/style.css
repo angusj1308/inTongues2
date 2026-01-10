@@ -330,6 +330,23 @@ textarea {
   max-width: 400px;
 }
 
+.dashboard-brand-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dashboard-tagline {
+  margin: 0;
+  font-family: 'Garamond', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+}
+
 .dashboard-header-minimal .dashboard-brand {
   font-size: 2.4rem;
 }

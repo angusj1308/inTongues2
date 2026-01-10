@@ -21708,6 +21708,15 @@ body.active-pass-locked {
   z-index: 2;
 }
 
+/* Explicit grid-column assignment for each day (within routine-week-grid: hour-lines=1, current-time=2, days=3-9) */
+.routine-day-column:nth-of-type(3) { grid-column: 2; }
+.routine-day-column:nth-of-type(4) { grid-column: 3; }
+.routine-day-column:nth-of-type(5) { grid-column: 4; }
+.routine-day-column:nth-of-type(6) { grid-column: 5; }
+.routine-day-column:nth-of-type(7) { grid-column: 6; }
+.routine-day-column:nth-of-type(8) { grid-column: 7; }
+.routine-day-column:nth-of-type(9) { grid-column: 8; }
+
 .routine-day-column:last-child {
   border-right: none;
 }
@@ -21735,13 +21744,14 @@ body.active-pass-locked {
   right: 0;
   height: 40px;
   cursor: pointer;
-  transition: background-color 150ms ease;
-  z-index: 1;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  z-index: 10;
   background-color: transparent;
 }
 
 .routine-hour-slot:hover {
-  background-color: rgba(139, 35, 50, 0.1);
+  background-color: rgba(139, 35, 50, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(139, 35, 50, 0.4);
 }
 
 .routine-hour-slot::after {
@@ -21759,7 +21769,7 @@ body.active-pass-locked {
 }
 
 .routine-hour-slot:hover::after {
-  opacity: 0.7;
+  opacity: 1;
 }
 
 .routine-hour-slot:nth-child(1) { top: 0; }

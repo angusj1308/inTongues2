@@ -173,19 +173,14 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
       <header className="dashboard-header dashboard-header-minimal">
         <div className="dashboard-header-row">
           <nav className="dashboard-nav" aria-label="Dashboard navigation">
-            {DASHBOARD_TABS.map((tab, index) => (
-              <div
+            {DASHBOARD_TABS.map((tab) => (
+              <button
                 key={tab}
-                className={`dashboard-nav-item ${activeTab === tab ? 'active' : ''}`}
+                className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => handleTabClick(tab)}
               >
-                <button
-                  className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
-                  onClick={() => handleTabClick(tab)}
-                >
-                  {tab}
-                </button>
-                {index < DASHBOARD_TABS.length - 1 && <span className="dashboard-nav-divider">|</span>}
-              </div>
+                {tab}
+              </button>
             ))}
           </nav>
 
@@ -295,11 +290,13 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
 
         {/* Centered brand below nav */}
         <div className="dashboard-brand-row">
+          <span className="dashboard-brand-line" />
           <div className="dashboard-brand">
             <span className="dashboard-brand-prefix">{brandPrefix}</span>
             <span className="dashboard-brand-language">{brandLanguage}</span>
             <span className="brand-dot">.</span>
           </div>
+          <span className="dashboard-brand-line" />
         </div>
       </header>
 

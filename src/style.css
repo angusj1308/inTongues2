@@ -5364,12 +5364,10 @@ pre {
 }
 
 .brand-flame {
-  height: 0.65em;
+  height: 0.72em;
   width: auto;
   margin-left: 0.02em;
-  vertical-align: top;
-  position: relative;
-  top: 0.15em;
+  vertical-align: baseline;
 }
 
 .language-select-group {

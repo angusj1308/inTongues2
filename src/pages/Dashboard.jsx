@@ -164,11 +164,17 @@ const Dashboard = () => {
   // Home tab state
   const [homeStats, setHomeStats] = useState({
     wordsRead: 0,
+    listeningSeconds: 0,
     listeningFormatted: '0m',
     knownWords: 0,
+    reviewCount: 0,
+    wordsWritten: 0,
+    speakingSeconds: 0,
+    speakingFormatted: '0m',
   })
   const [homeStatsLoading, setHomeStatsLoading] = useState(true)
   const [todayActivities, setTodayActivities] = useState([])
+  const [selectedStat, setSelectedStat] = useState('knownWords')
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -543,28 +549,69 @@ const Dashboard = () => {
                     <span className="home-level-name">{homeStatsLoading ? '...' : levelInfo.level}</span>
                   </div>
                   <p className="home-level-goal">{levelInfo.goal}</p>
-                  <div className="home-level-activity">
-                    <div className="home-level-activity-stat">
-                      <span className="home-level-activity-value">
+
+                  {/* Clickable Stats List */}
+                  <div className="home-stats-list">
+                    <button
+                      className={`home-stat-item ${selectedStat === 'knownWords' ? 'active' : ''}`}
+                      onClick={() => setSelectedStat('knownWords')}
+                    >
+                      <span className="home-stat-value">
+                        {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()}
+                      </span>
+                      <span className="home-stat-label">known words</span>
+                    </button>
+                    <button
+                      className={`home-stat-item ${selectedStat === 'wordsRead' ? 'active' : ''}`}
+                      onClick={() => setSelectedStat('wordsRead')}
+                    >
+                      <span className="home-stat-value">
                         {homeStatsLoading ? '...' : homeStats.wordsRead >= 1000
                           ? `${(homeStats.wordsRead / 1000).toFixed(1)}k`
                           : homeStats.wordsRead}
                       </span>
-                      <span className="home-level-activity-label">words</span>
-                    </div>
-                    <div className="home-level-activity-stat">
-                      <span className="home-level-activity-value">
+                      <span className="home-stat-label">words read</span>
+                    </button>
+                    <button
+                      className={`home-stat-item ${selectedStat === 'listeningSeconds' ? 'active' : ''}`}
+                      onClick={() => setSelectedStat('listeningSeconds')}
+                    >
+                      <span className="home-stat-value">
                         {homeStatsLoading ? '...' : homeStats.listeningFormatted}
                       </span>
-                      <span className="home-level-activity-label">listened</span>
-                    </div>
-                    <div className="home-level-activity-stat">
-                      <span className="home-level-activity-value">
+                      <span className="home-stat-label">listened</span>
+                    </button>
+                    <button
+                      className={`home-stat-item ${selectedStat === 'reviews' ? 'active' : ''}`}
+                      onClick={() => setSelectedStat('reviews')}
+                    >
+                      <span className="home-stat-value">
                         {homeStatsLoading ? '...' : homeStats.reviewCount || 0}
                       </span>
-                      <span className="home-level-activity-label">cards reviewed</span>
-                    </div>
+                      <span className="home-stat-label">cards reviewed</span>
+                    </button>
+                    <button
+                      className={`home-stat-item ${selectedStat === 'wordsWritten' ? 'active' : ''}`}
+                      onClick={() => setSelectedStat('wordsWritten')}
+                    >
+                      <span className="home-stat-value">
+                        {homeStatsLoading ? '...' : homeStats.wordsWritten >= 1000
+                          ? `${(homeStats.wordsWritten / 1000).toFixed(1)}k`
+                          : homeStats.wordsWritten}
+                      </span>
+                      <span className="home-stat-label">words written</span>
+                    </button>
+                    <button
+                      className={`home-stat-item ${selectedStat === 'speakingSeconds' ? 'active' : ''}`}
+                      onClick={() => setSelectedStat('speakingSeconds')}
+                    >
+                      <span className="home-stat-value">
+                        {homeStatsLoading ? '...' : homeStats.speakingFormatted}
+                      </span>
+                      <span className="home-stat-label">speaking</span>
+                    </button>
                   </div>
+
                   <div className="home-level-bottom">
                     <div className="home-level-bar">
                       <div
@@ -589,7 +636,8 @@ const Dashboard = () => {
                 <ProgressChart
                   userId={user?.uid}
                   language={activeLanguage}
-                  currentKnownWords={homeStats.knownWords}
+                  selectedStat={selectedStat}
+                  homeStats={homeStats}
                 />
               </div>
 

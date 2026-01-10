@@ -8,6 +8,16 @@ const PERIODS = [
   { key: '5year', label: '5Y', days: 1825 },
 ]
 
+// Stat type display names
+const STAT_TITLES = {
+  knownWords: 'Known Words',
+  wordsRead: 'Words Read',
+  listeningSeconds: 'Listening Time',
+  reviews: 'Cards Reviewed',
+  wordsWritten: 'Words Written',
+  speakingSeconds: 'Speaking Time',
+}
+
 // Format date for x-axis labels based on period
 const formatDateLabel = (dateStr, period) => {
   if (!dateStr) return ''
@@ -36,12 +46,32 @@ const formatWordCount = (count) => {
   return count.toString()
 }
 
-const ProgressChart = ({ userId, language, currentKnownWords }) => {
+const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {} }) => {
   const [period, setPeriod] = useState('week')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch progress data when period, language, or known words changes
+  // Get current total for the selected stat
+  const currentTotal = useMemo(() => {
+    switch (selectedStat) {
+      case 'knownWords':
+        return homeStats.knownWords || 0
+      case 'wordsRead':
+        return homeStats.wordsRead || 0
+      case 'listeningSeconds':
+        return homeStats.listeningSeconds || 0
+      case 'reviews':
+        return homeStats.reviewCount || 0
+      case 'wordsWritten':
+        return homeStats.wordsWritten || 0
+      case 'speakingSeconds':
+        return homeStats.speakingSeconds || 0
+      default:
+        return 0
+    }
+  }, [selectedStat, homeStats])
+
+  // Fetch progress data when period, language, stat type, or current total changes
   useEffect(() => {
     if (!userId || !language) {
       setLoading(false)
@@ -51,7 +81,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
     let mounted = true
     setLoading(true)
 
-    getProgressData(userId, language, period, currentKnownWords)
+    getProgressData(userId, language, period, currentTotal, selectedStat)
       .then((result) => {
         if (mounted) {
           setData(result)
@@ -68,7 +98,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
     return () => {
       mounted = false
     }
-  }, [userId, language, period, currentKnownWords])
+  }, [userId, language, period, currentTotal, selectedStat])
 
   // Generate SVG path for line graph
   const linePath = useMemo(() => {
@@ -170,10 +200,15 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
     }
   }, [data])
 
+  // Get label for the current stat type
+  const statLabel = useMemo(() => {
+    return data?.label || 'words'
+  }, [data])
+
   return (
     <div className="home-card">
       <div className="home-card-header">
-        <h3 className="home-card-title">Progress</h3>
+        <h3 className="home-card-title">{STAT_TITLES[selectedStat] || 'Progress'}</h3>
         <div className="home-progress-periods">
           {PERIODS.map((p) => (
             <button
@@ -226,7 +261,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
                     key={i}
                     className={`home-progress-bar${bar.value > 0 ? ' has-data' : ''}`}
                     style={{ height: `${bar.height}%` }}
-                    title={bar.value ? `+${bar.value} words` : ''}
+                    title={bar.value ? `+${bar.value} ${statLabel}` : ''}
                   />
                 ))}
               </div>
@@ -258,7 +293,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
             {/* Total gain */}
             {data?.totalGain > 0 && (
               <div className="home-progress-gain">
-                +{data.totalGain.toLocaleString()} words
+                +{data.totalGain.toLocaleString()} {statLabel}
               </div>
             )}
           </div>

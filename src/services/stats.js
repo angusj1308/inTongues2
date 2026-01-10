@@ -11,6 +11,9 @@ import {
 import { db } from '../firebase'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 
+// Get today's date in YYYY-MM-DD format
+const getDateKey = () => new Date().toISOString().split('T')[0]
+
 /**
  * Stats service - aggregates user learning statistics
  */
@@ -28,9 +31,19 @@ export async function incrementReviewCount(userId, language) {
   const statsRef = doc(db, 'users', userId, 'reviewStats', normalisedLang)
 
   try {
+    // Update total count
     await setDoc(statsRef, {
       language: normalisedLang,
       totalReviews: increment(1),
+    }, { merge: true })
+
+    // Also update daily tally for charts
+    const dateKey = getDateKey()
+    const dailyRef = doc(db, 'users', userId, 'dailyStats', `${normalisedLang}_${dateKey}`)
+    await setDoc(dailyRef, {
+      date: dateKey,
+      language: normalisedLang,
+      reviews: increment(1),
     }, { merge: true })
   } catch (error) {
     console.error('Error incrementing review count:', error)
@@ -48,9 +61,19 @@ export async function incrementWordsRead(userId, language, wordCount) {
   const statsRef = doc(db, 'users', userId, 'readingStats', normalisedLang)
 
   try {
+    // Update total count
     await setDoc(statsRef, {
       language: normalisedLang,
       totalWordsRead: increment(wordCount),
+    }, { merge: true })
+
+    // Also update daily tally for charts
+    const dateKey = getDateKey()
+    const dailyRef = doc(db, 'users', userId, 'dailyStats', `${normalisedLang}_${dateKey}`)
+    await setDoc(dailyRef, {
+      date: dateKey,
+      language: normalisedLang,
+      wordsRead: increment(wordCount),
     }, { merge: true })
   } catch (error) {
     console.error('Error incrementing words read:', error)
@@ -326,6 +349,131 @@ export function formatListeningTime(totalSeconds) {
 }
 
 /**
+ * Increment listening time
+ * Call this when user listens to audio content
+ */
+export async function incrementListeningTime(userId, language, seconds) {
+  if (!userId || !language || !seconds || seconds <= 0) return
+
+  const normalisedLang = normaliseLanguage(language)
+
+  try {
+    // Update daily tally for charts
+    const dateKey = getDateKey()
+    const dailyRef = doc(db, 'users', userId, 'dailyStats', `${normalisedLang}_${dateKey}`)
+    await setDoc(dailyRef, {
+      date: dateKey,
+      language: normalisedLang,
+      listeningSeconds: increment(seconds),
+    }, { merge: true })
+  } catch (error) {
+    console.error('Error incrementing listening time:', error)
+  }
+}
+
+/**
+ * Increment words written count
+ * Call this when user writes text
+ */
+export async function incrementWordsWritten(userId, language, wordCount) {
+  if (!userId || !language || !wordCount || wordCount <= 0) return
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'writingStats', normalisedLang)
+
+  try {
+    // Update total count
+    await setDoc(statsRef, {
+      language: normalisedLang,
+      totalWordsWritten: increment(wordCount),
+    }, { merge: true })
+
+    // Also update daily tally for charts
+    const dateKey = getDateKey()
+    const dailyRef = doc(db, 'users', userId, 'dailyStats', `${normalisedLang}_${dateKey}`)
+    await setDoc(dailyRef, {
+      date: dateKey,
+      language: normalisedLang,
+      wordsWritten: increment(wordCount),
+    }, { merge: true })
+  } catch (error) {
+    console.error('Error incrementing words written:', error)
+  }
+}
+
+/**
+ * Get total words written for a language
+ */
+export async function getWordsWritten(userId, language) {
+  if (!userId) return 0
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'writingStats', normalisedLang)
+
+  try {
+    const snapshot = await getDoc(statsRef)
+    if (snapshot.exists()) {
+      return snapshot.data().totalWordsWritten || 0
+    }
+    return 0
+  } catch (error) {
+    console.error('Error fetching words written:', error)
+    return 0
+  }
+}
+
+/**
+ * Increment speaking time
+ * Call this when user completes speaking practice
+ */
+export async function incrementSpeakingTime(userId, language, seconds) {
+  if (!userId || !language || !seconds || seconds <= 0) return
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'speakingStats', normalisedLang)
+
+  try {
+    // Update total count
+    await setDoc(statsRef, {
+      language: normalisedLang,
+      totalSpeakingSeconds: increment(seconds),
+    }, { merge: true })
+
+    // Also update daily tally for charts
+    const dateKey = getDateKey()
+    const dailyRef = doc(db, 'users', userId, 'dailyStats', `${normalisedLang}_${dateKey}`)
+    await setDoc(dailyRef, {
+      date: dateKey,
+      language: normalisedLang,
+      speakingSeconds: increment(seconds),
+    }, { merge: true })
+  } catch (error) {
+    console.error('Error incrementing speaking time:', error)
+  }
+}
+
+/**
+ * Get total speaking time for a language (in seconds)
+ */
+export async function getSpeakingTime(userId, language) {
+  if (!userId) return 0
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'speakingStats', normalisedLang)
+
+  try {
+    const snapshot = await getDoc(statsRef)
+    if (snapshot.exists()) {
+      return snapshot.data().totalSpeakingSeconds || 0
+    }
+    return 0
+  } catch (error) {
+    console.error('Error fetching speaking time:', error)
+    return 0
+  }
+}
+
+/**
  * Get all stats for home page
  */
 export async function getHomeStats(userId, language) {
@@ -336,16 +484,21 @@ export async function getHomeStats(userId, language) {
       listeningSeconds: 0,
       listeningFormatted: '0m',
       reviewCount: 0,
+      wordsWritten: 0,
+      speakingSeconds: 0,
+      speakingFormatted: '0m',
       vocabCounts: { unknown: 0, recognised: 0, familiar: 0, known: 0, total: 0 },
     }
   }
 
   // Run queries in parallel for efficiency
-  const [knownWords, wordsRead, listeningSeconds, reviewCount, vocabCounts] = await Promise.all([
+  const [knownWords, wordsRead, listeningSeconds, reviewCount, wordsWritten, speakingSeconds, vocabCounts] = await Promise.all([
     getKnownWordCount(userId, language),
     getWordsReadDirect(userId, language),
     getListeningTime(userId, language),
     getReviewCount(userId, language),
+    getWordsWritten(userId, language),
+    getSpeakingTime(userId, language),
     getVocabCounts(userId, language),
   ])
 
@@ -355,6 +508,9 @@ export async function getHomeStats(userId, language) {
     listeningSeconds,
     listeningFormatted: formatListeningTime(listeningSeconds),
     reviewCount,
+    wordsWritten,
+    speakingSeconds,
+    speakingFormatted: formatListeningTime(speakingSeconds),
     vocabCounts,
   }
 }

@@ -946,11 +946,11 @@ const Reader = ({ initialMode }) => {
     if (!canAdvance) return
 
     // Track words read from current pages before advancing
-    if (user?.uid && storyMeta.language) {
+    if (user?.uid && language) {
       const currentPages = pages.slice(currentIndex, currentIndex + 2)
       const wordCount = currentPages.reduce((sum, page) => sum + countWords(getDisplayText(page)), 0)
       if (wordCount > 0) {
-        incrementWordsRead(user.uid, storyMeta.language, wordCount)
+        incrementWordsRead(user.uid, language, wordCount)
       }
     }
 
@@ -1340,10 +1340,10 @@ const Reader = ({ initialMode }) => {
     await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
 
     // Track words read when moving forward (completing a sentence)
-    if (movingForward && user?.uid && storyMeta.language && currentIntensiveSentence) {
+    if (movingForward && user?.uid && language && currentIntensiveSentence) {
       const wordCount = countWords(currentIntensiveSentence)
       if (wordCount > 0) {
-        incrementWordsRead(user.uid, storyMeta.language, wordCount)
+        incrementWordsRead(user.uid, language, wordCount)
       }
     }
 

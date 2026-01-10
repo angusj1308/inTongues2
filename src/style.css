@@ -20944,6 +20944,59 @@ body.active-pass-locked {
   letter-spacing: 0.04em;
 }
 
+/* Clickable Stats List */
+.home-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  margin-top: 0.5rem;
+}
+
+.home-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+  margin-left: -0.75rem;
+  margin-right: -0.75rem;
+}
+
+.home-stat-item:hover {
+  background: rgba(139, 35, 50, 0.05);
+}
+
+.home-stat-item.active {
+  background: rgba(139, 35, 50, 0.1);
+}
+
+.home-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  min-width: 3.5rem;
+}
+
+.home-stat-item.active .home-stat-value {
+  color: #8B2332;
+}
+
+.home-stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.home-stat-item.active .home-stat-label {
+  color: #8B2332;
+}
+
 .home-level-bottom {
   margin-top: auto;
   padding-top: 1rem;

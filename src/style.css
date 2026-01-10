@@ -5362,6 +5362,14 @@ pre {
   color: #8B2332;
 }
 
+.brand-flame {
+  height: 1em;
+  width: auto;
+  margin-left: -0.05em;
+  vertical-align: baseline;
+  margin-bottom: -0.1em;
+}
+
 .language-select-group {
   display: flex;
   flex-direction: column;

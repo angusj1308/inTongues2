@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import spanishFlame from '../../assets/spanish flame.png'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 import { resetVocabProgress } from '../../services/vocab'
 
@@ -247,7 +248,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             <div className="dashboard-brand">
               <span className="dashboard-brand-prefix">{brandPrefix}</span>
               <span className="dashboard-brand-language">{brandLanguage}</span>
-              <span className="brand-dot">.</span>
+              {activeLanguage === 'Spanish' ? (
+                <img src={spanishFlame} alt="" className="brand-flame" />
+              ) : (
+                <span className="brand-dot">.</span>
+              )}
             </div>
             <p className="dashboard-tagline">y comenzaron a hablar en otras lenguas</p>
           </div>

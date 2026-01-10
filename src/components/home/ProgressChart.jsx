@@ -8,6 +8,34 @@ const PERIODS = [
   { key: '5year', label: '5Y', days: 1825 },
 ]
 
+// Format date for x-axis labels based on period
+const formatDateLabel = (dateStr, period) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr + 'T00:00:00')
+
+  if (period === 'week') {
+    // Show day name: Mon, Tue, etc.
+    return date.toLocaleDateString('en-US', { weekday: 'short' })
+  } else if (period === 'month') {
+    // Show day number: 1, 15, 30
+    return date.getDate().toString()
+  } else if (period === 'year') {
+    // Show month: Jan, Feb, etc.
+    return date.toLocaleDateString('en-US', { month: 'short' })
+  } else {
+    // 5year - show year: 2024, 2025
+    return date.getFullYear().toString()
+  }
+}
+
+// Format word count for y-axis
+const formatWordCount = (count) => {
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(count >= 10000 ? 0 : 1)}k`
+  }
+  return count.toString()
+}
+
 const ProgressChart = ({ userId, language, currentKnownWords }) => {
   const [period, setPeriod] = useState('week')
   const [data, setData] = useState(null)
@@ -81,6 +109,67 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
     setPeriod(newPeriod)
   }, [])
 
+  // Get x-axis date labels (show subset for readability)
+  const xAxisLabels = useMemo(() => {
+    if (!data?.bars?.length) return []
+
+    const bars = data.bars
+    const len = bars.length
+
+    if (period === 'week') {
+      // Show all 7 days
+      return bars.map((b, i) => ({
+        label: formatDateLabel(b.date, period),
+        position: i,
+      }))
+    } else if (period === 'month') {
+      // Show ~5 labels: 1st, 8th, 15th, 22nd, last
+      const indices = [0, 7, 14, 21, len - 1]
+      return indices.filter(i => i < len).map(i => ({
+        label: formatDateLabel(bars[i].date, period),
+        position: i,
+      }))
+    } else if (period === 'year') {
+      // Show every 2-3 months
+      const step = Math.ceil(len / 6)
+      const labels = []
+      for (let i = 0; i < len; i += step) {
+        labels.push({
+          label: formatDateLabel(bars[i].date, period),
+          position: i,
+        })
+      }
+      // Always include last
+      if (labels[labels.length - 1]?.position !== len - 1) {
+        labels.push({
+          label: formatDateLabel(bars[len - 1].date, period),
+          position: len - 1,
+        })
+      }
+      return labels
+    } else {
+      // 5year - show years
+      const step = Math.ceil(len / 5)
+      const labels = []
+      for (let i = 0; i < len; i += step) {
+        labels.push({
+          label: formatDateLabel(bars[i].date, period),
+          position: i,
+        })
+      }
+      return labels
+    }
+  }, [data, period])
+
+  // Y-axis labels (min and max)
+  const yAxisLabels = useMemo(() => {
+    if (!data || data.isEmpty) return { min: '0', max: '0' }
+    return {
+      min: formatWordCount(data.minWords || 0),
+      max: formatWordCount(data.maxWords || 0),
+    }
+  }, [data])
+
   return (
     <div className="home-card">
       <div className="home-card-header">
@@ -108,37 +197,71 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
             <span className="muted small">Start learning to see your progress</span>
           </div>
         ) : (
-          <>
-            <div className="home-progress-line">
-              <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="home-progress-svg">
-                {linePath && (
-                  <polyline
-                    fill="none"
-                    stroke="#0f172a"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    points={linePath}
+          <div className="home-progress-content">
+            {/* Y-axis labels */}
+            <div className="home-progress-y-axis">
+              <span className="home-progress-y-label">{yAxisLabels.max}</span>
+              <span className="home-progress-y-label">{yAxisLabels.min}</span>
+            </div>
+
+            {/* Main chart area */}
+            <div className="home-progress-main">
+              <div className="home-progress-line">
+                <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="home-progress-svg">
+                  {linePath && (
+                    <polyline
+                      fill="none"
+                      stroke="#0f172a"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points={linePath}
+                    />
+                  )}
+                </svg>
+              </div>
+              <div className="home-progress-bars">
+                {bars.map((bar, i) => (
+                  <div
+                    key={i}
+                    className={`home-progress-bar${bar.value > 0 ? ' has-data' : ''}`}
+                    style={{ height: `${bar.height}%` }}
+                    title={bar.value ? `+${bar.value} words` : ''}
                   />
+                ))}
+              </div>
+
+              {/* X-axis labels */}
+              <div className="home-progress-x-axis">
+                {period === 'week' ? (
+                  // For week view, show label under each bar
+                  bars.map((bar, i) => (
+                    <span key={i} className="home-progress-x-label">
+                      {formatDateLabel(bar.date, period)}
+                    </span>
+                  ))
+                ) : (
+                  // For other periods, show positioned labels
+                  xAxisLabels.map((item, i) => (
+                    <span
+                      key={i}
+                      className="home-progress-x-label"
+                      style={{ left: `${(item.position / (data.bars.length - 1)) * 100}%` }}
+                    >
+                      {item.label}
+                    </span>
+                  ))
                 )}
-              </svg>
+              </div>
             </div>
-            <div className="home-progress-bars">
-              {bars.map((bar, i) => (
-                <div
-                  key={i}
-                  className={`home-progress-bar${bar.value > 0 ? ' has-data' : ''}`}
-                  style={{ height: `${bar.height}%` }}
-                  title={bar.value ? `+${bar.value} words` : ''}
-                />
-              ))}
-            </div>
+
+            {/* Total gain */}
             {data?.totalGain > 0 && (
               <div className="home-progress-gain">
                 +{data.totalGain.toLocaleString()} words
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>

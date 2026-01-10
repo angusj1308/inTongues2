@@ -297,7 +297,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
               <span className="dashboard-brand-language">{brandLanguage}</span>
               <span className="brand-dot">.</span>
             </div>
-            <p className="dashboard-tagline">Y comenzaron hablar en otras lenguas</p>
+            <p className="dashboard-tagline">y comenzaron a hablar en otras lenguas</p>
           </div>
           <span className="dashboard-brand-line" />
         </div>

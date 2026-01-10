@@ -339,12 +339,13 @@ textarea {
 
 .dashboard-tagline {
   margin: 0;
-  font-family: 'Garamond', 'Times New Roman', serif;
-  font-style: italic;
-  font-size: 0.75rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+  font-style: normal;
+  font-size: 0.65rem;
   font-weight: 400;
   color: #94a3b8;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
 }
 
 .dashboard-header-minimal .dashboard-brand {

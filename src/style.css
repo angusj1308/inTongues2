@@ -21632,6 +21632,7 @@ body.active-pass-locked {
   background: #8B2332;
   z-index: 10;
   align-self: start;
+  pointer-events: none;
 }
 
 .routine-current-time::before {
@@ -21651,6 +21652,7 @@ body.active-pass-locked {
   position: relative;
   border-right: 1px solid #d1d5db;
   height: calc(24 * 40px);
+  z-index: 2;
 }
 
 .routine-day-column:last-child {

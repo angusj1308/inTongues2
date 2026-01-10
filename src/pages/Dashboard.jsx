@@ -133,9 +133,9 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const requestedTab = useMemo(() => {
     const initialTab = location.state?.initialTab
-    return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : ''
+    return initialTab && DASHBOARD_TABS.includes(initialTab) ? initialTab : 'home'
   }, [location.state?.initialTab])
-  const [activeTab, setActiveTab] = useState(requestedTab || 'home')
+  const [activeTab, setActiveTab] = useState(requestedTab)
   const [slideDirection, setSlideDirection] = useState('')
   const [items, setItems] = useState([])
   const [libraryLoading, setLibraryLoading] = useState(true)

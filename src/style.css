@@ -21476,22 +21476,20 @@ body.active-pass-locked {
 
 /* Sticky day headers row */
 .routine-day-headers {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px repeat(7, minmax(80px, 1fr));
   border-bottom: 1px solid #e5e5e5;
   background: #fff;
   flex-shrink: 0;
+  min-width: calc(36px + 560px);
 }
 
 .routine-hour-labels-spacer {
-  flex-shrink: 0;
-  width: 36px;
   background: #fafafa;
   border-right: 1px solid #e5e5e5;
 }
 
 .routine-day-header-cell {
-  flex: 1;
-  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21731,9 +21729,13 @@ body.active-pass-locked {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .routine-hour-labels-spacer,
   .routine-hour-labels {
     width: 28px;
+  }
+
+  .routine-day-headers {
+    grid-template-columns: 28px repeat(7, minmax(68px, 1fr));
+    min-width: calc(28px + 476px);
   }
 
   .routine-hour-label {
@@ -21742,15 +21744,11 @@ body.active-pass-locked {
   }
 
   .routine-week-grid {
-    min-width: 480px;
+    min-width: 476px;
   }
 
   .routine-day-label {
     font-size: 0.6rem;
-  }
-
-  .routine-day-header-cell {
-    min-width: 68px;
   }
 }
 

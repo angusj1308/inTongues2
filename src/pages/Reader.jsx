@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
+import { incrementWordsRead } from '../services/stats'
 import WordToken from '../components/read/WordToken'
 import { readerModes } from '../constants/readerModes'
 import {
@@ -64,6 +65,12 @@ const fontOptions = [
     fontSize: '1rem',
   },
 ]
+
+// Count words in text (for tracking words read)
+const countWords = (text) => {
+  if (!text) return 0
+  return text.trim().split(/\s+/).filter(Boolean).length
+}
 
 const Reader = ({ initialMode }) => {
   const navigate = useNavigate()
@@ -938,6 +945,15 @@ const Reader = ({ initialMode }) => {
     const canAdvance = await promoteNewWordsToKnown()
     if (!canAdvance) return
 
+    // Track words read from current pages before advancing
+    if (user?.uid && storyMeta.language) {
+      const currentPages = pages.slice(currentIndex, currentIndex + 2)
+      const wordCount = currentPages.reduce((sum, page) => sum + countWords(getDisplayText(page)), 0)
+      if (wordCount > 0) {
+        incrementWordsRead(user.uid, storyMeta.language, wordCount)
+      }
+    }
+
     advancePages()
   }
 
@@ -1216,6 +1232,36 @@ const Reader = ({ initialMode }) => {
     }
   }
 
+  // Auto-save progress periodically and on unmount
+  useEffect(() => {
+    if (!user || !id || !pages.length) return undefined
+
+    // Save progress every 30 seconds
+    const intervalId = setInterval(() => {
+      persistBookmark(currentIndex, { notify: false })
+    }, 30000)
+
+    // Save on unmount
+    return () => {
+      clearInterval(intervalId)
+      persistBookmark(currentIndex, { notify: false })
+    }
+  }, [user, id, pages.length, currentIndex])
+
+  // Save progress when page becomes hidden (user switches tabs or closes)
+  useEffect(() => {
+    if (!user || !id || !pages.length) return undefined
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        persistBookmark(currentIndex, { notify: false })
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [user, id, pages.length, currentIndex])
+
   const handleBackToLibrary = async () => {
     const hasUnsavedProgress =
       !Number.isFinite(bookmarkIndex) || bookmarkIndex !== currentIndex
@@ -1292,6 +1338,14 @@ const Reader = ({ initialMode }) => {
     }
 
     await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
+
+    // Track words read when moving forward (completing a sentence)
+    if (movingForward && user?.uid && storyMeta.language && currentIntensiveSentence) {
+      const wordCount = countWords(currentIntensiveSentence)
+      if (wordCount > 0) {
+        incrementWordsRead(user.uid, storyMeta.language, wordCount)
+      }
+    }
 
     if (movingForward) {
       if (!atLastSentence) {

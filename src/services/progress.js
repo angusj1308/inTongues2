@@ -153,11 +153,11 @@ const processTallyData = (rawData, period, config, currentKnownWords) => {
       date: dailyValues[i].date,
       gained: dailyValues[i].value,
     })
-    cumulative -= dailyValues[i].value
+    cumulative = Math.max(0, cumulative - dailyValues[i].value)
   }
 
-  // Get min/max for y-axis scaling
-  const minWords = Math.min(...points.map((p) => p.y))
+  // Get min/max for y-axis scaling (min should never be negative)
+  const minWords = Math.max(0, Math.min(...points.map((p) => p.y)))
   const maxWords = Math.max(...points.map((p) => p.y))
 
   return {

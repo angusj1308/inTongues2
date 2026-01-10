@@ -46,7 +46,7 @@ const formatWordCount = (count) => {
   return count.toString()
 }
 
-const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {} }) => {
+const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {}, levelThreshold }) => {
   const [period, setPeriod] = useState('week')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -71,6 +71,14 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
     }
   }, [selectedStat, homeStats])
 
+  // For knownWords, use the level threshold as the y-axis max
+  const yAxisMax = useMemo(() => {
+    if (selectedStat === 'knownWords' && levelThreshold && levelThreshold !== Infinity) {
+      return levelThreshold
+    }
+    return null // Let progress.js calculate naturally
+  }, [selectedStat, levelThreshold])
+
   // Fetch progress data when period, language, stat type, or current total changes
   useEffect(() => {
     if (!userId || !language) {
@@ -81,7 +89,7 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
     let mounted = true
     setLoading(true)
 
-    getProgressData(userId, language, period, currentTotal, selectedStat)
+    getProgressData(userId, language, period, currentTotal, selectedStat, yAxisMax)
       .then((result) => {
         if (mounted) {
           setData(result)
@@ -98,7 +106,7 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
     return () => {
       mounted = false
     }
-  }, [userId, language, period, currentTotal, selectedStat])
+  }, [userId, language, period, currentTotal, selectedStat, yAxisMax])
 
   // Generate SVG path for line graph
   const linePath = useMemo(() => {

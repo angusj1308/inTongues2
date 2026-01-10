@@ -543,6 +543,28 @@ const Dashboard = () => {
                     <span className="home-level-name">{homeStatsLoading ? '...' : levelInfo.level}</span>
                   </div>
                   <p className="home-level-goal">{levelInfo.goal}</p>
+                  <div className="home-level-activity">
+                    <div className="home-level-activity-stat">
+                      <span className="home-level-activity-value">
+                        {homeStatsLoading ? '...' : homeStats.wordsRead >= 1000
+                          ? `${(homeStats.wordsRead / 1000).toFixed(1)}k`
+                          : homeStats.wordsRead}
+                      </span>
+                      <span className="home-level-activity-label">words</span>
+                    </div>
+                    <div className="home-level-activity-stat">
+                      <span className="home-level-activity-value">
+                        {homeStatsLoading ? '...' : homeStats.listeningFormatted}
+                      </span>
+                      <span className="home-level-activity-label">listened</span>
+                    </div>
+                    <div className="home-level-activity-stat">
+                      <span className="home-level-activity-value">
+                        {homeStatsLoading ? '...' : homeStats.vocabCounts?.total || 0}
+                      </span>
+                      <span className="home-level-activity-label">cards seen</span>
+                    </div>
+                  </div>
                   <div className="home-level-bottom">
                     <div className="home-level-bar">
                       <div

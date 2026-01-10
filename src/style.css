@@ -21691,8 +21691,8 @@ body.active-pass-locked {
   right: 0;
   height: 40px;
   cursor: pointer;
-  transition: background-color 150ms ease;
-  z-index: 1;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  z-index: 10;
   background-color: transparent;
 }
 

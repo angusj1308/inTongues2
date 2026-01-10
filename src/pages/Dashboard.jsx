@@ -560,9 +560,9 @@ const Dashboard = () => {
                     </div>
                     <div className="home-level-activity-stat">
                       <span className="home-level-activity-value">
-                        {homeStatsLoading ? '...' : homeStats.vocabCounts?.total || 0}
+                        {homeStatsLoading ? '...' : homeStats.reviewCount || 0}
                       </span>
-                      <span className="home-level-activity-label">words tracked</span>
+                      <span className="home-level-activity-label">cards reviewed</span>
                     </div>
                   </div>
                   <div className="home-level-bottom">

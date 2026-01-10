@@ -562,7 +562,7 @@ const Dashboard = () => {
                       <span className="home-level-activity-value">
                         {homeStatsLoading ? '...' : homeStats.vocabCounts?.total || 0}
                       </span>
-                      <span className="home-level-activity-label">cards seen</span>
+                      <span className="home-level-activity-label">words tracked</span>
                     </div>
                   </div>
                   <div className="home-level-bottom">

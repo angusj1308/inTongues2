@@ -26,6 +26,7 @@ import TutorChat from './pages/TutorChat'
 import TutorPage from './pages/TutorPage'
 import PronunciationPractice from './pages/PronunciationPractice'
 import FreeSpeakingSession from './pages/FreeSpeakingSession'
+import Settings from './pages/Settings'
 
 const LandingRedirect = () => {
   const { user, profile, loading, setLastUsedLanguage } = useAuth()
@@ -281,6 +282,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <JuanComprehension />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
           </ProtectedRoute>
         }
       />

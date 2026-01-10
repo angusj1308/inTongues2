@@ -16,24 +16,24 @@ const getStatusStyle = (statusLevel, isActive, darkMode) => {
   if (!isActive) return {}
 
   const mixBase = darkMode ? 'black' : 'white'
-  const textOrange = darkMode ? '#fdba74' : '#9a3412'
+  const textHighlight = darkMode ? '#F0AAAA' : '#8B3A3A'
   const textMuted = darkMode ? '#94a3b8' : '#64748b'
 
   switch (statusLevel) {
     case 'new':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, ${mixBase})`,
-        color: textOrange,
+        color: textHighlight,
       }
     case 'unknown':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, ${mixBase})`,
-        color: textOrange,
+        color: textHighlight,
       }
     case 'recognised':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, ${mixBase})`,
-        color: textOrange,
+        color: textHighlight,
       }
     case 'familiar':
       return {

@@ -1,8 +1,11 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
+  increment,
   query,
+  setDoc,
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -13,6 +16,47 @@ import { resolveSupportedLanguageLabel } from '../constants/languages'
  */
 
 const normaliseLanguage = (language) => resolveSupportedLanguageLabel(language, language)
+
+/**
+ * Increment the review count for a language
+ * Call this each time a flashcard is reviewed
+ */
+export async function incrementReviewCount(userId, language) {
+  if (!userId || !language) return
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'reviewStats', normalisedLang)
+
+  try {
+    await setDoc(statsRef, {
+      language: normalisedLang,
+      totalReviews: increment(1),
+    }, { merge: true })
+  } catch (error) {
+    console.error('Error incrementing review count:', error)
+  }
+}
+
+/**
+ * Get total review count for a language
+ */
+export async function getReviewCount(userId, language) {
+  if (!userId) return 0
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'reviewStats', normalisedLang)
+
+  try {
+    const snapshot = await getDoc(statsRef)
+    if (snapshot.exists()) {
+      return snapshot.data().totalReviews || 0
+    }
+    return 0
+  } catch (error) {
+    console.error('Error fetching review count:', error)
+    return 0
+  }
+}
 
 /**
  * Get count of known words for a language
@@ -202,6 +246,27 @@ export async function getListeningTime(userId, language) {
     }
   })
 
+  // Get from stories with audio (audiobooks) - only count if duration is set
+  const storiesRef = collection(db, 'users', userId, 'stories')
+
+  let storiesQuery
+  if (language) {
+    const normalisedLang = normaliseLanguage(language)
+    storiesQuery = query(storiesRef, where('language', '==', normalisedLang))
+  } else {
+    storiesQuery = query(storiesRef)
+  }
+
+  const storiesSnapshot = await getDocs(storiesQuery)
+  storiesSnapshot.forEach((docSnap) => {
+    const data = docSnap.data()
+    // Only count if story has audio duration (audiobook)
+    if (data.duration && data.duration > 0) {
+      const progress = data.progress || 0
+      totalSeconds += Math.floor(data.duration * (progress / 100))
+    }
+  })
+
   return totalSeconds
 }
 
@@ -229,15 +294,17 @@ export async function getHomeStats(userId, language) {
       wordsRead: 0,
       listeningSeconds: 0,
       listeningFormatted: '0m',
+      reviewCount: 0,
       vocabCounts: { unknown: 0, recognised: 0, familiar: 0, known: 0, total: 0 },
     }
   }
 
   // Run queries in parallel for efficiency
-  const [knownWords, wordsRead, listeningSeconds, vocabCounts] = await Promise.all([
+  const [knownWords, wordsRead, listeningSeconds, reviewCount, vocabCounts] = await Promise.all([
     getKnownWordCount(userId, language),
     getWordsRead(userId, language),
     getListeningTime(userId, language),
+    getReviewCount(userId, language),
     getVocabCounts(userId, language),
   ])
 
@@ -246,6 +313,7 @@ export async function getHomeStats(userId, language) {
     wordsRead,
     listeningSeconds,
     listeningFormatted: formatListeningTime(listeningSeconds),
+    reviewCount,
     vocabCounts,
   }
 }

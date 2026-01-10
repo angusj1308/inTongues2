@@ -10,6 +10,7 @@ import {
   updateVocabTranslation,
   VOCAB_STATUSES,
 } from '../../services/vocab'
+import { incrementReviewCount } from '../../services/stats'
 
 // Helper to get language color (unified brand color)
 const getLanguageColor = () => HIGHLIGHT_COLOR
@@ -260,6 +261,9 @@ const ReviewModal = ({ deck, language, onClose, onCardsUpdated }) => {
 
     try {
       await updateVocabSRS(user.uid, language, currentCard.text, quality, isRecallMode)
+
+      // Track this review for stats
+      incrementReviewCount(user.uid, language)
 
       const updatedCards = cards.filter((_, idx) => idx !== currentIndex)
       const nextIndex = currentIndex >= updatedCards.length ? 0 : currentIndex

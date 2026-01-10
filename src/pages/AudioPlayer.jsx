@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
@@ -1226,17 +1226,30 @@ const AudioPlayer = () => {
     setProgressSeconds(restoredTime)
   }, [durationSeconds, getStoredPosition, id, isSpotify])
 
-  // Save position to localStorage when it changes (debounced)
+  // Save position to localStorage and Firestore when it changes (debounced)
   useEffect(() => {
     if (!id || !durationSeconds || durationSeconds <= 0) return undefined
     if (!hasRestoredPositionRef.current) return undefined // Wait for restore first
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       savePosition(id, progressSeconds)
-    }, 1000) // Debounce 1 second
+
+      // Also save progress to Firestore for stats tracking
+      if (user?.uid) {
+        try {
+          const collectionName = isSpotify ? 'spotifyItems' : 'stories'
+          const docRef = doc(db, 'users', user.uid, collectionName, id)
+          const progress = Math.min(100, Math.round((progressSeconds / durationSeconds) * 100))
+          await updateDoc(docRef, { progress, duration: durationSeconds })
+        } catch (err) {
+          // Silently fail - this is non-critical
+          console.debug('Failed to save listening progress:', err)
+        }
+      }
+    }, 2000) // Debounce 2 seconds for Firestore
 
     return () => clearTimeout(timeoutId)
-  }, [durationSeconds, id, progressSeconds, savePosition])
+  }, [durationSeconds, id, isSpotify, progressSeconds, savePosition, user?.uid])
 
   // Sync global position when intensive sentence changes
   useEffect(() => {

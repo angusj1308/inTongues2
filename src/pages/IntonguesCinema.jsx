@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -931,6 +931,25 @@ const normalisePagesToSegments = (pages = []) =>
 
     return () => clearInterval(interval)
   }, [playbackStatus.isPlaying, isSpotify])
+
+  // Save progress to Firestore for stats tracking (debounced)
+  useEffect(() => {
+    const { currentTime, duration } = playbackStatus
+    if (!id || !user?.uid || !duration || duration <= 0) return undefined
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
+        const progress = Math.min(100, Math.round((currentTime / duration) * 100))
+        await updateDoc(videoRef, { progress, duration })
+      } catch (err) {
+        // Silently fail - this is non-critical
+        console.debug('Failed to save video progress:', err)
+      }
+    }, 3000) // Debounce 3 seconds
+
+    return () => clearTimeout(timeoutId)
+  }, [id, playbackStatus, user?.uid])
 
   const handlePlayPause = useCallback(() => {
     if (isSpotify) {

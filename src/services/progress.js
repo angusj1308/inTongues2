@@ -53,16 +53,60 @@ export const incrementWordsLearned = async (userId, language, count = 1) => {
   }
 }
 
+// Stat type configurations
+const STAT_CONFIGS = {
+  knownWords: {
+    collection: 'wordStats',
+    field: 'wordsLearned',
+    label: 'words',
+    isCumulative: true, // shows cumulative total over time
+  },
+  wordsRead: {
+    collection: 'dailyStats',
+    field: 'wordsRead',
+    label: 'words',
+    isCumulative: true,
+  },
+  listeningSeconds: {
+    collection: 'dailyStats',
+    field: 'listeningSeconds',
+    label: 'mins',
+    isCumulative: true,
+    transform: (val) => Math.round(val / 60), // convert to minutes
+  },
+  reviews: {
+    collection: 'dailyStats',
+    field: 'reviews',
+    label: 'cards',
+    isCumulative: false, // shows daily totals, not cumulative
+  },
+  wordsWritten: {
+    collection: 'dailyStats',
+    field: 'wordsWritten',
+    label: 'words',
+    isCumulative: true,
+  },
+  speakingSeconds: {
+    collection: 'dailyStats',
+    field: 'speakingSeconds',
+    label: 'mins',
+    isCumulative: true,
+    transform: (val) => Math.round(val / 60), // convert to minutes
+  },
+}
+
 /**
- * Get progress data for a specific period
+ * Get progress data for a specific period and stat type
  * @param {string} userId
  * @param {string} language
  * @param {string} period - 'week' | 'month' | 'year' | '5year'
- * @param {number} currentKnownWords - Current total known words (for cumulative line)
+ * @param {number} currentTotal - Current total for cumulative stats
+ * @param {string} statType - 'knownWords' | 'wordsRead' | 'listeningSeconds' | 'reviews' | 'wordsWritten' | 'speakingSeconds'
  */
-export const getProgressData = async (userId, language, period = 'week', currentKnownWords = 0) => {
+export const getProgressData = async (userId, language, period = 'week', currentTotal = 0, statType = 'knownWords') => {
   if (!userId || !language) return { points: [], bars: [], isEmpty: true }
 
+  const statConfig = STAT_CONFIGS[statType] || STAT_CONFIGS.knownWords
   const periodConfig = {
     week: { days: 7 },
     month: { days: 30 },
@@ -75,7 +119,7 @@ export const getProgressData = async (userId, language, period = 'week', current
   const startDateKey = getDateKey(startDate)
 
   try {
-    const statsRef = collection(db, 'users', userId, 'wordStats')
+    const statsRef = collection(db, 'users', userId, statConfig.collection)
     // Query by language only to avoid composite index requirement
     // We'll filter by date and sort client-side
     const q = query(
@@ -90,7 +134,11 @@ export const getProgressData = async (userId, language, period = 'week', current
       const data = docSnap.data()
       // Filter by date client-side
       if (data.date && data.date >= startDateKey) {
-        rawData.push(data)
+        const value = data[statConfig.field] || 0
+        rawData.push({
+          date: data.date,
+          value: statConfig.transform ? statConfig.transform(value) : value,
+        })
       }
     })
 
@@ -99,14 +147,15 @@ export const getProgressData = async (userId, language, period = 'week', current
 
     // If no data, return empty state
     if (rawData.length === 0) {
-      return generateEmptyData(period)
+      return generateEmptyData(period, statConfig)
     }
 
     // Process tally data into chart format
-    return processTallyData(rawData, period, config, currentKnownWords)
+    const transformedTotal = statConfig.transform ? statConfig.transform(currentTotal) : currentTotal
+    return processTallyData(rawData, period, config, transformedTotal, statConfig)
   } catch (error) {
     console.error('Error fetching progress data:', error)
-    return generateEmptyData(period)
+    return generateEmptyData(period, statConfig)
   }
 }
 
@@ -114,18 +163,18 @@ export const getProgressData = async (userId, language, period = 'week', current
  * Process daily tally data into chart-friendly format
  * Always shows full period (7 days, 30 days, etc.) like a Bitcoin chart
  */
-const processTallyData = (rawData, period, config, currentKnownWords) => {
-  // Create a map of date -> wordsLearned for quick lookup
+const processTallyData = (rawData, period, config, currentTotal, statConfig) => {
+  // Create a map of date -> value for quick lookup
   const dataByDate = {}
   rawData.forEach((d) => {
-    dataByDate[d.date] = d.wordsLearned || 0
+    dataByDate[d.date] = d.value || 0
   })
 
   // Generate full date range for the period
   const allDates = generateDateRange(config.days)
 
   // Calculate total gained in this period
-  const totalGain = rawData.reduce((sum, d) => sum + (d.wordsLearned || 0), 0)
+  const totalGain = rawData.reduce((sum, d) => sum + (d.value || 0), 0)
 
   // Build bars for every day in the period
   const dailyValues = allDates.map((date) => ({
@@ -141,32 +190,50 @@ const processTallyData = (rawData, period, config, currentKnownWords) => {
     date: d.date,
   }))
 
-  // Build cumulative points for line graph
-  // Work backwards from current known words
-  let cumulative = currentKnownWords
-  const points = []
+  let points
+  let minValue, maxValue
 
-  for (let i = dailyValues.length - 1; i >= 0; i--) {
-    points.unshift({
+  if (statConfig.isCumulative) {
+    // Build cumulative points for line graph
+    // Work backwards from current total
+    let cumulative = currentTotal
+    points = []
+
+    for (let i = dailyValues.length - 1; i >= 0; i--) {
+      points.unshift({
+        x: i / (dailyValues.length - 1 || 1),
+        y: cumulative,
+        date: dailyValues[i].date,
+        gained: dailyValues[i].value,
+      })
+      cumulative = Math.max(0, cumulative - dailyValues[i].value)
+    }
+
+    // Get min/max for y-axis scaling
+    minValue = Math.max(0, Math.min(...points.map((p) => p.y)))
+    maxValue = Math.max(...points.map((p) => p.y))
+  } else {
+    // For non-cumulative stats, just show daily values
+    points = dailyValues.map((d, i) => ({
       x: i / (dailyValues.length - 1 || 1),
-      y: cumulative,
-      date: dailyValues[i].date,
-      gained: dailyValues[i].value,
-    })
-    cumulative = Math.max(0, cumulative - dailyValues[i].value)
-  }
+      y: d.value,
+      date: d.date,
+      gained: d.value,
+    }))
 
-  // Get min/max for y-axis scaling (min should never be negative)
-  const minWords = Math.max(0, Math.min(...points.map((p) => p.y)))
-  const maxWords = Math.max(...points.map((p) => p.y))
+    // Get min/max for y-axis scaling
+    minValue = 0
+    maxValue = Math.max(...points.map((p) => p.y), 1)
+  }
 
   return {
     points,
     bars,
-    minWords,
-    maxWords,
+    minWords: minValue,
+    maxWords: maxValue,
     totalGain,
     isEmpty: false,
+    label: statConfig.label,
   }
 }
 
@@ -174,7 +241,7 @@ const processTallyData = (rawData, period, config, currentKnownWords) => {
  * Generate empty data structure when no data exists
  * Always shows full period like a Bitcoin chart
  */
-const generateEmptyData = (period) => {
+const generateEmptyData = (period, statConfig = { label: 'words' }) => {
   const periodConfig = {
     week: { days: 7 },
     month: { days: 30 },
@@ -205,6 +272,7 @@ const generateEmptyData = (period) => {
     maxWords: 0,
     totalGain: 0,
     isEmpty: true,
+    label: statConfig.label,
   }
 }
 

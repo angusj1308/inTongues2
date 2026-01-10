@@ -537,26 +537,30 @@ const Dashboard = () => {
               {/* Row 1: Level + Progress Graph */}
               <div className="home-grid-two">
                 {/* Level - Left */}
-                <div className="home-card">
-                  <h3 className="home-card-title">Level</h3>
-                  <div className="home-level-display">
+                <div className="home-card home-level-card">
+                  <div className="home-level-top">
+                    <h3 className="home-card-title">Level</h3>
                     <span className="home-level-name">{homeStatsLoading ? '...' : levelInfo.level}</span>
-                    <span className="home-level-words">
-                      {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
-                    </span>
                   </div>
-                  <div className="home-level-bar">
-                    <div
-                      className="home-level-fill"
-                      style={{ width: `${levelInfo.progressPercent}%` }}
-                    />
-                  </div>
-                  {levelInfo.nextLevel && (
-                    <span className="home-level-next">
-                      {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
-                    </span>
-                  )}
                   <p className="home-level-goal">{levelInfo.goal}</p>
+                  <div className="home-level-bottom">
+                    <div className="home-level-bar">
+                      <div
+                        className="home-level-fill"
+                        style={{ width: `${levelInfo.progressPercent}%` }}
+                      />
+                    </div>
+                    <div className="home-level-stats">
+                      <span className="home-level-words">
+                        {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
+                      </span>
+                      {levelInfo.nextLevel && (
+                        <span className="home-level-next">
+                          {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Progress Graph - Right */}

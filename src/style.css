@@ -20890,32 +20890,37 @@ body.active-pass-locked {
 }
 
 /* Level Card */
-.home-level-display {
-  margin-bottom: auto;
+.home-level-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-level-top {
+  margin-bottom: 0.75rem;
 }
 
 .home-level-name {
   display: block;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.02em;
   line-height: 1.2;
-}
-
-.home-level-words {
-  display: block;
-  font-size: 0.9rem;
-  color: #64748b;
   margin-top: 0.25rem;
 }
 
 .home-level-goal {
-  font-size: 0.8rem;
+  flex: 1;
+  font-size: 0.85rem;
   color: #64748b;
-  line-height: 1.5;
-  margin: 0.75rem 0 0;
+  line-height: 1.6;
+  margin: 0;
   font-style: italic;
+}
+
+.home-level-bottom {
+  margin-top: auto;
+  padding-top: 1rem;
 }
 
 .home-level-bar {
@@ -20923,7 +20928,6 @@ body.active-pass-locked {
   background: #e5e5e5;
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 1rem;
 }
 
 .home-level-fill {
@@ -20933,11 +20937,22 @@ body.active-pass-locked {
   transition: width 500ms ease;
 }
 
+.home-level-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.home-level-words {
+  font-size: 0.8rem;
+  color: #0f172a;
+  font-weight: 500;
+}
+
 .home-level-next {
-  display: block;
   font-size: 0.8rem;
   color: #94a3b8;
-  margin-top: 0.5rem;
 }
 
 /* Card Header with Controls */

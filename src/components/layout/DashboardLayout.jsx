@@ -179,7 +179,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                 className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
                 onClick={() => handleTabClick(tab)}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab}
               </button>
             ))}
           </nav>

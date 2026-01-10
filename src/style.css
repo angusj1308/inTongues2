@@ -887,8 +887,8 @@ textarea {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-weight: 450;
   font-size: 0.9rem;
-  text-transform: none;
-  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
   transition: color 0.15s ease;
   scroll-snap-align: center;

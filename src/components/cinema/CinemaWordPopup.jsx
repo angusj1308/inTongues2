@@ -16,7 +16,7 @@ const getStatusStyle = (statusLevel, isActive, darkMode) => {
   if (!isActive) return {}
 
   const mixBase = darkMode ? 'black' : 'white'
-  const textHighlight = darkMode ? '#F0AAAA' : '#8B3A3A'
+  const textHighlight = darkMode ? '#C86070' : '#5C1A22'
   const textMuted = darkMode ? '#94a3b8' : '#64748b'
 
   switch (statusLevel) {

@@ -114,7 +114,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
                 {linePath && (
                   <polyline
                     fill="none"
-                    stroke="#D97373"
+                    stroke="#0f172a"
                     strokeWidth="1.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"

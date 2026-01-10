@@ -199,88 +199,23 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             </button>
             {accountMenuOpen && (
               <div className="dashboard-menu account-menu">
-                {/* Languages section */}
-                <div className="menu-section">
-                  <p className="menu-label">My Languages</p>
-                  {languages.length ? (
-                    <div className="account-lang-list">
-                      {languages.map((language) => (
-                        <div key={language} className="account-lang-item">
-                          {confirmReset === language ? (
-                            <div className="lang-menu-confirm">
-                              <span className="lang-menu-confirm-text">Reset progress?</span>
-                              <div className="lang-menu-confirm-actions">
-                                <button
-                                  className="lang-menu-confirm-yes"
-                                  onClick={() => handleResetProgress(language)}
-                                  disabled={resetting}
-                                >
-                                  {resetting ? '...' : 'Yes'}
-                                </button>
-                                <button
-                                  className="lang-menu-confirm-no"
-                                  onClick={() => setConfirmReset(null)}
-                                >
-                                  No
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <button
-                                className={`account-lang-name ${activeLanguage === language ? 'active' : ''}`}
-                                onClick={() => handleLanguageChange(language)}
-                              >
-                                {language}
-                                {activeLanguage === language && <span className="account-lang-dot" />}
-                              </button>
-                              <div className="account-lang-actions">
-                                <button
-                                  className="lang-menu-icon-btn"
-                                  onClick={() => handleResetProgress(language)}
-                                  title="Reset progress"
-                                >
-                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M1 4v6h6" />
-                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                  </svg>
-                                </button>
-                                <button
-                                  className="lang-menu-icon-btn danger"
-                                  onClick={() => handleRemoveLanguage(language)}
-                                  disabled={languages.length <= 1}
-                                  title="Remove language"
-                                >
-                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M18 6L6 18M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="muted small">No languages yet.</p>
-                  )}
-                  <button className="account-add-lang" onClick={() => navigate('/select-language')}>
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    Add language
-                  </button>
-                </div>
-
-                <div className="menu-divider" />
-
-                {/* Account section */}
-                <div className="menu-section">
-                  <p className="menu-label">Account</p>
-                  <p className="muted small">{user?.email || 'Settings coming soon'}</p>
-                </div>
-
-                <button className="menu-footer" onClick={handleLogout}>
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setAccountMenuOpen(false)
+                    navigate('/settings')
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                  </svg>
+                  Account Settings
+                </button>
+                <button className="menu-item danger" onClick={handleLogout}>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                  </svg>
                   Log out
                 </button>
               </div>

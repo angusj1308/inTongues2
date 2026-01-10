@@ -507,48 +507,6 @@ textarea {
   font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.lang-menu-search {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid #e5e5e5;
-}
-
-.lang-menu-search input {
-  flex: 1;
-  padding: 0.6rem 0.85rem;
-  border-radius: 8px;
-  border: 1px solid #e5e5e5;
-  background: #fafafa;
-  font-family: inherit;
-  font-size: 0.9rem;
-}
-
-.lang-menu-search input:focus {
-  outline: none;
-  border-color: #0f172a;
-  background: #fff;
-}
-
-.lang-menu-add {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: #0f172a;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 150ms ease;
-}
-
-.lang-menu-add:hover {
-  background: #1e293b;
-}
-
 .lang-menu-section {
   padding: 0.5rem 0;
 }
@@ -598,6 +556,19 @@ textarea {
 
 .lang-menu-name-text {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lang-menu-native-tag {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-transform: lowercase;
 }
 
 .lang-menu-active-dot {
@@ -712,7 +683,10 @@ textarea {
 }
 
 .lang-menu-footer {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   width: 100%;
   padding: 0.75rem;
   border: none;
@@ -724,7 +698,6 @@ textarea {
   color: #64748b;
   cursor: pointer;
   transition: all 150ms ease;
-  text-align: center;
 }
 
 .lang-menu-footer:hover {

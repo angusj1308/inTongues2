@@ -21623,7 +21623,7 @@ body.active-pass-locked {
 .routine-day-column {
   grid-row: 1;
   position: relative;
-  border-right: 1px solid #f1f5f9;
+  border-right: 1px solid #e5e5e5;
   height: calc(24 * 40px);
 }
 
@@ -21652,7 +21652,24 @@ body.active-pass-locked {
 }
 
 .routine-hour-slot:hover {
-  background: rgba(15, 23, 42, 0.03);
+  background: rgba(139, 35, 50, 0.08);
+}
+
+.routine-hour-slot::after {
+  content: '+';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.25rem;
+  font-weight: 300;
+  color: #8B2332;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.routine-hour-slot:hover::after {
+  opacity: 0.6;
 }
 
 .routine-hour-slot:nth-child(1) { top: 0; }

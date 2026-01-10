@@ -21536,12 +21536,13 @@ body.active-pass-locked {
 
 .routine-week-inner {
   display: grid;
-  grid-template-columns: 36px 1fr;
-  min-width: fit-content;
+  grid-template-columns: 36px repeat(7, minmax(80px, 1fr));
+  min-width: calc(36px + 560px);
 }
 
 /* Hour labels on the left - scrolls with content */
 .routine-hour-labels {
+  grid-row: 1;
   box-sizing: border-box;
   background: #fafafa;
   border-right: 1px solid #e5e5e5;
@@ -21558,21 +21559,18 @@ body.active-pass-locked {
   transform: translateY(-0.4em);
 }
 
-/* Week grid */
+/* Week grid - uses display:contents so day columns participate in parent grid */
 .routine-week-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(80px, 1fr));
-  min-width: 560px;
-  /* 24 hours * 40px per hour */
-  height: 960px;
+  display: contents;
 }
 
-/* Hour grid lines */
+/* Hour grid lines - spans all 7 day columns */
 .routine-hour-lines {
-  position: absolute;
-  inset: 0;
+  grid-column: 2 / -1;
+  grid-row: 1;
+  position: relative;
   pointer-events: none;
+  height: calc(24 * 40px);
 }
 
 .routine-hour-line {
@@ -21584,14 +21582,15 @@ body.active-pass-locked {
   border-bottom-color: #e5e5e5;
 }
 
-/* Current time indicator */
+/* Current time indicator - spans all 7 day columns */
 .routine-current-time {
-  position: absolute;
-  left: 0;
-  right: 0;
+  grid-column: 2 / -1;
+  grid-row: 1;
+  position: relative;
   height: 2px;
   background: #8B2332;
   z-index: 10;
+  align-self: start;
 }
 
 .routine-current-time::before {
@@ -21605,10 +21604,12 @@ body.active-pass-locked {
   border-radius: 50%;
 }
 
-/* Day Column */
+/* Day Column - each occupies its own grid column */
 .routine-day-column {
+  grid-row: 1;
   position: relative;
   border-right: 1px solid #f1f5f9;
+  height: calc(24 * 40px);
 }
 
 .routine-day-column:last-child {
@@ -21735,16 +21736,13 @@ body.active-pass-locked {
   }
 
   .routine-week-inner {
-    grid-template-columns: 28px 1fr;
+    grid-template-columns: 28px repeat(7, minmax(68px, 1fr));
+    min-width: calc(28px + 476px);
   }
 
   .routine-hour-label {
     font-size: 0.55rem;
     padding-right: 0.25rem;
-  }
-
-  .routine-week-grid {
-    min-width: 476px;
   }
 
   .routine-day-label {

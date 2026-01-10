@@ -5364,10 +5364,11 @@ pre {
 }
 
 .brand-flame {
-  height: 1em;
+  height: 0.72em;  /* Match cap-height of Garamond capitals */
   width: auto;
-  margin-left: 0.02em;
+  margin-left: 0.05em;
   vertical-align: baseline;
+  transform: translateY(-0.05em);  /* Fine-tune vertical position */
 }
 
 .language-select-group {

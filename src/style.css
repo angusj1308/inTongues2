@@ -21013,6 +21013,10 @@ body.active-pass-locked {
   transition: height 300ms ease;
 }
 
+.home-progress-bar.has-data {
+  background: #D97373;
+}
+
 .home-progress-loading,
 .home-progress-empty {
   flex: 1;
@@ -21023,7 +21027,8 @@ body.active-pass-locked {
 
 .home-progress-gain {
   font-size: 0.75rem;
-  color: #64748b;
+  color: #D97373;
+  font-weight: 500;
   text-align: right;
   margin-top: 0.25rem;
 }

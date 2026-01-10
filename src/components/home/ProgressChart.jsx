@@ -114,7 +114,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
                 {linePath && (
                   <polyline
                     fill="none"
-                    stroke="#0f172a"
+                    stroke="#D97373"
                     strokeWidth="1.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -127,7 +127,7 @@ const ProgressChart = ({ userId, language, currentKnownWords }) => {
               {bars.map((bar, i) => (
                 <div
                   key={i}
-                  className="home-progress-bar"
+                  className={`home-progress-bar${bar.value > 0 ? ' has-data' : ''}`}
                   style={{ height: `${bar.height}%` }}
                   title={bar.value ? `+${bar.value} words` : ''}
                 />

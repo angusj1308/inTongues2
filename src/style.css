@@ -5138,7 +5138,8 @@ pre {
 }
 
 .brand-dot {
-  margin-left: -0.12em;   /* increase negative margin so the dot hugs the “s” */
+  margin-left: -0.12em;   /* increase negative margin so the dot hugs the "s" */
+  color: #D97373;
 }
 
 .language-select-group {
@@ -20927,7 +20928,7 @@ body.active-pass-locked {
 
 .home-level-fill {
   height: 100%;
-  background: #0f172a;
+  background: #D97373;
   border-radius: 2px;
   transition: width 500ms ease;
 }
@@ -21456,7 +21457,7 @@ body.active-pass-locked {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #0f172a;
+  background: #D97373;
 }
 
 /* Scrollable week area */
@@ -21523,7 +21524,7 @@ body.active-pass-locked {
   left: 0;
   right: 0;
   height: 2px;
-  background: #ef4444;
+  background: #D97373;
   z-index: 10;
 }
 
@@ -21534,7 +21535,7 @@ body.active-pass-locked {
   top: -4px;
   width: 10px;
   height: 10px;
-  background: #ef4444;
+  background: #D97373;
   border-radius: 50%;
 }
 

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 import { resetVocabProgress } from '../../services/vocab'
 
-export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review', 'tutor']
+export const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review', 'tutor']
 
 const LANGUAGE_NATIVE_NAMES = {
   English: 'English',
@@ -56,12 +56,10 @@ const LANGUAGE_PREFIX = {
 const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const { user, profile, logout, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
-  const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(null) // language being confirmed for reset
   const [resetting, setResetting] = useState(false)
 
-  const languageMenuRef = useRef(null)
   const accountMenuRef = useRef(null)
 
   const nativeLanguageRaw = profile?.nativeLanguage || ''
@@ -160,12 +158,9 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
-        setLanguageMenuOpen(false)
-        setConfirmReset(null)
-      }
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
         setAccountMenuOpen(false)
+        setConfirmReset(null)
       }
     }
 
@@ -175,16 +170,8 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
 
   return (
     <div className="page dashboard-page">
-      <header className="dashboard-header">
-        <div className="dashboard-brand-band">
-          <button className="dashboard-brand-button" onClick={() => handleTabClick('home')}>
-            <div className="dashboard-brand">
-              <span className="dashboard-brand-prefix">{brandPrefix}</span>
-              <span className="dashboard-brand-language">{brandLanguage}</span>
-              <span className="brand-dot">.</span>
-            </div>
-          </button>
-
+      <header className="dashboard-header dashboard-header-minimal">
+        <div className="dashboard-header-row">
           <nav className="dashboard-nav" aria-label="Dashboard navigation">
             {DASHBOARD_TABS.map((tab, index) => (
               <div
@@ -202,27 +189,31 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             ))}
           </nav>
 
-          <div className="dashboard-controls">
-            <div className="dashboard-dropdown" ref={languageMenuRef}>
-              <button
-                className="dashboard-control ui-text"
-                onClick={() => {
-                  setLanguageMenuOpen(!languageMenuOpen)
-                  setAccountMenuOpen(false)
-                }}
-              >
-                My languages
-              </button>
-              {languageMenuOpen && (
-                <div className="dashboard-menu lang-menu">
-                  <div className="lang-menu-section">
-                    <p className="lang-menu-label">Studying</p>
-                    {languages.length ? (
-                      languages.map((language) => (
-                        <div key={language} className="lang-menu-item">
+          <div className="dashboard-dropdown" ref={accountMenuRef}>
+            <button
+              className="dashboard-account-btn"
+              onClick={() => {
+                setAccountMenuOpen(!accountMenuOpen)
+              }}
+              aria-label="Account menu"
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </button>
+            {accountMenuOpen && (
+              <div className="dashboard-menu account-menu">
+                {/* Languages section */}
+                <div className="menu-section">
+                  <p className="menu-label">My Languages</p>
+                  {languages.length ? (
+                    <div className="account-lang-list">
+                      {languages.map((language) => (
+                        <div key={language} className="account-lang-item">
                           {confirmReset === language ? (
                             <div className="lang-menu-confirm">
-                              <span className="lang-menu-confirm-text">Reset all progress?</span>
+                              <span className="lang-menu-confirm-text">Reset progress?</span>
                               <div className="lang-menu-confirm-actions">
                                 <button
                                   className="lang-menu-confirm-yes"
@@ -242,26 +233,19 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                           ) : (
                             <>
                               <button
-                                className={`lang-menu-name ${activeLanguage === language ? 'active' : ''}`}
+                                className={`account-lang-name ${activeLanguage === language ? 'active' : ''}`}
                                 onClick={() => handleLanguageChange(language)}
                               >
-                                <span className="lang-menu-name-text">
-                                  {language}
-                                  {nativeLanguage === language && (
-                                    <span className="lang-menu-native-tag">native</span>
-                                  )}
-                                </span>
-                                {activeLanguage === language && (
-                                  <span className="lang-menu-active-dot" />
-                                )}
+                                {language}
+                                {activeLanguage === language && <span className="account-lang-dot" />}
                               </button>
-                              <div className="lang-menu-actions">
+                              <div className="account-lang-actions">
                                 <button
                                   className="lang-menu-icon-btn"
                                   onClick={() => handleResetProgress(language)}
                                   title="Reset progress"
                                 >
-                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M1 4v6h6" />
                                     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                                   </svg>
@@ -272,7 +256,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                                   disabled={languages.length <= 1}
                                   title="Remove language"
                                 >
-                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M18 6L6 18M6 6l12 12" />
                                   </svg>
                                 </button>
@@ -280,44 +264,41 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                             </>
                           )}
                         </div>
-                      ))
-                    ) : (
-                      <p className="lang-menu-empty">No languages yet.</p>
-                    )}
-                  </div>
-
-                  <button className="lang-menu-footer" onClick={() => navigate('/select-language')}>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="muted small">No languages yet.</p>
+                  )}
+                  <button className="account-add-lang" onClick={() => navigate('/select-language')}>
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
-                    Add new language
+                    Add language
                   </button>
                 </div>
-              )}
-            </div>
 
-            <div className="dashboard-dropdown" ref={accountMenuRef}>
-              <button
-                className="dashboard-control ui-text"
-                onClick={() => {
-                  setAccountMenuOpen(!accountMenuOpen)
-                  setLanguageMenuOpen(false)
-                }}
-              >
-                My account
-              </button>
-              {accountMenuOpen && (
-                <div className="dashboard-menu">
-                  <div className="menu-section">
-                    <p className="menu-label">Profile</p>
-                    <p className="muted small">Account settings coming soon.</p>
-                  </div>
-                  <button className="menu-footer" onClick={handleLogout}>
-                    Log out
-                  </button>
+                <div className="menu-divider" />
+
+                {/* Account section */}
+                <div className="menu-section">
+                  <p className="menu-label">Account</p>
+                  <p className="muted small">{user?.email || 'Settings coming soon'}</p>
                 </div>
-              )}
-            </div>
+
+                <button className="menu-footer" onClick={handleLogout}>
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Centered brand below nav */}
+        <div className="dashboard-brand-row">
+          <div className="dashboard-brand">
+            <span className="dashboard-brand-prefix">{brandPrefix}</span>
+            <span className="dashboard-brand-language">{brandLanguage}</span>
+            <span className="brand-dot">.</span>
           </div>
         </div>
       </header>

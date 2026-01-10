@@ -23,6 +23,15 @@ const getDaysAgo = (days) => {
   return date
 }
 
+// Generate array of date keys for a period
+const generateDateRange = (days) => {
+  const dates = []
+  for (let i = days - 1; i >= 0; i--) {
+    dates.push(getDateKey(getDaysAgo(i)))
+  }
+  return dates
+}
+
 /**
  * Increment today's learned word count
  * Call this whenever a word's status changes to "known"
@@ -103,38 +112,53 @@ export const getProgressData = async (userId, language, period = 'week', current
 
 /**
  * Process daily tally data into chart-friendly format
+ * Always shows full period (7 days, 30 days, etc.) like a Bitcoin chart
  */
 const processTallyData = (rawData, period, config, currentKnownWords) => {
+  // Create a map of date -> wordsLearned for quick lookup
+  const dataByDate = {}
+  rawData.forEach((d) => {
+    dataByDate[d.date] = d.wordsLearned || 0
+  })
+
+  // Generate full date range for the period
+  const allDates = generateDateRange(config.days)
+
   // Calculate total gained in this period
   const totalGain = rawData.reduce((sum, d) => sum + (d.wordsLearned || 0), 0)
 
-  // Work backwards from current known words to get cumulative values
-  // This creates the line graph showing growth over time
-  let cumulative = currentKnownWords
-  const points = []
-
-  // Reverse to build from newest to oldest
-  for (let i = rawData.length - 1; i >= 0; i--) {
-    points.unshift({
-      x: i / (rawData.length - 1 || 1),
-      y: cumulative,
-      date: rawData[i].date,
-      gained: rawData[i].wordsLearned || 0,
-    })
-    cumulative -= (rawData[i].wordsLearned || 0)
-  }
+  // Build bars for every day in the period
+  const dailyValues = allDates.map((date) => ({
+    date,
+    value: dataByDate[date] || 0,
+  }))
 
   // Normalize bar heights (0-100%)
-  const maxGain = Math.max(...rawData.map(d => d.wordsLearned || 0), 1)
-  const bars = rawData.map((d) => ({
-    value: d.wordsLearned || 0,
-    height: ((d.wordsLearned || 0) / maxGain) * 100,
+  const maxGain = Math.max(...dailyValues.map((d) => d.value), 1)
+  const bars = dailyValues.map((d) => ({
+    value: d.value,
+    height: (d.value / maxGain) * 100,
     date: d.date,
   }))
 
+  // Build cumulative points for line graph
+  // Work backwards from current known words
+  let cumulative = currentKnownWords
+  const points = []
+
+  for (let i = dailyValues.length - 1; i >= 0; i--) {
+    points.unshift({
+      x: i / (dailyValues.length - 1 || 1),
+      y: cumulative,
+      date: dailyValues[i].date,
+      gained: dailyValues[i].value,
+    })
+    cumulative -= dailyValues[i].value
+  }
+
   // Get min/max for y-axis scaling
-  const minWords = Math.min(...points.map(p => p.y))
-  const maxWords = Math.max(...points.map(p => p.y))
+  const minWords = Math.min(...points.map((p) => p.y))
+  const maxWords = Math.max(...points.map((p) => p.y))
 
   return {
     points,
@@ -148,28 +172,30 @@ const processTallyData = (rawData, period, config, currentKnownWords) => {
 
 /**
  * Generate empty data structure when no data exists
+ * Always shows full period like a Bitcoin chart
  */
 const generateEmptyData = (period) => {
-  const counts = {
-    week: 7,
-    month: 30,
-    year: 12,
-    '5year': 5,
+  const periodConfig = {
+    week: { days: 7 },
+    month: { days: 30 },
+    year: { days: 365 },
+    '5year': { days: 1825 },
   }
 
-  const count = counts[period] || 7
+  const config = periodConfig[period] || periodConfig.week
+  const allDates = generateDateRange(config.days)
 
-  const points = Array.from({ length: count }, (_, i) => ({
-    x: i / (count - 1 || 1),
+  const points = allDates.map((date, i) => ({
+    x: i / (allDates.length - 1 || 1),
     y: 0,
-    date: '',
+    date,
     gained: 0,
   }))
 
-  const bars = Array.from({ length: count }, () => ({
+  const bars = allDates.map((date) => ({
     value: 0,
     height: 0,
-    date: '',
+    date,
   }))
 
   return {

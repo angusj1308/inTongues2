@@ -543,7 +543,6 @@ const Dashboard = () => {
                       {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
                     </span>
                   </div>
-                  <p className="home-level-goal">{levelInfo.goal}</p>
                   <div className="home-level-bar">
                     <div
                       className="home-level-fill"
@@ -555,6 +554,7 @@ const Dashboard = () => {
                       {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
                     </span>
                   )}
+                  <p className="home-level-goal">{levelInfo.goal}</p>
                 </div>
 
                 {/* Progress Graph - Right */}

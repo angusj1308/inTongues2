@@ -4092,25 +4092,25 @@ textarea {
 
 /* N - New: muted red at 40% opacity (matches STATUS_OPACITY.new) */
 .intensive-status-pill--new.is-active {
-  background: color-mix(in srgb, #D97373 40%, white);
-  color: #8B3A3A;
+  background: color-mix(in srgb, #8B2332 40%, white);
+  color: #5C1A22;
 }
 
 /* U - Unknown: muted red at 40% (matches STATUS_OPACITY.unknown) */
 .intensive-status-pill--unknown.is-active {
-  background: color-mix(in srgb, #D97373 40%, white);
-  color: #8B3A3A;
+  background: color-mix(in srgb, #8B2332 40%, white);
+  color: #5C1A22;
 }
 
 /* R - Recognised: muted red at 28% (matches STATUS_OPACITY.recognised) */
 .intensive-status-pill--recognised.is-active {
-  background: color-mix(in srgb, #D97373 28%, white);
-  color: #8B3A3A;
+  background: color-mix(in srgb, #8B2332 28%, white);
+  color: #5C1A22;
 }
 
 /* F - Familiar: muted red at 16% (matches STATUS_OPACITY.familiar) */
 .intensive-status-pill--familiar.is-active {
-  background: color-mix(in srgb, #D97373 16%, white);
+  background: color-mix(in srgb, #8B2332 16%, white);
   color: #64748b;
 }
 
@@ -5139,7 +5139,7 @@ pre {
 
 .brand-dot {
   margin-left: -0.12em;   /* increase negative margin so the dot hugs the "s" */
-  color: #D97373;
+  color: #8B2332;
 }
 
 .language-select-group {
@@ -8352,7 +8352,7 @@ body.active-pass-locked {
   /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
   color: color-mix(
     in srgb,
-    var(--hlt-base, #D97373) calc(var(--hlt-opacity, 0) * 250%),
+    var(--hlt-base, #8B2332) calc(var(--hlt-opacity, 0) * 250%),
     rgba(255, 255, 255, 0.85)
   );
   background: none;
@@ -9795,19 +9795,19 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-status-pill--new.is-active {
-  background: #D97373;
+  background: #8B2332;
 }
 
 .intensive-vocab-item .intensive-status-pill--unknown.is-active {
-  background: #D97373;
+  background: #8B2332;
 }
 
 .intensive-vocab-item .intensive-status-pill--recognised.is-active {
-  background: #E58A8A;
+  background: #A84050;
 }
 
 .intensive-vocab-item .intensive-status-pill--familiar.is-active {
-  background: #F0AAAA;
+  background: #C86070;
 }
 
 .intensive-vocab-item .intensive-status-pill--known.is-active {
@@ -9977,7 +9977,7 @@ body.active-pass-locked {
 
 /* Word status active - muted red */
 .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #D97373;
+  color: #8B2332;
 }
 
 /* Dark mode cinema header */
@@ -10013,7 +10013,7 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #D97373;
+  color: #8B2332;
 }
 
 .cinema-loading-message,
@@ -10088,7 +10088,7 @@ body.active-pass-locked {
 
 /* Word status colors for cinema subtitles - text color on dark background
    Matches the app's established color system:
-   - New words: Always muted red #D97373
+   - New words: Always muted red #8B2332
    - Unknown/Recognised/Familiar: Orange at fading opacity levels (40%, 28%, 16%)
    - Known: White (mastered, blends in) */
 .cinema-subtitle-overlay .word-known {
@@ -10116,7 +10116,7 @@ body.active-pass-locked {
 
 .cinema-subtitle-overlay .word-new {
   /* Always muted red - stands out most */
-  color: #D97373;
+  color: #8B2332;
   font-weight: 600;
 }
 
@@ -10138,7 +10138,7 @@ body.active-pass-locked {
 }
 
 .cinema-subtitle-overlay .phrase-new {
-  color: #D97373;
+  color: #8B2332;
 }
 
 /* Karaoke Subtitles - word-by-word reveal */
@@ -13138,7 +13138,7 @@ body.active-pass-locked {
 }
 
 .practice-header-button--active {
-  color: #D97373;
+  color: #8B2332;
 }
 
 .practice-header-icon {
@@ -13155,7 +13155,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .practice-header-button--active {
-  color: #E58A8A;
+  color: #A84050;
 }
 
 .practice-header-languages {
@@ -15747,7 +15747,7 @@ body.active-pass-locked {
 }
 
 .tutor-header-btn.active {
-  color: #D97373;
+  color: #8B2332;
 }
 
 .tutor-header-aa {
@@ -16160,7 +16160,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .tutor-header-btn.active {
-  color: #D97373;
+  color: #8B2332;
 }
 
 [data-theme='dark'] .tutor-welcome-text {
@@ -20928,7 +20928,7 @@ body.active-pass-locked {
 
 .home-level-fill {
   height: 100%;
-  background: #D97373;
+  background: #8B2332;
   border-radius: 2px;
   transition: width 500ms ease;
 }
@@ -21051,7 +21051,7 @@ body.active-pass-locked {
 }
 
 .home-progress-bar.has-data {
-  background: #D97373;
+  background: #8B2332;
 }
 
 .home-progress-x-axis {
@@ -21090,7 +21090,7 @@ body.active-pass-locked {
 
 .home-progress-gain {
   font-size: 0.7rem;
-  color: #D97373;
+  color: #8B2332;
   font-weight: 500;
   text-align: right;
   margin-left: 36px;
@@ -21476,22 +21476,20 @@ body.active-pass-locked {
 
 /* Sticky day headers row */
 .routine-day-headers {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px repeat(7, minmax(80px, 1fr));
   border-bottom: 1px solid #e5e5e5;
   background: #fff;
   flex-shrink: 0;
+  min-width: calc(36px + 560px);
 }
 
 .routine-hour-labels-spacer {
-  flex-shrink: 0;
-  width: 36px;
   background: #fafafa;
   border-right: 1px solid #e5e5e5;
 }
 
 .routine-day-header-cell {
-  flex: 1;
-  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21525,7 +21523,7 @@ body.active-pass-locked {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #D97373;
+  background: #8B2332;
 }
 
 /* Scrollable week area */
@@ -21592,7 +21590,7 @@ body.active-pass-locked {
   left: 0;
   right: 0;
   height: 2px;
-  background: #D97373;
+  background: #8B2332;
   z-index: 10;
 }
 
@@ -21603,7 +21601,7 @@ body.active-pass-locked {
   top: -4px;
   width: 10px;
   height: 10px;
-  background: #D97373;
+  background: #8B2332;
   border-radius: 50%;
 }
 
@@ -21731,9 +21729,13 @@ body.active-pass-locked {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .routine-hour-labels-spacer,
   .routine-hour-labels {
     width: 28px;
+  }
+
+  .routine-day-headers {
+    grid-template-columns: 28px repeat(7, minmax(68px, 1fr));
+    min-width: calc(28px + 476px);
   }
 
   .routine-hour-label {
@@ -21742,15 +21744,11 @@ body.active-pass-locked {
   }
 
   .routine-week-grid {
-    min-width: 480px;
+    min-width: 476px;
   }
 
   .routine-day-label {
     font-size: 0.6rem;
-  }
-
-  .routine-day-header-cell {
-    min-width: 68px;
   }
 }
 

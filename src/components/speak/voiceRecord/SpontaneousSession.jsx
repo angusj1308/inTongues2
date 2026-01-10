@@ -24,7 +24,7 @@ const getStatusButtonStyle = (statusLevel, isActive, languageColor) => {
     case 'new':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
-        color: '#8B3A3A'
+        color: '#5C1A22'
       }
     case 'unknown':
       return {

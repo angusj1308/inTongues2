@@ -26,8 +26,8 @@ const getStatusButtonStyle = (statusLevel, isActive, languageColor) => {
   switch (statusLevel) {
     case 'new':
       return {
-        background: `color-mix(in srgb, #F97316 ${STATUS_OPACITY.new * 100}%, white)`,
-        color: '#9a3412'
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
+        color: '#8B3A3A'
       }
     case 'unknown':
       return {
@@ -1131,7 +1131,7 @@ const FreeWritingLesson = () => {
       const status = vocabEntry?.status || 'new'
 
       const opacity = STATUS_OPACITY[status]
-      const base = status === 'new' ? '#F97316' : getLanguageColor(lesson?.targetLanguage)
+      const base = status === 'new' ? HIGHLIGHT_COLOR : getLanguageColor(lesson?.targetLanguage)
       const highlighted = opacity && opacity > 0
 
       return (

@@ -20,17 +20,17 @@ const getStatusStyle = (statusLevel, isActive) => {
     case 'new':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
-        color: '#9a3412'
+        color: '#8B3A3A'
       }
     case 'unknown':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, white)`,
-        color: '#9a3412'
+        color: '#8B3A3A'
       }
     case 'recognised':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
-        color: '#9a3412'
+        color: '#8B3A3A'
       }
     case 'familiar':
       return {

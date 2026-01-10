@@ -1,5 +1,5 @@
 // Single brand color for all word highlighting
-export const HIGHLIGHT_COLOR = '#F97316'
+export const HIGHLIGHT_COLOR = '#D97373'
 
 // Fading intensity: darkest → invisible
 export const STATUS_OPACITY = {

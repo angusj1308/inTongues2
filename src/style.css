@@ -4090,27 +4090,27 @@ textarea {
   color: #64748b;
 }
 
-/* N - New: orange at 40% opacity (matches STATUS_OPACITY.new) */
+/* N - New: muted red at 40% opacity (matches STATUS_OPACITY.new) */
 .intensive-status-pill--new.is-active {
-  background: color-mix(in srgb, #F97316 40%, white);
-  color: #9a3412;
+  background: color-mix(in srgb, #D97373 40%, white);
+  color: #8B3A3A;
 }
 
-/* U - Unknown: orange at 40% (matches STATUS_OPACITY.unknown) */
+/* U - Unknown: muted red at 40% (matches STATUS_OPACITY.unknown) */
 .intensive-status-pill--unknown.is-active {
-  background: color-mix(in srgb, #F97316 40%, white);
-  color: #9a3412;
+  background: color-mix(in srgb, #D97373 40%, white);
+  color: #8B3A3A;
 }
 
-/* R - Recognised: orange at 28% (matches STATUS_OPACITY.recognised) */
+/* R - Recognised: muted red at 28% (matches STATUS_OPACITY.recognised) */
 .intensive-status-pill--recognised.is-active {
-  background: color-mix(in srgb, #F97316 28%, white);
-  color: #9a3412;
+  background: color-mix(in srgb, #D97373 28%, white);
+  color: #8B3A3A;
 }
 
-/* F - Familiar: orange at 16% (matches STATUS_OPACITY.familiar) */
+/* F - Familiar: muted red at 16% (matches STATUS_OPACITY.familiar) */
 .intensive-status-pill--familiar.is-active {
-  background: color-mix(in srgb, #F97316 16%, white);
+  background: color-mix(in srgb, #D97373 16%, white);
   color: #64748b;
 }
 
@@ -8351,7 +8351,7 @@ body.active-pass-locked {
   /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
   color: color-mix(
     in srgb,
-    var(--hlt-base, #F97316) calc(var(--hlt-opacity, 0) * 250%),
+    var(--hlt-base, #D97373) calc(var(--hlt-opacity, 0) * 250%),
     rgba(255, 255, 255, 0.85)
   );
   background: none;
@@ -9794,19 +9794,19 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-status-pill--new.is-active {
-  background: #F97316;
+  background: #D97373;
 }
 
 .intensive-vocab-item .intensive-status-pill--unknown.is-active {
-  background: #F97316;
+  background: #D97373;
 }
 
 .intensive-vocab-item .intensive-status-pill--recognised.is-active {
-  background: #fb923c;
+  background: #E58A8A;
 }
 
 .intensive-vocab-item .intensive-status-pill--familiar.is-active {
-  background: #fdba74;
+  background: #F0AAAA;
 }
 
 .intensive-vocab-item .intensive-status-pill--known.is-active {
@@ -9974,9 +9974,9 @@ body.active-pass-locked {
   letter-spacing: -0.02em;
 }
 
-/* Word status active - orange */
+/* Word status active - muted red */
 .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #F97316;
+  color: #D97373;
 }
 
 /* Dark mode cinema header */
@@ -10012,7 +10012,7 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #F97316;
+  color: #D97373;
 }
 
 .cinema-loading-message,
@@ -10087,7 +10087,7 @@ body.active-pass-locked {
 
 /* Word status colors for cinema subtitles - text color on dark background
    Matches the app's established color system:
-   - New words: Always orange #F97316
+   - New words: Always muted red #D97373
    - Unknown/Recognised/Familiar: Orange at fading opacity levels (40%, 28%, 16%)
    - Known: White (mastered, blends in) */
 .cinema-subtitle-overlay .word-known {
@@ -10114,8 +10114,8 @@ body.active-pass-locked {
 }
 
 .cinema-subtitle-overlay .word-new {
-  /* Always orange - stands out most */
-  color: #F97316;
+  /* Always muted red - stands out most */
+  color: #D97373;
   font-weight: 600;
 }
 
@@ -10137,7 +10137,7 @@ body.active-pass-locked {
 }
 
 .cinema-subtitle-overlay .phrase-new {
-  color: #F97316;
+  color: #D97373;
 }
 
 /* Karaoke Subtitles - word-by-word reveal */
@@ -13137,7 +13137,7 @@ body.active-pass-locked {
 }
 
 .practice-header-button--active {
-  color: #F97316;
+  color: #D97373;
 }
 
 .practice-header-icon {
@@ -13154,7 +13154,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .practice-header-button--active {
-  color: #FB923C;
+  color: #E58A8A;
 }
 
 .practice-header-languages {
@@ -15746,7 +15746,7 @@ body.active-pass-locked {
 }
 
 .tutor-header-btn.active {
-  color: #f97316;
+  color: #D97373;
 }
 
 .tutor-header-aa {
@@ -16159,7 +16159,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .tutor-header-btn.active {
-  color: #f97316;
+  color: #D97373;
 }
 
 [data-theme='dark'] .tutor-welcome-text {

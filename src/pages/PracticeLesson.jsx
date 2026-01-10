@@ -28,17 +28,17 @@ const getStatusButtonStyle = (statusLevel, isActive) => {
     case 'new':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, white)`,
-        color: '#9a3412'
+        color: '#8B3A3A'
       }
     case 'unknown':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, white)`,
-        color: '#9a3412'
+        color: '#8B3A3A'
       }
     case 'recognised':
       return {
         background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
-        color: '#9a3412'
+        color: '#8B3A3A'
       }
     case 'familiar':
       return {
@@ -1202,7 +1202,7 @@ const PracticeLesson = () => {
               type="button"
               onClick={() => setShowWordStatus(!showWordStatus)}
               aria-pressed={showWordStatus}
-              style={{ color: showWordStatus ? '#F97316' : undefined }}
+              style={{ color: showWordStatus ? HIGHLIGHT_COLOR : undefined }}
             >
               Aa
             </button>

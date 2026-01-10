@@ -38,6 +38,47 @@ export async function incrementReviewCount(userId, language) {
 }
 
 /**
+ * Increment words read count
+ * Call this when user completes reading a sentence or page
+ */
+export async function incrementWordsRead(userId, language, wordCount) {
+  if (!userId || !language || !wordCount || wordCount <= 0) return
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'readingStats', normalisedLang)
+
+  try {
+    await setDoc(statsRef, {
+      language: normalisedLang,
+      totalWordsRead: increment(wordCount),
+    }, { merge: true })
+  } catch (error) {
+    console.error('Error incrementing words read:', error)
+  }
+}
+
+/**
+ * Get total words read for a language (from direct tracking)
+ */
+export async function getWordsReadDirect(userId, language) {
+  if (!userId) return 0
+
+  const normalisedLang = normaliseLanguage(language)
+  const statsRef = doc(db, 'users', userId, 'readingStats', normalisedLang)
+
+  try {
+    const snapshot = await getDoc(statsRef)
+    if (snapshot.exists()) {
+      return snapshot.data().totalWordsRead || 0
+    }
+    return 0
+  } catch (error) {
+    console.error('Error fetching words read:', error)
+    return 0
+  }
+}
+
+/**
  * Get total review count for a language
  */
 export async function getReviewCount(userId, language) {
@@ -302,7 +343,7 @@ export async function getHomeStats(userId, language) {
   // Run queries in parallel for efficiency
   const [knownWords, wordsRead, listeningSeconds, reviewCount, vocabCounts] = await Promise.all([
     getKnownWordCount(userId, language),
-    getWordsRead(userId, language),
+    getWordsReadDirect(userId, language),
     getListeningTime(userId, language),
     getReviewCount(userId, language),
     getVocabCounts(userId, language),

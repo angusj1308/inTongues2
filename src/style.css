@@ -21485,6 +21485,7 @@ body.active-pass-locked {
 }
 
 .routine-hour-labels-spacer {
+  box-sizing: border-box;
   background: #fafafa;
   border-right: 1px solid #e5e5e5;
 }
@@ -21534,14 +21535,14 @@ body.active-pass-locked {
 }
 
 .routine-week-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px 1fr;
   min-width: fit-content;
 }
 
 /* Hour labels on the left - scrolls with content */
 .routine-hour-labels {
-  flex-shrink: 0;
-  width: 36px;
+  box-sizing: border-box;
   background: #fafafa;
   border-right: 1px solid #e5e5e5;
 }
@@ -21562,7 +21563,6 @@ body.active-pass-locked {
   position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(80px, 1fr));
-  flex: 1;
   min-width: 560px;
   /* 24 hours * 40px per hour */
   height: 960px;
@@ -21729,13 +21729,13 @@ body.active-pass-locked {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .routine-hour-labels {
-    width: 28px;
-  }
-
   .routine-day-headers {
     grid-template-columns: 28px repeat(7, minmax(68px, 1fr));
     min-width: calc(28px + 476px);
+  }
+
+  .routine-week-inner {
+    grid-template-columns: 28px 1fr;
   }
 
   .routine-hour-label {

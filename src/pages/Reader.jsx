@@ -1187,9 +1187,14 @@ const Reader = ({ initialMode }) => {
 
     try {
       const storyRef = doc(db, 'users', user.uid, 'stories', id)
+      // Calculate progress as percentage of pages read
+      const progress = pages.length > 0
+        ? Math.min(100, Math.round(((evenIndex + 2) / pages.length) * 100))
+        : 0
       await updateDoc(storyRef, {
         bookmarkIndex: evenIndex,
         bookmarkUpdatedAt: serverTimestamp(),
+        progress,
       })
 
       setBookmarkIndex(evenIndex)

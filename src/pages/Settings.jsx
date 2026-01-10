@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../constants/languages'
+import {
+  filterSupportedLanguages,
+  LANGUAGES,
+  resolveSupportedLanguageLabel,
+  toLanguageLabel,
+} from '../constants/languages'
 import { resetVocabProgress } from '../services/vocab'
 
 const SETTINGS_SECTIONS = [
@@ -17,7 +22,7 @@ const Settings = () => {
   const [confirmReset, setConfirmReset] = useState(null)
   const [resetting, setResetting] = useState(false)
 
-  const nativeLanguageRaw = profile?.nativeLanguage || ''
+  const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, '')
   const allLanguages = profile?.myLanguages || []
   const languages = filterSupportedLanguages(allLanguages)
 
@@ -33,8 +38,12 @@ const Settings = () => {
     await setLastUsedLanguage(nextLanguage)
   }
 
+  const handleNativeLanguageChange = async (language) => {
+    await updateProfile({ nativeLanguage: language })
+  }
+
   const handleRemoveLanguage = async (language) => {
-    if (!language) return
+    if (!language || languages.length <= 1) return
     const remaining = allLanguages.filter((entry) => entry !== language)
     const nextActive = resolveSupportedLanguageLabel(
       remaining.find((entry) => toLanguageLabel(entry)),
@@ -43,7 +52,7 @@ const Settings = () => {
     await updateProfile({
       myLanguages: remaining,
       lastUsedLanguage: nextActive,
-      nativeLanguage: nativeLanguageRaw === language ? '' : nativeLanguageRaw,
+      nativeLanguage: nativeLanguage === language ? '' : nativeLanguage,
     })
   }
 
@@ -65,6 +74,11 @@ const Settings = () => {
     } finally {
       setResetting(false)
     }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login')
   }
 
   const renderIcon = (icon) => {
@@ -100,8 +114,29 @@ const Settings = () => {
       <h2 className="settings-panel-title">Languages</h2>
       <p className="settings-panel-description">Manage your learning languages and progress.</p>
 
+      {/* Native Language Section */}
       <div className="settings-section">
-        <h3 className="settings-section-title">My Languages</h3>
+        <h3 className="settings-section-title">Native Language</h3>
+        <p className="settings-section-description">
+          Choose the language you want translations and explanations in.
+        </p>
+        <select
+          className="settings-select"
+          value={nativeLanguage}
+          onChange={(e) => handleNativeLanguageChange(e.target.value)}
+        >
+          <option value="">Select your native language</option>
+          {LANGUAGES.map((lang) => (
+            <option key={lang} value={lang}>
+              {lang}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Learning Languages Section */}
+      <div className="settings-section">
+        <h3 className="settings-section-title">Learning Languages</h3>
         {languages.length ? (
           <div className="settings-language-list">
             {languages.map((language) => (
@@ -115,42 +150,45 @@ const Settings = () => {
                         onClick={() => handleResetProgress(language)}
                         disabled={resetting}
                       >
-                        {resetting ? 'Resetting...' : 'Yes, reset'}
+                        {resetting ? '...' : 'Yes'}
                       </button>
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => setConfirmReset(null)}
                       >
-                        Cancel
+                        No
                       </button>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="settings-language-info">
-                      <button
-                        className={`settings-language-name ${activeLanguage === language ? 'active' : ''}`}
-                        onClick={() => handleLanguageChange(language)}
-                      >
-                        {language}
-                        {activeLanguage === language && <span className="settings-active-badge">Active</span>}
-                      </button>
-                    </div>
+                    <button
+                      className={`settings-language-name ${activeLanguage === language ? 'active' : ''}`}
+                      onClick={() => handleLanguageChange(language)}
+                    >
+                      {language}
+                      {activeLanguage === language && <span className="settings-active-dot" />}
+                    </button>
                     <div className="settings-language-actions">
                       <button
-                        className="btn btn-ghost btn-sm"
+                        className="settings-icon-btn"
                         onClick={() => setConfirmReset(language)}
                         title="Reset progress"
                       >
-                        Reset progress
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 4v6h6" />
+                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                        </svg>
                       </button>
                       <button
-                        className="btn btn-ghost btn-sm danger"
+                        className="settings-icon-btn danger"
                         onClick={() => handleRemoveLanguage(language)}
                         disabled={languages.length <= 1}
                         title="Remove language"
                       >
-                        Remove
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
                       </button>
                     </div>
                   </>
@@ -184,7 +222,7 @@ const Settings = () => {
 
       <div className="settings-section">
         <h3 className="settings-section-title">Danger Zone</h3>
-        <button className="btn btn-danger" onClick={logout}>
+        <button className="btn btn-danger" onClick={handleLogout}>
           Log out
         </button>
       </div>

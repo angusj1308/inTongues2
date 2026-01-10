@@ -67,19 +67,26 @@ export const getProgressData = async (userId, language, period = 'week', current
 
   try {
     const statsRef = collection(db, 'users', userId, 'wordStats')
+    // Query by language only to avoid composite index requirement
+    // We'll filter by date and sort client-side
     const q = query(
       statsRef,
-      where('language', '==', language),
-      where('date', '>=', startDateKey),
-      orderBy('date', 'asc')
+      where('language', '==', language)
     )
 
     const snapshot = await getDocs(q)
     const rawData = []
 
     snapshot.forEach((docSnap) => {
-      rawData.push(docSnap.data())
+      const data = docSnap.data()
+      // Filter by date client-side
+      if (data.date && data.date >= startDateKey) {
+        rawData.push(data)
+      }
     })
+
+    // Sort by date ascending
+    rawData.sort((a, b) => a.date.localeCompare(b.date))
 
     // If no data, return empty state
     if (rawData.length === 0) {

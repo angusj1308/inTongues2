@@ -54,11 +54,10 @@ const LANGUAGE_PREFIX = {
 }
 
 const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
-  const { user, profile, logout, addLanguage, updateProfile, setLastUsedLanguage } = useAuth()
+  const { user, profile, logout, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
-  const [languageSearch, setLanguageSearch] = useState('')
   const [confirmReset, setConfirmReset] = useState(null) // language being confirmed for reset
   const [resetting, setResetting] = useState(false)
 
@@ -101,13 +100,6 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     return LANGUAGE_PREFIX[activeLanguage] || 'in'
   }, [activeLanguage])
 
-  const filteredLanguages = useMemo(() => {
-    if (!languageSearch.trim()) return languages
-    return languages.filter((language) =>
-      language.toLowerCase().includes(languageSearch.toLowerCase().trim()),
-    )
-  }, [languageSearch, languages])
-
   const handleLanguageChange = async (language) => {
     const nextLanguage = toLanguageLabel(language)
     if (!nextLanguage) return
@@ -132,7 +124,6 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
       lastUsedLanguage: nextActive,
       nativeLanguage: nativeLanguageRaw === language ? '' : nativeLanguageRaw,
     })
-    setLanguageSearch('')
   }
 
   const handleResetProgress = async (language) => {
@@ -155,16 +146,6 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
     } finally {
       setResetting(false)
     }
-  }
-
-  const handleAddLanguage = async () => {
-    const trimmed = languageSearch.trim()
-    if (!trimmed) return
-    const resolvedLanguage = toLanguageLabel(trimmed)
-    if (!resolvedLanguage) return
-    await addLanguage(resolvedLanguage)
-    setLanguageSearch('')
-    setLanguageMenuOpen(true)
   }
 
   const handleTabClick = (tab) => {
@@ -234,26 +215,10 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
               </button>
               {languageMenuOpen && (
                 <div className="dashboard-menu lang-menu">
-                  <div className="lang-menu-search">
-                    <input
-                      type="text"
-                      placeholder="Search or add language..."
-                      value={languageSearch}
-                      onChange={(event) => setLanguageSearch(event.target.value)}
-                    />
-                    {languageSearch.trim() && (
-                      <button className="lang-menu-add" onClick={handleAddLanguage}>
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12h14" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-
                   <div className="lang-menu-section">
                     <p className="lang-menu-label">Studying</p>
-                    {filteredLanguages.length ? (
-                      filteredLanguages.map((language) => (
+                    {languages.length ? (
+                      languages.map((language) => (
                         <div key={language} className="lang-menu-item">
                           {confirmReset === language ? (
                             <div className="lang-menu-confirm">
@@ -280,7 +245,12 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                                 className={`lang-menu-name ${activeLanguage === language ? 'active' : ''}`}
                                 onClick={() => handleLanguageChange(language)}
                               >
-                                <span className="lang-menu-name-text">{language}</span>
+                                <span className="lang-menu-name-text">
+                                  {language}
+                                  {nativeLanguage === language && (
+                                    <span className="lang-menu-native-tag">native</span>
+                                  )}
+                                </span>
                                 {activeLanguage === language && (
                                   <span className="lang-menu-active-dot" />
                                 )}
@@ -312,12 +282,15 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                         </div>
                       ))
                     ) : (
-                      <p className="lang-menu-empty">No matches. Type above to add.</p>
+                      <p className="lang-menu-empty">No languages yet.</p>
                     )}
                   </div>
 
                   <button className="lang-menu-footer" onClick={() => navigate('/select-language')}>
-                    Open language finder
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Add new language
                   </button>
                 </div>
               )}

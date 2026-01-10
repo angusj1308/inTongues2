@@ -20984,13 +20984,48 @@ body.active-pass-locked {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-height: 80px;
+  min-height: 100px;
+}
+
+.home-progress-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  position: relative;
+}
+
+.home-progress-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 20px;
+  width: 32px;
+  padding-right: 4px;
+}
+
+.home-progress-y-label {
+  font-size: 0.6rem;
+  color: #94a3b8;
+  text-align: right;
+}
+
+.home-progress-main {
+  position: relative;
+  margin-left: 36px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .home-progress-line {
   flex: 1;
   position: relative;
+  min-height: 50px;
 }
 
 .home-progress-svg {
@@ -21002,19 +21037,47 @@ body.active-pass-locked {
 .home-progress-bars {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
+  gap: 1px;
   height: 30px;
+  min-width: 0;
 }
 
 .home-progress-bar {
   flex: 1;
+  min-width: 0;
   background: #e5e5e5;
-  border-radius: 2px;
+  border-radius: 1px;
   transition: height 300ms ease;
 }
 
 .home-progress-bar.has-data {
   background: #D97373;
+}
+
+.home-progress-x-axis {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.home-progress-x-label {
+  font-size: 0.55rem;
+  color: #94a3b8;
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* For positioned labels (month/year/5year) */
+.home-progress-x-axis .home-progress-x-label[style] {
+  position: absolute;
+  flex: none;
+  transform: translateX(-50%);
 }
 
 .home-progress-loading,
@@ -21026,11 +21089,11 @@ body.active-pass-locked {
 }
 
 .home-progress-gain {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #D97373;
   font-weight: 500;
   text-align: right;
-  margin-top: 0.25rem;
+  margin-left: 36px;
 }
 
 /* Wide Card */

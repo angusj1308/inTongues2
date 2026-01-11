@@ -21833,6 +21833,7 @@ body.active-pass-locked {
   border-bottom: 1px solid #e5e5e5;
   background: #fff;
   flex-shrink: 0;
+  padding-right: 17px; /* Match scrollbar gutter */
 }
 
 .routine-hour-labels-spacer {
@@ -21878,6 +21879,7 @@ body.active-pass-locked {
   max-height: 400px;
   overflow-y: auto;
   overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
 .routine-week-inner {
@@ -21903,7 +21905,7 @@ body.active-pass-locked {
   color: #94a3b8;
   line-height: 1;
   position: relative;
-  top: -0.5em;
+  top: -0.4rem;
 }
 
 /* Week grid - uses display:contents so day columns participate in parent grid */

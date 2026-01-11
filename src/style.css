@@ -347,7 +347,7 @@ textarea {
 }
 
 .dashboard-tagline {
-  margin: 0;
+  margin: 0.5rem 0 0 0;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
   font-style: normal;
   font-size: 0.65rem;
@@ -5388,7 +5388,7 @@ pre {
 .brand-flame.brand-flame-above {
   height: 120px;
   width: auto;
-  margin-bottom: -1.5rem;
+  margin-bottom: -2.25rem;
 }
 
 .language-select-group {

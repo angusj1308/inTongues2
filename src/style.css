@@ -338,7 +338,7 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.15rem;
   text-align: center;
   border: none;
   background: transparent;
@@ -5386,9 +5386,9 @@ pre {
 }
 
 .brand-flame.brand-flame-above {
-  height: 140px;
+  height: 80px;
   width: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: 0;
 }
 
 .language-select-group {

@@ -330,7 +330,8 @@ textarea {
 .dashboard-brand-line {
   flex: 1;
   height: 1px;
-  background: #DCAEB3;
+  background: #D93636;
+  opacity: 0.3;
   max-width: 400px;
 }
 
@@ -5369,7 +5370,7 @@ pre {
 
 .brand-dot {
   margin-left: -0.12em;   /* increase negative margin so the dot hugs the "s" */
-  color: #C41E3A;
+  color: #D93636;
 }
 
 .dashboard-brand-language-wrapper {
@@ -5386,7 +5387,7 @@ pre {
 }
 
 .brand-flame.brand-flame-above {
-  height: 80px;
+  height: 100px;
   width: auto;
   margin-bottom: 0.15rem;
 }
@@ -21403,7 +21404,8 @@ body.active-pass-locked {
 }
 
 .home-progress-bar.has-data {
-  background: #D4686F;
+  background: #D93636;
+  opacity: 0.6;
 }
 
 .home-progress-x-axis {
@@ -21442,7 +21444,7 @@ body.active-pass-locked {
 
 .home-progress-gain {
   font-size: 0.7rem;
-  color: #C41E3A;
+  color: #D93636;
   font-weight: 500;
   text-align: right;
   margin-left: 36px;

@@ -5386,9 +5386,9 @@ pre {
 }
 
 .brand-flame.brand-flame-above {
-  height: 80px;
+  height: 120px;
   width: auto;
-  margin-bottom: 0;
+  margin-bottom: -1.5rem;
 }
 
 .language-select-group {

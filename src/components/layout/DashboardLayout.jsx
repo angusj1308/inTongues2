@@ -5,7 +5,7 @@ import spanishFlame from '../../assets/spanish-flame-transparent.png'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 import { resetVocabProgress } from '../../services/vocab'
 
-export const DASHBOARD_TABS = ['home', 'read', 'listen', 'speak', 'write', 'review', 'tutor']
+export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review', 'tutor']
 
 const LANGUAGE_NATIVE_NAMES = {
   English: 'English',
@@ -244,7 +244,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
         {/* Centered brand below nav */}
         <div className="dashboard-brand-row">
           <span className="dashboard-brand-line" />
-          <div className="dashboard-brand-center">
+          <button
+            className="dashboard-brand-center"
+            onClick={() => onTabChange && onTabChange('home')}
+            aria-label="Go to home"
+          >
             {activeLanguage === 'Spanish' && (
               <img src={spanishFlame} alt="" className="brand-flame brand-flame-above" />
             )}
@@ -254,7 +258,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
               {activeLanguage !== 'Spanish' && <span className="brand-dot">.</span>}
             </div>
             <p className="dashboard-tagline">y comenzaron a hablar en otras lenguas</p>
-          </div>
+          </button>
           <span className="dashboard-brand-line" />
         </div>
       </header>

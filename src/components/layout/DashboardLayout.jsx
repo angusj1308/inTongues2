@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import spanishFlame from '../../assets/redflame.png'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabel } from '../../constants/languages'
 import { resetVocabProgress } from '../../services/vocab'
 
@@ -249,9 +248,6 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             onClick={() => onTabChange && onTabChange('home')}
             aria-label="Go to home"
           >
-            {activeLanguage === 'Spanish' && (
-              <img src={spanishFlame} alt="" className="brand-flame brand-flame-above" />
-            )}
             <div className="dashboard-brand">
               <span className="dashboard-brand-prefix">{brandPrefix}</span>
               <span className="dashboard-brand-language">{brandLanguage}</span>

@@ -21851,6 +21851,10 @@ body.active-pass-locked {
   border-right: 1px solid #f1f5f9;
 }
 
+.routine-day-header-cell:first-of-type {
+  border-left: 1px solid #f1f5f9;
+}
+
 .routine-day-header-cell:last-child {
   border-right: none;
 }
@@ -21908,8 +21912,8 @@ body.active-pass-locked {
   padding-right: 0.5rem;
   font-size: 0.6rem;
   color: #94a3b8;
-  position: relative;
-  top: -0.35rem;
+  line-height: 1;
+  margin-top: -0.3em;
 }
 
 /* Week grid - uses display:contents so day columns participate in parent grid */

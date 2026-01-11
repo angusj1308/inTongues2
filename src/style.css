@@ -27,7 +27,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #fff;
+  background: #FAFAF8;
 }
 
 #root {
@@ -284,7 +284,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #fff;
+  background: #FAFAF8;
   min-height: 100vh;
 }
 
@@ -491,7 +491,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #fff;
+  background: #FAFAF8;
 }
 
 .dashboard-wrapper {

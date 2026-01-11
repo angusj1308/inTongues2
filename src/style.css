@@ -21129,9 +21129,9 @@ body.active-pass-locked {
 
 .home-card-title {
   font-family: 'Garamond', serif;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9B2C2C;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 1rem;
@@ -21565,9 +21565,9 @@ body.active-pass-locked {
 /* Section Title */
 .home-section-title {
   font-family: 'Garamond', serif;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9B2C2C;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;

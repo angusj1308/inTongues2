@@ -330,7 +330,7 @@ textarea {
 .dashboard-brand-line {
   flex: 1;
   height: 1px;
-  background: #C53030;
+  background: #9B2C2C;
   max-width: 400px;
 }
 
@@ -531,11 +531,11 @@ textarea {
 }
 
 .dashboard-brand-prefix {
-  color: #0f172a;
+  color: #9B2C2C;
 }
 
 .dashboard-brand-language {
-  color: inherit;
+  color: #9B2C2C;
   font-weight: 300;
 }
 
@@ -5369,7 +5369,7 @@ pre {
 
 .brand-dot {
   margin-left: -0.12em;   /* increase negative margin so the dot hugs the "s" */
-  color: #C53030;
+  color: #9B2C2C;
 }
 
 .dashboard-brand-language-wrapper {
@@ -21121,13 +21121,10 @@ body.active-pass-locked {
 
 /* Home Cards */
 .home-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.5rem;
+  padding: 1.5rem 0;
   min-height: 180px;
   display: flex;
   flex-direction: column;
-  background: #fff;
 }
 
 .home-card-title {
@@ -21442,7 +21439,7 @@ body.active-pass-locked {
 
 .home-progress-gain {
   font-size: 0.7rem;
-  color: #C53030;
+  color: #9B2C2C;
   font-weight: 500;
   text-align: right;
   margin-left: 36px;

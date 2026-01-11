@@ -386,7 +386,7 @@ const RoutineBuilder = ({ userId, language }) => {
             <div className="routine-hour-labels">
               {HOURS.map((hour) => (
                 <div key={hour} className="routine-hour-label">
-                  {formatHour(hour)}
+                  {hour !== 0 && formatHour(hour)}
                 </div>
               ))}
             </div>

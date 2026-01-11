@@ -305,12 +305,16 @@ textarea {
 }
 
 .dashboard-header-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   padding: 0 1.5rem;
   width: min(1320px, 100%);
   margin: 0 auto;
+}
+
+.dashboard-header-row::before {
+  content: '';
 }
 
 .dashboard-brand-row {
@@ -361,6 +365,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  justify-self: end;
 }
 
 .dashboard-icon-btn {

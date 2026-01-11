@@ -21110,8 +21110,9 @@ body.active-pass-locked {
 /* Two Column Grid */
 .home-grid-two {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6rem;
+  grid-template-columns: minmax(0, 380px) minmax(0, 480px);
+  gap: 4rem;
+  justify-content: space-between;
 }
 
 @media (max-width: 640px) {

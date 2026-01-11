@@ -5376,13 +5376,10 @@ pre {
   transform: translateY(0.08em);
 }
 
-.brand-flame.brand-flame-centered {
-  position: absolute;
-  height: 0.5em;
-  left: 50%;
-  top: -0.4em;
-  transform: translateX(-50%);
-  margin-left: 0;
+.brand-flame.brand-flame-above {
+  height: 48px;
+  width: auto;
+  margin-bottom: 0.15rem;
 }
 
 .language-select-group {

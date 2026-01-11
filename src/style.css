@@ -526,16 +526,16 @@ textarea {
   gap: 0.05rem;
   font-size: 3.5rem;
   font-weight: 300;
-  font-family: 'Crimson Pro', Georgia, serif;
+  font-family: 'Garamond', Georgia, serif;
   color: inherit;
 }
 
 .dashboard-brand-prefix {
-  color: #9B2C2C;
+  color: #0f172a;
 }
 
 .dashboard-brand-language {
-  color: #9B2C2C;
+  color: #0f172a;
   font-weight: 300;
 }
 

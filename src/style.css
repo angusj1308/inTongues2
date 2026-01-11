@@ -21128,6 +21128,7 @@ body.active-pass-locked {
 }
 
 .home-card-title {
+  font-family: 'Garamond', serif;
   font-size: 0.75rem;
   font-weight: 500;
   color: #94a3b8;
@@ -21563,6 +21564,7 @@ body.active-pass-locked {
 
 /* Section Title */
 .home-section-title {
+  font-family: 'Garamond', serif;
   font-size: 0.75rem;
   font-weight: 500;
   color: #94a3b8;

@@ -331,7 +331,6 @@ textarea {
   flex: 1;
   height: 1px;
   background: #D93636;
-  opacity: 0.3;
   max-width: 400px;
 }
 
@@ -5387,9 +5386,9 @@ pre {
 }
 
 .brand-flame.brand-flame-above {
-  height: 100px;
+  height: 140px;
   width: auto;
-  margin-bottom: 0.15rem;
+  margin-bottom: -0.5rem;
 }
 
 .language-select-group {
@@ -21405,7 +21404,6 @@ body.active-pass-locked {
 
 .home-progress-bar.has-data {
   background: #D93636;
-  opacity: 0.6;
 }
 
 .home-progress-x-axis {

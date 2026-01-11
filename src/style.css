@@ -21121,12 +21121,13 @@ body.active-pass-locked {
 
 /* Home Cards */
 .home-card {
-  border: 1px solid #e5e5e5;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 1.25rem;
+  padding: 1.5rem;
   min-height: 180px;
   display: flex;
   flex-direction: column;
+  background: #fff;
 }
 
 .home-card-title {
@@ -21159,11 +21160,10 @@ body.active-pass-locked {
 }
 
 .home-level-goal {
-  font-size: 0.85rem;
-  color: #64748b;
-  line-height: 1.6;
-  margin: 0 0 1rem;
-  font-style: italic;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
 }
 
 .home-level-activity {
@@ -21197,71 +21197,80 @@ body.active-pass-locked {
 .home-stats-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0;
   flex: 1;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .home-stat-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s ease;
+  transition: all 0.2s ease;
   margin-left: -0.75rem;
   margin-right: -0.75rem;
 }
 
 .home-stat-item:hover {
-  background: rgba(139, 35, 50, 0.05);
+  background: rgba(196, 30, 58, 0.04);
 }
 
 .home-stat-item.active {
-  background: rgba(139, 35, 50, 0.1);
+  background: rgba(196, 30, 58, 0.08);
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
 .home-stat-value {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #0f172a;
   letter-spacing: -0.02em;
-  min-width: 3.5rem;
+  min-width: 3rem;
+  transition: all 0.2s ease;
 }
 
 .home-stat-item.active .home-stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
   color: #C41E3A;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .home-stat-label {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: #64748b;
+  transition: color 0.2s ease;
 }
 
 .home-stat-item.active .home-stat-label {
   color: #C41E3A;
+  font-weight: 500;
 }
 
 .home-level-bottom {
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: 1.5rem;
 }
 
 .home-level-bar {
-  height: 4px;
-  background: #e5e5e5;
-  border-radius: 2px;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .home-level-fill {
   height: 100%;
   background: #C41E3A;
-  border-radius: 2px;
+  border-radius: 4px;
   transition: width 500ms ease;
 }
 
@@ -21269,18 +21278,18 @@ body.active-pass-locked {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .home-level-words {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #0f172a;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .home-level-next {
-  font-size: 0.8rem;
-  color: #94a3b8;
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
 /* Card Header with Controls */

@@ -348,7 +348,7 @@ textarea {
 
 .dashboard-tagline {
   margin: 0.5rem 0 0 0;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-style: normal;
   font-size: 0.65rem;
   font-weight: 400;
@@ -976,7 +976,7 @@ textarea {
   border-radius: 0;
   background: transparent;
   color: #64748b;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 450;
   font-size: 0.9rem;
   text-transform: uppercase;

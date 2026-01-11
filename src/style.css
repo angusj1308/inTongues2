@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Crimson+Pro:wght@300&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Crimson+Pro:wght@300&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -21104,6 +21104,7 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Two Column Grid */
@@ -21227,6 +21228,7 @@ body.active-pass-locked {
   transition: all 0.2s ease;
   margin-left: -0.75rem;
   margin-right: -0.75rem;
+  font-family: inherit;
 }
 
 .home-stat-item:hover {
@@ -21332,6 +21334,7 @@ body.active-pass-locked {
   border-radius: 4px;
   cursor: pointer;
   transition: all 150ms ease;
+  font-family: inherit;
 }
 
 .home-period-btn:hover {
@@ -21607,6 +21610,7 @@ body.active-pass-locked {
   width: 100%;
   text-align: left;
   transition: background 150ms ease;
+  font-family: inherit;
 }
 
 .home-today-item:hover {

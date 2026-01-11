@@ -5363,12 +5363,26 @@ pre {
   color: #8B2332;
 }
 
+.dashboard-brand-language-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .brand-flame {
-  height: 0.85em;  /* Slightly larger to match text better */
+  height: 0.85em;
   width: auto;
   margin-left: 0.05em;
   vertical-align: baseline;
-  transform: translateY(0.08em);  /* Align bottom with text baseline */
+  transform: translateY(0.08em);
+}
+
+.brand-flame.brand-flame-centered {
+  position: absolute;
+  height: 0.5em;
+  left: 50%;
+  top: -0.4em;
+  transform: translateX(-50%);
+  margin-left: 0;
 }
 
 .language-select-group {

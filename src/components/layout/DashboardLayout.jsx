@@ -247,12 +247,13 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
           <div className="dashboard-brand-center">
             <div className="dashboard-brand">
               <span className="dashboard-brand-prefix">{brandPrefix}</span>
-              <span className="dashboard-brand-language">{brandLanguage}</span>
-              {activeLanguage === 'Spanish' ? (
-                <img src={spanishFlame} alt="" className="brand-flame" />
-              ) : (
-                <span className="brand-dot">.</span>
-              )}
+              <span className="dashboard-brand-language-wrapper">
+                {activeLanguage === 'Spanish' && (
+                  <img src={spanishFlame} alt="" className="brand-flame brand-flame-centered" />
+                )}
+                <span className="dashboard-brand-language">{brandLanguage}</span>
+              </span>
+              {activeLanguage !== 'Spanish' && <span className="brand-dot">.</span>}
             </div>
             <p className="dashboard-tagline">y comenzaron a hablar en otras lenguas</p>
           </div>

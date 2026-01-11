@@ -21829,11 +21829,10 @@ body.active-pass-locked {
 /* Sticky day headers row */
 .routine-day-headers {
   display: grid;
-  grid-template-columns: 36px repeat(7, minmax(80px, 1fr));
+  grid-template-columns: 50px repeat(7, 1fr);
   border-bottom: 1px solid #e5e5e5;
   background: #fff;
   flex-shrink: 0;
-  min-width: calc(36px + 560px);
 }
 
 .routine-hour-labels-spacer {
@@ -21848,15 +21847,6 @@ body.active-pass-locked {
   justify-content: center;
   gap: 0.25rem;
   height: 32px;
-  border-right: 1px solid #f1f5f9;
-}
-
-.routine-day-header-cell:first-of-type {
-  border-left: 1px solid #f1f5f9;
-}
-
-.routine-day-header-cell:last-child {
-  border-right: none;
 }
 
 .routine-day-header-cell.routine-day-today {
@@ -21892,8 +21882,7 @@ body.active-pass-locked {
 
 .routine-week-inner {
   display: grid;
-  grid-template-columns: 36px repeat(7, minmax(80px, 1fr));
-  min-width: calc(36px + 560px);
+  grid-template-columns: 50px repeat(7, 1fr);
 }
 
 /* Hour labels on the left - scrolls with content */
@@ -21913,7 +21902,8 @@ body.active-pass-locked {
   font-size: 0.6rem;
   color: #94a3b8;
   line-height: 1;
-  margin-top: -0.3em;
+  position: relative;
+  top: -0.5em;
 }
 
 /* Week grid - uses display:contents so day columns participate in parent grid */
@@ -21966,19 +21956,18 @@ body.active-pass-locked {
 .routine-day-column {
   grid-row: 1;
   position: relative;
-  border-right: 1px solid #f1f5f9;
   height: calc(24 * 40px);
   z-index: 2;
 }
 
 /* Explicit grid-column assignment for each day (within routine-week-grid: hour-lines=1, current-time=2, days=3-9) */
-.routine-day-column:nth-of-type(3) { grid-column: 2; border-left: 1px solid #f1f5f9; }
+.routine-day-column:nth-of-type(3) { grid-column: 2; }
 .routine-day-column:nth-of-type(4) { grid-column: 3; }
 .routine-day-column:nth-of-type(5) { grid-column: 4; }
 .routine-day-column:nth-of-type(6) { grid-column: 5; }
 .routine-day-column:nth-of-type(7) { grid-column: 6; }
 .routine-day-column:nth-of-type(8) { grid-column: 7; }
-.routine-day-column:nth-of-type(9) { grid-column: 8; border-right: none; }
+.routine-day-column:nth-of-type(9) { grid-column: 8; }
 
 .routine-day-column.routine-day-today {
   background: rgba(15, 23, 42, 0.02);

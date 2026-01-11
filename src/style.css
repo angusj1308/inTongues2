@@ -21111,26 +21111,13 @@ body.active-pass-locked {
 .home-grid-two {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  position: relative;
-}
-
-.home-grid-two::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: #9B2C2C;
+  gap: 6rem;
 }
 
 @media (max-width: 640px) {
   .home-grid-two {
     grid-template-columns: 1fr;
-  }
-  .home-grid-two::after {
-    display: none;
+    gap: 2rem;
   }
 }
 
@@ -21144,7 +21131,7 @@ body.active-pass-locked {
 
 .home-card-title {
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: #9B2C2C;
   text-transform: uppercase;

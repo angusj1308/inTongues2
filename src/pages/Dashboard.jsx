@@ -540,9 +540,9 @@ const Dashboard = () => {
         >
           {activeTab === 'home' && (
             <div className="home-content">
-              {/* Row 1: Level + Progress Graph */}
-              <div className="home-grid-two">
-                {/* Level - Left */}
+              {/* Row 1: Three Card Layout */}
+              <div className="home-grid-three">
+                {/* Card 1: Level + Today's Routine */}
                 <div className="home-card home-level-card">
                   <div className="home-level-top">
                     <h3 className="home-card-title">Level</h3>
@@ -550,7 +550,64 @@ const Dashboard = () => {
                   </div>
                   <p className="home-level-goal">{levelInfo.goal}</p>
 
-                  {/* Clickable Stats List */}
+                  <div className="home-level-bottom">
+                    <div className="home-level-bar">
+                      <div
+                        className="home-level-fill"
+                        style={{ width: `${levelInfo.progressPercent}%` }}
+                      />
+                    </div>
+                    <div className="home-level-stats">
+                      <span className="home-level-words">
+                        {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
+                      </span>
+                      {levelInfo.nextLevel && (
+                        <span className="home-level-next">
+                          {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Today's Routine */}
+                  <div className="home-today-section">
+                    <h4 className="home-today-title">Today</h4>
+                    {todayActivities.length > 0 ? (
+                      <div className="home-today-list home-today-compact">
+                        {todayActivities.map((activity) => {
+                          const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
+                          return (
+                            <button
+                              key={activity.id}
+                              className="home-today-item"
+                              onClick={() => {
+                                const tabMap = {
+                                  reading: 'read',
+                                  listening: 'listen',
+                                  speaking: 'speak',
+                                  review: 'review',
+                                  writing: 'write',
+                                  tutor: 'tutor',
+                                }
+                                handleTabClick(tabMap[activity.activityType] || 'read')
+                              }}
+                            >
+                              <span className="home-today-time">{activity.time || '—'}</span>
+                              <span className="home-today-activity">{activityConfig.label}</span>
+                              <span className="home-today-duration">{activity.duration}m</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="home-today-empty">No activities scheduled</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card 2: Stats */}
+                <div className="home-card home-stats-card">
+                  <h3 className="home-card-title">Stats</h3>
                   <div className="home-stats-list">
                     <button
                       className={`home-stat-item ${selectedStat === 'knownWords' ? 'active' : ''}`}
@@ -611,28 +668,9 @@ const Dashboard = () => {
                       <span className="home-stat-label">speaking</span>
                     </button>
                   </div>
-
-                  <div className="home-level-bottom">
-                    <div className="home-level-bar">
-                      <div
-                        className="home-level-fill"
-                        style={{ width: `${levelInfo.progressPercent}%` }}
-                      />
-                    </div>
-                    <div className="home-level-stats">
-                      <span className="home-level-words">
-                        {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
-                      </span>
-                      {levelInfo.nextLevel && (
-                        <span className="home-level-next">
-                          {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
-                        </span>
-                      )}
-                    </div>
-                  </div>
                 </div>
 
-                {/* Progress Graph - Right */}
+                {/* Card 3: Progress Chart */}
                 <ProgressChart
                   userId={user?.uid}
                   language={activeLanguage}
@@ -642,58 +680,7 @@ const Dashboard = () => {
                 />
               </div>
 
-              {/* Row 2: Today's Routine - Full Width */}
-              <div className="home-card home-card-wide">
-                <h3 className="home-card-title">Today</h3>
-                {todayActivities.length > 0 ? (
-                  <div className="home-today-list">
-                    {todayActivities.map((activity) => {
-                      const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
-                      return (
-                        <button
-                          key={activity.id}
-                          className="home-today-item"
-                          onClick={() => {
-                            const tabMap = {
-                              reading: 'read',
-                              listening: 'listen',
-                              speaking: 'speak',
-                              review: 'review',
-                              writing: 'write',
-                              tutor: 'tutor',
-                            }
-                            handleTabClick(tabMap[activity.activityType] || 'read')
-                          }}
-                        >
-                          <span className="home-today-time">{activity.time || '—'}</span>
-                          <span className="home-today-activity">{activityConfig.label}</span>
-                          <span className="home-today-duration">{activity.duration}m</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="home-suggested-routine">
-                    <p className="home-suggested-label">Suggested for {levelInfo.level}</p>
-                    <div className="home-suggested-breakdown">
-                      <div className="home-suggested-item">
-                        <span className="home-suggested-percent">80%</span>
-                        <span className="home-suggested-desc">Intensive reading with audio</span>
-                      </div>
-                      <div className="home-suggested-item">
-                        <span className="home-suggested-percent">10%</span>
-                        <span className="home-suggested-desc">Extensive listening to studied material</span>
-                      </div>
-                      <div className="home-suggested-item">
-                        <span className="home-suggested-percent">10%</span>
-                        <span className="home-suggested-desc">Optional review</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Row 3: Weekly Study Plan */}
+              {/* Row 2: Weekly Calendar */}
               <RoutineBuilder userId={user?.uid} language={activeLanguage} />
             </div>
           )}

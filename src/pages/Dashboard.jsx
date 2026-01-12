@@ -16,7 +16,92 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
-import { getTodayActivities, ACTIVITY_TYPES } from '../services/routine'
+import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
+
+// Get today's day of week (monday, tuesday, etc.)
+const getTodayDayOfWeek = () => {
+  const dayIndex = new Date().getDay()
+  // getDay() returns 0 for Sunday, we need to map to our DAYS_OF_WEEK array
+  const dayMap = [6, 0, 1, 2, 3, 4, 5] // Sun=6, Mon=0, Tue=1, etc.
+  return DAYS_OF_WEEK[dayMap[dayIndex]]
+}
+
+// Simple Add Activity Modal for the routine card
+const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
+  const [activityType, setActivityType] = useState('reading')
+  const [time, setTime] = useState('09:00')
+  const [duration, setDuration] = useState(30)
+
+  if (!isOpen) return null
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onAdd({ activityType, time, duration })
+    setActivityType('reading')
+    setTime('09:00')
+    setDuration(30)
+    onClose()
+  }
+
+  return (
+    <div className="routine-modal-overlay" onClick={onClose}>
+      <div className="routine-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="routine-modal-header">
+          <h3>Add Activity</h3>
+          <span className="routine-modal-day">{DAY_LABELS[getTodayDayOfWeek()]}</span>
+        </div>
+
+        <form onSubmit={handleSubmit} className="routine-modal-form">
+          <div className="routine-activity-type-list">
+            {ACTIVITY_TYPES.map((type) => (
+              <label key={type.id} className="routine-activity-type-option">
+                <input
+                  type="radio"
+                  name="activityType"
+                  value={type.id}
+                  checked={activityType === type.id}
+                  onChange={() => setActivityType(type.id)}
+                />
+                <span>{type.label}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="routine-modal-row">
+            <label>
+              <span className="routine-label-text">Time</span>
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+            </label>
+            <label>
+              <span className="routine-label-text">Duration (min)</span>
+              <input
+                type="number"
+                min={5}
+                max={180}
+                step={5}
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value, 10) || 30)}
+              />
+            </label>
+          </div>
+
+          <div className="routine-modal-actions">
+            <button type="button" className="button ghost" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="button">
+              Add
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 const PinIcon = ({ filled }) => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
@@ -147,6 +232,8 @@ const Dashboard = () => {
   const [homeStatsLoading, setHomeStatsLoading] = useState(true)
   const [todayActivities, setTodayActivities] = useState([])
   const [selectedStat, setSelectedStat] = useState('knownWords')
+  const [showAddActivityModal, setShowAddActivityModal] = useState(false)
+  const [activeRoutineId, setActiveRoutineId] = useState(null)
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -207,13 +294,15 @@ const Dashboard = () => {
     const loadStats = async () => {
       setHomeStatsLoading(true)
       try {
-        const [stats, activities] = await Promise.all([
+        const [stats, activities, routine] = await Promise.all([
           getHomeStats(user.uid, activeLanguage),
           getTodayActivities(user.uid, activeLanguage),
+          getOrCreateActiveRoutine(user.uid, activeLanguage),
         ])
         if (isMounted) {
           setHomeStats(stats)
           setTodayActivities(activities)
+          setActiveRoutineId(routine?.id || null)
         }
       } catch (err) {
         console.error('Failed to load home stats:', err)
@@ -455,6 +544,19 @@ const Dashboard = () => {
     setActiveTab(tab)
   }
 
+  const handleAddActivity = async (activity) => {
+    if (!user?.uid || !activeRoutineId) return
+    try {
+      const today = getTodayDayOfWeek()
+      await addActivity(user.uid, activeRoutineId, today, activity)
+      // Refresh today's activities
+      const activities = await getTodayActivities(user.uid, activeLanguage)
+      setTodayActivities(activities)
+    } catch (err) {
+      console.error('Failed to add activity:', err)
+    }
+  }
+
   const handleOpenBook = (book) => {
     if (!book?.id) return
 
@@ -514,7 +616,16 @@ const Dashboard = () => {
               <div className="home-grid-three">
                 {/* Card 1: Today's Routine */}
                 <div className="home-card home-routine-card">
-                  <h3 className="home-card-title">Routine</h3>
+                  <div className="home-card-header">
+                    <h3 className="home-card-title">Routine</h3>
+                    <button
+                      className="home-add-activity-btn"
+                      onClick={() => setShowAddActivityModal(true)}
+                      title="Add activity"
+                    >
+                      +
+                    </button>
+                  </div>
                   {todayActivities.length > 0 ? (
                     <div className="home-today-list">
                       {todayActivities.map((activity) => {
@@ -545,6 +656,11 @@ const Dashboard = () => {
                   ) : (
                     <p className="home-today-empty">No activities scheduled for today</p>
                   )}
+                  <AddActivityModal
+                    isOpen={showAddActivityModal}
+                    onClose={() => setShowAddActivityModal(false)}
+                    onAdd={handleAddActivity}
+                  />
                 </div>
 
                 {/* Card 2: Stats */}

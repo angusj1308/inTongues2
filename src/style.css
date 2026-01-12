@@ -21329,8 +21329,39 @@ body.active-pass-locked {
   flex-direction: column;
 }
 
+.home-routine-card .home-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.home-routine-card .home-card-header .home-card-title {
+  margin: 0;
+}
+
 .home-routine-card .home-today-list {
   flex: 1;
+}
+
+.home-add-activity-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(155, 44, 44, 0.08);
+  color: #9B2C2C;
+  font-size: 1.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.home-add-activity-btn:hover {
+  background: rgba(155, 44, 44, 0.15);
 }
 
 .home-level-bar {

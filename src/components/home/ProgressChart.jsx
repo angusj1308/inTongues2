@@ -18,6 +18,17 @@ const STAT_TITLES = {
   speakingSeconds: 'Speaking Time',
 }
 
+// Y-axis milestone thresholds for known words
+const WORD_MILESTONES = [1000, 5000, 10000, 25000, 50000, 100000]
+
+// Get the appropriate Y-axis max based on current word count
+const getWordAxisMax = (currentWords) => {
+  for (const milestone of WORD_MILESTONES) {
+    if (currentWords < milestone) return milestone
+  }
+  return WORD_MILESTONES[WORD_MILESTONES.length - 1]
+}
+
 // Format date for x-axis labels based on period
 const formatDateLabel = (dateStr, period) => {
   if (!dateStr) return ''
@@ -46,7 +57,7 @@ const formatWordCount = (count) => {
   return count.toString()
 }
 
-const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {}, levelThreshold }) => {
+const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {} }) => {
   const [period, setPeriod] = useState('week')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -71,13 +82,13 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
     }
   }, [selectedStat, homeStats])
 
-  // For knownWords, use the level threshold as the y-axis max
+  // For knownWords, use milestone-based Y-axis max
   const yAxisMax = useMemo(() => {
-    if (selectedStat === 'knownWords' && levelThreshold && levelThreshold !== Infinity) {
-      return levelThreshold
+    if (selectedStat === 'knownWords') {
+      return getWordAxisMax(currentTotal)
     }
     return null // Let progress.js calculate naturally
-  }, [selectedStat, levelThreshold])
+  }, [selectedStat, currentTotal])
 
   // Fetch progress data when period, language, stat type, or current total changes
   useEffect(() => {

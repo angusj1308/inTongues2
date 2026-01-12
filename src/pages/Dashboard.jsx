@@ -742,15 +742,6 @@ const Dashboard = () => {
                       <span className="home-stat-label">listened</span>
                     </button>
                     <button
-                      className={`home-stat-item ${selectedStat === 'reviews' ? 'active' : ''}`}
-                      onClick={() => setSelectedStat('reviews')}
-                    >
-                      <span className="home-stat-value">
-                        {homeStatsLoading ? '...' : homeStats.reviewCount || 0}
-                      </span>
-                      <span className="home-stat-label">cards reviewed</span>
-                    </button>
-                    <button
                       className={`home-stat-item ${selectedStat === 'wordsWritten' ? 'active' : ''}`}
                       onClick={() => setSelectedStat('wordsWritten')}
                     >

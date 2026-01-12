@@ -21144,14 +21144,15 @@ body.active-pass-locked {
 /* Three Column Grid */
 .home-grid-three {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 2.5rem;
+  grid-template-columns: minmax(0, 280px) minmax(0, 280px) minmax(0, 380px);
+  justify-content: space-between;
 }
 
 @media (max-width: 900px) {
   .home-grid-three {
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
+    justify-content: start;
   }
 }
 

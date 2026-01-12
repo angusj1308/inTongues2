@@ -6,12 +6,13 @@
   font-weight: 400;
   color-scheme: light;
   color: #0f172a;
-  background-color: #f5f5f7;
+  background-color: #ffffff;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --accent-color: #111111;
-  --dashboard-surface: #f5f5f7;
-  --dashboard-surface-contrast: #FAFAF8;
+  --accent-red: #AA151B;
+  --dashboard-surface: #ffffff;
+  --dashboard-surface-contrast: #ffffff;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
@@ -27,7 +28,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #FAFAF8;
+  background: #ffffff;
 }
 
 #root {
@@ -284,7 +285,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #FAFAF8;
+  background: #ffffff;
   min-height: 100vh;
 }
 
@@ -330,7 +331,7 @@ textarea {
 .dashboard-brand-line {
   flex: 1;
   height: 1px;
-  background: #9B2C2C;
+  background: #AA151B;
   max-width: 400px;
 }
 
@@ -498,7 +499,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #FAFAF8;
+  background: #ffffff;
 }
 
 .dashboard-wrapper {
@@ -4333,25 +4334,25 @@ textarea {
 
 /* N - New: muted red at 40% opacity (matches STATUS_OPACITY.new) */
 .intensive-status-pill--new.is-active {
-  background: color-mix(in srgb, #9B2C2C 40%, white);
+  background: color-mix(in srgb, #AA151B 40%, white);
   color: #8B1525;
 }
 
 /* U - Unknown: muted red at 40% (matches STATUS_OPACITY.unknown) */
 .intensive-status-pill--unknown.is-active {
-  background: color-mix(in srgb, #9B2C2C 40%, white);
+  background: color-mix(in srgb, #AA151B 40%, white);
   color: #8B1525;
 }
 
 /* R - Recognised: muted red at 28% (matches STATUS_OPACITY.recognised) */
 .intensive-status-pill--recognised.is-active {
-  background: color-mix(in srgb, #9B2C2C 28%, white);
+  background: color-mix(in srgb, #AA151B 28%, white);
   color: #8B1525;
 }
 
 /* F - Familiar: muted red at 16% (matches STATUS_OPACITY.familiar) */
 .intensive-status-pill--familiar.is-active {
-  background: color-mix(in srgb, #9B2C2C 16%, white);
+  background: color-mix(in srgb, #AA151B 16%, white);
   color: #64748b;
 }
 
@@ -5380,7 +5381,7 @@ pre {
 
 .brand-dot {
   margin-left: -0.12em;   /* increase negative margin so the dot hugs the "s" */
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 .dashboard-brand-language-wrapper {
@@ -8612,7 +8613,7 @@ body.active-pass-locked {
   /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
   color: color-mix(
     in srgb,
-    var(--hlt-base, #9B2C2C) calc(var(--hlt-opacity, 0) * 250%),
+    var(--hlt-base, #AA151B) calc(var(--hlt-opacity, 0) * 250%),
     rgba(255, 255, 255, 0.85)
   );
   background: none;
@@ -10055,11 +10056,11 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-status-pill--new.is-active {
-  background: #9B2C2C;
+  background: #AA151B;
 }
 
 .intensive-vocab-item .intensive-status-pill--unknown.is-active {
-  background: #9B2C2C;
+  background: #AA151B;
 }
 
 .intensive-vocab-item .intensive-status-pill--recognised.is-active {
@@ -10237,7 +10238,7 @@ body.active-pass-locked {
 
 /* Word status active - muted red */
 .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 /* Dark mode cinema header */
@@ -10273,7 +10274,7 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 .cinema-loading-message,
@@ -10348,7 +10349,7 @@ body.active-pass-locked {
 
 /* Word status colors for cinema subtitles - text color on dark background
    Matches the app's established color system:
-   - New words: Always muted red #9B2C2C
+   - New words: Always muted red #AA151B
    - Unknown/Recognised/Familiar: Orange at fading opacity levels (40%, 28%, 16%)
    - Known: White (mastered, blends in) */
 .cinema-subtitle-overlay .word-known {
@@ -10376,7 +10377,7 @@ body.active-pass-locked {
 
 .cinema-subtitle-overlay .word-new {
   /* Always muted red - stands out most */
-  color: #9B2C2C;
+  color: #AA151B;
   font-weight: 600;
 }
 
@@ -10398,7 +10399,7 @@ body.active-pass-locked {
 }
 
 .cinema-subtitle-overlay .phrase-new {
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 /* Karaoke Subtitles - word-by-word reveal */
@@ -13398,7 +13399,7 @@ body.active-pass-locked {
 }
 
 .practice-header-button--active {
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 .practice-header-icon {
@@ -16007,7 +16008,7 @@ body.active-pass-locked {
 }
 
 .tutor-header-btn.active {
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 .tutor-header-aa {
@@ -16420,7 +16421,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .tutor-header-btn.active {
-  color: #9B2C2C;
+  color: #AA151B;
 }
 
 [data-theme='dark'] .tutor-welcome-text {
@@ -21166,7 +21167,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
-  color: #9B2C2C;
+  color: #AA151B;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 1rem;
@@ -21252,11 +21253,11 @@ body.active-pass-locked {
 }
 
 .home-stat-item:hover {
-  background: rgba(155, 44, 44, 0.04);
+  background: rgba(170, 21, 27, 0.04);
 }
 
 .home-stat-item.active {
-  background: rgba(155, 44, 44, 0.08);
+  background: rgba(170, 21, 27, 0.08);
   padding: 0.75rem;
   margin-bottom: 0.25rem;
 }
@@ -21273,7 +21274,7 @@ body.active-pass-locked {
 .home-stat-item.active .home-stat-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #9B2C2C;
+  color: #AA151B;
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -21285,7 +21286,7 @@ body.active-pass-locked {
 }
 
 .home-stat-item.active .home-stat-label {
-  color: #9B2C2C;
+  color: #AA151B;
   font-weight: 500;
 }
 
@@ -21305,7 +21306,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
-  color: #9B2C2C;
+  color: #AA151B;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;
@@ -21360,8 +21361,8 @@ body.active-pass-locked {
   height: 28px;
   border: none;
   border-radius: 6px;
-  background: rgba(155, 44, 44, 0.08);
-  color: #9B2C2C;
+  background: rgba(170, 21, 27, 0.08);
+  color: #AA151B;
   font-size: 1.25rem;
   font-weight: 500;
   cursor: pointer;
@@ -21372,7 +21373,7 @@ body.active-pass-locked {
 }
 
 .home-add-activity-btn:hover {
-  background: rgba(155, 44, 44, 0.15);
+  background: rgba(170, 21, 27, 0.15);
 }
 
 .home-level-bar {
@@ -21384,7 +21385,7 @@ body.active-pass-locked {
 
 .home-level-fill {
   height: 100%;
-  background: #9B2C2C;
+  background: #AA151B;
   border-radius: 4px;
   transition: width 500ms ease;
 }
@@ -21558,7 +21559,7 @@ body.active-pass-locked {
 
 .home-progress-gain {
   font-size: 0.7rem;
-  color: #9B2C2C;
+  color: #AA151B;
   font-weight: 500;
   text-align: right;
   margin-left: 36px;
@@ -21685,7 +21686,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
-  color: #9B2C2C;
+  color: #AA151B;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;
@@ -21989,7 +21990,7 @@ body.active-pass-locked {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #9B2C2C;
+  background: #AA151B;
 }
 
 /* Scrollable week area */
@@ -22055,7 +22056,7 @@ body.active-pass-locked {
   grid-row: 1;
   position: relative;
   height: 2px;
-  background: #9B2C2C;
+  background: #AA151B;
   z-index: 10;
   align-self: start;
   pointer-events: none;
@@ -22068,7 +22069,7 @@ body.active-pass-locked {
   top: -4px;
   width: 10px;
   height: 10px;
-  background: #9B2C2C;
+  background: #AA151B;
   border-radius: 50%;
 }
 
@@ -22113,8 +22114,8 @@ body.active-pass-locked {
 }
 
 .routine-hour-slot:hover {
-  background-color: rgba(155, 44, 44, 0.25);
-  box-shadow: inset 0 0 0 1px rgba(155, 44, 44, 0.4);
+  background-color: rgba(170, 21, 27, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(170, 21, 27, 0.4);
 }
 
 .routine-hour-slot::after {
@@ -22125,7 +22126,7 @@ body.active-pass-locked {
   transform: translate(-50%, -50%);
   font-size: 1.5rem;
   font-weight: 300;
-  color: #9B2C2C;
+  color: #AA151B;
   opacity: 0;
   transition: opacity 150ms ease;
   pointer-events: none;
@@ -22378,8 +22379,8 @@ body.active-pass-locked {
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
   border-radius: 0;
-  background: #9B2C2C;
-  border-color: #9B2C2C;
+  background: #AA151B;
+  border-color: #AA151B;
 }
 
 .routine-modal-actions .button.ghost {

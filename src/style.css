@@ -350,7 +350,6 @@ textarea {
   height: 1px;
   background: #AA151B;
   transform: translateY(0.35em);
-  max-width: 200px;
 }
 
 .dashboard-brand-flag {

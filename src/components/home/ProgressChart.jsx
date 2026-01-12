@@ -18,14 +18,16 @@ const STAT_TITLES = {
   speakingSeconds: 'Speaking Time',
 }
 
-// CEFR level thresholds for known words
-const CEFR_LEVELS = [
-  { level: 'A2', words: 2000 },
-  { level: 'B1', words: 5000 },
-  { level: 'B2', words: 12000 },
-  { level: 'C1', words: 24000 },
-  { level: 'C2', words: 40000 },
-]
+// Y-axis milestone thresholds for known words
+const WORD_MILESTONES = [1000, 5000, 10000, 25000, 50000, 100000]
+
+// Get the appropriate Y-axis max based on current word count
+const getWordAxisMax = (currentWords) => {
+  for (const milestone of WORD_MILESTONES) {
+    if (currentWords < milestone) return milestone
+  }
+  return WORD_MILESTONES[WORD_MILESTONES.length - 1]
+}
 
 // Format date for x-axis labels based on period
 const formatDateLabel = (dateStr, period) => {
@@ -55,7 +57,7 @@ const formatWordCount = (count) => {
   return count.toString()
 }
 
-const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {}, levelThreshold }) => {
+const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {} }) => {
   const [period, setPeriod] = useState('week')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -80,13 +82,13 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
     }
   }, [selectedStat, homeStats])
 
-  // For knownWords, use the level threshold as the y-axis max
+  // For knownWords, use milestone-based Y-axis max
   const yAxisMax = useMemo(() => {
-    if (selectedStat === 'knownWords' && levelThreshold && levelThreshold !== Infinity) {
-      return levelThreshold
+    if (selectedStat === 'knownWords') {
+      return getWordAxisMax(currentTotal)
     }
     return null // Let progress.js calculate naturally
-  }, [selectedStat, levelThreshold])
+  }, [selectedStat, currentTotal])
 
   // Fetch progress data when period, language, stat type, or current total changes
   useEffect(() => {
@@ -217,24 +219,6 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
     }
   }, [data])
 
-  // CEFR level markers for known words (positioned within visible range)
-  const cefrMarkers = useMemo(() => {
-    if (selectedStat !== 'knownWords' || !data || data.isEmpty) return []
-
-    const minY = data.minWords || 0
-    const maxY = data.maxWords || 1
-    const range = maxY - minY
-
-    return CEFR_LEVELS
-      .filter((cefr) => cefr.words > minY && cefr.words <= maxY)
-      .map((cefr) => ({
-        level: cefr.level,
-        words: cefr.words,
-        // Position from bottom (0%) to top (100%)
-        position: ((cefr.words - minY) / range) * 100,
-      }))
-  }, [selectedStat, data])
-
   // Get label for the current stat type
   const statLabel = useMemo(() => {
     return data?.label || 'words'
@@ -276,18 +260,6 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
 
             {/* Main chart area */}
             <div className="home-progress-main">
-              {/* CEFR level markers */}
-              {cefrMarkers.map((marker) => (
-                <div
-                  key={marker.level}
-                  className="home-progress-cefr-marker"
-                  style={{ bottom: `${marker.position}%` }}
-                >
-                  <span className="home-progress-cefr-label">{marker.level}</span>
-                  <div className="home-progress-cefr-line" />
-                </div>
-              ))}
-
               <div className="home-progress-line">
                 <svg viewBox="0 0 200 60" preserveAspectRatio="none" className="home-progress-svg">
                   {linePath && (

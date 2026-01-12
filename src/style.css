@@ -21122,6 +21122,27 @@ body.active-pass-locked {
   }
 }
 
+/* Three Column Grid */
+.home-grid-three {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2.5rem;
+}
+
+@media (max-width: 900px) {
+  .home-grid-three {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-grid-three {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
 /* Home Cards */
 .home-card {
   padding: 1.5rem 0;
@@ -21258,8 +21279,48 @@ body.active-pass-locked {
 }
 
 .home-level-bottom {
-  margin-top: auto;
-  padding-top: 1.5rem;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+}
+
+/* Today Section within Level Card */
+.home-today-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.home-today-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #9B2C2C;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.75rem;
+}
+
+.home-today-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.home-today-compact .home-today-item {
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+}
+
+.home-today-empty {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Stats Card */
+.home-stats-card {
+  display: flex;
+  flex-direction: column;
 }
 
 .home-level-bar {

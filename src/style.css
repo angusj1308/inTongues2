@@ -354,7 +354,7 @@ textarea {
 }
 
 .dashboard-brand-flag {
-  width: 64px;
+  width: 52px;
   height: auto;
   margin-bottom: 0.5rem;
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -364,15 +364,15 @@ textarea {
   margin: 0.5rem 0 0 0;
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-style: normal;
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   font-weight: 400;
   color: #64748b;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .dashboard-header-minimal .dashboard-brand {
-  font-size: 2.4rem;
+  font-size: 3rem;
 }
 
 .dashboard-header-actions {

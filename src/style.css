@@ -573,15 +573,15 @@ textarea {
   top: calc(100% + 0.75rem);
   width: min(360px, 85vw);
   background: #fff;
-  border: 1px solid #0f172a;
-  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 0;
   box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   z-index: 10;
-  font-family: 'Garamond', serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #0f172a;
 }
 
@@ -648,12 +648,13 @@ textarea {
 
 .menu-action {
   padding: 0.45rem 0.75rem;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid #0f172a;
   background: #0f172a;
   color: #fff;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .menu-action.subtle {
@@ -673,13 +674,14 @@ textarea {
 }
 
 .menu-footer {
-  border: 1px solid #0f172a;
+  border: 1px solid #e2e8f0;
   background: #fff;
   padding: 0.85rem 0.95rem;
-  border-radius: 14px;
+  border-radius: 0;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 600;
   text-align: center;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .menu-footer:hover {
@@ -695,7 +697,7 @@ textarea {
   padding: 0.75rem 1rem;
   border: none;
   background: transparent;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.9rem;
   font-weight: 500;
   color: #0f172a;
@@ -22248,11 +22250,13 @@ body.active-pass-locked {
 
 .routine-modal {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   width: min(360px, 100%);
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .routine-modal-header {
@@ -22264,7 +22268,8 @@ body.active-pass-locked {
 }
 
 .routine-modal-header h3 {
-  font-size: 1rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #0f172a;
   margin: 0;
@@ -22394,11 +22399,13 @@ body.active-pass-locked {
   height: 500px;
   max-height: calc(100vh - 4rem);
   background: #fff;
-  border-radius: 16px;
+  border-radius: 0;
+  border: 1px solid #e2e8f0;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .settings-modal-header {
@@ -22411,8 +22418,8 @@ body.active-pass-locked {
 
 .settings-title {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
-  font-size: 1.25rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
 }
@@ -22426,7 +22433,7 @@ body.active-pass-locked {
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 0;
   color: #64748b;
   cursor: pointer;
   transition: all 150ms ease;
@@ -22460,8 +22467,8 @@ body.active-pass-locked {
   padding: 0.75rem 1rem;
   border: none;
   background: transparent;
-  border-radius: 8px;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  border-radius: 0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.9rem;
   font-weight: 500;
   color: #64748b;
@@ -22492,15 +22499,15 @@ body.active-pass-locked {
 
 .settings-panel-title {
   margin: 0 0 0.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
-  font-size: 1.25rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
 }
 
 .settings-panel-description {
   margin: 0 0 2rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.9rem;
   color: #64748b;
 }
@@ -22511,8 +22518,8 @@ body.active-pass-locked {
 
 .settings-section-title {
   margin: 0 0 1rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
-  font-size: 0.8rem;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
@@ -22521,7 +22528,7 @@ body.active-pass-locked {
 
 .settings-value {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.95rem;
   color: #0f172a;
 }
@@ -22539,7 +22546,7 @@ body.active-pass-locked {
   justify-content: space-between;
   padding: 1rem 1.25rem;
   background: #f8fafc;
-  border-radius: 10px;
+  border-radius: 0;
   gap: 1rem;
 }
 
@@ -22554,7 +22561,7 @@ body.active-pass-locked {
   padding: 0;
   border: none;
   background: transparent;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1rem;
   font-weight: 500;
   color: #0f172a;
@@ -22591,7 +22598,7 @@ body.active-pass-locked {
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 0;
   color: #94a3b8;
   cursor: pointer;
   transition: all 150ms ease;
@@ -22629,8 +22636,8 @@ body.active-pass-locked {
   max-width: 300px;
   padding: 0.65rem 1rem;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  border-radius: 0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.9rem;
   color: #0f172a;
   background: #fff;
@@ -22653,7 +22660,7 @@ body.active-pass-locked {
   justify-content: space-between;
   width: 100%;
   gap: 1rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.9rem;
   color: #0f172a;
 }

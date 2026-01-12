@@ -734,7 +734,7 @@ textarea {
 }
 
 .menu-item.danger {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .menu-item.danger:hover {
@@ -747,7 +747,7 @@ textarea {
 }
 
 .menu-item.danger svg {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 /* ===========================================
@@ -860,7 +860,7 @@ textarea {
 
 .lang-menu-icon-btn.danger:hover {
   background: #fef2f2;
-  color: #ef4444;
+  color: #374151;
 }
 
 .lang-menu-icon-btn:disabled {
@@ -888,7 +888,7 @@ textarea {
 .lang-menu-confirm-text {
   font-size: 0.8rem;
   font-weight: 500;
-  color: #991b1b;
+  color: #0f172a;
 }
 
 .lang-menu-confirm-actions {
@@ -907,12 +907,12 @@ textarea {
 }
 
 .lang-menu-confirm-yes {
-  background: #ef4444;
+  background: #374151;
   color: #fff;
 }
 
 .lang-menu-confirm-yes:hover {
-  background: #dc2626;
+  background: #0f172a;
 }
 
 .lang-menu-confirm-yes:disabled {
@@ -1779,7 +1779,7 @@ textarea {
 .media-card-delete {
   background: transparent;
   border: none;
-  color: #b91c1c;
+  color: #0f172a;
   font-weight: 600;
   cursor: pointer;
   padding: 0.35rem 0;
@@ -2908,8 +2908,8 @@ textarea {
 }
 
 .speaking-close-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 /* Two-column layout */
@@ -2977,7 +2977,7 @@ textarea {
 }
 
 .speaking-feedback-section.fail {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid #374151;
 }
 
 .speaking-feedback-section.vocab {
@@ -3012,7 +3012,7 @@ textarea {
 }
 
 .speaking-feedback-count.error {
-  color: #ef4444;
+  color: #374151;
 }
 
 .speaking-feedback-count.warn {
@@ -3047,8 +3047,8 @@ textarea {
 }
 
 .speaking-feedback-icon.fail {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .speaking-feedback-chevron {
@@ -3069,7 +3069,7 @@ textarea {
 }
 
 .speaking-correction-item .correction-original {
-  color: #ef4444;
+  color: #374151;
   text-decoration: line-through;
 }
 
@@ -3458,7 +3458,7 @@ textarea {
   height: 80px;
   border-radius: 50%;
   border: none;
-  background: #ef4444;
+  background: #374151;
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -3518,7 +3518,7 @@ textarea {
   padding: 1rem;
   background: #fef2f2;
   border-radius: 10px;
-  color: #dc2626;
+  color: #0f172a;
   text-align: center;
 }
 
@@ -4217,8 +4217,8 @@ textarea {
 }
 
 .transcription-word--wrong {
-  background: color-mix(in srgb, #ef4444 35%, white);
-  color: #991b1b;
+  background: color-mix(in srgb, #374151 35%, white);
+  color: #0f172a;
 }
 
 /* Player wrapper - no width:100% so justify-items:center works */
@@ -4589,12 +4589,12 @@ textarea {
 }
 
 .pronunciation-record-btn.recording {
-  background: #dc2626;
+  background: #0f172a;
   animation: recordPulse 1.5s ease-in-out infinite;
 }
 
 .pronunciation-record-btn.recording:hover {
-  background: #b91c1c;
+  background: #0f172a;
 }
 
 @keyframes recordPulse {
@@ -4612,7 +4612,7 @@ textarea {
 }
 
 [data-theme='dark'] .pronunciation-record-btn.recording {
-  background: #dc2626;
+  background: #0f172a;
   color: white;
 }
 
@@ -4681,7 +4681,7 @@ textarea {
 }
 
 .pronunciation-error {
-  color: #dc2626;
+  color: #0f172a;
   text-align: center;
   padding: 1rem;
 }
@@ -4762,7 +4762,7 @@ textarea {
 
 .intensive-assessment-error {
   background: #fef2f2;
-  color: #dc2626;
+  color: #0f172a;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -4882,7 +4882,7 @@ textarea {
 
 .speaking-practice-error p {
   margin: 0;
-  color: #dc2626;
+  color: #0f172a;
   font-size: 0.9rem;
 }
 
@@ -4937,8 +4937,8 @@ textarea {
 }
 
 .speaking-practice-score.fail {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .speaking-practice-score .score-label {
@@ -11804,13 +11804,13 @@ body.active-pass-locked {
 
 .review-response-button.again {
   background: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
+  border-color: #e2e8f0;
+  color: #0f172a;
 }
 
 .review-response-button.again:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .review-response-button.hard {
@@ -11972,7 +11972,7 @@ body.active-pass-locked {
 }
 
 .writing-piece-header .delete-btn:hover {
-  color: #ef4444;
+  color: #374151;
 }
 
 .writing-piece-type {
@@ -12118,13 +12118,13 @@ body.active-pass-locked {
 }
 
 .modal-content.small .modal-actions .button.danger {
-  background: #dc2626;
+  background: #0f172a;
   color: #fff;
   border: none;
 }
 
 .modal-content.small .modal-actions .button.danger:hover {
-  background: #b91c1c;
+  background: #0f172a;
 }
 
 .modal-header {
@@ -13440,11 +13440,11 @@ body.active-pass-locked {
 }
 
 .dashboard-control.danger {
-  color: #ef4444;
+  color: #374151;
 }
 
 .dashboard-control.danger:hover {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .practice-progress-bar {
@@ -13574,7 +13574,7 @@ body.active-pass-locked {
 
 .practice-chat-message.error {
   background: #fef2f2;
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .practice-chat-message.typing-preview {
@@ -13846,7 +13846,7 @@ body.active-pass-locked {
 }
 
 .feedback-check-item .check-icon.fail {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .feedback-check-item.pass .check-label {
@@ -13858,7 +13858,7 @@ body.active-pass-locked {
 }
 
 .feedback-check-item.fail .check-label {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 /* Corrections list inside expandable checklist */
@@ -13881,7 +13881,7 @@ body.active-pass-locked {
 }
 
 .correction-original {
-  color: #ef4444;
+  color: #374151;
   text-decoration: line-through;
 }
 
@@ -13906,12 +13906,12 @@ body.active-pass-locked {
 /* Feedback Explanation */
 .practice-feedback-explanation {
   background: #fef2f2;
-  border: 1px solid #fecaca;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: #991b1b;
+  color: #0f172a;
 }
 
 /* Follow-up Input */
@@ -14814,8 +14814,8 @@ body.active-pass-locked {
 
 [data-theme='dark'] .practice-feedback-explanation {
   background: #450a0a;
-  border-color: #991b1b;
-  color: #fecaca;
+  border-color: #0f172a;
+  color: #e2e8f0;
 }
 
 [data-theme='dark'] .practice-followup-input {
@@ -15861,7 +15861,7 @@ body.active-pass-locked {
 }
 
 .tutor-sidebar-chat-menu button.danger {
-  color: #ef4444;
+  color: #374151;
 }
 
 .tutor-sidebar-chat-menu button.danger:hover {
@@ -16987,7 +16987,7 @@ body.active-pass-locked {
 }
 
 .tutor-voice-dot.recording {
-  background: #ef4444;
+  background: #374151;
   animation: pulse-recording 1s infinite;
 }
 
@@ -17022,12 +17022,12 @@ body.active-pass-locked {
 }
 
 .tutor-voice-btn.stop {
-  background: #ef4444;
+  background: #374151;
   color: #ffffff;
 }
 
 .tutor-voice-btn.stop:hover {
-  background: #dc2626;
+  background: #0f172a;
 }
 
 .tutor-voice-btn.play {
@@ -17041,7 +17041,7 @@ body.active-pass-locked {
 
 .tutor-voice-btn.discard {
   background: #f3f4f6;
-  color: #ef4444;
+  color: #374151;
 }
 
 .tutor-voice-btn.discard:hover {
@@ -17688,7 +17688,7 @@ body.active-pass-locked {
   padding: 0.75rem 1rem;
   background: rgba(239, 68, 68, 0.2);
   border-radius: 8px;
-  color: #fca5a5;
+  color: #cbd5e1;
   font-size: 0.875rem;
 }
 
@@ -17722,16 +17722,16 @@ body.active-pass-locked {
 }
 
 .tutor-call-btn.mute.active {
-  background: #ef4444;
+  background: #374151;
 }
 
 .tutor-call-btn.end {
-  background: #ef4444;
+  background: #374151;
   color: #ffffff;
 }
 
 .tutor-call-btn.end:hover {
-  background: #dc2626;
+  background: #0f172a;
 }
 
 .tutor-call-btn.transcript {
@@ -17961,8 +17961,8 @@ body.active-pass-locked {
 }
 
 .speak-session-delete:hover {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 /* Medium spinner for session cards */
@@ -18128,7 +18128,7 @@ body.active-pass-locked {
 }
 
 .speak-media-card-delete:hover {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .speak-media-card-progress {
@@ -18189,7 +18189,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .speak-media-card-delete:hover {
-  color: #f87171;
+  color: #64748b;
 }
 
 [data-theme='dark'] .speak-media-card-progress {
@@ -18313,7 +18313,7 @@ body.active-pass-locked {
 
 .audio-recorder-error {
   background: #fef2f2;
-  color: #dc2626;
+  color: #0f172a;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -18339,14 +18339,14 @@ body.active-pass-locked {
 }
 
 .audio-recorder-timer.recording .timer-display {
-  color: #ef4444;
+  color: #374151;
 }
 
 .recording-indicator {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #ef4444;
+  color: #374151;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -18355,7 +18355,7 @@ body.active-pass-locked {
 .recording-dot {
   width: 8px;
   height: 8px;
-  background: #ef4444;
+  background: #374151;
   border-radius: 50%;
   animation: pulse-recording 1s infinite;
 }
@@ -18393,12 +18393,12 @@ body.active-pass-locked {
 }
 
 .btn-record-start {
-  background: #ef4444;
+  background: #374151;
   color: white;
 }
 
 .btn-record-start:hover {
-  background: #dc2626;
+  background: #0f172a;
 }
 
 .btn-record-stop {
@@ -19121,7 +19121,7 @@ body.active-pass-locked {
   padding: 1rem;
   background: #fef2f2;
   border-radius: 8px;
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .session-navigation {
@@ -19451,8 +19451,8 @@ body.active-pass-locked {
 }
 
 .score-main.score-needs-work {
-  background: #fee2e2;
-  color: #dc2626;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .score-value {
@@ -19504,7 +19504,7 @@ body.active-pass-locked {
 .score-bar-fill.score-excellent { background: #16a34a; }
 .score-bar-fill.score-good { background: #2563eb; }
 .score-bar-fill.score-fair { background: #d97706; }
-.score-bar-fill.score-needs-work { background: #dc2626; }
+.score-bar-fill.score-needs-work { background: #0f172a; }
 
 .score-item-value {
   width: 30px;
@@ -19589,8 +19589,8 @@ body.active-pass-locked {
 }
 
 .word-item.error {
-  background: #fee2e2;
-  border-color: #fecaca;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
 }
 
 .word-text {
@@ -19605,7 +19605,7 @@ body.active-pass-locked {
 
 .word-error-type {
   font-size: 0.625rem;
-  color: #dc2626;
+  color: #0f172a;
   text-transform: uppercase;
 }
 
@@ -19673,7 +19673,7 @@ body.active-pass-locked {
 /* GPT-4o Error Feedback Styles */
 .pronunciation-summary {
   background: #fef2f2;
-  border: 1px solid #fecaca;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
@@ -19682,7 +19682,7 @@ body.active-pass-locked {
 .pronunciation-summary p {
   margin: 0;
   font-weight: 500;
-  color: #991b1b;
+  color: #0f172a;
 }
 
 .pronunciation-errors {
@@ -19693,13 +19693,13 @@ body.active-pass-locked {
   margin: 0 0 1rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .error-item {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid #0f172a;
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -19720,8 +19720,8 @@ body.active-pass-locked {
 
 .error-sound {
   font-family: monospace;
-  background: #fee2e2;
-  color: #dc2626;
+  background: #f1f5f9;
+  color: #0f172a;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -19787,7 +19787,7 @@ body.active-pass-locked {
 .interp-excellent { background: #dcfce7; color: #166534; }
 .interp-good { background: #dbeafe; color: #1e40af; }
 .interp-fair { background: #fef3c7; color: #92400e; }
-.interp-poor { background: #fee2e2; color: #991b1b; }
+.interp-poor { background: #f1f5f9; color: #0f172a; }
 
 /* Dark mode for GPT-4o error styles */
 [data-theme='dark'] .pronunciation-summary {
@@ -19796,7 +19796,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .pronunciation-summary p {
-  color: #fecaca;
+  color: #e2e8f0;
 }
 
 [data-theme='dark'] .error-item {
@@ -19844,7 +19844,7 @@ body.active-pass-locked {
 
 .major-issues {
   background: #fef2f2;
-  border: 1px solid #fecaca;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -19852,7 +19852,7 @@ body.active-pass-locked {
 
 .major-issues h5 {
   margin: 0 0 0.5rem;
-  color: #dc2626;
+  color: #0f172a;
   font-size: 0.875rem;
 }
 
@@ -19862,7 +19862,7 @@ body.active-pass-locked {
 }
 
 .issues-list li {
-  color: #991b1b;
+  color: #0f172a;
   font-size: 0.8125rem;
   margin-bottom: 0.25rem;
 }
@@ -19884,7 +19884,7 @@ body.active-pass-locked {
 }
 
 .ipa-heard {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .tip-phoneme-symbol {
@@ -19898,7 +19898,7 @@ body.active-pass-locked {
 .tip-issue {
   display: block;
   font-size: 0.75rem;
-  color: #dc2626;
+  color: #0f172a;
   margin: 0.25rem 0;
 }
 
@@ -19927,11 +19927,11 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .major-issues h5 {
-  color: #fca5a5;
+  color: #cbd5e1;
 }
 
 [data-theme='dark'] .issues-list li {
-  color: #fecaca;
+  color: #e2e8f0;
 }
 
 .score-encouragement {
@@ -20383,7 +20383,7 @@ body.active-pass-locked {
 
 .strikethrough {
   text-decoration: line-through;
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .correction-corrected .text {
@@ -20490,7 +20490,7 @@ body.active-pass-locked {
 
 .floating-recording-error {
   background: #fef2f2;
-  color: #dc2626;
+  color: #0f172a;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -20499,7 +20499,7 @@ body.active-pass-locked {
 
 [data-theme='dark'] .floating-recording-error {
   background: #450a0a;
-  color: #fca5a5;
+  color: #cbd5e1;
 }
 
 .floating-recording-waveform {
@@ -20534,7 +20534,7 @@ body.active-pass-locked {
 }
 
 .floating-recording-timer.recording {
-  color: #ef4444;
+  color: #374151;
 }
 
 .floating-recording-timer .recording-indicator {
@@ -20545,7 +20545,7 @@ body.active-pass-locked {
 .floating-recording-timer .recording-dot {
   width: 12px;
   height: 12px;
-  background: #ef4444;
+  background: #374151;
   border-radius: 50%;
   animation: pulse-recording 1.5s ease-in-out infinite;
 }
@@ -20576,12 +20576,12 @@ body.active-pass-locked {
 }
 
 .floating-btn-record {
-  background: #ef4444;
+  background: #374151;
   color: #ffffff;
 }
 
 .floating-btn-record:hover {
-  background: #dc2626;
+  background: #0f172a;
   transform: scale(1.02);
 }
 
@@ -20960,7 +20960,7 @@ body.active-pass-locked {
 }
 
 .free-speaking-recording-card .floating-recording-timer.recording {
-  color: #ef4444;
+  color: #374151;
 }
 
 .free-speaking-recording-card .floating-recording-controls {
@@ -20980,7 +20980,7 @@ body.active-pass-locked {
 }
 
 .free-speaking-recording-card .floating-btn-record {
-  background: #ef4444;
+  background: #374151;
   color: white;
   border: none;
   cursor: pointer;
@@ -20988,7 +20988,7 @@ body.active-pass-locked {
 }
 
 .free-speaking-recording-card .floating-btn-record:hover {
-  background: #dc2626;
+  background: #0f172a;
   transform: scale(1.02);
 }
 
@@ -22658,7 +22658,7 @@ body.active-pass-locked {
 
 .settings-icon-btn.danger:hover {
   background: #fef2f2;
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .settings-icon-btn:disabled {
@@ -22758,7 +22758,7 @@ body.active-pass-locked {
 }
 
 .btn-ghost.danger {
-  color: #dc2626;
+  color: #0f172a;
 }
 
 .btn-ghost.danger:hover {
@@ -22771,12 +22771,12 @@ body.active-pass-locked {
 }
 
 .btn-danger {
-  background: #dc2626;
+  background: #0f172a;
   color: #fff;
 }
 
 .btn-danger:hover {
-  background: #b91c1c;
+  background: #0f172a;
 }
 
 /* Responsive Settings */

@@ -242,8 +242,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
         </div>
 
         {/* Centered brand below nav */}
-        <div className="dashboard-brand-row">
-          <span className="dashboard-brand-line" />
+        <div className="dashboard-brand-section">
           <button
             className="dashboard-brand-center"
             onClick={() => onTabChange && onTabChange('home')}
@@ -256,14 +255,17 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                 className="dashboard-brand-flag"
               />
             )}
-            <div className="dashboard-brand">
-              <span className="dashboard-brand-prefix">{brandPrefix}</span>
-              <span className="dashboard-brand-language">{brandLanguage}</span>
-              {activeLanguage !== 'Spanish' && <span className="brand-dot">.</span>}
+            <div className="dashboard-brand-row">
+              <span className="dashboard-brand-line" />
+              <div className="dashboard-brand">
+                <span className="dashboard-brand-prefix">{brandPrefix}</span>
+                <span className="dashboard-brand-language">{brandLanguage}</span>
+                {activeLanguage !== 'Spanish' && <span className="brand-dot">.</span>}
+              </div>
+              <span className="dashboard-brand-line" />
             </div>
             <p className="dashboard-tagline">y comenzaron a hablar en otras lenguas</p>
           </button>
-          <span className="dashboard-brand-line" />
         </div>
       </header>
 

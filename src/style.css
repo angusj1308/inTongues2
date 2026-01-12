@@ -318,14 +318,31 @@ textarea {
   content: '';
 }
 
+.dashboard-brand-section {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.dashboard-brand-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  width: 100%;
+}
+
 .dashboard-brand-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  padding: 0 1.5rem;
-  width: min(1320px, 100%);
-  margin: 0 auto;
+  width: 100%;
 }
 
 .dashboard-brand-line {
@@ -333,18 +350,6 @@ textarea {
   height: 1px;
   background: #AA151B;
   max-width: 400px;
-}
-
-.dashboard-brand-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  text-align: center;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
 }
 
 .dashboard-brand-flag {

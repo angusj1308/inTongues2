@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
@@ -26,11 +26,41 @@ const getTodayDayOfWeek = () => {
   return DAYS_OF_WEEK[dayMap[dayIndex]]
 }
 
-// Simple Add Activity Modal for the routine card
-const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
+// Simple Add Activity Modal for the routine card (positioned as popover)
+const AddActivityModal = ({ isOpen, onClose, onAdd, anchorPosition }) => {
   const [activityType, setActivityType] = useState('reading')
   const [time, setTime] = useState('09:00')
   const [duration, setDuration] = useState(30)
+  const modalRef = useRef(null)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+
+  // Calculate position when modal opens
+  useEffect(() => {
+    if (isOpen && anchorPosition && modalRef.current) {
+      const modalRect = modalRef.current.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+
+      let top = anchorPosition.y + 8
+      let left = anchorPosition.x
+
+      // Adjust if modal would go off right edge
+      if (left + modalRect.width > viewportWidth - 16) {
+        left = viewportWidth - modalRect.width - 16
+      }
+
+      // Adjust if modal would go off bottom edge
+      if (top + modalRect.height > viewportHeight - 16) {
+        top = anchorPosition.y - modalRect.height - 8
+      }
+
+      // Ensure minimum positioning
+      left = Math.max(16, left)
+      top = Math.max(16, top)
+
+      setPosition({ top, left })
+    }
+  }, [isOpen, anchorPosition])
 
   if (!isOpen) return null
 
@@ -45,7 +75,12 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
 
   return (
     <div className="routine-modal-overlay" onClick={onClose}>
-      <div className="routine-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className="routine-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ top: position.top, left: position.left }}
+      >
         <div className="routine-modal-header">
           <h3>Add Activity</h3>
           <span className="routine-modal-day">{DAY_LABELS[getTodayDayOfWeek()]}</span>
@@ -232,7 +267,7 @@ const Dashboard = () => {
   const [homeStatsLoading, setHomeStatsLoading] = useState(true)
   const [todayActivities, setTodayActivities] = useState([])
   const [selectedStat, setSelectedStat] = useState('knownWords')
-  const [showAddActivityModal, setShowAddActivityModal] = useState(false)
+  const [addActivityModal, setAddActivityModal] = useState({ isOpen: false, position: null })
   const [activeRoutineId, setActiveRoutineId] = useState(null)
 
   const availableLanguages = useMemo(
@@ -620,7 +655,13 @@ const Dashboard = () => {
                     <h3 className="home-card-title">Routine</h3>
                     <button
                       className="home-add-activity-btn"
-                      onClick={() => setShowAddActivityModal(true)}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setAddActivityModal({
+                          isOpen: true,
+                          position: { x: rect.left, y: rect.bottom }
+                        })
+                      }}
                       title="Add activity"
                     >
                       +
@@ -657,9 +698,10 @@ const Dashboard = () => {
                     <p className="home-today-empty">No activities scheduled for today</p>
                   )}
                   <AddActivityModal
-                    isOpen={showAddActivityModal}
-                    onClose={() => setShowAddActivityModal(false)}
+                    isOpen={addActivityModal.isOpen}
+                    onClose={() => setAddActivityModal({ isOpen: false, position: null })}
                     onAdd={handleAddActivity}
+                    anchorPosition={addActivityModal.position}
                   />
                 </div>
 

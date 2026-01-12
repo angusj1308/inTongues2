@@ -22236,25 +22236,22 @@ body.active-pass-locked {
   }
 }
 
-/* Modal Overlay - Minimal */
+/* Modal Overlay - Minimal (now a transparent backdrop for popover) */
 .routine-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
   z-index: 1000;
-  padding: 1rem;
 }
 
 .routine-modal {
-  background: #fff;
+  position: absolute;
+  background: #f5f5f7;
   border-radius: 0;
-  width: min(360px, 100%);
-  max-height: 90vh;
+  width: min(360px, calc(100vw - 2rem));
+  max-height: min(90vh, 500px);
   overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   border: 1px solid #e2e8f0;
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -22337,6 +22334,26 @@ body.active-pass-locked {
 .routine-modal-row input {
   padding: 0.5rem 0.65rem;
   font-size: 0.85rem;
+  border-radius: 0;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.routine-modal-row input[type="time"] {
+  font-family: 'EB Garamond', Georgia, serif;
+  letter-spacing: 0.02em;
+}
+
+.routine-modal-row input[type="number"] {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.routine-modal-row input:focus {
+  outline: none;
+  border-color: #94a3b8;
 }
 
 /* Modal Actions */
@@ -22351,16 +22368,19 @@ body.active-pass-locked {
 .routine-modal-actions .button {
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
+  border-radius: 0;
 }
 
 .routine-modal-actions .button.ghost {
   background: transparent;
-  border: none;
+  border: 1px solid #cbd5e1;
   color: #64748b;
+  border-radius: 0;
 }
 
 .routine-modal-actions .button.ghost:hover {
   color: #0f172a;
+  border-color: #94a3b8;
 }
 
 /* Remove old today activity card styles - now using minimal inline list */

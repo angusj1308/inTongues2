@@ -80,14 +80,44 @@ const ActivityBlock = ({ activity, onRemove, onClick }) => {
   )
 }
 
-const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime }) => {
+const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime, anchorPosition }) => {
   const [activityType, setActivityType] = useState('reading')
   const [time, setTime] = useState(defaultTime || '09:00')
   const [duration, setDuration] = useState(30)
+  const modalRef = useRef(null)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
 
   useEffect(() => {
     if (defaultTime) setTime(defaultTime)
   }, [defaultTime])
+
+  // Calculate position when modal opens
+  useEffect(() => {
+    if (isOpen && anchorPosition && modalRef.current) {
+      const modalRect = modalRef.current.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+
+      let top = anchorPosition.y + 8
+      let left = anchorPosition.x
+
+      // Adjust if modal would go off right edge
+      if (left + modalRect.width > viewportWidth - 16) {
+        left = viewportWidth - modalRect.width - 16
+      }
+
+      // Adjust if modal would go off bottom edge
+      if (top + modalRect.height > viewportHeight - 16) {
+        top = anchorPosition.y - modalRect.height - 8
+      }
+
+      // Ensure minimum positioning
+      left = Math.max(16, left)
+      top = Math.max(16, top)
+
+      setPosition({ top, left })
+    }
+  }, [isOpen, anchorPosition])
 
   if (!isOpen) return null
 
@@ -106,7 +136,12 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime }) => {
 
   return (
     <div className="routine-modal-overlay" onClick={onClose}>
-      <div className="routine-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        className="routine-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ top: position.top, left: position.left }}
+      >
         <div className="routine-modal-header">
           <h3>Add Activity</h3>
           <span className="routine-modal-day">{DAY_LABELS[day]}</span>
@@ -165,12 +200,15 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime }) => {
 }
 
 const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivityClick, isToday }) => {
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [clickedHour, setClickedHour] = useState(null)
+  const [modalState, setModalState] = useState({ isOpen: false, hour: null, position: null })
 
-  const handleTimeSlotClick = (hour) => {
-    setClickedHour(`${hour.toString().padStart(2, '0')}:00`)
-    setShowAddModal(true)
+  const handleTimeSlotClick = (hour, e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setModalState({
+      isOpen: true,
+      hour: `${hour.toString().padStart(2, '0')}:00`,
+      position: { x: rect.left, y: rect.top }
+    })
   }
 
   return (
@@ -181,7 +219,7 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
           <div
             key={hour}
             className="routine-hour-slot"
-            onClick={() => handleTimeSlotClick(hour)}
+            onClick={(e) => handleTimeSlotClick(hour, e)}
             title={`Add activity at ${formatHour(hour)}`}
           />
         ))}
@@ -198,14 +236,12 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
       </div>
 
       <AddActivityModal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false)
-          setClickedHour(null)
-        }}
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ isOpen: false, hour: null, position: null })}
         day={day}
-        defaultTime={clickedHour}
+        defaultTime={modalState.hour}
         onAdd={(activity) => onAddActivity(day, activity)}
+        anchorPosition={modalState.position}
       />
     </div>
   )

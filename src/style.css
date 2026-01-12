@@ -346,6 +346,13 @@ textarea {
   padding: 0;
 }
 
+.dashboard-brand-flag {
+  width: 48px;
+  height: auto;
+  margin-bottom: 0.35rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .dashboard-tagline {
   margin: 0.5rem 0 0 0;
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;

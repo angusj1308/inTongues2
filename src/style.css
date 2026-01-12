@@ -21144,8 +21144,14 @@ body.active-pass-locked {
 /* Three Column Grid */
 .home-grid-three {
   display: grid;
-  grid-template-columns: minmax(0, 280px) minmax(0, 280px) minmax(0, 380px);
+  grid-template-columns: minmax(0, 280px) 1px minmax(0, 280px) 1px minmax(0, 380px);
   justify-content: space-between;
+}
+
+.home-grid-divider {
+  width: 1px;
+  background: #DC143C;
+  align-self: stretch;
 }
 
 @media (max-width: 900px) {
@@ -21153,6 +21159,9 @@ body.active-pass-locked {
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
     justify-content: start;
+  }
+  .home-grid-divider {
+    display: none;
   }
 }
 
@@ -21175,7 +21184,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
-  color: #DC143C;
+  color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 1rem;
@@ -21693,7 +21702,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
-  color: #DC143C;
+  color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;

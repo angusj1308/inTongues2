@@ -705,6 +705,9 @@ const Dashboard = () => {
                   />
                 </div>
 
+                {/* Divider */}
+                <div className="home-grid-divider" />
+
                 {/* Card 2: Stats */}
                 <div className="home-card home-stats-card">
                   <h3 className="home-card-title">Stats</h3>
@@ -769,6 +772,9 @@ const Dashboard = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Divider */}
+                <div className="home-grid-divider" />
 
                 {/* Card 3: Progress Chart */}
                 <ProgressChart

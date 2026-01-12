@@ -10,7 +10,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --accent-color: #111111;
-  --accent-red: #AA151B;
+  --accent-red: #0f172a;
   --dashboard-surface: #ffffff;
   --dashboard-surface-contrast: #ffffff;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -4349,25 +4349,25 @@ textarea {
 
 /* N - New: muted red at 40% opacity (matches STATUS_OPACITY.new) */
 .intensive-status-pill--new.is-active {
-  background: color-mix(in srgb, #AA151B 40%, white);
+  background: color-mix(in srgb, #0f172a 40%, white);
   color: #8B1525;
 }
 
 /* U - Unknown: muted red at 40% (matches STATUS_OPACITY.unknown) */
 .intensive-status-pill--unknown.is-active {
-  background: color-mix(in srgb, #AA151B 40%, white);
+  background: color-mix(in srgb, #0f172a 40%, white);
   color: #8B1525;
 }
 
 /* R - Recognised: muted red at 28% (matches STATUS_OPACITY.recognised) */
 .intensive-status-pill--recognised.is-active {
-  background: color-mix(in srgb, #AA151B 28%, white);
+  background: color-mix(in srgb, #0f172a 28%, white);
   color: #8B1525;
 }
 
 /* F - Familiar: muted red at 16% (matches STATUS_OPACITY.familiar) */
 .intensive-status-pill--familiar.is-active {
-  background: color-mix(in srgb, #AA151B 16%, white);
+  background: color-mix(in srgb, #0f172a 16%, white);
   color: #64748b;
 }
 
@@ -5396,7 +5396,7 @@ pre {
 
 .brand-dot {
   margin-left: -0.12em;   /* increase negative margin so the dot hugs the "s" */
-  color: #AA151B;
+  color: #0f172a;
 }
 
 .dashboard-brand-language-wrapper {
@@ -8628,7 +8628,7 @@ body.active-pass-locked {
   /* Scale opacity to percentage: 0.4 → 100%, 0.28 → 70%, 0.16 → 40%, 0 → 0% */
   color: color-mix(
     in srgb,
-    var(--hlt-base, #AA151B) calc(var(--hlt-opacity, 0) * 250%),
+    var(--hlt-base, #0f172a) calc(var(--hlt-opacity, 0) * 250%),
     rgba(255, 255, 255, 0.85)
   );
   background: none;
@@ -10071,11 +10071,11 @@ body.active-pass-locked {
 }
 
 .intensive-vocab-item .intensive-status-pill--new.is-active {
-  background: #AA151B;
+  background: #0f172a;
 }
 
 .intensive-vocab-item .intensive-status-pill--unknown.is-active {
-  background: #AA151B;
+  background: #0f172a;
 }
 
 .intensive-vocab-item .intensive-status-pill--recognised.is-active {
@@ -10253,7 +10253,7 @@ body.active-pass-locked {
 
 /* Word status active - muted red */
 .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #AA151B;
+  color: #0f172a;
 }
 
 /* Dark mode cinema header */
@@ -10289,7 +10289,7 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #AA151B;
+  color: #0f172a;
 }
 
 .cinema-loading-message,
@@ -10364,7 +10364,7 @@ body.active-pass-locked {
 
 /* Word status colors for cinema subtitles - text color on dark background
    Matches the app's established color system:
-   - New words: Always muted red #AA151B
+   - New words: Always muted red #0f172a
    - Unknown/Recognised/Familiar: Orange at fading opacity levels (40%, 28%, 16%)
    - Known: White (mastered, blends in) */
 .cinema-subtitle-overlay .word-known {
@@ -10392,7 +10392,7 @@ body.active-pass-locked {
 
 .cinema-subtitle-overlay .word-new {
   /* Always muted red - stands out most */
-  color: #AA151B;
+  color: #0f172a;
   font-weight: 600;
 }
 
@@ -10414,7 +10414,7 @@ body.active-pass-locked {
 }
 
 .cinema-subtitle-overlay .phrase-new {
-  color: #AA151B;
+  color: #0f172a;
 }
 
 /* Karaoke Subtitles - word-by-word reveal */
@@ -13414,7 +13414,7 @@ body.active-pass-locked {
 }
 
 .practice-header-button--active {
-  color: #AA151B;
+  color: #0f172a;
 }
 
 .practice-header-icon {
@@ -16023,7 +16023,7 @@ body.active-pass-locked {
 }
 
 .tutor-header-btn.active {
-  color: #AA151B;
+  color: #0f172a;
 }
 
 .tutor-header-aa {
@@ -16436,7 +16436,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .tutor-header-btn.active {
-  color: #AA151B;
+  color: #0f172a;
 }
 
 [data-theme='dark'] .tutor-welcome-text {
@@ -21182,7 +21182,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
-  color: #AA151B;
+  color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 1rem;
@@ -21289,7 +21289,7 @@ body.active-pass-locked {
 .home-stat-item.active .home-stat-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #AA151B;
+  color: #0f172a;
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -21301,7 +21301,7 @@ body.active-pass-locked {
 }
 
 .home-stat-item.active .home-stat-label {
-  color: #AA151B;
+  color: #0f172a;
   font-weight: 500;
 }
 
@@ -21321,7 +21321,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
-  color: #AA151B;
+  color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;
@@ -21377,7 +21377,7 @@ body.active-pass-locked {
   border: none;
   border-radius: 6px;
   background: rgba(170, 21, 27, 0.08);
-  color: #AA151B;
+  color: #0f172a;
   font-size: 1.25rem;
   font-weight: 500;
   cursor: pointer;
@@ -21400,7 +21400,7 @@ body.active-pass-locked {
 
 .home-level-fill {
   height: 100%;
-  background: #AA151B;
+  background: #0f172a;
   border-radius: 4px;
   transition: width 500ms ease;
 }
@@ -21574,7 +21574,7 @@ body.active-pass-locked {
 
 .home-progress-gain {
   font-size: 0.7rem;
-  color: #AA151B;
+  color: #0f172a;
   font-weight: 500;
   text-align: right;
   margin-left: 36px;
@@ -21701,7 +21701,7 @@ body.active-pass-locked {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
-  color: #AA151B;
+  color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 0.75rem;
@@ -22005,7 +22005,7 @@ body.active-pass-locked {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #AA151B;
+  background: #0f172a;
 }
 
 /* Scrollable week area */
@@ -22071,7 +22071,7 @@ body.active-pass-locked {
   grid-row: 1;
   position: relative;
   height: 2px;
-  background: #AA151B;
+  background: #0f172a;
   z-index: 10;
   align-self: start;
   pointer-events: none;
@@ -22084,7 +22084,7 @@ body.active-pass-locked {
   top: -4px;
   width: 10px;
   height: 10px;
-  background: #AA151B;
+  background: #0f172a;
   border-radius: 50%;
 }
 
@@ -22141,7 +22141,7 @@ body.active-pass-locked {
   transform: translate(-50%, -50%);
   font-size: 1.5rem;
   font-weight: 300;
-  color: #AA151B;
+  color: #0f172a;
   opacity: 0;
   transition: opacity 150ms ease;
   pointer-events: none;
@@ -22394,8 +22394,8 @@ body.active-pass-locked {
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
   border-radius: 0;
-  background: #AA151B;
-  border-color: #AA151B;
+  background: #0f172a;
+  border-color: #0f172a;
 }
 
 .routine-modal-actions .button.ghost {

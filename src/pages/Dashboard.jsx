@@ -785,6 +785,9 @@ const Dashboard = () => {
                 />
               </div>
 
+              {/* Horizontal Divider */}
+              <div className="home-row-divider" />
+
               {/* Row 2: Weekly Calendar */}
               <RoutineBuilder userId={user?.uid} language={activeLanguage} />
             </div>

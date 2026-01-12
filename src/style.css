@@ -347,7 +347,7 @@ textarea {
 
 .dashboard-brand-line {
   flex: 1;
-  height: 6px;
+  height: 15px;
   background: linear-gradient(
     to bottom,
     #AA151B 0%,

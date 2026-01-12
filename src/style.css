@@ -21709,12 +21709,12 @@ body.active-pass-locked {
 /* Section Title */
 .home-section-title {
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin: 0 0 0.75rem;
+  margin: 0 0 1rem;
 }
 
 /* Today List - Inside Card */

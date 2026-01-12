@@ -21159,6 +21159,7 @@ body.active-pass-locked {
   height: 1px;
   background: #DC143C;
   width: 100%;
+  margin: 1.5rem 0;
 }
 
 @media (max-width: 900px) {

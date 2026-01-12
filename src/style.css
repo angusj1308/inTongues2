@@ -353,9 +353,9 @@ textarea {
 }
 
 .dashboard-brand-flag {
-  width: 52px;
+  width: 38px;
   height: auto;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -371,7 +371,7 @@ textarea {
 }
 
 .dashboard-header-minimal .dashboard-brand {
-  font-size: 3rem;
+  font-size: 3.4rem;
 }
 
 .dashboard-header-actions {

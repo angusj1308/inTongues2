@@ -347,16 +347,8 @@ textarea {
 
 .dashboard-brand-line {
   flex: 1;
-  height: 12px;
-  background: linear-gradient(
-    to bottom,
-    #AA151B 0%,
-    #AA151B 33.33%,
-    #F1BF00 33.33%,
-    #F1BF00 66.66%,
-    #AA151B 66.66%,
-    #AA151B 100%
-  );
+  height: 1px;
+  background: #DC143C;
 }
 
 .dashboard-brand-flag {

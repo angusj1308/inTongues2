@@ -364,10 +364,10 @@ textarea {
   margin: 0.5rem 0 0 0;
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-style: normal;
-  font-size: 0.65rem;
+  font-size: 0.5rem;
   font-weight: 400;
   color: #64748b;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 

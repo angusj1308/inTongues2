@@ -21144,7 +21144,7 @@ body.active-pass-locked {
 /* Three Column Grid */
 .home-grid-three {
   display: grid;
-  grid-template-columns: 1fr 1px 1fr 1px 1fr;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
   gap: 0;
   max-width: 900px;
 }
@@ -21184,6 +21184,8 @@ body.active-pass-locked {
   aspect-ratio: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .home-card-title {

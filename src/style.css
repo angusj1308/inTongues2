@@ -21146,7 +21146,7 @@ body.active-pass-locked {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
   gap: 0;
-  max-width: 900px;
+  width: 100%;
 }
 
 .home-grid-divider {

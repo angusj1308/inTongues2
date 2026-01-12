@@ -980,7 +980,7 @@ textarea {
 }
 
 .dashboard-nav-button {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -993,6 +993,8 @@ textarea {
   cursor: pointer;
   transition: color 0.15s ease;
   scroll-snap-align: center;
+  min-width: 70px;
+  text-align: center;
 }
 
 .dashboard-nav-button.active {

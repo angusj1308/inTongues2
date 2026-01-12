@@ -18,34 +18,6 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES } from '../services/routine'
 
-// Level thresholds based on known word count
-const LEVEL_THRESHOLDS = [
-  { min: 0, max: 2000, level: 'Beginner', nextLevel: 'Upper Beginner', goal: 'Acquire foundational vocabulary and familiarise yourself with the sound of the language.' },
-  { min: 2000, max: 5000, level: 'Upper Beginner', nextLevel: 'Intermediate', goal: 'Build core vocabulary and start understanding simple texts and conversations.' },
-  { min: 5000, max: 12000, level: 'Intermediate', nextLevel: 'Upper Intermediate', goal: 'Expand vocabulary range and develop fluency with everyday topics.' },
-  { min: 12000, max: 24000, level: 'Upper Intermediate', nextLevel: 'Advanced', goal: 'Refine comprehension and express nuanced ideas with confidence.' },
-  { min: 24000, max: 40000, level: 'Advanced', nextLevel: 'Native-like', goal: 'Master sophisticated vocabulary and engage with complex content.' },
-  { min: 40000, max: Infinity, level: 'Native-like', nextLevel: null, goal: 'Maintain and deepen your mastery across all domains.' },
-]
-
-const getLevelInfo = (knownWords) => {
-  const threshold = LEVEL_THRESHOLDS.find((t) => knownWords >= t.min && knownWords < t.max) || LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]
-  const progressInLevel = knownWords - threshold.min
-  const levelRange = threshold.max === Infinity ? 10000 : threshold.max - threshold.min
-  const progressPercent = Math.min(100, (progressInLevel / levelRange) * 100)
-  const wordsToNext = threshold.max === Infinity ? 0 : threshold.max - knownWords
-
-  return {
-    level: threshold.level,
-    nextLevel: threshold.nextLevel,
-    progressPercent,
-    wordsToNext,
-    currentMin: threshold.min,
-    currentMax: threshold.max,
-    goal: threshold.goal,
-  }
-}
-
 const PinIcon = ({ filled }) => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
     <path d="M9 4v6l-2 4v2h10v-2l-2-4V4" />
@@ -468,8 +440,6 @@ const Dashboard = () => {
     return pinnedDecks.some((p) => p.key === key)
   }
 
-  const levelInfo = useMemo(() => getLevelInfo(homeStats.knownWords), [homeStats.knownWords])
-
   const handleTabClick = (tab) => {
     if (tab === activeTab) return
 
@@ -542,67 +512,39 @@ const Dashboard = () => {
             <div className="home-content">
               {/* Row 1: Three Card Layout */}
               <div className="home-grid-three">
-                {/* Card 1: Level + Today's Routine */}
-                <div className="home-card home-level-card">
-                  <div className="home-level-top">
-                    <h3 className="home-card-title">Level</h3>
-                    <span className="home-level-name">{homeStatsLoading ? '...' : levelInfo.level}</span>
-                  </div>
-                  <p className="home-level-goal">{levelInfo.goal}</p>
-
-                  <div className="home-level-bottom">
-                    <div className="home-level-bar">
-                      <div
-                        className="home-level-fill"
-                        style={{ width: `${levelInfo.progressPercent}%` }}
-                      />
+                {/* Card 1: Today's Routine */}
+                <div className="home-card home-routine-card">
+                  <h3 className="home-card-title">Routine</h3>
+                  {todayActivities.length > 0 ? (
+                    <div className="home-today-list">
+                      {todayActivities.map((activity) => {
+                        const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
+                        return (
+                          <button
+                            key={activity.id}
+                            className="home-today-item"
+                            onClick={() => {
+                              const tabMap = {
+                                reading: 'read',
+                                listening: 'listen',
+                                speaking: 'speak',
+                                review: 'review',
+                                writing: 'write',
+                                tutor: 'tutor',
+                              }
+                              handleTabClick(tabMap[activity.activityType] || 'read')
+                            }}
+                          >
+                            <span className="home-today-time">{activity.time || '—'}</span>
+                            <span className="home-today-activity">{activityConfig.label}</span>
+                            <span className="home-today-duration">{activity.duration}m</span>
+                          </button>
+                        )
+                      })}
                     </div>
-                    <div className="home-level-stats">
-                      <span className="home-level-words">
-                        {homeStatsLoading ? '...' : homeStats.knownWords.toLocaleString()} words
-                      </span>
-                      {levelInfo.nextLevel && (
-                        <span className="home-level-next">
-                          {levelInfo.wordsToNext.toLocaleString()} to {levelInfo.nextLevel}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Today's Routine */}
-                  <div className="home-today-section">
-                    <h4 className="home-today-title">Today</h4>
-                    {todayActivities.length > 0 ? (
-                      <div className="home-today-list home-today-compact">
-                        {todayActivities.map((activity) => {
-                          const activityConfig = ACTIVITY_TYPES.find((a) => a.id === activity.activityType) || ACTIVITY_TYPES[0]
-                          return (
-                            <button
-                              key={activity.id}
-                              className="home-today-item"
-                              onClick={() => {
-                                const tabMap = {
-                                  reading: 'read',
-                                  listening: 'listen',
-                                  speaking: 'speak',
-                                  review: 'review',
-                                  writing: 'write',
-                                  tutor: 'tutor',
-                                }
-                                handleTabClick(tabMap[activity.activityType] || 'read')
-                              }}
-                            >
-                              <span className="home-today-time">{activity.time || '—'}</span>
-                              <span className="home-today-activity">{activityConfig.label}</span>
-                              <span className="home-today-duration">{activity.duration}m</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="home-today-empty">No activities scheduled</p>
-                    )}
-                  </div>
+                  ) : (
+                    <p className="home-today-empty">No activities scheduled for today</p>
+                  )}
                 </div>
 
                 {/* Card 2: Stats */}
@@ -676,7 +618,6 @@ const Dashboard = () => {
                   language={activeLanguage}
                   selectedStat={selectedStat}
                   homeStats={homeStats}
-                  levelThreshold={levelInfo.currentMax}
                 />
               </div>
 

@@ -21323,6 +21323,16 @@ body.active-pass-locked {
   flex-direction: column;
 }
 
+/* Routine Card */
+.home-routine-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-routine-card .home-today-list {
+  flex: 1;
+}
+
 .home-level-bar {
   height: 8px;
   background: #f1f5f9;

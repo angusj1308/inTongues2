@@ -347,7 +347,7 @@ textarea {
 
 .dashboard-brand-line {
   flex: 1;
-  height: 1px;
+  height: 2px;
   background: #DC143C;
 }
 
@@ -21144,19 +21144,19 @@ body.active-pass-locked {
 /* Three Column Grid */
 .home-grid-three {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 2px minmax(0, 1fr) 2px minmax(0, 1fr);
   gap: 0;
   width: 100%;
 }
 
 .home-grid-divider {
-  width: 1px;
+  width: 2px;
   background: #DC143C;
   align-self: stretch;
 }
 
 .home-row-divider {
-  height: 1px;
+  height: 2px;
   background: #DC143C;
   width: 100%;
   margin: 1.5rem 0;

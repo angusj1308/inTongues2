@@ -21983,6 +21983,308 @@ body.active-pass-locked {
   font-size: 0.85rem;
 }
 
+/* ===========================================
+   Reading Dashboard - Redesigned
+   =========================================== */
+
+/* Reading Continue Card */
+.reading-continue-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.reading-card-empty {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.reading-continue-item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.reading-continue-item:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.reading-continue-cover {
+  width: 50px;
+  height: 70px;
+  background: #e5e5e5;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.reading-continue-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.reading-continue-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reading-continue-meta {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.reading-continue-progress {
+  margin-top: auto;
+  height: 3px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.reading-continue-progress-bar {
+  height: 100%;
+  background: #0f172a;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Reading Stats Card */
+.reading-stats-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.reading-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.reading-stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.reading-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.reading-stat-label {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+/* Reading Actions Card */
+.reading-actions-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.reading-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.reading-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0f172a;
+  transition: all 0.15s ease;
+}
+
+.reading-action-btn:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: #0f172a;
+}
+
+.reading-action-btn svg {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.reading-action-btn:hover svg {
+  color: #0f172a;
+}
+
+.reading-action-btn-small {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.reading-action-btn-small:hover {
+  color: #0f172a;
+  border-color: #0f172a;
+}
+
+/* Reading Shelf */
+.reading-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reading-shelf-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reading-shelf-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.reading-shelf-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.reading-shelf-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reading-shelf-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.reading-shelf-scroll::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+.reading-shelf-item {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 140px;
+  text-align: left;
+}
+
+.reading-shelf-item:hover {
+  border-color: #0f172a;
+  transform: translateY(-2px);
+}
+
+.reading-shelf-cover {
+  width: 100%;
+  height: 100px;
+  background: #e5e5e5;
+  border-radius: 4px;
+}
+
+.reading-shelf-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reading-shelf-progress {
+  height: 3px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.reading-shelf-progress-bar {
+  height: 100%;
+  background: #0f172a;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Responsive adjustments for Reading Dashboard */
+@media (max-width: 900px) {
+  .reading-stats-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .reading-stat-item {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .reading-stat-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .reading-continue-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .reading-continue-cover {
+    width: 100%;
+    height: 80px;
+  }
+
+  .reading-shelf-item {
+    width: 120px;
+  }
+
+  .reading-shelf-cover {
+    height: 80px;
+  }
+}
+
 /* Routine Builder - Minimal */
 .routine-builder {
   padding-top: 0.5rem;

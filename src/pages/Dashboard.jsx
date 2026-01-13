@@ -785,168 +785,241 @@ const Dashboard = () => {
           )}
 
           {activeTab === 'read' && (
-            <div className="read-stack">
+            <div className="home-content">
               {!activeLanguage ? (
                 <p className="muted small" style={{ marginTop: '0.75rem' }}>
                   Add a language to unlock your reading tools.
                 </p>
               ) : (
                 <>
-                  {/* Action Cards Row */}
-                  <section className="read-section read-action-cards">
-                    <div className="action-cards-row">
-                      {/* Continue Reading Card */}
-                      <div
-                        className="action-card continue-action-card"
-                        role="button"
-                        tabIndex={continueStory && !libraryLoading ? 0 : -1}
-                        onClick={() => continueStory && handleOpenBook(continueStory)}
-                        onKeyDown={(e) => {
-                          if ((e.key === 'Enter' || e.key === ' ') && continueStory) {
-                            handleOpenBook(continueStory)
-                          }
-                        }}
-                      >
-                        <div className="action-card-icon">
-                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                          </svg>
-                        </div>
-                        <div className="action-card-content">
-                          <h3 className="action-card-title">Continue Reading</h3>
-                          <p className="action-card-subtitle">
-                            {libraryLoading
-                              ? 'Loading...'
-                              : continueStory
-                                ? getStoryTitle(continueStory)
-                                : 'No books yet'}
-                          </p>
-                          {continueStory && (
-                            <div className="action-card-progress">
-                              <div
-                                className="action-card-progress-bar"
-                                style={{ width: `${continueProgress}%` }}
-                              />
+                  {libraryError ? <p className="error small">{libraryError}</p> : null}
+
+                  {/* Row 1: Three Card Layout */}
+                  <div className="home-grid-three">
+                    {/* Card 1: Continue Reading */}
+                    <div className="home-card reading-continue-card">
+                      <h3 className="home-card-title">Continue</h3>
+                      {libraryLoading ? (
+                        <p className="reading-card-empty">Loading...</p>
+                      ) : continueStory ? (
+                        <button
+                          className="reading-continue-item"
+                          onClick={() => handleOpenBook(continueStory)}
+                        >
+                          <div className="reading-continue-cover" />
+                          <div className="reading-continue-info">
+                            <span className="reading-continue-title">{getStoryTitle(continueStory)}</span>
+                            <span className="reading-continue-meta">
+                              {continueStory.language || 'Unknown'}{continueStory.level ? ` · Level ${continueStory.level}` : ''}
+                            </span>
+                            <div className="reading-continue-progress">
+                              <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
                             </div>
-                          )}
+                          </div>
+                        </button>
+                      ) : (
+                        <p className="reading-card-empty">No books in progress</p>
+                      )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="home-grid-divider" />
+
+                    {/* Card 2: Library Stats */}
+                    <div className="home-card reading-stats-card">
+                      <h3 className="home-card-title">Library</h3>
+                      <div className="reading-stats-list">
+                        <div className="reading-stat-item">
+                          <span className="reading-stat-value">{libraryLoading ? '...' : allBooks.length}</span>
+                          <span className="reading-stat-label">books</span>
+                        </div>
+                        <div className="reading-stat-item">
+                          <span className="reading-stat-value">{libraryLoading ? '...' : generatedBooks.length}</span>
+                          <span className="reading-stat-label">generated</span>
+                        </div>
+                        <div className="reading-stat-item">
+                          <span className="reading-stat-value">{libraryLoading ? '...' : adaptationBooks.length}</span>
+                          <span className="reading-stat-label">imported</span>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Generate Card */}
-                      <div
-                        className="action-card generate-action-card"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setShowGenerateModal(true)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setShowGenerateModal(true)
-                          }
-                        }}
-                      >
-                        <div className="action-card-icon">
-                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                    {/* Divider */}
+                    <div className="home-grid-divider" />
+
+                    {/* Card 3: Quick Actions */}
+                    <div className="home-card reading-actions-card">
+                      <h3 className="home-card-title">Add</h3>
+                      <div className="reading-actions-list">
+                        <button
+                          className="reading-action-btn"
+                          onClick={() => setShowGenerateModal(true)}
+                        >
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 3v18M3 12h18" />
                           </svg>
-                        </div>
-                        <div className="action-card-content">
-                          <h3 className="action-card-title">Generate</h3>
-                          <p className="action-card-subtitle">Create a new romance story</p>
-                        </div>
-                      </div>
-
-                      {/* Import Card */}
-                      <div
-                        className="action-card import-action-card"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setShowImportModal(true)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setShowImportModal(true)
-                          }
-                        }}
-                      >
-                        <div className="action-card-icon">
-                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+                          <span>Generate Story</span>
+                        </button>
+                        <button
+                          className="reading-action-btn"
+                          onClick={() => setShowImportModal(true)}
+                        >
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17,8 12,3 7,8" />
                             <line x1="12" y1="3" x2="12" y2="15" />
                           </svg>
-                        </div>
-                        <div className="action-card-content">
-                          <h3 className="action-card-title">Import</h3>
-                          <p className="action-card-subtitle">Add a book from a file</p>
-                        </div>
+                          <span>Import Book</span>
+                        </button>
                       </div>
                     </div>
-                  </section>
+                  </div>
 
-                  {libraryError ? <p className="error small">{libraryError}</p> : null}
+                  {/* Horizontal Divider */}
+                  <div className="home-row-divider" />
 
-                  <BookGrid
-                    title="Your Recent"
-                    books={yourRecentBooks}
-                    emptyMessage="Your recent books will show up here."
-                    loading={libraryLoading}
-                    onBookClick={handleOpenBook}
-                    getStoryTitle={getStoryTitle}
-                  />
-
-                  <BookGrid
-                    title="All Books"
-                    books={allBooks}
-                    emptyMessage="No books in your library yet."
-                    loading={libraryLoading}
-                    onBookClick={handleOpenBook}
-                    getStoryTitle={getStoryTitle}
-                  />
-
-                  <BookGrid
-                    title="Your Generated"
-                    books={generatedBooks}
-                    emptyMessage="You haven't generated any stories yet."
-                    loading={libraryLoading}
-                    onEmptyAction={() => setShowGenerateModal(true)}
-                    onEmptyActionLabel="Generate your first book"
-                    onBookClick={handleOpenBook}
-                    getStoryTitle={getStoryTitle}
-                  />
-
-                  <BookGrid
-                    title="Your Adaptations"
-                    books={adaptationBooks}
-                    emptyMessage="You haven't imported or adapted any books yet."
-                    loading={libraryLoading}
-                    onEmptyAction={() => setShowImportModal(true)}
-                    onEmptyActionLabel="Import your first book"
-                    onBookClick={handleOpenBook}
-                    getStoryTitle={getStoryTitle}
-                  />
-
-                  <BookGrid
-                    title="InTongues Library"
-                    books={intonguesLibraryBooks}
-                    emptyMessage="Browse curated titles from InTongues."
-                    loading={false}
-                    getStoryTitle={getStoryTitle}
-                  />
-
-                  <BookGrid
-                    title="Suggested for you"
-                    books={suggestedBooks}
-                    emptyMessage="No suggestions available yet."
-                    loading={false}
-                    getStoryTitle={getStoryTitle}
-                  />
-
-                  <section className="read-section read-slab">
-                    <div className="bookshelf-header">
-                      <h3>Create a Bookshelf</h3>
+                  {/* Row 2: Recent Books */}
+                  <div className="reading-shelf">
+                    <div className="home-card-header">
+                      <h3 className="home-card-title">Recent</h3>
                     </div>
-                    <button className="button ghost">+ Create a bookshelf</button>
-                  </section>
+                    {libraryLoading ? (
+                      <p className="reading-card-empty">Loading your books...</p>
+                    ) : !yourRecentBooks?.length ? (
+                      <p className="reading-card-empty">Your recent books will appear here</p>
+                    ) : (
+                      <div className="reading-shelf-scroll">
+                        {yourRecentBooks.map((book) => {
+                          const progress = Math.max(0, Math.min(100, book.progress || 0))
+                          return (
+                            <button
+                              key={book.id || book.title}
+                              className="reading-shelf-item"
+                              onClick={() => handleOpenBook(book)}
+                            >
+                              <div className="reading-shelf-cover" />
+                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                              <div className="reading-shelf-progress">
+                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Horizontal Divider */}
+                  <div className="home-row-divider" />
+
+                  {/* Row 3: All Books */}
+                  <div className="reading-shelf">
+                    <div className="home-card-header">
+                      <h3 className="home-card-title">All Books</h3>
+                    </div>
+                    {libraryLoading ? (
+                      <p className="reading-card-empty">Loading...</p>
+                    ) : !allBooks?.length ? (
+                      <p className="reading-card-empty">No books in your library yet</p>
+                    ) : (
+                      <div className="reading-shelf-scroll">
+                        {allBooks.map((book) => {
+                          const progress = Math.max(0, Math.min(100, book.progress || 0))
+                          return (
+                            <button
+                              key={book.id || book.title}
+                              className="reading-shelf-item"
+                              onClick={() => handleOpenBook(book)}
+                            >
+                              <div className="reading-shelf-cover" />
+                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                              <div className="reading-shelf-progress">
+                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Horizontal Divider */}
+                  <div className="home-row-divider" />
+
+                  {/* Row 4: Generated Books */}
+                  <div className="reading-shelf">
+                    <div className="home-card-header">
+                      <h3 className="home-card-title">Generated</h3>
+                    </div>
+                    {libraryLoading ? (
+                      <p className="reading-card-empty">Loading...</p>
+                    ) : !generatedBooks?.length ? (
+                      <div className="reading-shelf-empty">
+                        <p className="reading-card-empty">No generated stories yet</p>
+                        <button className="reading-action-btn-small" onClick={() => setShowGenerateModal(true)}>
+                          Generate your first
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="reading-shelf-scroll">
+                        {generatedBooks.map((book) => {
+                          const progress = Math.max(0, Math.min(100, book.progress || 0))
+                          return (
+                            <button
+                              key={book.id || book.title}
+                              className="reading-shelf-item"
+                              onClick={() => handleOpenBook(book)}
+                            >
+                              <div className="reading-shelf-cover" />
+                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                              <div className="reading-shelf-progress">
+                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Horizontal Divider */}
+                  <div className="home-row-divider" />
+
+                  {/* Row 5: Imported Books */}
+                  <div className="reading-shelf">
+                    <div className="home-card-header">
+                      <h3 className="home-card-title">Imported</h3>
+                    </div>
+                    {libraryLoading ? (
+                      <p className="reading-card-empty">Loading...</p>
+                    ) : !adaptationBooks?.length ? (
+                      <div className="reading-shelf-empty">
+                        <p className="reading-card-empty">No imported books yet</p>
+                        <button className="reading-action-btn-small" onClick={() => setShowImportModal(true)}>
+                          Import your first
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="reading-shelf-scroll">
+                        {adaptationBooks.map((book) => {
+                          const progress = Math.max(0, Math.min(100, book.progress || 0))
+                          return (
+                            <button
+                              key={book.id || book.title}
+                              className="reading-shelf-item"
+                              onClick={() => handleOpenBook(book)}
+                            >
+                              <div className="reading-shelf-cover" />
+                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                              <div className="reading-shelf-progress">
+                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>

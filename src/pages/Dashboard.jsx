@@ -794,8 +794,8 @@ const Dashboard = () => {
                 <>
                   {libraryError ? <p className="error small">{libraryError}</p> : null}
 
-                  {/* Row 1: Two Card Layout */}
-                  <div className="home-grid-two-equal">
+                  {/* Row 1: Three Card Layout */}
+                  <div className="home-grid-three">
                     {/* Card 1: Continue Reading */}
                     <div className="home-card reading-continue-card">
                       <h3 className="home-card-title">Continue</h3>
@@ -803,18 +803,13 @@ const Dashboard = () => {
                         <p className="reading-card-empty">Loading...</p>
                       ) : continueStory ? (
                         <button
-                          className="reading-continue-item"
+                          className="reading-continue-big"
                           onClick={() => handleOpenBook(continueStory)}
                         >
-                          <div className="reading-continue-cover" />
-                          <div className="reading-continue-info">
-                            <span className="reading-continue-title">{getStoryTitle(continueStory)}</span>
-                            <span className="reading-continue-meta">
-                              {continueStory.language || 'Unknown'}{continueStory.level ? ` · Level ${continueStory.level}` : ''}
-                            </span>
-                            <div className="reading-continue-progress">
-                              <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
-                            </div>
+                          <div className="reading-continue-cover-big" />
+                          <span className="reading-continue-title-big">{getStoryTitle(continueStory)}</span>
+                          <div className="reading-continue-progress">
+                            <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
                           </div>
                         </button>
                       ) : (
@@ -825,32 +820,30 @@ const Dashboard = () => {
                     {/* Divider */}
                     <div className="home-grid-divider" />
 
-                    {/* Card 2: Quick Actions */}
-                    <div className="home-card reading-actions-card">
-                      <h3 className="home-card-title">Add</h3>
-                      <div className="reading-actions-list">
-                        <button
-                          className="reading-action-btn"
-                          onClick={() => setShowGenerateModal(true)}
-                        >
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 3v18M3 12h18" />
-                          </svg>
-                          <span>Generate Story</span>
-                        </button>
-                        <button
-                          className="reading-action-btn"
-                          onClick={() => setShowImportModal(true)}
-                        >
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17,8 12,3 7,8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                          </svg>
-                          <span>Import Book</span>
-                        </button>
-                      </div>
-                    </div>
+                    {/* Card 2: Generate */}
+                    <button
+                      className="home-card reading-generate-card"
+                      onClick={() => setShowGenerateModal(true)}
+                    >
+                      <h3 className="home-card-title">Generate</h3>
+                      <p className="reading-card-description">
+                        Generate study material in your target language, tailored to your level and interests.
+                      </p>
+                    </button>
+
+                    {/* Divider */}
+                    <div className="home-grid-divider" />
+
+                    {/* Card 3: Import */}
+                    <button
+                      className="home-card reading-import-card"
+                      onClick={() => setShowImportModal(true)}
+                    >
+                      <h3 className="home-card-title">Import</h3>
+                      <p className="reading-card-description">
+                        Import your own books and adapt them to your target language and level. Alternatively, browse Google Books for your next read.
+                      </p>
+                    </button>
                   </div>
 
                   {/* Horizontal Divider */}

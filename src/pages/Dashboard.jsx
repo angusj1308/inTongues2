@@ -803,13 +803,18 @@ const Dashboard = () => {
                         <p className="reading-card-empty">Loading...</p>
                       ) : continueStory ? (
                         <button
-                          className="reading-continue-big"
+                          className="reading-continue-horizontal"
                           onClick={() => handleOpenBook(continueStory)}
                         >
-                          <div className="reading-continue-cover-big" />
-                          <span className="reading-continue-title-big">{getStoryTitle(continueStory)}</span>
-                          <div className="reading-continue-progress">
-                            <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
+                          <div className="reading-continue-thumb" />
+                          <div className="reading-continue-details">
+                            <span className="reading-continue-title-h">{getStoryTitle(continueStory)}</span>
+                            <span className="reading-continue-meta-h">
+                              {continueStory.language || 'Unknown'}{continueStory.level ? ` · Level ${continueStory.level}` : ''}
+                            </span>
+                            <div className="reading-continue-progress">
+                              <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
+                            </div>
                           </div>
                         </button>
                       ) : (

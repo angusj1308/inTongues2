@@ -22007,96 +22007,10 @@ body.active-pass-locked {
   --reading-card-height: 140px;
 }
 
-/* Reading Dashboard Cards - Override square aspect for rectangular */
-.reading-continue-card,
-.reading-generate-card,
-.reading-import-card {
+/* Reading Action Cards - Unified style for Generate/Import/Browse */
+.reading-action-card {
   aspect-ratio: unset;
   height: var(--reading-card-height);
-}
-
-/* Reading Continue Card */
-.reading-continue-card {
-  display: flex;
-  flex-direction: column;
-}
-
-.reading-card-empty {
-  font-size: 0.9rem;
-  color: #64748b;
-  margin: 0;
-}
-
-/* Horizontal Continue Layout (thumbnail left, info right) */
-.reading-continue-horizontal {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 1rem;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  flex: 1;
-  width: 100%;
-  text-align: left;
-}
-
-.reading-continue-horizontal:hover .reading-continue-thumb {
-  transform: scale(1.02);
-}
-
-.reading-continue-thumb {
-  width: 70px;
-  height: 100%;
-  background: #e5e5e5;
-  border-radius: 4px;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.reading-continue-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.reading-continue-title-h {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1.05rem;
-  font-weight: 500;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.reading-continue-meta-h {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.reading-continue-progress {
-  margin-top: auto;
-  height: 3px;
-  background: #e2e8f0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.reading-continue-progress-bar {
-  height: 100%;
-  background: #0f172a;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-
-/* Generate and Import Cards - CTA Style */
-.reading-generate-card,
-.reading-import-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -22106,10 +22020,7 @@ body.active-pass-locked {
   gap: 0.3rem;
 }
 
-/* Consistent heading alignment across all three cards */
-.reading-continue-card .home-card-title,
-.reading-generate-card .home-card-title,
-.reading-import-card .home-card-title {
+.reading-action-card .home-card-title {
   font-size: 1.15rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -22142,31 +22053,44 @@ body.active-pass-locked {
   background: #1e293b;
 }
 
-.reading-cta-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  margin-top: auto;
-}
-
-.reading-cta-secondary {
-  padding: 0.15rem 0.5rem;
-  background: none;
-  border: none;
+/* Legacy - keep for any remaining uses */
+.reading-card-empty {
+  font-size: 0.9rem;
   color: #64748b;
-  font-size: 0.7rem;
-  cursor: pointer;
-  transition: color 0.15s ease;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  margin: 0;
 }
 
-.reading-cta-secondary:hover {
+.reading-continue-title-h {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 500;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Reading Actions Card */
+.reading-continue-meta-h {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.reading-continue-progress {
+  margin-top: auto;
+  height: 3px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.reading-continue-progress-bar {
+  height: 100%;
+  background: #0f172a;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Reading Actions Card (legacy) */
 .reading-actions-card {
   display: flex;
   flex-direction: column;
@@ -22330,19 +22254,9 @@ body.active-pass-locked {
     --reading-card-height: 120px;
   }
 
-  .reading-continue-card,
-  .reading-generate-card,
-  .reading-import-card {
+  .reading-action-card {
     height: auto;
     min-height: var(--reading-card-height);
-  }
-
-  .reading-continue-horizontal {
-    flex-direction: row;
-  }
-
-  .reading-continue-thumb {
-    width: 60px;
   }
 
   .reading-shelf-item {

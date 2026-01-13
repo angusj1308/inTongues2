@@ -794,8 +794,8 @@ const Dashboard = () => {
                 <>
                   {libraryError ? <p className="error small">{libraryError}</p> : null}
 
-                  {/* Row 1: Three Card Layout */}
-                  <div className="home-grid-three">
+                  {/* Row 1: Two Card Layout */}
+                  <div className="home-grid-two-equal">
                     {/* Card 1: Continue Reading */}
                     <div className="home-card reading-continue-card">
                       <h3 className="home-card-title">Continue</h3>
@@ -825,29 +825,7 @@ const Dashboard = () => {
                     {/* Divider */}
                     <div className="home-grid-divider" />
 
-                    {/* Card 2: Library Stats */}
-                    <div className="home-card reading-stats-card">
-                      <h3 className="home-card-title">Library</h3>
-                      <div className="reading-stats-list">
-                        <div className="reading-stat-item">
-                          <span className="reading-stat-value">{libraryLoading ? '...' : allBooks.length}</span>
-                          <span className="reading-stat-label">books</span>
-                        </div>
-                        <div className="reading-stat-item">
-                          <span className="reading-stat-value">{libraryLoading ? '...' : generatedBooks.length}</span>
-                          <span className="reading-stat-label">generated</span>
-                        </div>
-                        <div className="reading-stat-item">
-                          <span className="reading-stat-value">{libraryLoading ? '...' : adaptationBooks.length}</span>
-                          <span className="reading-stat-label">imported</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="home-grid-divider" />
-
-                    {/* Card 3: Quick Actions */}
+                    {/* Card 2: Quick Actions */}
                     <div className="home-card reading-actions-card">
                       <h3 className="home-card-title">Add</h3>
                       <div className="reading-actions-list">

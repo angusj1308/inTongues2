@@ -22018,12 +22018,9 @@ body.active-pass-locked {
   background: #0f172a;
 }
 
-/* Scrollable week area */
+/* Week area - full height, page scrolls naturally */
 .routine-week-scroll {
-  max-height: 400px;
-  overflow-y: auto;
   overflow-x: auto;
-  scrollbar-gutter: stable;
 }
 
 .routine-week-inner {

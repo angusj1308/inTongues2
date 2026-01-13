@@ -798,7 +798,7 @@ const Dashboard = () => {
                   <div className="home-grid-three">
                     {/* Card 1: Continue Reading */}
                     <div className="home-card reading-continue-card">
-                      <h3 className="home-card-title">Continue</h3>
+                      <h3 className="home-card-title">Continue Reading</h3>
                       {libraryLoading ? (
                         <p className="reading-card-empty">Loading...</p>
                       ) : continueStory ? (

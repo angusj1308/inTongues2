@@ -5288,11 +5288,19 @@ pre {
 
 .login-brand {
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 3.5rem;
+  font-size: 6rem;
   font-weight: 400;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: #0f172a;
-  margin-bottom: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.login-slogan {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.25rem;
+  font-style: italic;
+  color: #64748b;
+  margin-bottom: 2.5rem;
 }
 
 .login-card {
@@ -5300,7 +5308,7 @@ pre {
   max-width: 420px;
   padding: 2.5rem 2rem;
   border: 1px solid #e2e2e2;
-  border-radius: 12px;
+  border-radius: 0;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
@@ -5310,8 +5318,6 @@ pre {
   font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   margin: 0 0 0.5rem;
 }
 
@@ -5352,7 +5358,7 @@ pre {
 .login-input {
   width: 100%;
   padding: 0.85rem 1rem;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid #e2e2e2;
   background-color: #fff;
   font-size: 1rem;
@@ -5376,7 +5382,7 @@ pre {
   margin-top: 0.5rem;
   padding: 0.9rem 1rem;
   border: 1px solid #0f172a;
-  border-radius: 10px;
+  border-radius: 0;
   background: #0f172a;
   color: #fff;
   font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;

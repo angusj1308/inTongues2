@@ -347,7 +347,7 @@ textarea {
 
 .dashboard-brand-line {
   flex: 1;
-  height: 2px;
+  height: 0.75px;
   background: #DC143C;
 }
 
@@ -21187,19 +21187,19 @@ body.active-pass-locked {
 /* Three Column Grid */
 .home-grid-three {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 0.5px minmax(0, 1fr) 0.5px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 0.75px minmax(0, 1fr) 0.75px minmax(0, 1fr);
   gap: 0;
   width: 100%;
 }
 
 .home-grid-divider {
-  width: 0.5px;
+  width: 0.75px;
   background: #DC143C;
   align-self: stretch;
 }
 
 .home-row-divider {
-  height: 0.5px;
+  height: 0.75px;
   background: #DC143C;
   width: 100%;
   margin: 1.5rem 0;
@@ -21208,7 +21208,7 @@ body.active-pass-locked {
 /* Two Column Equal Grid with Divider */
 .home-grid-two-equal {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 0.5px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 0.75px minmax(0, 1fr);
   gap: 0;
   width: 100%;
 }

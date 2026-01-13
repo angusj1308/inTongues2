@@ -22108,23 +22108,16 @@ body.active-pass-locked {
 
 .reading-generate-card .home-card-title,
 .reading-import-card .home-card-title {
-  margin-bottom: 0.15rem;
-}
-
-/* Card Icon - restrained outline style */
-.reading-card-icon {
-  color: #0f172a;
-  opacity: 0.5;
-  flex-shrink: 0;
+  margin-bottom: 0.25rem;
 }
 
 .reading-card-description {
   font-size: 0.8rem;
-  line-height: 1.4;
+  line-height: 1.45;
   color: #64748b;
   margin: 0;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

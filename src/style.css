@@ -5292,16 +5292,7 @@ pre {
   font-weight: 400;
   letter-spacing: -0.02em;
   color: #0f172a;
-  margin-bottom: 0.1rem;
-}
-
-.login-slogan {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1.25rem;
-  font-style: normal;
-  color: #4a5568;
-  letter-spacing: 0.03em;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .login-card {

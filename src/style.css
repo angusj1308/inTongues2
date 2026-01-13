@@ -21964,9 +21964,6 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   margin-top: 0.75rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  overflow: hidden;
   background: #fff;
 }
 
@@ -21974,16 +21971,12 @@ body.active-pass-locked {
 .routine-day-headers {
   display: grid;
   grid-template-columns: 50px repeat(7, 1fr);
-  border-bottom: 1px solid #e5e5e5;
   background: #fff;
   flex-shrink: 0;
-  padding-right: 17px; /* Match scrollbar gutter */
 }
 
 .routine-hour-labels-spacer {
   box-sizing: border-box;
-  background: #fafafa;
-  border-right: 1px solid #e5e5e5;
 }
 
 .routine-day-header-cell {
@@ -21995,20 +21988,19 @@ body.active-pass-locked {
 }
 
 .routine-day-header-cell.routine-day-today {
-  background: #fafafa;
+  /* no background - just the dot indicates today */
 }
 
 .routine-day-label {
-  font-size: 0.65rem;
-  font-weight: 500;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #64748b;
 }
 
 .routine-day-header-cell.routine-day-today .routine-day-label {
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .routine-today-dot {
@@ -22032,8 +22024,6 @@ body.active-pass-locked {
 .routine-hour-labels {
   grid-row: 1;
   box-sizing: border-box;
-  background: #fafafa;
-  border-right: 1px solid #e5e5e5;
 }
 
 .routine-hour-label {
@@ -22041,9 +22031,10 @@ body.active-pass-locked {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  padding-right: 0.5rem;
-  font-size: 0.6rem;
-  color: #94a3b8;
+  padding-right: 0.75rem;
+  font-size: 0.55rem;
+  font-weight: 400;
+  color: #cbd5e1;
   line-height: 1;
   position: relative;
   top: -0.4rem;
@@ -22065,11 +22056,7 @@ body.active-pass-locked {
 
 .routine-hour-line {
   height: 40px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.routine-hour-line:nth-child(6n) {
-  border-bottom-color: #e5e5e5;
+  border-bottom: 1px solid #f8fafc;
 }
 
 /* Current time indicator - spans all 7 day columns */
@@ -22113,7 +22100,7 @@ body.active-pass-locked {
 .routine-day-column:nth-of-type(9) { grid-column: 8; }
 
 .routine-day-column.routine-day-today {
-  background: rgba(15, 23, 42, 0.02);
+  /* no column highlight - dot in header indicates today */
 }
 
 /* Day Timeline */
@@ -22190,8 +22177,8 @@ body.active-pass-locked {
   right: 2px;
   background: #0f172a;
   color: #fff;
-  border-radius: 4px;
-  padding: 0.2rem 0.35rem;
+  border-radius: 0;
+  padding: 0.25rem 0.5rem;
   cursor: pointer;
   display: flex;
   flex-direction: column;

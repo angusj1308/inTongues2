@@ -65,13 +65,13 @@ export const DAYS_OF_WEEK = [
 ]
 
 export const DAY_LABELS = {
-  monday: 'Mon',
-  tuesday: 'Tue',
-  wednesday: 'Wed',
-  thursday: 'Thu',
-  friday: 'Fri',
-  saturday: 'Sat',
-  sunday: 'Sun',
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
 }
 
 const normaliseLanguage = (language) => resolveSupportedLanguageLabel(language, language)

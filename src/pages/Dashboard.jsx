@@ -846,7 +846,7 @@ const Dashboard = () => {
                     <div className="home-card reading-import-card">
                       <h3 className="home-card-title">Import</h3>
                       <p className="reading-card-description">
-                        Import your own books and adapt them to your target language and level.
+                        Import your own books and adapt them to your target language and level. Alternatively, browse Google Books for your next read.
                       </p>
                       <div className="reading-cta-group">
                         <button

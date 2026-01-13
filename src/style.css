@@ -21144,22 +21144,30 @@ body.active-pass-locked {
 /* Three Column Grid */
 .home-grid-three {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 0.5px minmax(0, 1fr) 0.5px minmax(0, 1fr);
   gap: 0;
   width: 100%;
 }
 
 .home-grid-divider {
-  width: 1px;
+  width: 0.5px;
   background: #DC143C;
   align-self: stretch;
 }
 
 .home-row-divider {
-  height: 1px;
+  height: 0.5px;
   background: #DC143C;
   width: 100%;
   margin: 1.5rem 0;
+}
+
+/* Two Column Equal Grid with Divider */
+.home-grid-two-equal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0.5px minmax(0, 1fr);
+  gap: 0;
+  width: 100%;
 }
 
 @media (max-width: 900px) {
@@ -21176,6 +21184,13 @@ body.active-pass-locked {
   .home-grid-three {
     grid-template-columns: 1fr;
     gap: 1.5rem;
+  }
+  .home-grid-two-equal {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .home-grid-two-equal .home-grid-divider {
+    display: none;
   }
 }
 
@@ -22019,38 +22034,6 @@ body.active-pass-locked {
   transition: width 0.3s ease;
 }
 
-/* Reading Stats Card */
-.reading-stats-card {
-  display: flex;
-  flex-direction: column;
-}
-
-.reading-stats-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.reading-stat-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-}
-
-.reading-stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: -0.03em;
-}
-
-.reading-stat-label {
-  font-size: 0.85rem;
-  color: #64748b;
-}
-
 /* Reading Actions Card */
 .reading-actions-card {
   display: flex;
@@ -22204,23 +22187,6 @@ body.active-pass-locked {
 }
 
 /* Responsive adjustments for Reading Dashboard */
-@media (max-width: 900px) {
-  .reading-stats-list {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .reading-stat-item {
-    flex: 1;
-    min-width: 80px;
-  }
-
-  .reading-stat-value {
-    font-size: 1.5rem;
-  }
-}
-
 @media (max-width: 640px) {
   .reading-continue-item {
     flex-direction: column;

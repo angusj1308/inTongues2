@@ -3720,31 +3720,31 @@ async function extractTxtWithChapters(filePath) {
   // Detect chapter markers
   const chapterMarkers = detectChapterMarkers(text)
 
-  // If no chapters detected, treat whole text as one chapter
+  // If no chapters detected, return flat structure (not chapter-based)
   if (!chapterMarkers || chapterMarkers.length === 0) {
-    console.log('No chapter pattern detected, treating as single chapter')
+    console.log('No chapter pattern detected, using flat adaptation')
     const cleanText = text.replace(/\s+/g, ' ').trim()
     const words = cleanText.split(/\s+/)
 
-    // Split into adaptation pages
-    const adaptationPages = []
+    // Split into adaptation chunks (~1200 chars each)
+    const adaptationChunks = []
     let buffer = []
     for (const word of words) {
       buffer.push(word)
       if (buffer.join(' ').length > 1200) {
-        adaptationPages.push(buffer.join(' '))
+        adaptationChunks.push(buffer.join(' '))
         buffer = []
       }
     }
-    if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+    if (buffer.length > 0) adaptationChunks.push(buffer.join(' '))
 
-    return [{
-      index: 0,
-      title: 'Full Text',
+    // Return flat structure with flag
+    return {
+      isFlat: true,
       originalText: cleanText,
-      adaptationPages,
+      adaptationChunks,
       wordCount: words.length,
-    }]
+    }
   }
 
   console.log(`Detected ${chapterMarkers.length} chapters`)
@@ -4139,6 +4139,83 @@ async function saveImportedBookToFirestore({
 }
 
 /**
+ * Save imported flat book (no chapters detected) to Firestore.
+ * Stores adaptation chunks and accumulates adapted text in one blob.
+ * Final 250-word pages are created after all chunks are adapted.
+ */
+async function saveImportedFlatBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  originalText,
+  adaptationChunks,
+  wordCount,
+  voiceGender,
+  sourceType = 'txt',
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Flat book fields
+    sourceType,
+    isFlat: true,
+    originalText,
+    adaptedTextBlob: '', // Will accumulate adapted text
+    adaptationChunks, // Chunks to adapt (~1200 chars each)
+    adaptedChunkCount: 0,
+    totalChunks: adaptationChunks.length,
+    totalWords: wordCount,
+    // Page count will be set after re-chunking
+    pageCount: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+  })
+
+  return storyRef.id
+}
+
+/**
  * Save imported book with chapter structure to Firestore.
  * Works for EPUB, TXT, or any format with detected chapters.
  * Chapters are stored separately with their originalText and adaptationPages.
@@ -4412,7 +4489,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         generateAudio: generateAudio === 'true',
       }
 
-      fetch('http://localhost:4000/api/adapt-epub-book', {
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adaptPayload),
@@ -4427,12 +4504,59 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
     }
 
-    // Handle TXT with chapter-based flow (structural detection)
+    // Handle TXT with structural chapter detection
     if (fileType === 'txt') {
-      const chapters = await extractTxtWithChapters(req.file.path)
+      const extracted = await extractTxtWithChapters(req.file.path)
+
+      // Check if chapters were detected or if it's a flat book
+      if (extracted.isFlat) {
+        console.log('TXT has no chapters, using flat adaptation flow')
+
+        const bookId = await saveImportedFlatBookToFirestore({
+          userId,
+          title,
+          author,
+          originalLanguage,
+          outputLanguage,
+          translationMode,
+          level,
+          isPublicDomain,
+          originalText: extracted.originalText,
+          adaptationChunks: extracted.adaptationChunks,
+          wordCount: extracted.wordCount,
+          voiceGender,
+          sourceType: 'txt',
+        })
+
+        // Fire-and-forget flat adaptation trigger
+        const adaptPayload = {
+          uid: userId,
+          storyId: bookId,
+          targetLanguage: outputLanguage,
+          level,
+          generateAudio: generateAudio === 'true',
+        }
+
+        fetch('http://localhost:4000/api/adapt-flat-book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adaptPayload),
+        }).catch((err) => console.error('Auto-adapt flat TXT trigger failed:', err))
+
+        return res.json({
+          success: true,
+          message: 'TXT import processed successfully (no chapters detected)',
+          bookId,
+          chunkCount: extracted.adaptationChunks.length,
+          sourceType: 'txt',
+          isFlat: true,
+        })
+      }
+
+      // Chapters detected - use chapter-based flow
+      const chapters = extracted
       console.log('Extracted TXT chapters:', chapters.length)
 
-      // Use same storage and adaptation flow as EPUB
       const bookId = await saveImportedChapterBookToFirestore({
         userId,
         title,
@@ -4456,7 +4580,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         generateAudio: generateAudio === 'true',
       }
 
-      fetch('http://localhost:4000/api/adapt-epub-book', {
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adaptPayload),
@@ -4661,7 +4785,7 @@ app.post('/api/adapt-imported-book', async (req, res) => {
  * Adapts EPUB and TXT books chapter by chapter, page by page.
  * Appends adapted text to chapter blobs, then re-chunks into 250-word pages.
  */
-app.post('/api/adapt-epub-book', async (req, res) => {
+app.post('/api/adapt-chapter-book', async (req, res) => {
   try {
     const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
 
@@ -4859,8 +4983,163 @@ app.post('/api/adapt-epub-book', async (req, res) => {
       chapterCount: completedChapters,
     })
   } catch (error) {
-    console.error('Error adapting EPUB book:', error)
-    return res.status(500).json({ error: 'Failed to adapt EPUB book' })
+    console.error('Error adapting chapter book:', error)
+    return res.status(500).json({ error: 'Failed to adapt chapter book' })
+  }
+})
+
+/**
+ * Flat Book Adaptation Endpoint
+ * For books with no detected chapters - adapts chunk by chunk,
+ * accumulates into one blob, then re-chunks into 250-word pages.
+ */
+app.post('/api/adapt-flat-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Starting flat book adaptation:', { uid, storyId, targetLanguage, simplifiedLevel })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    if (!storyData.isFlat) {
+      return res.status(400).json({ error: 'This endpoint is only for flat (no-chapter) books' })
+    }
+
+    // Mark story as adapting
+    await storyRef.update({ status: 'adapting' })
+
+    const { adaptationChunks } = storyData
+    if (!adaptationChunks || adaptationChunks.length === 0) {
+      return res.status(400).json({ error: 'No adaptation chunks found' })
+    }
+
+    console.log(`Found ${adaptationChunks.length} chunks for flat adaptation`)
+
+    let adaptedTextBlob = storyData.adaptedTextBlob || ''
+    let adaptedChunkCount = storyData.adaptedChunkCount || 0
+
+    // Adapt each chunk
+    for (let i = adaptedChunkCount; i < adaptationChunks.length; i++) {
+      const chunkText = adaptationChunks[i]
+
+      if (!chunkText || !chunkText.trim()) {
+        console.warn(`Empty chunk ${i}, skipping`)
+        continue
+      }
+
+      console.log(`Adapting chunk ${i + 1}/${adaptationChunks.length}`)
+
+      try {
+        const response = await client.responses.create({
+          model: 'gpt-4.1',
+          input: [
+            {
+              role: 'system',
+              content: ADAPTATION_SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${chunkText}`,
+            },
+          ],
+        })
+
+        const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+        // Append to blob with paragraph separator
+        if (adaptedTextBlob && adaptedText) {
+          adaptedTextBlob += '\n\n' + adaptedText
+        } else if (adaptedText) {
+          adaptedTextBlob = adaptedText
+        }
+
+        adaptedChunkCount += 1
+
+        // Update progress
+        await storyRef.update({
+          adaptedTextBlob,
+          adaptedChunkCount,
+        })
+
+        console.log(`Completed chunk ${i + 1}/${adaptationChunks.length}`)
+      } catch (adaptError) {
+        console.error(`Error adapting chunk ${i}:`, adaptError)
+        // Continue with next chunk
+      }
+    }
+
+    // All chunks adapted - now re-chunk into 250-word pages
+    console.log('All chunks adapted, re-chunking into 250-word pages...')
+
+    const pagesRef = storyRef.collection('pages')
+
+    // Delete any existing pages
+    const existingPagesSnap = await pagesRef.get()
+    for (const pageDoc of existingPagesSnap.docs) {
+      await pageDoc.ref.delete()
+    }
+
+    // Split adapted text into 250-word pages
+    const displayPages = splitTextIntoPages(adaptedTextBlob, 250)
+
+    console.log(`Split into ${displayPages.length} display pages`)
+
+    // Save each page
+    for (let i = 0; i < displayPages.length; i++) {
+      const pageText = displayPages[i]
+
+      await pagesRef.doc(String(i)).set({
+        index: i,
+        text: pageText,
+        adaptedText: pageText,
+        originalText: pageText,
+        status: 'done',
+        audioUrl: null,
+        audioStatus: 'pending',
+      })
+    }
+
+    // Update story with final page count
+    await storyRef.update({
+      status: 'ready',
+      pageCount: displayPages.length,
+    })
+
+    console.log(`Flat book adaptation complete: ${displayPages.length} pages`)
+
+    // Trigger audio generation if requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    return res.json({
+      success: true,
+      storyId,
+      pageCount: displayPages.length,
+      isFlat: true,
+    })
+  } catch (error) {
+    console.error('Error adapting flat book:', error)
+    return res.status(500).json({ error: 'Failed to adapt flat book' })
   }
 })
 

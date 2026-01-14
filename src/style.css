@@ -21714,7 +21714,7 @@ body.active-pass-locked {
 }
 
 .home-stat-item:hover {
-  background: rgba(15, 23, 42, 0.04);
+  background: rgba(120, 113, 108, 0.06);
 }
 
 .home-stat-item.active {
@@ -21725,7 +21725,7 @@ body.active-pass-locked {
 .home-stat-value {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #0f172a;
+  color: #44403c;
   letter-spacing: -0.02em;
   min-width: 3rem;
   transition: all 0.2s ease;
@@ -21734,7 +21734,7 @@ body.active-pass-locked {
 .home-stat-item.active .home-stat-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #44403c;
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -21746,7 +21746,7 @@ body.active-pass-locked {
 }
 
 .home-stat-item.active .home-stat-label {
-  color: #0f172a;
+  color: #57534e;
   font-weight: 500;
 }
 

@@ -23,6 +23,59 @@ const ACTIVITY_SHORT_LABELS = {
   tutor: 'Tutor',
 }
 
+// Translated day labels by language
+const LOCALIZED_DAY_LABELS = {
+  Spanish: {
+    monday: 'Lunes',
+    tuesday: 'Martes',
+    wednesday: 'Miércoles',
+    thursday: 'Jueves',
+    friday: 'Viernes',
+    saturday: 'Sábado',
+    sunday: 'Domingo',
+  },
+  French: {
+    monday: 'Lundi',
+    tuesday: 'Mardi',
+    wednesday: 'Mercredi',
+    thursday: 'Jeudi',
+    friday: 'Vendredi',
+    saturday: 'Samedi',
+    sunday: 'Dimanche',
+  },
+  Italian: {
+    monday: 'Lunedì',
+    tuesday: 'Martedì',
+    wednesday: 'Mercoledì',
+    thursday: 'Giovedì',
+    friday: 'Venerdì',
+    saturday: 'Sabato',
+    sunday: 'Domenica',
+  },
+  English: {
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+  },
+}
+
+// Translated section title
+const WEEKLY_ROUTINE_TITLES = {
+  Spanish: 'Rutina Semanal',
+  French: 'Routine Hebdomadaire',
+  Italian: 'Routine Settimanale',
+  English: 'Weekly Routine',
+}
+
+const getDayLabel = (language, day) => {
+  const labels = LOCALIZED_DAY_LABELS[language] || LOCALIZED_DAY_LABELS.English
+  return labels[day] || DAY_LABELS[day]
+}
+
 // Format hour for display
 const formatHour = (hour) => {
   if (hour === 0) return '12am'
@@ -80,7 +133,7 @@ const ActivityBlock = ({ activity, onRemove, onClick }) => {
   )
 }
 
-const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime, anchorPosition }) => {
+const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime, anchorPosition, language }) => {
   const [activityType, setActivityType] = useState('reading')
   const [time, setTime] = useState(defaultTime || '09:00')
   const [duration, setDuration] = useState(30)
@@ -144,7 +197,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime, anchorPosi
       >
         <div className="routine-modal-header">
           <h3>Add Activity</h3>
-          <span className="routine-modal-day">{DAY_LABELS[day]}</span>
+          <span className="routine-modal-day">{getDayLabel(language, day)}</span>
         </div>
 
         <form onSubmit={handleSubmit} className="routine-modal-form">
@@ -199,7 +252,7 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, day, defaultTime, anchorPosi
   )
 }
 
-const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivityClick, isToday }) => {
+const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivityClick, isToday, language }) => {
   const [modalState, setModalState] = useState({ isOpen: false, hour: null, position: null })
 
   const handleTimeSlotClick = (hour, e) => {
@@ -242,6 +295,7 @@ const DayColumn = ({ day, activities, onAddActivity, onRemoveActivity, onActivit
         defaultTime={modalState.hour}
         onAdd={(activity) => onAddActivity(day, activity)}
         anchorPosition={modalState.position}
+        language={language}
       />
     </div>
   )
@@ -398,7 +452,7 @@ const RoutineBuilder = ({ userId, language }) => {
 
   return (
     <div className="routine-builder">
-      <h3 className="home-section-title">Weekly Routine</h3>
+      <h3 className="home-section-title">{WEEKLY_ROUTINE_TITLES[language] || WEEKLY_ROUTINE_TITLES.English}</h3>
 
       <div className="routine-week-container">
         {/* Sticky day headers row */}
@@ -409,7 +463,7 @@ const RoutineBuilder = ({ userId, language }) => {
               key={day}
               className={`routine-day-header-cell ${day === today ? 'routine-day-today' : ''}`}
             >
-              <span className="routine-day-label">{DAY_LABELS[day]}</span>
+              <span className="routine-day-label">{getDayLabel(language, day)}</span>
               {day === today && <span className="routine-today-dot" />}
             </div>
           ))}
@@ -449,6 +503,7 @@ const RoutineBuilder = ({ userId, language }) => {
                   onRemoveActivity={handleRemoveActivity}
                   onActivityClick={handleActivityClick}
                   isToday={day === today}
+                  language={language}
                 />
               ))}
             </div>

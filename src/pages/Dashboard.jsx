@@ -981,99 +981,10 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  {/* Horizontal Divider */}
-                  <div className="home-row-divider" />
-
-                  {/* Row 4: Generated Books */}
-                  <div className="reading-shelf">
-                    <div className="home-card-header">
-                      <h3 className="home-card-title">Generated</h3>
-                    </div>
-                    {libraryLoading ? (
-                      <p className="reading-card-empty">Loading...</p>
-                    ) : !generatedBooks?.length ? (
-                      <div className="reading-shelf-empty">
-                        <p className="reading-card-empty">No generated stories yet</p>
-                        <button className="reading-action-btn-small" onClick={() => setShowGenerateModal(true)}>
-                          Generate your first
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="reading-shelf-scroll">
-                        {generatedBooks.map((book) => {
-                          const progress = Math.max(0, Math.min(100, book.progress || 0))
-                          return (
-                            <div key={book.id || book.title} className="reading-shelf-item">
-                              <button
-                                className="book-delete-btn"
-                                onClick={(e) => handleDeleteBook(e, book)}
-                                aria-label="Delete book"
-                              >
-                                ×
-                              </button>
-                              <button
-                                className="reading-shelf-item-content"
-                                onClick={() => handleOpenBook(book)}
-                              >
-                                <div className="reading-shelf-cover" />
-                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                                <div className="reading-shelf-progress">
-                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
-                                </div>
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Horizontal Divider */}
-                  <div className="home-row-divider" />
-
-                  {/* Row 5: Imported Books */}
-                  <div className="reading-shelf">
-                    <div className="home-card-header">
-                      <h3 className="home-card-title">Imported</h3>
-                    </div>
-                    {libraryLoading ? (
-                      <p className="reading-card-empty">Loading...</p>
-                    ) : !adaptationBooks?.length ? (
-                      <div className="reading-shelf-empty">
-                        <p className="reading-card-empty">No imported books yet</p>
-                        <button className="reading-action-btn-small" onClick={() => setShowImportModal(true)}>
-                          Import your first
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="reading-shelf-scroll">
-                        {adaptationBooks.map((book) => {
-                          const progress = Math.max(0, Math.min(100, book.progress || 0))
-                          return (
-                            <div key={book.id || book.title} className="reading-shelf-item">
-                              <button
-                                className="book-delete-btn"
-                                onClick={(e) => handleDeleteBook(e, book)}
-                                aria-label="Delete book"
-                              >
-                                ×
-                              </button>
-                              <button
-                                className="reading-shelf-item-content"
-                                onClick={() => handleOpenBook(book)}
-                              >
-                                <div className="reading-shelf-cover" />
-                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                                <div className="reading-shelf-progress">
-                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
-                                </div>
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  {/* Add Bookshelf */}
+                  <button className="add-bookshelf-btn">
+                    + Add bookshelf
+                  </button>
                 </>
               )}
             </div>

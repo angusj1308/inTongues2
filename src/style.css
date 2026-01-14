@@ -22366,6 +22366,29 @@ body.active-pass-locked {
   }
 }
 
+/* Add Bookshelf Button */
+.add-bookshelf-btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-top: 1.5rem;
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0;
+  color: #64748b;
+  font-family: 'EB Garamond', 'Crimson Pro', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.add-bookshelf-btn:hover {
+  border-color: #94a3b8;
+  color: #475569;
+}
+
 /* Routine Builder - Minimal */
 .routine-builder {
   padding-top: 0.5rem;

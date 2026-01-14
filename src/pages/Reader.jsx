@@ -99,6 +99,9 @@ const Reader = ({ initialMode }) => {
   const [readerMode, setReaderMode] = useState(
     () => initialMode || location.state?.readerMode || 'active'
   )
+  const [displayMode, setDisplayMode] = useState(
+    () => localStorage.getItem('readerDisplayMode') || 'normal'
+  ) // 'normal' (two-page spread) or 'assisted' (single page, large font)
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceSegments, setSentenceSegments] = useState([])
@@ -737,7 +740,8 @@ const Reader = ({ initialMode }) => {
     }
   }, [language, user])
 
-  const visiblePages = pages.slice(currentIndex, currentIndex + 2)
+  const pagesPerView = displayMode === 'assisted' ? 1 : 2
+  const visiblePages = pages.slice(currentIndex, currentIndex + pagesPerView)
   const pageText = visiblePages.map((p) => getDisplayText(p)).join(' ')
 
   const splitIntoSentences = (text) => {
@@ -938,7 +942,7 @@ const Reader = ({ initialMode }) => {
 
     const advancePages = () => {
       setCurrentIndex((prev) =>
-        Math.min(prev + 2, pages.length - (pages.length % 2 ? 1 : 2))
+        Math.min(prev + pagesPerView, pages.length - 1)
       )
     }
 
@@ -1143,7 +1147,7 @@ const Reader = ({ initialMode }) => {
   }, [])
 
   const hasPrevious = currentIndex > 0
-  const hasNext = currentIndex + 2 < pages.length
+  const hasNext = currentIndex + pagesPerView < pages.length
   // visiblePages is already defined above
 
   const handleEdgeNavigation = (direction) => {
@@ -1151,12 +1155,18 @@ const Reader = ({ initialMode }) => {
     if (selection && selection.toString().trim()) return
 
     if (direction === 'previous' && hasPrevious) {
-      setCurrentIndex((prev) => Math.max(prev - 2, 0))
+      setCurrentIndex((prev) => Math.max(prev - pagesPerView, 0))
     }
 
     if (direction === 'next' && hasNext) {
       handleNextPages()
     }
+  }
+
+  const toggleDisplayMode = () => {
+    const newMode = displayMode === 'normal' ? 'assisted' : 'normal'
+    setDisplayMode(newMode)
+    localStorage.setItem('readerDisplayMode', newMode)
   }
 
   const handlePointerDown = (event) => {
@@ -1718,6 +1728,18 @@ const Reader = ({ initialMode }) => {
                   Aa
                 </button>
                 <button
+                  className={`reader-header-button ui-text ${displayMode === 'assisted' ? 'is-active' : ''}`}
+                  type="button"
+                  aria-label={displayMode === 'assisted' ? 'Switch to normal view' : 'Switch to assisted view'}
+                  onClick={(e) => {
+                    toggleDisplayMode()
+                    e.currentTarget.blur()
+                  }}
+                  title={displayMode === 'assisted' ? 'Normal view (2 pages)' : 'Assisted view (1 page, larger)'}
+                >
+                  {displayMode === 'assisted' ? '1pg' : '2pg'}
+                </button>
+                <button
                   className="reader-header-button icon-button reader-theme-trigger"
                   type="button"
                   aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -1813,7 +1835,7 @@ const Reader = ({ initialMode }) => {
                   onClick={() => handleEdgeNavigation('previous')}
                 />
 
-                <div className="reader-pages reader-spread">
+                <div className={`reader-pages ${displayMode === 'assisted' ? 'reader-single' : 'reader-spread'}`}>
                   {visiblePages.map((page, pageIndex) => {
                     const pageNumber = (page.index ?? pages.indexOf(page)) + 1
                     const isLeftPage = pageIndex % 2 === 0
@@ -1822,9 +1844,12 @@ const Reader = ({ initialMode }) => {
                       <div
                         key={page.id || page.index}
                         className={`reader-page-block ${
-                          isLeftPage ? 'page--left' : 'page--right'
+                          displayMode === 'assisted' ? 'page--single' : (isLeftPage ? 'page--left' : 'page--right')
                         }`}
                       >
+                        {page.isChapterStart && page.chapterTitle && (
+                          <div className="chapter-title">{page.chapterTitle}</div>
+                        )}
                         <div className="page-text" onMouseUp={handleWordClick}>
                           {renderHighlightedText(
                             getDisplayText(page),

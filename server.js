@@ -3556,6 +3556,279 @@ async function extractTxt(filePath) {
   return pages
 }
 
+/**
+ * Strip Project Gutenberg boilerplate header and footer.
+ */
+function stripGutenbergBoilerplate(text) {
+  // Common Gutenberg markers
+  const startMarkers = [
+    '*** START OF THE PROJECT GUTENBERG EBOOK',
+    '*** START OF THIS PROJECT GUTENBERG EBOOK',
+    '*END*THE SMALL PRINT',
+    '***START OF THE PROJECT GUTENBERG EBOOK',
+  ]
+  const endMarkers = [
+    '*** END OF THE PROJECT GUTENBERG EBOOK',
+    '*** END OF THIS PROJECT GUTENBERG EBOOK',
+    '***END OF THE PROJECT GUTENBERG EBOOK',
+    'End of the Project Gutenberg EBook',
+    'End of Project Gutenberg',
+  ]
+
+  let result = text
+
+  // Find and strip header
+  for (const marker of startMarkers) {
+    const idx = result.indexOf(marker)
+    if (idx !== -1) {
+      // Find the end of this line
+      const lineEnd = result.indexOf('\n', idx)
+      if (lineEnd !== -1) {
+        result = result.slice(lineEnd + 1)
+      }
+      break
+    }
+  }
+
+  // Find and strip footer
+  for (const marker of endMarkers) {
+    const idx = result.indexOf(marker)
+    if (idx !== -1) {
+      result = result.slice(0, idx)
+      break
+    }
+  }
+
+  return result.trim()
+}
+
+/**
+ * Detect chapter markers using structural patterns (language-agnostic).
+ * Looks for short lines with numbers/roman numerals that appear multiple times.
+ */
+function detectChapterMarkers(text) {
+  const lines = text.split('\n')
+  const candidates = []
+
+  // Roman numeral pattern
+  const romanPattern = /^[IVXLCDM]+$/i
+  // Number pattern (including with dots/colons)
+  const numberPattern = /\d+/
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    const prevLine = i > 0 ? lines[i - 1].trim() : ''
+    const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : ''
+
+    // Skip empty lines
+    if (!line) continue
+
+    // Check if this looks like a chapter heading:
+    // 1. Short line (< 80 chars)
+    // 2. Has blank line before OR after (or both)
+    // 3. Contains number or roman numeral
+    const isShort = line.length < 80
+    const hasBlankBefore = prevLine === ''
+    const hasBlankAfter = nextLine === ''
+    const hasBlankAround = hasBlankBefore || hasBlankAfter
+
+    if (!isShort || !hasBlankAround) continue
+
+    // Check for numbers or roman numerals
+    const words = line.split(/\s+/)
+    const hasNumber = numberPattern.test(line)
+    const hasRoman = words.some(w => romanPattern.test(w) && w.length <= 6)
+
+    // Check if it's mostly uppercase or title case
+    const isUpperCase = line === line.toUpperCase() && /[A-Z]/.test(line)
+    const isTitleCase = words.length > 0 && words.every(w =>
+      !w || /^[A-Z0-9]/.test(w) || w.length <= 2
+    )
+
+    if (hasNumber || hasRoman) {
+      // Extract a "signature" to group similar patterns
+      // e.g., "CHAPTER 5" and "CHAPTER 12" have same signature "CHAPTER #"
+      const signature = line
+        .replace(/\d+/g, '#')
+        .replace(/[IVXLCDM]+/gi, (match) => romanPattern.test(match) ? 'R' : match)
+        .toUpperCase()
+        .trim()
+
+      candidates.push({
+        lineIndex: i,
+        line,
+        signature,
+        hasNumber,
+        hasRoman,
+        isUpperCase,
+        position: i / lines.length, // relative position in document
+      })
+    }
+  }
+
+  // Group candidates by signature
+  const signatureGroups = {}
+  for (const c of candidates) {
+    if (!signatureGroups[c.signature]) {
+      signatureGroups[c.signature] = []
+    }
+    signatureGroups[c.signature].push(c)
+  }
+
+  // Find the best pattern (most matches, spread throughout document)
+  let bestPattern = null
+  let bestScore = 0
+
+  for (const [signature, matches] of Object.entries(signatureGroups)) {
+    if (matches.length < 2) continue // Need at least 2 chapters
+
+    // Score based on count and distribution
+    const count = matches.length
+    const positions = matches.map(m => m.position)
+    const spread = Math.max(...positions) - Math.min(...positions)
+
+    // Good chapters should be spread throughout the book
+    const score = count * (spread > 0.5 ? 2 : 1)
+
+    if (score > bestScore) {
+      bestScore = score
+      bestPattern = { signature, matches }
+    }
+  }
+
+  if (!bestPattern || bestPattern.matches.length < 2) {
+    return null // No chapter pattern detected
+  }
+
+  return bestPattern.matches.map(m => ({
+    lineIndex: m.lineIndex,
+    title: m.line,
+  }))
+}
+
+/**
+ * Extract TXT file with chapter structure (language-agnostic).
+ * Uses structural pattern detection for chapters.
+ */
+async function extractTxtWithChapters(filePath) {
+  let raw = await fs.readFile(filePath, 'utf8')
+
+  // Strip Gutenberg boilerplate
+  const text = stripGutenbergBoilerplate(raw)
+  const lines = text.split('\n')
+
+  // Detect chapter markers
+  const chapterMarkers = detectChapterMarkers(text)
+
+  // If no chapters detected, return flat structure (not chapter-based)
+  if (!chapterMarkers || chapterMarkers.length === 0) {
+    console.log('No chapter pattern detected, using flat adaptation')
+    const cleanText = text.replace(/\s+/g, ' ').trim()
+    const words = cleanText.split(/\s+/)
+
+    // Split into adaptation chunks (~1200 chars each)
+    const adaptationChunks = []
+    let buffer = []
+    for (const word of words) {
+      buffer.push(word)
+      if (buffer.join(' ').length > 1200) {
+        adaptationChunks.push(buffer.join(' '))
+        buffer = []
+      }
+    }
+    if (buffer.length > 0) adaptationChunks.push(buffer.join(' '))
+
+    // Return flat structure with flag
+    return {
+      isFlat: true,
+      originalText: cleanText,
+      adaptationChunks,
+      wordCount: words.length,
+    }
+  }
+
+  console.log(`Detected ${chapterMarkers.length} chapters`)
+
+  // Split text at chapter boundaries
+  const chapters = []
+
+  for (let i = 0; i < chapterMarkers.length; i++) {
+    const marker = chapterMarkers[i]
+    const nextMarker = chapterMarkers[i + 1]
+
+    const startLine = marker.lineIndex
+    const endLine = nextMarker ? nextMarker.lineIndex : lines.length
+
+    // Extract chapter content (skip the chapter heading line itself)
+    const chapterLines = lines.slice(startLine + 1, endLine)
+    const chapterText = chapterLines.join('\n').replace(/\s+/g, ' ').trim()
+
+    // Skip very short chapters (likely just headers)
+    if (chapterText.length < 100) {
+      console.log(`Skipping short chapter: "${marker.title}"`)
+      continue
+    }
+
+    const words = chapterText.split(/\s+/)
+
+    // Split into adaptation pages (~1200 chars)
+    const adaptationPages = []
+    let buffer = []
+    for (const word of words) {
+      buffer.push(word)
+      if (buffer.join(' ').length > 1200) {
+        adaptationPages.push(buffer.join(' '))
+        buffer = []
+      }
+    }
+    if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+
+    chapters.push({
+      index: chapters.length,
+      title: marker.title,
+      originalText: chapterText,
+      adaptationPages,
+      wordCount: words.length,
+    })
+  }
+
+  // Handle any text before the first chapter marker
+  if (chapterMarkers[0].lineIndex > 10) {
+    const preambleLines = lines.slice(0, chapterMarkers[0].lineIndex)
+    const preambleText = preambleLines.join('\n').replace(/\s+/g, ' ').trim()
+
+    if (preambleText.length > 200) {
+      const words = preambleText.split(/\s+/)
+      const adaptationPages = []
+      let buffer = []
+      for (const word of words) {
+        buffer.push(word)
+        if (buffer.join(' ').length > 1200) {
+          adaptationPages.push(buffer.join(' '))
+          buffer = []
+        }
+      }
+      if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+
+      // Insert at beginning
+      chapters.unshift({
+        index: 0,
+        title: 'Preface',
+        originalText: preambleText,
+        adaptationPages,
+        wordCount: words.length,
+      })
+
+      // Re-index other chapters
+      for (let i = 1; i < chapters.length; i++) {
+        chapters[i].index = i
+      }
+    }
+  }
+
+  return chapters
+}
+
 async function extractPdf(filePath) {
   const data = await fs.readFile(filePath)
   const pdf = await pdfParse(data)
@@ -3638,6 +3911,135 @@ async function extractEpub(filePath) {
   }
 
   if (buffer.length > 0) pages.push(buffer.join(' '))
+  return pages
+}
+
+/**
+ * Extract EPUB with chapter structure preserved.
+ * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ */
+async function extractEpubWithChapters(filePath) {
+  const epub = await parseEpub(filePath)
+  const chapters = []
+
+  // epub.flow is the reading order, epub.toc has chapter titles
+  const tocMap = new Map()
+  if (epub.toc && Array.isArray(epub.toc)) {
+    for (const tocItem of epub.toc) {
+      if (tocItem.id) {
+        tocMap.set(tocItem.id, tocItem.title || tocItem.label || '')
+      }
+      // Handle href-based matching (some EPUBs use href instead of id)
+      if (tocItem.href) {
+        const hrefId = tocItem.href.split('#')[0]
+        tocMap.set(hrefId, tocItem.title || tocItem.label || '')
+      }
+    }
+  }
+
+  let chapterIndex = 0
+  for (const item of epub.flow) {
+    const content = await getChapterAsync(epub, item.id)
+    // Strip HTML tags and normalize whitespace
+    const cleanText = content
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    // Skip empty chapters (front matter, etc.)
+    if (!cleanText || cleanText.length < 50) {
+      continue
+    }
+
+    // Try to get chapter title from TOC
+    let title = tocMap.get(item.id) || tocMap.get(item.href) || ''
+    if (!title) {
+      // Try to extract title from content (first heading)
+      const headingMatch = content.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/i)
+      if (headingMatch) {
+        title = headingMatch[1].trim()
+      }
+    }
+    if (!title) {
+      title = `Chapter ${chapterIndex + 1}`
+    }
+
+    // Split chapter into ~1200 char pages for adaptation (API limits)
+    const words = cleanText.split(/\s+/)
+    const adaptationPages = []
+    let buffer = []
+
+    for (const word of words) {
+      buffer.push(word)
+      if (buffer.join(' ').length > 1200) {
+        adaptationPages.push(buffer.join(' '))
+        buffer = []
+      }
+    }
+    if (buffer.length > 0) {
+      adaptationPages.push(buffer.join(' '))
+    }
+
+    chapters.push({
+      index: chapterIndex,
+      title,
+      originalText: cleanText,
+      adaptationPages, // Pages for adaptation (1200 char chunks)
+      wordCount: words.length,
+    })
+
+    chapterIndex++
+  }
+
+  return chapters
+}
+
+/**
+ * Split text into pages of approximately targetWordCount words.
+ * Tries to break at sentence boundaries when possible.
+ */
+function splitTextIntoPages(text, targetWordCount = 250) {
+  if (!text || !text.trim()) return []
+
+  const words = text.split(/\s+/)
+  const pages = []
+  let buffer = []
+
+  for (let i = 0; i < words.length; i++) {
+    buffer.push(words[i])
+
+    // Check if we've reached target word count
+    if (buffer.length >= targetWordCount) {
+      // Try to find a sentence boundary in the last ~20 words
+      const bufferText = buffer.join(' ')
+      const lastSentenceEnd = Math.max(
+        bufferText.lastIndexOf('. '),
+        bufferText.lastIndexOf('? '),
+        bufferText.lastIndexOf('! '),
+        bufferText.lastIndexOf('." '),
+        bufferText.lastIndexOf('?" '),
+        bufferText.lastIndexOf('!" ')
+      )
+
+      // If we found a sentence boundary in a reasonable position, break there
+      if (lastSentenceEnd > bufferText.length * 0.7) {
+        const pageText = bufferText.slice(0, lastSentenceEnd + 1).trim()
+        const remainder = bufferText.slice(lastSentenceEnd + 1).trim()
+        pages.push(pageText)
+        buffer = remainder ? remainder.split(/\s+/) : []
+      } else {
+        // No good sentence boundary, just break at word count
+        pages.push(bufferText)
+        buffer = []
+      }
+    }
+  }
+
+  // Don't forget remaining text
+  if (buffer.length > 0) {
+    pages.push(buffer.join(' '))
+  }
+
   return pages
 }
 
@@ -3732,6 +4134,178 @@ async function saveImportedBookToFirestore({
   })
 
   await batch.commit()
+
+  return storyRef.id
+}
+
+/**
+ * Save imported flat book (no chapters detected) to Firestore.
+ * Stores adaptation chunks and accumulates adapted text in one blob.
+ * Final 250-word pages are created after all chunks are adapted.
+ */
+async function saveImportedFlatBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  originalText,
+  adaptationChunks,
+  wordCount,
+  voiceGender,
+  sourceType = 'txt',
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Flat book fields
+    sourceType,
+    isFlat: true,
+    originalText,
+    adaptedTextBlob: '', // Will accumulate adapted text
+    adaptationChunks, // Chunks to adapt (~1200 chars each)
+    adaptedChunkCount: 0,
+    totalChunks: adaptationChunks.length,
+    totalWords: wordCount,
+    // Page count will be set after re-chunking
+    pageCount: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+  })
+
+  return storyRef.id
+}
+
+/**
+ * Save imported book with chapter structure to Firestore.
+ * Works for EPUB, TXT, or any format with detected chapters.
+ * Chapters are stored separately with their originalText and adaptationPages.
+ * Final 250-word pages are created after adaptation completes.
+ */
+async function saveImportedChapterBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  chapters,
+  voiceGender,
+  sourceType = 'epub', // 'epub', 'txt', etc.
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID for the imported book
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  // Calculate totals
+  const totalChapters = chapters.length
+  const totalAdaptationPages = chapters.reduce((sum, ch) => sum + ch.adaptationPages.length, 0)
+  const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0)
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Chapter-based book fields
+    sourceType,
+    chapterCount: totalChapters,
+    totalAdaptationPages,
+    adaptedChapters: 0,
+    totalWords,
+    // Page count will be set after re-chunking
+    pageCount: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+  })
+
+  // Save chapters
+  const chaptersRef = storyRef.collection('chapters')
+  for (const chapter of chapters) {
+    await chaptersRef.doc(String(chapter.index)).set({
+      index: chapter.index,
+      title: chapter.title,
+      originalText: chapter.originalText,
+      adaptedText: '', // Will be built up during adaptation
+      wordCount: chapter.wordCount,
+      adaptationPages: chapter.adaptationPages,
+      adaptedPageCount: 0,
+      totalAdaptationPages: chapter.adaptationPages.length,
+      status: 'pending',
+      pageOffset: 0, // Will be calculated after all chapters are adapted
+    })
+  }
 
   return storyRef.id
 }
@@ -3885,6 +4459,143 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
     console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
 
+    const fileType = detectFileType(req.file.originalname)
+
+    // Handle EPUB with chapter-based flow
+    if (fileType === 'epub') {
+      const chapters = await extractEpubWithChapters(req.file.path)
+      console.log('Extracted EPUB chapters:', chapters.length)
+
+      const bookId = await saveImportedChapterBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        chapters,
+        voiceGender,
+        sourceType: 'epub',
+      })
+
+      // Fire-and-forget EPUB adaptation trigger
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt EPUB trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'EPUB import processed successfully',
+        bookId,
+        chapterCount: chapters.length,
+        sourceType: 'epub',
+      })
+    }
+
+    // Handle TXT with structural chapter detection
+    if (fileType === 'txt') {
+      const extracted = await extractTxtWithChapters(req.file.path)
+
+      // Check if chapters were detected or if it's a flat book
+      if (extracted.isFlat) {
+        console.log('TXT has no chapters, using flat adaptation flow')
+
+        const bookId = await saveImportedFlatBookToFirestore({
+          userId,
+          title,
+          author,
+          originalLanguage,
+          outputLanguage,
+          translationMode,
+          level,
+          isPublicDomain,
+          originalText: extracted.originalText,
+          adaptationChunks: extracted.adaptationChunks,
+          wordCount: extracted.wordCount,
+          voiceGender,
+          sourceType: 'txt',
+        })
+
+        // Fire-and-forget flat adaptation trigger
+        const adaptPayload = {
+          uid: userId,
+          storyId: bookId,
+          targetLanguage: outputLanguage,
+          level,
+          generateAudio: generateAudio === 'true',
+        }
+
+        fetch('http://localhost:4000/api/adapt-flat-book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adaptPayload),
+        }).catch((err) => console.error('Auto-adapt flat TXT trigger failed:', err))
+
+        return res.json({
+          success: true,
+          message: 'TXT import processed successfully (no chapters detected)',
+          bookId,
+          chunkCount: extracted.adaptationChunks.length,
+          sourceType: 'txt',
+          isFlat: true,
+        })
+      }
+
+      // Chapters detected - use chapter-based flow
+      const chapters = extracted
+      console.log('Extracted TXT chapters:', chapters.length)
+
+      const bookId = await saveImportedChapterBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        chapters,
+        voiceGender,
+        sourceType: 'txt',
+      })
+
+      // Fire-and-forget adaptation trigger (same endpoint as EPUB)
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt TXT trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'TXT import processed successfully',
+        bookId,
+        chapterCount: chapters.length,
+        sourceType: 'txt',
+      })
+    }
+
+    // Handle other file types (PDF) with existing flat page flow
     const pages = await extractPagesForFile(req.file)
     const bookId = await saveImportedBookToFirestore({
       userId,
@@ -4066,6 +4777,369 @@ app.post('/api/adapt-imported-book', async (req, res) => {
   } catch (error) {
     console.error('Error adapting imported book:', error)
     return res.status(500).json({ error: 'Failed to adapt imported book' })
+  }
+})
+
+/**
+ * Chapter-Based Book Adaptation Endpoint
+ * Adapts EPUB and TXT books chapter by chapter, page by page.
+ * Appends adapted text to chapter blobs, then re-chunks into 250-word pages.
+ */
+app.post('/api/adapt-chapter-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Starting EPUB adaptation:', { uid, storyId, targetLanguage, simplifiedLevel })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    const validSourceTypes = ['epub', 'txt']
+    if (!validSourceTypes.includes(storyData.sourceType)) {
+      return res.status(400).json({ error: 'This endpoint is only for chapter-based books (EPUB, TXT)' })
+    }
+
+    // Mark story as adapting
+    await storyRef.update({ status: 'adapting' })
+
+    // Get all chapters
+    const chaptersRef = storyRef.collection('chapters')
+    const chaptersSnap = await chaptersRef.orderBy('index').get()
+
+    if (chaptersSnap.empty) {
+      return res.status(404).json({ error: 'No chapters found for this story' })
+    }
+
+    console.log(`Found ${chaptersSnap.size} chapters for EPUB adaptation`)
+
+    let totalAdaptedPages = 0
+    let completedChapters = 0
+
+    // Process each chapter
+    for (const chapterDoc of chaptersSnap.docs) {
+      const chapterData = chapterDoc.data() || {}
+      const { adaptationPages, index: chapterIndex, title: chapterTitle } = chapterData
+
+      if (!adaptationPages || adaptationPages.length === 0) {
+        console.warn(`Chapter ${chapterIndex} has no adaptation pages, skipping`)
+        await chapterDoc.ref.update({ status: 'skipped' })
+        continue
+      }
+
+      console.log(`Adapting chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+      await chapterDoc.ref.update({ status: 'adapting' })
+
+      let chapterAdaptedText = chapterData.adaptedText || ''
+      let adaptedPageCount = chapterData.adaptedPageCount || 0
+
+      // Adapt each page in the chapter
+      for (let pageIdx = adaptedPageCount; pageIdx < adaptationPages.length; pageIdx++) {
+        const pageText = adaptationPages[pageIdx]
+
+        if (!pageText || !pageText.trim()) {
+          console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+          continue
+        }
+
+        console.log(`Adapting chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+        try {
+          const response = await client.responses.create({
+            model: 'gpt-4.1',
+            input: [
+              {
+                role: 'system',
+                content: ADAPTATION_SYSTEM_PROMPT,
+              },
+              {
+                role: 'user',
+                content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${pageText}`,
+              },
+            ],
+          })
+
+          const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+          // Append to chapter blob with paragraph separator
+          if (chapterAdaptedText && adaptedText) {
+            chapterAdaptedText += '\n\n' + adaptedText
+          } else if (adaptedText) {
+            chapterAdaptedText = adaptedText
+          }
+
+          adaptedPageCount += 1
+          totalAdaptedPages += 1
+
+          // Update chapter with progress
+          await chapterDoc.ref.update({
+            adaptedText: chapterAdaptedText,
+            adaptedPageCount,
+          })
+
+          console.log(`Completed chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+        } catch (adaptError) {
+          console.error(`Error adapting chapter ${chapterIndex}, page ${pageIdx}:`, adaptError)
+          // Continue with next page rather than failing entire chapter
+        }
+      }
+
+      // Mark chapter as complete
+      await chapterDoc.ref.update({ status: 'ready' })
+      completedChapters += 1
+
+      console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
+    }
+
+    // All chapters adapted - now re-chunk into 250-word pages
+    console.log('All chapters adapted, re-chunking into 250-word pages...')
+
+    // Collect all adapted text from chapters in order
+    const updatedChaptersSnap = await chaptersRef.orderBy('index').get()
+    let globalPageIndex = 0
+    const pagesRef = storyRef.collection('pages')
+
+    // Delete any existing pages (in case of re-adaptation)
+    const existingPagesSnap = await pagesRef.get()
+    for (const pageDoc of existingPagesSnap.docs) {
+      await pageDoc.ref.delete()
+    }
+
+    // Process each chapter and create pages
+    for (const chapterDoc of updatedChaptersSnap.docs) {
+      const chapterData = chapterDoc.data() || {}
+      const { adaptedText, index: chapterIndex, title: chapterTitle } = chapterData
+
+      if (!adaptedText || !adaptedText.trim()) {
+        continue
+      }
+
+      // Record page offset for this chapter
+      const chapterPageOffset = globalPageIndex
+      await chapterDoc.ref.update({ pageOffset: chapterPageOffset })
+
+      // Split chapter's adapted text into 250-word pages
+      const chapterPages = splitTextIntoPages(adaptedText, 250)
+
+      console.log(`Chapter ${chapterIndex} split into ${chapterPages.length} pages (starting at page ${globalPageIndex})`)
+
+      // Save each page
+      for (let i = 0; i < chapterPages.length; i++) {
+        const pageText = chapterPages[i]
+        const isFirstPageOfChapter = i === 0
+
+        await pagesRef.doc(String(globalPageIndex)).set({
+          index: globalPageIndex,
+          text: pageText,
+          adaptedText: pageText, // Already adapted
+          originalText: pageText,
+          status: 'done',
+          chapterIndex,
+          chapterTitle: isFirstPageOfChapter ? chapterTitle : null,
+          isChapterStart: isFirstPageOfChapter,
+          audioUrl: null,
+          audioStatus: 'pending',
+        })
+
+        globalPageIndex += 1
+      }
+    }
+
+    // Update story with final page count
+    await storyRef.update({
+      status: 'ready',
+      pageCount: globalPageIndex,
+      adaptedChapters: completedChapters,
+    })
+
+    console.log(`EPUB adaptation complete: ${globalPageIndex} pages across ${completedChapters} chapters`)
+
+    // Trigger audio generation if requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    return res.json({
+      success: true,
+      storyId,
+      pageCount: globalPageIndex,
+      chapterCount: completedChapters,
+    })
+  } catch (error) {
+    console.error('Error adapting chapter book:', error)
+    return res.status(500).json({ error: 'Failed to adapt chapter book' })
+  }
+})
+
+/**
+ * Flat Book Adaptation Endpoint
+ * For books with no detected chapters - adapts chunk by chunk,
+ * accumulates into one blob, then re-chunks into 250-word pages.
+ */
+app.post('/api/adapt-flat-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Starting flat book adaptation:', { uid, storyId, targetLanguage, simplifiedLevel })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    if (!storyData.isFlat) {
+      return res.status(400).json({ error: 'This endpoint is only for flat (no-chapter) books' })
+    }
+
+    // Mark story as adapting
+    await storyRef.update({ status: 'adapting' })
+
+    const { adaptationChunks } = storyData
+    if (!adaptationChunks || adaptationChunks.length === 0) {
+      return res.status(400).json({ error: 'No adaptation chunks found' })
+    }
+
+    console.log(`Found ${adaptationChunks.length} chunks for flat adaptation`)
+
+    let adaptedTextBlob = storyData.adaptedTextBlob || ''
+    let adaptedChunkCount = storyData.adaptedChunkCount || 0
+
+    // Adapt each chunk
+    for (let i = adaptedChunkCount; i < adaptationChunks.length; i++) {
+      const chunkText = adaptationChunks[i]
+
+      if (!chunkText || !chunkText.trim()) {
+        console.warn(`Empty chunk ${i}, skipping`)
+        continue
+      }
+
+      console.log(`Adapting chunk ${i + 1}/${adaptationChunks.length}`)
+
+      try {
+        const response = await client.responses.create({
+          model: 'gpt-4.1',
+          input: [
+            {
+              role: 'system',
+              content: ADAPTATION_SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${chunkText}`,
+            },
+          ],
+        })
+
+        const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+        // Append to blob with paragraph separator
+        if (adaptedTextBlob && adaptedText) {
+          adaptedTextBlob += '\n\n' + adaptedText
+        } else if (adaptedText) {
+          adaptedTextBlob = adaptedText
+        }
+
+        adaptedChunkCount += 1
+
+        // Update progress
+        await storyRef.update({
+          adaptedTextBlob,
+          adaptedChunkCount,
+        })
+
+        console.log(`Completed chunk ${i + 1}/${adaptationChunks.length}`)
+      } catch (adaptError) {
+        console.error(`Error adapting chunk ${i}:`, adaptError)
+        // Continue with next chunk
+      }
+    }
+
+    // All chunks adapted - now re-chunk into 250-word pages
+    console.log('All chunks adapted, re-chunking into 250-word pages...')
+
+    const pagesRef = storyRef.collection('pages')
+
+    // Delete any existing pages
+    const existingPagesSnap = await pagesRef.get()
+    for (const pageDoc of existingPagesSnap.docs) {
+      await pageDoc.ref.delete()
+    }
+
+    // Split adapted text into 250-word pages
+    const displayPages = splitTextIntoPages(adaptedTextBlob, 250)
+
+    console.log(`Split into ${displayPages.length} display pages`)
+
+    // Save each page
+    for (let i = 0; i < displayPages.length; i++) {
+      const pageText = displayPages[i]
+
+      await pagesRef.doc(String(i)).set({
+        index: i,
+        text: pageText,
+        adaptedText: pageText,
+        originalText: pageText,
+        status: 'done',
+        audioUrl: null,
+        audioStatus: 'pending',
+      })
+    }
+
+    // Update story with final page count
+    await storyRef.update({
+      status: 'ready',
+      pageCount: displayPages.length,
+    })
+
+    console.log(`Flat book adaptation complete: ${displayPages.length} pages`)
+
+    // Trigger audio generation if requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    return res.json({
+      success: true,
+      storyId,
+      pageCount: displayPages.length,
+      isFlat: true,
+    })
+  } catch (error) {
+    console.error('Error adapting flat book:', error)
+    return res.status(500).json({ error: 'Failed to adapt flat book' })
   }
 })
 

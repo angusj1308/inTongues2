@@ -8,6 +8,7 @@ import TutorHome from '../components/tutor/TutorHome'
 import SpeakHub from '../components/speak/SpeakHub'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
+import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
 import ProgressChart from '../components/home/ProgressChart'
@@ -26,6 +27,7 @@ const CARD_HEADERS = {
     continue: 'Continuar',
     generate: 'Generar',
     import: 'Importar',
+    explore: 'Explorar',
     routine: 'Rutina',
     stats: 'Estadísticas',
     recent: 'Recientes',
@@ -35,6 +37,7 @@ const CARD_HEADERS = {
     continue: 'Continuer',
     generate: 'Générer',
     import: 'Importer',
+    explore: 'Explorer',
     routine: 'Routine',
     stats: 'Statistiques',
     recent: 'Récents',
@@ -44,6 +47,7 @@ const CARD_HEADERS = {
     continue: 'Continuare',
     generate: 'Generare',
     import: 'Importare',
+    explore: 'Esplorare',
     routine: 'Routine',
     stats: 'Statistiche',
     recent: 'Recenti',
@@ -53,6 +57,7 @@ const CARD_HEADERS = {
     continue: 'Continue',
     generate: 'Generate',
     import: 'Import',
+    explore: 'Explore',
     routine: 'Routine',
     stats: 'Stats',
     recent: 'Recent',
@@ -280,9 +285,10 @@ const Dashboard = () => {
   const [libraryLoading, setLibraryLoading] = useState(true)
   const [libraryError, setLibraryError] = useState('')
 
-  // Modal states for Generate and Import
+  // Modal states for Generate, Import, and Gutenberg
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showGutenbergModal, setShowGutenbergModal] = useState(false)
 
   // Review tab state
   const [deckCounts, setDeckCounts] = useState({})
@@ -883,38 +889,7 @@ const Dashboard = () => {
 
                   {/* Row 1: Three Action Cards */}
                   <div className="home-grid-three">
-                    {/* Card 1: Continue Reading */}
-                    <button
-                      className="home-card reading-action-card"
-                      onClick={() => continueStory ? handleOpenBook(continueStory) : setShowImportModal(true)}
-                    >
-                      <div className="reading-book-cover">
-                        {continueStory?.coverUrl ? (
-                          <img src={continueStory.coverUrl} alt="" className="reading-book-cover-img" />
-                        ) : null}
-                      </div>
-                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'continue')}</h3>
-                      {continueStory ? (
-                        <>
-                          <p className="reading-continue-meta">
-                            {getStoryTitle(continueStory)}{continueStory.author ? ` — ${continueStory.author}` : ''}
-                          </p>
-                          <p className="reading-continue-meta">
-                            Page {continueStory.currentPage || 1} of {continueStory.totalPages || '?'}
-                          </p>
-                          <div className="reading-continue-progress">
-                            <div className="reading-continue-progress-fill" style={{ width: `${continueProgress}%` }} />
-                          </div>
-                        </>
-                      ) : (
-                        <p className="reading-continue-meta">No book in progress</p>
-                      )}
-                    </button>
-
-                    {/* Divider */}
-                    <div className="home-grid-divider" />
-
-                    {/* Card 2: Generate */}
+                    {/* Card 1: Generate */}
                     <button
                       className="home-card reading-action-card"
                       onClick={() => setShowGenerateModal(true)}
@@ -929,7 +904,7 @@ const Dashboard = () => {
                     {/* Divider */}
                     <div className="home-grid-divider" />
 
-                    {/* Card 3: Import */}
+                    {/* Card 2: Import */}
                     <button
                       className="home-card reading-action-card"
                       onClick={() => setShowImportModal(true)}
@@ -938,6 +913,21 @@ const Dashboard = () => {
                       <h3 className="home-card-title">{getCardHeader(activeLanguage, 'import')}</h3>
                       <p className="reading-card-description">
                         Import your own books and adapt them to your target language and level.
+                      </p>
+                    </button>
+
+                    {/* Divider */}
+                    <div className="home-grid-divider" />
+
+                    {/* Card 3: Explore (Gutenberg) */}
+                    <button
+                      className="home-card reading-action-card"
+                      onClick={() => setShowGutenbergModal(true)}
+                    >
+                      <div className="reading-card-icon-placeholder" />
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'explore')}</h3>
+                      <p className="reading-card-description">
+                        Explore Gutenberg's vast library of classics, ready to be adapted to your level.
                       </p>
                     </button>
                   </div>
@@ -1256,6 +1246,20 @@ const Dashboard = () => {
           activeLanguage={activeLanguage}
           isModal
           onClose={() => setShowImportModal(false)}
+        />
+      )}
+
+      {/* Gutenberg Search Modal */}
+      {showGutenbergModal && (
+        <GutenbergSearchPanel
+          activeLanguage={activeLanguage}
+          isModal
+          onClose={() => setShowGutenbergModal(false)}
+          onSelectBook={(book) => {
+            // TODO: Integrate with import flow
+            console.log('Selected book:', book)
+            setShowGutenbergModal(false)
+          }}
         />
       )}
     </DashboardLayout>

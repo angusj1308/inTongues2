@@ -60,8 +60,18 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(null) // language being confirmed for reset
   const [resetting, setResetting] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode')
+    return saved ? JSON.parse(saved) : false
+  })
 
   const accountMenuRef = useRef(null)
+
+  // Sync dark mode with document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    localStorage.setItem('darkMode', JSON.stringify(darkMode))
+  }, [darkMode])
 
   const nativeLanguageRaw = profile?.nativeLanguage || ''
   const nativeLanguage = resolveSupportedLanguageLabel(nativeLanguageRaw, '')
@@ -188,17 +198,20 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
           <div className="dashboard-header-actions">
             <button
               className="dashboard-icon-btn"
-              onClick={() => {
-                // TODO: Toggle dark mode
-                console.log('Toggle dark mode')
-              }}
-              aria-label="Toggle dark mode"
-              title="Toggle dark mode"
+              onClick={() => setDarkMode(!darkMode)}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="12" cy="12" r="5" />
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-              </svg>
+              {darkMode ? (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="5" />
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+              )}
             </button>
 
             <div className="dashboard-dropdown" ref={accountMenuRef}>

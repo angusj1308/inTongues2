@@ -22244,23 +22244,62 @@ body.active-pass-locked {
 }
 
 .reading-shelf-item {
+  position: relative;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: none;
+  width: 140px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  cursor: pointer;
   transition: all 0.15s ease;
-  width: 140px;
-  text-align: left;
 }
 
 .reading-shelf-item:hover {
   border-color: #0f172a;
   transform: translateY(-2px);
+}
+
+/* Delete button - small grey X */
+.book-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reading-shelf-item:hover .book-delete-btn {
+  opacity: 1;
+}
+
+.book-delete-btn:hover {
+  color: #dc2626;
+  background: #fff;
+}
+
+/* Content wrapper inside book card */
+.reading-shelf-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
 }
 
 .reading-shelf-cover {

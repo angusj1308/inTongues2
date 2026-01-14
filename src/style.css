@@ -348,7 +348,7 @@ textarea {
 .dashboard-brand-line {
   flex: 1;
   height: 0.75px;
-  background: #DC143C;
+  background: #be123c;
 }
 
 .dashboard-brand-flag {
@@ -5428,13 +5428,13 @@ pre {
 .login-divider {
   width: 100%;
   height: 2px;
-  background: #DC143C;
+  background: #be123c;
   margin: 1.5rem 0;
 }
 
 .brand-dot {
   margin-left: -0.08em;
-  color: #DC143C;
+  color: #be123c;
 }
 
 .dashboard-brand-language-wrapper {
@@ -21570,13 +21570,13 @@ body.active-pass-locked {
 
 .home-grid-divider {
   width: 0.75px;
-  background: #DC143C;
+  background: #be123c;
   align-self: stretch;
 }
 
 .home-row-divider {
   height: 0.75px;
-  background: #DC143C;
+  background: #be123c;
   width: 100%;
   margin: 1.5rem 0;
 }

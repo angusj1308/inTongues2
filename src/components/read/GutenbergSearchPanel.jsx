@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { searchBooks, getLanguageCode } from '../../services/gutenberg'
+import { searchBooks } from '../../services/gutenberg'
 
 // Target language translations for modal title
 const EXPLORE_TITLES = {
@@ -8,6 +8,8 @@ const EXPLORE_TITLES = {
   Italian: 'Esplorare',
   English: 'Explore',
 }
+
+const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
 const GutenbergSearchPanel = ({
   activeLanguage = '',
@@ -24,6 +26,16 @@ const GutenbergSearchPanel = ({
   const [nextPage, setNextPage] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedBook, setSelectedBook] = useState(null)
+
+  // Import wizard state
+  const [importingBookId, setImportingBookId] = useState(null)
+  const [importStep, setImportStep] = useState('format') // format, level, audio, voice, confirm
+  const [importOptions, setImportOptions] = useState({
+    format: null,
+    level: null,
+    generateAudio: null,
+    voiceGender: null,
+  })
 
   // Load popular books on mount
   useEffect(() => {
@@ -45,7 +57,6 @@ const GutenbergSearchPanel = ({
 
   const handleSearch = useCallback(async (page = 1) => {
     if (!searchQuery.trim() && page === 1) {
-      // Reset to popular books
       setLoading(true)
       try {
         const results = await searchBooks({ page: 1 })
@@ -109,15 +120,206 @@ const GutenbergSearchPanel = ({
     setSelectedBook(null)
   }
 
-  const handleSelectForImport = (book, format = 'epub') => {
-    if (onSelectBook) {
-      onSelectBook({ ...book, selectedFormat: format })
+  // Reset import wizard
+  const resetImportWizard = () => {
+    setImportingBookId(null)
+    setImportStep('format')
+    setImportOptions({
+      format: null,
+      level: null,
+      generateAudio: null,
+      voiceGender: null,
+    })
+  }
+
+  // Start import wizard for a book
+  const startImportWizard = (e, bookId, format) => {
+    e.stopPropagation()
+    setImportingBookId(bookId)
+    setImportStep('level')
+    setImportOptions({
+      format,
+      level: null,
+      generateAudio: null,
+      voiceGender: null,
+    })
+  }
+
+  // Handle level selection
+  const handleLevelSelect = (e, level) => {
+    e.stopPropagation()
+    setImportOptions((prev) => ({ ...prev, level }))
+    setImportStep('audio')
+  }
+
+  // Handle audio selection
+  const handleAudioSelect = (e, generateAudio) => {
+    e.stopPropagation()
+    setImportOptions((prev) => ({ ...prev, generateAudio }))
+    if (generateAudio) {
+      setImportStep('voice')
+    } else {
+      setImportStep('confirm')
     }
   }
 
-  const handleQuickImport = (e, book, format) => {
-    e.stopPropagation() // Prevent opening detail view
-    handleSelectForImport(book, format)
+  // Handle voice selection
+  const handleVoiceSelect = (e, voiceGender) => {
+    e.stopPropagation()
+    setImportOptions((prev) => ({ ...prev, voiceGender }))
+    setImportStep('confirm')
+  }
+
+  // Handle final confirmation
+  const handleConfirmImport = (e, book) => {
+    e.stopPropagation()
+    if (onSelectBook) {
+      onSelectBook({
+        ...book,
+        selectedFormat: importOptions.format,
+        level: importOptions.level,
+        generateAudio: importOptions.generateAudio,
+        voiceGender: importOptions.voiceGender,
+      })
+    }
+    resetImportWizard()
+  }
+
+  // Handle cancel/back in wizard
+  const handleWizardBack = (e) => {
+    e.stopPropagation()
+    if (importStep === 'level') {
+      resetImportWizard()
+    } else if (importStep === 'audio') {
+      setImportStep('level')
+    } else if (importStep === 'voice') {
+      setImportStep('audio')
+    } else if (importStep === 'confirm') {
+      if (importOptions.generateAudio) {
+        setImportStep('voice')
+      } else {
+        setImportStep('audio')
+      }
+    }
+  }
+
+  // Render the import wizard overlay for a book
+  const renderImportWizard = (book) => {
+    if (importingBookId !== book.id) {
+      // Default format selection
+      return (
+        <div className="gutenberg-book-hover-overlay">
+          {book.epubUrl && (
+            <button
+              className="gutenberg-quick-import-btn"
+              onClick={(e) => startImportWizard(e, book.id, 'epub')}
+            >
+              EPUB
+            </button>
+          )}
+          {book.textUrl && (
+            <button
+              className="gutenberg-quick-import-btn"
+              onClick={(e) => startImportWizard(e, book.id, 'txt')}
+            >
+              TXT
+            </button>
+          )}
+        </div>
+      )
+    }
+
+    // Wizard steps
+    return (
+      <div className="gutenberg-book-hover-overlay gutenberg-wizard-overlay">
+        <button
+          className="gutenberg-wizard-back"
+          onClick={handleWizardBack}
+        >
+          ←
+        </button>
+
+        {importStep === 'level' && (
+          <div className="gutenberg-wizard-step">
+            <span className="gutenberg-wizard-label">Select Level</span>
+            {LEVELS.map((level) => (
+              <button
+                key={level}
+                className="gutenberg-quick-import-btn"
+                onClick={(e) => handleLevelSelect(e, level)}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {importStep === 'audio' && (
+          <div className="gutenberg-wizard-step">
+            <span className="gutenberg-wizard-label">Generate Audio?</span>
+            <button
+              className="gutenberg-quick-import-btn"
+              onClick={(e) => handleAudioSelect(e, true)}
+            >
+              Yes
+            </button>
+            <button
+              className="gutenberg-quick-import-btn"
+              onClick={(e) => handleAudioSelect(e, false)}
+            >
+              No
+            </button>
+          </div>
+        )}
+
+        {importStep === 'voice' && (
+          <div className="gutenberg-wizard-step">
+            <span className="gutenberg-wizard-label">Voice Gender</span>
+            <button
+              className="gutenberg-quick-import-btn"
+              onClick={(e) => handleVoiceSelect(e, 'male')}
+            >
+              Male
+            </button>
+            <button
+              className="gutenberg-quick-import-btn"
+              onClick={(e) => handleVoiceSelect(e, 'female')}
+            >
+              Female
+            </button>
+          </div>
+        )}
+
+        {importStep === 'confirm' && (
+          <div className="gutenberg-wizard-step gutenberg-wizard-confirm">
+            <span className="gutenberg-wizard-label">Confirm Import</span>
+            <div className="gutenberg-wizard-summary">
+              <span>{importOptions.format.toUpperCase()}</span>
+              <span>{importOptions.level}</span>
+              <span>{importOptions.generateAudio ? `Audio: ${importOptions.voiceGender}` : 'No audio'}</span>
+            </div>
+            <button
+              className="gutenberg-quick-import-btn gutenberg-confirm-btn"
+              onClick={(e) => handleConfirmImport(e, book)}
+            >
+              Import
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Handle detail view import (same wizard but in detail)
+  const handleDetailImport = (format) => {
+    if (onSelectBook && selectedBook) {
+      // For detail view, we'll open import modal with pre-filled data
+      // For now, just pass the format
+      onSelectBook({
+        ...selectedBook,
+        selectedFormat: format,
+      })
+    }
   }
 
   const panelContent = (
@@ -229,7 +431,7 @@ const GutenbergSearchPanel = ({
                 {selectedBook.epubUrl && (
                   <button
                     className="gutenberg-btn-primary"
-                    onClick={() => handleSelectForImport(selectedBook, 'epub')}
+                    onClick={() => handleDetailImport('epub')}
                   >
                     Import EPUB
                   </button>
@@ -237,7 +439,7 @@ const GutenbergSearchPanel = ({
                 {selectedBook.textUrl && (
                   <button
                     className={selectedBook.epubUrl ? "gutenberg-btn-secondary" : "gutenberg-btn-primary"}
-                    onClick={() => handleSelectForImport(selectedBook, 'txt')}
+                    onClick={() => handleDetailImport('txt')}
                   >
                     Import TXT
                   </button>
@@ -286,13 +488,27 @@ const GutenbergSearchPanel = ({
             {books.map((book) => (
               <div
                 key={book.id}
-                className="gutenberg-book-card"
-                onClick={() => handleBookClick(book)}
+                className={`gutenberg-book-card${importingBookId === book.id ? ' is-importing' : ''}`}
+                onClick={() => {
+                  if (!importingBookId) {
+                    handleBookClick(book)
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (importingBookId === book.id) {
+                    resetImportWizard()
+                  }
+                }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    handleBookClick(book)
+                    if (!importingBookId) {
+                      handleBookClick(book)
+                    }
+                  }
+                  if (e.key === 'Escape' && importingBookId === book.id) {
+                    resetImportWizard()
                   }
                 }}
               >
@@ -304,25 +520,7 @@ const GutenbergSearchPanel = ({
                       <span>{book.title.charAt(0)}</span>
                     </div>
                   )}
-                  {/* Hover overlay with import buttons */}
-                  <div className="gutenberg-book-hover-overlay">
-                    {book.epubUrl && (
-                      <button
-                        className="gutenberg-quick-import-btn"
-                        onClick={(e) => handleQuickImport(e, book, 'epub')}
-                      >
-                        EPUB
-                      </button>
-                    )}
-                    {book.textUrl && (
-                      <button
-                        className="gutenberg-quick-import-btn"
-                        onClick={(e) => handleQuickImport(e, book, 'txt')}
-                      >
-                        TXT
-                      </button>
-                    )}
-                  </div>
+                  {renderImportWizard(book)}
                 </div>
                 <div className="gutenberg-book-info">
                   <h4 className="gutenberg-book-title">{book.title}</h4>

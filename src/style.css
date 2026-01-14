@@ -352,11 +352,7 @@ textarea {
 }
 
 .dashboard-brand-flag {
-  display: block;
-  width: 18px;
-  height: auto;
-  margin-bottom: 0.35rem;
-  opacity: 0.85;
+  display: none;
 }
 
 .dashboard-brand-content {

@@ -15028,6 +15028,10 @@ body.active-pass-locked {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
 }
 
+.import-book-modal {
+  border-radius: 0;
+}
+
 .generate-story-modal *,
 .import-book-modal * {
   font-family: inherit;
@@ -15096,7 +15100,7 @@ body.active-pass-locked {
   padding: 0.65rem 0.85rem;
   font-size: 0.95rem;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 0;
   background: #f8fafc;
   color: #0f172a;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -15118,7 +15122,7 @@ body.active-pass-locked {
   padding: 0.5rem;
   font-size: 0.9rem;
   border: 1px dashed #cbd5e1;
-  border-radius: 8px;
+  border-radius: 0;
   background: #f8fafc;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -15133,7 +15137,7 @@ body.active-pass-locked {
   padding: 0.5rem 0.75rem;
   margin-right: 0.75rem;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 0;
   background: #fff;
   color: #374151;
   font-size: 0.85rem;
@@ -15162,7 +15166,7 @@ body.active-pass-locked {
   font-size: 0.85rem;
   font-weight: 600;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 0;
   background: #f8fafc;
   color: #64748b;
   cursor: pointer;
@@ -15192,7 +15196,7 @@ body.active-pass-locked {
   font-size: 0.85rem;
   font-weight: 600;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border-radius: 0;
   background: #f8fafc;
   color: #64748b;
   cursor: pointer;
@@ -15219,8 +15223,10 @@ body.active-pass-locked {
 
 .import-checkbox-label {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   gap: 1rem;
   font-size: 0.9rem;
   color: #374151;
@@ -15249,7 +15255,7 @@ body.active-pass-locked {
   font-size: 0.9rem;
   font-weight: 600;
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   background: #111;
   color: #fff;
   cursor: pointer;
@@ -15270,7 +15276,7 @@ body.active-pass-locked {
   font-size: 0.9rem;
   font-weight: 600;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border-radius: 0;
   background: #fff;
   color: #374151;
   cursor: pointer;

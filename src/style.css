@@ -15023,12 +15023,12 @@ body.active-pass-locked {
    Generate Story Modal
    ============================================== */
 
-.generate-story-modal,
-.import-book-modal {
+.generate-story-modal {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
 }
 
 .import-book-modal {
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   border-radius: 0;
 }
 
@@ -15048,12 +15048,12 @@ body.active-pass-locked {
 }
 
 .import-modal-title {
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 1.75rem;
-  font-weight: 600;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: #0f172a;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   margin: 0 0 0.5rem;
 }
 

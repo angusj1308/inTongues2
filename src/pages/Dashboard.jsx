@@ -841,8 +841,7 @@ const Dashboard = () => {
                     {/* Card 1: Continue Reading */}
                     <button
                       className="home-card reading-action-card"
-                      onClick={() => continueStory && handleOpenBook(continueStory)}
-                      disabled={!continueStory || libraryLoading}
+                      onClick={() => continueStory ? handleOpenBook(continueStory) : setShowImportModal(true)}
                     >
                       <div className="reading-book-cover">
                         {continueStory?.coverUrl ? (
@@ -850,8 +849,20 @@ const Dashboard = () => {
                         ) : null}
                       </div>
                       <h3 className="home-card-title">Continue</h3>
-                      {continueStory && (
-                        <p className="reading-card-description">{getStoryTitle(continueStory)}</p>
+                      {continueStory ? (
+                        <>
+                          <p className="reading-continue-meta">
+                            {getStoryTitle(continueStory)}{continueStory.author ? ` — ${continueStory.author}` : ''}
+                          </p>
+                          <p className="reading-continue-meta">
+                            Page {continueStory.currentPage || 1} of {continueStory.totalPages || '?'}
+                          </p>
+                          <div className="reading-continue-progress">
+                            <div className="reading-continue-progress-fill" style={{ width: `${continueProgress}%` }} />
+                          </div>
+                        </>
+                      ) : (
+                        <p className="reading-continue-meta">No book in progress</p>
                       )}
                     </button>
 

@@ -866,35 +866,31 @@ const Dashboard = () => {
                     <div className="home-grid-divider" />
 
                     {/* Card 2: Generate */}
-                    <div className="home-card reading-action-card">
+                    <button
+                      className="home-card reading-action-card"
+                      onClick={() => setShowGenerateModal(true)}
+                    >
+                      <img src="/assets/generate.png" alt="" className="reading-card-icon" />
                       <h3 className="home-card-title">Generate</h3>
                       <p className="reading-card-description">
                         Generate study material in your target language, tailored to your level and interests.
                       </p>
-                      <button
-                        className="reading-cta-primary"
-                        onClick={() => setShowGenerateModal(true)}
-                      >
-                        Generate
-                      </button>
-                    </div>
+                    </button>
 
                     {/* Divider */}
                     <div className="home-grid-divider" />
 
                     {/* Card 3: Import */}
-                    <div className="home-card reading-action-card">
+                    <button
+                      className="home-card reading-action-card"
+                      onClick={() => setShowImportModal(true)}
+                    >
+                      <img src="/assets/import.png" alt="" className="reading-card-icon" />
                       <h3 className="home-card-title">Import</h3>
                       <p className="reading-card-description">
                         Import your own books and adapt them to your target language and level.
                       </p>
-                      <button
-                        className="reading-cta-primary"
-                        onClick={() => setShowImportModal(true)}
-                      >
-                        Import
-                      </button>
-                    </div>
+                    </button>
                   </div>
 
                   {/* Horizontal Divider */}

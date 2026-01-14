@@ -183,41 +183,42 @@ const ImportBookPanel = ({
           </div>
 
           <div className="import-form-section">
-            <span className="import-label-text">Voice</span>
-            <div className="import-voice-options">
-              <button
-                className={`import-voice-option${voiceGender === 'male' ? ' is-active' : ''}`}
-                type="button"
-                onClick={() => setVoiceGender('male')}
-              >
-                Male
-              </button>
-              <button
-                className={`import-voice-option${voiceGender === 'female' ? ' is-active' : ''}`}
-                type="button"
-                onClick={() => setVoiceGender('female')}
-              >
-                Female
-              </button>
-            </div>
-          </div>
-
-          <div className="import-form-section import-checkboxes">
             <label className="import-checkbox-label">
-              <input
-                type="checkbox"
-                checked={isPublicDomain}
-                onChange={(event) => setIsPublicDomain(event.target.checked)}
-              />
-              <span>Public domain text</span>
-            </label>
-            <label className="import-checkbox-label">
+              <span>Generate audio for this adaptation?</span>
               <input
                 type="checkbox"
                 checked={generateAudio}
                 onChange={(event) => setGenerateAudio(event.target.checked)}
               />
-              <span>Generate audio</span>
+            </label>
+            {generateAudio && (
+              <div className="import-voice-options">
+                <button
+                  className={`import-voice-option${voiceGender === 'male' ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => setVoiceGender('male')}
+                >
+                  Male
+                </button>
+                <button
+                  className={`import-voice-option${voiceGender === 'female' ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => setVoiceGender('female')}
+                >
+                  Female
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="import-form-section">
+            <label className="import-checkbox-label">
+              <span>Is this work in the public domain?</span>
+              <input
+                type="checkbox"
+                checked={isPublicDomain}
+                onChange={(event) => setIsPublicDomain(event.target.checked)}
+              />
             </label>
           </div>
 

@@ -74,6 +74,203 @@ a:hover {
   color: #e7e5e4;
 }
 
+/* Dark mode - dashboard and content areas */
+[data-theme='dark'] .dashboard-main {
+  background: #1c1917;
+}
+
+[data-theme='dark'] .dashboard-wrapper {
+  background: #1c1917;
+}
+
+[data-theme='dark'] .dashboard-brand-prefix,
+[data-theme='dark'] .dashboard-brand-language {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .dashboard-control {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .dashboard-control:hover {
+  color: #d6d3d1;
+}
+
+/* Dark mode - comprehensive overrides */
+[data-theme='dark'] .home-content,
+[data-theme='dark'] .home-card,
+[data-theme='dark'] .home-stats-card,
+[data-theme='dark'] .home-routine-card,
+[data-theme='dark'] .home-level-card {
+  background: #292524;
+}
+
+[data-theme='dark'] .home-card-title,
+[data-theme='dark'] .home-level-name,
+[data-theme='dark'] .home-level-activity-value,
+[data-theme='dark'] .home-today-title,
+[data-theme='dark'] .home-stat-value,
+[data-theme='dark'] .home-stat-item.active .home-stat-value {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .home-stat-label,
+[data-theme='dark'] .home-stat-item.active .home-stat-label,
+[data-theme='dark'] .home-level-goal,
+[data-theme='dark'] .home-level-activity-label,
+[data-theme='dark'] .home-today-empty {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .home-stat-item:hover {
+  background: rgba(250, 250, 249, 0.08);
+}
+
+[data-theme='dark'] .home-today-section {
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .home-grid-divider,
+[data-theme='dark'] .home-row-divider {
+  background: #44403c;
+}
+
+/* Dark mode - book tiles and cards */
+[data-theme='dark'] .book-tile,
+[data-theme='dark'] .book-card {
+  background: #292524;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .book-tile-title,
+[data-theme='dark'] .book-card-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .book-tile-meta,
+[data-theme='dark'] .book-card-meta {
+  color: #a8a29e;
+}
+
+/* Dark mode - buttons and inputs */
+[data-theme='dark'] button,
+[data-theme='dark'] .btn {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select {
+  background: #292524;
+  color: #fafaf9;
+  border-color: #44403c;
+}
+
+/* Dark mode - general text elements with dark colors */
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] h4,
+[data-theme='dark'] h5,
+[data-theme='dark'] h6 {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] p {
+  color: #e7e5e4;
+}
+
+/* Dark mode - chart/graph */
+[data-theme='dark'] .recharts-cartesian-axis-tick-value {
+  fill: #a8a29e !important;
+}
+
+[data-theme='dark'] .recharts-cartesian-grid line {
+  stroke: #44403c !important;
+}
+
+/* Dark mode - modals */
+[data-theme='dark'] .import-book-modal,
+[data-theme='dark'] .generate-story-modal,
+[data-theme='dark'] .modal-content,
+[data-theme='dark'] .dialog-content {
+  background: #1c1917;
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .import-modal-title,
+[data-theme='dark'] .generate-modal-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .import-modal-subtitle,
+[data-theme='dark'] .import-label-text,
+[data-theme='dark'] .import-hint {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .import-input,
+[data-theme='dark'] .import-file-input input[type='file'] {
+  background: #292524;
+  color: #fafaf9;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .import-input:focus {
+  background: #292524;
+  border-color: #78716c;
+}
+
+/* Dark mode - continue reading section */
+[data-theme='dark'] .continue-card {
+  background: #292524;
+}
+
+[data-theme='dark'] .continue-card-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .continue-card-meta,
+[data-theme='dark'] .continue-card-label {
+  color: #a8a29e;
+}
+
+/* Dark mode - routine builder */
+[data-theme='dark'] .routine-day,
+[data-theme='dark'] .routine-item {
+  background: #292524;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .routine-day-name,
+[data-theme='dark'] .routine-title {
+  color: #fafaf9;
+}
+
+/* Dark mode - pills and tags */
+[data-theme='dark'] .pill,
+[data-theme='dark'] .tag,
+[data-theme='dark'] .level-pill {
+  background: #44403c;
+  color: #e7e5e4;
+}
+
+[data-theme='dark'] .level-pill.active {
+  background: #fafaf9;
+  color: #1c1917;
+}
+
+/* Dark mode - borders */
+[data-theme='dark'] .border-stone-200,
+[data-theme='dark'] [class*="border-stone"] {
+  border-color: #44403c;
+}
+
+/* Dark mode - graph stroke */
+[data-theme='dark'] .recharts-line path {
+  stroke: #a8a29e !important;
+}
+
 .page {
   display: flex;
   align-items: center;
@@ -331,6 +528,10 @@ textarea {
 
 [data-theme='dark'] .dashboard-header {
   color: #fafaf9;
+}
+
+[data-theme='dark'] .dashboard-page {
+  background: #1c1917;
 }
 
 /* Minimal header layout */

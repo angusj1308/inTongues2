@@ -100,13 +100,11 @@ const ImportBookPanel = ({
 
   const panelContent = (
     <>
-      <div className="page-header">
-        <div className="page-header-title">
-          <HeadingTag className="text-center">Import a Book</HeadingTag>
-          <p className="muted small text-center ui-text">
-            Import any book and get a full adaptation in your target language at your level.
-          </p>
-        </div>
+      <div className="import-modal-header">
+        <HeadingTag className="import-modal-title">Import</HeadingTag>
+        <p className="import-modal-subtitle">
+          Import a book and get a full adaptation in your target language.
+        </p>
         {onClose && (
           <button className="modal-close-button" onClick={onClose} aria-label="Close">
             ×
@@ -117,120 +115,120 @@ const ImportBookPanel = ({
       {!activeLanguage ? (
         <p className="muted small ui-text">Select a language to import a book.</p>
       ) : (
-        <form className="form" onSubmit={handleSubmit}>
-          <label className="ui-text">
-            Upload file
-            <input
-              type="file"
-              accept=".txt,.pdf,.epub"
-              onChange={(event) => setFile(event.target.files?.[0] || null)}
-            />
-            <p className="muted small ui-text">Accepted formats: .txt, .pdf, .epub</p>
-          </label>
+        <form className="import-form" onSubmit={handleSubmit}>
+          <div className="import-form-section">
+            <label className="import-label">
+              <span className="import-label-text">Book file</span>
+              <div className="import-file-input">
+                <input
+                  type="file"
+                  accept=".txt,.pdf,.epub"
+                  onChange={(event) => setFile(event.target.files?.[0] || null)}
+                />
+              </div>
+              <span className="import-hint">.txt, .pdf, or .epub</span>
+            </label>
+          </div>
 
-          <label className="ui-text">
-            Original language
-            <input
-              type="text"
-              value={originalLanguage}
-              onChange={(event) => setOriginalLanguage(event.target.value)}
-              placeholder="e.g., Spanish"
-            />
-          </label>
-
-          <label className="ui-text">
-            Adapt to your level
-            <div className="slider-row">
+          <div className="import-form-row">
+            <label className="import-label">
+              <span className="import-label-text">Title</span>
               <input
-                type="range"
-                min="0"
-                max={LEVELS.length - 1}
-                value={levelIndex}
-                onChange={(event) => setLevelIndex(Number(event.target.value))}
-                style={{ '--range-progress': `${(levelIndex / (LEVELS.length - 1)) * 100}%` }}
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Book title"
+                className="import-input"
               />
-            </div>
-            <div className="slider-marks">
+            </label>
+            <label className="import-label">
+              <span className="import-label-text">Author</span>
+              <input
+                type="text"
+                value={author}
+                onChange={(event) => setAuthor(event.target.value)}
+                placeholder="Author name"
+                className="import-input"
+              />
+            </label>
+          </div>
+
+          <div className="import-form-section">
+            <label className="import-label">
+              <span className="import-label-text">Original language</span>
+              <input
+                type="text"
+                value={originalLanguage}
+                onChange={(event) => setOriginalLanguage(event.target.value)}
+                placeholder="e.g., English"
+                className="import-input"
+              />
+            </label>
+          </div>
+
+          <div className="import-form-section">
+            <span className="import-label-text">Adaptation level</span>
+            <div className="import-level-options">
               {LEVELS.map((level, index) => (
-                <span
+                <button
                   key={level}
-                  className={`slider-mark${levelIndex === index ? ' active' : ''}`}
+                  type="button"
+                  className={`import-level-option${levelIndex === index ? ' is-active' : ''}`}
+                  onClick={() => setLevelIndex(index)}
                 >
                   {level}
-                </span>
+                </button>
               ))}
             </div>
-          </label>
+          </div>
 
-          <label className="ui-text">
-            Author
-            <input
-              type="text"
-              value={author}
-              onChange={(event) => setAuthor(event.target.value)}
-              placeholder="Author name"
-            />
-          </label>
-
-          <label className="ui-text">
-            Title
-            <input
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Book title"
-            />
-          </label>
-
-          <label className="ui-text">
-            Voice gender
-            <div className="voice-gender-toggle" role="radiogroup" aria-label="Voice gender">
+          <div className="import-form-section">
+            <span className="import-label-text">Voice</span>
+            <div className="import-voice-options">
               <button
-                className={`voice-gender-option${voiceGender === 'male' ? ' is-active' : ''}`}
+                className={`import-voice-option${voiceGender === 'male' ? ' is-active' : ''}`}
                 type="button"
                 onClick={() => setVoiceGender('male')}
-                aria-pressed={voiceGender === 'male'}
               >
                 Male
               </button>
               <button
-                className={`voice-gender-option${voiceGender === 'female' ? ' is-active' : ''}`}
+                className={`import-voice-option${voiceGender === 'female' ? ' is-active' : ''}`}
                 type="button"
                 onClick={() => setVoiceGender('female')}
-                aria-pressed={voiceGender === 'female'}
               >
                 Female
               </button>
             </div>
-          </label>
+          </div>
 
-          <label className="checkbox ui-text public-domain-checkbox">
-            <span className="ui-text">This is a public domain text</span>
-            <input
-              type="checkbox"
-              checked={isPublicDomain}
-              onChange={(event) => setIsPublicDomain(event.target.checked)}
-            />
-          </label>
+          <div className="import-form-section import-checkboxes">
+            <label className="import-checkbox-label">
+              <input
+                type="checkbox"
+                checked={isPublicDomain}
+                onChange={(event) => setIsPublicDomain(event.target.checked)}
+              />
+              <span>Public domain text</span>
+            </label>
+            <label className="import-checkbox-label">
+              <input
+                type="checkbox"
+                checked={generateAudio}
+                onChange={(event) => setGenerateAudio(event.target.checked)}
+              />
+              <span>Generate audio</span>
+            </label>
+          </div>
 
-          <label className="checkbox ui-text">
-            <span className="ui-text">Generate audio</span>
-            <input
-              type="checkbox"
-              checked={generateAudio}
-              onChange={(event) => setGenerateAudio(event.target.checked)}
-            />
-            <p className="muted small ui-text">Audio generation is optional and may take some time</p>
-          </label>
-
-          <div className="action-row">
+          <div className="import-actions">
             {(onBack || onClose) && (
-              <button className="button ghost" type="button" onClick={onClose || onBack}>
+              <button className="import-btn-secondary" type="button" onClick={onClose || onBack}>
                 Cancel
               </button>
             )}
-            <button type="submit" className="button primary" disabled={isSubmitDisabled}>
-              {submitting ? 'Submitting...' : 'Import book'}
+            <button type="submit" className="import-btn-primary" disabled={isSubmitDisabled}>
+              {submitting ? 'Importing...' : 'Import'}
             </button>
           </div>
         </form>

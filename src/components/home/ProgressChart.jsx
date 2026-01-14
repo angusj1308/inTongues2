@@ -8,14 +8,45 @@ const PERIODS = [
   { key: '5year', label: '5Y', days: 1825 },
 ]
 
-// Stat type display names
+// Stat type display names by language
 const STAT_TITLES = {
-  knownWords: 'Known Words',
-  wordsRead: 'Words Read',
-  listeningSeconds: 'Listening Time',
-  reviews: 'Cards Reviewed',
-  wordsWritten: 'Words Written',
-  speakingSeconds: 'Speaking Time',
+  Spanish: {
+    knownWords: 'Palabras Conocidas',
+    wordsRead: 'Palabras Leídas',
+    listeningSeconds: 'Tiempo Escuchado',
+    reviews: 'Tarjetas Revisadas',
+    wordsWritten: 'Palabras Escritas',
+    speakingSeconds: 'Tiempo Hablado',
+  },
+  French: {
+    knownWords: 'Mots Connus',
+    wordsRead: 'Mots Lus',
+    listeningSeconds: 'Temps d'Écoute',
+    reviews: 'Cartes Révisées',
+    wordsWritten: 'Mots Écrits',
+    speakingSeconds: 'Temps de Parole',
+  },
+  Italian: {
+    knownWords: 'Parole Conosciute',
+    wordsRead: 'Parole Lette',
+    listeningSeconds: 'Tempo di Ascolto',
+    reviews: 'Schede Revisionate',
+    wordsWritten: 'Parole Scritte',
+    speakingSeconds: 'Tempo Parlato',
+  },
+  English: {
+    knownWords: 'Known Words',
+    wordsRead: 'Words Read',
+    listeningSeconds: 'Listening Time',
+    reviews: 'Cards Reviewed',
+    wordsWritten: 'Words Written',
+    speakingSeconds: 'Speaking Time',
+  },
+}
+
+const getStatTitle = (language, statKey) => {
+  const titles = STAT_TITLES[language] || STAT_TITLES.English
+  return titles[statKey] || STAT_TITLES.English[statKey] || 'Progress'
 }
 
 // Y-axis milestone thresholds for known words
@@ -57,7 +88,7 @@ const formatWordCount = (count) => {
   return count.toString()
 }
 
-const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStats = {} }) => {
+const ProgressChart = ({ userId, language = 'English', selectedStat = 'knownWords', homeStats = {} }) => {
   const [period, setPeriod] = useState('week')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -227,7 +258,7 @@ const ProgressChart = ({ userId, language, selectedStat = 'knownWords', homeStat
   return (
     <div className="home-card">
       <div className="home-card-header">
-        <h3 className="home-card-title">{STAT_TITLES[selectedStat] || 'Progress'}</h3>
+        <h3 className="home-card-title">{getStatTitle(language, selectedStat)}</h3>
         <div className="home-progress-periods">
           {PERIODS.map((p) => (
             <button

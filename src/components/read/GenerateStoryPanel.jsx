@@ -12,6 +12,14 @@ import { generateStory } from '../../services/generator'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
+// Target language translations for modal title
+const GENERATE_TITLES = {
+  Spanish: 'Generar',
+  French: 'Générer',
+  Italian: 'Generare',
+  English: 'Generate',
+}
+
 const GENRES = [
   { id: 'romance', label: 'Romance' },
 ]
@@ -202,8 +210,8 @@ const GenerateStoryPanel = ({
     <>
       <div className="page-header">
         <div className="page-header-title">
-          <HeadingTag className="text-center">
-            {`Generate ${environmentLanguageCapitalized} Story`}
+          <HeadingTag className="text-center generate-modal-title">
+            {GENERATE_TITLES[activeLanguage] || GENERATE_TITLES.English}
           </HeadingTag>
           <p className="text-center ui-text">
             Create an original story in your target language, tailored to your level.

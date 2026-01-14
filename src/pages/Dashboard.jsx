@@ -20,6 +20,51 @@ import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRouti
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
+// Target language translations for card headers
+const CARD_HEADERS = {
+  Spanish: {
+    continue: 'Continuar',
+    generate: 'Generar',
+    import: 'Importar',
+    routine: 'Rutina',
+    stats: 'Estadísticas',
+    recent: 'Recientes',
+    allBooks: 'Todos los Libros',
+  },
+  French: {
+    continue: 'Continuer',
+    generate: 'Générer',
+    import: 'Importer',
+    routine: 'Routine',
+    stats: 'Statistiques',
+    recent: 'Récents',
+    allBooks: 'Tous les Livres',
+  },
+  Italian: {
+    continue: 'Continuare',
+    generate: 'Generare',
+    import: 'Importare',
+    routine: 'Routine',
+    stats: 'Statistiche',
+    recent: 'Recenti',
+    allBooks: 'Tutti i Libri',
+  },
+  English: {
+    continue: 'Continue',
+    generate: 'Generate',
+    import: 'Import',
+    routine: 'Routine',
+    stats: 'Stats',
+    recent: 'Recent',
+    allBooks: 'All Books',
+  },
+}
+
+const getCardHeader = (language, key) => {
+  const headers = CARD_HEADERS[language] || CARD_HEADERS.English
+  return headers[key] || CARD_HEADERS.English[key]
+}
+
 // Get today's day of week (monday, tuesday, etc.)
 const getTodayDayOfWeek = () => {
   const dayIndex = new Date().getDay()
@@ -694,7 +739,7 @@ const Dashboard = () => {
                 {/* Card 1: Today's Routine */}
                 <div className="home-card home-routine-card">
                   <div className="home-card-header">
-                    <h3 className="home-card-title">Routine</h3>
+                    <h3 className="home-card-title">{getCardHeader(activeLanguage, 'routine')}</h3>
                     <button
                       className="home-add-activity-btn"
                       onClick={(e) => {
@@ -752,7 +797,7 @@ const Dashboard = () => {
 
                 {/* Card 2: Stats */}
                 <div className="home-card home-stats-card">
-                  <h3 className="home-card-title">Stats</h3>
+                  <h3 className="home-card-title">{getCardHeader(activeLanguage, 'stats')}</h3>
                   <div className="home-stats-list">
                     <button
                       className={`home-stat-item ${selectedStat === 'knownWords' ? 'active' : ''}`}
@@ -848,7 +893,7 @@ const Dashboard = () => {
                           <img src={continueStory.coverUrl} alt="" className="reading-book-cover-img" />
                         ) : null}
                       </div>
-                      <h3 className="home-card-title">Continue</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'continue')}</h3>
                       {continueStory ? (
                         <>
                           <p className="reading-continue-meta">
@@ -875,7 +920,7 @@ const Dashboard = () => {
                       onClick={() => setShowGenerateModal(true)}
                     >
                       <img src={generateIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">Generate</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'generate')}</h3>
                       <p className="reading-card-description">
                         Generate study material in your target language, tailored to your level and interests.
                       </p>
@@ -890,7 +935,7 @@ const Dashboard = () => {
                       onClick={() => setShowImportModal(true)}
                     >
                       <img src={importIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">Import</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'import')}</h3>
                       <p className="reading-card-description">
                         Import your own books and adapt them to your target language and level.
                       </p>
@@ -903,7 +948,7 @@ const Dashboard = () => {
                   {/* Row 2: Recent Books */}
                   <div className="reading-shelf">
                     <div className="home-card-header">
-                      <h3 className="home-card-title">Recent</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'recent')}</h3>
                     </div>
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading your books...</p>
@@ -945,7 +990,7 @@ const Dashboard = () => {
                   {/* Row 3: All Books */}
                   <div className="reading-shelf">
                     <div className="home-card-header">
-                      <h3 className="home-card-title">All Books</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'allBooks')}</h3>
                     </div>
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading...</p>

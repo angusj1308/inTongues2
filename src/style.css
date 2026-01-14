@@ -24077,3 +24077,568 @@ body.active-pass-locked {
     padding: 1rem;
   }
 }
+
+/* ==============================================
+   Gutenberg Search Modal
+   ============================================== */
+
+.gutenberg-modal-overlay {
+  padding: 2rem;
+}
+
+.gutenberg-modal {
+  max-width: 900px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.gutenberg-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.gutenberg-header {
+  flex-shrink: 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e7e5e4;
+  margin-bottom: 1rem;
+}
+
+.gutenberg-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.gutenberg-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gutenberg-subtitle {
+  font-size: 0.9rem;
+  color: #78716c;
+  margin: 0 0 1rem 0;
+  max-width: 80%;
+}
+
+.gutenberg-search-bar {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.gutenberg-search-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d6d3d1;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+.gutenberg-search-input:focus {
+  outline: none;
+  border-color: #0f172a;
+}
+
+.gutenberg-search-btn {
+  padding: 0.75rem 1.5rem;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.gutenberg-search-btn:hover {
+  background: #1e293b;
+}
+
+.gutenberg-search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gutenberg-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.gutenberg-results {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.gutenberg-results-info {
+  font-size: 0.85rem;
+  color: #78716c;
+  margin: 0 0 1rem 0;
+}
+
+.gutenberg-no-results {
+  text-align: center;
+  color: #78716c;
+  padding: 2rem;
+}
+
+.gutenberg-books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.gutenberg-book-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e7e5e4;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-align: left;
+}
+
+.gutenberg-book-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gutenberg-book-cover {
+  width: 100%;
+  aspect-ratio: 2/3;
+  background: #f5f5f4;
+  overflow: hidden;
+}
+
+.gutenberg-book-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gutenberg-book-no-cover-small {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e7e5e4 0%, #d6d3d1 100%);
+}
+
+.gutenberg-book-no-cover-small span {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 2.5rem;
+  color: #78716c;
+}
+
+.gutenberg-book-info {
+  padding: 0.75rem;
+}
+
+.gutenberg-book-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gutenberg-book-author {
+  font-size: 0.8rem;
+  color: #78716c;
+  margin: 0 0 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gutenberg-book-downloads {
+  font-size: 0.75rem;
+  color: #a8a29e;
+  margin: 0;
+}
+
+.gutenberg-loading {
+  text-align: center;
+  padding: 2rem;
+  color: #78716c;
+}
+
+.gutenberg-load-more {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  background: transparent;
+  border: 1px solid #d6d3d1;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.gutenberg-load-more:hover {
+  background: #f5f5f4;
+}
+
+/* Book Detail View */
+.gutenberg-book-detail {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.gutenberg-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #0f172a;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+}
+
+.gutenberg-back-btn:hover {
+  color: #be123c;
+}
+
+.gutenberg-book-detail-content {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+}
+
+.gutenberg-book-detail-cover {
+  aspect-ratio: 2/3;
+  background: #f5f5f4;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.gutenberg-book-detail-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gutenberg-book-no-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e7e5e4 0%, #d6d3d1 100%);
+  color: #78716c;
+  font-size: 0.9rem;
+}
+
+.gutenberg-book-detail-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.gutenberg-book-detail-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 1rem 0;
+  line-height: 1.3;
+}
+
+.gutenberg-book-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.gutenberg-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gutenberg-meta-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #78716c;
+}
+
+.gutenberg-meta-value {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.gutenberg-meta-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.gutenberg-tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #f5f5f4;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #57534e;
+}
+
+.gutenberg-book-detail-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.gutenberg-btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.gutenberg-btn-primary:hover {
+  background: #1e293b;
+}
+
+.gutenberg-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gutenberg-btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: #0f172a;
+  border: 1px solid #d6d3d1;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.gutenberg-btn-secondary:hover {
+  background: #f5f5f4;
+}
+
+.gutenberg-warning {
+  font-size: 0.85rem;
+  color: #d97706;
+  margin-top: 0.75rem;
+}
+
+/* Placeholder icon for Explore card */
+.reading-card-icon-placeholder {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #e7e5e4 0%, #d6d3d1 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive Gutenberg Modal */
+@media (max-width: 768px) {
+  .gutenberg-modal-overlay {
+    padding: 1rem;
+  }
+
+  .gutenberg-modal {
+    max-height: 90vh;
+  }
+
+  .gutenberg-book-detail-content {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .gutenberg-book-detail-cover {
+    max-width: 200px;
+    margin: 0 auto;
+  }
+
+  .gutenberg-books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .gutenberg-subtitle {
+    max-width: 100%;
+  }
+}
+
+/* Dark mode for Gutenberg */
+[data-theme='dark'] .gutenberg-modal {
+  background: #1e293b;
+}
+
+[data-theme='dark'] .gutenberg-header {
+  border-color: #334155;
+}
+
+[data-theme='dark'] .gutenberg-title {
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-subtitle {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .gutenberg-search-input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-search-input:focus {
+  border-color: #60a5fa;
+}
+
+[data-theme='dark'] .gutenberg-search-btn {
+  background: #3b82f6;
+}
+
+[data-theme='dark'] .gutenberg-search-btn:hover {
+  background: #2563eb;
+}
+
+[data-theme='dark'] .gutenberg-book-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .gutenberg-book-cover {
+  background: #334155;
+}
+
+[data-theme='dark'] .gutenberg-book-no-cover-small {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+}
+
+[data-theme='dark'] .gutenberg-book-no-cover-small span {
+  color: #64748b;
+}
+
+[data-theme='dark'] .gutenberg-book-title {
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-book-author {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .gutenberg-book-downloads {
+  color: #64748b;
+}
+
+[data-theme='dark'] .gutenberg-results-info,
+[data-theme='dark'] .gutenberg-no-results,
+[data-theme='dark'] .gutenberg-loading {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .gutenberg-load-more {
+  border-color: #334155;
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-load-more:hover {
+  background: #334155;
+}
+
+[data-theme='dark'] .gutenberg-back-btn {
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-back-btn:hover {
+  color: #f87171;
+}
+
+[data-theme='dark'] .gutenberg-book-detail-cover {
+  background: #334155;
+}
+
+[data-theme='dark'] .gutenberg-book-no-cover {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  color: #64748b;
+}
+
+[data-theme='dark'] .gutenberg-book-detail-title {
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-meta-label {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .gutenberg-meta-value {
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-tag {
+  background: #334155;
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .gutenberg-btn-primary {
+  background: #3b82f6;
+}
+
+[data-theme='dark'] .gutenberg-btn-primary:hover {
+  background: #2563eb;
+}
+
+[data-theme='dark'] .gutenberg-btn-secondary {
+  border-color: #334155;
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-btn-secondary:hover {
+  background: #334155;
+}
+
+[data-theme='dark'] .gutenberg-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+[data-theme='dark'] .reading-card-icon-placeholder {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+}

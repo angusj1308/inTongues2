@@ -233,6 +233,216 @@ function mapLevelToSimplified(level) {
   return 'Intermediate'
 }
 
+// ============================================================
+// ADAPTATION REFINEMENT UTILITIES
+// ============================================================
+
+const ADAPTATION_WITH_CONTEXT_PROMPT = `
+You are adapting a book for language learners. Write only in the requested target language.
+
+LEVELS:
+- Native: Faithful translation. Preserve the author's style, sentence structure, and vocabulary complexity. No simplification.
+- Intermediate: Simplify vocabulary and clarify implicit meaning. Keep most structure but may split complex sentences. Natural, clear prose.
+- Beginner: Short sentences, common words, explicit meaning. Freely restructure and split complex ideas.
+
+FREEDOMS:
+- Use any vocabulary that conveys the same meaning
+- Restructure sentences, split clauses, reorder ideas
+- Not bound by the author's syntax or word choices
+- Only bound by meaning and appropriate grading
+
+NEVER:
+- Skip sentences or omit concepts from the original
+- Summarize multiple sentences into one
+- Remove dialogue, descriptions, events, or character actions
+- Add content not present in the original
+- Omit names, places, or plot-critical details
+
+ALWAYS:
+- Represent every concept from the source
+- Preserve all proper nouns exactly as written
+- Maintain the same narrative beats
+- Use natural punctuation and full sentences
+- Return only adapted text with no commentary or markup
+
+CONTEXT AWARENESS:
+- You will be given the last few sentences of previously adapted text for continuity
+- Maintain consistent character names, terminology, and style
+- Ensure smooth transitions from the previous text
+- Do NOT repeat the context - continue from where it left off
+`
+
+const REFINEMENT_PROMPT = `
+You are refining an adapted text for language learners. The previous adaptation had issues.
+
+TASK:
+- Review the ORIGINAL text and the PREVIOUS ADAPTATION
+- Apply the USER FEEDBACK to improve the adaptation
+- Produce a refined version that addresses the issues
+
+RULES:
+- Maintain the same target language and level
+- Address the specific feedback provided
+- Keep all content from the original - no omissions
+- Preserve proper nouns exactly as written
+- Return only the refined adapted text with no commentary
+`
+
+/**
+ * Validates adapted text quality
+ * Returns { valid: boolean, issues: string[] }
+ */
+function validateAdaptation(originalText, adaptedText, options = {}) {
+  const issues = []
+
+  if (!adaptedText || !adaptedText.trim()) {
+    return { valid: false, issues: ['Empty adaptation'] }
+  }
+
+  const originalLength = originalText.length
+  const adaptedLength = adaptedText.length
+  const ratio = adaptedLength / originalLength
+
+  // Check length ratio - adapted text should be roughly similar length
+  // Allow wider range for beginner level (may be longer due to simpler explanations)
+  const minRatio = options.level === 'Beginner' ? 0.3 : 0.4
+  const maxRatio = options.level === 'Beginner' ? 3.0 : 2.5
+
+  if (ratio < minRatio) {
+    issues.push(`Adaptation too short (${Math.round(ratio * 100)}% of original)`)
+  }
+  if (ratio > maxRatio) {
+    issues.push(`Adaptation too long (${Math.round(ratio * 100)}% of original)`)
+  }
+
+  // Check for incomplete sentences (ends with incomplete punctuation)
+  const trimmed = adaptedText.trim()
+  const lastChar = trimmed[trimmed.length - 1]
+  const validEndings = ['.', '!', '?', '"', "'", ')', '」', '。', '！', '？', '"']
+  if (!validEndings.includes(lastChar)) {
+    issues.push('Adaptation ends mid-sentence')
+  }
+
+  // Extract proper nouns from original (capitalized words not at sentence start)
+  const properNounPattern = /(?<=[.!?]\s+|\n)[A-Z][a-z]+|(?<=\s)[A-Z][a-z]+(?=\s)/g
+  const originalProperNouns = originalText.match(properNounPattern) || []
+  const uniqueProperNouns = [...new Set(originalProperNouns)]
+
+  // Check if major proper nouns are preserved (at least 70%)
+  if (uniqueProperNouns.length > 0) {
+    const preservedCount = uniqueProperNouns.filter(noun =>
+      adaptedText.includes(noun)
+    ).length
+    const preservationRate = preservedCount / uniqueProperNouns.length
+
+    if (preservationRate < 0.7) {
+      issues.push(`Only ${Math.round(preservationRate * 100)}% of proper nouns preserved`)
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues
+  }
+}
+
+/**
+ * Extracts a context window from previously adapted text
+ * Returns the last N characters, ending at a sentence boundary
+ */
+function extractContextWindow(previousText, maxChars = 500) {
+  if (!previousText || !previousText.trim()) {
+    return ''
+  }
+
+  const text = previousText.trim()
+
+  if (text.length <= maxChars) {
+    return text
+  }
+
+  // Get last maxChars characters
+  let context = text.slice(-maxChars)
+
+  // Find the first sentence boundary to start cleanly
+  const sentenceBreaks = ['. ', '! ', '? ', '.\n', '!\n', '?\n']
+  let firstBreak = -1
+
+  for (const brk of sentenceBreaks) {
+    const idx = context.indexOf(brk)
+    if (idx !== -1 && (firstBreak === -1 || idx < firstBreak)) {
+      firstBreak = idx + brk.length
+    }
+  }
+
+  if (firstBreak !== -1 && firstBreak < context.length - 50) {
+    context = context.slice(firstBreak)
+  }
+
+  return context.trim()
+}
+
+/**
+ * Adapts text with retry logic for quality validation
+ * Returns { text: string, attempts: number, issues: string[] }
+ */
+async function adaptWithRetry(pageText, options, maxRetries = 2) {
+  const { targetLanguage, level, context, client: apiClient } = options
+
+  let attempts = 0
+  let lastIssues = []
+  let lastAdapted = ''
+
+  while (attempts < maxRetries) {
+    attempts++
+
+    try {
+      // Build prompt based on whether we have context
+      let systemPrompt = context ? ADAPTATION_WITH_CONTEXT_PROMPT : ADAPTATION_SYSTEM_PROMPT
+      let userPrompt = `Adapt the following text to ${level} level in ${targetLanguage}:`
+
+      if (context) {
+        userPrompt = `PREVIOUS CONTEXT (do not repeat, continue from here):\n"${context}"\n\n${userPrompt}`
+      }
+
+      // Add feedback from previous failed attempt
+      if (attempts > 1 && lastIssues.length > 0) {
+        userPrompt = `PREVIOUS ISSUES TO FIX:\n${lastIssues.map(i => `- ${i}`).join('\n')}\n\n${userPrompt}`
+      }
+
+      userPrompt += `\n\n${pageText}`
+
+      const response = await apiClient.responses.create({
+        model: 'gpt-4.1',
+        input: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      })
+
+      const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+      lastAdapted = adaptedText
+
+      // Validate the adaptation
+      const validation = validateAdaptation(pageText, adaptedText, { level })
+
+      if (validation.valid) {
+        return { text: adaptedText, attempts, issues: [] }
+      }
+
+      lastIssues = validation.issues
+      console.log(`Adaptation attempt ${attempts} had issues:`, lastIssues)
+
+    } catch (error) {
+      console.error(`Adaptation attempt ${attempts} failed:`, error)
+      lastIssues = [`API error: ${error.message}`]
+    }
+  }
+
+  // Return best attempt even if not perfect
+  return { text: lastAdapted, attempts, issues: lastIssues }
+}
+
 const app = express()
 app.use(express.json({ limit: '50mb' }))
 
@@ -5140,6 +5350,343 @@ app.post('/api/adapt-flat-book', async (req, res) => {
   } catch (error) {
     console.error('Error adapting flat book:', error)
     return res.status(500).json({ error: 'Failed to adapt flat book' })
+  }
+})
+
+/**
+ * Refine Page Endpoint
+ * Re-adapts a single page with user feedback for improvement
+ */
+app.post('/api/refine-page', async (req, res) => {
+  try {
+    const { uid, storyId, pageIndex, feedback, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId || pageIndex === undefined) {
+      return res.status(400).json({ error: 'uid, storyId, and pageIndex are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Refining page:', { uid, storyId, pageIndex, feedback })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const pagesRef = storyRef.collection('pages')
+    const pageRef = pagesRef.doc(String(pageIndex))
+
+    const pageSnap = await pageRef.get()
+    if (!pageSnap.exists) {
+      return res.status(404).json({ error: 'Page not found' })
+    }
+
+    const pageData = pageSnap.data() || {}
+    const { originalText, adaptedText, chapterIndex } = pageData
+
+    // Get context from previous page if available
+    let context = ''
+    if (pageIndex > 0) {
+      const prevPageSnap = await pagesRef.doc(String(pageIndex - 1)).get()
+      if (prevPageSnap.exists) {
+        const prevPageData = prevPageSnap.data() || {}
+        context = extractContextWindow(prevPageData.adaptedText || prevPageData.text, 300)
+      }
+    }
+
+    // Build refinement prompt
+    let userPrompt = `ORIGINAL TEXT:\n${originalText}\n\nPREVIOUS ADAPTATION:\n${adaptedText}`
+
+    if (feedback) {
+      userPrompt += `\n\nUSER FEEDBACK:\n${feedback}`
+    }
+
+    if (context) {
+      userPrompt += `\n\nPREVIOUS CONTEXT (for continuity):\n"${context}"`
+    }
+
+    userPrompt += `\n\nPlease refine the adaptation to ${simplifiedLevel} level in ${resolvedTargetLanguage}, addressing the feedback.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1',
+      input: [
+        { role: 'system', content: REFINEMENT_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+    })
+
+    const refinedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+    if (!refinedText) {
+      return res.status(500).json({ error: 'Failed to generate refined text' })
+    }
+
+    // Validate the refinement
+    const validation = validateAdaptation(originalText, refinedText, { level: simplifiedLevel })
+
+    // Update the page with refined text
+    await pageRef.update({
+      text: refinedText,
+      adaptedText: refinedText,
+      refinedAt: new Date().toISOString(),
+      refinementFeedback: feedback || null,
+      refinementIssues: validation.issues,
+    })
+
+    console.log(`Page ${pageIndex} refined successfully`)
+
+    return res.json({
+      success: true,
+      pageIndex,
+      refinedText,
+      validation,
+    })
+
+  } catch (error) {
+    console.error('Error refining page:', error)
+    return res.status(500).json({ error: 'Failed to refine page' })
+  }
+})
+
+/**
+ * Refine Chapter Endpoint
+ * Re-adapts an entire chapter with improved context awareness and quality validation
+ */
+app.post('/api/refine-chapter', async (req, res) => {
+  try {
+    const { uid, storyId, chapterIndex, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId || chapterIndex === undefined) {
+      return res.status(400).json({ error: 'uid, storyId, and chapterIndex are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Refining chapter:', { uid, storyId, chapterIndex })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const chaptersRef = storyRef.collection('chapters')
+    const chapterRef = chaptersRef.doc(String(chapterIndex))
+
+    const chapterSnap = await chapterRef.get()
+    if (!chapterSnap.exists) {
+      return res.status(404).json({ error: 'Chapter not found' })
+    }
+
+    const chapterData = chapterSnap.data() || {}
+    const { adaptationPages, title: chapterTitle } = chapterData
+
+    if (!adaptationPages || adaptationPages.length === 0) {
+      return res.status(400).json({ error: 'Chapter has no content to refine' })
+    }
+
+    // Mark chapter as refining
+    await chapterRef.update({ status: 'refining' })
+
+    console.log(`Refining chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+
+    // Get context from previous chapter if available
+    let previousChapterContext = ''
+    if (chapterIndex > 0) {
+      const prevChapterSnap = await chaptersRef.doc(String(chapterIndex - 1)).get()
+      if (prevChapterSnap.exists) {
+        const prevChapterData = prevChapterSnap.data() || {}
+        previousChapterContext = extractContextWindow(prevChapterData.adaptedText, 500)
+      }
+    }
+
+    let refinedChapterText = ''
+    let pageIssues = []
+    let totalAttempts = 0
+
+    // Re-adapt each page with context awareness and retry logic
+    for (let pageIdx = 0; pageIdx < adaptationPages.length; pageIdx++) {
+      const pageText = adaptationPages[pageIdx]
+
+      if (!pageText || !pageText.trim()) {
+        console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+        continue
+      }
+
+      // Build context from previous chapter + current chapter progress
+      let context = previousChapterContext
+      if (refinedChapterText) {
+        const currentChapterContext = extractContextWindow(refinedChapterText, 400)
+        context = currentChapterContext // Prioritize current chapter context
+      }
+
+      console.log(`Refining chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+      const result = await adaptWithRetry(pageText, {
+        targetLanguage: resolvedTargetLanguage,
+        level: simplifiedLevel,
+        context,
+        client,
+      })
+
+      totalAttempts += result.attempts
+
+      if (result.issues.length > 0) {
+        pageIssues.push({ page: pageIdx, issues: result.issues })
+      }
+
+      // Append to chapter text
+      if (refinedChapterText && result.text) {
+        refinedChapterText += '\n\n' + result.text
+      } else if (result.text) {
+        refinedChapterText = result.text
+      }
+    }
+
+    // Update chapter with refined text
+    await chapterRef.update({
+      adaptedText: refinedChapterText,
+      status: 'ready',
+      refinedAt: new Date().toISOString(),
+      refinementAttempts: totalAttempts,
+      refinementIssues: pageIssues,
+    })
+
+    console.log(`Chapter ${chapterIndex} refined: ${totalAttempts} total attempts, ${pageIssues.length} pages with issues`)
+
+    return res.json({
+      success: true,
+      chapterIndex,
+      chapterTitle,
+      totalAttempts,
+      issueCount: pageIssues.length,
+      pageIssues,
+    })
+
+  } catch (error) {
+    console.error('Error refining chapter:', error)
+    return res.status(500).json({ error: 'Failed to refine chapter' })
+  }
+})
+
+/**
+ * Enhanced Chapter Adaptation Endpoint
+ * Adapts a chapter with context awareness and quality validation
+ */
+app.post('/api/adapt-chapter-refined', async (req, res) => {
+  try {
+    const { uid, storyId, chapterIndex, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId || chapterIndex === undefined) {
+      return res.status(400).json({ error: 'uid, storyId, and chapterIndex are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Adapting chapter with refinement:', { uid, storyId, chapterIndex })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const chaptersRef = storyRef.collection('chapters')
+    const chapterRef = chaptersRef.doc(String(chapterIndex))
+
+    const chapterSnap = await chapterRef.get()
+    if (!chapterSnap.exists) {
+      return res.status(404).json({ error: 'Chapter not found' })
+    }
+
+    const chapterData = chapterSnap.data() || {}
+    const { adaptationPages, title: chapterTitle } = chapterData
+
+    if (!adaptationPages || adaptationPages.length === 0) {
+      return res.status(400).json({ error: 'Chapter has no content to adapt' })
+    }
+
+    // Mark chapter as adapting
+    await chapterRef.update({ status: 'adapting' })
+
+    console.log(`Adapting chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+
+    // Get context from previous chapter if available
+    let previousChapterContext = ''
+    if (chapterIndex > 0) {
+      const prevChapterSnap = await chaptersRef.doc(String(chapterIndex - 1)).get()
+      if (prevChapterSnap.exists) {
+        const prevChapterData = prevChapterSnap.data() || {}
+        previousChapterContext = extractContextWindow(prevChapterData.adaptedText, 500)
+      }
+    }
+
+    let adaptedChapterText = ''
+    let qualityReport = {
+      totalPages: adaptationPages.length,
+      successfulPages: 0,
+      pagesWithIssues: 0,
+      totalAttempts: 0,
+      issues: [],
+    }
+
+    // Adapt each page with context awareness and retry logic
+    for (let pageIdx = 0; pageIdx < adaptationPages.length; pageIdx++) {
+      const pageText = adaptationPages[pageIdx]
+
+      if (!pageText || !pageText.trim()) {
+        console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+        continue
+      }
+
+      // Build context from previous chapter + current chapter progress
+      let context = previousChapterContext
+      if (adaptedChapterText) {
+        const currentChapterContext = extractContextWindow(adaptedChapterText, 400)
+        context = currentChapterContext
+      }
+
+      console.log(`Adapting chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+      const result = await adaptWithRetry(pageText, {
+        targetLanguage: resolvedTargetLanguage,
+        level: simplifiedLevel,
+        context,
+        client,
+      })
+
+      qualityReport.totalAttempts += result.attempts
+
+      if (result.issues.length > 0) {
+        qualityReport.pagesWithIssues += 1
+        qualityReport.issues.push({ page: pageIdx, issues: result.issues })
+      } else {
+        qualityReport.successfulPages += 1
+      }
+
+      // Append to chapter text
+      if (adaptedChapterText && result.text) {
+        adaptedChapterText += '\n\n' + result.text
+      } else if (result.text) {
+        adaptedChapterText = result.text
+      }
+
+      // Update progress
+      await chapterRef.update({
+        adaptedText: adaptedChapterText,
+        adaptedPageCount: pageIdx + 1,
+      })
+    }
+
+    // Mark chapter as complete
+    await chapterRef.update({
+      status: 'ready',
+      qualityReport,
+    })
+
+    console.log(`Chapter ${chapterIndex} adapted: ${qualityReport.successfulPages}/${qualityReport.totalPages} pages successful`)
+
+    return res.json({
+      success: true,
+      chapterIndex,
+      chapterTitle,
+      qualityReport,
+      adaptedTextLength: adaptedChapterText.length,
+    })
+
+  } catch (error) {
+    console.error('Error adapting chapter:', error)
+    return res.status(500).json({ error: 'Failed to adapt chapter' })
   }
 })
 

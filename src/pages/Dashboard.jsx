@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc } from 'firebase/firestore'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
 import WritingHub from '../components/write/WritingHub'
@@ -603,6 +603,46 @@ const Dashboard = () => {
     navigate(readerPath)
   }
 
+  const handleDeleteBook = async (e, book) => {
+    e.stopPropagation() // Prevent opening the book
+    if (!book?.id || !user?.uid) return
+
+    const confirmed = window.confirm(`Delete "${book.title || 'this book'}" from your library?\n\nYour vocabulary progress will be preserved.`)
+    if (!confirmed) return
+
+    try {
+      // 1. Delete the story document and pages via API
+      const response = await fetch('/api/delete-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, storyId: book.id }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete book')
+      }
+
+      // 2. Update vocab cards to remove this book from sourceContentIds (but keep the vocab)
+      const vocabRef = collection(db, 'users', user.uid, 'vocab')
+      const vocabQuery = query(vocabRef, where('sourceContentIds', 'array-contains', book.id))
+      const vocabSnap = await getDocs(vocabQuery)
+
+      if (!vocabSnap.empty) {
+        const batch = writeBatch(db)
+        vocabSnap.forEach((vocabDoc) => {
+          const currentIds = vocabDoc.data().sourceContentIds || []
+          const updatedIds = currentIds.filter((id) => id !== book.id)
+          batch.update(vocabDoc.ref, { sourceContentIds: updatedIds })
+        })
+        await batch.commit()
+      }
+
+    } catch (err) {
+      console.error('Error deleting book:', err)
+      alert('Failed to delete book. Please try again.')
+    }
+  }
+
   const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
 
   const inProgressBooks =
@@ -874,17 +914,25 @@ const Dashboard = () => {
                         {yourRecentBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           return (
-                            <button
-                              key={book.id || book.title}
-                              className="reading-shelf-item"
-                              onClick={() => handleOpenBook(book)}
-                            >
-                              <div className="reading-shelf-cover" />
-                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                              <div className="reading-shelf-progress">
-                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
-                              </div>
-                            </button>
+                            <div key={book.id || book.title} className="reading-shelf-item">
+                              <button
+                                className="book-delete-btn"
+                                onClick={(e) => handleDeleteBook(e, book)}
+                                aria-label="Delete book"
+                              >
+                                ×
+                              </button>
+                              <button
+                                className="reading-shelf-item-content"
+                                onClick={() => handleOpenBook(book)}
+                              >
+                                <div className="reading-shelf-cover" />
+                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                                <div className="reading-shelf-progress">
+                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                                </div>
+                              </button>
+                            </div>
                           )
                         })}
                       </div>
@@ -908,17 +956,25 @@ const Dashboard = () => {
                         {allBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           return (
-                            <button
-                              key={book.id || book.title}
-                              className="reading-shelf-item"
-                              onClick={() => handleOpenBook(book)}
-                            >
-                              <div className="reading-shelf-cover" />
-                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                              <div className="reading-shelf-progress">
-                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
-                              </div>
-                            </button>
+                            <div key={book.id || book.title} className="reading-shelf-item">
+                              <button
+                                className="book-delete-btn"
+                                onClick={(e) => handleDeleteBook(e, book)}
+                                aria-label="Delete book"
+                              >
+                                ×
+                              </button>
+                              <button
+                                className="reading-shelf-item-content"
+                                onClick={() => handleOpenBook(book)}
+                              >
+                                <div className="reading-shelf-cover" />
+                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                                <div className="reading-shelf-progress">
+                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                                </div>
+                              </button>
+                            </div>
                           )
                         })}
                       </div>
@@ -947,17 +1003,25 @@ const Dashboard = () => {
                         {generatedBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           return (
-                            <button
-                              key={book.id || book.title}
-                              className="reading-shelf-item"
-                              onClick={() => handleOpenBook(book)}
-                            >
-                              <div className="reading-shelf-cover" />
-                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                              <div className="reading-shelf-progress">
-                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
-                              </div>
-                            </button>
+                            <div key={book.id || book.title} className="reading-shelf-item">
+                              <button
+                                className="book-delete-btn"
+                                onClick={(e) => handleDeleteBook(e, book)}
+                                aria-label="Delete book"
+                              >
+                                ×
+                              </button>
+                              <button
+                                className="reading-shelf-item-content"
+                                onClick={() => handleOpenBook(book)}
+                              >
+                                <div className="reading-shelf-cover" />
+                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                                <div className="reading-shelf-progress">
+                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                                </div>
+                              </button>
+                            </div>
                           )
                         })}
                       </div>
@@ -986,17 +1050,25 @@ const Dashboard = () => {
                         {adaptationBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           return (
-                            <button
-                              key={book.id || book.title}
-                              className="reading-shelf-item"
-                              onClick={() => handleOpenBook(book)}
-                            >
-                              <div className="reading-shelf-cover" />
-                              <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                              <div className="reading-shelf-progress">
-                                <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
-                              </div>
-                            </button>
+                            <div key={book.id || book.title} className="reading-shelf-item">
+                              <button
+                                className="book-delete-btn"
+                                onClick={(e) => handleDeleteBook(e, book)}
+                                aria-label="Delete book"
+                              >
+                                ×
+                              </button>
+                              <button
+                                className="reading-shelf-item-content"
+                                onClick={() => handleOpenBook(book)}
+                              >
+                                <div className="reading-shelf-cover" />
+                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
+                                <div className="reading-shelf-progress">
+                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                                </div>
+                              </button>
+                            </div>
                           )
                         })}
                       </div>

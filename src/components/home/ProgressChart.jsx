@@ -21,7 +21,7 @@ const STAT_TITLES = {
   French: {
     knownWords: 'Mots Connus',
     wordsRead: 'Mots Lus',
-    listeningSeconds: 'Temps d'Écoute',
+    listeningSeconds: "Temps d'Écoute",
     reviews: 'Cartes Révisées',
     wordsWritten: 'Mots Écrits',
     speakingSeconds: 'Temps de Parole',

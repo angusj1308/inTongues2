@@ -3556,6 +3556,279 @@ async function extractTxt(filePath) {
   return pages
 }
 
+/**
+ * Strip Project Gutenberg boilerplate header and footer.
+ */
+function stripGutenbergBoilerplate(text) {
+  // Common Gutenberg markers
+  const startMarkers = [
+    '*** START OF THE PROJECT GUTENBERG EBOOK',
+    '*** START OF THIS PROJECT GUTENBERG EBOOK',
+    '*END*THE SMALL PRINT',
+    '***START OF THE PROJECT GUTENBERG EBOOK',
+  ]
+  const endMarkers = [
+    '*** END OF THE PROJECT GUTENBERG EBOOK',
+    '*** END OF THIS PROJECT GUTENBERG EBOOK',
+    '***END OF THE PROJECT GUTENBERG EBOOK',
+    'End of the Project Gutenberg EBook',
+    'End of Project Gutenberg',
+  ]
+
+  let result = text
+
+  // Find and strip header
+  for (const marker of startMarkers) {
+    const idx = result.indexOf(marker)
+    if (idx !== -1) {
+      // Find the end of this line
+      const lineEnd = result.indexOf('\n', idx)
+      if (lineEnd !== -1) {
+        result = result.slice(lineEnd + 1)
+      }
+      break
+    }
+  }
+
+  // Find and strip footer
+  for (const marker of endMarkers) {
+    const idx = result.indexOf(marker)
+    if (idx !== -1) {
+      result = result.slice(0, idx)
+      break
+    }
+  }
+
+  return result.trim()
+}
+
+/**
+ * Detect chapter markers using structural patterns (language-agnostic).
+ * Looks for short lines with numbers/roman numerals that appear multiple times.
+ */
+function detectChapterMarkers(text) {
+  const lines = text.split('\n')
+  const candidates = []
+
+  // Roman numeral pattern
+  const romanPattern = /^[IVXLCDM]+$/i
+  // Number pattern (including with dots/colons)
+  const numberPattern = /\d+/
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    const prevLine = i > 0 ? lines[i - 1].trim() : ''
+    const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : ''
+
+    // Skip empty lines
+    if (!line) continue
+
+    // Check if this looks like a chapter heading:
+    // 1. Short line (< 80 chars)
+    // 2. Has blank line before OR after (or both)
+    // 3. Contains number or roman numeral
+    const isShort = line.length < 80
+    const hasBlankBefore = prevLine === ''
+    const hasBlankAfter = nextLine === ''
+    const hasBlankAround = hasBlankBefore || hasBlankAfter
+
+    if (!isShort || !hasBlankAround) continue
+
+    // Check for numbers or roman numerals
+    const words = line.split(/\s+/)
+    const hasNumber = numberPattern.test(line)
+    const hasRoman = words.some(w => romanPattern.test(w) && w.length <= 6)
+
+    // Check if it's mostly uppercase or title case
+    const isUpperCase = line === line.toUpperCase() && /[A-Z]/.test(line)
+    const isTitleCase = words.length > 0 && words.every(w =>
+      !w || /^[A-Z0-9]/.test(w) || w.length <= 2
+    )
+
+    if (hasNumber || hasRoman) {
+      // Extract a "signature" to group similar patterns
+      // e.g., "CHAPTER 5" and "CHAPTER 12" have same signature "CHAPTER #"
+      const signature = line
+        .replace(/\d+/g, '#')
+        .replace(/[IVXLCDM]+/gi, (match) => romanPattern.test(match) ? 'R' : match)
+        .toUpperCase()
+        .trim()
+
+      candidates.push({
+        lineIndex: i,
+        line,
+        signature,
+        hasNumber,
+        hasRoman,
+        isUpperCase,
+        position: i / lines.length, // relative position in document
+      })
+    }
+  }
+
+  // Group candidates by signature
+  const signatureGroups = {}
+  for (const c of candidates) {
+    if (!signatureGroups[c.signature]) {
+      signatureGroups[c.signature] = []
+    }
+    signatureGroups[c.signature].push(c)
+  }
+
+  // Find the best pattern (most matches, spread throughout document)
+  let bestPattern = null
+  let bestScore = 0
+
+  for (const [signature, matches] of Object.entries(signatureGroups)) {
+    if (matches.length < 2) continue // Need at least 2 chapters
+
+    // Score based on count and distribution
+    const count = matches.length
+    const positions = matches.map(m => m.position)
+    const spread = Math.max(...positions) - Math.min(...positions)
+
+    // Good chapters should be spread throughout the book
+    const score = count * (spread > 0.5 ? 2 : 1)
+
+    if (score > bestScore) {
+      bestScore = score
+      bestPattern = { signature, matches }
+    }
+  }
+
+  if (!bestPattern || bestPattern.matches.length < 2) {
+    return null // No chapter pattern detected
+  }
+
+  return bestPattern.matches.map(m => ({
+    lineIndex: m.lineIndex,
+    title: m.line,
+  }))
+}
+
+/**
+ * Extract TXT file with chapter structure (language-agnostic).
+ * Uses structural pattern detection for chapters.
+ */
+async function extractTxtWithChapters(filePath) {
+  let raw = await fs.readFile(filePath, 'utf8')
+
+  // Strip Gutenberg boilerplate
+  const text = stripGutenbergBoilerplate(raw)
+  const lines = text.split('\n')
+
+  // Detect chapter markers
+  const chapterMarkers = detectChapterMarkers(text)
+
+  // If no chapters detected, treat whole text as one chapter
+  if (!chapterMarkers || chapterMarkers.length === 0) {
+    console.log('No chapter pattern detected, treating as single chapter')
+    const cleanText = text.replace(/\s+/g, ' ').trim()
+    const words = cleanText.split(/\s+/)
+
+    // Split into adaptation pages
+    const adaptationPages = []
+    let buffer = []
+    for (const word of words) {
+      buffer.push(word)
+      if (buffer.join(' ').length > 1200) {
+        adaptationPages.push(buffer.join(' '))
+        buffer = []
+      }
+    }
+    if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+
+    return [{
+      index: 0,
+      title: 'Full Text',
+      originalText: cleanText,
+      adaptationPages,
+      wordCount: words.length,
+    }]
+  }
+
+  console.log(`Detected ${chapterMarkers.length} chapters`)
+
+  // Split text at chapter boundaries
+  const chapters = []
+
+  for (let i = 0; i < chapterMarkers.length; i++) {
+    const marker = chapterMarkers[i]
+    const nextMarker = chapterMarkers[i + 1]
+
+    const startLine = marker.lineIndex
+    const endLine = nextMarker ? nextMarker.lineIndex : lines.length
+
+    // Extract chapter content (skip the chapter heading line itself)
+    const chapterLines = lines.slice(startLine + 1, endLine)
+    const chapterText = chapterLines.join('\n').replace(/\s+/g, ' ').trim()
+
+    // Skip very short chapters (likely just headers)
+    if (chapterText.length < 100) {
+      console.log(`Skipping short chapter: "${marker.title}"`)
+      continue
+    }
+
+    const words = chapterText.split(/\s+/)
+
+    // Split into adaptation pages (~1200 chars)
+    const adaptationPages = []
+    let buffer = []
+    for (const word of words) {
+      buffer.push(word)
+      if (buffer.join(' ').length > 1200) {
+        adaptationPages.push(buffer.join(' '))
+        buffer = []
+      }
+    }
+    if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+
+    chapters.push({
+      index: chapters.length,
+      title: marker.title,
+      originalText: chapterText,
+      adaptationPages,
+      wordCount: words.length,
+    })
+  }
+
+  // Handle any text before the first chapter marker
+  if (chapterMarkers[0].lineIndex > 10) {
+    const preambleLines = lines.slice(0, chapterMarkers[0].lineIndex)
+    const preambleText = preambleLines.join('\n').replace(/\s+/g, ' ').trim()
+
+    if (preambleText.length > 200) {
+      const words = preambleText.split(/\s+/)
+      const adaptationPages = []
+      let buffer = []
+      for (const word of words) {
+        buffer.push(word)
+        if (buffer.join(' ').length > 1200) {
+          adaptationPages.push(buffer.join(' '))
+          buffer = []
+        }
+      }
+      if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+
+      // Insert at beginning
+      chapters.unshift({
+        index: 0,
+        title: 'Preface',
+        originalText: preambleText,
+        adaptationPages,
+        wordCount: words.length,
+      })
+
+      // Re-index other chapters
+      for (let i = 1; i < chapters.length; i++) {
+        chapters[i].index = i
+      }
+    }
+  }
+
+  return chapters
+}
+
 async function extractPdf(filePath) {
   const data = await fs.readFile(filePath)
   const pdf = await pdfParse(data)
@@ -3866,11 +4139,12 @@ async function saveImportedBookToFirestore({
 }
 
 /**
- * Save imported EPUB with chapter structure to Firestore.
+ * Save imported book with chapter structure to Firestore.
+ * Works for EPUB, TXT, or any format with detected chapters.
  * Chapters are stored separately with their originalText and adaptationPages.
  * Final 250-word pages are created after adaptation completes.
  */
-async function saveImportedEpubToFirestore({
+async function saveImportedChapterBookToFirestore({
   userId,
   title,
   author,
@@ -3881,6 +4155,7 @@ async function saveImportedEpubToFirestore({
   isPublicDomain,
   chapters,
   voiceGender,
+  sourceType = 'epub', // 'epub', 'txt', etc.
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -3921,8 +4196,8 @@ async function saveImportedEpubToFirestore({
     level: translationMode === 'graded' ? level : null,
     isPublicDomain: isPublicDomain === 'true',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    // EPUB-specific fields
-    sourceType: 'epub',
+    // Chapter-based book fields
+    sourceType,
     chapterCount: totalChapters,
     totalAdaptationPages,
     adaptedChapters: 0,
@@ -4114,7 +4389,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       const chapters = await extractEpubWithChapters(req.file.path)
       console.log('Extracted EPUB chapters:', chapters.length)
 
-      const bookId = await saveImportedEpubToFirestore({
+      const bookId = await saveImportedChapterBookToFirestore({
         userId,
         title,
         author,
@@ -4125,6 +4400,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         isPublicDomain,
         chapters,
         voiceGender,
+        sourceType: 'epub',
       })
 
       // Fire-and-forget EPUB adaptation trigger
@@ -4151,7 +4427,51 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
     }
 
-    // Handle other file types with existing flat page flow
+    // Handle TXT with chapter-based flow (structural detection)
+    if (fileType === 'txt') {
+      const chapters = await extractTxtWithChapters(req.file.path)
+      console.log('Extracted TXT chapters:', chapters.length)
+
+      // Use same storage and adaptation flow as EPUB
+      const bookId = await saveImportedChapterBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        chapters,
+        voiceGender,
+        sourceType: 'txt',
+      })
+
+      // Fire-and-forget adaptation trigger (same endpoint as EPUB)
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-epub-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt TXT trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'TXT import processed successfully',
+        bookId,
+        chapterCount: chapters.length,
+        sourceType: 'txt',
+      })
+    }
+
+    // Handle other file types (PDF) with existing flat page flow
     const pages = await extractPagesForFile(req.file)
     const bookId = await saveImportedBookToFirestore({
       userId,
@@ -4337,8 +4657,8 @@ app.post('/api/adapt-imported-book', async (req, res) => {
 })
 
 /**
- * EPUB Adaptation Endpoint
- * Adapts EPUB books chapter by chapter, page by page.
+ * Chapter-Based Book Adaptation Endpoint
+ * Adapts EPUB and TXT books chapter by chapter, page by page.
  * Appends adapted text to chapter blobs, then re-chunks into 250-word pages.
  */
 app.post('/api/adapt-epub-book', async (req, res) => {
@@ -4362,8 +4682,9 @@ app.post('/api/adapt-epub-book', async (req, res) => {
     }
 
     const storyData = storySnap.data() || {}
-    if (storyData.sourceType !== 'epub') {
-      return res.status(400).json({ error: 'This endpoint is only for EPUB books' })
+    const validSourceTypes = ['epub', 'txt']
+    if (!validSourceTypes.includes(storyData.sourceType)) {
+      return res.status(400).json({ error: 'This endpoint is only for chapter-based books (EPUB, TXT)' })
     }
 
     // Mark story as adapting

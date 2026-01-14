@@ -3641,6 +3641,135 @@ async function extractEpub(filePath) {
   return pages
 }
 
+/**
+ * Extract EPUB with chapter structure preserved.
+ * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ */
+async function extractEpubWithChapters(filePath) {
+  const epub = await parseEpub(filePath)
+  const chapters = []
+
+  // epub.flow is the reading order, epub.toc has chapter titles
+  const tocMap = new Map()
+  if (epub.toc && Array.isArray(epub.toc)) {
+    for (const tocItem of epub.toc) {
+      if (tocItem.id) {
+        tocMap.set(tocItem.id, tocItem.title || tocItem.label || '')
+      }
+      // Handle href-based matching (some EPUBs use href instead of id)
+      if (tocItem.href) {
+        const hrefId = tocItem.href.split('#')[0]
+        tocMap.set(hrefId, tocItem.title || tocItem.label || '')
+      }
+    }
+  }
+
+  let chapterIndex = 0
+  for (const item of epub.flow) {
+    const content = await getChapterAsync(epub, item.id)
+    // Strip HTML tags and normalize whitespace
+    const cleanText = content
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    // Skip empty chapters (front matter, etc.)
+    if (!cleanText || cleanText.length < 50) {
+      continue
+    }
+
+    // Try to get chapter title from TOC
+    let title = tocMap.get(item.id) || tocMap.get(item.href) || ''
+    if (!title) {
+      // Try to extract title from content (first heading)
+      const headingMatch = content.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/i)
+      if (headingMatch) {
+        title = headingMatch[1].trim()
+      }
+    }
+    if (!title) {
+      title = `Chapter ${chapterIndex + 1}`
+    }
+
+    // Split chapter into ~1200 char pages for adaptation (API limits)
+    const words = cleanText.split(/\s+/)
+    const adaptationPages = []
+    let buffer = []
+
+    for (const word of words) {
+      buffer.push(word)
+      if (buffer.join(' ').length > 1200) {
+        adaptationPages.push(buffer.join(' '))
+        buffer = []
+      }
+    }
+    if (buffer.length > 0) {
+      adaptationPages.push(buffer.join(' '))
+    }
+
+    chapters.push({
+      index: chapterIndex,
+      title,
+      originalText: cleanText,
+      adaptationPages, // Pages for adaptation (1200 char chunks)
+      wordCount: words.length,
+    })
+
+    chapterIndex++
+  }
+
+  return chapters
+}
+
+/**
+ * Split text into pages of approximately targetWordCount words.
+ * Tries to break at sentence boundaries when possible.
+ */
+function splitTextIntoPages(text, targetWordCount = 250) {
+  if (!text || !text.trim()) return []
+
+  const words = text.split(/\s+/)
+  const pages = []
+  let buffer = []
+
+  for (let i = 0; i < words.length; i++) {
+    buffer.push(words[i])
+
+    // Check if we've reached target word count
+    if (buffer.length >= targetWordCount) {
+      // Try to find a sentence boundary in the last ~20 words
+      const bufferText = buffer.join(' ')
+      const lastSentenceEnd = Math.max(
+        bufferText.lastIndexOf('. '),
+        bufferText.lastIndexOf('? '),
+        bufferText.lastIndexOf('! '),
+        bufferText.lastIndexOf('." '),
+        bufferText.lastIndexOf('?" '),
+        bufferText.lastIndexOf('!" ')
+      )
+
+      // If we found a sentence boundary in a reasonable position, break there
+      if (lastSentenceEnd > bufferText.length * 0.7) {
+        const pageText = bufferText.slice(0, lastSentenceEnd + 1).trim()
+        const remainder = bufferText.slice(lastSentenceEnd + 1).trim()
+        pages.push(pageText)
+        buffer = remainder ? remainder.split(/\s+/) : []
+      } else {
+        // No good sentence boundary, just break at word count
+        pages.push(bufferText)
+        buffer = []
+      }
+    }
+  }
+
+  // Don't forget remaining text
+  if (buffer.length > 0) {
+    pages.push(buffer.join(' '))
+  }
+
+  return pages
+}
+
 async function extractPagesForFile(file) {
   if (!file || !file.path) {
     return []
@@ -3732,6 +3861,99 @@ async function saveImportedBookToFirestore({
   })
 
   await batch.commit()
+
+  return storyRef.id
+}
+
+/**
+ * Save imported EPUB with chapter structure to Firestore.
+ * Chapters are stored separately with their originalText and adaptationPages.
+ * Final 250-word pages are created after adaptation completes.
+ */
+async function saveImportedEpubToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  chapters,
+  voiceGender,
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID for the imported book
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  // Calculate totals
+  const totalChapters = chapters.length
+  const totalAdaptationPages = chapters.reduce((sum, ch) => sum + ch.adaptationPages.length, 0)
+  const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0)
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // EPUB-specific fields
+    sourceType: 'epub',
+    chapterCount: totalChapters,
+    totalAdaptationPages,
+    adaptedChapters: 0,
+    totalWords,
+    // Page count will be set after re-chunking
+    pageCount: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+  })
+
+  // Save chapters
+  const chaptersRef = storyRef.collection('chapters')
+  for (const chapter of chapters) {
+    await chaptersRef.doc(String(chapter.index)).set({
+      index: chapter.index,
+      title: chapter.title,
+      originalText: chapter.originalText,
+      adaptedText: '', // Will be built up during adaptation
+      wordCount: chapter.wordCount,
+      adaptationPages: chapter.adaptationPages,
+      adaptedPageCount: 0,
+      totalAdaptationPages: chapter.adaptationPages.length,
+      status: 'pending',
+      pageOffset: 0, // Will be calculated after all chapters are adapted
+    })
+  }
 
   return storyRef.id
 }
@@ -3885,6 +4107,51 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
     console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
 
+    const fileType = detectFileType(req.file.originalname)
+
+    // Handle EPUB with chapter-based flow
+    if (fileType === 'epub') {
+      const chapters = await extractEpubWithChapters(req.file.path)
+      console.log('Extracted EPUB chapters:', chapters.length)
+
+      const bookId = await saveImportedEpubToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        chapters,
+        voiceGender,
+      })
+
+      // Fire-and-forget EPUB adaptation trigger
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-epub-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt EPUB trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'EPUB import processed successfully',
+        bookId,
+        chapterCount: chapters.length,
+        sourceType: 'epub',
+      })
+    }
+
+    // Handle other file types with existing flat page flow
     const pages = await extractPagesForFile(req.file)
     const bookId = await saveImportedBookToFirestore({
       userId,
@@ -4066,6 +4333,213 @@ app.post('/api/adapt-imported-book', async (req, res) => {
   } catch (error) {
     console.error('Error adapting imported book:', error)
     return res.status(500).json({ error: 'Failed to adapt imported book' })
+  }
+})
+
+/**
+ * EPUB Adaptation Endpoint
+ * Adapts EPUB books chapter by chapter, page by page.
+ * Appends adapted text to chapter blobs, then re-chunks into 250-word pages.
+ */
+app.post('/api/adapt-epub-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Starting EPUB adaptation:', { uid, storyId, targetLanguage, simplifiedLevel })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    if (storyData.sourceType !== 'epub') {
+      return res.status(400).json({ error: 'This endpoint is only for EPUB books' })
+    }
+
+    // Mark story as adapting
+    await storyRef.update({ status: 'adapting' })
+
+    // Get all chapters
+    const chaptersRef = storyRef.collection('chapters')
+    const chaptersSnap = await chaptersRef.orderBy('index').get()
+
+    if (chaptersSnap.empty) {
+      return res.status(404).json({ error: 'No chapters found for this story' })
+    }
+
+    console.log(`Found ${chaptersSnap.size} chapters for EPUB adaptation`)
+
+    let totalAdaptedPages = 0
+    let completedChapters = 0
+
+    // Process each chapter
+    for (const chapterDoc of chaptersSnap.docs) {
+      const chapterData = chapterDoc.data() || {}
+      const { adaptationPages, index: chapterIndex, title: chapterTitle } = chapterData
+
+      if (!adaptationPages || adaptationPages.length === 0) {
+        console.warn(`Chapter ${chapterIndex} has no adaptation pages, skipping`)
+        await chapterDoc.ref.update({ status: 'skipped' })
+        continue
+      }
+
+      console.log(`Adapting chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+      await chapterDoc.ref.update({ status: 'adapting' })
+
+      let chapterAdaptedText = chapterData.adaptedText || ''
+      let adaptedPageCount = chapterData.adaptedPageCount || 0
+
+      // Adapt each page in the chapter
+      for (let pageIdx = adaptedPageCount; pageIdx < adaptationPages.length; pageIdx++) {
+        const pageText = adaptationPages[pageIdx]
+
+        if (!pageText || !pageText.trim()) {
+          console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+          continue
+        }
+
+        console.log(`Adapting chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+        try {
+          const response = await client.responses.create({
+            model: 'gpt-4.1',
+            input: [
+              {
+                role: 'system',
+                content: ADAPTATION_SYSTEM_PROMPT,
+              },
+              {
+                role: 'user',
+                content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${pageText}`,
+              },
+            ],
+          })
+
+          const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+          // Append to chapter blob with paragraph separator
+          if (chapterAdaptedText && adaptedText) {
+            chapterAdaptedText += '\n\n' + adaptedText
+          } else if (adaptedText) {
+            chapterAdaptedText = adaptedText
+          }
+
+          adaptedPageCount += 1
+          totalAdaptedPages += 1
+
+          // Update chapter with progress
+          await chapterDoc.ref.update({
+            adaptedText: chapterAdaptedText,
+            adaptedPageCount,
+          })
+
+          console.log(`Completed chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+        } catch (adaptError) {
+          console.error(`Error adapting chapter ${chapterIndex}, page ${pageIdx}:`, adaptError)
+          // Continue with next page rather than failing entire chapter
+        }
+      }
+
+      // Mark chapter as complete
+      await chapterDoc.ref.update({ status: 'ready' })
+      completedChapters += 1
+
+      console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
+    }
+
+    // All chapters adapted - now re-chunk into 250-word pages
+    console.log('All chapters adapted, re-chunking into 250-word pages...')
+
+    // Collect all adapted text from chapters in order
+    const updatedChaptersSnap = await chaptersRef.orderBy('index').get()
+    let globalPageIndex = 0
+    const pagesRef = storyRef.collection('pages')
+
+    // Delete any existing pages (in case of re-adaptation)
+    const existingPagesSnap = await pagesRef.get()
+    for (const pageDoc of existingPagesSnap.docs) {
+      await pageDoc.ref.delete()
+    }
+
+    // Process each chapter and create pages
+    for (const chapterDoc of updatedChaptersSnap.docs) {
+      const chapterData = chapterDoc.data() || {}
+      const { adaptedText, index: chapterIndex, title: chapterTitle } = chapterData
+
+      if (!adaptedText || !adaptedText.trim()) {
+        continue
+      }
+
+      // Record page offset for this chapter
+      const chapterPageOffset = globalPageIndex
+      await chapterDoc.ref.update({ pageOffset: chapterPageOffset })
+
+      // Split chapter's adapted text into 250-word pages
+      const chapterPages = splitTextIntoPages(adaptedText, 250)
+
+      console.log(`Chapter ${chapterIndex} split into ${chapterPages.length} pages (starting at page ${globalPageIndex})`)
+
+      // Save each page
+      for (let i = 0; i < chapterPages.length; i++) {
+        const pageText = chapterPages[i]
+        const isFirstPageOfChapter = i === 0
+
+        await pagesRef.doc(String(globalPageIndex)).set({
+          index: globalPageIndex,
+          text: pageText,
+          adaptedText: pageText, // Already adapted
+          originalText: pageText,
+          status: 'done',
+          chapterIndex,
+          chapterTitle: isFirstPageOfChapter ? chapterTitle : null,
+          isChapterStart: isFirstPageOfChapter,
+          audioUrl: null,
+          audioStatus: 'pending',
+        })
+
+        globalPageIndex += 1
+      }
+    }
+
+    // Update story with final page count
+    await storyRef.update({
+      status: 'ready',
+      pageCount: globalPageIndex,
+      adaptedChapters: completedChapters,
+    })
+
+    console.log(`EPUB adaptation complete: ${globalPageIndex} pages across ${completedChapters} chapters`)
+
+    // Trigger audio generation if requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    return res.json({
+      success: true,
+      storyId,
+      pageCount: globalPageIndex,
+      chapterCount: completedChapters,
+    })
+  } catch (error) {
+    console.error('Error adapting EPUB book:', error)
+    return res.status(500).json({ error: 'Failed to adapt EPUB book' })
   }
 })
 

@@ -2461,6 +2461,16 @@ textarea {
   opacity: 0.75;
 }
 
+.reader-header-button.is-active {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-header-button.is-active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .reader-themed .reader-header-button {
   color: inherit;
 }
@@ -2661,6 +2671,39 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 3rem;
   align-items: stretch;
+}
+
+/* Assisted mode - single page, larger font */
+.reader-single {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.reader-single .reader-page-block {
+  width: 100%;
+  max-width: 700px;
+}
+
+.reader-single .page-text {
+  font-size: 1.4rem;
+  line-height: 1.8;
+  padding: 3rem 2.5rem;
+}
+
+.reader-single .chapter-title {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+
+.reader-single .page-number {
+  font-size: 1.1rem;
+}
+
+/* Page single mode class */
+.page--single .page-text {
+  padding: 3rem 2.5rem;
 }
 
 .reader-navigation {
@@ -5245,6 +5288,17 @@ textarea {
   margin-top: 0.75rem;
   text-align: center;
   font-weight: 600;
+}
+
+.reader-page-block .chapter-title {
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-top: 1rem;
+  color: var(--reader-text, #0f172a);
+  letter-spacing: 0.02em;
 }
 
 .button.ghost:hover:not(:disabled) {

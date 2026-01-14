@@ -796,7 +796,36 @@ const Dashboard = () => {
 
                   {/* Row 1: Three Action Cards */}
                   <div className="home-grid-three">
-                    {/* Card 1: Generate */}
+                    {/* Card 1: Continue Reading */}
+                    <div className="home-card reading-continue-card">
+                      <h3 className="home-card-title">Continue Reading</h3>
+                      {libraryLoading ? (
+                        <p className="reading-card-empty">Loading...</p>
+                      ) : continueStory ? (
+                        <button
+                          className="reading-continue-horizontal"
+                          onClick={() => handleOpenBook(continueStory)}
+                        >
+                          <div className="reading-continue-thumb" />
+                          <div className="reading-continue-details">
+                            <span className="reading-continue-title-h">{getStoryTitle(continueStory)}</span>
+                            <span className="reading-continue-meta-h">
+                              {continueStory.language || 'Unknown'}{continueStory.level ? ` · Level ${continueStory.level}` : ''}
+                            </span>
+                            <div className="reading-continue-progress">
+                              <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
+                            </div>
+                          </div>
+                        </button>
+                      ) : (
+                        <p className="reading-card-empty">No books in progress</p>
+                      )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="home-grid-divider" />
+
+                    {/* Card 2: Generate */}
                     <div className="home-card reading-action-card">
                       <h3 className="home-card-title">Generate</h3>
                       <p className="reading-card-description">
@@ -813,7 +842,7 @@ const Dashboard = () => {
                     {/* Divider */}
                     <div className="home-grid-divider" />
 
-                    {/* Card 2: Import */}
+                    {/* Card 3: Import */}
                     <div className="home-card reading-action-card">
                       <h3 className="home-card-title">Import</h3>
                       <p className="reading-card-description">
@@ -824,23 +853,6 @@ const Dashboard = () => {
                         onClick={() => setShowImportModal(true)}
                       >
                         Import
-                      </button>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="home-grid-divider" />
-
-                    {/* Card 3: Browse Google Books */}
-                    <div className="home-card reading-action-card">
-                      <h3 className="home-card-title">Google Books</h3>
-                      <p className="reading-card-description">
-                        Buy any book from Google Books and have it arrive in your library adapted to your level.
-                      </p>
-                      <button
-                        className="reading-cta-primary"
-                        onClick={() => window.open('https://books.google.com', '_blank')}
-                      >
-                        Browse
                       </button>
                     </div>
                   </div>

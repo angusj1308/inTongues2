@@ -17,6 +17,8 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
+import generateIcon from '../assets/Generate.png'
+import importIcon from '../assets/import.png'
 
 // Get today's day of week (monday, tuesday, etc.)
 const getTodayDayOfWeek = () => {
@@ -870,7 +872,7 @@ const Dashboard = () => {
                       className="home-card reading-action-card"
                       onClick={() => setShowGenerateModal(true)}
                     >
-                      <img src="/assets/generate.png" alt="" className="reading-card-icon" />
+                      <img src={generateIcon} alt="" className="reading-card-icon" />
                       <h3 className="home-card-title">Generate</h3>
                       <p className="reading-card-description">
                         Generate study material in your target language, tailored to your level and interests.
@@ -885,7 +887,7 @@ const Dashboard = () => {
                       className="home-card reading-action-card"
                       onClick={() => setShowImportModal(true)}
                     >
-                      <img src="/assets/import.png" alt="" className="reading-card-icon" />
+                      <img src={importIcon} alt="" className="reading-card-icon" />
                       <h3 className="home-card-title">Import</h3>
                       <p className="reading-card-description">
                         Import your own books and adapt them to your target language and level.

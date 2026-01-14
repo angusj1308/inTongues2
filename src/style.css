@@ -1808,11 +1808,14 @@ textarea {
 
 .generate-story-panel h1,
 .generate-story-panel h2,
-.generate-story-panel h3,
+.generate-story-panel h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
+}
+
 .import-book-panel h1,
 .import-book-panel h2,
 .import-book-panel h3 {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .button-icon {
@@ -2303,12 +2306,12 @@ textarea {
 }
 
 .import-book-panel input[type='file'] {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .import-book-panel input[type='file']::file-selector-button {
   padding: 0.65rem 0.9rem;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid #cbd5e1;
   background: #f1f5f9;
   color: #0f172a;

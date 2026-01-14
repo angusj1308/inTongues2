@@ -22,10 +22,42 @@ import importIcon from '../assets/import.png'
 
 // Target language translations for card headers
 const CARD_HEADERS = {
-  Spanish: { continue: 'Continuar', generate: 'Generar', import: 'Importar' },
-  French: { continue: 'Continuer', generate: 'Générer', import: 'Importer' },
-  Italian: { continue: 'Continuare', generate: 'Generare', import: 'Importare' },
-  English: { continue: 'Continue', generate: 'Generate', import: 'Import' },
+  Spanish: {
+    continue: 'Continuar',
+    generate: 'Generar',
+    import: 'Importar',
+    routine: 'Rutina',
+    stats: 'Estadísticas',
+    recent: 'Recientes',
+    allBooks: 'Todos los Libros',
+  },
+  French: {
+    continue: 'Continuer',
+    generate: 'Générer',
+    import: 'Importer',
+    routine: 'Routine',
+    stats: 'Statistiques',
+    recent: 'Récents',
+    allBooks: 'Tous les Livres',
+  },
+  Italian: {
+    continue: 'Continuare',
+    generate: 'Generare',
+    import: 'Importare',
+    routine: 'Routine',
+    stats: 'Statistiche',
+    recent: 'Recenti',
+    allBooks: 'Tutti i Libri',
+  },
+  English: {
+    continue: 'Continue',
+    generate: 'Generate',
+    import: 'Import',
+    routine: 'Routine',
+    stats: 'Stats',
+    recent: 'Recent',
+    allBooks: 'All Books',
+  },
 }
 
 const getCardHeader = (language, key) => {
@@ -707,7 +739,7 @@ const Dashboard = () => {
                 {/* Card 1: Today's Routine */}
                 <div className="home-card home-routine-card">
                   <div className="home-card-header">
-                    <h3 className="home-card-title">Routine</h3>
+                    <h3 className="home-card-title">{getCardHeader(activeLanguage, 'routine')}</h3>
                     <button
                       className="home-add-activity-btn"
                       onClick={(e) => {
@@ -765,7 +797,7 @@ const Dashboard = () => {
 
                 {/* Card 2: Stats */}
                 <div className="home-card home-stats-card">
-                  <h3 className="home-card-title">Stats</h3>
+                  <h3 className="home-card-title">{getCardHeader(activeLanguage, 'stats')}</h3>
                   <div className="home-stats-list">
                     <button
                       className={`home-stat-item ${selectedStat === 'knownWords' ? 'active' : ''}`}
@@ -916,7 +948,7 @@ const Dashboard = () => {
                   {/* Row 2: Recent Books */}
                   <div className="reading-shelf">
                     <div className="home-card-header">
-                      <h3 className="home-card-title">Recent</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'recent')}</h3>
                     </div>
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading your books...</p>
@@ -958,7 +990,7 @@ const Dashboard = () => {
                   {/* Row 3: All Books */}
                   <div className="reading-shelf">
                     <div className="home-card-header">
-                      <h3 className="home-card-title">All Books</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'allBooks')}</h3>
                     </div>
                     {libraryLoading ? (
                       <p className="reading-card-empty">Loading...</p>

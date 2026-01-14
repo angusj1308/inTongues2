@@ -24205,23 +24205,24 @@ body.active-pass-locked {
 }
 
 .gutenberg-search-btn {
-  padding: 0.75rem 1.5rem;
-  background: #0f172a;
-  color: #fff;
+  padding: 0.7rem 1.5rem;
+  background: #57534e;
+  color: #fafaf9;
   border: none;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  border-radius: 0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .gutenberg-search-btn:hover {
-  background: #1e293b;
+  background: #44403c;
 }
 
 .gutenberg-search-btn:disabled {
-  opacity: 0.6;
+  background: #a8a29e;
   cursor: not-allowed;
 }
 
@@ -24312,22 +24313,107 @@ body.active-pass-locked {
 }
 
 .gutenberg-quick-import-btn {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  color: #0f172a;
+  padding: 0.5rem 1.25rem;
+  background: #57534e;
+  color: #fafaf9;
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
-  min-width: 80px;
+  transition: background 0.15s;
+  min-width: 70px;
 }
 
 .gutenberg-quick-import-btn:hover {
-  background: #f5f5f4;
-  transform: scale(1.05);
+  background: #44403c;
+}
+
+/* Import Wizard Overlay */
+.gutenberg-wizard-overlay {
+  opacity: 1;
+}
+
+.gutenberg-book-card.is-importing .gutenberg-book-hover-overlay {
+  opacity: 1;
+}
+
+.gutenberg-wizard-back {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0;
+  color: #fafaf9;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.gutenberg-wizard-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.gutenberg-wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0 0.75rem;
+}
+
+.gutenberg-wizard-label {
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.25rem;
+}
+
+.gutenberg-wizard-step .gutenberg-quick-import-btn {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.gutenberg-wizard-confirm {
+  gap: 0.5rem;
+}
+
+.gutenberg-wizard-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gutenberg-confirm-btn {
+  margin-top: 0.25rem;
+  background: #fafaf9 !important;
+  color: #0f172a !important;
+}
+
+.gutenberg-confirm-btn:hover {
+  background: #fff !important;
 }
 
 .gutenberg-book-no-cover-small {
@@ -24517,41 +24603,44 @@ body.active-pass-locked {
 }
 
 .gutenberg-btn-primary {
-  padding: 0.75rem 1.5rem;
-  background: #0f172a;
-  color: #fff;
+  padding: 0.7rem 1.5rem;
+  background: #57534e;
+  color: #fafaf9;
   border: none;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  border-radius: 0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .gutenberg-btn-primary:hover {
-  background: #1e293b;
+  background: #44403c;
 }
 
 .gutenberg-btn-primary:disabled {
-  opacity: 0.5;
+  background: #a8a29e;
   cursor: not-allowed;
 }
 
 .gutenberg-btn-secondary {
-  padding: 0.75rem 1.5rem;
+  padding: 0.7rem 1.5rem;
   background: transparent;
-  color: #0f172a;
+  color: #57534e;
   border: 1px solid #d6d3d1;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  border-radius: 0;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .gutenberg-btn-secondary:hover {
   background: #f5f5f4;
+  border-color: #a8a29e;
 }
 
 .gutenberg-warning {
@@ -24628,11 +24717,17 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .gutenberg-search-btn {
-  background: #3b82f6;
+  background: #f5f5f4;
+  color: #0f172a;
 }
 
 [data-theme='dark'] .gutenberg-search-btn:hover {
-  background: #2563eb;
+  background: #fff;
+}
+
+[data-theme='dark'] .gutenberg-search-btn:disabled {
+  background: #64748b;
+  color: #1e293b;
 }
 
 [data-theme='dark'] .gutenberg-book-card {
@@ -24714,20 +24809,28 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .gutenberg-btn-primary {
-  background: #3b82f6;
+  background: #f5f5f4;
+  color: #0f172a;
 }
 
 [data-theme='dark'] .gutenberg-btn-primary:hover {
-  background: #2563eb;
+  background: #fff;
+}
+
+[data-theme='dark'] .gutenberg-btn-primary:disabled {
+  background: #64748b;
+  color: #1e293b;
 }
 
 [data-theme='dark'] .gutenberg-btn-secondary {
-  border-color: #334155;
+  background: #1e293b;
+  border-color: #57534e;
   color: #f5f5f4;
 }
 
 [data-theme='dark'] .gutenberg-btn-secondary:hover {
   background: #334155;
+  border-color: #78716c;
 }
 
 [data-theme='dark'] .gutenberg-error {
@@ -24744,10 +24847,37 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .gutenberg-quick-import-btn {
-  background: #3b82f6;
-  color: #fff;
+  background: #f5f5f4;
+  color: #0f172a;
 }
 
 [data-theme='dark'] .gutenberg-quick-import-btn:hover {
-  background: #2563eb;
+  background: #fff;
+}
+
+[data-theme='dark'] .gutenberg-wizard-back {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #f5f5f4;
+}
+
+[data-theme='dark'] .gutenberg-wizard-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme='dark'] .gutenberg-wizard-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme='dark'] .gutenberg-wizard-summary {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme='dark'] .gutenberg-confirm-btn {
+  background: #57534e !important;
+  color: #fafaf9 !important;
+}
+
+[data-theme='dark'] .gutenberg-confirm-btn:hover {
+  background: #44403c !important;
 }

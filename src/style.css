@@ -15033,6 +15033,355 @@ body.active-pass-locked {
   font-family: inherit;
 }
 
+/* ==============================================
+   Import Modal - New Design
+   ============================================== */
+
+.import-modal-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.import-modal-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.5rem;
+}
+
+.import-modal-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.import-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.import-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.import-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.import-label-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.import-input {
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.import-input:focus {
+  outline: none;
+  border-color: #111;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+
+.import-input::placeholder {
+  color: #94a3b8;
+}
+
+.import-file-input input[type='file'] {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.import-file-input input[type='file']:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.import-file-input input[type='file']::file-selector-button {
+  padding: 0.5rem 0.75rem;
+  margin-right: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.import-file-input input[type='file']::file-selector-button:hover {
+  background: #f1f5f9;
+}
+
+.import-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.import-level-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.import-level-option {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.import-level-option:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.import-level-option.is-active {
+  border-color: #111;
+  background: #111;
+  color: #fff;
+}
+
+.import-voice-options {
+  display: flex;
+  gap: 0.35rem;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 0.25rem;
+}
+
+.import-voice-option {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.import-voice-option:hover {
+  color: #374151;
+}
+
+.import-voice-option.is-active {
+  background: #111;
+  color: #fff;
+}
+
+.import-checkboxes {
+  display: flex;
+  gap: 1.5rem;
+  padding-top: 0.25rem;
+}
+
+.import-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.import-checkbox-label input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #111;
+  cursor: pointer;
+}
+
+.import-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 0.5rem;
+}
+
+.import-btn-primary {
+  padding: 0.7rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.import-btn-primary:hover:not(:disabled) {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+.import-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.import-btn-secondary {
+  padding: 0.7rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.import-btn-secondary:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+/* Dark theme support for import modal */
+[data-theme='dark'] .import-modal-title {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .import-modal-subtitle {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .import-label-text {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .import-input {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .import-input:focus {
+  border-color: #f1f5f9;
+  box-shadow: 0 0 0 2px rgba(241, 245, 249, 0.1);
+  background: #0f172a;
+}
+
+[data-theme='dark'] .import-input::placeholder {
+  color: #64748b;
+}
+
+[data-theme='dark'] .import-file-input input[type='file'] {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .import-file-input input[type='file']::file-selector-button {
+  background: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .import-level-option {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .import-level-option:hover {
+  background: #334155;
+  border-color: #475569;
+}
+
+[data-theme='dark'] .import-level-option.is-active {
+  background: #f1f5f9;
+  border-color: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .import-voice-options {
+  background: #334155;
+}
+
+[data-theme='dark'] .import-voice-option {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .import-voice-option:hover {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .import-voice-option.is-active {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .import-checkbox-label {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .import-actions {
+  border-top-color: #334155;
+}
+
+[data-theme='dark'] .import-btn-primary {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+[data-theme='dark'] .import-btn-primary:hover:not(:disabled) {
+  background: #fff;
+}
+
+[data-theme='dark'] .import-btn-secondary {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .import-btn-secondary:hover {
+  background: #334155;
+}
+
 .genre-select {
   width: 100%;
   padding: 0.75rem 1rem;

@@ -109,10 +109,15 @@ const GutenbergSearchPanel = ({
     setSelectedBook(null)
   }
 
-  const handleSelectForImport = (book) => {
+  const handleSelectForImport = (book, format = 'epub') => {
     if (onSelectBook) {
-      onSelectBook(book)
+      onSelectBook({ ...book, selectedFormat: format })
     }
+  }
+
+  const handleQuickImport = (e, book, format) => {
+    e.stopPropagation() // Prevent opening detail view
+    handleSelectForImport(book, format)
   }
 
   const panelContent = (
@@ -221,13 +226,22 @@ const GutenbergSearchPanel = ({
               </div>
 
               <div className="gutenberg-book-detail-actions">
-                <button
-                  className="gutenberg-btn-primary"
-                  onClick={() => handleSelectForImport(selectedBook)}
-                  disabled={!selectedBook.textUrl}
-                >
-                  Import & Adapt
-                </button>
+                {selectedBook.epubUrl && (
+                  <button
+                    className="gutenberg-btn-primary"
+                    onClick={() => handleSelectForImport(selectedBook, 'epub')}
+                  >
+                    Import EPUB
+                  </button>
+                )}
+                {selectedBook.textUrl && (
+                  <button
+                    className={selectedBook.epubUrl ? "gutenberg-btn-secondary" : "gutenberg-btn-primary"}
+                    onClick={() => handleSelectForImport(selectedBook, 'txt')}
+                  >
+                    Import TXT
+                  </button>
+                )}
                 {selectedBook.htmlUrl && (
                   <a
                     href={selectedBook.htmlUrl}
@@ -240,9 +254,9 @@ const GutenbergSearchPanel = ({
                 )}
               </div>
 
-              {!selectedBook.textUrl && (
+              {!selectedBook.textUrl && !selectedBook.epubUrl && (
                 <p className="gutenberg-warning">
-                  Plain text format not available for this book.
+                  No downloadable format available for this book.
                 </p>
               )}
             </div>
@@ -270,10 +284,17 @@ const GutenbergSearchPanel = ({
 
           <div className="gutenberg-books-grid">
             {books.map((book) => (
-              <button
+              <div
                 key={book.id}
                 className="gutenberg-book-card"
                 onClick={() => handleBookClick(book)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleBookClick(book)
+                  }
+                }}
               >
                 <div className="gutenberg-book-cover">
                   {book.coverUrl ? (
@@ -283,6 +304,25 @@ const GutenbergSearchPanel = ({
                       <span>{book.title.charAt(0)}</span>
                     </div>
                   )}
+                  {/* Hover overlay with import buttons */}
+                  <div className="gutenberg-book-hover-overlay">
+                    {book.epubUrl && (
+                      <button
+                        className="gutenberg-quick-import-btn"
+                        onClick={(e) => handleQuickImport(e, book, 'epub')}
+                      >
+                        EPUB
+                      </button>
+                    )}
+                    {book.textUrl && (
+                      <button
+                        className="gutenberg-quick-import-btn"
+                        onClick={(e) => handleQuickImport(e, book, 'txt')}
+                      >
+                        TXT
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="gutenberg-book-info">
                   <h4 className="gutenberg-book-title">{book.title}</h4>
@@ -291,7 +331,7 @@ const GutenbergSearchPanel = ({
                     {book.downloadCount.toLocaleString()} downloads
                   </p>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
 

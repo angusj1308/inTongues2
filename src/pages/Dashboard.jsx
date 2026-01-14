@@ -839,30 +839,21 @@ const Dashboard = () => {
                   {/* Row 1: Three Action Cards */}
                   <div className="home-grid-three">
                     {/* Card 1: Continue Reading */}
-                    <div className="home-card reading-continue-card">
-                      <h3 className="home-card-title">Continue Reading</h3>
-                      {libraryLoading ? (
-                        <p className="reading-card-empty">Loading...</p>
-                      ) : continueStory ? (
-                        <button
-                          className="reading-continue-horizontal"
-                          onClick={() => handleOpenBook(continueStory)}
-                        >
-                          <div className="reading-continue-thumb" />
-                          <div className="reading-continue-details">
-                            <span className="reading-continue-title-h">{getStoryTitle(continueStory)}</span>
-                            <span className="reading-continue-meta-h">
-                              {continueStory.language || 'Unknown'}{continueStory.level ? ` · Level ${continueStory.level}` : ''}
-                            </span>
-                            <div className="reading-continue-progress">
-                              <div className="reading-continue-progress-bar" style={{ width: `${continueProgress}%` }} />
-                            </div>
-                          </div>
-                        </button>
-                      ) : (
-                        <p className="reading-card-empty">No books in progress</p>
+                    <button
+                      className="home-card reading-action-card"
+                      onClick={() => continueStory && handleOpenBook(continueStory)}
+                      disabled={!continueStory || libraryLoading}
+                    >
+                      <div className="reading-book-cover">
+                        {continueStory?.coverUrl ? (
+                          <img src={continueStory.coverUrl} alt="" className="reading-book-cover-img" />
+                        ) : null}
+                      </div>
+                      <h3 className="home-card-title">Continue</h3>
+                      {continueStory && (
+                        <p className="reading-card-description">{getStoryTitle(continueStory)}</p>
                       )}
-                    </div>
+                    </button>
 
                     {/* Divider */}
                     <div className="home-grid-divider" />

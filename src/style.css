@@ -22418,13 +22418,14 @@ body.active-pass-locked {
 
 /* Book Cover Placeholder */
 .reading-book-cover {
-  width: 64px;
-  height: 96px;
-  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  width: 60px;
+  height: 90px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   border: 1px solid #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .reading-book-cover-img {
@@ -22433,14 +22434,25 @@ body.active-pass-locked {
   object-fit: cover;
 }
 
-.reading-action-card:disabled {
-  cursor: default;
-  opacity: 0.7;
+/* Continue card meta info */
+.reading-continue-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
 }
 
-.reading-action-card:disabled:hover {
-  transform: none;
-  box-shadow: none;
+.reading-continue-progress {
+  width: 100%;
+  max-width: 120px;
+  height: 3px;
+  background: #e2e8f0;
+  margin-top: 0.25rem;
+}
+
+.reading-continue-progress-fill {
+  height: 100%;
+  background: #0f172a;
+  transition: width 0.3s ease;
 }
 
 /* CTA Buttons - hard corners for serif aesthetic */

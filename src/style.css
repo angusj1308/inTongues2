@@ -17,6 +17,16 @@
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
+/* Dark mode - warm stone palette */
+[data-theme='dark'] {
+  color-scheme: dark;
+  color: #fafaf9;
+  background-color: #1c1917;
+  --accent-color: #fafaf9;
+  --dashboard-surface: #1c1917;
+  --dashboard-surface-contrast: #1c1917;
+}
+
 .ui-text {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
 }
@@ -29,10 +39,23 @@ body {
   margin: 0;
   min-height: 100vh;
   background: #ffffff;
+  color: #1c1917;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Dark mode base styles - warm stone palette */
+[data-theme='dark'] body {
+  background: #1c1917;
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .card {
+  background: #292524;
+  border-color: #44403c;
 }
 
 a {
@@ -42,6 +65,13 @@ a {
 }
 a:hover {
   color: #000;
+}
+
+[data-theme='dark'] a {
+  color: #fafaf9;
+}
+[data-theme='dark'] a:hover {
+  color: #e7e5e4;
 }
 
 .page {
@@ -297,6 +327,10 @@ textarea {
   flex-direction: column;
   gap: 0.65rem;
   padding: 1.75rem 0 1.5rem;
+}
+
+[data-theme='dark'] .dashboard-header {
+  color: #fafaf9;
 }
 
 /* Minimal header layout */
@@ -22824,6 +22858,156 @@ body.active-pass-locked {
 .add-bookshelf-btn:hover {
   border-color: #a8a29e;
   color: #57534e;
+}
+
+/* ===========================================
+   Dark Mode - Home Dashboard
+   =========================================== */
+[data-theme='dark'] .home-card-title,
+[data-theme='dark'] .home-section-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .home-stat-value {
+  color: #e7e5e4;
+}
+
+[data-theme='dark'] .home-stat-item.active .home-stat-value {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .home-stat-label {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .home-stat-item.active .home-stat-label {
+  color: #d6d3d1;
+}
+
+[data-theme='dark'] .home-stat-item:hover {
+  background: rgba(250, 250, 249, 0.05);
+}
+
+[data-theme='dark'] .home-today-item {
+  border-bottom-color: #44403c;
+}
+
+[data-theme='dark'] .home-today-item:hover {
+  background: rgba(250, 250, 249, 0.05);
+}
+
+[data-theme='dark'] .home-today-activity {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .home-today-empty {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .home-grid-divider,
+[data-theme='dark'] .home-row-divider {
+  background: #be123c;
+}
+
+[data-theme='dark'] .reading-card-description {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .reading-action-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .reading-shelf-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .reading-shelf-cover {
+  background: #292524;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .reading-shelf-progress {
+  background: #44403c;
+}
+
+[data-theme='dark'] .reading-shelf-progress-bar {
+  background: #fafaf9;
+}
+
+[data-theme='dark'] .reading-card-empty {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .reading-book-cover {
+  background: #292524;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .reading-continue-meta {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .reading-continue-progress {
+  background: #44403c;
+}
+
+[data-theme='dark'] .reading-continue-progress-fill {
+  background: #fafaf9;
+}
+
+[data-theme='dark'] .add-bookshelf-btn {
+  border-color: #44403c;
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .add-bookshelf-btn:hover {
+  border-color: #57534e;
+  color: #d6d3d1;
+}
+
+[data-theme='dark'] .book-delete-btn {
+  background: #292524;
+  color: #a8a29e;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .book-delete-btn:hover {
+  background: #44403c;
+  color: #fafaf9;
+}
+
+/* Dashboard Nav - Dark Mode */
+[data-theme='dark'] .dashboard-nav-button {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .dashboard-nav-button:hover {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .dashboard-nav-button.active {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .dashboard-icon-btn {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .dashboard-icon-btn:hover {
+  color: #fafaf9;
+  background: rgba(250, 250, 249, 0.1);
+}
+
+[data-theme='dark'] .dashboard-brand-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .dashboard-brand-subtitle {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .dashboard-brand-line {
+  background: #be123c;
 }
 
 /* Routine Builder - Minimal */

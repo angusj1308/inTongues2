@@ -20,6 +20,19 @@ import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRouti
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
+// Target language translations for card headers
+const CARD_HEADERS = {
+  Spanish: { continue: 'Continuar', generate: 'Generar', import: 'Importar' },
+  French: { continue: 'Continuer', generate: 'Générer', import: 'Importer' },
+  Italian: { continue: 'Continuare', generate: 'Generare', import: 'Importare' },
+  English: { continue: 'Continue', generate: 'Generate', import: 'Import' },
+}
+
+const getCardHeader = (language, key) => {
+  const headers = CARD_HEADERS[language] || CARD_HEADERS.English
+  return headers[key] || CARD_HEADERS.English[key]
+}
+
 // Get today's day of week (monday, tuesday, etc.)
 const getTodayDayOfWeek = () => {
   const dayIndex = new Date().getDay()
@@ -848,7 +861,7 @@ const Dashboard = () => {
                           <img src={continueStory.coverUrl} alt="" className="reading-book-cover-img" />
                         ) : null}
                       </div>
-                      <h3 className="home-card-title">Continue</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'continue')}</h3>
                       {continueStory ? (
                         <>
                           <p className="reading-continue-meta">
@@ -875,7 +888,7 @@ const Dashboard = () => {
                       onClick={() => setShowGenerateModal(true)}
                     >
                       <img src={generateIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">Generate</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'generate')}</h3>
                       <p className="reading-card-description">
                         Generate study material in your target language, tailored to your level and interests.
                       </p>
@@ -890,7 +903,7 @@ const Dashboard = () => {
                       onClick={() => setShowImportModal(true)}
                     >
                       <img src={importIcon} alt="" className="reading-card-icon" />
-                      <h3 className="home-card-title">Import</h3>
+                      <h3 className="home-card-title">{getCardHeader(activeLanguage, 'import')}</h3>
                       <p className="reading-card-description">
                         Import your own books and adapt them to your target language and level.
                       </p>

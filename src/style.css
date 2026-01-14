@@ -14960,7 +14960,9 @@ body.active-pass-locked {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14971,7 +14973,7 @@ body.active-pass-locked {
 
 .modal-container {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 0;
   padding: 1.5rem;
   width: 100%;
   max-width: 520px;
@@ -15005,7 +15007,9 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .modal-overlay {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 [data-theme='dark'] .modal-container {
@@ -15027,7 +15031,8 @@ body.active-pass-locked {
    ============================================== */
 
 .generate-story-modal {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  border-radius: 0;
 }
 
 .import-book-modal {
@@ -15051,13 +15056,22 @@ body.active-pass-locked {
 }
 
 .import-modal-title {
-  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'EB Garamond', Georgia, serif;
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #0f172a;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
   margin: 0 0 0.5rem;
+}
+
+.generate-modal-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .import-modal-subtitle {
@@ -15292,7 +15306,8 @@ body.active-pass-locked {
 }
 
 /* Dark theme support for import modal */
-[data-theme='dark'] .import-modal-title {
+[data-theme='dark'] .import-modal-title,
+[data-theme='dark'] .generate-modal-title {
   color: #f1f5f9;
 }
 

@@ -3,6 +3,14 @@ import { useAuth } from '../../context/AuthContext'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
+// Target language translations for modal title
+const IMPORT_TITLES = {
+  Spanish: 'Importar',
+  French: 'Importer',
+  Italian: 'Importare',
+  English: 'Import',
+}
+
 const ImportBookPanel = ({
   activeLanguage = '',
   onBack,
@@ -101,7 +109,7 @@ const ImportBookPanel = ({
   const panelContent = (
     <>
       <div className="import-modal-header">
-        <HeadingTag className="import-modal-title">Import</HeadingTag>
+        <HeadingTag className="import-modal-title">{IMPORT_TITLES[activeLanguage] || IMPORT_TITLES.English}</HeadingTag>
         <p className="import-modal-subtitle">
           Import a book and get a full adaptation in your target language.
         </p>

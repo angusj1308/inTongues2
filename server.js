@@ -4018,11 +4018,75 @@ function detectChapterMarkers(text) {
 }
 
 /**
+ * Strip RTF (Rich Text Format) markup and return plain text.
+ * RTF files from macOS TextEdit often get saved with .txt extension.
+ */
+function stripRtfMarkup(text) {
+  // Check if this is RTF content
+  if (!text.startsWith('{\\rtf')) {
+    return text
+  }
+
+  console.log('Detected RTF content, stripping markup...')
+
+  // Remove RTF header and control words
+  let result = text
+
+  // Remove the RTF header block
+  result = result.replace(/^\{\\rtf[^}]*\}?/, '')
+
+  // Remove font table
+  result = result.replace(/\{\\fonttbl[^}]*\}/g, '')
+
+  // Remove color table
+  result = result.replace(/\{\\colortbl[^}]*\}/g, '')
+
+  // Remove expanded color table
+  result = result.replace(/\{\\\*\\expandedcolortbl[^}]*\}/g, '')
+
+  // Remove other control groups
+  result = result.replace(/\{\\[a-z]+[^}]*\}/g, '')
+
+  // Decode RTF escape sequences
+  result = result.replace(/\\'([0-9a-fA-F]{2})/g, (match, hex) => {
+    const code = parseInt(hex, 16)
+    // Handle common Mac OS Roman characters
+    if (code === 0x93) return '"' // Left double quote
+    if (code === 0x94) return '"' // Right double quote
+    if (code === 0x91) return "'" // Left single quote
+    if (code === 0x92) return "'" // Right single quote
+    if (code === 0x97) return '—' // Em dash
+    if (code === 0x96) return '–' // En dash
+    if (code === 0x85) return '...' // Ellipsis
+    return String.fromCharCode(code)
+  })
+
+  // Remove RTF control words (backslash followed by letters and optional number)
+  result = result.replace(/\\[a-z]+\d*\s?/gi, '')
+
+  // Remove remaining braces
+  result = result.replace(/[{}]/g, '')
+
+  // Clean up multiple spaces and normalize whitespace
+  result = result.replace(/\s+/g, ' ').trim()
+
+  // Restore paragraph breaks (RTF uses \par)
+  result = result.replace(/\\par\s*/g, '\n\n')
+
+  console.log('RTF stripped, first 200 chars:', result.slice(0, 200))
+
+  return result
+}
+
+/**
  * Extract TXT file with chapter structure (language-agnostic).
  * Uses structural pattern detection for chapters.
  */
 async function extractTxtWithChapters(filePath) {
   let raw = await fs.readFile(filePath, 'utf8')
+
+  // Strip RTF markup if present (macOS TextEdit often saves as RTF with .txt extension)
+  raw = stripRtfMarkup(raw)
 
   // Strip Gutenberg boilerplate
   const text = stripGutenbergBoilerplate(raw)
@@ -6686,29 +6750,42 @@ app.post('/api/delete-story', async (req, res) => {
       return res.status(404).json({ error: 'Story not found' })
     }
 
-    // Delete all pages in batches of <= 500
-    const pagesRef = storyRef.collection('pages')
-    const pagesSnap = await pagesRef.get()
+    // Helper function to delete all docs in a subcollection
+    const deleteSubcollection = async (subcollectionRef) => {
+      const snap = await subcollectionRef.get()
+      if (snap.empty) return 0
 
-    let batch = firestore.batch()
-    let counter = 0
+      let batch = firestore.batch()
+      let counter = 0
+      let totalDeleted = 0
 
-    for (const docSnap of pagesSnap.docs) {
-      batch.delete(docSnap.ref)
-      counter++
+      for (const docSnap of snap.docs) {
+        batch.delete(docSnap.ref)
+        counter++
+        totalDeleted++
 
-      // Firestore only allows 500 operations per batch
-      if (counter === 500) {
-        await batch.commit()
-        batch = firestore.batch()
-        counter = 0
+        // Firestore only allows 500 operations per batch
+        if (counter === 500) {
+          await batch.commit()
+          batch = firestore.batch()
+          counter = 0
+        }
       }
+
+      // Commit any remaining deletes
+      if (counter > 0) {
+        await batch.commit()
+      }
+
+      return totalDeleted
     }
 
-    // Commit any remaining deletes
-    if (counter > 0) {
-      await batch.commit()
-    }
+    // Delete all subcollections
+    const pagesDeleted = await deleteSubcollection(storyRef.collection('pages'))
+    const chaptersDeleted = await deleteSubcollection(storyRef.collection('chapters'))
+    const transcriptsDeleted = await deleteSubcollection(storyRef.collection('transcripts'))
+
+    console.log(`Deleted story ${storyId}: ${pagesDeleted} pages, ${chaptersDeleted} chapters, ${transcriptsDeleted} transcripts`)
 
     // Delete audio file (ignore if missing)
     const audioFilePath = `audio/full/${uid}/${storyId}.mp3`
@@ -6726,7 +6803,7 @@ app.post('/api/delete-story', async (req, res) => {
     // Delete the story doc itself
     await storyRef.delete()
 
-    return res.json({ success: true })
+    return res.json({ success: true, deleted: { pages: pagesDeleted, chapters: chaptersDeleted, transcripts: transcriptsDeleted } })
   } catch (error) {
     console.error('Error deleting story:', {
       message: error?.message,
@@ -6738,6 +6815,85 @@ app.post('/api/delete-story', async (req, res) => {
       error: error?.message || 'Failed to delete story',
       code: error?.code || null,
     })
+  }
+})
+
+// Cleanup orphaned subcollections from deleted stories
+app.post('/api/cleanup-orphaned-stories', async (req, res) => {
+  try {
+    const { uid } = req.body || {}
+
+    if (!uid) {
+      return res.status(400).json({ error: 'uid is required' })
+    }
+
+    const storiesRef = firestore.collection('users').doc(uid).collection('stories')
+
+    // Get all story IDs that have chapters subcollection
+    const chaptersQuery = await firestore.collectionGroup('chapters').where('__name__', '>=', `users/${uid}/stories/`).where('__name__', '<', `users/${uid}/stories/~`).get()
+
+    const orphanedStoryIds = new Set()
+
+    for (const chapterDoc of chaptersQuery.docs) {
+      // Extract story ID from path: users/{uid}/stories/{storyId}/chapters/{chapterId}
+      const pathParts = chapterDoc.ref.path.split('/')
+      const storyIdIndex = pathParts.indexOf('stories') + 1
+      if (storyIdIndex > 0 && storyIdIndex < pathParts.length) {
+        const storyId = pathParts[storyIdIndex]
+        // Check if parent story doc exists
+        const storyDoc = await storiesRef.doc(storyId).get()
+        if (!storyDoc.exists) {
+          orphanedStoryIds.add(storyId)
+        }
+      }
+    }
+
+    console.log(`Found ${orphanedStoryIds.size} orphaned stories for user ${uid}`)
+
+    let totalDeleted = { pages: 0, chapters: 0, transcripts: 0 }
+
+    // Delete orphaned subcollections
+    for (const storyId of orphanedStoryIds) {
+      const storyRef = storiesRef.doc(storyId)
+
+      // Delete subcollections
+      for (const subcollection of ['pages', 'chapters', 'transcripts']) {
+        const subcollectionRef = storyRef.collection(subcollection)
+        const snap = await subcollectionRef.get()
+
+        if (!snap.empty) {
+          let batch = firestore.batch()
+          let counter = 0
+
+          for (const docSnap of snap.docs) {
+            batch.delete(docSnap.ref)
+            counter++
+            totalDeleted[subcollection]++
+
+            if (counter === 500) {
+              await batch.commit()
+              batch = firestore.batch()
+              counter = 0
+            }
+          }
+
+          if (counter > 0) {
+            await batch.commit()
+          }
+        }
+      }
+
+      console.log(`Cleaned up orphaned story: ${storyId}`)
+    }
+
+    return res.json({
+      success: true,
+      orphanedStoriesFound: orphanedStoryIds.size,
+      deleted: totalDeleted,
+    })
+  } catch (error) {
+    console.error('Error cleaning up orphaned stories:', error)
+    return res.status(500).json({ error: 'Failed to cleanup orphaned stories' })
   }
 })
 

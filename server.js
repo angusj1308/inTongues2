@@ -220,6 +220,7 @@ ALWAYS:
 - Preserve all proper nouns exactly as written
 - Maintain the same narrative beats
 - Use natural punctuation and full sentences
+- Preserve paragraph breaks from the original text (use blank lines between paragraphs)
 - Return only adapted text with no commentary or markup
 `
 
@@ -364,6 +365,7 @@ ALWAYS:
 - Preserve all proper nouns exactly as written
 - Maintain the same narrative beats
 - Use natural punctuation and full sentences
+- Preserve paragraph breaks from the original text (use blank lines between paragraphs)
 - Return only adapted text with no commentary or markup
 
 CONTEXT AWARENESS:
@@ -4418,6 +4420,78 @@ function splitTextIntoPages(text, targetWordCount = 250) {
   return pages
 }
 
+/**
+ * Split text into pages of approximately targetCharCount characters.
+ * Preserves paragraph breaks and tries to break at sentence boundaries.
+ * @param {string} text - The text to split
+ * @param {number} targetCharCount - Target characters per page (default ~1400, roughly 250 words)
+ * @returns {string[]} Array of page texts with preserved paragraph markers
+ */
+function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
+  if (!text || !text.trim()) return []
+
+  // Normalize paragraph breaks to consistent double newline
+  const normalizedText = text.replace(/\n{3,}/g, '\n\n').trim()
+
+  const pages = []
+  let remaining = normalizedText
+
+  while (remaining.length > 0) {
+    if (remaining.length <= targetCharCount) {
+      // Last chunk - take it all
+      pages.push(remaining.trim())
+      break
+    }
+
+    // Look for a good break point around the target
+    const searchStart = Math.floor(targetCharCount * 0.7)
+    const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.1))
+    const searchWindow = remaining.slice(searchStart, searchEnd)
+
+    // Priority 1: Paragraph break (double newline)
+    let breakPoint = -1
+    const paragraphBreak = searchWindow.lastIndexOf('\n\n')
+    if (paragraphBreak !== -1) {
+      breakPoint = searchStart + paragraphBreak + 2 // After the paragraph break
+    }
+
+    // Priority 2: Sentence boundary
+    if (breakPoint === -1) {
+      const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', '.\n', '?\n', '!\n']
+      let bestSentenceEnd = -1
+      for (const ender of sentenceEnders) {
+        const pos = searchWindow.lastIndexOf(ender)
+        if (pos > bestSentenceEnd) {
+          bestSentenceEnd = pos
+        }
+      }
+      if (bestSentenceEnd !== -1) {
+        // Find the actual end position (after the punctuation)
+        const endChar = searchWindow[bestSentenceEnd]
+        breakPoint = searchStart + bestSentenceEnd + 1 // After the punctuation
+        // Skip the space/newline after punctuation
+        if (breakPoint < remaining.length && /\s/.test(remaining[breakPoint])) {
+          breakPoint++
+        }
+      }
+    }
+
+    // Priority 3: Word boundary (fallback)
+    if (breakPoint === -1) {
+      const lastSpace = remaining.slice(0, targetCharCount).lastIndexOf(' ')
+      breakPoint = lastSpace !== -1 ? lastSpace + 1 : targetCharCount
+    }
+
+    const pageText = remaining.slice(0, breakPoint).trim()
+    if (pageText) {
+      pages.push(pageText)
+    }
+    remaining = remaining.slice(breakPoint).trim()
+  }
+
+  return pages
+}
+
 async function extractPagesForFile(file) {
   if (!file || !file.path) {
     return []
@@ -5376,8 +5450,8 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
     }
 
-    // All chapters adapted - now re-chunk into 250-word pages
-    console.log('All chapters adapted, re-chunking into 250-word pages...')
+    // All chapters adapted - now re-chunk into character-based pages
+    console.log('All chapters adapted, re-chunking into character-based pages...')
 
     // Collect all adapted text from chapters in order
     const updatedChaptersSnap = await chaptersRef.orderBy('index').get()
@@ -5389,6 +5463,8 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
     for (const pageDoc of existingPagesSnap.docs) {
       await pageDoc.ref.delete()
     }
+
+    const normalPageCharLimit = 1400
 
     // Process each chapter and create pages
     for (const chapterDoc of updatedChaptersSnap.docs) {
@@ -5409,8 +5485,41 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       const chapterPageOffset = globalPageIndex
       await chapterDoc.ref.update({ pageOffset: chapterPageOffset })
 
-      // Split chapter's adapted text into 250-word pages
-      const chapterPages = splitTextIntoPages(adaptedText, 250)
+      // Calculate first page char reduction based on header/outline
+      const headerChars = adaptedChapterHeader ? adaptedChapterHeader.length : 0
+      const outlineChars = adaptedChapterOutline ? adaptedChapterOutline.length : 0
+      const headerOutlineChars = headerChars + outlineChars
+
+      // First page gets reduced chars if there's a header/outline
+      const firstPageCharLimit = headerOutlineChars > 0
+        ? Math.max(400, normalPageCharLimit - Math.ceil(headerOutlineChars * 1.8))
+        : normalPageCharLimit
+
+      // Split chapter's adapted text into character-based pages
+      let chapterPages = []
+      if (headerOutlineChars > 0 && adaptedText.length > firstPageCharLimit) {
+        // Find good break point for first page
+        let breakPoint = firstPageCharLimit
+        const searchWindow = adaptedText.slice(Math.floor(firstPageCharLimit * 0.7), firstPageCharLimit)
+        const paraBreak = searchWindow.lastIndexOf('\n\n')
+        if (paraBreak !== -1) {
+          breakPoint = Math.floor(firstPageCharLimit * 0.7) + paraBreak
+        } else {
+          const sentenceEnd = Math.max(
+            searchWindow.lastIndexOf('. '),
+            searchWindow.lastIndexOf('? '),
+            searchWindow.lastIndexOf('! ')
+          )
+          if (sentenceEnd !== -1) {
+            breakPoint = Math.floor(firstPageCharLimit * 0.7) + sentenceEnd + 2
+          }
+        }
+        chapterPages.push(adaptedText.slice(0, breakPoint).trim())
+        const remainingText = adaptedText.slice(breakPoint).trim()
+        chapterPages = chapterPages.concat(splitTextIntoPagesCharBased(remainingText, normalPageCharLimit))
+      } else {
+        chapterPages = splitTextIntoPagesCharBased(adaptedText, normalPageCharLimit)
+      }
 
       console.log(`Chapter ${chapterIndex} split into ${chapterPages.length} pages (starting at page ${globalPageIndex})`)
 
@@ -5604,33 +5713,51 @@ app.post('/api/adapt-flat-book', async (req, res) => {
       await pageDoc.ref.delete()
     }
 
-    // Calculate first page word count reduction based on header/outline length
-    const headerWords = chapterHeader ? chapterHeader.split(/\s+/).length : 0
-    const outlineWords = chapterOutline ? chapterOutline.split(/\s+/).length : 0
-    const headerOutlineWords = headerWords + outlineWords
+    // Calculate first page character reduction based on header/outline length
+    // Header/outline take visual space - estimate ~8 chars per word including spaces
+    const headerChars = chapterHeader ? chapterHeader.length : 0
+    const outlineChars = chapterOutline ? chapterOutline.length : 0
+    const headerOutlineChars = headerChars + outlineChars
 
-    // First page gets fewer words to account for header/outline space
-    // Roughly estimate: header/outline take ~1.5x their word count in visual space
-    const firstPageWordLimit = Math.max(100, 250 - Math.ceil(headerOutlineWords * 1.5))
-    const normalPageWordLimit = 250
+    // Normal page is ~1400 chars. First page gets reduced to account for header/outline visual space
+    // Header/outline displayed larger, so multiply by ~1.8 for visual space estimate
+    const normalPageCharLimit = 1400
+    const firstPageCharLimit = Math.max(400, normalPageCharLimit - Math.ceil(headerOutlineChars * 1.8))
 
-    // Custom split: first page with reduced words, rest with normal count
+    // Custom split: first page with reduced chars, rest with normal count
     let displayPages = []
-    const words = bodyText.split(/\s+/)
 
-    if (headerOutlineWords > 0 && words.length > firstPageWordLimit) {
-      // First page with reduced word count
-      displayPages.push(words.slice(0, firstPageWordLimit).join(' '))
-      // Remaining pages with normal word count
-      const remainingText = words.slice(firstPageWordLimit).join(' ')
-      const remainingPages = splitTextIntoPages(remainingText, normalPageWordLimit)
+    if (headerOutlineChars > 0 && bodyText.length > firstPageCharLimit) {
+      // Find a good break point for first page (sentence or paragraph boundary)
+      let breakPoint = firstPageCharLimit
+      const searchWindow = bodyText.slice(Math.floor(firstPageCharLimit * 0.7), firstPageCharLimit)
+
+      // Look for paragraph break first
+      const paraBreak = searchWindow.lastIndexOf('\n\n')
+      if (paraBreak !== -1) {
+        breakPoint = Math.floor(firstPageCharLimit * 0.7) + paraBreak
+      } else {
+        // Look for sentence boundary
+        const sentenceEnd = Math.max(
+          searchWindow.lastIndexOf('. '),
+          searchWindow.lastIndexOf('? '),
+          searchWindow.lastIndexOf('! ')
+        )
+        if (sentenceEnd !== -1) {
+          breakPoint = Math.floor(firstPageCharLimit * 0.7) + sentenceEnd + 2
+        }
+      }
+
+      displayPages.push(bodyText.slice(0, breakPoint).trim())
+      const remainingText = bodyText.slice(breakPoint).trim()
+      const remainingPages = splitTextIntoPagesCharBased(remainingText, normalPageCharLimit)
       displayPages = displayPages.concat(remainingPages)
     } else {
-      // No header/outline, use normal splitting
-      displayPages = splitTextIntoPages(bodyText, normalPageWordLimit)
+      // No header/outline, use normal character-based splitting
+      displayPages = splitTextIntoPagesCharBased(bodyText, normalPageCharLimit)
     }
 
-    console.log(`Split into ${displayPages.length} display pages (first page: ${firstPageWordLimit} words)`)
+    console.log(`Split into ${displayPages.length} display pages (first page: ${firstPageCharLimit} chars)`)
 
     // Save each page - first page gets header/outline for display
     for (let i = 0; i < displayPages.length; i++) {

@@ -5576,6 +5576,25 @@ textarea {
   font-size: 1.15rem;
 }
 
+/* Paragraph styling for adapted book text */
+.reader-paragraph {
+  margin: 0 0 1em 0;
+  text-indent: 1.5em;
+}
+
+.reader-paragraph:first-child {
+  text-indent: 0;
+}
+
+.reader-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* No text-indent after chapter headers */
+.chapter-header-structured + .page-text .reader-paragraph:first-child {
+  text-indent: 0;
+}
+
 .button.ghost:hover:not(:disabled) {
   background: #f5f5f5;
 }

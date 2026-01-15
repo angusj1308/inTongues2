@@ -747,11 +747,24 @@ const Reader = ({ initialMode }) => {
   const splitIntoSentences = (text) => {
     if (!text) return []
 
-    const matches = text.match(/[^.!?]+[.!?]?\s*/g)
+    // First split by paragraphs, then by sentences within each paragraph
+    const paragraphs = text.split(/\n\n+/)
+    const allSentences = []
 
-    if (!matches || matches.length === 0) return [text]
+    paragraphs.forEach((paragraph) => {
+      const trimmed = paragraph.trim()
+      if (!trimmed) return
 
-    return matches
+      const matches = trimmed.match(/[^.!?]+[.!?]?\s*/g)
+
+      if (!matches || matches.length === 0) {
+        allSentences.push(trimmed)
+      } else {
+        allSentences.push(...matches)
+      }
+    })
+
+    return allSentences.length > 0 ? allSentences : [text]
   }
 
   const visiblePageSentences = visiblePages.map((page) =>
@@ -1105,28 +1118,49 @@ const Reader = ({ initialMode }) => {
   }
 
   const renderHighlightedText = (text, sentenceOffset = 0) => {
+    // Split into paragraphs first (double newline = paragraph break)
+    const paragraphs = (text || '').split(/\n\n+/)
+
     if (readerMode !== 'intensive') {
-      return renderWordSegments(text)
+      // Non-intensive mode: render paragraphs with word segments
+      return paragraphs.map((paragraph, pIndex) => (
+        <p key={`para-${pIndex}`} className="reader-paragraph">
+          {renderWordSegments(paragraph.trim())}
+        </p>
+      ))
     }
 
-    const sentences = splitIntoSentences(text)
+    // Intensive mode: render sentences within paragraphs
+    let runningSentenceOffset = sentenceOffset
 
-    if (sentences.length === 0) return null
+    return paragraphs.map((paragraph, pIndex) => {
+      const sentences = splitIntoSentences(paragraph.trim())
 
-    return sentences.map((sentence, index) => {
-      const globalIndex = sentenceOffset + index
-      const isActiveSentence = globalIndex === currentSentenceIndex
+      if (sentences.length === 0) return null
+
+      const paragraphContent = sentences.map((sentence, sIndex) => {
+        const globalIndex = runningSentenceOffset + sIndex
+        const isActiveSentence = globalIndex === currentSentenceIndex
+
+        return (
+          <span
+            key={`sentence-${globalIndex}`}
+            className={`reader-sentence ${
+              isActiveSentence ? 'reader-sentence--active' : 'reader-sentence--muted'
+            }`}
+            data-active={isActiveSentence}
+          >
+            {renderWordSegments(sentence)}
+          </span>
+        )
+      })
+
+      runningSentenceOffset += sentences.length
 
       return (
-        <span
-          key={`sentence-${globalIndex}`}
-          className={`reader-sentence ${
-            isActiveSentence ? 'reader-sentence--active' : 'reader-sentence--muted'
-          }`}
-          data-active={isActiveSentence}
-        >
-          {renderWordSegments(sentence)}
-        </span>
+        <p key={`para-${pIndex}`} className="reader-paragraph">
+          {paragraphContent}
+        </p>
       )
     })
   }

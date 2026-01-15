@@ -6686,29 +6686,42 @@ app.post('/api/delete-story', async (req, res) => {
       return res.status(404).json({ error: 'Story not found' })
     }
 
-    // Delete all pages in batches of <= 500
-    const pagesRef = storyRef.collection('pages')
-    const pagesSnap = await pagesRef.get()
+    // Helper function to delete all docs in a subcollection
+    const deleteSubcollection = async (subcollectionRef) => {
+      const snap = await subcollectionRef.get()
+      if (snap.empty) return 0
 
-    let batch = firestore.batch()
-    let counter = 0
+      let batch = firestore.batch()
+      let counter = 0
+      let totalDeleted = 0
 
-    for (const docSnap of pagesSnap.docs) {
-      batch.delete(docSnap.ref)
-      counter++
+      for (const docSnap of snap.docs) {
+        batch.delete(docSnap.ref)
+        counter++
+        totalDeleted++
 
-      // Firestore only allows 500 operations per batch
-      if (counter === 500) {
-        await batch.commit()
-        batch = firestore.batch()
-        counter = 0
+        // Firestore only allows 500 operations per batch
+        if (counter === 500) {
+          await batch.commit()
+          batch = firestore.batch()
+          counter = 0
+        }
       }
+
+      // Commit any remaining deletes
+      if (counter > 0) {
+        await batch.commit()
+      }
+
+      return totalDeleted
     }
 
-    // Commit any remaining deletes
-    if (counter > 0) {
-      await batch.commit()
-    }
+    // Delete all subcollections
+    const pagesDeleted = await deleteSubcollection(storyRef.collection('pages'))
+    const chaptersDeleted = await deleteSubcollection(storyRef.collection('chapters'))
+    const transcriptsDeleted = await deleteSubcollection(storyRef.collection('transcripts'))
+
+    console.log(`Deleted story ${storyId}: ${pagesDeleted} pages, ${chaptersDeleted} chapters, ${transcriptsDeleted} transcripts`)
 
     // Delete audio file (ignore if missing)
     const audioFilePath = `audio/full/${uid}/${storyId}.mp3`
@@ -6726,7 +6739,7 @@ app.post('/api/delete-story', async (req, res) => {
     // Delete the story doc itself
     await storyRef.delete()
 
-    return res.json({ success: true })
+    return res.json({ success: true, deleted: { pages: pagesDeleted, chapters: chaptersDeleted, transcripts: transcriptsDeleted } })
   } catch (error) {
     console.error('Error deleting story:', {
       message: error?.message,
@@ -6738,6 +6751,85 @@ app.post('/api/delete-story', async (req, res) => {
       error: error?.message || 'Failed to delete story',
       code: error?.code || null,
     })
+  }
+})
+
+// Cleanup orphaned subcollections from deleted stories
+app.post('/api/cleanup-orphaned-stories', async (req, res) => {
+  try {
+    const { uid } = req.body || {}
+
+    if (!uid) {
+      return res.status(400).json({ error: 'uid is required' })
+    }
+
+    const storiesRef = firestore.collection('users').doc(uid).collection('stories')
+
+    // Get all story IDs that have chapters subcollection
+    const chaptersQuery = await firestore.collectionGroup('chapters').where('__name__', '>=', `users/${uid}/stories/`).where('__name__', '<', `users/${uid}/stories/~`).get()
+
+    const orphanedStoryIds = new Set()
+
+    for (const chapterDoc of chaptersQuery.docs) {
+      // Extract story ID from path: users/{uid}/stories/{storyId}/chapters/{chapterId}
+      const pathParts = chapterDoc.ref.path.split('/')
+      const storyIdIndex = pathParts.indexOf('stories') + 1
+      if (storyIdIndex > 0 && storyIdIndex < pathParts.length) {
+        const storyId = pathParts[storyIdIndex]
+        // Check if parent story doc exists
+        const storyDoc = await storiesRef.doc(storyId).get()
+        if (!storyDoc.exists) {
+          orphanedStoryIds.add(storyId)
+        }
+      }
+    }
+
+    console.log(`Found ${orphanedStoryIds.size} orphaned stories for user ${uid}`)
+
+    let totalDeleted = { pages: 0, chapters: 0, transcripts: 0 }
+
+    // Delete orphaned subcollections
+    for (const storyId of orphanedStoryIds) {
+      const storyRef = storiesRef.doc(storyId)
+
+      // Delete subcollections
+      for (const subcollection of ['pages', 'chapters', 'transcripts']) {
+        const subcollectionRef = storyRef.collection(subcollection)
+        const snap = await subcollectionRef.get()
+
+        if (!snap.empty) {
+          let batch = firestore.batch()
+          let counter = 0
+
+          for (const docSnap of snap.docs) {
+            batch.delete(docSnap.ref)
+            counter++
+            totalDeleted[subcollection]++
+
+            if (counter === 500) {
+              await batch.commit()
+              batch = firestore.batch()
+              counter = 0
+            }
+          }
+
+          if (counter > 0) {
+            await batch.commit()
+          }
+        }
+      }
+
+      console.log(`Cleaned up orphaned story: ${storyId}`)
+    }
+
+    return res.json({
+      success: true,
+      orphanedStoriesFound: orphanedStoryIds.size,
+      deleted: totalDeleted,
+    })
+  } catch (error) {
+    console.error('Error cleaning up orphaned stories:', error)
+    return res.status(500).json({ error: 'Failed to cleanup orphaned stories' })
   }
 })
 

@@ -5564,8 +5564,37 @@ app.post('/api/adapt-flat-book', async (req, res) => {
       }
     }
 
-    // All chunks adapted - now re-chunk into 250-word pages
-    console.log('All chunks adapted, re-chunking into 250-word pages...')
+    // All chunks adapted - now parse structure and re-chunk into 250-word pages
+    console.log('All chunks adapted, parsing structure and re-chunking into 250-word pages...')
+
+    // Parse structure from the adapted text to extract header/outline
+    let chapterHeader = storyData.chapterHeader || ''
+    let chapterOutline = storyData.chapterOutline || ''
+    let bodyText = adaptedTextBlob
+
+    const structureParsed = storyData.structureParsed || false
+    if (!structureParsed) {
+      console.log('Parsing chapter structure from adapted text...')
+      const parsed = await parseChapterStructure(adaptedTextBlob)
+
+      if (parsed.chapterHeader || parsed.chapterOutline) {
+        chapterHeader = parsed.chapterHeader
+        chapterOutline = parsed.chapterOutline
+        bodyText = parsed.bodyText
+
+        // Store structure on story document
+        await storyRef.update({
+          chapterHeader,
+          chapterOutline,
+          adaptedTextBlob: bodyText, // Update to body-only
+          structureParsed: true,
+        })
+
+        console.log(`Parsed structure - Header: "${chapterHeader.slice(0, 50)}...", Outline: ${chapterOutline ? 'present' : 'none'}`)
+      } else {
+        await storyRef.update({ structureParsed: true })
+      }
+    }
 
     const pagesRef = storyRef.collection('pages')
 
@@ -5575,14 +5604,15 @@ app.post('/api/adapt-flat-book', async (req, res) => {
       await pageDoc.ref.delete()
     }
 
-    // Split adapted text into 250-word pages
-    const displayPages = splitTextIntoPages(adaptedTextBlob, 250)
+    // Split body text (without header/outline) into 250-word pages
+    const displayPages = splitTextIntoPages(bodyText, 250)
 
     console.log(`Split into ${displayPages.length} display pages`)
 
-    // Save each page
+    // Save each page - first page gets header/outline for display
     for (let i = 0; i < displayPages.length; i++) {
       const pageText = displayPages[i]
+      const isFirstPage = i === 0
 
       await pagesRef.doc(String(i)).set({
         index: i,
@@ -5590,6 +5620,9 @@ app.post('/api/adapt-flat-book', async (req, res) => {
         adaptedText: pageText,
         originalText: pageText,
         status: 'done',
+        chapterHeader: isFirstPage ? (chapterHeader || null) : null,
+        chapterOutline: isFirstPage ? (chapterOutline || null) : null,
+        isChapterStart: isFirstPage,
         audioUrl: null,
         audioStatus: 'pending',
       })

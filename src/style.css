@@ -5540,7 +5540,7 @@ textarea {
 .reader-page-block .chapter-header-structured {
   text-align: center;
   margin-bottom: 2rem;
-  padding-top: 1rem;
+  padding-top: 4rem; /* Push down below header trigger zone for tap-to-translate */
 }
 
 .reader-page-block .chapter-header-title {

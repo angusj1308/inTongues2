@@ -234,6 +234,107 @@ function mapLevelToSimplified(level) {
 }
 
 // ============================================================
+// CHAPTER STRUCTURE PARSING
+// ============================================================
+
+const CHAPTER_STRUCTURE_PROMPT = `
+You are analyzing the structure of a book chapter. Your task is to identify and separate:
+
+1. CHAPTER HEADER: The chapter number and title (e.g., "CHAPTER I The Conditions of Civilization")
+2. CHAPTER OUTLINE: Any table of contents, scope list, or topic outline that typically appears after the title, often separated by em-dashes (—) or similar punctuation (e.g., "Definition — Geographic Conditions — Economic Conditions — Racial Conditions")
+3. BODY TEXT: The actual prose content of the chapter
+
+RULES:
+- The header is typically at the very beginning, often in a distinctive format (CHAPTER/CAPÍTULO + number + title)
+- The outline often contains em-dashes (—) or semicolons separating topics
+- The body text is where the actual narrative/exposition begins - usually the first complete sentence that isn't part of a list
+- If there's no clear outline section, return an empty string for chapterOutline
+- If the chapter number/title is embedded in the text, still extract it
+
+Return a JSON object with exactly these three fields:
+{
+  "chapterHeader": "the chapter number and title",
+  "chapterOutline": "the topic outline if present, empty string if not",
+  "bodyText": "the main prose content"
+}
+
+Return ONLY valid JSON, no other text or explanation.
+`
+
+/**
+ * Parses chapter structure using AI to identify header, outline, and body
+ * @param {string} chapterText - The raw chapter text
+ * @returns {Promise<{chapterHeader: string, chapterOutline: string, bodyText: string}>}
+ */
+async function parseChapterStructure(chapterText) {
+  if (!chapterText || !chapterText.trim()) {
+    return { chapterHeader: '', chapterOutline: '', bodyText: '' }
+  }
+
+  try {
+    // Only send the first ~2000 chars for structure detection (header/outline are at the start)
+    const sampleText = chapterText.slice(0, 2000)
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
+      input: [
+        {
+          role: 'system',
+          content: CHAPTER_STRUCTURE_PROMPT,
+        },
+        {
+          role: 'user',
+          content: `Analyze the structure of this chapter text:\n\n${sampleText}`,
+        },
+      ],
+    })
+
+    const responseText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+    // Parse JSON response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.warn('Chapter structure parsing returned non-JSON, using fallback')
+      return { chapterHeader: '', chapterOutline: '', bodyText: chapterText }
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+
+    // Validate the parsed structure
+    const chapterHeader = (parsed.chapterHeader || '').trim()
+    const chapterOutline = (parsed.chapterOutline || '').trim()
+    let bodyText = (parsed.bodyText || '').trim()
+
+    // If body text was truncated (because we only sent 2000 chars), get the full body
+    if (bodyText && chapterText.length > 2000) {
+      // Find where the body starts in the original text
+      const bodyStartIndex = chapterText.indexOf(bodyText.slice(0, 100))
+      if (bodyStartIndex !== -1) {
+        bodyText = chapterText.slice(bodyStartIndex).trim()
+      } else {
+        // Fallback: remove header and outline from original text
+        let fullBodyText = chapterText
+        if (chapterHeader) {
+          fullBodyText = fullBodyText.replace(chapterHeader, '').trim()
+        }
+        if (chapterOutline) {
+          fullBodyText = fullBodyText.replace(chapterOutline, '').trim()
+        }
+        bodyText = fullBodyText
+      }
+    }
+
+    console.log(`Parsed chapter structure - Header: "${chapterHeader.slice(0, 50)}...", Outline: ${chapterOutline ? 'present' : 'none'}, Body: ${bodyText.length} chars`)
+
+    return { chapterHeader, chapterOutline, bodyText }
+  } catch (error) {
+    console.error('Error parsing chapter structure:', error)
+    // Fallback: return everything as body text
+    return { chapterHeader: '', chapterOutline: '', bodyText: chapterText }
+  }
+}
+
+// ============================================================
 // ADAPTATION REFINEMENT UTILITIES
 // ============================================================
 
@@ -5054,6 +5155,38 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       let chapterAdaptedText = chapterData.adaptedText || ''
       let adaptedPageCount = chapterData.adaptedPageCount || 0
 
+      // For TXT files, parse chapter structure from first page to extract header/outline
+      let parsedChapterHeader = chapterData.parsedChapterHeader || ''
+      let parsedChapterOutline = chapterData.parsedChapterOutline || ''
+      let structureParsed = chapterData.structureParsed || false
+
+      if (storyData.sourceType === 'txt' && !structureParsed && adaptationPages.length > 0) {
+        console.log(`Parsing chapter structure for TXT chapter ${chapterIndex}...`)
+        const fullChapterText = adaptationPages.join('\n\n')
+        const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(fullChapterText)
+
+        parsedChapterHeader = chapterHeader
+        parsedChapterOutline = chapterOutline
+
+        // If structure was found, update adaptationPages to contain only body text
+        if (chapterHeader || chapterOutline) {
+          // Re-chunk the body text into pages
+          const bodyPages = splitTextIntoPages(bodyText, 500) // ~500 words per chunk for adaptation
+          await chapterDoc.ref.update({
+            parsedChapterHeader: chapterHeader,
+            parsedChapterOutline: chapterOutline,
+            adaptationPages: bodyPages,
+            structureParsed: true,
+          })
+          // Update local reference
+          adaptationPages.length = 0
+          adaptationPages.push(...bodyPages)
+        } else {
+          await chapterDoc.ref.update({ structureParsed: true })
+        }
+        structureParsed = true
+      }
+
       // Adapt each page in the chapter
       for (let pageIdx = adaptedPageCount; pageIdx < adaptationPages.length; pageIdx++) {
         const pageText = adaptationPages[pageIdx]
@@ -5129,7 +5262,13 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
     // Process each chapter and create pages
     for (const chapterDoc of updatedChaptersSnap.docs) {
       const chapterData = chapterDoc.data() || {}
-      const { adaptedText, index: chapterIndex, title: chapterTitle } = chapterData
+      const {
+        adaptedText,
+        index: chapterIndex,
+        title: chapterTitle,
+        parsedChapterHeader,
+        parsedChapterOutline,
+      } = chapterData
 
       if (!adaptedText || !adaptedText.trim()) {
         continue
@@ -5157,6 +5296,9 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
           status: 'done',
           chapterIndex,
           chapterTitle: isFirstPageOfChapter ? chapterTitle : null,
+          // Include parsed structure for TXT chapters (for display formatting)
+          chapterHeader: isFirstPageOfChapter ? (parsedChapterHeader || null) : null,
+          chapterOutline: isFirstPageOfChapter ? (parsedChapterOutline || null) : null,
           isChapterStart: isFirstPageOfChapter,
           audioUrl: null,
           audioStatus: 'pending',

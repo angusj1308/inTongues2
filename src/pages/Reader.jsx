@@ -1847,7 +1847,17 @@ const Reader = ({ initialMode }) => {
                           displayMode === 'assisted' ? 'page--single' : (isLeftPage ? 'page--left' : 'page--right')
                         }`}
                       >
-                        {page.isChapterStart && page.chapterTitle && (
+                        {/* Structured chapter header for TXT imports */}
+                        {page.isChapterStart && page.chapterHeader && (
+                          <div className="chapter-header-structured">
+                            <div className="chapter-header-title">{page.chapterHeader.toUpperCase()}</div>
+                            {page.chapterOutline && (
+                              <div className="chapter-header-outline">{page.chapterOutline}</div>
+                            )}
+                          </div>
+                        )}
+                        {/* Fallback to simple chapter title for EPUB imports */}
+                        {page.isChapterStart && !page.chapterHeader && page.chapterTitle && (
                           <div className="chapter-title">{page.chapterTitle}</div>
                         )}
                         <div className="page-text" onMouseUp={handleWordClick}>

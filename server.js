@@ -5156,8 +5156,8 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       let adaptedPageCount = chapterData.adaptedPageCount || 0
 
       // For TXT files, parse chapter structure from first page to extract header/outline
-      let parsedChapterHeader = chapterData.parsedChapterHeader || ''
-      let parsedChapterOutline = chapterData.parsedChapterOutline || ''
+      let adaptedChapterHeader = chapterData.adaptedChapterHeader || ''
+      let adaptedChapterOutline = chapterData.adaptedChapterOutline || ''
       let structureParsed = chapterData.structureParsed || false
 
       if (storyData.sourceType === 'txt' && !structureParsed && adaptationPages.length > 0) {
@@ -5165,16 +5165,53 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
         const fullChapterText = adaptationPages.join('\n\n')
         const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(fullChapterText)
 
-        parsedChapterHeader = chapterHeader
-        parsedChapterOutline = chapterOutline
-
-        // If structure was found, update adaptationPages to contain only body text
+        // If structure was found, adapt header/outline and update adaptationPages to contain only body text
         if (chapterHeader || chapterOutline) {
-          // Re-chunk the body text into pages
-          const bodyPages = splitTextIntoPages(bodyText, 500) // ~500 words per chunk for adaptation
+          // Adapt the header to target language
+          if (chapterHeader) {
+            console.log(`Adapting chapter header: "${chapterHeader.slice(0, 50)}..."`)
+            const headerResponse = await client.responses.create({
+              model: 'gpt-4.1-mini',
+              input: [
+                {
+                  role: 'system',
+                  content: 'Translate the following chapter title to the target language. Keep it concise. Return ONLY the translated text, no explanation.',
+                },
+                {
+                  role: 'user',
+                  content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterHeader}`,
+                },
+              ],
+            })
+            adaptedChapterHeader = headerResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterHeader
+          }
+
+          // Adapt the outline to target language
+          if (chapterOutline) {
+            console.log(`Adapting chapter outline: "${chapterOutline.slice(0, 50)}..."`)
+            const outlineResponse = await client.responses.create({
+              model: 'gpt-4.1-mini',
+              input: [
+                {
+                  role: 'system',
+                  content: 'Translate the following chapter outline/table of contents to the target language. Preserve the em-dash (—) separators. Return ONLY the translated text, no explanation.',
+                },
+                {
+                  role: 'user',
+                  content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterOutline}`,
+                },
+              ],
+            })
+            adaptedChapterOutline = outlineResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterOutline
+          }
+
+          // Re-chunk the body text into pages (only body will be adapted)
+          const bodyPages = splitTextIntoPages(bodyText, 500)
           await chapterDoc.ref.update({
-            parsedChapterHeader: chapterHeader,
-            parsedChapterOutline: chapterOutline,
+            originalChapterHeader: chapterHeader,
+            originalChapterOutline: chapterOutline,
+            adaptedChapterHeader,
+            adaptedChapterOutline,
             adaptationPages: bodyPages,
             structureParsed: true,
           })
@@ -5266,8 +5303,8 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
         adaptedText,
         index: chapterIndex,
         title: chapterTitle,
-        parsedChapterHeader,
-        parsedChapterOutline,
+        adaptedChapterHeader,
+        adaptedChapterOutline,
       } = chapterData
 
       if (!adaptedText || !adaptedText.trim()) {
@@ -5296,9 +5333,9 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
           status: 'done',
           chapterIndex,
           chapterTitle: isFirstPageOfChapter ? chapterTitle : null,
-          // Include parsed structure for TXT chapters (for display formatting)
-          chapterHeader: isFirstPageOfChapter ? (parsedChapterHeader || null) : null,
-          chapterOutline: isFirstPageOfChapter ? (parsedChapterOutline || null) : null,
+          // Include adapted structure for TXT chapters (for display formatting)
+          chapterHeader: isFirstPageOfChapter ? (adaptedChapterHeader || null) : null,
+          chapterOutline: isFirstPageOfChapter ? (adaptedChapterOutline || null) : null,
           isChapterStart: isFirstPageOfChapter,
           audioUrl: null,
           audioStatus: 'pending',

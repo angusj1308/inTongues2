@@ -1850,9 +1850,19 @@ const Reader = ({ initialMode }) => {
                         {/* Structured chapter header for TXT imports */}
                         {page.isChapterStart && page.chapterHeader && (
                           <div className="chapter-header-structured">
-                            <div className="chapter-header-title">{page.chapterHeader.toUpperCase()}</div>
+                            <div className="chapter-header-title" onMouseUp={handleWordClick}>
+                              {renderHighlightedText(
+                                page.chapterHeader.toUpperCase(),
+                                0
+                              )}
+                            </div>
                             {page.chapterOutline && (
-                              <div className="chapter-header-outline">{page.chapterOutline}</div>
+                              <div className="chapter-header-outline" onMouseUp={handleWordClick}>
+                                {renderHighlightedText(
+                                  page.chapterOutline,
+                                  0
+                                )}
+                              </div>
                             )}
                           </div>
                         )}

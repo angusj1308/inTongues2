@@ -5604,10 +5604,33 @@ app.post('/api/adapt-flat-book', async (req, res) => {
       await pageDoc.ref.delete()
     }
 
-    // Split body text (without header/outline) into 250-word pages
-    const displayPages = splitTextIntoPages(bodyText, 250)
+    // Calculate first page word count reduction based on header/outline length
+    const headerWords = chapterHeader ? chapterHeader.split(/\s+/).length : 0
+    const outlineWords = chapterOutline ? chapterOutline.split(/\s+/).length : 0
+    const headerOutlineWords = headerWords + outlineWords
 
-    console.log(`Split into ${displayPages.length} display pages`)
+    // First page gets fewer words to account for header/outline space
+    // Roughly estimate: header/outline take ~1.5x their word count in visual space
+    const firstPageWordLimit = Math.max(100, 250 - Math.ceil(headerOutlineWords * 1.5))
+    const normalPageWordLimit = 250
+
+    // Custom split: first page with reduced words, rest with normal count
+    let displayPages = []
+    const words = bodyText.split(/\s+/)
+
+    if (headerOutlineWords > 0 && words.length > firstPageWordLimit) {
+      // First page with reduced word count
+      displayPages.push(words.slice(0, firstPageWordLimit).join(' '))
+      // Remaining pages with normal word count
+      const remainingText = words.slice(firstPageWordLimit).join(' ')
+      const remainingPages = splitTextIntoPages(remainingText, normalPageWordLimit)
+      displayPages = displayPages.concat(remainingPages)
+    } else {
+      // No header/outline, use normal splitting
+      displayPages = splitTextIntoPages(bodyText, normalPageWordLimit)
+    }
+
+    console.log(`Split into ${displayPages.length} display pages (first page: ${firstPageWordLimit} words)`)
 
     // Save each page - first page gets header/outline for display
     for (let i = 0; i < displayPages.length; i++) {

@@ -5160,68 +5160,98 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       let adaptedChapterOutline = chapterData.adaptedChapterOutline || ''
       let structureParsed = chapterData.structureParsed || false
 
-      if (storyData.sourceType === 'txt' && !structureParsed && adaptationPages.length > 0) {
-        console.log(`Parsing chapter structure for TXT chapter ${chapterIndex}...`)
-        const fullChapterText = adaptationPages.join('\n\n')
-        const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(fullChapterText)
+      // Handle structure parsing for TXT files
+      if (storyData.sourceType === 'txt' && !structureParsed) {
+        // Check if chapter is already adapted - if so, parse from adapted text
+        const existingAdaptedText = chapterData.adaptedText || ''
 
-        // If structure was found, adapt header/outline and update adaptationPages to contain only body text
-        if (chapterHeader || chapterOutline) {
-          // Adapt the header to target language
-          if (chapterHeader) {
-            console.log(`Adapting chapter header: "${chapterHeader.slice(0, 50)}..."`)
-            const headerResponse = await client.responses.create({
-              model: 'gpt-4.1-mini',
-              input: [
-                {
-                  role: 'system',
-                  content: 'Translate the following chapter title to the target language. Keep it concise. Return ONLY the translated text, no explanation.',
-                },
-                {
-                  role: 'user',
-                  content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterHeader}`,
-                },
-              ],
+        if (existingAdaptedText && adaptedPageCount >= adaptationPages.length) {
+          // Already adapted - parse structure from the ADAPTED text
+          console.log(`Chapter ${chapterIndex} already adapted, parsing structure from adapted text...`)
+          const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(existingAdaptedText)
+
+          if (chapterHeader || chapterOutline) {
+            adaptedChapterHeader = chapterHeader
+            adaptedChapterOutline = chapterOutline
+
+            // Update chapter with parsed structure and body-only adapted text
+            await chapterDoc.ref.update({
+              adaptedChapterHeader: chapterHeader,
+              adaptedChapterOutline: chapterOutline,
+              adaptedText: bodyText, // Replace with body-only text
+              structureParsed: true,
             })
-            adaptedChapterHeader = headerResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterHeader
+            // Update local variable for page creation
+            chapterAdaptedText = bodyText
+          } else {
+            await chapterDoc.ref.update({ structureParsed: true })
           }
+          structureParsed = true
 
-          // Adapt the outline to target language
-          if (chapterOutline) {
-            console.log(`Adapting chapter outline: "${chapterOutline.slice(0, 50)}..."`)
-            const outlineResponse = await client.responses.create({
-              model: 'gpt-4.1-mini',
-              input: [
-                {
-                  role: 'system',
-                  content: 'Translate the following chapter outline/table of contents to the target language. Preserve the em-dash (—) separators. Return ONLY the translated text, no explanation.',
-                },
-                {
-                  role: 'user',
-                  content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterOutline}`,
-                },
-              ],
+        } else if (adaptationPages.length > 0) {
+          // Not yet adapted - parse from original text and prepare for adaptation
+          console.log(`Parsing chapter structure for TXT chapter ${chapterIndex}...`)
+          const fullChapterText = adaptationPages.join('\n\n')
+          const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(fullChapterText)
+
+          // If structure was found, adapt header/outline and update adaptationPages to contain only body text
+          if (chapterHeader || chapterOutline) {
+            // Adapt the header to target language
+            if (chapterHeader) {
+              console.log(`Adapting chapter header: "${chapterHeader.slice(0, 50)}..."`)
+              const headerResponse = await client.responses.create({
+                model: 'gpt-4.1-mini',
+                input: [
+                  {
+                    role: 'system',
+                    content: 'Translate the following chapter title to the target language. Keep it concise. Return ONLY the translated text, no explanation.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterHeader}`,
+                  },
+                ],
+              })
+              adaptedChapterHeader = headerResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterHeader
+            }
+
+            // Adapt the outline to target language
+            if (chapterOutline) {
+              console.log(`Adapting chapter outline: "${chapterOutline.slice(0, 50)}..."`)
+              const outlineResponse = await client.responses.create({
+                model: 'gpt-4.1-mini',
+                input: [
+                  {
+                    role: 'system',
+                    content: 'Translate the following chapter outline/table of contents to the target language. Preserve the em-dash (—) separators. Return ONLY the translated text, no explanation.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterOutline}`,
+                  },
+                ],
+              })
+              adaptedChapterOutline = outlineResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterOutline
+            }
+
+            // Re-chunk the body text into pages (only body will be adapted)
+            const bodyPages = splitTextIntoPages(bodyText, 500)
+            await chapterDoc.ref.update({
+              originalChapterHeader: chapterHeader,
+              originalChapterOutline: chapterOutline,
+              adaptedChapterHeader,
+              adaptedChapterOutline,
+              adaptationPages: bodyPages,
+              structureParsed: true,
             })
-            adaptedChapterOutline = outlineResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterOutline
+            // Update local reference
+            adaptationPages.length = 0
+            adaptationPages.push(...bodyPages)
+          } else {
+            await chapterDoc.ref.update({ structureParsed: true })
           }
-
-          // Re-chunk the body text into pages (only body will be adapted)
-          const bodyPages = splitTextIntoPages(bodyText, 500)
-          await chapterDoc.ref.update({
-            originalChapterHeader: chapterHeader,
-            originalChapterOutline: chapterOutline,
-            adaptedChapterHeader,
-            adaptedChapterOutline,
-            adaptationPages: bodyPages,
-            structureParsed: true,
-          })
-          // Update local reference
-          adaptationPages.length = 0
-          adaptationPages.push(...bodyPages)
-        } else {
-          await chapterDoc.ref.update({ structureParsed: true })
+          structureParsed = true
         }
-        structureParsed = true
       }
 
       // Adapt each page in the chapter

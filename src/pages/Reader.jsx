@@ -1258,7 +1258,6 @@ const Reader = ({ initialMode }) => {
       })
 
       setBookmarkIndex(evenIndex)
-      hasAppliedBookmarkRef.current = false
 
       if (notify) {
         window.alert('Bookmark saved. You\'ll return to this page next time.')

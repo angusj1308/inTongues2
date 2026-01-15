@@ -4103,17 +4103,8 @@ async function extractTxtWithChapters(filePath) {
     const cleanText = text.replace(/\s+/g, ' ').trim()
     const words = cleanText.split(/\s+/)
 
-    // Split into adaptation chunks (~1200 chars each)
-    const adaptationChunks = []
-    let buffer = []
-    for (const word of words) {
-      buffer.push(word)
-      if (buffer.join(' ').length > 1200) {
-        adaptationChunks.push(buffer.join(' '))
-        buffer = []
-      }
-    }
-    if (buffer.length > 0) adaptationChunks.push(buffer.join(' '))
+    // Split into adaptation chunks at sentence boundaries (~1200 chars each)
+    const adaptationChunks = splitTextIntoAdaptationChunks(cleanText, 1200)
 
     // Return flat structure with flag
     return {
@@ -4148,17 +4139,8 @@ async function extractTxtWithChapters(filePath) {
 
     const words = chapterText.split(/\s+/)
 
-    // Split into adaptation pages (~1200 chars)
-    const adaptationPages = []
-    let buffer = []
-    for (const word of words) {
-      buffer.push(word)
-      if (buffer.join(' ').length > 1200) {
-        adaptationPages.push(buffer.join(' '))
-        buffer = []
-      }
-    }
-    if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+    // Split into adaptation pages at sentence boundaries (~1200 chars)
+    const adaptationPages = splitTextIntoAdaptationChunks(chapterText, 1200)
 
     chapters.push({
       index: chapters.length,
@@ -4176,16 +4158,9 @@ async function extractTxtWithChapters(filePath) {
 
     if (preambleText.length > 200) {
       const words = preambleText.split(/\s+/)
-      const adaptationPages = []
-      let buffer = []
-      for (const word of words) {
-        buffer.push(word)
-        if (buffer.join(' ').length > 1200) {
-          adaptationPages.push(buffer.join(' '))
-          buffer = []
-        }
-      }
-      if (buffer.length > 0) adaptationPages.push(buffer.join(' '))
+
+      // Split into adaptation pages at sentence boundaries (~1200 chars)
+      const adaptationPages = splitTextIntoAdaptationChunks(preambleText, 1200)
 
       // Insert at beginning
       chapters.unshift({
@@ -4217,21 +4192,9 @@ async function extractPdf(filePath) {
     err.code = 'SCANNED_PDF_NOT_SUPPORTED'
     throw err
   }
-  const words = fullText.split(/\s+/)
 
-  const pages = []
-  let buffer = []
-
-  for (const word of words) {
-    buffer.push(word)
-    if (buffer.join(' ').length > 1200) {
-      pages.push(buffer.join(' '))
-      buffer = []
-    }
-  }
-
-  if (buffer.length > 0) pages.push(buffer.join(' '))
-  return pages
+  // Split into pages at sentence boundaries (~1200 chars)
+  return splitTextIntoAdaptationChunks(fullText, 1200)
 }
 
 function parseEpub(filePath) {
@@ -4275,20 +4238,8 @@ async function extractEpub(filePath) {
     fullText += content.replace(/<[^>]+>/g, ' ') + ' '
   }
 
-  const words = fullText.split(/\s+/)
-  const pages = []
-  let buffer = []
-
-  for (const word of words) {
-    buffer.push(word)
-    if (buffer.join(' ').length > 1200) {
-      pages.push(buffer.join(' '))
-      buffer = []
-    }
-  }
-
-  if (buffer.length > 0) pages.push(buffer.join(' '))
-  return pages
+  // Split into pages at sentence boundaries (~1200 chars)
+  return splitTextIntoAdaptationChunks(fullText, 1200)
 }
 
 /**
@@ -4341,27 +4292,15 @@ async function extractEpubWithChapters(filePath) {
       title = `Chapter ${chapterIndex + 1}`
     }
 
-    // Split chapter into ~1200 char pages for adaptation (API limits)
+    // Split chapter into ~1200 char pages at sentence boundaries for adaptation (API limits)
     const words = cleanText.split(/\s+/)
-    const adaptationPages = []
-    let buffer = []
-
-    for (const word of words) {
-      buffer.push(word)
-      if (buffer.join(' ').length > 1200) {
-        adaptationPages.push(buffer.join(' '))
-        buffer = []
-      }
-    }
-    if (buffer.length > 0) {
-      adaptationPages.push(buffer.join(' '))
-    }
+    const adaptationPages = splitTextIntoAdaptationChunks(cleanText, 1200)
 
     chapters.push({
       index: chapterIndex,
       title,
       originalText: cleanText,
-      adaptationPages, // Pages for adaptation (1200 char chunks)
+      adaptationPages, // Pages for adaptation (1200 char chunks at sentence boundaries)
       wordCount: words.length,
     })
 
@@ -4418,6 +4357,66 @@ function splitTextIntoPages(text, targetWordCount = 250) {
   }
 
   return pages
+}
+
+/**
+ * Split text into adaptation chunks of approximately targetCharCount characters.
+ * Breaks at sentence boundaries to prevent mid-sentence cuts that cause
+ * text loss or discontinuity when chunks are adapted independently.
+ * @param {string} text - The text to split into chunks
+ * @param {number} targetCharCount - Target characters per chunk (default ~1200)
+ * @returns {string[]} Array of text chunks split at sentence boundaries
+ */
+function splitTextIntoAdaptationChunks(text, targetCharCount = 1200) {
+  if (!text || !text.trim()) return []
+
+  const normalizedText = text.replace(/\s+/g, ' ').trim()
+  const chunks = []
+  let remaining = normalizedText
+
+  while (remaining.length > 0) {
+    if (remaining.length <= targetCharCount) {
+      // Last chunk - take it all
+      chunks.push(remaining.trim())
+      break
+    }
+
+    // Look for a good break point around the target
+    const searchStart = Math.floor(targetCharCount * 0.7)
+    const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.2))
+    const searchWindow = remaining.slice(searchStart, searchEnd)
+
+    // Priority: Sentence boundary (., ?, !, or with closing quotes)
+    let breakPoint = -1
+    const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', '.\' ', '?\' ', '!\' ']
+    let bestSentenceEnd = -1
+
+    for (const ender of sentenceEnders) {
+      const pos = searchWindow.lastIndexOf(ender)
+      if (pos > bestSentenceEnd) {
+        bestSentenceEnd = pos
+      }
+    }
+
+    if (bestSentenceEnd !== -1) {
+      // Break after the punctuation (include the space)
+      breakPoint = searchStart + bestSentenceEnd + 2
+    }
+
+    // Fallback: Word boundary
+    if (breakPoint === -1) {
+      const lastSpace = remaining.slice(0, targetCharCount).lastIndexOf(' ')
+      breakPoint = lastSpace !== -1 ? lastSpace + 1 : targetCharCount
+    }
+
+    const chunkText = remaining.slice(0, breakPoint).trim()
+    if (chunkText) {
+      chunks.push(chunkText)
+    }
+    remaining = remaining.slice(breakPoint).trim()
+  }
+
+  return chunks
 }
 
 /**

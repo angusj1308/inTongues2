@@ -4427,8 +4427,8 @@ function splitTextIntoAdaptationChunks(text) {
 }
 
 /**
- * Split text into pages by finding the sentence end closest to target character count.
- * Accepts natural variation in page length due to variable character widths.
+ * Split text into pages by finding the punctuation break closest to target character count.
+ * Uses sentence endings (. ! ?) and clause punctuation (, ; : —) for natural breaks.
  * @param {string} text - The text to split
  * @param {number} targetCharCount - Target characters per page (default ~1400, roughly 250 words)
  * @returns {string[]} Array of page texts with preserved paragraph markers
@@ -4449,7 +4449,7 @@ function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
       break
     }
 
-    // Find the sentence end closest to target
+    // Find the punctuation break closest to target
     // Search within 50% to 150% of target to avoid tiny or huge pages
     const minSearch = Math.floor(targetCharCount * 0.5)
     const maxSearch = Math.min(remaining.length, Math.floor(targetCharCount * 1.5))
@@ -4457,12 +4457,16 @@ function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
     let closestEnd = -1
     let closestDistance = Infinity
 
-    // Look for sentence endings (. ! ?) followed by space or newline
+    // Look for any punctuation followed by space or newline
+    // Includes sentence endings (. ! ?) and clause punctuation (, ; : —)
     for (let i = minSearch; i < maxSearch; i++) {
       const char = remaining[i]
       const nextChar = remaining[i + 1]
 
-      if ((char === '.' || char === '!' || char === '?') &&
+      const isSentenceEnd = (char === '.' || char === '!' || char === '?')
+      const isClausePunct = (char === ',' || char === ';' || char === ':' || char === '—')
+
+      if ((isSentenceEnd || isClausePunct) &&
           (nextChar === ' ' || nextChar === '\n' || nextChar === undefined)) {
         const distance = Math.abs(i + 1 - targetCharCount)
         if (distance < closestDistance) {
@@ -4476,7 +4480,7 @@ function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
     if (closestEnd !== -1) {
       breakPoint = closestEnd
     } else {
-      // No sentence end found - fall back to word boundary near target
+      // No punctuation found - fall back to word boundary near target
       const lastSpace = remaining.lastIndexOf(' ', targetCharCount)
       breakPoint = lastSpace > minSearch ? lastSpace + 1 : targetCharCount
     }

@@ -593,7 +593,7 @@ const Reader = ({ initialMode }) => {
       return textNode.scrollHeight <= containerHeight
     }
 
-    // Split text at sentence boundaries for when a paragraph is too long
+    // Split text at sentence boundaries
     const splitIntoSentences = (text) => {
       const matches = text.match(/[^.!?]+[.!?]+\s*/g) || [text]
       return matches.map(s => s.trim()).filter(Boolean)
@@ -603,9 +603,8 @@ const Reader = ({ initialMode }) => {
       const measureDiv = measureRef.current
       if (!measureDiv) return
 
-      // Use the measure container's height (matches page container via CSS)
       const containerHeight = measureDiv.clientHeight
-      if (containerHeight === 0) return // Not rendered yet
+      if (containerHeight === 0) return
 
       const virtualPages = []
       let globalPageIndex = 0
@@ -614,10 +613,11 @@ const Reader = ({ initialMode }) => {
         const text = chapter.adaptedText || ''
         if (!text.trim()) continue
 
-        // Split text into paragraphs to find natural break points
+        // Split into real paragraphs (separated by \n\n)
         const paragraphs = text.split(/\n\n+/)
         let currentPageText = ''
         let isFirstPageOfChapter = true
+        let midParagraph = false // Are we in the middle of a paragraph?
 
         const savePage = (pageText) => {
           if (!pageText.trim()) return
@@ -639,57 +639,56 @@ const Reader = ({ initialMode }) => {
           const paragraph = paragraphs[pIdx].trim()
           if (!paragraph) continue
 
-          // Try adding this paragraph to current page
-          const testText = currentPageText
+          // Add paragraph break before new paragraph (unless first content or mid-paragraph)
+          const needsParaBreak = currentPageText && !midParagraph
+          const testText = needsParaBreak
             ? currentPageText + '\n\n' + paragraph
-            : paragraph
+            : (currentPageText ? currentPageText + ' ' + paragraph : paragraph)
 
           if (measureText(measureDiv, testText, containerHeight)) {
-            // Fits - add to current page
+            // Whole paragraph fits on current page
             currentPageText = testText
-          } else if (currentPageText) {
-            // Doesn't fit and we have content - save current page
-            savePage(currentPageText)
-
-            // Check if paragraph alone fits
-            if (measureText(measureDiv, paragraph, containerHeight)) {
-              currentPageText = paragraph
-            } else {
-              // Paragraph too long - split by sentences
-              const sentences = splitIntoSentences(paragraph)
-              currentPageText = ''
-              for (const sentence of sentences) {
-                const sentenceTest = currentPageText
-                  ? currentPageText + ' ' + sentence
-                  : sentence
-                if (measureText(measureDiv, sentenceTest, containerHeight)) {
-                  currentPageText = sentenceTest
-                } else {
-                  if (currentPageText) savePage(currentPageText)
-                  currentPageText = sentence
-                }
-              }
-            }
+            midParagraph = false // Paragraph complete
           } else {
-            // First content doesn't fit - split by sentences
+            // Paragraph doesn't fit - process sentence by sentence
             const sentences = splitIntoSentences(paragraph)
-            for (const sentence of sentences) {
-              const sentenceTest = currentPageText
-                ? currentPageText + ' ' + sentence
-                : sentence
-              if (measureText(measureDiv, sentenceTest, containerHeight)) {
-                currentPageText = sentenceTest
+
+            for (let sIdx = 0; sIdx < sentences.length; sIdx++) {
+              const sentence = sentences[sIdx]
+              const isFirstSentence = sIdx === 0
+
+              // First sentence of new paragraph needs \n\n (unless mid-paragraph or no prior content)
+              let testWithSentence
+              if (!currentPageText) {
+                testWithSentence = sentence
+              } else if (isFirstSentence && !midParagraph) {
+                testWithSentence = currentPageText + '\n\n' + sentence
               } else {
-                if (currentPageText) savePage(currentPageText)
+                testWithSentence = currentPageText + ' ' + sentence
+              }
+
+              if (measureText(measureDiv, testWithSentence, containerHeight)) {
+                currentPageText = testWithSentence
+              } else {
+                // Save current page
+                if (currentPageText) {
+                  savePage(currentPageText)
+                }
+                // Continue paragraph on next page (no \n\n prefix - mid-paragraph)
                 currentPageText = sentence
+                midParagraph = true // We're now mid-paragraph
               }
             }
+            midParagraph = false // Finished this paragraph
           }
         }
 
-        // Don't forget the last page of the chapter
-        savePage(currentPageText)
+        // Save last page of chapter
+        if (currentPageText) {
+          savePage(currentPageText)
+        }
         currentPageText = ''
+        midParagraph = false
       }
 
       setPages(virtualPages)

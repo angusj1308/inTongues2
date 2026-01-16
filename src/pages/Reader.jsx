@@ -787,6 +787,37 @@ const Reader = ({ initialMode }) => {
   // Note: Window resize no longer triggers re-pagination since pages have fixed dimensions
   // Pre-computed pages are loaded from Firestore and don't change with window size
 
+  // Calculate and apply page scale to fit viewport
+  useEffect(() => {
+    const SPREAD_WIDTH = 1240
+    const SPREAD_HEIGHT = 700
+    const MARGIN_X = 100 // horizontal margin
+    const MARGIN_Y = 180 // vertical margin for header + page numbers
+
+    const updateScale = () => {
+      if (!pageContainerRef.current) return
+
+      const availableWidth = window.innerWidth - MARGIN_X
+      const availableHeight = window.innerHeight - MARGIN_Y
+
+      const scaleX = availableWidth / SPREAD_WIDTH
+      const scaleY = availableHeight / SPREAD_HEIGHT
+
+      // Use smaller scale to fit both dimensions
+      const scale = Math.min(scaleX, scaleY, 1.5) // Cap at 1.5x to avoid overly huge pages
+
+      // Apply to the spread element (child of pageContainerRef)
+      const spreadElement = pageContainerRef.current.querySelector('.reader-spread')
+      if (spreadElement) {
+        spreadElement.style.setProperty('--page-scale', scale)
+      }
+    }
+
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
+
   useEffect(() => {
     if (!user || !id) {
       setAudioStatus('')

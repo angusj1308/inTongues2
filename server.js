@@ -3855,8 +3855,8 @@ async function extractTxt(filePath) {
   const raw = await fs.readFile(filePath, 'utf8')
   // Normalize text while preserving paragraph structure
   const cleanText = normalizeTextWithParagraphs(raw)
-  // Split into adaptation chunks at sentence boundaries, preserving paragraphs
-  return splitTextIntoAdaptationChunks(cleanText, 1200)
+  // Return as single adaptation chunk
+  return splitTextIntoAdaptationChunks(cleanText)
 }
 
 /**
@@ -4111,8 +4111,8 @@ async function extractTxtWithChapters(filePath) {
     const cleanText = normalizeTextWithParagraphs(text)
     const words = cleanText.split(/\s+/)
 
-    // Split into adaptation chunks at sentence boundaries (~1200 chars each)
-    const adaptationChunks = splitTextIntoAdaptationChunks(cleanText, 1200)
+    // Return as single adaptation chunk
+    const adaptationChunks = splitTextIntoAdaptationChunks(cleanText)
 
     // Return flat structure with flag
     return {
@@ -4147,8 +4147,8 @@ async function extractTxtWithChapters(filePath) {
 
     const words = chapterText.split(/\s+/)
 
-    // Split into adaptation pages at sentence boundaries (~1200 chars)
-    const adaptationPages = splitTextIntoAdaptationChunks(chapterText, 1200)
+    // Return chapter as single adaptation chunk
+    const adaptationPages = splitTextIntoAdaptationChunks(chapterText)
 
     chapters.push({
       index: chapters.length,
@@ -4167,8 +4167,8 @@ async function extractTxtWithChapters(filePath) {
     if (preambleText.length > 200) {
       const words = preambleText.split(/\s+/)
 
-      // Split into adaptation pages at sentence boundaries (~1200 chars)
-      const adaptationPages = splitTextIntoAdaptationChunks(preambleText, 1200)
+      // Return preamble as single adaptation chunk
+      const adaptationPages = splitTextIntoAdaptationChunks(preambleText)
 
       // Insert at beginning
       chapters.unshift({
@@ -4201,8 +4201,8 @@ async function extractPdf(filePath) {
     throw err
   }
 
-  // Split into pages at sentence boundaries (~1200 chars)
-  return splitTextIntoAdaptationChunks(fullText, 1200)
+  // Return as single adaptation chunk
+  return splitTextIntoAdaptationChunks(fullText)
 }
 
 /**
@@ -4287,8 +4287,8 @@ async function extractEpub(filePath) {
     fullText += htmlToTextWithParagraphs(content) + '\n\n'
   }
 
-  // Split into pages at sentence boundaries (~1200 chars)
-  return splitTextIntoAdaptationChunks(fullText, 1200)
+  // Return as single adaptation chunk
+  return splitTextIntoAdaptationChunks(fullText)
 }
 
 /**
@@ -4338,15 +4338,15 @@ async function extractEpubWithChapters(filePath) {
       title = `Chapter ${chapterIndex + 1}`
     }
 
-    // Split chapter into ~1200 char pages at sentence boundaries for adaptation (API limits)
+    // Return chapter as single adaptation chunk
     const words = cleanText.split(/\s+/)
-    const adaptationPages = splitTextIntoAdaptationChunks(cleanText, 1200)
+    const adaptationPages = splitTextIntoAdaptationChunks(cleanText)
 
     chapters.push({
       index: chapterIndex,
       title,
       originalText: cleanText,
-      adaptationPages, // Pages for adaptation (1200 char chunks at sentence boundaries)
+      adaptationPages, // Chapter text for adaptation
       wordCount: words.length,
     })
 
@@ -4406,20 +4406,15 @@ function splitTextIntoPages(text, targetWordCount = 250) {
 }
 
 /**
- * Split text into adaptation chunks of approximately targetCharCount characters.
- * Breaks at sentence boundaries to prevent mid-sentence cuts that cause
- * text loss or discontinuity when chunks are adapted independently.
- * @param {string} text - The text to split into chunks
- * @param {number} targetCharCount - Target characters per chunk (default ~1200)
- * @returns {string[]} Array of text chunks split at sentence boundaries
+ * Return text as a single adaptation chunk.
+ * The prompt provides sufficient direction for effective adaptation regardless of length.
+ * @param {string} text - The text to prepare for adaptation
+ * @returns {string[]} Array containing the normalized text as a single chunk
  */
-function splitTextIntoAdaptationChunks(text, targetCharCount = 1200) {
+function splitTextIntoAdaptationChunks(text) {
   if (!text || !text.trim()) return []
 
   // Normalize whitespace while PRESERVING paragraph breaks (\n\n)
-  // 1. First, protect paragraph breaks by using a placeholder
-  // 2. Then normalize other whitespace
-  // 3. Then restore paragraph breaks
   let normalizedText = text
     .replace(/\r\n/g, '\n')           // Normalize line endings
     .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to paragraph break
@@ -4428,61 +4423,7 @@ function splitTextIntoAdaptationChunks(text, targetCharCount = 1200) {
     .replace(/\u0000PARA\u0000/g, '\n\n')  // Restore paragraph breaks
     .trim()
 
-  const chunks = []
-  let remaining = normalizedText
-
-  while (remaining.length > 0) {
-    if (remaining.length <= targetCharCount) {
-      // Last chunk - take it all
-      chunks.push(remaining.trim())
-      break
-    }
-
-    // Look for a good break point around the target
-    const searchStart = Math.floor(targetCharCount * 0.7)
-    const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.2))
-    const searchWindow = remaining.slice(searchStart, searchEnd)
-
-    let breakPoint = -1
-
-    // Priority 1: Paragraph break (preserve paragraph structure)
-    const paragraphBreak = searchWindow.lastIndexOf('\n\n')
-    if (paragraphBreak !== -1) {
-      breakPoint = searchStart + paragraphBreak + 2 // After the paragraph break
-    }
-
-    // Priority 2: Sentence boundary (., ?, !, or with closing quotes)
-    if (breakPoint === -1) {
-      const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', ".' ", "?' ", "!' ", '.\n', '?\n', '!\n']
-      let bestSentenceEnd = -1
-
-      for (const ender of sentenceEnders) {
-        const pos = searchWindow.lastIndexOf(ender)
-        if (pos > bestSentenceEnd) {
-          bestSentenceEnd = pos
-        }
-      }
-
-      if (bestSentenceEnd !== -1) {
-        // Break after the punctuation (include the space)
-        breakPoint = searchStart + bestSentenceEnd + 2
-      }
-    }
-
-    // Fallback: Word boundary
-    if (breakPoint === -1) {
-      const lastSpace = remaining.slice(0, targetCharCount).lastIndexOf(' ')
-      breakPoint = lastSpace !== -1 ? lastSpace + 1 : targetCharCount
-    }
-
-    const chunkText = remaining.slice(0, breakPoint).trim()
-    if (chunkText) {
-      chunks.push(chunkText)
-    }
-    remaining = remaining.slice(breakPoint).trim()
-  }
-
-  return chunks
+  return [normalizedText]
 }
 
 /**
@@ -4715,7 +4656,7 @@ async function saveImportedFlatBookToFirestore({
     isFlat: true,
     originalText,
     adaptedTextBlob: '', // Will accumulate adapted text
-    adaptationChunks, // Chunks to adapt (~1200 chars each)
+    adaptationChunks, // Text chunks to adapt
     adaptedChunkCount: 0,
     totalChunks: adaptationChunks.length,
     totalWords: wordCount,

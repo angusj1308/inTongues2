@@ -3070,6 +3070,33 @@ textarea {
   white-space: pre-wrap;
 }
 
+/* Chapter header styles for measurement - must match .reader-page-block styles */
+.reader-measure-container .chapter-header-structured {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-top: 4rem;
+}
+
+.reader-measure-container .chapter-header-title {
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+.reader-measure-container .chapter-header-outline {
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-size: 1rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.5;
+  max-width: 80%;
+  margin: 0 auto;
+}
+
 .reader-intensive-active .reader-body-shell {
   filter: blur(6px);
   pointer-events: none;

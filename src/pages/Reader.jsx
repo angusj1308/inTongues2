@@ -586,19 +586,36 @@ const Reader = ({ initialMode }) => {
       return
     }
 
-    const measureText = (measureDiv, text, containerHeight) => {
+    // Simple overflow check - does text fit in container?
+    const measureFits = (measureDiv, text, maxHeight) => {
       measureDiv.innerHTML = ''
       const textNode = document.createElement('div')
       textNode.className = 'page-text-measure'
       textNode.innerText = text
       measureDiv.appendChild(textNode)
-      return textNode.scrollHeight <= containerHeight
+      return textNode.scrollHeight <= maxHeight
     }
 
-    // Split text at sentence boundaries
-    const splitIntoSentences = (text) => {
-      const matches = text.match(/[^.!?]+[.!?]+\s*/g) || [text]
-      return matches.map(s => s.trim()).filter(Boolean)
+    // Measure header/outline height for first page
+    const measureHeaderHeight = (measureDiv, header, outline) => {
+      if (!header && !outline) return 0
+      measureDiv.innerHTML = ''
+      const headerDiv = document.createElement('div')
+      headerDiv.className = 'chapter-header-structured'
+      if (header) {
+        const titleDiv = document.createElement('div')
+        titleDiv.className = 'chapter-header-title'
+        titleDiv.innerText = header.toUpperCase()
+        headerDiv.appendChild(titleDiv)
+      }
+      if (outline) {
+        const outlineDiv = document.createElement('div')
+        outlineDiv.className = 'chapter-header-outline'
+        outlineDiv.innerText = outline
+        headerDiv.appendChild(outlineDiv)
+      }
+      measureDiv.appendChild(headerDiv)
+      return headerDiv.offsetHeight
     }
 
     const computePages = () => {
@@ -615,82 +632,91 @@ const Reader = ({ initialMode }) => {
         const text = chapter.adaptedText || ''
         if (!text.trim()) continue
 
-        // Split into real paragraphs (separated by \n\n)
-        const paragraphs = text.split(/\n\n+/)
-        let currentPageText = ''
-        let isFirstPageOfChapter = true
-        let midParagraph = false // Are we in the middle of a paragraph?
+        const chapterHeader = chapter.adaptedChapterHeader || null
+        const chapterOutline = chapter.adaptedChapterOutline || null
 
-        const savePage = (pageText) => {
-          if (!pageText.trim()) return
-          virtualPages.push({
-            index: globalPageIndex,
-            text: pageText,
-            adaptedText: pageText,
-            chapterIndex: chapter.index,
-            chapterTitle: isFirstPageOfChapter ? chapter.title : null,
-            chapterHeader: isFirstPageOfChapter ? (chapter.adaptedChapterHeader || null) : null,
-            chapterOutline: isFirstPageOfChapter ? (chapter.adaptedChapterOutline || null) : null,
-            isChapterStart: isFirstPageOfChapter,
-          })
-          globalPageIndex++
-          isFirstPageOfChapter = false
+        // Measure header/outline height for first page
+        const headerHeight = measureHeaderHeight(measureDiv, chapterHeader, chapterOutline)
+
+        // Split text into units (words + paragraph breaks)
+        const units = []
+        const paragraphs = text.split(/\n\n+/)
+        for (let i = 0; i < paragraphs.length; i++) {
+          if (i > 0) units.push('\n\n') // paragraph break marker
+          const words = paragraphs[i].split(/\s+/).filter(Boolean)
+          units.push(...words)
         }
 
-        for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
-          const paragraph = paragraphs[pIdx].trim()
-          if (!paragraph) continue
+        let currentPageText = ''
+        let isFirstPageOfChapter = true
+        let unitIndex = 0
 
-          // Add paragraph break before new paragraph (unless first content or mid-paragraph)
-          const needsParaBreak = currentPageText && !midParagraph
-          const testText = needsParaBreak
-            ? currentPageText + '\n\n' + paragraph
-            : (currentPageText ? currentPageText + ' ' + paragraph : paragraph)
+        while (unitIndex < units.length) {
+          const unit = units[unitIndex]
 
-          if (measureText(measureDiv, testText, containerHeight)) {
-            // Whole paragraph fits on current page
-            currentPageText = testText
-            midParagraph = false // Paragraph complete
+          // Build test text
+          let testText
+          if (unit === '\n\n') {
+            testText = currentPageText ? currentPageText + '\n\n' : ''
           } else {
-            // Paragraph doesn't fit - process sentence by sentence
-            const sentences = splitIntoSentences(paragraph)
+            testText = currentPageText ? currentPageText + ' ' + unit : unit
+          }
 
-            for (let sIdx = 0; sIdx < sentences.length; sIdx++) {
-              const sentence = sentences[sIdx]
-              const isFirstSentence = sIdx === 0
+          // Calculate available height (less on first page due to header)
+          const availableHeight = isFirstPageOfChapter
+            ? containerHeight - headerHeight
+            : containerHeight
 
-              // First sentence of new paragraph needs \n\n (unless mid-paragraph or no prior content)
-              let testWithSentence
-              if (!currentPageText) {
-                testWithSentence = sentence
-              } else if (isFirstSentence && !midParagraph) {
-                testWithSentence = currentPageText + '\n\n' + sentence
-              } else {
-                testWithSentence = currentPageText + ' ' + sentence
-              }
-
-              if (measureText(measureDiv, testWithSentence, containerHeight)) {
-                currentPageText = testWithSentence
-              } else {
-                // Save current page
-                if (currentPageText) {
-                  savePage(currentPageText)
-                }
-                // Continue paragraph on next page (no \n\n prefix - mid-paragraph)
-                currentPageText = sentence
-                midParagraph = true // We're now mid-paragraph
-              }
+          if (measureFits(measureDiv, testText, availableHeight)) {
+            // Unit fits - add it
+            if (unit === '\n\n') {
+              currentPageText = currentPageText ? currentPageText + '\n\n' : ''
+            } else {
+              currentPageText = currentPageText ? currentPageText + ' ' + unit : unit
             }
-            midParagraph = false // Finished this paragraph
+            unitIndex++
+          } else {
+            // Doesn't fit - save current page and start new one
+            if (currentPageText.trim()) {
+              virtualPages.push({
+                index: globalPageIndex,
+                text: currentPageText.trim(),
+                adaptedText: currentPageText.trim(),
+                chapterIndex: chapter.index,
+                chapterTitle: isFirstPageOfChapter ? chapter.title : null,
+                chapterHeader: isFirstPageOfChapter ? chapterHeader : null,
+                chapterOutline: isFirstPageOfChapter ? chapterOutline : null,
+                isChapterStart: isFirstPageOfChapter,
+              })
+              globalPageIndex++
+              isFirstPageOfChapter = false
+            }
+
+            // Start fresh - if unit is paragraph break, skip it at page start
+            if (unit === '\n\n') {
+              currentPageText = ''
+              unitIndex++
+            } else {
+              currentPageText = unit
+              unitIndex++
+            }
           }
         }
 
         // Save last page of chapter
-        if (currentPageText) {
-          savePage(currentPageText)
+        if (currentPageText.trim()) {
+          virtualPages.push({
+            index: globalPageIndex,
+            text: currentPageText.trim(),
+            adaptedText: currentPageText.trim(),
+            chapterIndex: chapter.index,
+            chapterTitle: isFirstPageOfChapter ? chapter.title : null,
+            chapterHeader: isFirstPageOfChapter ? chapterHeader : null,
+            chapterOutline: isFirstPageOfChapter ? chapterOutline : null,
+            isChapterStart: isFirstPageOfChapter,
+          })
+          globalPageIndex++
         }
-        currentPageText = ''
-        midParagraph = false
       }
 
       setPages(virtualPages)

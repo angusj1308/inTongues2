@@ -2943,16 +2943,16 @@ textarea {
 
 .reader-pages {
   width: 100%;
-  /* Fixed height for consistent page sizing - text fills to bottom */
-  height: calc(100vh - 200px);
-  min-height: 400px;
+  /* Fixed page height for book-like experience - matches pagination measurement */
+  height: 800px;
 }
 
 .reader-spread {
-  max-width: 1240px;
+  /* Fixed spread width for book-like experience - (596px * 2) + 48px gap = 1240px */
+  width: 1240px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 596px 596px;
   column-gap: 3rem;
   align-items: stretch;
   height: 100%;
@@ -3097,14 +3097,15 @@ textarea {
 }
 
 /* Hidden container for measuring text to compute client-side pagination */
+/* Uses FIXED dimensions for consistent pagination regardless of viewport */
 .reader-measure-container {
   position: absolute;
   visibility: hidden;
   pointer-events: none;
-  /* Match the page container dimensions and styling */
-  width: calc(50% - 1.5rem); /* Half of spread width minus gap */
-  max-width: 600px;
-  height: calc(100vh - 200px); /* Approximate page height */
+  /* Fixed page dimensions - matches reader spread layout */
+  /* Spread: 1240px max-width, 48px gap = (1240-48)/2 = 596px per page */
+  width: 596px;
+  height: 800px;
   overflow: hidden;
   padding: 4rem 2.5rem 3rem 4rem;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);

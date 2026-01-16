@@ -78,10 +78,16 @@ const Reader = ({ initialMode }) => {
   const { id, language: languageParam } = useParams()
   const { user, profile } = useAuth()
 
-  const [pages, setPages] = useState([])
+  // Client-side pagination state
+  const [chapters, setChapters] = useState([])
+  const [pages, setPages] = useState([]) // Virtual pages computed from chapters
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [paginationReady, setPaginationReady] = useState(false)
+  const measureRef = useRef(null) // Hidden div for measuring text overflow
+  const pageContainerRef = useRef(null) // Visible page container
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [currentIndex, setCurrentIndex] = useState(0)
   const [voiceGender, setVoiceGender] = useState('male')
   const [popup, setPopup] = useState(null)
   const [vocabEntries, setVocabEntries] = useState({})
@@ -515,34 +521,200 @@ const Reader = ({ initialMode }) => {
 
   useEffect(() => {
     if (!user || !id) {
+      setChapters([])
       setPages([])
       setLoading(false)
       return undefined
     }
 
-    const loadPages = async () => {
+    const loadContent = async () => {
       setLoading(true)
+      setPaginationReady(false)
       try {
-        const pagesRef = collection(db, 'users', user.uid, 'stories', id, 'pages')
-        const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
-        const snapshot = await getDocs(pagesQuery)
-        const nextPages = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        setPages(nextPages)
+        // First check if this is a flat book (no chapters)
+        const storyRef = doc(db, 'users', user.uid, 'stories', id)
+        const storySnap = await getDoc(storyRef)
+
+        if (!storySnap.exists()) {
+          setError('Story not found')
+          setLoading(false)
+          return
+        }
+
+        const storyData = storySnap.data() || {}
+
+        if (storyData.isFlat) {
+          // Flat book - create virtual chapter from adaptedTextBlob
+          const flatChapter = {
+            id: 'flat-0',
+            index: 0,
+            title: storyData.title || 'Untitled',
+            adaptedText: storyData.adaptedTextBlob || '',
+            adaptedChapterHeader: storyData.chapterHeader || null,
+            adaptedChapterOutline: storyData.chapterOutline || null,
+          }
+          setChapters([flatChapter])
+        } else {
+          // Chapter-based book - load from chapters collection
+          const chaptersRef = collection(db, 'users', user.uid, 'stories', id, 'chapters')
+          const chaptersQuery = query(chaptersRef, orderBy('index', 'asc'))
+          const snapshot = await getDocs(chaptersQuery)
+          const loadedChapters = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }))
+          setChapters(loadedChapters)
+        }
         setError('')
       } catch (loadError) {
         console.error(loadError)
-        setError('Unable to load story pages right now.')
+        setError('Unable to load story content right now.')
       } finally {
         setLoading(false)
       }
     }
 
-    loadPages()
+    loadContent()
     return undefined
   }, [id, language, user])
+
+  // Compute page breaks based on what fits in the container
+  useEffect(() => {
+    if (!chapters.length || loading || !measureRef.current || !pageContainerRef.current) {
+      return
+    }
+
+    const measureText = (measureDiv, text, containerHeight) => {
+      measureDiv.innerHTML = ''
+      const textNode = document.createElement('div')
+      textNode.className = 'page-text-measure'
+      textNode.innerText = text
+      measureDiv.appendChild(textNode)
+      return textNode.scrollHeight <= containerHeight
+    }
+
+    // Split text at sentence boundaries for when a paragraph is too long
+    const splitIntoSentences = (text) => {
+      const matches = text.match(/[^.!?]+[.!?]+\s*/g) || [text]
+      return matches.map(s => s.trim()).filter(Boolean)
+    }
+
+    const computePages = () => {
+      const measureDiv = measureRef.current
+      const containerDiv = pageContainerRef.current
+      if (!measureDiv || !containerDiv) return
+
+      // Get the available height from the container
+      const containerHeight = containerDiv.clientHeight
+      if (containerHeight === 0) return // Not rendered yet
+
+      const virtualPages = []
+      let globalPageIndex = 0
+
+      for (const chapter of chapters) {
+        const text = chapter.adaptedText || ''
+        if (!text.trim()) continue
+
+        // Split text into paragraphs to find natural break points
+        const paragraphs = text.split(/\n\n+/)
+        let currentPageText = ''
+        let isFirstPageOfChapter = true
+
+        const savePage = (pageText) => {
+          if (!pageText.trim()) return
+          virtualPages.push({
+            index: globalPageIndex,
+            text: pageText,
+            adaptedText: pageText,
+            chapterIndex: chapter.index,
+            chapterTitle: isFirstPageOfChapter ? chapter.title : null,
+            chapterHeader: isFirstPageOfChapter ? (chapter.adaptedChapterHeader || null) : null,
+            chapterOutline: isFirstPageOfChapter ? (chapter.adaptedChapterOutline || null) : null,
+            isChapterStart: isFirstPageOfChapter,
+          })
+          globalPageIndex++
+          isFirstPageOfChapter = false
+        }
+
+        for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+          const paragraph = paragraphs[pIdx].trim()
+          if (!paragraph) continue
+
+          // Try adding this paragraph to current page
+          const testText = currentPageText
+            ? currentPageText + '\n\n' + paragraph
+            : paragraph
+
+          if (measureText(measureDiv, testText, containerHeight)) {
+            // Fits - add to current page
+            currentPageText = testText
+          } else if (currentPageText) {
+            // Doesn't fit and we have content - save current page
+            savePage(currentPageText)
+
+            // Check if paragraph alone fits
+            if (measureText(measureDiv, paragraph, containerHeight)) {
+              currentPageText = paragraph
+            } else {
+              // Paragraph too long - split by sentences
+              const sentences = splitIntoSentences(paragraph)
+              currentPageText = ''
+              for (const sentence of sentences) {
+                const sentenceTest = currentPageText
+                  ? currentPageText + ' ' + sentence
+                  : sentence
+                if (measureText(measureDiv, sentenceTest, containerHeight)) {
+                  currentPageText = sentenceTest
+                } else {
+                  if (currentPageText) savePage(currentPageText)
+                  currentPageText = sentence
+                }
+              }
+            }
+          } else {
+            // First content doesn't fit - split by sentences
+            const sentences = splitIntoSentences(paragraph)
+            for (const sentence of sentences) {
+              const sentenceTest = currentPageText
+                ? currentPageText + ' ' + sentence
+                : sentence
+              if (measureText(measureDiv, sentenceTest, containerHeight)) {
+                currentPageText = sentenceTest
+              } else {
+                if (currentPageText) savePage(currentPageText)
+                currentPageText = sentence
+              }
+            }
+          }
+        }
+
+        // Don't forget the last page of the chapter
+        savePage(currentPageText)
+        currentPageText = ''
+      }
+
+      setPages(virtualPages)
+      setPaginationReady(true)
+    }
+
+    // Small delay to ensure container is properly sized
+    const timer = setTimeout(computePages, 100)
+    return () => clearTimeout(timer)
+  }, [chapters, loading])
+
+  // Recompute pages on window resize
+  useEffect(() => {
+    if (!chapters.length) return
+
+    const handleResize = () => {
+      setPaginationReady(false)
+      // Trigger recomputation by updating a dependency
+      setPages([])
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [chapters])
 
   useEffect(() => {
     if (!user || !id) {
@@ -1851,7 +2023,14 @@ const Reader = ({ initialMode }) => {
           </header>
         </div>
         <div className="reader-body-shell">
-          {loading ? (
+          {/* Hidden measuring div for client-side pagination */}
+          <div
+            ref={measureRef}
+            className="reader-measure-container"
+            aria-hidden="true"
+          />
+
+          {loading || (chapters.length > 0 && !paginationReady) ? (
             <p className="muted">Loading pages...</p>
           ) : error ? (
             <p className="error">{error}</p>
@@ -1868,7 +2047,7 @@ const Reader = ({ initialMode }) => {
                   onClick={() => handleEdgeNavigation('previous')}
                 />
 
-                <div className={`reader-pages ${displayMode === 'assisted' ? 'reader-single' : 'reader-spread'}`}>
+                <div ref={pageContainerRef} className={`reader-pages ${displayMode === 'assisted' ? 'reader-single' : 'reader-spread'}`}>
                   {visiblePages.map((page, pageIndex) => {
                     const pageNumber = (page.index ?? pages.indexOf(page)) + 1
                     const isLeftPage = pageIndex % 2 === 0

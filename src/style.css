@@ -2897,6 +2897,9 @@ textarea {
 
 .reader-pages {
   width: 100%;
+  /* Fixed height for consistent page sizing - text fills to bottom */
+  height: calc(100vh - 200px);
+  min-height: 400px;
 }
 
 .reader-spread {
@@ -2906,6 +2909,7 @@ textarea {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 3rem;
   align-items: stretch;
+  height: 100%;
 }
 
 /* Assisted mode - single page, larger font */
@@ -3044,6 +3048,26 @@ textarea {
 
 .reader-body-shell {
   position: relative;
+}
+
+/* Hidden container for measuring text to compute client-side pagination */
+.reader-measure-container {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  /* Match the page container dimensions and styling */
+  width: calc(50% - 1.5rem); /* Half of spread width minus gap */
+  max-width: 600px;
+  height: calc(100vh - 200px); /* Approximate page height */
+  overflow: hidden;
+  padding: 4rem 2.5rem 3rem 4rem;
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-size: var(--reader-font-size, 1rem);
+  line-height: 1.75;
+}
+
+.reader-measure-container .page-text-measure {
+  white-space: pre-wrap;
 }
 
 .reader-intensive-active .reader-body-shell {

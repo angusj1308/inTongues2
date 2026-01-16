@@ -580,7 +580,7 @@ const Reader = ({ initialMode }) => {
 
   // Compute page breaks based on what fits in the container
   useEffect(() => {
-    if (!chapters.length || loading || !measureRef.current || !pageContainerRef.current) {
+    if (!chapters.length || loading || !measureRef.current) {
       return
     }
 
@@ -601,11 +601,10 @@ const Reader = ({ initialMode }) => {
 
     const computePages = () => {
       const measureDiv = measureRef.current
-      const containerDiv = pageContainerRef.current
-      if (!measureDiv || !containerDiv) return
+      if (!measureDiv) return
 
-      // Get the available height from the container
-      const containerHeight = containerDiv.clientHeight
+      // Use the measure container's height (matches page container via CSS)
+      const containerHeight = measureDiv.clientHeight
       if (containerHeight === 0) return // Not rendered yet
 
       const virtualPages = []
@@ -697,8 +696,25 @@ const Reader = ({ initialMode }) => {
       setPaginationReady(true)
     }
 
+    // Retry logic in case container isn't sized yet
+    let attempts = 0
+    const maxAttempts = 10
+    const tryCompute = () => {
+      const measureDiv = measureRef.current
+      if (!measureDiv || measureDiv.clientHeight === 0) {
+        attempts++
+        if (attempts < maxAttempts) {
+          setTimeout(tryCompute, 100)
+        } else {
+          console.warn('Could not get container height after', maxAttempts, 'attempts')
+        }
+        return
+      }
+      computePages()
+    }
+
     // Small delay to ensure container is properly sized
-    const timer = setTimeout(computePages, 100)
+    const timer = setTimeout(tryCompute, 100)
     return () => clearTimeout(timer)
   }, [chapters, loading])
 

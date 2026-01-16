@@ -4428,7 +4428,9 @@ function splitTextIntoAdaptationChunks(text) {
 
 /**
  * Split text into pages of approximately targetCharCount characters.
- * Preserves paragraph breaks and tries to break at sentence boundaries.
+ * Prioritizes consistent page length like a real book.
+ * Pages end at paragraph breaks only if they fall naturally near the target.
+ * Otherwise, pages fill to the target and break at word boundaries.
  * @param {string} text - The text to split
  * @param {number} targetCharCount - Target characters per page (default ~1400, roughly 250 words)
  * @returns {string[]} Array of page texts with preserved paragraph markers
@@ -4449,45 +4451,30 @@ function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
       break
     }
 
-    // Look for a good break point around the target (90-105% for tighter consistency)
-    const searchStart = Math.floor(targetCharCount * 0.90)
-    const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.05))
-    const searchWindow = remaining.slice(searchStart, searchEnd)
-
     let breakPoint = -1
 
-    // Priority 1: Sentence boundary (for consistent page lengths)
-    const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', ".' ", "?' ", "!' ", '.\n', '?\n', '!\n']
-    let bestSentenceEnd = -1
-    for (const ender of sentenceEnders) {
-      const pos = searchWindow.lastIndexOf(ender)
-      if (pos > bestSentenceEnd) {
-        bestSentenceEnd = pos
-      }
-    }
-    if (bestSentenceEnd !== -1) {
-      breakPoint = searchStart + bestSentenceEnd + 1 // After the punctuation
-      // Skip the space/newline after punctuation
-      if (breakPoint < remaining.length && /\s/.test(remaining[breakPoint])) {
-        breakPoint++
-      }
+    // Priority 1: Paragraph break near target (85-100% of target)
+    // If a paragraph naturally ends close to our target, use that as a clean break
+    const earlyBreakStart = Math.floor(targetCharCount * 0.85)
+    const paragraphWindow = remaining.slice(earlyBreakStart, targetCharCount)
+    const paragraphBreak = paragraphWindow.lastIndexOf('\n\n')
+
+    if (paragraphBreak !== -1) {
+      // Natural paragraph ending near target - use it
+      breakPoint = earlyBreakStart + paragraphBreak + 2
     }
 
-    // Priority 2: Paragraph break (if no sentence found in tight window)
+    // Priority 2: Fill to target and break at word boundary (like a real book)
+    // Text continues across pages regardless of sentence boundaries
     if (breakPoint === -1) {
-      const paragraphBreak = searchWindow.lastIndexOf('\n\n')
-      if (paragraphBreak !== -1) {
-        breakPoint = searchStart + paragraphBreak + 2 // After the paragraph break
-      }
-    }
+      // Find the last space at or before the target
+      const searchEnd = Math.min(remaining.length, targetCharCount)
+      const lastSpace = remaining.lastIndexOf(' ', searchEnd)
 
-    // Priority 3: Word boundary (fallback) - search wider window
-    if (breakPoint === -1) {
-      const widerWindow = remaining.slice(Math.floor(targetCharCount * 0.8), Math.floor(targetCharCount * 1.1))
-      const lastSpace = widerWindow.lastIndexOf(' ')
-      if (lastSpace !== -1) {
-        breakPoint = Math.floor(targetCharCount * 0.8) + lastSpace + 1
+      if (lastSpace > earlyBreakStart) {
+        breakPoint = lastSpace + 1
       } else {
+        // No space found in reasonable range - just break at target
         breakPoint = targetCharCount
       }
     }

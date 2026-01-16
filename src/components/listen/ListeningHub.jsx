@@ -27,6 +27,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [youtubeVideos, setYoutubeVideos] = useState([])
+  const [showImportPanel, setShowImportPanel] = useState(false)
   const [spotifyConnected, setSpotifyConnected] = useState(false)
   const [spotifyLoading, setSpotifyLoading] = useState(false)
   const [spotifyError, setSpotifyError] = useState('')
@@ -527,6 +528,54 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           </div>
         )}
 
+        {/* Action Cards Row */}
+        <div className="home-grid-three">
+          {/* Card 1: Import (YouTube) */}
+          <button
+            className="home-card reading-action-card"
+            onClick={() => setShowImportPanel(true)}
+          >
+            <div className="reading-card-icon-placeholder" />
+            <h3 className="home-card-title">Import</h3>
+            <p className="reading-card-description">
+              Import YouTube videos with subtitles to practice listening comprehension.
+            </p>
+          </button>
+
+          {/* Divider */}
+          <div className="home-grid-divider" />
+
+          {/* Card 2: Browse (Spotify) */}
+          <button
+            className="home-card reading-action-card"
+            onClick={handleConnectSpotify}
+          >
+            <div className="reading-card-icon-placeholder" />
+            <h3 className="home-card-title">Browse</h3>
+            <p className="reading-card-description">
+              Browse and import songs from Spotify to study lyrics in your target language.
+            </p>
+          </button>
+
+          {/* Divider */}
+          <div className="home-grid-divider" />
+
+          {/* Card 3: Stream (Netflix/Chrome Extension) */}
+          <button
+            className="home-card reading-action-card"
+            onClick={() => window.open('https://chrome.google.com/webstore', '_blank')}
+          >
+            <div className="reading-card-icon-placeholder" />
+            <h3 className="home-card-title">Stream</h3>
+            <p className="reading-card-description">
+              Install our Chrome extension to learn while streaming Netflix and other platforms.
+            </p>
+          </button>
+        </div>
+
+        {/* Horizontal Divider */}
+        <div className="home-row-divider" />
+
         <div className="section listening-audiobooks">
           <div className="section-header">
             <h3>Audiobooks</h3>
@@ -879,6 +928,23 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             </div>
           </div>
         </div>
+
+        {showImportPanel && (
+          <div className="modal-backdrop">
+            <div className="modal-card">
+              <div className="section-header" style={{ alignItems: 'flex-start' }}>
+                <div>
+                  <h3>Import YouTube Video</h3>
+                  <p className="muted small">Paste a YouTube URL to import a video with subtitles.</p>
+                </div>
+                <button className="button ghost" type="button" onClick={() => setShowImportPanel(false)}>
+                  Close
+                </button>
+              </div>
+              <ImportYouTubePanel headingLevel="h4" layout="inline" onSuccess={() => setShowImportPanel(false)} />
+            </div>
+          </div>
+        )}
 
         {showCreatePlaylist && (
           <div className="modal-backdrop">

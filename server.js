@@ -5453,112 +5453,16 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
     }
 
-    // All chapters adapted - now re-chunk into character-based pages
-    console.log('All chapters adapted, re-chunking into character-based pages...')
+    // All chapters adapted - pagination now handled client-side
+    console.log('All chapters adapted. Client-side pagination will handle page breaks.')
 
-    // Collect all adapted text from chapters in order
-    const updatedChaptersSnap = await chaptersRef.orderBy('index').get()
-    let globalPageIndex = 0
-    const pagesRef = storyRef.collection('pages')
-
-    // Delete any existing pages (in case of re-adaptation)
-    const existingPagesSnap = await pagesRef.get()
-    for (const pageDoc of existingPagesSnap.docs) {
-      await pageDoc.ref.delete()
-    }
-
-    const normalPageCharLimit = 1400
-
-    // Process each chapter and create pages
-    for (const chapterDoc of updatedChaptersSnap.docs) {
-      const chapterData = chapterDoc.data() || {}
-      const {
-        adaptedText,
-        index: chapterIndex,
-        title: chapterTitle,
-        adaptedChapterHeader,
-        adaptedChapterOutline,
-      } = chapterData
-
-      if (!adaptedText || !adaptedText.trim()) {
-        continue
-      }
-
-      // Record page offset for this chapter
-      const chapterPageOffset = globalPageIndex
-      await chapterDoc.ref.update({ pageOffset: chapterPageOffset })
-
-      // Calculate first page char reduction based on header/outline
-      const headerChars = adaptedChapterHeader ? adaptedChapterHeader.length : 0
-      const outlineChars = adaptedChapterOutline ? adaptedChapterOutline.length : 0
-      const headerOutlineChars = headerChars + outlineChars
-
-      // First page gets reduced chars if there's a header/outline
-      const firstPageCharLimit = headerOutlineChars > 0
-        ? Math.max(400, normalPageCharLimit - Math.ceil(headerOutlineChars * 1.8))
-        : normalPageCharLimit
-
-      // Split chapter's adapted text into character-based pages
-      let chapterPages = []
-      if (headerOutlineChars > 0 && adaptedText.length > firstPageCharLimit) {
-        // Find good break point for first page
-        let breakPoint = firstPageCharLimit
-        const searchWindow = adaptedText.slice(Math.floor(firstPageCharLimit * 0.7), firstPageCharLimit)
-        const paraBreak = searchWindow.lastIndexOf('\n\n')
-        if (paraBreak !== -1) {
-          breakPoint = Math.floor(firstPageCharLimit * 0.7) + paraBreak
-        } else {
-          const sentenceEnd = Math.max(
-            searchWindow.lastIndexOf('. '),
-            searchWindow.lastIndexOf('? '),
-            searchWindow.lastIndexOf('! ')
-          )
-          if (sentenceEnd !== -1) {
-            breakPoint = Math.floor(firstPageCharLimit * 0.7) + sentenceEnd + 2
-          }
-        }
-        chapterPages.push(adaptedText.slice(0, breakPoint).trim())
-        const remainingText = adaptedText.slice(breakPoint).trim()
-        chapterPages = chapterPages.concat(splitTextIntoPagesCharBased(remainingText, normalPageCharLimit))
-      } else {
-        chapterPages = splitTextIntoPagesCharBased(adaptedText, normalPageCharLimit)
-      }
-
-      console.log(`Chapter ${chapterIndex} split into ${chapterPages.length} pages (starting at page ${globalPageIndex})`)
-
-      // Save each page
-      for (let i = 0; i < chapterPages.length; i++) {
-        const pageText = chapterPages[i]
-        const isFirstPageOfChapter = i === 0
-
-        await pagesRef.doc(String(globalPageIndex)).set({
-          index: globalPageIndex,
-          text: pageText,
-          adaptedText: pageText, // Already adapted
-          originalText: pageText,
-          status: 'done',
-          chapterIndex,
-          chapterTitle: isFirstPageOfChapter ? chapterTitle : null,
-          // Include adapted structure for TXT chapters (for display formatting)
-          chapterHeader: isFirstPageOfChapter ? (adaptedChapterHeader || null) : null,
-          chapterOutline: isFirstPageOfChapter ? (adaptedChapterOutline || null) : null,
-          isChapterStart: isFirstPageOfChapter,
-          audioUrl: null,
-          audioStatus: 'pending',
-        })
-
-        globalPageIndex += 1
-      }
-    }
-
-    // Update story with final page count
+    // Update story status
     await storyRef.update({
       status: 'ready',
-      pageCount: globalPageIndex,
       adaptedChapters: completedChapters,
     })
 
-    console.log(`EPUB adaptation complete: ${globalPageIndex} pages across ${completedChapters} chapters`)
+    console.log(`Adaptation complete: ${completedChapters} chapters`)
 
     // Trigger audio generation if requested
     if (generateAudio) {
@@ -5574,7 +5478,6 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
     return res.json({
       success: true,
       storyId,
-      pageCount: globalPageIndex,
       chapterCount: completedChapters,
     })
   } catch (error) {
@@ -5708,86 +5611,13 @@ app.post('/api/adapt-flat-book', async (req, res) => {
       }
     }
 
-    const pagesRef = storyRef.collection('pages')
+    // Adaptation complete - pagination now handled client-side
+    console.log('Flat book adaptation complete. Client-side pagination will handle page breaks.')
 
-    // Delete any existing pages
-    const existingPagesSnap = await pagesRef.get()
-    for (const pageDoc of existingPagesSnap.docs) {
-      await pageDoc.ref.delete()
-    }
-
-    // Calculate first page character reduction based on header/outline length
-    // Header/outline take visual space - estimate ~8 chars per word including spaces
-    const headerChars = chapterHeader ? chapterHeader.length : 0
-    const outlineChars = chapterOutline ? chapterOutline.length : 0
-    const headerOutlineChars = headerChars + outlineChars
-
-    // Normal page is ~1400 chars. First page gets reduced to account for header/outline visual space
-    // Header/outline displayed larger, so multiply by ~1.8 for visual space estimate
-    const normalPageCharLimit = 1400
-    const firstPageCharLimit = Math.max(400, normalPageCharLimit - Math.ceil(headerOutlineChars * 1.8))
-
-    // Custom split: first page with reduced chars, rest with normal count
-    let displayPages = []
-
-    if (headerOutlineChars > 0 && bodyText.length > firstPageCharLimit) {
-      // Find a good break point for first page (sentence or paragraph boundary)
-      let breakPoint = firstPageCharLimit
-      const searchWindow = bodyText.slice(Math.floor(firstPageCharLimit * 0.7), firstPageCharLimit)
-
-      // Look for paragraph break first
-      const paraBreak = searchWindow.lastIndexOf('\n\n')
-      if (paraBreak !== -1) {
-        breakPoint = Math.floor(firstPageCharLimit * 0.7) + paraBreak
-      } else {
-        // Look for sentence boundary
-        const sentenceEnd = Math.max(
-          searchWindow.lastIndexOf('. '),
-          searchWindow.lastIndexOf('? '),
-          searchWindow.lastIndexOf('! ')
-        )
-        if (sentenceEnd !== -1) {
-          breakPoint = Math.floor(firstPageCharLimit * 0.7) + sentenceEnd + 2
-        }
-      }
-
-      displayPages.push(bodyText.slice(0, breakPoint).trim())
-      const remainingText = bodyText.slice(breakPoint).trim()
-      const remainingPages = splitTextIntoPagesCharBased(remainingText, normalPageCharLimit)
-      displayPages = displayPages.concat(remainingPages)
-    } else {
-      // No header/outline, use normal character-based splitting
-      displayPages = splitTextIntoPagesCharBased(bodyText, normalPageCharLimit)
-    }
-
-    console.log(`Split into ${displayPages.length} display pages (first page: ${firstPageCharLimit} chars)`)
-
-    // Save each page - first page gets header/outline for display
-    for (let i = 0; i < displayPages.length; i++) {
-      const pageText = displayPages[i]
-      const isFirstPage = i === 0
-
-      await pagesRef.doc(String(i)).set({
-        index: i,
-        text: pageText,
-        adaptedText: pageText,
-        originalText: pageText,
-        status: 'done',
-        chapterHeader: isFirstPage ? (chapterHeader || null) : null,
-        chapterOutline: isFirstPage ? (chapterOutline || null) : null,
-        isChapterStart: isFirstPage,
-        audioUrl: null,
-        audioStatus: 'pending',
-      })
-    }
-
-    // Update story with final page count
+    // Update story status
     await storyRef.update({
       status: 'ready',
-      pageCount: displayPages.length,
     })
-
-    console.log(`Flat book adaptation complete: ${displayPages.length} pages`)
 
     // Trigger audio generation if requested
     if (generateAudio) {
@@ -5803,7 +5633,6 @@ app.post('/api/adapt-flat-book', async (req, res) => {
     return res.json({
       success: true,
       storyId,
-      pageCount: displayPages.length,
       isFlat: true,
     })
   } catch (error) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc } from 'firebase/firestore'
+import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore'
+import { computePagesWithFontLoading } from '../utils/pagination'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
 import WritingHub from '../components/write/WritingHub'
@@ -236,16 +237,19 @@ const BookGrid = ({
         {books.map((book) => {
           const progress = Math.max(0, Math.min(100, book.progress || 0))
           const titleText = getStoryTitle ? getStoryTitle(book) : book.title
+          const isReady = book.status === 'ready'
+          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending'
+          const canClick = isReady && onBookClick
 
           return (
             <div
               key={book.id || book.title}
-              className="book-tile"
-              role={onBookClick ? 'button' : undefined}
-              tabIndex={onBookClick ? 0 : undefined}
-              onClick={onBookClick ? () => onBookClick(book) : undefined}
+              className={`book-tile ${isProcessing ? 'book-tile--processing' : ''}`}
+              role={canClick ? 'button' : undefined}
+              tabIndex={canClick ? 0 : undefined}
+              onClick={canClick ? () => onBookClick(book) : undefined}
               onKeyDown={
-                onBookClick
+                canClick
                   ? (event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         onBookClick(book)
@@ -254,7 +258,16 @@ const BookGrid = ({
                   : undefined
               }
             >
-              <div className="book-tile-cover" />
+              <div className="book-tile-cover">
+                {isProcessing && (
+                  <div className="book-tile-processing-overlay">
+                    <div className="book-tile-spinner" />
+                    <span className="book-tile-processing-text">
+                      {book.status === 'adapting' ? 'Adapting...' : 'Processing...'}
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="book-tile-title">{titleText}</div>
               <div className="book-tile-meta ui-text">
                 {book.language || 'Unknown language'}
@@ -444,6 +457,100 @@ const Dashboard = () => {
 
     return unsubscribe
   }, [activeLanguage, user])
+
+  // Ref for pagination measurement container
+  const paginationMeasureRef = useRef(null)
+  // Track which books are currently being paginated to avoid duplicates
+  const paginatingBooksRef = useRef(new Set())
+
+  // Background pagination for books with status 'paginating'
+  useEffect(() => {
+    if (!user || !items.length || !paginationMeasureRef.current) return
+
+    const paginatingBooks = items.filter(
+      (item) => item.status === 'paginating' && !paginatingBooksRef.current.has(item.id)
+    )
+
+    if (!paginatingBooks.length) return
+
+    const runPagination = async (book) => {
+      // Mark as being processed
+      paginatingBooksRef.current.add(book.id)
+
+      try {
+        console.log(`Starting pagination for book: ${book.title} (${book.id})`)
+
+        // Load chapters for this book
+        let chapters = []
+        if (book.isFlat) {
+          // Flat book - create virtual chapter from adaptedTextBlob
+          chapters = [{
+            id: 'flat-0',
+            index: 0,
+            title: book.title || 'Untitled',
+            adaptedText: book.adaptedTextBlob || '',
+            adaptedChapterHeader: book.adaptedChapterHeader || book.chapterHeader || null,
+            adaptedChapterOutline: book.adaptedChapterOutline || book.chapterOutline || null,
+          }]
+        } else {
+          // Chapter-based book - load from chapters collection
+          const chaptersRef = collection(db, 'users', user.uid, 'stories', book.id, 'chapters')
+          const chaptersQuery = query(chaptersRef, orderBy('index', 'asc'))
+          const snapshot = await getDocs(chaptersQuery)
+          chapters = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }))
+        }
+
+        if (!chapters.length || !chapters.some((c) => c.adaptedText?.trim())) {
+          console.warn(`No content to paginate for book: ${book.id}`)
+          paginatingBooksRef.current.delete(book.id)
+          return
+        }
+
+        // Compute pages using the measurement container
+        const pages = await computePagesWithFontLoading(chapters, paginationMeasureRef.current)
+
+        if (!pages.length) {
+          console.warn(`Pagination produced no pages for book: ${book.id}`)
+          paginatingBooksRef.current.delete(book.id)
+          return
+        }
+
+        console.log(`Computed ${pages.length} pages for book: ${book.title}`)
+
+        // Store pages in Firestore using batch write
+        const batch = writeBatch(db)
+        const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
+
+        // Write each page to the pages subcollection
+        pages.forEach((page) => {
+          const pageRef = doc(db, 'users', user.uid, 'stories', book.id, 'pages', String(page.index))
+          batch.set(pageRef, page)
+        })
+
+        // Update book status to 'ready' and store page count
+        batch.update(storyRef, {
+          status: 'ready',
+          pageCount: pages.length,
+        })
+
+        await batch.commit()
+        console.log(`Pagination complete for book: ${book.title} - ${pages.length} pages stored`)
+
+      } catch (error) {
+        console.error(`Pagination failed for book ${book.id}:`, error)
+      } finally {
+        paginatingBooksRef.current.delete(book.id)
+      }
+    }
+
+    // Process paginating books (one at a time to avoid overloading)
+    paginatingBooks.forEach((book) => {
+      runPagination(book)
+    })
+  }, [items, user])
 
   // Load review deck counts
   useEffect(() => {
@@ -726,8 +833,15 @@ const Dashboard = () => {
     : 'Your next read will appear here.'
 
   return (
-    <DashboardLayout activeTab={activeTab} onTabChange={handleTabClick}>
-      <div className="tab-panel">
+    <>
+      {/* Hidden measurement container for background pagination */}
+      <div
+        ref={paginationMeasureRef}
+        className="reader-measure-container"
+        aria-hidden="true"
+      />
+      <DashboardLayout activeTab={activeTab} onTabChange={handleTabClick}>
+        <div className="tab-panel">
         <div
           className={`tab-panel-inner ${
             slideDirection === 'right'
@@ -1262,7 +1376,8 @@ const Dashboard = () => {
           }}
         />
       )}
-    </DashboardLayout>
+      </DashboardLayout>
+    </>
   )
 }
 

@@ -22,6 +22,7 @@ import {
   toLanguageLabel,
 } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
+import { waitForFonts } from '../utils/pagination'
 
 const themeOptions = [
   {
@@ -543,6 +544,29 @@ const Reader = ({ initialMode }) => {
 
         const storyData = storySnap.data() || {}
 
+        // Check if pre-computed pages exist
+        const pagesRef = collection(db, 'users', user.uid, 'stories', id, 'pages')
+        const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
+        const pagesSnapshot = await getDocs(pagesQuery)
+
+        if (pagesSnapshot.docs.length > 0) {
+          // Pre-computed pages exist - load them directly
+          const loadedPages = pagesSnapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }))
+          console.log(`Loaded ${loadedPages.length} pre-computed pages`)
+          setPages(loadedPages)
+          setPaginationReady(true)
+          setChapters([]) // Clear chapters since we don't need them for pagination
+          setError('')
+          setLoading(false)
+          return
+        }
+
+        // No pre-computed pages - fall back to loading chapters for on-the-fly pagination
+        console.log('No pre-computed pages found, falling back to chapter-based pagination')
+
         if (storyData.isFlat) {
           // Flat book - create virtual chapter from adaptedTextBlob
           // Use translated header/outline (adaptedChapterHeader/adaptedChapterOutline)
@@ -580,9 +604,10 @@ const Reader = ({ initialMode }) => {
     return undefined
   }, [id, language, user])
 
-  // Compute page breaks based on what fits in the container
+  // Compute page breaks based on what fits in the container (fallback for books without pre-computed pages)
   useEffect(() => {
-    if (!chapters.length || loading || !measureRef.current) {
+    // Skip if pages are already loaded (pre-computed) or no chapters to paginate
+    if (paginationReady || !chapters.length || loading || !measureRef.current) {
       return
     }
 
@@ -735,10 +760,10 @@ const Reader = ({ initialMode }) => {
       setPaginationReady(true)
     }
 
-    // Retry logic in case container isn't sized yet
+    // Retry logic in case container isn't sized yet, with font loading
     let attempts = 0
     const maxAttempts = 10
-    const tryCompute = () => {
+    const tryCompute = async () => {
       const measureDiv = measureRef.current
       if (!measureDiv || measureDiv.clientHeight === 0) {
         attempts++
@@ -749,27 +774,18 @@ const Reader = ({ initialMode }) => {
         }
         return
       }
+      // Wait for fonts to load before computing pages
+      await waitForFonts()
       computePages()
     }
 
     // Small delay to ensure container is properly sized
     const timer = setTimeout(tryCompute, 100)
     return () => clearTimeout(timer)
-  }, [chapters, loading])
+  }, [chapters, loading, paginationReady])
 
-  // Recompute pages on window resize
-  useEffect(() => {
-    if (!chapters.length) return
-
-    const handleResize = () => {
-      setPaginationReady(false)
-      // Trigger recomputation by updating a dependency
-      setPages([])
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [chapters])
+  // Note: Window resize no longer triggers re-pagination since pages have fixed dimensions
+  // Pre-computed pages are loaded from Firestore and don't change with window size
 
   useEffect(() => {
     if (!user || !id) {

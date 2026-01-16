@@ -5473,12 +5473,12 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
     }
 
-    // All chapters adapted - pagination now handled client-side
-    console.log('All chapters adapted. Client-side pagination will handle page breaks.')
+    // All chapters adapted - pagination will be computed client-side on Dashboard
+    console.log('All chapters adapted. Waiting for client-side pagination.')
 
-    // Update story status
+    // Update story status to 'paginating' - client will compute pages and set 'ready'
     await storyRef.update({
-      status: 'ready',
+      status: 'paginating',
       adaptedChapters: completedChapters,
     })
 
@@ -5672,11 +5672,11 @@ app.post('/api/adapt-flat-book', async (req, res) => {
 
     // All chunks adapted - structure was already parsed at import time
     // Header/outline were translated at the start, body paragraphs were adapted above
-    console.log('Flat book adaptation complete. Structure was pre-parsed at import, pagination handled client-side.')
+    console.log('Flat book adaptation complete. Waiting for client-side pagination.')
 
-    // Update story status
+    // Update story status to 'paginating' - client will compute pages and set 'ready'
     await storyRef.update({
-      status: 'ready',
+      status: 'paginating',
     })
 
     // Trigger audio generation if requested

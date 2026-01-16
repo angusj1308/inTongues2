@@ -1471,6 +1471,52 @@ textarea {
   height: 44px;
   border-radius: 8px;
   background: #e7e5e4;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Processing state for books that are adapting or paginating */
+.book-tile--processing {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.book-tile--processing:hover {
+  transform: none;
+  border-color: #e7e5e4;
+}
+
+.book-tile-processing-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.book-tile-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e7e5e4;
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: book-tile-spin 0.8s linear infinite;
+}
+
+@keyframes book-tile-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.book-tile-processing-text {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: #78716c;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
 }
 
 .book-tile-title {

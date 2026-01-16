@@ -5421,7 +5421,11 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
             ],
           })
 
-          const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+          const rawAdaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+          // Normalize: each adapted chunk should be ONE paragraph
+          // Remove any internal paragraph breaks the LLM might have added
+          const adaptedText = rawAdaptedText.replace(/\n\n+/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
 
           // Append to chapter blob with paragraph separator
           if (chapterAdaptedText && adaptedText) {

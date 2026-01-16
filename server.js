@@ -4406,24 +4406,24 @@ function splitTextIntoPages(text, targetWordCount = 250) {
 }
 
 /**
- * Return text as a single adaptation chunk.
- * The prompt provides sufficient direction for effective adaptation regardless of length.
+ * Split chapter into paragraphs for individual adaptation.
+ * Each paragraph is adapted separately, giving the LLM smaller chunks to focus on.
  * @param {string} text - The text to prepare for adaptation
- * @returns {string[]} Array containing the normalized text as a single chunk
+ * @returns {string[]} Array of paragraphs for individual adaptation
  */
 function splitTextIntoAdaptationChunks(text) {
   if (!text || !text.trim()) return []
 
-  // Normalize whitespace while PRESERVING paragraph breaks (\n\n)
+  // Normalize whitespace while identifying paragraph breaks
   let normalizedText = text
     .replace(/\r\n/g, '\n')           // Normalize line endings
     .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to paragraph break
-    .replace(/\n\n/g, '\u0000PARA\u0000')  // Protect paragraph breaks
-    .replace(/\s+/g, ' ')              // Normalize other whitespace to single space
-    .replace(/\u0000PARA\u0000/g, '\n\n')  // Restore paragraph breaks
     .trim()
 
-  return [normalizedText]
+  // Split into paragraphs for individual adaptation
+  const paragraphs = normalizedText.split('\n\n').filter(p => p.trim())
+
+  return paragraphs
 }
 
 /**

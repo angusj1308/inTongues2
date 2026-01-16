@@ -545,13 +545,15 @@ const Reader = ({ initialMode }) => {
 
         if (storyData.isFlat) {
           // Flat book - create virtual chapter from adaptedTextBlob
+          // Use translated header/outline (adaptedChapterHeader/adaptedChapterOutline)
+          // Fall back to original if translated versions don't exist
           const flatChapter = {
             id: 'flat-0',
             index: 0,
             title: storyData.title || 'Untitled',
             adaptedText: storyData.adaptedTextBlob || '',
-            adaptedChapterHeader: storyData.chapterHeader || null,
-            adaptedChapterOutline: storyData.chapterOutline || null,
+            adaptedChapterHeader: storyData.adaptedChapterHeader || storyData.chapterHeader || null,
+            adaptedChapterOutline: storyData.adaptedChapterOutline || storyData.chapterOutline || null,
           }
           setChapters([flatChapter])
         } else {

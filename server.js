@@ -5606,22 +5606,14 @@ app.post('/api/adapt-flat-book', async (req, res) => {
         }
       }
 
-      // Initialize blob with translated header/outline
-      if (adaptedChapterHeader) {
-        adaptedTextBlob = adaptedChapterHeader
-      }
-      if (adaptedChapterOutline) {
-        adaptedTextBlob = adaptedTextBlob ? adaptedTextBlob + '\n\n' + adaptedChapterOutline : adaptedChapterOutline
-      }
-
-      // Save translated header/outline to Firestore
+      // Save translated header/outline to Firestore (stored separately, NOT in blob)
+      // The blob will only contain body paragraphs
       await storyRef.update({
         adaptedChapterHeader,
         adaptedChapterOutline,
-        adaptedTextBlob,
       })
 
-      console.log(`Translated header/outline. Blob now: ${adaptedTextBlob.length} chars`)
+      console.log(`Translated header/outline stored separately. Header: "${adaptedChapterHeader.slice(0, 50)}...")`)
     }
 
     // Adapt each chunk (body paragraphs only - header/outline already translated above)

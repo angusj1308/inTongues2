@@ -4111,14 +4111,22 @@ async function extractTxtWithChapters(filePath) {
     const cleanText = normalizeTextWithParagraphs(text)
     const words = cleanText.split(/\s+/)
 
-    // Return as single adaptation chunk
-    const adaptationChunks = splitTextIntoAdaptationChunks(cleanText)
+    // Parse structure to separate header/outline from body BEFORE chunking
+    const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(cleanText)
+
+    // Only chunk the body text for adaptation (header/outline will be translated separately)
+    const textToChunk = bodyText || cleanText
+    const adaptationChunks = splitTextIntoAdaptationChunks(textToChunk)
+
+    console.log(`Flat book structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
 
     // Return flat structure with flag
     return {
       isFlat: true,
       originalText: cleanText,
       adaptationChunks,
+      chapterHeader: chapterHeader || '',
+      chapterOutline: chapterOutline || '',
       wordCount: words.length,
     }
   }
@@ -4606,6 +4614,8 @@ async function saveImportedFlatBookToFirestore({
   isPublicDomain,
   originalText,
   adaptationChunks,
+  chapterHeader,
+  chapterOutline,
   wordCount,
   voiceGender,
   sourceType = 'txt',
@@ -4649,10 +4659,14 @@ async function saveImportedFlatBookToFirestore({
     isFlat: true,
     originalText,
     adaptedTextBlob: '', // Will accumulate adapted text
-    adaptationChunks, // Text chunks to adapt
+    adaptationChunks, // Text chunks to adapt (body paragraphs only)
     adaptedChunkCount: 0,
     totalChunks: adaptationChunks.length,
     totalWords: wordCount,
+    // Pre-parsed structure (header/outline separated from body at import time)
+    chapterHeader: chapterHeader || '',
+    chapterOutline: chapterOutline || '',
+    structureParsed: true, // Structure was parsed at import, not after adaptation
     // Page count will be set after re-chunking
     pageCount: 0,
     status: 'pending',
@@ -4975,6 +4989,8 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           isPublicDomain,
           originalText: extracted.originalText,
           adaptationChunks: extracted.adaptationChunks,
+          chapterHeader: extracted.chapterHeader,
+          chapterOutline: extracted.chapterOutline,
           wordCount: extracted.wordCount,
           voiceGender,
           sourceType: 'txt',
@@ -5533,7 +5549,82 @@ app.post('/api/adapt-flat-book', async (req, res) => {
     let adaptedTextBlob = storyData.adaptedTextBlob || ''
     let adaptedChunkCount = storyData.adaptedChunkCount || 0
 
-    // Adapt each chunk
+    // Get pre-parsed structure from import (header/outline already separated from body)
+    const { chapterHeader, chapterOutline } = storyData
+    let adaptedChapterHeader = storyData.adaptedChapterHeader || ''
+    let adaptedChapterOutline = storyData.adaptedChapterOutline || ''
+
+    // Translate header/outline at the START (before body adaptation) if not already done
+    if ((chapterHeader || chapterOutline) && !adaptedChapterHeader && !adaptedChapterOutline && adaptedChunkCount === 0) {
+      console.log('Translating chapter header/outline before body adaptation...')
+
+      // Translate header
+      if (chapterHeader) {
+        console.log(`Translating chapter header: "${chapterHeader.slice(0, 50)}..."`)
+        try {
+          const headerResponse = await client.responses.create({
+            model: 'gpt-4.1-mini',
+            input: [
+              {
+                role: 'system',
+                content: 'Translate the following chapter title to the target language. Keep it concise. Return ONLY the translated text, no explanation.',
+              },
+              {
+                role: 'user',
+                content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterHeader}`,
+              },
+            ],
+          })
+          adaptedChapterHeader = headerResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterHeader
+        } catch (headerErr) {
+          console.error('Error translating header:', headerErr)
+          adaptedChapterHeader = chapterHeader // Fall back to original
+        }
+      }
+
+      // Translate outline
+      if (chapterOutline) {
+        console.log(`Translating chapter outline: "${chapterOutline.slice(0, 50)}..."`)
+        try {
+          const outlineResponse = await client.responses.create({
+            model: 'gpt-4.1-mini',
+            input: [
+              {
+                role: 'system',
+                content: 'Translate the following chapter outline/table of contents to the target language. Preserve the em-dash (—) separators. Return ONLY the translated text, no explanation.',
+              },
+              {
+                role: 'user',
+                content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterOutline}`,
+              },
+            ],
+          })
+          adaptedChapterOutline = outlineResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterOutline
+        } catch (outlineErr) {
+          console.error('Error translating outline:', outlineErr)
+          adaptedChapterOutline = chapterOutline // Fall back to original
+        }
+      }
+
+      // Initialize blob with translated header/outline
+      if (adaptedChapterHeader) {
+        adaptedTextBlob = adaptedChapterHeader
+      }
+      if (adaptedChapterOutline) {
+        adaptedTextBlob = adaptedTextBlob ? adaptedTextBlob + '\n\n' + adaptedChapterOutline : adaptedChapterOutline
+      }
+
+      // Save translated header/outline to Firestore
+      await storyRef.update({
+        adaptedChapterHeader,
+        adaptedChapterOutline,
+        adaptedTextBlob,
+      })
+
+      console.log(`Translated header/outline. Blob now: ${adaptedTextBlob.length} chars`)
+    }
+
+    // Adapt each chunk (body paragraphs only - header/outline already translated above)
     for (let i = adaptedChunkCount; i < adaptationChunks.length; i++) {
       const chunkText = adaptationChunks[i]
 
@@ -5587,40 +5678,9 @@ app.post('/api/adapt-flat-book', async (req, res) => {
       }
     }
 
-    // All chunks adapted - now parse structure and re-chunk into 250-word pages
-    console.log('All chunks adapted, parsing structure and re-chunking into 250-word pages...')
-
-    // Parse structure from the adapted text to extract header/outline
-    let chapterHeader = storyData.chapterHeader || ''
-    let chapterOutline = storyData.chapterOutline || ''
-    let bodyText = adaptedTextBlob
-
-    const structureParsed = storyData.structureParsed || false
-    if (!structureParsed) {
-      console.log('Parsing chapter structure from adapted text...')
-      const parsed = await parseChapterStructure(adaptedTextBlob)
-
-      if (parsed.chapterHeader || parsed.chapterOutline) {
-        chapterHeader = parsed.chapterHeader
-        chapterOutline = parsed.chapterOutline
-        bodyText = parsed.bodyText
-
-        // Store structure on story document
-        await storyRef.update({
-          chapterHeader,
-          chapterOutline,
-          adaptedTextBlob: bodyText, // Update to body-only
-          structureParsed: true,
-        })
-
-        console.log(`Parsed structure - Header: "${chapterHeader.slice(0, 50)}...", Outline: ${chapterOutline ? 'present' : 'none'}`)
-      } else {
-        await storyRef.update({ structureParsed: true })
-      }
-    }
-
-    // Adaptation complete - pagination now handled client-side
-    console.log('Flat book adaptation complete. Client-side pagination will handle page breaks.')
+    // All chunks adapted - structure was already parsed at import time
+    // Header/outline were translated at the start, body paragraphs were adapted above
+    console.log('Flat book adaptation complete. Structure was pre-parsed at import, pagination handled client-side.')
 
     // Update story status
     await storyRef.update({

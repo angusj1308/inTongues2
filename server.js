@@ -3853,20 +3853,28 @@ function detectFileType(originalName = '') {
 
 async function extractTxt(filePath) {
   const raw = await fs.readFile(filePath, 'utf8')
-  const words = raw.split(/\s+/)
-  const pages = []
-  let buffer = []
+  // Normalize text while preserving paragraph structure
+  const cleanText = normalizeTextWithParagraphs(raw)
+  // Split into adaptation chunks at sentence boundaries, preserving paragraphs
+  return splitTextIntoAdaptationChunks(cleanText, 1200)
+}
 
-  for (const word of words) {
-    buffer.push(word)
-    if (buffer.join(' ').length > 1200) {
-      pages.push(buffer.join(' '))
-      buffer = []
-    }
-  }
+/**
+ * Normalize plain text while preserving paragraph structure.
+ * Blank lines (double newlines) become paragraph breaks (\n\n).
+ * @param {string} text - The raw text to normalize
+ * @returns {string} Normalized text with preserved paragraph breaks
+ */
+function normalizeTextWithParagraphs(text) {
+  if (!text) return ''
 
-  if (buffer.length > 0) pages.push(buffer.join(' '))
-  return pages
+  return text
+    .replace(/\r\n/g, '\n')           // Normalize line endings
+    .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to paragraph break
+    .replace(/\n\n/g, '\u0000PARA\u0000')  // Protect paragraph breaks
+    .replace(/\s+/g, ' ')              // Normalize other whitespace to single space
+    .replace(/\u0000PARA\u0000/g, '\n\n')  // Restore paragraph breaks
+    .trim()
 }
 
 /**
@@ -4100,7 +4108,7 @@ async function extractTxtWithChapters(filePath) {
   // If no chapters detected, return flat structure (not chapter-based)
   if (!chapterMarkers || chapterMarkers.length === 0) {
     console.log('No chapter pattern detected, using flat adaptation')
-    const cleanText = text.replace(/\s+/g, ' ').trim()
+    const cleanText = normalizeTextWithParagraphs(text)
     const words = cleanText.split(/\s+/)
 
     // Split into adaptation chunks at sentence boundaries (~1200 chars each)
@@ -4129,7 +4137,7 @@ async function extractTxtWithChapters(filePath) {
 
     // Extract chapter content (skip the chapter heading line itself)
     const chapterLines = lines.slice(startLine + 1, endLine)
-    const chapterText = chapterLines.join('\n').replace(/\s+/g, ' ').trim()
+    const chapterText = normalizeTextWithParagraphs(chapterLines.join('\n'))
 
     // Skip very short chapters (likely just headers)
     if (chapterText.length < 100) {
@@ -4154,7 +4162,7 @@ async function extractTxtWithChapters(filePath) {
   // Handle any text before the first chapter marker
   if (chapterMarkers[0].lineIndex > 10) {
     const preambleLines = lines.slice(0, chapterMarkers[0].lineIndex)
-    const preambleText = preambleLines.join('\n').replace(/\s+/g, ' ').trim()
+    const preambleText = normalizeTextWithParagraphs(preambleLines.join('\n'))
 
     if (preambleText.length > 200) {
       const words = preambleText.split(/\s+/)
@@ -4197,6 +4205,47 @@ async function extractPdf(filePath) {
   return splitTextIntoAdaptationChunks(fullText, 1200)
 }
 
+/**
+ * Convert HTML to plain text while preserving paragraph structure.
+ * Block-level elements become paragraph breaks (\n\n).
+ * @param {string} html - The HTML content to convert
+ * @returns {string} Plain text with preserved paragraph breaks
+ */
+function htmlToTextWithParagraphs(html) {
+  if (!html) return ''
+
+  let text = html
+    // Normalize line endings
+    .replace(/\r\n/g, '\n')
+    // Add paragraph breaks BEFORE block-level opening tags
+    .replace(/<(p|div|h[1-6]|li|tr|blockquote|section|article)(\s[^>]*)?>/gi, '\n\n')
+    // Add paragraph breaks AFTER block-level closing tags
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section|article)>/gi, '\n\n')
+    // Convert <br> to single newline
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Remove all remaining HTML tags
+    .replace(/<[^>]+>/g, ' ')
+    // Decode common HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&hellip;/g, '…')
+    // Normalize multiple spaces (but not newlines) to single space
+    .replace(/[^\S\n]+/g, ' ')
+    // Normalize multiple newlines to paragraph break (max 2)
+    .replace(/\n{3,}/g, '\n\n')
+    // Clean up spaces around newlines
+    .replace(/ *\n */g, '\n')
+    .trim()
+
+  return text
+}
+
 function parseEpub(filePath) {
   return new Promise((resolve, reject) => {
     const epub = new EPub(filePath)
@@ -4235,7 +4284,7 @@ async function extractEpub(filePath) {
   // epub.flow is an array describing the reading order
   for (const item of epub.flow) {
     const content = await getChapterAsync(epub, item.id)
-    fullText += content.replace(/<[^>]+>/g, ' ') + ' '
+    fullText += htmlToTextWithParagraphs(content) + '\n\n'
   }
 
   // Split into pages at sentence boundaries (~1200 chars)
@@ -4268,11 +4317,8 @@ async function extractEpubWithChapters(filePath) {
   let chapterIndex = 0
   for (const item of epub.flow) {
     const content = await getChapterAsync(epub, item.id)
-    // Strip HTML tags and normalize whitespace
-    const cleanText = content
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+    // Convert HTML to text while preserving paragraph structure
+    const cleanText = htmlToTextWithParagraphs(content)
 
     // Skip empty chapters (front matter, etc.)
     if (!cleanText || cleanText.length < 50) {
@@ -4370,7 +4416,18 @@ function splitTextIntoPages(text, targetWordCount = 250) {
 function splitTextIntoAdaptationChunks(text, targetCharCount = 1200) {
   if (!text || !text.trim()) return []
 
-  const normalizedText = text.replace(/\s+/g, ' ').trim()
+  // Normalize whitespace while PRESERVING paragraph breaks (\n\n)
+  // 1. First, protect paragraph breaks by using a placeholder
+  // 2. Then normalize other whitespace
+  // 3. Then restore paragraph breaks
+  let normalizedText = text
+    .replace(/\r\n/g, '\n')           // Normalize line endings
+    .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to paragraph break
+    .replace(/\n\n/g, '\u0000PARA\u0000')  // Protect paragraph breaks
+    .replace(/\s+/g, ' ')              // Normalize other whitespace to single space
+    .replace(/\u0000PARA\u0000/g, '\n\n')  // Restore paragraph breaks
+    .trim()
+
   const chunks = []
   let remaining = normalizedText
 
@@ -4386,21 +4443,30 @@ function splitTextIntoAdaptationChunks(text, targetCharCount = 1200) {
     const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.2))
     const searchWindow = remaining.slice(searchStart, searchEnd)
 
-    // Priority: Sentence boundary (., ?, !, or with closing quotes)
     let breakPoint = -1
-    const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', '.\' ', '?\' ', '!\' ']
-    let bestSentenceEnd = -1
 
-    for (const ender of sentenceEnders) {
-      const pos = searchWindow.lastIndexOf(ender)
-      if (pos > bestSentenceEnd) {
-        bestSentenceEnd = pos
-      }
+    // Priority 1: Paragraph break (preserve paragraph structure)
+    const paragraphBreak = searchWindow.lastIndexOf('\n\n')
+    if (paragraphBreak !== -1) {
+      breakPoint = searchStart + paragraphBreak + 2 // After the paragraph break
     }
 
-    if (bestSentenceEnd !== -1) {
-      // Break after the punctuation (include the space)
-      breakPoint = searchStart + bestSentenceEnd + 2
+    // Priority 2: Sentence boundary (., ?, !, or with closing quotes)
+    if (breakPoint === -1) {
+      const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', ".' ", "?' ", "!' ", '.\n', '?\n', '!\n']
+      let bestSentenceEnd = -1
+
+      for (const ender of sentenceEnders) {
+        const pos = searchWindow.lastIndexOf(ender)
+        if (pos > bestSentenceEnd) {
+          bestSentenceEnd = pos
+        }
+      }
+
+      if (bestSentenceEnd !== -1) {
+        // Break after the punctuation (include the space)
+        breakPoint = searchStart + bestSentenceEnd + 2
+      }
     }
 
     // Fallback: Word boundary
@@ -4442,43 +4508,47 @@ function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
       break
     }
 
-    // Look for a good break point around the target
-    const searchStart = Math.floor(targetCharCount * 0.7)
-    const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.1))
+    // Look for a good break point around the target (90-105% for tighter consistency)
+    const searchStart = Math.floor(targetCharCount * 0.90)
+    const searchEnd = Math.min(remaining.length, Math.floor(targetCharCount * 1.05))
     const searchWindow = remaining.slice(searchStart, searchEnd)
 
-    // Priority 1: Paragraph break (double newline)
     let breakPoint = -1
-    const paragraphBreak = searchWindow.lastIndexOf('\n\n')
-    if (paragraphBreak !== -1) {
-      breakPoint = searchStart + paragraphBreak + 2 // After the paragraph break
-    }
 
-    // Priority 2: Sentence boundary
-    if (breakPoint === -1) {
-      const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', '.\n', '?\n', '!\n']
-      let bestSentenceEnd = -1
-      for (const ender of sentenceEnders) {
-        const pos = searchWindow.lastIndexOf(ender)
-        if (pos > bestSentenceEnd) {
-          bestSentenceEnd = pos
-        }
+    // Priority 1: Sentence boundary (for consistent page lengths)
+    const sentenceEnders = ['. ', '? ', '! ', '." ', '?" ', '!" ', ".' ", "?' ", "!' ", '.\n', '?\n', '!\n']
+    let bestSentenceEnd = -1
+    for (const ender of sentenceEnders) {
+      const pos = searchWindow.lastIndexOf(ender)
+      if (pos > bestSentenceEnd) {
+        bestSentenceEnd = pos
       }
-      if (bestSentenceEnd !== -1) {
-        // Find the actual end position (after the punctuation)
-        const endChar = searchWindow[bestSentenceEnd]
-        breakPoint = searchStart + bestSentenceEnd + 1 // After the punctuation
-        // Skip the space/newline after punctuation
-        if (breakPoint < remaining.length && /\s/.test(remaining[breakPoint])) {
-          breakPoint++
-        }
+    }
+    if (bestSentenceEnd !== -1) {
+      breakPoint = searchStart + bestSentenceEnd + 1 // After the punctuation
+      // Skip the space/newline after punctuation
+      if (breakPoint < remaining.length && /\s/.test(remaining[breakPoint])) {
+        breakPoint++
       }
     }
 
-    // Priority 3: Word boundary (fallback)
+    // Priority 2: Paragraph break (if no sentence found in tight window)
     if (breakPoint === -1) {
-      const lastSpace = remaining.slice(0, targetCharCount).lastIndexOf(' ')
-      breakPoint = lastSpace !== -1 ? lastSpace + 1 : targetCharCount
+      const paragraphBreak = searchWindow.lastIndexOf('\n\n')
+      if (paragraphBreak !== -1) {
+        breakPoint = searchStart + paragraphBreak + 2 // After the paragraph break
+      }
+    }
+
+    // Priority 3: Word boundary (fallback) - search wider window
+    if (breakPoint === -1) {
+      const widerWindow = remaining.slice(Math.floor(targetCharCount * 0.8), Math.floor(targetCharCount * 1.1))
+      const lastSpace = widerWindow.lastIndexOf(' ')
+      if (lastSpace !== -1) {
+        breakPoint = Math.floor(targetCharCount * 0.8) + lastSpace + 1
+      } else {
+        breakPoint = targetCharCount
+      }
     }
 
     const pageText = remaining.slice(0, breakPoint).trim()

@@ -2943,19 +2943,23 @@ textarea {
 
 .reader-pages {
   width: 100%;
-  /* Fixed page height for book-like experience - matches pagination measurement */
-  height: 800px;
+  height: calc(100vh - 180px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .reader-spread {
-  /* Fixed spread width for book-like experience - (596px * 2) + 48px gap = 1240px */
+  /* Fixed dimensions for consistent pagination */
   width: 1240px;
-  margin: 0 auto;
+  height: 700px;
   display: grid;
   grid-template-columns: 596px 596px;
   column-gap: 3rem;
-  align-items: stretch;
-  height: 100%;
+  /* Scale to fit viewport - set by JavaScript */
+  transform: scale(var(--page-scale, 1));
+  transform-origin: center center;
 }
 
 /* Assisted mode - single page, larger font */
@@ -3097,15 +3101,15 @@ textarea {
 }
 
 /* Hidden container for measuring text to compute client-side pagination */
-/* Uses FIXED dimensions for consistent pagination regardless of viewport */
+/* Uses FIXED dimensions - same words per page on all devices */
 .reader-measure-container {
   position: absolute;
   visibility: hidden;
   pointer-events: none;
-  /* Fixed page dimensions - matches reader spread layout */
-  /* Spread: 1240px max-width, 48px gap = (1240-48)/2 = 596px per page */
+  /* Fixed dimensions matching reader spread: 1240px total, 48px gap, 2 columns */
+  /* Each page = (1240 - 48) / 2 = 596px */
   width: 596px;
-  height: 800px;
+  height: 700px;
   overflow: hidden;
   padding: 4rem 2.5rem 3rem 4rem;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);

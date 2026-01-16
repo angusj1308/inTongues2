@@ -587,11 +587,23 @@ const Reader = ({ initialMode }) => {
     }
 
     // Simple overflow check - does text fit in container?
+    // Uses <p> elements to match actual render (with margins)
     const measureFits = (measureDiv, text, maxHeight) => {
       measureDiv.innerHTML = ''
       const textNode = document.createElement('div')
       textNode.className = 'page-text-measure'
-      textNode.innerText = text
+
+      // Split into paragraphs and create <p> elements to match render
+      const paragraphs = text.split(/\n\n+/)
+      paragraphs.forEach((para, index) => {
+        if (para.trim()) {
+          const p = document.createElement('p')
+          p.className = 'reader-paragraph'
+          p.innerText = para.trim()
+          textNode.appendChild(p)
+        }
+      })
+
       measureDiv.appendChild(textNode)
       return textNode.scrollHeight <= maxHeight
     }

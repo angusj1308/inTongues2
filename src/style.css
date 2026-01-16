@@ -2943,16 +2943,17 @@ textarea {
 
 .reader-pages {
   width: 100%;
-  /* Fixed page height for book-like experience - matches pagination measurement */
-  height: 800px;
+  /* Viewport-based height - fits any screen, matches measurement container */
+  height: calc(100vh - 180px);
 }
 
 .reader-spread {
-  /* Fixed spread width for book-like experience - (596px * 2) + 48px gap = 1240px */
-  width: 1240px;
+  /* Viewport-based width with max - adapts to screen size */
+  width: calc(100vw - 100px);
+  max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 596px 596px;
+  grid-template-columns: 1fr 1fr;
   column-gap: 3rem;
   align-items: stretch;
   height: 100%;
@@ -3097,15 +3098,17 @@ textarea {
 }
 
 /* Hidden container for measuring text to compute client-side pagination */
-/* Uses FIXED dimensions for consistent pagination regardless of viewport */
+/* Uses viewport-based dimensions to match reader pages on same device */
 .reader-measure-container {
   position: absolute;
   visibility: hidden;
   pointer-events: none;
-  /* Fixed page dimensions - matches reader spread layout */
-  /* Spread: 1240px max-width, 48px gap = (1240-48)/2 = 596px per page */
-  width: 596px;
-  height: 800px;
+  /* Viewport-based dimensions - matches reader spread layout */
+  /* Spread: calc(100vw - 100px) width, 48px gap, 2 columns */
+  /* Page width = (spread - gap) / 2 = (100vw - 100px - 48px) / 2 = 50vw - 74px */
+  width: calc(50vw - 74px);
+  max-width: 676px; /* (1400px max-spread - 48px gap) / 2 */
+  height: calc(100vh - 180px);
   overflow: hidden;
   padding: 4rem 2.5rem 3rem 4rem;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);

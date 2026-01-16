@@ -4427,10 +4427,8 @@ function splitTextIntoAdaptationChunks(text) {
 }
 
 /**
- * Split text into pages of approximately targetCharCount characters.
- * Prioritizes consistent page length like a real book.
- * Pages end at paragraph breaks only if they fall naturally near the target.
- * Otherwise, pages fill to the target and break at word boundaries.
+ * Split text into pages by finding the sentence end closest to target character count.
+ * Accepts natural variation in page length due to variable character widths.
  * @param {string} text - The text to split
  * @param {number} targetCharCount - Target characters per page (default ~1400, roughly 250 words)
  * @returns {string[]} Array of page texts with preserved paragraph markers
@@ -4445,38 +4443,42 @@ function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
   let remaining = normalizedText
 
   while (remaining.length > 0) {
-    if (remaining.length <= targetCharCount) {
-      // Last chunk - take it all
+    if (remaining.length <= targetCharCount * 1.3) {
+      // Remaining text is close enough to one page - take it all
       pages.push(remaining.trim())
       break
     }
 
-    let breakPoint = -1
+    // Find the sentence end closest to target
+    // Search within 50% to 150% of target to avoid tiny or huge pages
+    const minSearch = Math.floor(targetCharCount * 0.5)
+    const maxSearch = Math.min(remaining.length, Math.floor(targetCharCount * 1.5))
 
-    // Priority 1: Paragraph break near target (85-100% of target)
-    // If a paragraph naturally ends close to our target, use that as a clean break
-    const earlyBreakStart = Math.floor(targetCharCount * 0.85)
-    const paragraphWindow = remaining.slice(earlyBreakStart, targetCharCount)
-    const paragraphBreak = paragraphWindow.lastIndexOf('\n\n')
+    let closestEnd = -1
+    let closestDistance = Infinity
 
-    if (paragraphBreak !== -1) {
-      // Natural paragraph ending near target - use it
-      breakPoint = earlyBreakStart + paragraphBreak + 2
+    // Look for sentence endings (. ! ?) followed by space or newline
+    for (let i = minSearch; i < maxSearch; i++) {
+      const char = remaining[i]
+      const nextChar = remaining[i + 1]
+
+      if ((char === '.' || char === '!' || char === '?') &&
+          (nextChar === ' ' || nextChar === '\n' || nextChar === undefined)) {
+        const distance = Math.abs(i + 1 - targetCharCount)
+        if (distance < closestDistance) {
+          closestDistance = distance
+          closestEnd = i + 1 // Include the punctuation
+        }
+      }
     }
 
-    // Priority 2: Fill to target and break at word boundary (like a real book)
-    // Text continues across pages regardless of sentence boundaries
-    if (breakPoint === -1) {
-      // Find the last space at or before the target
-      const searchEnd = Math.min(remaining.length, targetCharCount)
-      const lastSpace = remaining.lastIndexOf(' ', searchEnd)
-
-      if (lastSpace > earlyBreakStart) {
-        breakPoint = lastSpace + 1
-      } else {
-        // No space found in reasonable range - just break at target
-        breakPoint = targetCharCount
-      }
+    let breakPoint
+    if (closestEnd !== -1) {
+      breakPoint = closestEnd
+    } else {
+      // No sentence end found - fall back to word boundary near target
+      const lastSpace = remaining.lastIndexOf(' ', targetCharCount)
+      breakPoint = lastSpace > minSearch ? lastSpace + 1 : targetCharCount
     }
 
     const pageText = remaining.slice(0, breakPoint).trim()

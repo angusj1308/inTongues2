@@ -611,16 +611,39 @@ const Reader = ({ initialMode }) => {
       return
     }
 
-    // Simple overflow check - does text fit in container?
-    // Uses <p> elements to match actual render (with margins)
-    const measureFits = (measureDiv, text, maxHeight) => {
+    // Check if content fits within the given height
+    // For first page of chapter, includes header/outline as part of the content
+    const measureFits = (measureDiv, bodyText, maxHeight, header = null, outline = null) => {
       measureDiv.innerHTML = ''
+
+      // Create wrapper for all content
+      const contentWrapper = document.createElement('div')
+
+      // Add header/outline if present (first page of chapter)
+      if (header || outline) {
+        const headerDiv = document.createElement('div')
+        headerDiv.className = 'chapter-header-structured'
+        if (header) {
+          const titleDiv = document.createElement('div')
+          titleDiv.className = 'chapter-header-title'
+          titleDiv.innerText = header.toUpperCase()
+          headerDiv.appendChild(titleDiv)
+        }
+        if (outline) {
+          const outlineDiv = document.createElement('div')
+          outlineDiv.className = 'chapter-header-outline'
+          outlineDiv.innerText = outline
+          headerDiv.appendChild(outlineDiv)
+        }
+        contentWrapper.appendChild(headerDiv)
+      }
+
+      // Add body text as paragraphs
       const textNode = document.createElement('div')
       textNode.className = 'page-text-measure'
 
-      // Split into paragraphs and create <p> elements to match render
-      const paragraphs = text.split(/\n\n+/)
-      paragraphs.forEach((para, index) => {
+      const paragraphs = bodyText.split(/\n\n+/)
+      paragraphs.forEach((para) => {
         if (para.trim()) {
           const p = document.createElement('p')
           p.className = 'reader-paragraph'
@@ -629,42 +652,21 @@ const Reader = ({ initialMode }) => {
         }
       })
 
-      measureDiv.appendChild(textNode)
-      return textNode.scrollHeight <= maxHeight
-    }
+      contentWrapper.appendChild(textNode)
+      measureDiv.appendChild(contentWrapper)
 
-    // Measure header/outline height for first page
-    const measureHeaderHeight = (measureDiv, header, outline) => {
-      if (!header && !outline) return 0
-      measureDiv.innerHTML = ''
-      const headerDiv = document.createElement('div')
-      headerDiv.className = 'chapter-header-structured'
-      if (header) {
-        const titleDiv = document.createElement('div')
-        titleDiv.className = 'chapter-header-title'
-        titleDiv.innerText = header.toUpperCase()
-        headerDiv.appendChild(titleDiv)
-      }
-      if (outline) {
-        const outlineDiv = document.createElement('div')
-        outlineDiv.className = 'chapter-header-outline'
-        outlineDiv.innerText = outline
-        headerDiv.appendChild(outlineDiv)
-      }
-      measureDiv.appendChild(headerDiv)
-      return headerDiv.offsetHeight
+      return contentWrapper.scrollHeight <= maxHeight
     }
 
     const computePages = () => {
       const measureDiv = measureRef.current
       if (!measureDiv) return
 
-      // clientHeight includes padding, but text renders in content area only
-      // Subtract small safety margin to prevent edge-case clipping from sub-pixel rendering
+      // Fixed container height for all pages - content flows within this
       const computedStyle = window.getComputedStyle(measureDiv)
       const paddingTop = parseFloat(computedStyle.paddingTop) || 0
       const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
-      const SAFETY_MARGIN = 32 // Generous margin for sub-pixel rounding + page number clearance
+      const SAFETY_MARGIN = 4 // Prevent clipping from sub-pixel rendering differences
       const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom - SAFETY_MARGIN
       if (containerHeight <= 0) return
 
@@ -677,9 +679,6 @@ const Reader = ({ initialMode }) => {
 
         const chapterHeader = chapter.adaptedChapterHeader || null
         const chapterOutline = chapter.adaptedChapterOutline || null
-
-        // Measure header/outline height for first page
-        const headerHeight = measureHeaderHeight(measureDiv, chapterHeader, chapterOutline)
 
         // Split text into units (words + paragraph breaks)
         const units = []
@@ -705,12 +704,12 @@ const Reader = ({ initialMode }) => {
             testText = currentPageText ? currentPageText + ' ' + unit : unit
           }
 
-          // Calculate available height (less on first page due to header)
-          const availableHeight = isFirstPageOfChapter
-            ? containerHeight - headerHeight
-            : containerHeight
+          // Same container height for all pages
+          // Header/outline included in measurement for first page (flows as content)
+          const headerForMeasure = isFirstPageOfChapter ? chapterHeader : null
+          const outlineForMeasure = isFirstPageOfChapter ? chapterOutline : null
 
-          if (measureFits(measureDiv, testText, availableHeight)) {
+          if (measureFits(measureDiv, testText, containerHeight, headerForMeasure, outlineForMeasure)) {
             // Unit fits - add it
             if (unit === '\n\n') {
               currentPageText = currentPageText ? currentPageText + '\n\n' : ''

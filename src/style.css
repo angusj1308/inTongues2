@@ -5721,6 +5721,12 @@ textarea {
   text-indent: 0;
 }
 
+/* Remove top padding from page-text when chapter header provides the top spacing */
+/* This ensures rendering matches pagination measurement */
+.chapter-header-structured + .page-text {
+  padding-top: 0;
+}
+
 .button.ghost:hover:not(:disabled) {
   background: #f5f5f5;
 }

@@ -2947,6 +2947,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 68px; /* Account for header overlay zone */
+  box-sizing: border-box;
 }
 
 .reader-spread {

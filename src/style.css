@@ -3060,17 +3060,18 @@ textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .reader-page-block .page-text {
   flex: 1;
   cursor: pointer;
   user-select: text;
-  padding: 4rem 2.5rem 3rem 4rem;
+  padding: 4rem 2.5rem 4rem 4rem; /* Extra bottom padding for page number overlay */
 }
 
 .page--right .page-text {
-  padding: 4rem 4rem 3rem 2.5rem;
+  padding: 4rem 4rem 4rem 2.5rem; /* Extra bottom padding for page number overlay */
 }
 
 .reader-themed {
@@ -3111,7 +3112,7 @@ textarea {
   width: 596px;
   height: 700px;
   overflow: hidden;
-  padding: 4rem 2.5rem 3rem 4rem;
+  padding: 4rem 2.5rem 4rem 4rem; /* Must match .reader-page-block .page-text padding */
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-size: var(--reader-font-size, 1rem);
   line-height: 1.75;
@@ -5636,7 +5637,10 @@ textarea {
 }
 
 .reader-page-block .page-number {
-  margin-top: 0.75rem;
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
   text-align: center;
   font-weight: 600;
 }

@@ -73,8 +73,13 @@ const measureHeaderHeight = (measureDiv, header, outline) => {
 export const computePages = (chapters, measureDiv) => {
   if (!measureDiv || !chapters.length) return []
 
-  const containerHeight = measureDiv.clientHeight
-  if (containerHeight === 0) return []
+  // clientHeight includes padding, but text renders in content area only
+  // We need to subtract padding to get the actual available content height
+  const computedStyle = window.getComputedStyle(measureDiv)
+  const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+  const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+  const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom
+  if (containerHeight <= 0) return []
 
   const virtualPages = []
   let globalPageIndex = 0

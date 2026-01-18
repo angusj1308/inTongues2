@@ -3114,7 +3114,10 @@ textarea {
   height: 800px;
   overflow: hidden;
   padding: 4rem 2.5rem 6rem 4rem; /* Must match .reader-page-block .page-text padding */
-  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  /* Font MUST match Reader's default: Crimson Pro at weight 300 */
+  /* Using 'Garamond' previously caused mismatches since it's not loaded (falls back to Times New Roman) */
+  font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
+  font-weight: var(--reader-font-weight, 300);
   font-size: 1.1rem;
   line-height: 1.75;
 }
@@ -3131,7 +3134,7 @@ textarea {
 }
 
 .reader-measure-container .chapter-header-title {
-  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
   font-size: 1.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -3141,7 +3144,7 @@ textarea {
 }
 
 .reader-measure-container .chapter-header-outline {
-  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
   font-size: 1rem;
   font-weight: 400;
   font-style: italic;

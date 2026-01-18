@@ -2149,7 +2149,8 @@ const Reader = ({ initialMode }) => {
                   onClick={() => handleEdgeNavigation('previous')}
                 />
 
-                <div ref={pageContainerRef} className={`reader-pages ${displayMode === 'assisted' ? 'reader-single' : 'reader-spread'}`}>
+                <div ref={pageContainerRef} className="reader-pages">
+                  <div className={displayMode === 'assisted' ? 'reader-single' : 'reader-spread'}>
                   {visiblePages.map((page, pageIndex) => {
                     const pageNumber = (page.index ?? pages.indexOf(page)) + 1
                     const isLeftPage = pageIndex % 2 === 0
@@ -2194,6 +2195,7 @@ const Reader = ({ initialMode }) => {
                       </div>
                     )
                   })}
+                  </div>
                 </div>
 
                 <div

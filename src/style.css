@@ -3068,6 +3068,7 @@ textarea {
   cursor: pointer;
   user-select: text;
   padding: 4rem 2.5rem 4rem 4rem; /* Extra bottom padding for page number overlay */
+  line-height: 1.75; /* Must match .reader-measure-container for accurate pagination */
 }
 
 .page--right .page-text {

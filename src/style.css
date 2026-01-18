@@ -3107,9 +3107,9 @@ textarea {
   visibility: hidden;
   pointer-events: none;
   /* Fixed dimensions matching reader spread: 1240px total, 48px gap, 2 columns */
-  /* Each page = (1240 - 48) / 2 = 596px */
+  /* Each page = (1240 - 48) / 2 = 596px, height matches .reader-spread */
   width: 596px;
-  height: 740px; /* Slightly taller for more content per page */
+  height: 700px;
   overflow: hidden;
   padding: 4rem 2.5rem 4rem 4rem; /* Must match .reader-page-block .page-text padding */
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);

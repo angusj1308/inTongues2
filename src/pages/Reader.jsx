@@ -808,8 +808,8 @@ const Reader = ({ initialMode }) => {
       const scaleX = availableWidth / SPREAD_WIDTH
       const scaleY = availableHeight / SPREAD_HEIGHT
 
-      // Use smaller scale to fit both dimensions
-      const scale = Math.min(scaleX, scaleY, 1.5) // Cap at 1.5x to avoid overly huge pages
+      // Use smaller scale to fit both dimensions - cap at 1.0 to keep book-like proportions
+      const scale = Math.min(scaleX, scaleY, 1.0)
 
       // Apply to the spread element (child of pageContainerRef)
       const spreadElement = pageContainerRef.current.querySelector('.reader-spread')

@@ -3126,11 +3126,13 @@ textarea {
   /* No special white-space - must match rendered .page-text (default: normal) */
 }
 
-/* Chapter header styles for measurement - must match .reader-page-block styles */
+/* Chapter header styles for measurement */
+/* Note: padding-top is 0 here because the container already has 4rem top padding.
+   This matches the rendered total: header padding (4rem) in .reader-page-block */
 .reader-measure-container .chapter-header-structured {
   text-align: center;
   margin-bottom: 1rem;
-  padding-top: 4rem;
+  padding-top: 0;
 }
 
 .reader-measure-container .chapter-header-title {
@@ -5719,12 +5721,6 @@ textarea {
 /* No text-indent after chapter headers */
 .chapter-header-structured + .page-text .reader-paragraph:first-child {
   text-indent: 0;
-}
-
-/* Remove top padding from page-text when chapter header provides the top spacing */
-/* This ensures rendering matches pagination measurement */
-.chapter-header-structured + .page-text {
-  padding-top: 0;
 }
 
 .button.ghost:hover:not(:disabled) {

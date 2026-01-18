@@ -664,7 +664,7 @@ const Reader = ({ initialMode }) => {
       const computedStyle = window.getComputedStyle(measureDiv)
       const paddingTop = parseFloat(computedStyle.paddingTop) || 0
       const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
-      const SAFETY_MARGIN = 4 // Prevent clipping from sub-pixel rendering differences
+      const SAFETY_MARGIN = 32 // Generous margin for sub-pixel rounding + page number clearance
       const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom - SAFETY_MARGIN
       if (containerHeight <= 0) return
 

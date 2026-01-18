@@ -3068,7 +3068,6 @@ textarea {
   user-select: text;
   padding: 4rem 2.5rem 4rem 4rem;
   line-height: 1.75; /* Must match .reader-measure-container for accurate pagination */
-  overflow: hidden; /* Clip any overflow - text is pre-measured to fit */
 }
 
 .page--right .page-text {

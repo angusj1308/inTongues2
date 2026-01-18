@@ -449,7 +449,7 @@ textarea {
     transparent
   );
   border-radius: 0.2em;
-  padding: 0 0.05em;
+  /* No horizontal padding - would cause line width differences vs measurement */
   transition: background-color 0.15s ease;
 }
 
@@ -3068,6 +3068,7 @@ textarea {
   cursor: pointer;
   user-select: text;
   padding: 4rem 2.5rem 4rem 4rem; /* Extra bottom padding for page number overlay */
+  line-height: 1.75; /* Must match .reader-measure-container for accurate pagination */
 }
 
 .page--right .page-text {
@@ -3119,7 +3120,7 @@ textarea {
 }
 
 .reader-measure-container .page-text-measure {
-  white-space: pre-wrap;
+  /* No special white-space - must match rendered .page-text (default: normal) */
 }
 
 /* Chapter header styles for measurement - must match .reader-page-block styles */
@@ -11261,7 +11262,6 @@ body.active-pass-locked {
     transparent
   );
   border-radius: 0.15em;
-  padding: 0 0.05em;
 }
 
 /* Resize handles - larger for easier grabbing */

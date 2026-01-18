@@ -659,8 +659,14 @@ const Reader = ({ initialMode }) => {
       const measureDiv = measureRef.current
       if (!measureDiv) return
 
-      const containerHeight = measureDiv.clientHeight
-      if (containerHeight === 0) return
+      // clientHeight includes padding, but text renders in content area only
+      // Subtract small safety margin to prevent edge-case clipping from sub-pixel rendering
+      const computedStyle = window.getComputedStyle(measureDiv)
+      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+      const SAFETY_MARGIN = 4 // Prevent clipping from sub-pixel rendering differences
+      const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom - SAFETY_MARGIN
+      if (containerHeight <= 0) return
 
       const virtualPages = []
       let globalPageIndex = 0

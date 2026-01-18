@@ -75,10 +75,12 @@ export const computePages = (chapters, measureDiv) => {
 
   // clientHeight includes padding, but text renders in content area only
   // We need to subtract padding to get the actual available content height
+  // Also subtract a small safety margin to prevent edge-case clipping from sub-pixel rendering
   const computedStyle = window.getComputedStyle(measureDiv)
   const paddingTop = parseFloat(computedStyle.paddingTop) || 0
   const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
-  const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom
+  const SAFETY_MARGIN = 4 // Prevent clipping from sub-pixel rendering differences
+  const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom - SAFETY_MARGIN
   if (containerHeight <= 0) return []
 
   const virtualPages = []

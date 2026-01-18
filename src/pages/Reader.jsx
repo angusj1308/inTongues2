@@ -795,7 +795,7 @@ const Reader = ({ initialMode }) => {
   // Calculate and apply page scale to fit viewport
   useEffect(() => {
     const SPREAD_WIDTH = 1240
-    const SPREAD_HEIGHT = 700
+    const SPREAD_HEIGHT = 800
     const MARGIN_X = 100 // horizontal margin
     const MARGIN_Y = 180 // vertical margin for header + page numbers
 

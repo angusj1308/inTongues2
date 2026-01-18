@@ -2952,7 +2952,7 @@ textarea {
 .reader-spread {
   /* Fixed dimensions for consistent pagination */
   width: 1240px;
-  height: 700px;
+  height: 800px;
   display: grid;
   grid-template-columns: 596px 596px;
   column-gap: 3rem;
@@ -3065,12 +3065,12 @@ textarea {
 .reader-page-block .page-text {
   cursor: pointer;
   user-select: text;
-  padding: 4rem 2.5rem 4rem 4rem;
+  padding: 4rem 2.5rem 6rem 4rem;
   line-height: 1.75; /* Must match .reader-measure-container for accurate pagination */
 }
 
 .page--right .page-text {
-  padding: 4rem 4rem 4rem 2.5rem; /* Extra bottom padding for page number overlay */
+  padding: 4rem 4rem 6rem 2.5rem;
 }
 
 .reader-themed {
@@ -3080,7 +3080,7 @@ textarea {
   width: 100%;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 400);
-  font-size: var(--reader-font-size, 1rem);
+  font-size: 1.1rem;
 }
 
 .page.reader-page {
@@ -3109,11 +3109,11 @@ textarea {
   /* Fixed dimensions matching reader spread: 1240px total, 48px gap, 2 columns */
   /* Each page = (1240 - 48) / 2 = 596px, height matches .reader-spread */
   width: 596px;
-  height: 700px;
+  height: 800px;
   overflow: hidden;
-  padding: 4rem 2.5rem 4rem 4rem; /* Must match .reader-page-block .page-text padding */
+  padding: 4rem 2.5rem 6rem 4rem; /* Must match .reader-page-block .page-text padding */
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
-  font-size: var(--reader-font-size, 1rem);
+  font-size: 1.1rem;
   line-height: 1.75;
 }
 

@@ -237,10 +237,11 @@ const BookGrid = ({
         {books.map((book) => {
           const progress = Math.max(0, Math.min(100, book.progress || 0))
           const titleText = getStoryTitle ? getStoryTitle(book) : book.title
-          const isReady = book.status === 'ready' || book.status === 'bible_complete'
           const isGenerating = book.status === 'generating' || book.status === 'planning'
+          const isFailed = book.status === 'failed' || book.status === 'error'
           const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating
-          const canClick = isReady && onBookClick
+          // Clickable if not processing and not failed
+          const canClick = !isProcessing && !isFailed && onBookClick
 
           return (
             <div
@@ -1161,9 +1162,11 @@ const Dashboard = () => {
                         {yourRecentBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           const isGenerating = book.status === 'generating' || book.status === 'planning'
-                          const isClickable = !isGenerating && (book.status === 'ready' || book.status === 'bible_complete' || !book.status)
+                          const isFailed = book.status === 'failed' || book.status === 'error'
+                          // Clickable if not generating and not failed (allow bible_complete, bible_needs_review, ready, or no status)
+                          const isClickable = !isGenerating && !isFailed
                           return (
-                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}`}>
+                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
                               <button
                                 className="book-delete-btn"
                                 onClick={(e) => handleDeleteBook(e, book)}
@@ -1237,9 +1240,11 @@ const Dashboard = () => {
                         {allBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           const isGenerating = book.status === 'generating' || book.status === 'planning'
-                          const isClickable = !isGenerating && (book.status === 'ready' || book.status === 'bible_complete' || !book.status)
+                          const isFailed = book.status === 'failed' || book.status === 'error'
+                          // Clickable if not generating and not failed (allow bible_complete, bible_needs_review, ready, or no status)
+                          const isClickable = !isGenerating && !isFailed
                           return (
-                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}`}>
+                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
                               <button
                                 className="book-delete-btn"
                                 onClick={(e) => handleDeleteBook(e, book)}

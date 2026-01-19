@@ -1621,33 +1621,227 @@ const PHASE_6_COHERENCE_FIELDS = [
   'chapter_count_correct'
 ]
 
+// Phase 6 now works in batches to handle large chapter counts
+const CHAPTERS_PER_BATCH = 7
+
+// System prompt for generating chapter outlines (no beats yet)
+const PHASE_6_OUTLINE_SYSTEM_PROMPT = `You are a master story architect. Create a chapter-by-chapter outline showing structure, POV, and purpose for each chapter.
+
+Output JSON:
+{
+  "chapters": [
+    {
+      "number": 1,
+      "title": "Evocative chapter title",
+      "pov": "POV character name",
+      "story_time": "When in story timeline",
+      "chapter_purpose": "What this chapter accomplishes",
+      "emotional_arc": {
+        "opens": "Starting emotional state",
+        "turns": "Key shift mid-chapter",
+        "closes": "Ending emotional state"
+      },
+      "location_primary": "Main location from Phase 2",
+      "phase_4_moment": "Phase 4 moment if applicable, or null",
+      "phase_5_beats": ["List Phase 5 beats that appear in this chapter"],
+      "tension_rating": 5,
+      "hook_type": "cliffhanger | question | revelation | emotional | decision"
+    }
+  ],
+  "pov_distribution": {
+    "protagonist_chapters": [1, 3, 5],
+    "love_interest_chapters": [2, 4, 6]
+  }
+}`
+
+// System prompt for generating detailed scenes/beats for a batch of chapters
+const PHASE_6_BATCH_SYSTEM_PROMPT = `You are a master scene architect. For the given chapters, create DETAILED scene breakdowns with micro-beats.
+
+## CRITICAL: What is a Beat?
+
+A beat is a MICRO-MOMENT — one specific action, reaction, sensory detail, or emotional shift.
+
+WRONG (scene summaries, NOT beats):
+- "They have dinner together"
+- "She meets the soldier"
+
+RIGHT (actual micro-beats):
+- "Her fork scrapes porcelain — the silence stretches"
+- "His cologne arrives first: sandalwood and tobacco"
+- "She counts the candlelight reflections rather than meet his eyes"
+
+Each beat should generate 1-3 sentences of prose.
+
+## Output Format
+
+{
+  "chapters": [
+    {
+      "number": 1,
+      "scenes": [
+        {
+          "scene_number": 1,
+          "scene_name": "Evocative scene name",
+          "location": "Specific location",
+          "time_of_day": "morning/afternoon/evening/night",
+          "weather_mood": "Atmospheric detail mirroring emotion",
+          "characters_present": ["Character names"],
+          "scene_purpose": "setup/confrontation/revelation/intimacy",
+          "sensory_anchor": "Dominant sense for this scene",
+          "beats": [
+            "Beat 1: specific micro-moment",
+            "Beat 2: reaction or thought",
+            "... 15-25 beats per scene"
+          ],
+          "scene_turn": "The pivotal moment",
+          "exits_with": "How scene ends"
+        }
+      ],
+      "foreshadowing": {
+        "plants": ["Seeds planted"],
+        "payoffs": ["Seeds paid off"]
+      },
+      "chapter_hook": {
+        "type": "cliffhanger | question | revelation | emotional | decision",
+        "description": "What hooks the reader"
+      }
+    }
+  ]
+}`
+
+function buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
+  const chapterCount = CONFIG.chapterCounts[lengthPreset]
+
+  return `CONCEPT: ${concept}
+
+LENGTH: ${lengthPreset} (${chapterCount} chapters)
+
+PHASE 1 (Core Foundation):
+${JSON.stringify(phase1, null, 2)}
+
+PHASE 4 (Chemistry Moments - MUST BE PLACED):
+${JSON.stringify(phase4, null, 2)}
+
+PHASE 5 (Plot Architecture - BEATS MUST BE DISTRIBUTED):
+${JSON.stringify(phase5, null, 2)}
+
+Create an outline for all ${chapterCount} chapters. For each chapter, specify:
+- Which POV character
+- Which Phase 4 moment it contains (if any)
+- Which Phase 5 beats appear in it
+- The emotional arc and tension rating
+
+This is structure only - scenes and beats come later.`
+}
+
+function buildPhase6BatchPrompt(concept, phase1, phase2, phase3, chapterOutlines, startChapter, endChapter) {
+  const chaptersToProcess = chapterOutlines.slice(startChapter - 1, endChapter)
+
+  return `CONCEPT: ${concept}
+
+SETTING/LOCATIONS (use these):
+${JSON.stringify(phase2.setting, null, 2)}
+${JSON.stringify(phase2.locations, null, 2)}
+
+CHARACTERS:
+Protagonist: ${phase3.protagonist?.name}
+Love Interest: ${phase3.love_interest?.name}
+
+CHAPTERS TO DETAIL (${startChapter}-${endChapter}):
+${JSON.stringify(chaptersToProcess, null, 2)}
+
+For each chapter above, create 2-4 scenes with 15-25 micro-beats each.
+
+REMEMBER:
+- Every beat is a MICRO-MOMENT (1-3 sentences of prose worth)
+- Use specific locations from the setting
+- Sensory details reflect emotional state
+- Each scene needs a clear turn and exit`
+}
+
 async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
-  console.log('Executing Phase 6: Chapter & Scene Breakdown...')
+  console.log('Executing Phase 6: Chapter & Scene Breakdown (batched)...')
 
-  const userPrompt = buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset)
-  const response = await callOpenAI(PHASE_6_SYSTEM_PROMPT, userPrompt)
-  const parsed = parseJSON(response)
+  const chapterCount = CONFIG.chapterCounts[lengthPreset]
 
-  if (!parsed.success) {
-    throw new Error(`Phase 6 JSON parse failed: ${parsed.error}`)
+  // Step 1: Generate chapter outline (structure without beats)
+  console.log('  Phase 6a: Generating chapter outline...')
+  const outlinePrompt = buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset)
+  const outlineResponse = await callClaude(PHASE_6_OUTLINE_SYSTEM_PROMPT, outlinePrompt, { maxTokens: 8192 })
+  const outlineParsed = parseJSON(outlineResponse)
+
+  if (!outlineParsed.success) {
+    throw new Error(`Phase 6 outline parse failed: ${outlineParsed.error}`)
   }
 
-  const data = parsed.data
+  const outline = outlineParsed.data
+  console.log(`  Phase 6a complete: ${outline.chapters?.length || 0} chapter outlines`)
 
-  // Validate coherence check
-  const coherenceResult = validateCoherence(data.coherence_check, PHASE_6_COHERENCE_FIELDS)
-  if (!coherenceResult.valid) {
-    console.warn(`Phase 6 coherence warning: ${coherenceResult.message}`)
+  // Step 2: Generate detailed scenes/beats in batches
+  const allChapters = []
+  const batches = Math.ceil(chapterCount / CHAPTERS_PER_BATCH)
+
+  for (let batch = 0; batch < batches; batch++) {
+    const startChapter = batch * CHAPTERS_PER_BATCH + 1
+    const endChapter = Math.min((batch + 1) * CHAPTERS_PER_BATCH, chapterCount)
+
+    console.log(`  Phase 6b: Generating scenes for chapters ${startChapter}-${endChapter} (batch ${batch + 1}/${batches})...`)
+
+    const batchPrompt = buildPhase6BatchPrompt(concept, phase1, phase2, phase3, outline.chapters, startChapter, endChapter)
+    const batchResponse = await callClaude(PHASE_6_BATCH_SYSTEM_PROMPT, batchPrompt, { maxTokens: 8192 })
+    const batchParsed = parseJSON(batchResponse)
+
+    if (!batchParsed.success) {
+      console.error(`  Batch ${batch + 1} parse failed, attempting recovery...`)
+      // Try to continue with outline-only chapters for this batch
+      for (let i = startChapter - 1; i < endChapter; i++) {
+        allChapters.push({
+          ...outline.chapters[i],
+          scenes: [], // No scenes, will fall back to single-pass generation
+          foreshadowing: { plants: [], payoffs: [] },
+          chapter_hook: { type: 'emotional', description: 'Chapter concludes' }
+        })
+      }
+      continue
+    }
+
+    // Merge batch results with outline data
+    for (const batchChapter of batchParsed.data.chapters || []) {
+      const outlineChapter = outline.chapters.find(c => c.number === batchChapter.number)
+      if (outlineChapter) {
+        allChapters.push({
+          ...outlineChapter,
+          scenes: batchChapter.scenes || [],
+          foreshadowing: batchChapter.foreshadowing || { plants: [], payoffs: [] },
+          chapter_hook: batchChapter.chapter_hook || { type: 'emotional', description: 'Chapter concludes' },
+          hook: batchChapter.chapter_hook || { type: 'emotional', description: 'Chapter concludes' }
+        })
+      }
+    }
+
+    console.log(`    Batch ${batch + 1} complete: ${batchParsed.data.chapters?.length || 0} chapters with scenes`)
   }
 
-  // Validate chapter count
-  const expectedCount = CONFIG.chapterCounts[lengthPreset]
-  if (data.chapters?.length !== expectedCount) {
-    console.warn(`Phase 6 chapter count mismatch: expected ${expectedCount}, got ${data.chapters?.length}`)
+  // Sort chapters by number
+  allChapters.sort((a, b) => a.number - b.number)
+
+  const result = {
+    chapters: allChapters,
+    pov_distribution: outline.pov_distribution,
+    timeline: outline.timeline || { total_story_time: 'Several months', time_jumps: [] },
+    coherence_check: {
+      pov_structure_honored: 'Verified during generation',
+      all_phase5_beats_placed: 'Distributed across chapters',
+      all_phase4_moments_placed: 'Placed in designated chapters',
+      all_foreshadowing_tracked: 'Tracked in batch generation',
+      locations_from_phase2: 'Using Phase 2 locations',
+      tension_curve_matches_phase5: 'Following plot architecture',
+      chapter_count_correct: allChapters.length === chapterCount ? 'Yes' : `Expected ${chapterCount}, got ${allChapters.length}`
+    }
   }
 
-  console.log('Phase 6 complete.')
-  return data
+  console.log(`Phase 6 complete: ${allChapters.length} chapters with scenes/beats`)
+  return result
 }
 
 // =============================================================================

@@ -492,19 +492,20 @@ const Dashboard = () => {
       },
     )
 
-    // Listen to generatedBooks collection
+    // Listen to generatedBooks collection (no orderBy to avoid index requirement, we sort client-side)
     const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
     const generatedBooksQuery = query(
       generatedBooksRef,
       where('language', '==', activeLanguage),
-      orderBy('createdAt', 'desc'),
     )
 
     const unsubscribeGeneratedBooks = onSnapshot(
       generatedBooksQuery,
       (snapshot) => {
+        console.log('Generated books snapshot:', snapshot.docs.length, 'docs for language:', activeLanguage)
         generatedBooksItems = snapshot.docs.map((doc) => {
           const data = doc.data()
+          console.log('Generated book:', doc.id, 'title:', data.bible?.coreFoundation?.title || data.concept)
           return {
             id: doc.id,
             ...data,

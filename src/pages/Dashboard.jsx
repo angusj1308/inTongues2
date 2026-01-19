@@ -492,28 +492,31 @@ const Dashboard = () => {
       },
     )
 
-    // Listen to generatedBooks collection (no orderBy to avoid index requirement, we sort client-side)
+    // Listen to generatedBooks collection - query ALL books, filter client-side for debugging
     const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
-    const generatedBooksQuery = query(
-      generatedBooksRef,
-      where('language', '==', activeLanguage),
-    )
 
     const unsubscribeGeneratedBooks = onSnapshot(
-      generatedBooksQuery,
+      generatedBooksRef,
       (snapshot) => {
-        console.log('Generated books snapshot:', snapshot.docs.length, 'docs for language:', activeLanguage)
-        generatedBooksItems = snapshot.docs.map((doc) => {
+        console.log('Generated books snapshot (ALL):', snapshot.docs.length, 'total docs, filtering for:', activeLanguage)
+        snapshot.docs.forEach((doc) => {
           const data = doc.data()
-          console.log('Generated book:', doc.id, 'title:', data.bible?.coreFoundation?.title || data.concept)
-          return {
-            id: doc.id,
-            ...data,
-            // Mark as generated book and set title from bible
-            isGeneratedBook: true,
-            title: data.bible?.coreFoundation?.title || data.concept || 'Untitled Novel',
-          }
+          console.log('  Book:', doc.id, '| language:', JSON.stringify(data.language), '| match:', data.language === activeLanguage)
         })
+        // Filter to matching language client-side
+        generatedBooksItems = snapshot.docs
+          .filter((doc) => doc.data().language === activeLanguage)
+          .map((doc) => {
+            const data = doc.data()
+            return {
+              id: doc.id,
+              ...data,
+              // Mark as generated book and set title from bible
+              isGeneratedBook: true,
+              title: data.bible?.coreFoundation?.title || data.concept || 'Untitled Novel',
+            }
+          })
+        console.log('Generated books after filter:', generatedBooksItems.length)
         generatedBooksLoaded = true
         mergeAndSetItems()
       },

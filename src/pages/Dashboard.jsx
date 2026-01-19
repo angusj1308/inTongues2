@@ -237,8 +237,9 @@ const BookGrid = ({
         {books.map((book) => {
           const progress = Math.max(0, Math.min(100, book.progress || 0))
           const titleText = getStoryTitle ? getStoryTitle(book) : book.title
-          const isReady = book.status === 'ready'
-          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending'
+          const isReady = book.status === 'ready' || book.status === 'bible_complete'
+          const isGenerating = book.status === 'generating' || book.status === 'planning'
+          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating
           const canClick = isReady && onBookClick
 
           return (
@@ -278,7 +279,9 @@ const BookGrid = ({
                   <div className="book-tile-processing-overlay">
                     <div className="book-tile-spinner" />
                     <span className="book-tile-processing-text">
-                      {book.status === 'adapting' ? 'Adapting...' : 'Processing...'}
+                      {book.status === 'adapting' ? 'Adapting...'
+                        : (book.status === 'generating' || book.status === 'planning') ? 'Generating...'
+                        : 'Processing...'}
                     </span>
                   </div>
                 )}
@@ -892,7 +895,13 @@ const Dashboard = () => {
     }
   }
 
-  const getStoryTitle = (item) => item.title?.trim() || 'Untitled Story'
+  const getStoryTitle = (item) => {
+    // Show placeholder for generating books
+    if (item.status === 'generating' || item.status === 'planning') {
+      return item.concept?.trim() || 'Generating novel...'
+    }
+    return item.title?.trim() || 'Untitled Story'
+  }
 
   const inProgressBooks =
     items.filter((item) => Number.isFinite(item.progress) && item.progress > 0 && item.progress < 100) || []
@@ -1151,8 +1160,10 @@ const Dashboard = () => {
                       <div className="reading-shelf-scroll">
                         {yourRecentBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
+                          const isGenerating = book.status === 'generating' || book.status === 'planning'
+                          const isClickable = !isGenerating && (book.status === 'ready' || book.status === 'bible_complete' || !book.status)
                           return (
-                            <div key={book.id || book.title} className="reading-shelf-item">
+                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}`}>
                               <button
                                 className="book-delete-btn"
                                 onClick={(e) => handleDeleteBook(e, book)}
@@ -1162,7 +1173,8 @@ const Dashboard = () => {
                               </button>
                               <button
                                 className="reading-shelf-item-content"
-                                onClick={() => handleOpenBook(book)}
+                                onClick={isClickable ? () => handleOpenBook(book) : undefined}
+                                disabled={!isClickable}
                               >
                                 <div className="reading-shelf-cover">
                                   {book.coverImageUrl && (
@@ -1180,17 +1192,25 @@ const Dashboard = () => {
                                       <span>{getStoryTitle(book)}</span>
                                     </div>
                                   )}
-                                  <div className="reading-shelf-hover-overlay">
-                                    <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
-                                    <div className="reading-shelf-hover-meta">
-                                      {book.level ? `Level ${book.level}` : ''}
-                                      {book.level && book.pageCount ? ' · ' : ''}
-                                      {book.pageCount ? `${book.pageCount} pages` : ''}
+                                  {isGenerating && (
+                                    <div className="reading-shelf-generating-overlay">
+                                      <div className="reading-shelf-spinner" />
+                                      <span className="reading-shelf-generating-text">Generating...</span>
                                     </div>
-                                    <div className="reading-shelf-hover-progress">
-                                      <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
+                                  )}
+                                  {!isGenerating && (
+                                    <div className="reading-shelf-hover-overlay">
+                                      <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
+                                      <div className="reading-shelf-hover-meta">
+                                        {book.level ? `Level ${book.level}` : ''}
+                                        {book.level && book.pageCount ? ' · ' : ''}
+                                        {book.pageCount ? `${book.pageCount} pages` : ''}
+                                      </div>
+                                      <div className="reading-shelf-hover-progress">
+                                        <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               </button>
                             </div>
@@ -1216,8 +1236,10 @@ const Dashboard = () => {
                       <div className="reading-shelf-scroll">
                         {allBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
+                          const isGenerating = book.status === 'generating' || book.status === 'planning'
+                          const isClickable = !isGenerating && (book.status === 'ready' || book.status === 'bible_complete' || !book.status)
                           return (
-                            <div key={book.id || book.title} className="reading-shelf-item">
+                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}`}>
                               <button
                                 className="book-delete-btn"
                                 onClick={(e) => handleDeleteBook(e, book)}
@@ -1227,7 +1249,8 @@ const Dashboard = () => {
                               </button>
                               <button
                                 className="reading-shelf-item-content"
-                                onClick={() => handleOpenBook(book)}
+                                onClick={isClickable ? () => handleOpenBook(book) : undefined}
+                                disabled={!isClickable}
                               >
                                 <div className="reading-shelf-cover">
                                   {book.coverImageUrl && (
@@ -1245,17 +1268,25 @@ const Dashboard = () => {
                                       <span>{getStoryTitle(book)}</span>
                                     </div>
                                   )}
-                                  <div className="reading-shelf-hover-overlay">
-                                    <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
-                                    <div className="reading-shelf-hover-meta">
-                                      {book.level ? `Level ${book.level}` : ''}
-                                      {book.level && book.pageCount ? ' · ' : ''}
-                                      {book.pageCount ? `${book.pageCount} pages` : ''}
+                                  {isGenerating && (
+                                    <div className="reading-shelf-generating-overlay">
+                                      <div className="reading-shelf-spinner" />
+                                      <span className="reading-shelf-generating-text">Generating...</span>
                                     </div>
-                                    <div className="reading-shelf-hover-progress">
-                                      <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
+                                  )}
+                                  {!isGenerating && (
+                                    <div className="reading-shelf-hover-overlay">
+                                      <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
+                                      <div className="reading-shelf-hover-meta">
+                                        {book.level ? `Level ${book.level}` : ''}
+                                        {book.level && book.pageCount ? ' · ' : ''}
+                                        {book.pageCount ? `${book.pageCount} pages` : ''}
+                                      </div>
+                                      <div className="reading-shelf-hover-progress">
+                                        <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               </button>
                             </div>

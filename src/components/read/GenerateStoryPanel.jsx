@@ -146,33 +146,49 @@ const GenerateStoryPanel = ({
     const useBiblePipeline = lengthPreset === 'novella' || lengthPreset === 'novel'
 
     if (useBiblePipeline) {
-      // Bible generation pipeline for longer stories
-      setBibleProgress('Starting 8-phase story bible generation...')
+      // Create placeholder document immediately so user sees it in library
+      const placeholderConcept = description.trim() || 'A compelling romance story'
+      const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
+
       try {
-        const result = await generateBible({
-          uid: user.uid,
-          concept: description.trim() || 'A compelling romance story',
+        const placeholderRef = await addDoc(generatedBooksRef, {
+          status: 'generating',
+          concept: placeholderConcept,
           level: LEVELS[levelIndex],
-          lengthPreset: lengthPreset, // 'novella' or 'novel'
+          lengthPreset: lengthPreset,
           language: activeLanguage,
           generateAudio,
+          createdAt: serverTimestamp(),
         })
 
-        if (result.success) {
-          setBibleProgress('Bible complete! Loading your story...')
-          if (onClose) {
-            onClose()
-          }
-          // Navigate to reader with the generated book
-          navigate(`/reader/${activeLanguage}/${result.bookId}`)
-        } else {
-          setError(result.error || 'Failed to generate novel')
+        // Close panel immediately and navigate to dashboard
+        if (onClose) {
+          onClose()
         }
-      } catch (submissionError) {
-        setError(submissionError?.message || 'Unable to generate novel.')
-      } finally {
         setIsSubmitting(false)
-        setBibleProgress('')
+        navigate('/dashboard', { state: { initialTab: 'read' } })
+
+        // Fire off generation in background (don't await)
+        generateBible({
+          uid: user.uid,
+          bookId: placeholderRef.id, // Pass the placeholder ID so backend updates it
+          concept: placeholderConcept,
+          level: LEVELS[levelIndex],
+          lengthPreset: lengthPreset,
+          language: activeLanguage,
+          generateAudio,
+        }).catch((err) => {
+          console.error('Background novel generation failed:', err)
+          // Update placeholder to show error status
+          setDoc(doc(db, 'users', user.uid, 'generatedBooks', placeholderRef.id),
+            { status: 'error', error: err.message },
+            { merge: true }
+          ).catch(console.error)
+        })
+
+      } catch (placeholderError) {
+        setError(placeholderError?.message || 'Unable to start novel generation.')
+        setIsSubmitting(false)
       }
       return
     }

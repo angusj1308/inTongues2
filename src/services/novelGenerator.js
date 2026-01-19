@@ -7,6 +7,7 @@ const API_BASE = 'http://localhost:4000'
  * Generate a complete story bible (8-phase pipeline)
  * @param {Object} params
  * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Optional existing book ID (placeholder) to update
  * @param {string} params.concept - Story concept/description
  * @param {string} params.level - Language level (Beginner, Intermediate, Native)
  * @param {string} params.lengthPreset - 'novella' (12 chapters) or 'novel' (35 chapters)
@@ -15,12 +16,12 @@ const API_BASE = 'http://localhost:4000'
  * @returns {Promise<Object>} Generated bible and book metadata
  */
 export async function generateBible(params) {
-  const { uid, concept, level, lengthPreset, language, generateAudio = false } = params
+  const { uid, bookId, concept, level, lengthPreset, language, generateAudio = false } = params
 
   const response = await fetch(`${API_BASE}/api/generate/bible`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uid, concept, level, lengthPreset, language, generateAudio }),
+    body: JSON.stringify({ uid, bookId, concept, level, lengthPreset, language, generateAudio }),
   })
 
   if (!response.ok) {

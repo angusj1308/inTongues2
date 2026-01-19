@@ -7810,7 +7810,7 @@ function validateCoherenceCheck(coherenceCheck, requiredFields) {
 // POST /api/generate/bible - Generate complete story bible (Phases 1-8)
 app.post('/api/generate/bible', async (req, res) => {
   try {
-    const { uid, concept, level, lengthPreset, language, generateAudio = false } = req.body
+    const { uid, bookId: existingBookId, concept, level, lengthPreset, language, generateAudio = false } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
@@ -7831,10 +7831,13 @@ app.post('/api/generate/bible', async (req, res) => {
       return res.status(400).json({ error: `lengthPreset must be one of: ${validLengths.join(', ')}` })
     }
 
-    // Create initial book document
-    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc()
+    // Use existing book document if provided, otherwise create new one
+    const bookRef = existingBookId
+      ? firestore.collection('users').doc(uid).collection('generatedBooks').doc(existingBookId)
+      : firestore.collection('users').doc(uid).collection('generatedBooks').doc()
     const bookId = bookRef.id
 
+    // Update or create the book document with planning status
     await bookRef.set({
       concept,
       language,
@@ -7846,7 +7849,7 @@ app.post('/api/generate/bible', async (req, res) => {
       status: 'planning',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       bible: {} // Will be populated by phases
-    })
+    }, { merge: true })
 
     // Generate the complete bible using the 8-phase pipeline
     console.log(`Starting bible generation for book ${bookId}...`)

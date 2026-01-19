@@ -207,11 +207,15 @@ NATIVE (Translation):
 - For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
 - Maintain the same register (formal, academic, literary, colloquial, etc.)
 
-INTERMEDIATE (Simplified):
-- Simplify vocabulary and clarify implicit meaning
-- Keep most sentence structure but may split complex sentences
-- Natural, clear prose that flows well
-- Make subtext more accessible while preserving tone
+INTERMEDIATE (Accessible):
+- Simplify vocabulary: replace rare/literary words with common equivalents
+- Shorter sentences: split complex sentences, but keep natural flow
+- The author's voice should still be recognizable—simplify HOW things are said, not WHAT is said
+- PRESERVE distinctive metaphors and imagery (simplify the language around them, but keep the image)
+  Example: "the demon of earthquake may shrug his shoulders" → keep the demon and the shrug, simplify other words
+- Replace Latin/foreign phrases with accessible equivalents (e.g., "sine qua non" → "essential requirement")
+- Clarify implicit meaning—if something is implied, make it slightly more explicit
+- CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
 
 BEGINNER (Easy):
 - Short sentences, common words, explicit meaning
@@ -231,6 +235,8 @@ NEVER:
 - Remove dialogue, descriptions, events, or character actions
 - Add content not present in the original
 - Omit names, places, or plot-critical details
+- Invert or change the author's meaning (simplify expression, not content)
+- Replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
 
 ALWAYS:
 - Represent every concept from the source
@@ -369,11 +375,15 @@ NATIVE (Translation):
 - For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
 - Maintain the same register (formal, academic, literary, colloquial, etc.)
 
-INTERMEDIATE (Simplified):
-- Simplify vocabulary and clarify implicit meaning
-- Keep most sentence structure but may split complex sentences
-- Natural, clear prose that flows well
-- Make subtext more accessible while preserving tone
+INTERMEDIATE (Accessible):
+- Simplify vocabulary: replace rare/literary words with common equivalents
+- Shorter sentences: split complex sentences, but keep natural flow
+- The author's voice should still be recognizable—simplify HOW things are said, not WHAT is said
+- PRESERVE distinctive metaphors and imagery (simplify the language around them, but keep the image)
+  Example: "the demon of earthquake may shrug his shoulders" → keep the demon and the shrug, simplify other words
+- Replace Latin/foreign phrases with accessible equivalents (e.g., "sine qua non" → "essential requirement")
+- Clarify implicit meaning—if something is implied, make it slightly more explicit
+- CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
 
 BEGINNER (Easy):
 - Short sentences, common words, explicit meaning
@@ -393,6 +403,8 @@ NEVER:
 - Remove dialogue, descriptions, events, or character actions
 - Add content not present in the original
 - Omit names, places, or plot-critical details
+- Invert or change the author's meaning (simplify expression, not content)
+- Replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
 
 ALWAYS:
 - Represent every concept from the source

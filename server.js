@@ -7208,17 +7208,32 @@ app.post('/api/delete-story', async (req, res) => {
   let storyRef
 
   try {
-    const { uid, storyId } = req.body || {}
+    const { uid, storyId, collectionType } = req.body || {}
 
     if (!uid || !storyId) {
       return res.status(400).json({ error: 'uid and storyId are required' })
     }
 
-    storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    // Determine which collection to delete from
+    // collectionType can be 'generatedBooks' or 'stories' (default)
+    const collectionName = collectionType === 'generatedBooks' ? 'generatedBooks' : 'stories'
+
+    storyRef = firestore.collection('users').doc(uid).collection(collectionName).doc(storyId)
     const storySnap = await storyRef.get()
 
     if (!storySnap.exists) {
-      return res.status(404).json({ error: 'Story not found' })
+      // If not found in specified collection, try the other one
+      const alternateCollection = collectionName === 'stories' ? 'generatedBooks' : 'stories'
+      const alternateRef = firestore.collection('users').doc(uid).collection(alternateCollection).doc(storyId)
+      const alternateSnap = await alternateRef.get()
+
+      if (!alternateSnap.exists) {
+        return res.status(404).json({ error: 'Story not found in either collection' })
+      }
+
+      // Found in alternate collection
+      storyRef = alternateRef
+      console.log(`Story ${storyId} found in ${alternateCollection} instead of ${collectionName}`)
     }
 
     // Helper function to delete all docs in a subcollection

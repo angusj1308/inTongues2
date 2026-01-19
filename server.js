@@ -218,10 +218,14 @@ INTERMEDIATE (Accessible):
 - CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
 
 BEGINNER (Easy):
-- Short sentences, common words, explicit meaning
-- Freely restructure and split complex ideas
-- Prioritize clarity over style
-- Make all meaning obvious and direct
+- Short sentences (8-12 words average), common everyday words, explicit meaning
+- Freely restructure and split complex ideas into simple statements
+- Prioritize clarity over style—this level must be accessible to absolute beginners
+- Author's voice is NOT a priority at this level; clarity comes first
+- Convert metaphors and figurative language to concrete, literal statements
+  Example: "the demon of earthquake may shrug his shoulders" → "earthquakes can destroy our cities"
+- Remove or replace all literary flourishes, idioms, and abstract imagery
+- Make all meaning obvious and direct—nothing should require inference
 
 FREEDOMS (for Intermediate and Beginner only):
 - Use any vocabulary that conveys the same meaning
@@ -236,7 +240,7 @@ NEVER:
 - Add content not present in the original
 - Omit names, places, or plot-critical details
 - Invert or change the author's meaning (simplify expression, not content)
-- Replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
+- For Intermediate: replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
 
 ALWAYS:
 - Represent every concept from the source
@@ -386,10 +390,14 @@ INTERMEDIATE (Accessible):
 - CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
 
 BEGINNER (Easy):
-- Short sentences, common words, explicit meaning
-- Freely restructure and split complex ideas
-- Prioritize clarity over style
-- Make all meaning obvious and direct
+- Short sentences (8-12 words average), common everyday words, explicit meaning
+- Freely restructure and split complex ideas into simple statements
+- Prioritize clarity over style—this level must be accessible to absolute beginners
+- Author's voice is NOT a priority at this level; clarity comes first
+- Convert metaphors and figurative language to concrete, literal statements
+  Example: "the demon of earthquake may shrug his shoulders" → "earthquakes can destroy our cities"
+- Remove or replace all literary flourishes, idioms, and abstract imagery
+- Make all meaning obvious and direct—nothing should require inference
 
 FREEDOMS (for Intermediate and Beginner only):
 - Use any vocabulary that conveys the same meaning
@@ -404,7 +412,7 @@ NEVER:
 - Add content not present in the original
 - Omit names, places, or plot-critical details
 - Invert or change the author's meaning (simplify expression, not content)
-- Replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
+- For Intermediate: replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
 
 ALWAYS:
 - Represent every concept from the source

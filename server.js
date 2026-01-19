@@ -198,11 +198,36 @@ const ADAPTATION_SYSTEM_PROMPT = `
 You are adapting a book for language learners. Write only in the requested target language.
 
 LEVELS:
-- Native: Faithful translation. Preserve the author's style, sentence structure, and vocabulary complexity. No simplification.
-- Intermediate: Simplify vocabulary and clarify implicit meaning. Keep most structure but may split complex sentences. Natural, clear prose.
-- Beginner: Short sentences, common words, explicit meaning. Freely restructure and split complex ideas.
 
-FREEDOMS:
+NATIVE (Translation):
+- This is TRANSLATION, not adaptation—preserve full complexity
+- Maintain the author's sentence structure, vocabulary sophistication, and literary style
+- Preserve the author's deliberate choices: if they use Latin phrases (e.g., "sine qua non"), foreign words, or technical terms, keep them
+- Convert English idioms and expressions to natural equivalents in the target language (not literal word-for-word translations)
+- For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
+- Maintain the same register (formal, academic, literary, colloquial, etc.)
+
+INTERMEDIATE (Accessible):
+- Simplify vocabulary: replace rare/literary words with common equivalents
+- Shorter sentences: split complex sentences, but keep natural flow
+- The author's voice should still be recognizable—simplify HOW things are said, not WHAT is said
+- PRESERVE distinctive metaphors and imagery (simplify the language around them, but keep the image)
+  Example: "the demon of earthquake may shrug his shoulders" → keep the demon and the shrug, simplify other words
+- Replace Latin/foreign phrases with accessible equivalents (e.g., "sine qua non" → "essential requirement")
+- Clarify implicit meaning—if something is implied, make it slightly more explicit
+- CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
+
+BEGINNER (Easy):
+- Short sentences (8-12 words average), common everyday words, explicit meaning
+- Freely restructure and split complex ideas into simple statements
+- Prioritize clarity over style—this level must be accessible to absolute beginners
+- Author's voice is NOT a priority at this level; clarity comes first
+- Convert metaphors and figurative language to concrete, literal statements
+  Example: "the demon of earthquake may shrug his shoulders" → "earthquakes can destroy our cities"
+- Remove or replace all literary flourishes, idioms, and abstract imagery
+- Make all meaning obvious and direct—nothing should require inference
+
+FREEDOMS (for Intermediate and Beginner only):
 - Use any vocabulary that conveys the same meaning
 - Restructure sentences, split clauses, reorder ideas
 - Not bound by the author's syntax or word choices
@@ -214,10 +239,12 @@ NEVER:
 - Remove dialogue, descriptions, events, or character actions
 - Add content not present in the original
 - Omit names, places, or plot-critical details
+- Invert or change the author's meaning (simplify expression, not content)
+- For Intermediate: replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
 
 ALWAYS:
 - Represent every concept from the source
-- Preserve all proper nouns exactly as written
+- Preserve all proper nouns (use target language spelling where standard, e.g., London → Londres)
 - Maintain the same narrative beats
 - Use natural punctuation and full sentences
 - Preserve paragraph breaks from the original text (use blank lines between paragraphs)
@@ -343,11 +370,36 @@ const ADAPTATION_WITH_CONTEXT_PROMPT = `
 You are adapting a book for language learners. Write only in the requested target language.
 
 LEVELS:
-- Native: Faithful translation. Preserve the author's style, sentence structure, and vocabulary complexity. No simplification.
-- Intermediate: Simplify vocabulary and clarify implicit meaning. Keep most structure but may split complex sentences. Natural, clear prose.
-- Beginner: Short sentences, common words, explicit meaning. Freely restructure and split complex ideas.
 
-FREEDOMS:
+NATIVE (Translation):
+- This is TRANSLATION, not adaptation—preserve full complexity
+- Maintain the author's sentence structure, vocabulary sophistication, and literary style
+- Preserve the author's deliberate choices: if they use Latin phrases (e.g., "sine qua non"), foreign words, or technical terms, keep them
+- Convert English idioms and expressions to natural equivalents in the target language (not literal word-for-word translations)
+- For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
+- Maintain the same register (formal, academic, literary, colloquial, etc.)
+
+INTERMEDIATE (Accessible):
+- Simplify vocabulary: replace rare/literary words with common equivalents
+- Shorter sentences: split complex sentences, but keep natural flow
+- The author's voice should still be recognizable—simplify HOW things are said, not WHAT is said
+- PRESERVE distinctive metaphors and imagery (simplify the language around them, but keep the image)
+  Example: "the demon of earthquake may shrug his shoulders" → keep the demon and the shrug, simplify other words
+- Replace Latin/foreign phrases with accessible equivalents (e.g., "sine qua non" → "essential requirement")
+- Clarify implicit meaning—if something is implied, make it slightly more explicit
+- CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
+
+BEGINNER (Easy):
+- Short sentences (8-12 words average), common everyday words, explicit meaning
+- Freely restructure and split complex ideas into simple statements
+- Prioritize clarity over style—this level must be accessible to absolute beginners
+- Author's voice is NOT a priority at this level; clarity comes first
+- Convert metaphors and figurative language to concrete, literal statements
+  Example: "the demon of earthquake may shrug his shoulders" → "earthquakes can destroy our cities"
+- Remove or replace all literary flourishes, idioms, and abstract imagery
+- Make all meaning obvious and direct—nothing should require inference
+
+FREEDOMS (for Intermediate and Beginner only):
 - Use any vocabulary that conveys the same meaning
 - Restructure sentences, split clauses, reorder ideas
 - Not bound by the author's syntax or word choices
@@ -359,10 +411,12 @@ NEVER:
 - Remove dialogue, descriptions, events, or character actions
 - Add content not present in the original
 - Omit names, places, or plot-critical details
+- Invert or change the author's meaning (simplify expression, not content)
+- For Intermediate: replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
 
 ALWAYS:
 - Represent every concept from the source
-- Preserve all proper nouns exactly as written
+- Preserve all proper nouns (use target language spelling where standard, e.g., London → Londres)
 - Maintain the same narrative beats
 - Use natural punctuation and full sentences
 - Preserve paragraph breaks from the original text (use blank lines between paragraphs)
@@ -502,7 +556,11 @@ async function adaptWithRetry(pageText, options, maxRetries = 2) {
     try {
       // Build prompt based on whether we have context
       let systemPrompt = context ? ADAPTATION_WITH_CONTEXT_PROMPT : ADAPTATION_SYSTEM_PROMPT
-      let userPrompt = `Adapt the following text to ${level} level in ${targetLanguage}:`
+
+      // Use "Translate" for Native level, "Adapt" for others
+      let userPrompt = level === 'Native'
+        ? `Translate the following text into ${targetLanguage} at Native level (full complexity, natural idioms):`
+        : `Adapt the following text to ${level} level in ${targetLanguage}:`
 
       if (context) {
         userPrompt = `PREVIOUS CONTEXT (do not repeat, continue from here):\n"${context}"\n\n${userPrompt}`
@@ -4287,6 +4345,157 @@ function parseEpub(filePath) {
   })
 }
 
+/**
+ * Extract cover image from EPUB file
+ * @param {Object} epub - Parsed epub object from parseEpub
+ * @returns {Promise<{buffer: Buffer, mimeType: string}|null>} Cover image data or null
+ */
+async function extractEpubCover(epub) {
+  try {
+    // Method 1: Check metadata for cover reference
+    let coverId = epub.metadata?.cover
+
+    // Method 2: Search manifest for cover image by properties or id patterns
+    if (!coverId && epub.manifest) {
+      for (const [id, item] of Object.entries(epub.manifest)) {
+        // Check for cover property (EPUB3) or common cover id patterns
+        if (
+          item.properties === 'cover-image' ||
+          id === 'cover' ||
+          id === 'cover-image' ||
+          id.toLowerCase().includes('cover') ||
+          (item.href && item.href.toLowerCase().includes('cover'))
+        ) {
+          // Verify it's an image type
+          if (item['media-type']?.startsWith('image/')) {
+            coverId = id
+            break
+          }
+        }
+      }
+    }
+
+    // Method 3: Look for cover in guide section (older EPUBs)
+    if (!coverId && epub.guide) {
+      for (const item of epub.guide) {
+        if (item.type === 'cover' && item.href) {
+          // The href might point to an HTML page containing the cover
+          // Try to find the corresponding manifest item
+          const hrefBase = item.href.split('#')[0]
+          for (const [id, manifestItem] of Object.entries(epub.manifest)) {
+            if (manifestItem.href === hrefBase && manifestItem['media-type']?.startsWith('image/')) {
+              coverId = id
+              break
+            }
+          }
+        }
+      }
+    }
+
+    if (!coverId) {
+      console.log('No cover image found in EPUB metadata or manifest')
+      return null
+    }
+
+    // Get the image using epub2's getImage method
+    return new Promise((resolve) => {
+      epub.getImage(coverId, (err, data, mimeType) => {
+        if (err || !data) {
+          console.log('Failed to extract cover image:', err?.message || 'No data')
+          resolve(null)
+        } else {
+          console.log(`Extracted EPUB cover: ${coverId}, type: ${mimeType}, size: ${data.length} bytes`)
+          resolve({ buffer: data, mimeType: mimeType || 'image/jpeg' })
+        }
+      })
+    })
+  } catch (error) {
+    console.error('Error extracting EPUB cover:', error)
+    return null
+  }
+}
+
+/**
+ * Upload cover image to Firebase Storage
+ * @param {Buffer} imageBuffer - Image data
+ * @param {string} mimeType - Image MIME type
+ * @param {string} userId - User ID for storage path
+ * @param {string} bookId - Book ID for storage path
+ * @returns {Promise<string|null>} Public URL of uploaded cover or null
+ */
+async function uploadCoverToStorage(imageBuffer, mimeType, userId, bookId) {
+  if (!bucket || !imageBuffer) return null
+
+  try {
+    const extension = mimeType.includes('png') ? 'png' : mimeType.includes('gif') ? 'gif' : 'jpg'
+    const storagePath = `covers/${userId}/${bookId}.${extension}`
+
+    const file = bucket.file(storagePath)
+    await file.save(imageBuffer, {
+      contentType: mimeType,
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+      },
+    })
+    await file.makePublic()
+
+    const coverUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+    console.log('Cover uploaded to:', coverUrl)
+    return coverUrl
+  } catch (error) {
+    console.error('Failed to upload cover to storage:', error)
+    return null
+  }
+}
+
+/**
+ * Search Open Library for a book cover by title and author
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchOpenLibraryCover(title, author) {
+  if (!title && !author) return null
+
+  const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'
+  const OPEN_LIBRARY_COVERS_URL = 'https://covers.openlibrary.org/b'
+
+  try {
+    const params = new URLSearchParams()
+    if (title) params.append('title', title)
+    if (author) params.append('author', author)
+    params.append('limit', '3')
+    params.append('fields', 'cover_i')
+
+    const url = `${OPEN_LIBRARY_SEARCH_URL}?${params.toString()}`
+    console.log('Searching Open Library for cover:', url)
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.error(`Open Library API error: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const docs = data.docs || []
+
+    // Find first result with a cover
+    for (const doc of docs) {
+      if (doc.cover_i) {
+        const coverUrl = `${OPEN_LIBRARY_COVERS_URL}/id/${doc.cover_i}-L.jpg`
+        console.log('Found Open Library cover:', coverUrl)
+        return coverUrl
+      }
+    }
+
+    console.log('No cover found on Open Library')
+    return null
+  } catch (error) {
+    console.error('Open Library search failed:', error)
+    return null
+  }
+}
+
 function getChapterAsync(epub, id) {
   return new Promise((resolve, reject) => {
     epub.getChapter(id, (err, text) => {
@@ -4316,11 +4525,11 @@ async function extractEpub(filePath) {
 }
 
 /**
- * Extract EPUB with chapter structure preserved.
+ * Extract EPUB with chapter structure preserved from a pre-parsed epub object.
  * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ * @param {Object} epub - Already parsed epub object from parseEpub()
  */
-async function extractEpubWithChapters(filePath) {
-  const epub = await parseEpub(filePath)
+async function extractEpubWithChaptersFromParsed(epub) {
   const chapters = []
 
   // epub.flow is the reading order, epub.toc has chapter titles
@@ -4378,6 +4587,16 @@ async function extractEpubWithChapters(filePath) {
   }
 
   return chapters
+}
+
+/**
+ * Extract EPUB with chapter structure preserved.
+ * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ * @param {string} filePath - Path to EPUB file
+ */
+async function extractEpubWithChapters(filePath) {
+  const epub = await parseEpub(filePath)
+  return extractEpubWithChaptersFromParsed(epub)
 }
 
 /**
@@ -4546,6 +4765,7 @@ async function saveImportedBookToFirestore({
   isPublicDomain,
   pages,
   voiceGender,
+  coverImageUrl = null,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -4591,6 +4811,7 @@ async function saveImportedBookToFirestore({
     voiceId,
     voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
   })
 
   const batch = firestore.batch()
@@ -4635,6 +4856,7 @@ async function saveImportedFlatBookToFirestore({
   wordCount,
   voiceGender,
   sourceType = 'txt',
+  coverImageUrl = null,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -4692,6 +4914,7 @@ async function saveImportedFlatBookToFirestore({
     voiceId,
     voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
   })
 
   return storyRef.id
@@ -4715,6 +4938,7 @@ async function saveImportedChapterBookToFirestore({
   chapters,
   voiceGender,
   sourceType = 'epub', // 'epub', 'txt', etc.
+  coverImageUrl = null,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -4770,6 +4994,7 @@ async function saveImportedChapterBookToFirestore({
     voiceId,
     voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
   })
 
   // Save chapters
@@ -4945,8 +5170,32 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
     // Handle EPUB with chapter-based flow
     if (fileType === 'epub') {
-      const chapters = await extractEpubWithChapters(req.file.path)
+      // Parse EPUB to extract both chapters and cover
+      const epub = await parseEpub(req.file.path)
+      const chapters = await extractEpubWithChaptersFromParsed(epub)
       console.log('Extracted EPUB chapters:', chapters.length)
+
+      // Try to extract cover from EPUB
+      let coverImageUrl = null
+      const epubCover = await extractEpubCover(epub)
+
+      if (epubCover) {
+        // Generate a temporary book ID for the cover path
+        const tempBookId = `epub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        coverImageUrl = await uploadCoverToStorage(
+          epubCover.buffer,
+          epubCover.mimeType,
+          userId,
+          tempBookId
+        )
+        console.log('EPUB cover extracted and uploaded:', coverImageUrl)
+      }
+
+      // If no cover in EPUB, search Open Library
+      if (!coverImageUrl && (title || author)) {
+        console.log('No EPUB cover found, searching Open Library...')
+        coverImageUrl = await searchOpenLibraryCover(title, author)
+      }
 
       const bookId = await saveImportedChapterBookToFirestore({
         userId,
@@ -4960,6 +5209,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         chapters,
         voiceGender,
         sourceType: 'epub',
+        coverImageUrl,
       })
 
       // Fire-and-forget EPUB adaptation trigger
@@ -4983,12 +5233,20 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         bookId,
         chapterCount: chapters.length,
         sourceType: 'epub',
+        coverImageUrl,
       })
     }
 
     // Handle TXT with structural chapter detection
     if (fileType === 'txt') {
       const extracted = await extractTxtWithChapters(req.file.path)
+
+      // TXT files don't have embedded covers, so search Open Library
+      let coverImageUrl = null
+      if (title || author) {
+        console.log('Searching Open Library for TXT cover...')
+        coverImageUrl = await searchOpenLibraryCover(title, author)
+      }
 
       // Check if chapters were detected or if it's a flat book
       if (extracted.isFlat) {
@@ -5010,6 +5268,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           wordCount: extracted.wordCount,
           voiceGender,
           sourceType: 'txt',
+          coverImageUrl,
         })
 
         // Fire-and-forget flat adaptation trigger
@@ -5034,6 +5293,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           chunkCount: extracted.adaptationChunks.length,
           sourceType: 'txt',
           isFlat: true,
+          coverImageUrl,
         })
       }
 
@@ -5053,6 +5313,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         chapters,
         voiceGender,
         sourceType: 'txt',
+        coverImageUrl,
       })
 
       // Fire-and-forget adaptation trigger (same endpoint as EPUB)
@@ -5076,6 +5337,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         bookId,
         chapterCount: chapters.length,
         sourceType: 'txt',
+        coverImageUrl,
       })
     }
 
@@ -5083,6 +5345,29 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     if (fileType === 'pdf') {
       const extracted = await extractPdf(req.file.path)
       console.log('PDF using flat adaptation flow')
+    // Handle other file types (PDF) with existing flat page flow
+    // PDF files don't have embedded covers we can easily extract, so search Open Library
+    let coverImageUrl = null
+    if (title || author) {
+      console.log('Searching Open Library for PDF cover...')
+      coverImageUrl = await searchOpenLibraryCover(title, author)
+    }
+
+    const pages = await extractPagesForFile(req.file)
+    const bookId = await saveImportedBookToFirestore({
+      userId,
+      title,
+      author,
+      originalLanguage,
+      outputLanguage,
+      translationMode,
+      level,
+      isPublicDomain,
+      pages,
+      voiceGender,
+      coverImageUrl,
+    })
+    console.log('Stub extracted pages count:', pages.length)
 
       const bookId = await saveImportedFlatBookToFirestore({
         userId,
@@ -5131,6 +5416,12 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     return res.status(400).json({
       error: 'UNSUPPORTED_FILE_TYPE',
       message: 'Only .txt, .pdf, and .epub files are supported.',
+    return res.json({
+      success: true,
+      message: 'Import processed successfully',
+      bookId,
+      pageCount: pages.length,
+      coverImageUrl,
     })
   } catch (error) {
     console.error('Error handling import upload:', error)

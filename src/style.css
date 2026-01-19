@@ -22109,7 +22109,7 @@ body.active-pass-locked {
   height: 0.75px;
   background: #be123c;
   width: 100%;
-  margin: 1rem 0;
+  margin: 0.75rem 0 0.5rem 0;
 }
 
 /* Two Column Equal Grid with Divider */
@@ -22403,7 +22403,7 @@ body.active-pass-locked {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .home-card-header .home-card-title {

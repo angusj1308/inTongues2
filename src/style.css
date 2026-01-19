@@ -3085,6 +3085,64 @@ textarea {
   outline-offset: 2px;
 }
 
+/* Generated book chapter generation styles */
+.reader-generate-next,
+.reader-book-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.reader-chapter-progress {
+  color: var(--reader-text, #1a1a1a);
+  opacity: 0.6;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.reader-generate-button {
+  background: #059669;
+}
+
+.reader-generate-button:hover {
+  background: #047857;
+}
+
+.reader-generating-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.reader-generating-state .progress-spinner {
+  width: 32px;
+  height: 32px;
+}
+
+.reader-generating-hint {
+  color: var(--reader-text, #1a1a1a);
+  opacity: 0.5;
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.reader-generation-error {
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0;
+}
+
+.reader-the-end {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--reader-text, #1a1a1a);
+  margin: 0 0 0.5rem;
+}
+
 .reader-nav-zone {
   position: absolute;
   top: 0;

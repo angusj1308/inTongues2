@@ -96,6 +96,394 @@ function parseJSON(content) {
 }
 
 // =============================================================================
+// PRESCRIPTIVE LEVEL DEFINITIONS
+// =============================================================================
+// These definitions are the source of truth for all level-based generation.
+// They mirror the adaptation system but are tailored for original novel generation.
+
+const LEVEL_DEFINITIONS = {
+  Beginner: {
+    name: 'Beginner',
+    description: 'For absolute beginners and early learners (A1-A2 equivalent)',
+
+    // Sentence constraints
+    sentences: {
+      averageLength: { min: 6, max: 12 },
+      maxLength: 15,
+      structure: 'Simple sentences only. Subject-verb-object pattern. Avoid subordinate clauses.',
+      connectors: 'Use basic connectors only: and, but, so, because, then, when',
+    },
+
+    // Vocabulary constraints
+    vocabulary: {
+      scope: 'Top 1000-1500 most common words in target language only',
+      exceptions: 'Character names, place names, and story-critical terms (introduce with context)',
+      forbidden: [
+        'Literary vocabulary',
+        'Abstract nouns (use concrete equivalents)',
+        'Idioms and expressions (use literal language)',
+        'Metaphors and figurative language',
+        'Technical or specialized terms',
+        'Formal/archaic language',
+      ],
+      handling: 'If a concept requires a harder word, explain it immediately in simple terms',
+    },
+
+    // Meaning and clarity
+    meaning: {
+      explicitness: 'ALL meaning must be explicit. Nothing implied.',
+      subtext: 'NO SUBTEXT. Characters say what they mean. Narration states emotions directly.',
+      emotions: 'Name emotions explicitly: "She felt angry" not "Her jaw tightened"',
+      motivation: 'State character motivations directly: "He wanted to help because..."',
+    },
+
+    // Narrative technique
+    narrative: {
+      causeEffect: 'Simple, direct cause-and-effect. One cause, one effect per sentence.',
+      timeflow: 'Strictly chronological. No flashbacks, no flash-forwards.',
+      pov: 'Single, clear POV. No head-hopping within scenes.',
+      showing: 'TELL over show at this level. Clarity trumps literary technique.',
+    },
+
+    // Dialogue
+    dialogue: {
+      style: 'Direct and functional. Characters say what they mean.',
+      length: 'Short exchanges. 1-2 sentences per turn maximum.',
+      attribution: 'Always use "said" - avoid fancy dialogue tags',
+      subtext: 'NO dialogue subtext. No sarcasm, no implication.',
+    },
+
+    // Cultural and setting
+    cultural: {
+      references: 'Avoid cultural references that require background knowledge',
+      setting: 'Explain any setting-specific concepts in simple terms',
+      customs: 'If customs/traditions matter to plot, explain them explicitly',
+    },
+
+    // What to avoid
+    forbidden: [
+      'Complex sentence structures',
+      'Passive voice (use active)',
+      'Rhetorical questions',
+      'Irony or sarcasm',
+      'Unreliable narration',
+      'Stream of consciousness',
+      'Non-linear timeline',
+      'Multiple POVs in single scene',
+      'Metaphors and similes',
+      'Poetic or lyrical prose',
+    ],
+  },
+
+  Intermediate: {
+    name: 'Intermediate',
+    description: 'For learners with foundation knowledge (B1-B2 equivalent)',
+
+    // Sentence constraints
+    sentences: {
+      averageLength: { min: 12, max: 20 },
+      maxLength: 25,
+      structure: 'Mix of simple and compound sentences. Some subordinate clauses allowed.',
+      connectors: 'Full range of common connectors: although, however, therefore, despite, unless, while',
+    },
+
+    // Vocabulary constraints
+    vocabulary: {
+      scope: 'Common vocabulary plus topic-specific words with context clues',
+      exceptions: 'Can use less common words if meaning is clear from context',
+      forbidden: [
+        'Obscure literary terms',
+        'Archaic language',
+        'Heavy slang or dialect',
+        'Untranslatable idioms without explanation',
+      ],
+      handling: 'Context should make meaning inferable. No need for explicit definitions.',
+    },
+
+    // Meaning and clarity
+    meaning: {
+      explicitness: 'Key meaning explicit. Some inference allowed for non-critical details.',
+      subtext: 'LIGHT SUBTEXT allowed. But critical plot/emotional points still explicit.',
+      emotions: 'Mix of telling and showing. Can imply some emotions through action.',
+      motivation: 'Core motivations clear. Secondary motivations can be implied.',
+    },
+
+    // Narrative technique
+    narrative: {
+      causeEffect: 'Can have slightly delayed cause-effect. Multi-step chains OK.',
+      timeflow: 'Primarily chronological. Brief, clearly-marked flashbacks allowed.',
+      pov: 'Clear POV with smooth transitions if multiple. Signal shifts clearly.',
+      showing: 'Balance of show and tell. Important moments: show. Transitions: tell.',
+    },
+
+    // Dialogue
+    dialogue: {
+      style: 'More naturalistic. Characters can be indirect sometimes.',
+      length: 'Natural conversation length. Can have longer exchanges.',
+      attribution: 'Varied dialogue tags allowed, but not overly creative',
+      subtext: 'Some dialogue subtext allowed if body language makes meaning accessible.',
+    },
+
+    // Cultural and setting
+    cultural: {
+      references: 'Can include cultural references with brief in-story context',
+      setting: 'Setting details can be richer. Explain only truly foreign concepts.',
+      customs: 'Customs can be shown naturally if context makes them understandable',
+    },
+
+    // What to avoid
+    forbidden: [
+      'Dense literary prose',
+      'Heavy use of passive voice',
+      'Unreliable narration',
+      'Experimental structure',
+      'Heavy dialect transcription',
+      'Obscure cultural references without context',
+    ],
+  },
+
+  Native: {
+    name: 'Native',
+    description: 'Natural language as native speakers use it (C1-C2 equivalent)',
+
+    // Sentence constraints
+    sentences: {
+      averageLength: { min: 10, max: 30 },
+      maxLength: null, // No hard limit
+      structure: 'Full range of sentence structures. Variety for rhythm and effect.',
+      connectors: 'Full linguistic toolkit available',
+    },
+
+    // Vocabulary constraints
+    vocabulary: {
+      scope: 'Full vocabulary range appropriate to genre and characters',
+      exceptions: 'None - use best word for the context',
+      forbidden: [], // Nothing forbidden
+      handling: 'Trust the reader. Context provides meaning.',
+    },
+
+    // Meaning and clarity
+    meaning: {
+      explicitness: 'Natural balance. Critical plot explicit, rest can be nuanced.',
+      subtext: 'FULL SUBTEXT available. Implication, suggestion, omission.',
+      emotions: 'Show over tell. Let readers feel through action and detail.',
+      motivation: 'Complex, layered motivations that emerge through story.',
+    },
+
+    // Narrative technique
+    narrative: {
+      causeEffect: 'Complex causality. Delayed payoffs. Interweaving threads.',
+      timeflow: 'Non-linear available. Flashbacks, flash-forwards, parallel timelines.',
+      pov: 'Multiple POVs, unreliable narration, all techniques available.',
+      showing: 'Primarily show. Tell only for pacing and transition.',
+    },
+
+    // Dialogue
+    dialogue: {
+      style: 'Authentic to character. Can be messy, interrupted, incomplete.',
+      length: 'Whatever serves the scene',
+      attribution: 'Full range including action beats and no attribution',
+      subtext: 'Full dialogue subtext. Characters can lie, deflect, imply.',
+    },
+
+    // Cultural and setting
+    cultural: {
+      references: 'Natural cultural references without explanation',
+      setting: 'Rich, immersive setting details',
+      customs: 'Shown naturally as characters would experience them',
+    },
+
+    // What to avoid
+    forbidden: [], // Nothing forbidden at native level
+  },
+}
+
+// Language-specific adjustments to level definitions
+const LANGUAGE_LEVEL_ADJUSTMENTS = {
+  Spanish: {
+    Beginner: {
+      notes: [
+        'Avoid subjunctive mood - use indicative alternatives',
+        'Use ser/estar carefully - stick to clear-cut cases',
+        'Avoid complex pronoun combinations (se lo, te la)',
+        'Use simple past (pretérito) over imperfect when possible',
+        'Avoid regional vocabulary - use neutral Spanish',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on RAE frequency corpus - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Subjunctive in common expressions OK (quiero que, espero que)',
+        'Ser/estar distinctions can be shown naturally',
+        'Pronoun combinations allowed in common patterns',
+        'Mix of past tenses for natural narrative',
+      ],
+    },
+    Native: {
+      notes: [
+        'Full subjunctive usage',
+        'Regional flavor acceptable if consistent',
+        'All verb tenses and moods available',
+      ],
+    },
+  },
+  French: {
+    Beginner: {
+      notes: [
+        'Avoid subjunctive entirely',
+        'Use passé composé over passé simple',
+        'Avoid complex relative clauses (dont, lequel)',
+        'Stick to common prepositions',
+        'Avoid literary inversions',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on Lexique frequency data - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Common subjunctive triggers OK (il faut que, bien que)',
+        'Passé composé primary, imperfect for description',
+        'Basic relative pronouns (qui, que, où)',
+      ],
+    },
+    Native: {
+      notes: [
+        'Passé simple acceptable for literary style',
+        'Full range of literary French available',
+        'Complex grammatical structures OK',
+      ],
+    },
+  },
+  Italian: {
+    Beginner: {
+      notes: [
+        'Avoid subjunctive (congiuntivo)',
+        'Use passato prossimo over passato remoto',
+        'Avoid combined pronouns (glielo, ce lo)',
+        'Simple prepositions only',
+        'Avoid formal Lei where possible - use tu',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on CoLFIS frequency data - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Common subjunctive OK (penso che, credo che)',
+        'Mix of past tenses acceptable',
+        'Basic pronoun combinations allowed',
+      ],
+    },
+    Native: {
+      notes: [
+        'Passato remoto for literary style',
+        'Full grammatical range',
+        'Regional expressions acceptable if consistent',
+      ],
+    },
+  },
+  English: {
+    Beginner: {
+      notes: [
+        'Simple present and past tense only',
+        'Avoid perfect tenses where simple past works',
+        'Avoid conditional sentences beyond basic if/then',
+        'Avoid phrasal verbs - use single-word alternatives',
+        'Avoid idioms entirely',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on Oxford 3000 - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Perfect tenses allowed',
+        'Common conditionals OK',
+        'Common phrasal verbs allowed',
+        'Well-known idioms with clear meaning OK',
+      ],
+    },
+    Native: {
+      notes: [
+        'Full grammatical range',
+        'All idioms and expressions available',
+        'Regional variety acceptable',
+      ],
+    },
+  },
+}
+
+// Helper function to get complete level definition for a language
+function getLevelDefinition(level, language = 'English') {
+  const baseDefinition = LEVEL_DEFINITIONS[level]
+  if (!baseDefinition) {
+    throw new Error(`Invalid level: ${level}. Must be Beginner, Intermediate, or Native.`)
+  }
+
+  const languageAdjustments = LANGUAGE_LEVEL_ADJUSTMENTS[language]?.[level] || {}
+
+  return {
+    ...baseDefinition,
+    languageSpecific: languageAdjustments,
+  }
+}
+
+// Format level definition for inclusion in prompts
+function formatLevelDefinitionForPrompt(level, language = 'English') {
+  const def = getLevelDefinition(level, language)
+  const langAdj = def.languageSpecific
+
+  let prompt = `## READING LEVEL: ${def.name}
+${def.description}
+
+### SENTENCE RULES (MUST FOLLOW):
+- Average sentence length: ${def.sentences.averageLength.min}-${def.sentences.averageLength.max} words
+${def.sentences.maxLength ? `- Maximum sentence length: ${def.sentences.maxLength} words` : '- No hard maximum sentence length'}
+- Structure: ${def.sentences.structure}
+- Connectors: ${def.sentences.connectors}
+
+### VOCABULARY RULES (MUST FOLLOW):
+- Scope: ${def.vocabulary.scope}
+- Exceptions: ${def.vocabulary.exceptions}
+- Handling difficult concepts: ${def.vocabulary.handling}
+${def.vocabulary.forbidden.length > 0 ? `- FORBIDDEN:\n${def.vocabulary.forbidden.map(f => `  * ${f}`).join('\n')}` : ''}
+
+### MEANING & CLARITY (MUST FOLLOW):
+- Explicitness: ${def.meaning.explicitness}
+- Subtext: ${def.meaning.subtext}
+- Emotions: ${def.meaning.emotions}
+- Motivation: ${def.meaning.motivation}
+
+### NARRATIVE TECHNIQUE:
+- Cause/Effect: ${def.narrative.causeEffect}
+- Timeline: ${def.narrative.timeflow}
+- POV: ${def.narrative.pov}
+- Show vs Tell: ${def.narrative.showing}
+
+### DIALOGUE RULES:
+- Style: ${def.dialogue.style}
+- Length: ${def.dialogue.length}
+- Attribution: ${def.dialogue.attribution}
+- Subtext: ${def.dialogue.subtext}
+
+### CULTURAL ELEMENTS:
+- References: ${def.cultural.references}
+- Setting details: ${def.cultural.setting}
+- Customs: ${def.cultural.customs}
+
+${def.forbidden.length > 0 ? `### FORBIDDEN AT THIS LEVEL:\n${def.forbidden.map(f => `- ${f}`).join('\n')}` : ''}`
+
+  if (langAdj.notes && langAdj.notes.length > 0) {
+    prompt += `\n\n### ${language.toUpperCase()}-SPECIFIC RULES FOR ${def.name.toUpperCase()}:\n${langAdj.notes.map(n => `- ${n}`).join('\n')}`
+  }
+
+  return prompt
+}
+
+// =============================================================================
 // COHERENCE VALIDATION
 // =============================================================================
 
@@ -1178,40 +1566,16 @@ async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, le
 const PHASE_7_SYSTEM_PROMPT = `You are a language learning content specialist. Your task is to review a complete story bible and chapter outline to verify it will work at the target reading level.
 
 You will receive:
-- Target level (Beginner, Intermediate, or Native)
+- Target level with DETAILED, PRESCRIPTIVE constraints (these are non-negotiable rules)
+- Target language with language-specific grammatical rules
 - The complete bible (Phases 1-6 output)
 
-For the pilot, level affects PROSE ONLY, not plot structure. However, some story elements are harder to convey at lower levels. Your job is to:
+CRITICAL: Level affects PROSE ONLY, not plot structure. However, some story elements are harder to convey at lower levels. Your job is to:
 
-1. Flag any potential issues for the target level
-2. Suggest minor adjustments if needed (without changing plot)
-3. Confirm the outline is ready for chapter generation
-
-## Level Definitions
-
-BEGINNER:
-- Short sentences (8-12 words average)
-- Common vocabulary (top 2000 words + story-specific terms)
-- Explicit meaning (no subtlety that relies on implication)
-- Simple cause-and-effect
-- Clear emotional states (named, not implied)
-- Dialogue is direct
-
-INTERMEDIATE:
-- Medium sentences (12-18 words average)
-- Broader vocabulary with context clues for harder words
-- Some subtext allowed (but key meaning still accessible)
-- More complex cause-and-effect
-- Emotional nuance through showing and telling
-- Dialogue can be more naturalistic
-
-NATIVE:
-- Natural sentence variety
-- Full vocabulary range
-- Subtext, implication, unreliable narration all available
-- Complex narrative techniques
-- Emotional subtlety through showing
-- Authentic dialogue with all its messiness
+1. Review the bible against the SPECIFIC level constraints provided
+2. Flag any story elements that would violate level constraints
+3. Provide PRESCRIPTIVE prose guidance that maps directly to the level rules
+4. Confirm readiness or identify blocking issues
 
 ## Output Format
 
@@ -1219,28 +1583,56 @@ Respond with a JSON object:
 
 {
   "target_level": "Beginner | Intermediate | Native",
-  "assessment": "overall | minor_issues | significant_issues",
+  "target_language": "The target language",
+  "assessment": "ready | minor_issues | significant_issues | blocked",
   "flags": [
     {
       "element": "What story element might be problematic",
       "location": "Which phase/chapter",
-      "issue": "Why it might not work at this level",
-      "suggestion": "How to handle in generation (not plot change)",
-      "severity": "low | medium | high"
+      "issue": "Which specific level constraint this violates",
+      "suggestion": "How to handle in generation (must comply with level rules)",
+      "severity": "low | medium | high | blocking"
     }
   ],
   "prose_guidance": {
-    "sentence_length": "Target range for this level",
-    "vocabulary_approach": "How to handle difficult words",
-    "subtext_handling": "How to make implicit meaning accessible",
-    "dialogue_style": "How characters should speak",
-    "internal_monologue": "How to handle POV character thoughts",
-    "cultural_references": "How to handle setting-specific terms"
+    "sentence_constraints": {
+      "average_length_min": number,
+      "average_length_max": number,
+      "max_length": number or null,
+      "structure_rule": "Exact rule from level definition",
+      "allowed_connectors": "List of allowed connectors"
+    },
+    "vocabulary_constraints": {
+      "scope": "Exact scope from level definition",
+      "forbidden_types": ["List of forbidden vocabulary types"],
+      "handling_rule": "How to handle difficult concepts"
+    },
+    "meaning_constraints": {
+      "explicitness_rule": "Exact rule",
+      "subtext_rule": "Exact rule",
+      "emotion_rule": "How to express emotions",
+      "motivation_rule": "How to show motivation"
+    },
+    "dialogue_constraints": {
+      "style_rule": "Exact rule",
+      "length_rule": "Exact rule",
+      "attribution_rule": "Exact rule",
+      "subtext_rule": "Exact rule"
+    },
+    "narrative_constraints": {
+      "cause_effect_rule": "Exact rule",
+      "timeline_rule": "Exact rule",
+      "pov_rule": "Exact rule",
+      "show_tell_rule": "Exact rule"
+    },
+    "language_specific_rules": ["List of language-specific grammatical constraints"]
   },
+  "forbidden_techniques": ["List of techniques FORBIDDEN at this level"],
   "chapter_specific_notes": [
     {
       "chapter": 1,
-      "note": "Specific guidance for this chapter at target level"
+      "potential_violations": ["List of potential level violations in this chapter's outline"],
+      "mitigation": "How to write this chapter within level constraints"
     }
   ],
   "ready_for_generation": true,
@@ -1251,40 +1643,58 @@ Respond with a JSON object:
 
 WHAT TO FLAG:
 
-For Beginner level, flag:
-- Scenes relying heavily on subtext (suggest: make meaning explicit)
-- Complex political/cultural concepts (suggest: simplify or explain in-story)
-- Dialogue that requires inference (suggest: add clarity)
-- Multiple simultaneous plot threads in single chapter (suggest: sequential clarity)
-- Subtle emotional shifts (suggest: name emotions more directly)
+For Beginner level, flag ANY of these as violations:
+- Scenes requiring subtext or implication (BLOCKING if central to meaning)
+- Complex sentence structures planned in any beat
+- Scenes relying on showing over telling for key emotions
+- Dialogue requiring inference
+- Cultural/historical references without explicit explanation
+- Multiple plot threads active in single scene
+- Any planned metaphors, similes, or figurative language
+- Scenes with unreliable narration or ambiguity
 
 For Intermediate level, flag:
-- Highly abstract thematic elements (suggest: ground in concrete)
-- Dense cultural/historical references (suggest: brief in-story context)
-- Unreliable narration (suggest: clearer framing)
+- Heavy reliance on subtext for plot-critical information
+- Dense cultural references without context
+- Complex nested sentence structures
+- Heavy dialect or slang
 
 For Native level:
-- Typically no flags — full storytelling toolkit available
+- Typically no flags — full toolkit available
 
-WHAT NOT TO FLAG:
-- Plot structure (level doesn't change what happens)
-- Character psychology (complexity is fine — expression adjusts)
-- Theme (same theme, different articulation)
-- Emotional stakes (same stakes, different words)`
+WHAT NOT TO FLAG (these are OK at any level):
+- Plot complexity (level doesn't change WHAT happens, only HOW it's expressed)
+- Character psychological depth (same depth, different articulation)
+- Theme complexity (same theme, simpler words)
+- Emotional stakes (same stakes, clearer expression at lower levels)
 
-function buildPhase7UserPrompt(level, phases1to6) {
+CRITICAL: The prose_guidance you output will be used VERBATIM in chapter generation prompts. It must be specific, actionable, and directly derived from the level constraints provided.`
+
+function buildPhase7UserPrompt(level, phases1to6, language = 'English') {
+  // Get the full prescriptive level definition
+  const levelDefinition = formatLevelDefinitionForPrompt(level, language)
+
   return `TARGET LEVEL: ${level}
+TARGET LANGUAGE: ${language}
+
+=== PRESCRIPTIVE LEVEL CONSTRAINTS (NON-NEGOTIABLE) ===
+
+${levelDefinition}
+
+=== END LEVEL CONSTRAINTS ===
 
 COMPLETE BIBLE:
 ${JSON.stringify(phases1to6, null, 2)}
 
-Review this bible for the target reading level. Flag any elements that need special handling in generation, provide prose guidance, and confirm readiness.`
+Review this bible against the SPECIFIC level constraints above. Your prose_guidance output must directly reflect these constraints - they will be used verbatim in chapter generation.
+
+For each chapter in the outline, check if any planned beats or scenes would require techniques FORBIDDEN at this level. Flag them with specific mitigation strategies that comply with the level rules.`
 }
 
-async function executePhase7(level, phases1to6) {
-  console.log('Executing Phase 7: Level Check...')
+async function executePhase7(level, phases1to6, language = 'English') {
+  console.log(`Executing Phase 7: Level Check for ${level} level in ${language}...`)
 
-  const userPrompt = buildPhase7UserPrompt(level, phases1to6)
+  const userPrompt = buildPhase7UserPrompt(level, phases1to6, language)
   const response = await callOpenAI(PHASE_7_SYSTEM_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 
@@ -1293,6 +1703,20 @@ async function executePhase7(level, phases1to6) {
   }
 
   const data = parsed.data
+
+  // Validate that prose_guidance has required structure
+  if (!data.prose_guidance?.sentence_constraints) {
+    console.warn('Phase 7: prose_guidance missing sentence_constraints, using defaults from level definition')
+    const levelDef = LEVEL_DEFINITIONS[level]
+    data.prose_guidance = data.prose_guidance || {}
+    data.prose_guidance.sentence_constraints = {
+      average_length_min: levelDef.sentences.averageLength.min,
+      average_length_max: levelDef.sentences.averageLength.max,
+      max_length: levelDef.sentences.maxLength,
+      structure_rule: levelDef.sentences.structure,
+      allowed_connectors: levelDef.sentences.connectors,
+    }
+  }
 
   if (!data.ready_for_generation) {
     console.warn('Phase 7: Bible flagged as not ready for generation')
@@ -1457,7 +1881,7 @@ async function executePhase8(completeBible) {
 // REGENERATION
 // =============================================================================
 
-async function regenerateFromPhase(phaseNumber, completeBible, concept, level, lengthPreset, specificInstructions) {
+async function regenerateFromPhase(phaseNumber, completeBible, concept, level, lengthPreset, language, specificInstructions) {
   console.log(`Regenerating from Phase ${phaseNumber}...`)
   console.log(`Instructions: ${specificInstructions}`)
 
@@ -1498,7 +1922,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
           plot: updatedBible.plot,
           chapters: updatedBible.chapters
         }
-        updatedBible.levelCheck = await executePhase7(level, phases1to6)
+        updatedBible.levelCheck = await executePhase7(level, phases1to6, language)
       }
       break
   }
@@ -1510,7 +1934,29 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 // MAIN PIPELINE
 // =============================================================================
 
-export async function generateBible(concept, level, lengthPreset, language, maxValidationAttempts = 2) {
+// Phase descriptions for progress reporting
+const PHASE_DESCRIPTIONS = {
+  1: { name: 'Core Foundation', description: 'Establishing story DNA, theme, and central conflict' },
+  2: { name: 'World/Setting', description: 'Building the world, locations, and cultural context' },
+  3: { name: 'Characters', description: 'Developing protagonist and love interest psychology and voice' },
+  4: { name: 'Chemistry', description: 'Designing the romance arc and pivotal moments' },
+  5: { name: 'Plot Architecture', description: 'Creating the beat sheet and tension curve' },
+  6: { name: 'Chapter Breakdown', description: 'Outlining each chapter with beats and hooks' },
+  7: { name: 'Level Check', description: 'Validating prose requirements for target reading level' },
+  8: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
+}
+
+/**
+ * Generate a complete story bible through the 8-phase pipeline
+ * @param {string} concept - Story concept/description
+ * @param {string} level - Reading level (Beginner, Intermediate, Native)
+ * @param {string} lengthPreset - 'novella' (12 chapters) or 'novel' (35 chapters)
+ * @param {string} language - Target language
+ * @param {number} maxValidationAttempts - Max validation retry attempts (default 2)
+ * @param {Function} onProgress - Optional callback for progress updates: (phase, totalPhases, phaseName, description, status) => void
+ * @returns {Promise<Object>} Generated bible result
+ */
+export async function generateBible(concept, level, lengthPreset, language, maxValidationAttempts = 2, onProgress = null) {
   console.log('='.repeat(60))
   console.log('STARTING BIBLE GENERATION PIPELINE')
   console.log(`Concept: ${concept}`)
@@ -1519,27 +1965,65 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   let bible = {}
   let validationAttempts = 0
+  const totalPhases = 8
+
+  // Helper to report progress
+  const reportProgress = (phase, status = 'in_progress', details = null) => {
+    const phaseInfo = PHASE_DESCRIPTIONS[phase]
+    console.log(`[Phase ${phase}/${totalPhases}] ${phaseInfo.name}: ${status}`)
+    if (onProgress) {
+      try {
+        onProgress({
+          phase,
+          totalPhases,
+          phaseName: phaseInfo.name,
+          description: phaseInfo.description,
+          status,
+          details,
+          timestamp: new Date().toISOString()
+        })
+      } catch (e) {
+        console.warn('Progress callback error:', e.message)
+      }
+    }
+  }
 
   try {
     // Phase 1: Core Foundation
+    reportProgress(1, 'starting')
     bible.coreFoundation = await executePhase1(concept, lengthPreset, level)
+    reportProgress(1, 'complete', { genre: bible.coreFoundation.genre, theme: bible.coreFoundation.theme })
 
     // Phase 2: World/Setting
+    reportProgress(2, 'starting')
     bible.world = await executePhase2(concept, bible.coreFoundation)
+    reportProgress(2, 'complete', { location: bible.world.setting?.location })
 
     // Phase 3: Characters
+    reportProgress(3, 'starting')
     bible.characters = await executePhase3(concept, bible.coreFoundation, bible.world)
+    reportProgress(3, 'complete', {
+      protagonist: bible.characters.protagonist?.name,
+      loveInterest: bible.characters.love_interest?.name
+    })
 
     // Phase 4: Chemistry
+    reportProgress(4, 'starting')
     bible.chemistry = await executePhase4(concept, bible.coreFoundation, bible.world, bible.characters)
+    reportProgress(4, 'complete')
 
     // Phase 5: Plot Architecture
+    reportProgress(5, 'starting')
     bible.plot = await executePhase5(concept, bible.coreFoundation, bible.world, bible.characters, bible.chemistry, lengthPreset)
+    reportProgress(5, 'complete', { actCount: bible.plot.acts?.length || 3 })
 
     // Phase 6: Chapter Breakdown
+    reportProgress(6, 'starting')
     bible.chapters = await executePhase6(concept, bible.coreFoundation, bible.world, bible.characters, bible.chemistry, bible.plot, lengthPreset)
+    reportProgress(6, 'complete', { chapterCount: bible.chapters.chapters?.length || 0 })
 
     // Phase 7: Level Check
+    reportProgress(7, 'starting', { targetLevel: level, targetLanguage: language })
     const phases1to6 = {
       coreFoundation: bible.coreFoundation,
       world: bible.world,
@@ -1548,9 +2032,15 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       plot: bible.plot,
       chapters: bible.chapters
     }
-    bible.levelCheck = await executePhase7(level, phases1to6)
+    bible.levelCheck = await executePhase7(level, phases1to6, language)
+    reportProgress(7, 'complete', {
+      assessment: bible.levelCheck.assessment,
+      readyForGeneration: bible.levelCheck.ready_for_generation,
+      flagCount: bible.levelCheck.flags?.length || 0
+    })
 
     // Phase 8: Validation (with potential regeneration)
+    reportProgress(8, 'starting')
     while (validationAttempts < maxValidationAttempts) {
       validationAttempts++
       console.log(`Validation attempt ${validationAttempts}/${maxValidationAttempts}`)
@@ -1559,6 +2049,10 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
       if (bible.validation.validation_status === 'PASS' || bible.validation.validation_status === 'CONDITIONAL_PASS') {
         console.log('Bible validation passed!')
+        reportProgress(8, 'complete', {
+          validationStatus: bible.validation.validation_status,
+          attempts: validationAttempts
+        })
         break
       }
 
@@ -1568,6 +2062,11 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
         const phaseNumbers = phasesToRegenerate.map(p => parseInt(p.replace('Phase ', '')))
         const earliestPhase = Math.min(...phaseNumbers)
 
+        reportProgress(8, 'regenerating', {
+          fromPhase: earliestPhase,
+          phasesToFix: phasesToRegenerate
+        })
+
         console.log(`Regenerating from Phase ${earliestPhase}...`)
         bible = await regenerateFromPhase(
           earliestPhase,
@@ -1575,9 +2074,18 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
           concept,
           level,
           lengthPreset,
+          language,
           bible.validation.recovery_plan.specific_instructions
         )
       }
+    }
+
+    // Final status if we exhausted attempts
+    if (bible.validation?.validation_status !== 'PASS' && bible.validation?.validation_status !== 'CONDITIONAL_PASS') {
+      reportProgress(8, 'complete_with_issues', {
+        validationStatus: bible.validation?.validation_status,
+        attempts: validationAttempts
+      })
     }
 
     console.log('='.repeat(60))
@@ -1594,6 +2102,22 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   } catch (error) {
     console.error('Bible generation failed:', error)
+    // Report error to progress callback
+    if (onProgress) {
+      try {
+        onProgress({
+          phase: 0,
+          totalPhases,
+          phaseName: 'Error',
+          description: 'Pipeline failed',
+          status: 'error',
+          details: { error: error.message },
+          timestamp: new Date().toISOString()
+        })
+      } catch (e) {
+        // Ignore callback errors during error handling
+      }
+    }
     return {
       success: false,
       error: error.message,
@@ -1660,10 +2184,30 @@ HOOK:
 - Emotional: Powerful feeling that resonates, demands resolution
 - Decision: Choice presented, stakes clear, outcome uncertain
 
-LEVEL COMPLIANCE:
-- Follow the prose guidance exactly
-- Sentence length, vocabulary, subtext handling per guidelines
-- This is for language learners — clarity matters
+LEVEL COMPLIANCE (CRITICAL - NON-NEGOTIABLE):
+This is for language learners. Level constraints are MANDATORY, not suggestions.
+
+You will receive detailed prose_guidance with EXACT constraints. You MUST follow them:
+
+1. SENTENCE LENGTH: The prose_guidance specifies exact min/max sentence lengths. Count your words. Do not exceed the maximum. Stay within the average range.
+
+2. VOCABULARY: If the level forbids certain vocabulary types (literary, abstract, idioms), you MUST NOT use them. Use only allowed vocabulary.
+
+3. MEANING/SUBTEXT: Follow the exact rule for your level:
+   - Beginner: NO SUBTEXT. State everything explicitly. Name emotions directly.
+   - Intermediate: Light subtext OK. Critical meaning still explicit.
+   - Native: Full subtlety available.
+
+4. DIALOGUE: Follow the exact dialogue constraints for the level. Beginner dialogue is direct and short. Intermediate can be natural. Native is authentic.
+
+5. NARRATIVE TECHNIQUE: Follow the show/tell rule for your level:
+   - Beginner: TELL over show. Clarity over technique.
+   - Intermediate: Balance of both.
+   - Native: Show over tell.
+
+6. LANGUAGE-SPECIFIC RULES: You will receive grammar rules specific to the target language at this level. For example, Spanish Beginner avoids subjunctive. French Beginner avoids passé simple. Follow these.
+
+VIOLATION OF LEVEL CONSTRAINTS IS A FAILURE. The chapter will be rejected if it does not comply.
 
 ## Output Format
 
@@ -1742,11 +2286,60 @@ Emotional state: ${JSON.stringify(s.summary.characterStates || {})}`
     previousContext = 'This is Chapter 1. No previous context.'
   }
 
-  // Get prose guidance from levelCheck
+  // Get prose guidance from levelCheck - now structured
   const proseGuidance = bible.levelCheck?.prose_guidance || {}
-  const proseGuidanceText = Object.entries(proseGuidance)
-    .map(([key, value]) => `- ${key}: ${value}`)
-    .join('\n')
+  const targetLevel = bible.levelCheck?.target_level || 'Intermediate'
+
+  // Get the base level definition for fallbacks
+  const levelDef = LEVEL_DEFINITIONS[targetLevel] || LEVEL_DEFINITIONS.Intermediate
+
+  // Build structured prose guidance text
+  const sentenceConstraints = proseGuidance.sentence_constraints || {}
+  const vocabConstraints = proseGuidance.vocabulary_constraints || {}
+  const meaningConstraints = proseGuidance.meaning_constraints || {}
+  const dialogueConstraints = proseGuidance.dialogue_constraints || {}
+  const narrativeConstraints = proseGuidance.narrative_constraints || {}
+  const languageRules = proseGuidance.language_specific_rules || []
+  const forbiddenTechniques = bible.levelCheck?.forbidden_techniques || levelDef.forbidden || []
+
+  // Get chapter-specific notes if available
+  const chapterNotes = bible.levelCheck?.chapter_specific_notes?.find(n => n.chapter === chapterIndex)
+
+  const proseGuidanceText = `
+### SENTENCE CONSTRAINTS (MANDATORY):
+- Average length: ${sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min}-${sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max} words per sentence
+- Maximum length: ${sentenceConstraints.max_length || levelDef.sentences.maxLength || 'no hard limit'} words
+- Structure: ${sentenceConstraints.structure_rule || levelDef.sentences.structure}
+- Allowed connectors: ${sentenceConstraints.allowed_connectors || levelDef.sentences.connectors}
+
+### VOCABULARY CONSTRAINTS (MANDATORY):
+- Scope: ${vocabConstraints.scope || levelDef.vocabulary.scope}
+- Handling difficult concepts: ${vocabConstraints.handling_rule || levelDef.vocabulary.handling}
+${vocabConstraints.forbidden_types?.length > 0 || levelDef.vocabulary.forbidden?.length > 0 ? `- FORBIDDEN vocabulary types:\n${(vocabConstraints.forbidden_types || levelDef.vocabulary.forbidden).map(f => `  * ${f}`).join('\n')}` : ''}
+
+### MEANING & SUBTEXT (MANDATORY):
+- Explicitness: ${meaningConstraints.explicitness_rule || levelDef.meaning.explicitness}
+- Subtext rule: ${meaningConstraints.subtext_rule || levelDef.meaning.subtext}
+- Emotion expression: ${meaningConstraints.emotion_rule || levelDef.meaning.emotions}
+- Motivation clarity: ${meaningConstraints.motivation_rule || levelDef.meaning.motivation}
+
+### DIALOGUE CONSTRAINTS (MANDATORY):
+- Style: ${dialogueConstraints.style_rule || levelDef.dialogue.style}
+- Length: ${dialogueConstraints.length_rule || levelDef.dialogue.length}
+- Attribution: ${dialogueConstraints.attribution_rule || levelDef.dialogue.attribution}
+- Subtext: ${dialogueConstraints.subtext_rule || levelDef.dialogue.subtext}
+
+### NARRATIVE TECHNIQUE (MANDATORY):
+- Cause/Effect: ${narrativeConstraints.cause_effect_rule || levelDef.narrative.causeEffect}
+- Timeline: ${narrativeConstraints.timeline_rule || levelDef.narrative.timeflow}
+- POV handling: ${narrativeConstraints.pov_rule || levelDef.narrative.pov}
+- Show vs Tell: ${narrativeConstraints.show_tell_rule || levelDef.narrative.showing}
+
+${languageRules.length > 0 ? `### ${language.toUpperCase()}-SPECIFIC GRAMMAR RULES (MANDATORY):\n${languageRules.map(r => `- ${r}`).join('\n')}` : ''}
+
+${forbiddenTechniques.length > 0 ? `### FORBIDDEN AT THIS LEVEL (DO NOT USE):\n${forbiddenTechniques.map(f => `- ${f}`).join('\n')}` : ''}
+
+${chapterNotes ? `### CHAPTER ${chapterIndex} SPECIFIC GUIDANCE:\n- Potential issues: ${chapterNotes.potential_violations?.join(', ') || 'None'}\n- Mitigation: ${chapterNotes.mitigation || 'Follow standard level rules'}` : ''}`
 
   return `STORY BIBLE:
 
@@ -1827,19 +2420,184 @@ ${previousContext}
 
 ---
 
-LEVEL: ${bible.levelCheck?.target_level || 'Intermediate'}
+=== LEVEL CONSTRAINTS (NON-NEGOTIABLE) ===
+TARGET LEVEL: ${targetLevel}
+TARGET LANGUAGE: ${language}
 
-PROSE GUIDANCE:
-${proseGuidanceText || 'Follow standard prose conventions.'}
+${proseGuidanceText}
+
+=== END LEVEL CONSTRAINTS ===
 
 ---
 
-Write Chapter ${chapter.number} now. Full prose in ${language}. Hit every beat. End with the ${chapter.hook?.type || 'emotional'} hook. Stay within ${wordCountTarget.min}-${wordCountTarget.max} words.`
+Write Chapter ${chapter.number} now in ${language}.
+
+REQUIREMENTS:
+1. Hit every beat listed above
+2. End with the ${chapter.hook?.type || 'emotional'} hook
+3. Stay within ${wordCountTarget.min}-${wordCountTarget.max} words
+4. STRICTLY follow the level constraints above - violation means rejection
+
+Remember: This is for ${targetLevel} level language learners. ${targetLevel === 'Beginner' ? 'SIMPLICITY AND CLARITY are paramount. Use short sentences. Name emotions directly. No subtext.' : targetLevel === 'Intermediate' ? 'Balance clarity with natural flow. Some complexity allowed but key meaning must be accessible.' : 'Write naturally as for native readers. Full stylistic freedom.'}`
+}
+
+// Analyze sentence statistics for level validation
+function analyzeSentenceStats(content) {
+  if (!content) return null
+
+  // Split content into sentences (handle multiple punctuation marks)
+  // This regex handles ., !, ?, and also handles quotes and ellipses
+  const sentences = content
+    .replace(/([.!?])\s*(?=[A-Z¿¡"'«])/g, '$1|SPLIT|')
+    .split('|SPLIT|')
+    .map(s => s.trim())
+    .filter(s => s.length > 0 && /\w/.test(s))
+
+  if (sentences.length === 0) return null
+
+  // Count words in each sentence
+  const sentenceLengths = sentences.map(s => {
+    const words = s.split(/\s+/).filter(w => w.length > 0)
+    return words.length
+  })
+
+  const totalWords = sentenceLengths.reduce((a, b) => a + b, 0)
+  const averageLength = totalWords / sentences.length
+  const maxSentenceLength = Math.max(...sentenceLengths)
+  const minSentenceLength = Math.min(...sentenceLengths)
+
+  // Count sentences over certain thresholds
+  const sentencesOver15 = sentenceLengths.filter(l => l > 15).length
+  const sentencesOver20 = sentenceLengths.filter(l => l > 20).length
+  const sentencesOver25 = sentenceLengths.filter(l => l > 25).length
+
+  return {
+    totalSentences: sentences.length,
+    totalWords,
+    averageLength: Math.round(averageLength * 10) / 10,
+    maxSentenceLength,
+    minSentenceLength,
+    sentencesOver15,
+    sentencesOver20,
+    sentencesOver25,
+    distribution: {
+      short: sentenceLengths.filter(l => l <= 8).length,
+      medium: sentenceLengths.filter(l => l > 8 && l <= 15).length,
+      long: sentenceLengths.filter(l => l > 15 && l <= 25).length,
+      veryLong: sentenceLengths.filter(l => l > 25).length,
+    }
+  }
+}
+
+// Validate prose against level constraints
+function validateLevelCompliance(content, level, proseGuidance) {
+  const issues = []
+  const warnings = []
+
+  const stats = analyzeSentenceStats(content)
+  if (!stats) {
+    issues.push({ type: 'analysis_failed', message: 'Could not analyze sentence structure' })
+    return { issues, warnings, stats: null }
+  }
+
+  // Get level constraints
+  const levelDef = LEVEL_DEFINITIONS[level]
+  if (!levelDef) {
+    warnings.push({ type: 'unknown_level', message: `Unknown level ${level}, skipping level validation` })
+    return { issues, warnings, stats }
+  }
+
+  const sentenceConstraints = proseGuidance?.sentence_constraints || {}
+  const avgMin = sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min
+  const avgMax = sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max
+  const maxLen = sentenceConstraints.max_length || levelDef.sentences.maxLength
+
+  // Check average sentence length
+  if (stats.averageLength < avgMin * 0.7) {
+    warnings.push({
+      type: 'sentences_too_short',
+      message: `Average sentence length ${stats.averageLength} is significantly below target ${avgMin}-${avgMax}`,
+      actual: stats.averageLength,
+      target: { min: avgMin, max: avgMax }
+    })
+  }
+  if (stats.averageLength > avgMax * 1.3) {
+    issues.push({
+      type: 'sentences_too_long',
+      message: `Average sentence length ${stats.averageLength} exceeds target ${avgMin}-${avgMax} for ${level} level`,
+      actual: stats.averageLength,
+      target: { min: avgMin, max: avgMax }
+    })
+  }
+
+  // Check maximum sentence length (critical for Beginner)
+  if (maxLen && stats.maxSentenceLength > maxLen * 1.5) {
+    if (level === 'Beginner') {
+      issues.push({
+        type: 'max_sentence_exceeded',
+        message: `Found sentences with ${stats.maxSentenceLength} words. Maximum for Beginner is ${maxLen} words.`,
+        actual: stats.maxSentenceLength,
+        max: maxLen
+      })
+    } else {
+      warnings.push({
+        type: 'long_sentences',
+        message: `Found sentences with ${stats.maxSentenceLength} words. Target max for ${level} is ${maxLen}.`,
+        actual: stats.maxSentenceLength,
+        max: maxLen
+      })
+    }
+  }
+
+  // Level-specific checks
+  if (level === 'Beginner') {
+    // Beginner should have mostly short sentences
+    const shortAndMedium = stats.distribution.short + stats.distribution.medium
+    const totalSentences = stats.totalSentences
+    const shortRatio = shortAndMedium / totalSentences
+
+    if (shortRatio < 0.8) {
+      issues.push({
+        type: 'beginner_complexity',
+        message: `Only ${Math.round(shortRatio * 100)}% of sentences are appropriately short for Beginner level. Target: 80%+`,
+        distribution: stats.distribution
+      })
+    }
+
+    // Check for very long sentences (should be zero for Beginner)
+    if (stats.distribution.veryLong > 0) {
+      issues.push({
+        type: 'beginner_long_sentences',
+        message: `Found ${stats.distribution.veryLong} sentences over 25 words. Beginner level should have none.`,
+        count: stats.distribution.veryLong
+      })
+    }
+  }
+
+  if (level === 'Intermediate') {
+    // Intermediate should have a mix, but not too many very long sentences
+    const veryLongRatio = stats.distribution.veryLong / stats.totalSentences
+    if (veryLongRatio > 0.15) {
+      warnings.push({
+        type: 'intermediate_complexity',
+        message: `${Math.round(veryLongRatio * 100)}% of sentences are over 25 words. Consider simplifying for Intermediate.`,
+        distribution: stats.distribution
+      })
+    }
+  }
+
+  return {
+    issues,
+    warnings,
+    stats,
+    levelCompliant: issues.length === 0
+  }
 }
 
 // Validate chapter output
-function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wordCountTarget) {
+function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wordCountTarget, level = 'Intermediate', proseGuidance = null) {
   const issues = []
+  const warnings = []
 
   // Check content exists and has reasonable length
   const content = chapterData?.chapter?.content
@@ -1873,11 +2631,54 @@ function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wor
     issues.push({ type: 'missing_summary', message: 'Chapter summary is missing' })
   }
 
+  // Level compliance validation
+  let levelValidation = null
+  if (content && level) {
+    levelValidation = validateLevelCompliance(content, level, proseGuidance)
+
+    // Add level issues to main issues (these are critical)
+    issues.push(...levelValidation.issues)
+    warnings.push(...levelValidation.warnings)
+
+    // Log level stats
+    if (levelValidation.stats) {
+      console.log(`Level validation for ${level}: avg sentence length ${levelValidation.stats.averageLength}, max ${levelValidation.stats.maxSentenceLength}`)
+    }
+  }
+
   return {
     valid: issues.length === 0,
     issues,
+    warnings,
     wordCount,
-    beatsCovered: beatsCovered.length
+    beatsCovered: beatsCovered.length,
+    levelValidation
+  }
+}
+
+// Validate chapter index
+function validateChapterIndex(chapterIndex, bible) {
+  // Check that chapterIndex is a positive integer
+  if (typeof chapterIndex !== 'number' || !Number.isInteger(chapterIndex) || chapterIndex < 1) {
+    throw new Error(`Invalid chapter index: ${chapterIndex}. Must be a positive integer starting from 1.`)
+  }
+
+  // Check that bible has chapters
+  if (!bible?.chapters?.chapters || !Array.isArray(bible.chapters.chapters)) {
+    throw new Error('Bible does not contain valid chapter data. Ensure bible generation completed successfully.')
+  }
+
+  // Check that chapter index is within bounds
+  const totalChapters = bible.chapters.chapters.length
+  if (chapterIndex > totalChapters) {
+    throw new Error(`Chapter index ${chapterIndex} is out of bounds. Bible contains ${totalChapters} chapters.`)
+  }
+
+  return {
+    valid: true,
+    chapterIndex,
+    totalChapters,
+    chapter: bible.chapters.chapters[chapterIndex - 1]
   }
 }
 
@@ -1885,8 +2686,9 @@ function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wor
 async function generateChapter(bible, chapterIndex, previousSummaries, language) {
   console.log(`Generating Chapter ${chapterIndex}...`)
 
-  const chapter = bible.chapters.chapters[chapterIndex - 1]
-  if (!chapter) throw new Error(`Chapter ${chapterIndex} not found in bible`)
+  // Validate chapter index
+  const indexValidation = validateChapterIndex(chapterIndex, bible)
+  const chapter = indexValidation.chapter
 
   const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
 
@@ -1906,19 +2708,31 @@ async function generateChapter(bible, chapterIndex, previousSummaries, language)
 
   const chapterData = parsed.data
 
-  // Validate output
+  // Get level and prose guidance from bible
+  const level = bible.levelCheck?.target_level || 'Intermediate'
+  const proseGuidance = bible.levelCheck?.prose_guidance || null
+
+  // Validate output including level compliance
   const validation = validateChapterOutput(
     chapterData,
     chapter.beats,
     chapter.hook?.type,
-    wordCountTarget
+    wordCountTarget,
+    level,
+    proseGuidance
   )
 
   if (!validation.valid) {
     console.warn(`Chapter ${chapterIndex} validation issues:`, validation.issues)
+    if (validation.warnings?.length > 0) {
+      console.warn(`Chapter ${chapterIndex} warnings:`, validation.warnings)
+    }
   }
 
   console.log(`Chapter ${chapterIndex} generated. Word count: ${validation.wordCount}`)
+  if (validation.levelValidation?.stats) {
+    console.log(`  Level ${level}: avg sentence ${validation.levelValidation.stats.averageLength} words, max ${validation.levelValidation.stats.maxSentenceLength}`)
+  }
 
   return {
     ...chapterData,
@@ -2163,14 +2977,23 @@ Please fix these issues while maintaining story quality.`
 
   const chapterData = parsed.data
 
+  // Get level and prose guidance from bible
+  const level = bible.levelCheck?.target_level || 'Intermediate'
+  const proseGuidance = bible.levelCheck?.prose_guidance || null
+
   const validation = validateChapterOutput(
     chapterData,
     chapter.beats,
     chapter.hook?.type,
-    wordCountTarget
+    wordCountTarget,
+    level,
+    proseGuidance
   )
 
   console.log(`Chapter ${chapterIndex} regenerated. Word count: ${validation.wordCount}`)
+  if (validation.levelValidation?.stats) {
+    console.log(`  Level ${level}: avg sentence ${validation.levelValidation.stats.averageLength} words, max ${validation.levelValidation.stats.maxSentenceLength}`)
+  }
 
   return {
     ...chapterData,
@@ -2316,11 +3139,17 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
     throw new Error('Chapter expansion failed to parse')
   }
 
+  // Get level and prose guidance from bible
+  const level = bible.levelCheck?.target_level || 'Intermediate'
+  const proseGuidance = bible.levelCheck?.prose_guidance || null
+
   const validation = validateChapterOutput(
     parsed.data,
     chapter.beats,
     chapter.hook?.type,
-    wordCountTarget
+    wordCountTarget,
+    level,
+    proseGuidance
   )
 
   return {
@@ -2384,8 +3213,16 @@ export {
   buildPreviousContext,
   compressSummaries,
   validateChapterOutput,
+  validateLevelCompliance,
+  validateChapterIndex,
+  analyzeSentenceStats,
   getWordCountTarget,
-  WORD_COUNT_BY_TENSION
+  getLevelDefinition,
+  formatLevelDefinitionForPrompt,
+  WORD_COUNT_BY_TENSION,
+  LEVEL_DEFINITIONS,
+  LANGUAGE_LEVEL_ADJUSTMENTS,
+  PHASE_DESCRIPTIONS
 }
 
 export default {
@@ -2402,5 +3239,8 @@ export default {
   executePhase6,
   executePhase7,
   executePhase8,
-  CONFIG
+  CONFIG,
+  LEVEL_DEFINITIONS,
+  LANGUAGE_LEVEL_ADJUSTMENTS,
+  PHASE_DESCRIPTIONS
 }

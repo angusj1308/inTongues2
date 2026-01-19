@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import GenerateNovelPanel from '../components/novel/GenerateNovelPanel'
+// BibleReview and ChapterGenerator kept for admin/QA access but not in normal user flow
 import BibleReview from '../components/novel/BibleReview'
 import ChapterGenerator from '../components/novel/ChapterGenerator'
 import { getBook } from '../services/novelGenerator'
 
-// Flow steps
+// Flow steps - simplified for users (they only see SETUP, then go straight to reader)
+// REVIEW and GENERATE kept for admin/QA access via URL params
 const STEPS = {
   SETUP: 'setup',
-  REVIEW: 'review',
-  GENERATE: 'generate',
+  REVIEW: 'review',      // Admin only - accessed via ?mode=review
+  GENERATE: 'generate',  // Admin only - accessed via ?mode=generate
 }
 
 const NovelGenerator = () => {
@@ -26,9 +28,15 @@ const NovelGenerator = () => {
   const [error, setError] = useState('')
 
   // Load existing book if bookId is in URL
+  // For normal users, redirect to reader if book has chapters
+  // Admin can access review/generate via ?mode=review or ?mode=generate
   useEffect(() => {
     const loadBook = async () => {
       if (!urlBookId || !user?.uid) return
+
+      // Check for admin mode in URL params
+      const urlParams = new URLSearchParams(window.location.search)
+      const adminMode = urlParams.get('mode')
 
       setLoading(true)
       setError('')
@@ -39,16 +47,30 @@ const NovelGenerator = () => {
         setBookData(book)
         setBible(book.bible)
 
-        // Determine which step to show based on book status
-        if (book.status === 'bible_complete' || book.status === 'bible_needs_review') {
-          // Check if any chapters have been generated
-          if (book.chapters?.some((c) => c.status === 'complete')) {
-            setStep(STEPS.GENERATE)
-          } else {
-            setStep(STEPS.REVIEW)
-          }
-        } else if (book.status === 'chapters_in_progress' || book.status === 'complete') {
+        // Admin mode: allow access to review/generate steps
+        if (adminMode === 'review') {
+          setStep(STEPS.REVIEW)
+          setLoading(false)
+          return
+        }
+        if (adminMode === 'generate') {
           setStep(STEPS.GENERATE)
+          setLoading(false)
+          return
+        }
+
+        // Normal user flow: if book has any chapters, go to reader
+        if (book.status === 'in_progress' || book.status === 'complete' ||
+            book.generatedChapterCount > 0) {
+          navigate(`/reader/${urlBookId}`, { replace: true })
+          return
+        }
+
+        // If bible is complete but no chapters, something went wrong
+        // Stay on setup to let them try again or show error
+        if (book.status === 'bible_complete' || book.status === 'bible_needs_review') {
+          setError('Story outline was created but Chapter 1 failed to generate. Please try again.')
+          setStep(STEPS.SETUP)
         }
       } catch (err) {
         setError(err.message || 'Failed to load book')
@@ -59,24 +81,13 @@ const NovelGenerator = () => {
     }
 
     loadBook()
-  }, [urlBookId, user?.uid])
+  }, [urlBookId, user?.uid, navigate])
 
-  // Handle bible generation complete
+  // Handle bible generation complete - go straight to reader
   const handleBibleGenerated = (result) => {
-    setBookId(result.bookId)
-    setBookData({
-      concept: result.bible?.phase1?.concept,
-      language: result.bible?.phase1?.language,
-      level: result.level,
-      lengthPreset: result.lengthPreset,
-      chapterCount: result.chapterCount,
-      status: result.status,
-    })
-    setBible(result.bible)
-    setStep(STEPS.REVIEW)
-
-    // Update URL to include bookId
-    navigate(`/novel/${result.bookId}`, { replace: true })
+    // Bible + Chapter 1 are now generated, navigate directly to reader
+    // User will see Chapter 1 and can generate subsequent chapters from there
+    navigate(`/reader/${result.bookId}`)
   }
 
   // Handle approval of bible
@@ -138,26 +149,43 @@ const NovelGenerator = () => {
     )
   }
 
+  // Check if in admin mode
+  const isAdminMode = step === STEPS.REVIEW || step === STEPS.GENERATE
+
   return (
     <div className="page">
       <div className="card dashboard-card novel-generator-page">
-        {/* Step Indicator */}
-        <div className="step-indicator">
-          <div className={`step ${step === STEPS.SETUP ? 'active' : step !== STEPS.SETUP ? 'complete' : ''}`}>
-            <span className="step-number">1</span>
-            <span className="step-label">Setup</span>
+        {/* Step Indicator - simplified for normal users, full for admin */}
+        {isAdminMode ? (
+          // Admin mode: show all 3 steps
+          <div className="step-indicator">
+            <div className={`step ${step === STEPS.SETUP ? 'active' : 'complete'}`}>
+              <span className="step-number">1</span>
+              <span className="step-label">Setup</span>
+            </div>
+            <div className="step-connector" />
+            <div className={`step ${step === STEPS.REVIEW ? 'active' : step === STEPS.GENERATE ? 'complete' : ''}`}>
+              <span className="step-number">2</span>
+              <span className="step-label">Review</span>
+            </div>
+            <div className="step-connector" />
+            <div className={`step ${step === STEPS.GENERATE ? 'active' : ''}`}>
+              <span className="step-number">3</span>
+              <span className="step-label">Generate</span>
+            </div>
+            <div className="admin-badge" style={{ marginLeft: '16px', fontSize: '12px', color: '#888' }}>
+              (Admin Mode)
+            </div>
           </div>
-          <div className="step-connector" />
-          <div className={`step ${step === STEPS.REVIEW ? 'active' : step === STEPS.GENERATE ? 'complete' : ''}`}>
-            <span className="step-number">2</span>
-            <span className="step-label">Review</span>
+        ) : (
+          // Normal user: simple single-step indicator
+          <div className="step-indicator">
+            <div className="step active">
+              <span className="step-number">1</span>
+              <span className="step-label">Create Your Story</span>
+            </div>
           </div>
-          <div className="step-connector" />
-          <div className={`step ${step === STEPS.GENERATE ? 'active' : ''}`}>
-            <span className="step-number">3</span>
-            <span className="step-label">Generate</span>
-          </div>
-        </div>
+        )}
 
         {/* Step Content */}
         {step === STEPS.SETUP && (
@@ -167,6 +195,7 @@ const NovelGenerator = () => {
           />
         )}
 
+        {/* Admin-only: Bible Review */}
         {step === STEPS.REVIEW && bible && (
           <BibleReview
             bible={bible}
@@ -177,6 +206,7 @@ const NovelGenerator = () => {
           />
         )}
 
+        {/* Admin-only: Chapter Generator */}
         {step === STEPS.GENERATE && bookId && (
           <ChapterGenerator
             bookId={bookId}

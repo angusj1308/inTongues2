@@ -4544,7 +4544,7 @@ async function searchBookCover(title, author) {
  * @param {string} author - Author name
  * @returns {Promise<string|null>} Cover image URL or null
  */
-async function searchBookCover(title, author) {
+async function searchOpenLibraryCover(title, author) {
   if (!title && !author) return null
 
   const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'

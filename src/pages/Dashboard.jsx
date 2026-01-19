@@ -449,31 +449,84 @@ const Dashboard = () => {
     setLibraryError('')
     setLibraryLoading(true)
 
+    // Track items from both collections
+    let storiesItems = []
+    let generatedBooksItems = []
+    let storiesLoaded = false
+    let generatedBooksLoaded = false
+
+    const mergeAndSetItems = () => {
+      if (!storiesLoaded || !generatedBooksLoaded) return
+      // Merge and sort by createdAt
+      const allItems = [...storiesItems, ...generatedBooksItems].sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+        const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
+        return bTime - aTime
+      })
+      setItems(allItems)
+      setLibraryLoading(false)
+    }
+
+    // Listen to stories collection
     const storiesRef = collection(db, 'users', user.uid, 'stories')
-    const languageLibraryQuery = query(
+    const storiesQuery = query(
       storiesRef,
       where('language', '==', activeLanguage),
       orderBy('createdAt', 'desc'),
     )
 
-    const unsubscribe = onSnapshot(
-      languageLibraryQuery,
+    const unsubscribeStories = onSnapshot(
+      storiesQuery,
       (snapshot) => {
-        const nextItems = snapshot.docs.map((doc) => ({
+        storiesItems = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }))
-        setItems(nextItems)
-        setLibraryLoading(false)
+        storiesLoaded = true
+        mergeAndSetItems()
       },
       (err) => {
-        console.error('Library load error:', err)
-        setLibraryError('Unable to load your library right now.')
-        setLibraryLoading(false)
+        console.error('Stories load error:', err)
+        storiesLoaded = true
+        mergeAndSetItems()
       },
     )
 
-    return unsubscribe
+    // Listen to generatedBooks collection
+    const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
+    const generatedBooksQuery = query(
+      generatedBooksRef,
+      where('language', '==', activeLanguage),
+      orderBy('createdAt', 'desc'),
+    )
+
+    const unsubscribeGeneratedBooks = onSnapshot(
+      generatedBooksQuery,
+      (snapshot) => {
+        generatedBooksItems = snapshot.docs.map((doc) => {
+          const data = doc.data()
+          return {
+            id: doc.id,
+            ...data,
+            // Mark as generated book and set title from bible
+            isGeneratedBook: true,
+            title: data.bible?.coreFoundation?.title || data.concept || 'Untitled Novel',
+          }
+        })
+        generatedBooksLoaded = true
+        mergeAndSetItems()
+      },
+      (err) => {
+        console.error('Generated books load error:', err)
+        generatedBooksLoaded = true
+        mergeAndSetItems()
+      },
+    )
+
+    return () => {
+      unsubscribeStories()
+      unsubscribeGeneratedBooks()
+    }
   }, [activeLanguage, user])
 
   // Ref for pagination measurement container
@@ -634,6 +687,20 @@ const Dashboard = () => {
             type: 'story',
             title: doc.data().title || 'Untitled Story',
             ...doc.data(),
+          })
+        })
+
+        // Load generated books (novels/novellas from bible pipeline)
+        const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
+        const generatedBooksQuery = query(generatedBooksRef, where('language', '==', activeLanguage))
+        const generatedBooksSnap = await getDocs(generatedBooksQuery)
+        generatedBooksSnap.forEach((doc) => {
+          const data = doc.data()
+          allContent.push({
+            id: doc.id,
+            type: 'generatedBook',
+            title: data.bible?.coreFoundation?.title || data.concept || 'Untitled Novel',
+            ...data,
           })
         })
 

@@ -23415,6 +23415,44 @@ body.active-pass-locked {
   transition: width 0.3s ease;
 }
 
+/* Generating overlay for novels being created */
+.reading-shelf-item--generating .reading-shelf-item-content {
+  cursor: default;
+}
+
+.reading-shelf-generating-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reading-shelf-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: reading-shelf-spin 0.8s linear infinite;
+}
+
+@keyframes reading-shelf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.reading-shelf-generating-text {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+}
+
 /* Hide old title/progress outside cover */
 .reading-shelf-title,
 .reading-shelf-progress {

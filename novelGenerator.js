@@ -1385,23 +1385,35 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 }
 
 // =============================================================================
-// PHASE 6: CHAPTER BREAKDOWN
+// PHASE 6: CHAPTER & SCENE BREAKDOWN
 // =============================================================================
 
-const PHASE_6_SYSTEM_PROMPT = `You are a romance chapter architect. Your task is to create a detailed breakdown of every chapter — the beats, POV, location, emotional arc, and hooks that will guide actual prose generation.
+const PHASE_6_SYSTEM_PROMPT = `You are a master scene architect for romance fiction. Your task is to create a GRANULAR breakdown of every chapter into SCENES, and every scene into MICRO-BEATS that will guide actual prose generation.
 
-You will receive:
-- The user's original concept
-- Phases 1-5 output
-- Length preset (novella or novel)
+## CRITICAL DISTINCTION: Scenes vs Beats
 
-Your job is to:
-1. Break down every chapter with specific beats
-2. Assign POV per Phase 1 structure
-3. Map locations from Phase 2
-4. Track emotional arcs from Phase 3
-5. Place all Phase 4 moments and Phase 5 plot points
-6. Create compelling chapter hooks
+A SCENE is a continuous unit of action in one location/time. When location or time changes significantly, it's a new scene.
+
+A BEAT is a MICRO-MOMENT — a single action, reaction, sensory detail, or emotional shift. One sentence of prose might contain 1-3 beats.
+
+WRONG (too vague, this is a scene summary, not beats):
+- "Isabella attends the betrothal ceremony"
+- "She meets the British soldier"
+- "They feel attraction"
+
+RIGHT (actual micro-beats):
+- "Champagne bubbles catch candlelight — she counts them instead of listening"
+- "Don Álvarez's cologne arrives before he does — sandalwood and possession"
+- "His hand finds her waist; her spine stiffens imperceptibly"
+- "She murmurs about needing air, already stepping backward"
+- "The garden door handle: cool brass, escape"
+- "Jasmine hits her lungs — freedom smells like this"
+- "A rustle in the hedges — wrong rhythm for wind"
+- "Blue wool between green leaves. British uniform. Blood."
+- "Their eyes lock. He calculates escape routes; she forgets to scream."
+- "Her hand moves toward him before her mind can object"
+
+Each beat is SPECIFIC, SENSORY, and DRAMATIZABLE.
 
 ## Output Format
 
@@ -1411,43 +1423,51 @@ Respond with a JSON object:
   "chapters": [
     {
       "number": 1,
-      "title": "Chapter title",
+      "title": "Chapter title (evocative, not generic)",
       "pov": "POV character name",
-      "location_primary": "Main location (from Phase 2)",
-      "location_secondary": "Secondary location if any",
       "story_time": "When in the story timeline",
-      "plot_threads": {
-        "main": "What main plot beat this chapter serves",
-        "subplot_a": "Subplot A development if any",
-        "subplot_b": "Subplot B development if any"
-      },
-      "beats": [
-        "Specific scene beat 1 (what happens)",
-        "Specific scene beat 2 (what happens)",
-        "Specific scene beat 3 (what happens)"
-      ],
-      "phase_4_moment": "If this chapter contains a Phase 4 pivotal moment, name it",
-      "foreshadowing": {
-        "plants": ["Seeds planted this chapter"],
-        "payoffs": ["Seeds paid off this chapter"]
-      },
+      "chapter_purpose": "What this chapter accomplishes for the story",
       "emotional_arc": {
         "opens": "POV character's emotional state at chapter start",
+        "turns": "The key emotional shift mid-chapter",
         "closes": "POV character's emotional state at chapter end"
       },
-      "tension_rating": "1-10 scale",
-      "hook": {
-        "type": "cliffhanger | question | revelation | emotional | decision",
-        "description": "What specifically hooks the reader"
+      "scenes": [
+        {
+          "scene_number": 1,
+          "scene_name": "Evocative name for this scene",
+          "location": "Specific location from Phase 2",
+          "time_of_day": "morning/afternoon/evening/night",
+          "weather_mood": "Weather or atmospheric detail that mirrors emotion",
+          "characters_present": ["List of characters in scene"],
+          "scene_purpose": "What this scene accomplishes (setup/confrontation/revelation/intimacy/etc)",
+          "sensory_anchor": "The dominant sense for this scene (smell of jasmine, sound of distant music, etc)",
+          "beats": [
+            "Micro-beat 1: specific sensory/action moment",
+            "Micro-beat 2: character reaction or internal thought",
+            "Micro-beat 3: dialogue beat or physical action",
+            "... continue for 15-25 beats per scene"
+          ],
+          "scene_turn": "The moment the scene pivots or shifts",
+          "exits_with": "How/why the scene ends"
+        }
+      ],
+      "phase_4_moment": "If this chapter contains a Phase 4 pivotal moment, name it (or null)",
+      "foreshadowing": {
+        "plants": ["Specific seeds planted this chapter"],
+        "payoffs": ["Seeds from earlier chapters paid off here"]
       },
-      "key_dialogue": "If any crucial dialogue exchange, describe it",
-      "sensory_focus": "Primary sensory details to emphasize"
+      "tension_rating": 5,
+      "chapter_hook": {
+        "type": "cliffhanger | question | revelation | emotional | decision",
+        "description": "What specifically hooks the reader to continue"
+      }
     }
   ],
   "pov_distribution": {
-    "protagonist_chapters": [1, 3, 5, ...],
-    "love_interest_chapters": [2, 4, 6, ...],
-    "balance_check": "Percentage or ratio"
+    "protagonist_chapters": [1, 3, 5],
+    "love_interest_chapters": [2, 4, 6],
+    "balance_percentage": "50/50 or ratio"
   },
   "timeline": {
     "total_story_time": "How much time passes from Ch 1 to final chapter",
@@ -1457,79 +1477,110 @@ Respond with a JSON object:
   },
   "coherence_check": {
     "pov_structure_honored": "Confirmation POV follows Phase 1 structure",
-    "all_beats_placed": "Confirmation all Phase 5 beats appear in chapters",
-    "all_seeds_planted": "Confirmation all Phase 5 foreshadowing seeds are placed",
-    "all_pivotal_moments_placed": "Confirmation all Phase 4 moments appear",
-    "locations_valid": "Confirmation all locations come from Phase 2",
-    "tension_curve_matched": "Confirmation tension ratings match Phase 5 curve",
-    "chapter_count_correct": "Confirmation chapter count matches length preset",
-    "timespan_honored": "Confirmation timeline matches Phase 1 timespan"
+    "all_phase5_beats_placed": "Confirmation all Phase 5 plot beats appear",
+    "all_phase4_moments_placed": "Confirmation all Phase 4 pivotal moments appear",
+    "all_foreshadowing_tracked": "Confirmation all seeds planted and paid off",
+    "locations_from_phase2": "Confirmation all locations come from Phase 2",
+    "tension_curve_matches_phase5": "Confirmation tension ratings follow Phase 5 curve",
+    "chapter_count_correct": "Matches length preset"
   }
 }
 
-## Guidelines
+## SCENE & BEAT REQUIREMENTS
 
-CHAPTER BREAKDOWN:
-- For novella (12 chapters): 3-5 beats per chapter
-- For novel (35 chapters): 3-7 beats per chapter
-- Beats should be specific actions/events, not vague descriptions
+SCENES PER CHAPTER:
+- Each chapter MUST have 2-4 scenes
+- A scene change = location change OR significant time skip
+- Each scene should be 800-1500 words when written as prose
 
-POV:
-- Follow Phase 1 POV structure (single, dual-alternating, etc.)
-- For dual-alternating: Critical scenes should use the POV of whoever has most at stake
-- No more than 3 consecutive chapters from same POV
+BEATS PER SCENE:
+- Each scene MUST have 15-25 micro-beats
+- Beats should alternate between: action, reaction, sensory, dialogue, internal thought
+- Every beat must be SPECIFIC enough to generate 1-3 sentences of prose
+- NO vague beats like "they talk" or "time passes" — be specific
 
-HOOKS:
-- Vary hook types — not all cliffhangers
-- Each hook should create genuine forward momentum
-- Final chapter hook should provide closure, not cliff
+BEAT TYPES TO INCLUDE:
+- Sensory anchors: what they see/hear/smell/taste/touch
+- Physical actions: specific gestures, movements
+- Dialogue beats: key lines or exchanges (paraphrased)
+- Internal reactions: thoughts, memories triggered, emotions felt
+- Micro-tensions: small conflicts, hesitations, decisions
+- Environmental details: weather, lighting, background sounds
 
-EMOTIONAL ARC:
-- Each chapter should show emotional movement
-- Emotional states should flow logically from previous chapter
-- Track the wound/lie/fear from Phase 3 as they're challenged
+## GUIDELINES
 
-FORESHADOWING:
-- Every seed from Phase 5 must appear in a chapter
-- Every payoff must have been planted earlier
-- Track carefully — orphan seeds or payoffs break the story`
+SHOW DON'T TELL:
+- Beats should show emotion through action, not state it
+- WRONG: "She feels nervous"
+- RIGHT: "She smooths her skirt for the third time"
+
+SENSORY SPECIFICITY:
+- Every scene needs a dominant sensory anchor
+- Use all five senses across the chapter
+- Sensory details should reflect emotional state
+
+PACING:
+- High-tension scenes: shorter, punchier beats
+- Intimate scenes: longer, more sensory beats
+- Action scenes: rapid-fire beats, one per line
+
+POV DISCIPLINE:
+- All beats must be perceivable by the POV character
+- Internal thoughts only for POV character
+- Other characters' emotions shown through observable behavior`
 
 function buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
+  const chapterCount = CONFIG.chapterCounts[lengthPreset]
+  const scenesPerChapter = lengthPreset === 'novella' ? '2-3' : '2-4'
+  const beatsPerScene = '15-25'
+
   return `ORIGINAL CONCEPT: ${concept}
 
-LENGTH: ${lengthPreset} (${CONFIG.chapterCounts[lengthPreset]} chapters)
+LENGTH: ${lengthPreset} (${chapterCount} chapters)
+TARGET: Each chapter needs ${scenesPerChapter} scenes, each scene needs ${beatsPerScene} micro-beats.
 
 PHASE 1 OUTPUT (Core Foundation):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (World/Setting):
+PHASE 2 OUTPUT (World/Setting - USE THESE LOCATIONS):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Characters):
+PHASE 3 OUTPUT (Characters - USE THESE DETAILS):
 ${JSON.stringify(phase3, null, 2)}
 
-PHASE 4 OUTPUT (Chemistry):
+PHASE 4 OUTPUT (Chemistry - THESE MOMENTS MUST APPEAR):
 ${JSON.stringify(phase4, null, 2)}
 
-PHASE 5 OUTPUT (Plot Architecture):
+PHASE 5 OUTPUT (Plot Architecture - THESE BEATS MUST BE PLACED):
 ${JSON.stringify(phase5, null, 2)}
 
-Create a complete chapter-by-chapter breakdown for all ${CONFIG.chapterCounts[lengthPreset]} chapters. Every beat from Phase 5 must be placed, every Phase 4 pivotal moment must have a chapter, and all foreshadowing seeds must be tracked.`
+## YOUR TASK
+
+Create a GRANULAR chapter-by-chapter, scene-by-scene, beat-by-beat breakdown for all ${chapterCount} chapters.
+
+REQUIREMENTS:
+1. Every chapter must have ${scenesPerChapter} distinct scenes
+2. Every scene must have ${beatsPerScene} specific micro-beats (NOT vague summaries)
+3. Every Phase 4 pivotal moment must appear in a specific scene
+4. Every Phase 5 plot beat must be placed in a specific chapter
+5. All locations must come from Phase 2
+6. All foreshadowing seeds must be planted and paid off
+
+REMEMBER: A beat is a MICRO-MOMENT. "She smooths her skirt nervously" is a beat. "They have a conversation" is NOT a beat — that's a scene summary. Be specific enough that each beat can generate 1-3 sentences of prose.`
 }
 
 const PHASE_6_COHERENCE_FIELDS = [
   'pov_structure_honored',
-  'all_beats_placed',
-  'all_seeds_planted',
-  'all_pivotal_moments_placed',
-  'locations_valid',
-  'tension_curve_matched',
-  'chapter_count_correct',
-  'timespan_honored'
+  'all_phase5_beats_placed',
+  'all_phase4_moments_placed',
+  'all_foreshadowing_tracked',
+  'locations_from_phase2',
+  'tension_curve_matches_phase5',
+  'chapter_count_correct'
 ]
 
 async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
-  console.log('Executing Phase 6: Chapter Breakdown...')
+  console.log('Executing Phase 6: Chapter & Scene Breakdown...')
 
   const userPrompt = buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset)
   const response = await callOpenAI(PHASE_6_SYSTEM_PROMPT, userPrompt)
@@ -2384,18 +2435,32 @@ OTHER MAIN CHARACTER: ${otherCharacter?.name}
 CHAPTER ${chapter.number}: ${chapter.title}
 
 Story Time: ${chapter.story_time}
-
-Plot Threads Active:
-- Main: ${chapter.plot_threads?.main || 'N/A'}
-${chapter.plot_threads?.subplot_a ? `- Subplot A: ${chapter.plot_threads.subplot_a}` : ''}
-${chapter.plot_threads?.subplot_b ? `- Subplot B: ${chapter.plot_threads.subplot_b}` : ''}
-
-BEATS TO HIT (in order):
-${chapter.beats?.map((beat, i) => `${i + 1}. ${beat}`).join('\n') || 'N/A'}
+Chapter Purpose: ${chapter.chapter_purpose || 'N/A'}
 
 Emotional Arc:
 - Opens: ${chapter.emotional_arc?.opens || 'N/A'}
+- Turns: ${chapter.emotional_arc?.turns || 'N/A'}
 - Closes: ${chapter.emotional_arc?.closes || 'N/A'}
+
+=== SCENES & MICRO-BEATS (WRITE THESE IN ORDER) ===
+
+${chapter.scenes?.map((scene, sceneIdx) => `
+--- SCENE ${sceneIdx + 1}: ${scene.scene_name || 'Untitled Scene'} ---
+Location: ${scene.location || 'N/A'}
+Time: ${scene.time_of_day || 'N/A'}
+Atmosphere: ${scene.weather_mood || 'N/A'}
+Characters: ${scene.characters_present?.join(', ') || 'N/A'}
+Scene Purpose: ${scene.scene_purpose || 'N/A'}
+Sensory Anchor: ${scene.sensory_anchor || 'N/A'}
+
+MICRO-BEATS TO DRAMATIZE (each beat = 1-3 sentences of prose):
+${scene.beats?.map((beat, beatIdx) => `  ${beatIdx + 1}. ${beat}`).join('\n') || 'N/A'}
+
+Scene Turn: ${scene.scene_turn || 'N/A'}
+Exit: ${scene.exits_with || 'N/A'}
+`).join('\n') || 'N/A'}
+
+=== END SCENES ===
 
 ${chapter.phase_4_moment ? `KEY MOMENT: This chapter contains "${chapter.phase_4_moment}" — a pivotal relationship moment. Give it weight.` : ''}
 
@@ -2710,11 +2775,16 @@ async function generateChapter(bible, chapterIndex, previousSummaries, language)
   const level = bible.levelCheck?.target_level || 'Intermediate'
   const proseGuidance = bible.levelCheck?.prose_guidance || null
 
+  // Collect all beats from all scenes (new structure) or fall back to old structure
+  const allBeats = chapter.scenes
+    ? chapter.scenes.flatMap(scene => scene.beats || [])
+    : (chapter.beats || [])
+
   // Validate output including level compliance
   const validation = validateChapterOutput(
     chapterData,
-    chapter.beats,
-    chapter.hook?.type,
+    allBeats,
+    chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
     proseGuidance
@@ -2979,10 +3049,15 @@ Please fix these issues while maintaining story quality.`
   const level = bible.levelCheck?.target_level || 'Intermediate'
   const proseGuidance = bible.levelCheck?.prose_guidance || null
 
+  // Collect all beats from all scenes (new structure) or fall back to old structure
+  const allBeats = chapter.scenes
+    ? chapter.scenes.flatMap(scene => scene.beats || [])
+    : (chapter.beats || [])
+
   const validation = validateChapterOutput(
     chapterData,
-    chapter.beats,
-    chapter.hook?.type,
+    allBeats,
+    chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
     proseGuidance
@@ -3141,10 +3216,15 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
   const level = bible.levelCheck?.target_level || 'Intermediate'
   const proseGuidance = bible.levelCheck?.prose_guidance || null
 
+  // Collect all beats from all scenes (new structure) or fall back to old structure
+  const allBeats = chapter.scenes
+    ? chapter.scenes.flatMap(scene => scene.beats || [])
+    : (chapter.beats || [])
+
   const validation = validateChapterOutput(
     parsed.data,
-    chapter.beats,
-    chapter.hook?.type,
+    allBeats,
+    chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
     proseGuidance

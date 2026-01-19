@@ -84,12 +84,54 @@ const callOpenAI = callClaude
 
 function parseJSON(content) {
   try {
-    // Try to extract JSON from markdown code blocks if present
+    // Method 1: Try direct parse first (in case it's clean JSON)
+    try {
+      return { success: true, data: JSON.parse(content.trim()) }
+    } catch (e) {
+      // Not clean JSON, try extracting from markdown
+    }
+
+    // Method 2: Extract from markdown code blocks (```json ... ``` or ``` ... ```)
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
-    const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim()
-    return { success: true, data: JSON.parse(jsonStr) }
+    if (jsonMatch) {
+      const extracted = jsonMatch[1].trim()
+      return { success: true, data: JSON.parse(extracted) }
+    }
+
+    // Method 3: Find JSON object/array by looking for { or [ at start
+    const jsonStartObj = content.indexOf('{')
+    const jsonStartArr = content.indexOf('[')
+    const jsonStart = jsonStartObj === -1 ? jsonStartArr :
+                      jsonStartArr === -1 ? jsonStartObj :
+                      Math.min(jsonStartObj, jsonStartArr)
+
+    if (jsonStart !== -1) {
+      // Find the matching closing bracket
+      const isArray = content[jsonStart] === '['
+      const openBracket = isArray ? '[' : '{'
+      const closeBracket = isArray ? ']' : '}'
+
+      let depth = 0
+      let jsonEnd = -1
+      for (let i = jsonStart; i < content.length; i++) {
+        if (content[i] === openBracket) depth++
+        if (content[i] === closeBracket) depth--
+        if (depth === 0) {
+          jsonEnd = i + 1
+          break
+        }
+      }
+
+      if (jsonEnd !== -1) {
+        const jsonStr = content.slice(jsonStart, jsonEnd)
+        return { success: true, data: JSON.parse(jsonStr) }
+      }
+    }
+
+    // Nothing worked
+    throw new Error('Could not find valid JSON in response')
   } catch (error) {
-    return { success: false, error: error.message, raw: content }
+    return { success: false, error: error.message, raw: content.slice(0, 500) + '...' }
   }
 }
 

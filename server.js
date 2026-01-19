@@ -4449,12 +4449,102 @@ async function uploadCoverToStorage(imageBuffer, mimeType, userId, bookId) {
 }
 
 /**
+ * Search Google Books for a book cover by title and author
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchGoogleBooksCover(title, author) {
+  if (!title && !author) return null
+
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY
+  if (!apiKey) {
+    console.log('Google Books API key not configured, skipping')
+    return null
+  }
+
+  try {
+    // Build search query
+    let query = ''
+    if (title) query += `intitle:${title}`
+    if (author) query += (query ? '+' : '') + `inauthor:${author}`
+
+    const params = new URLSearchParams({
+      q: query,
+      key: apiKey,
+      maxResults: '5',
+      fields: 'items(volumeInfo(imageLinks))',
+    })
+
+    const url = `https://www.googleapis.com/books/v1/volumes?${params.toString()}`
+    console.log('Searching Google Books for cover...')
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.error(`Google Books API error: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const items = data.items || []
+
+    // Find first result with a cover image
+    for (const item of items) {
+      const imageLinks = item.volumeInfo?.imageLinks
+      if (imageLinks) {
+        // Prefer larger images: extraLarge > large > medium > small > thumbnail
+        const coverUrl =
+          imageLinks.extraLarge ||
+          imageLinks.large ||
+          imageLinks.medium ||
+          imageLinks.small ||
+          imageLinks.thumbnail
+
+        if (coverUrl) {
+          // Google Books URLs use http, upgrade to https and remove edge=curl for cleaner image
+          const cleanUrl = coverUrl
+            .replace('http://', 'https://')
+            .replace('&edge=curl', '')
+            .replace('zoom=1', 'zoom=2') // Get larger image
+          console.log('Found Google Books cover:', cleanUrl)
+          return cleanUrl
+        }
+      }
+    }
+
+    console.log('No cover found on Google Books')
+    return null
+  } catch (error) {
+    console.error('Google Books search failed:', error)
+    return null
+  }
+}
+
+/**
+ * Search for a book cover - tries Google Books first, then Open Library
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchBookCover(title, author) {
+  if (!title && !author) return null
+
+  // Try Google Books first
+  let coverUrl = await searchGoogleBooksCover(title, author)
+  if (coverUrl) return coverUrl
+
+  // Fall back to Open Library
+  coverUrl = await searchOpenLibraryCover(title, author)
+  return coverUrl
+}
+
+/**
  * Search Open Library for a book cover by title and author
  * @param {string} title - Book title
  * @param {string} author - Author name
  * @returns {Promise<string|null>} Cover image URL or null
  */
-async function searchOpenLibraryCover(title, author) {
+async function searchBookCover(title, author) {
   if (!title && !author) return null
 
   const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'
@@ -5194,7 +5284,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       // If no cover in EPUB, search Open Library
       if (!coverImageUrl && (title || author)) {
         console.log('No EPUB cover found, searching Open Library...')
-        coverImageUrl = await searchOpenLibraryCover(title, author)
+        coverImageUrl = await searchBookCover(title, author)
       }
 
       const bookId = await saveImportedChapterBookToFirestore({
@@ -5245,7 +5335,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       let coverImageUrl = null
       if (title || author) {
         console.log('Searching Open Library for TXT cover...')
-        coverImageUrl = await searchOpenLibraryCover(title, author)
+        coverImageUrl = await searchBookCover(title, author)
       }
 
       // Check if chapters were detected or if it's a flat book
@@ -5350,7 +5440,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     let coverImageUrl = null
     if (title || author) {
       console.log('Searching Open Library for PDF cover...')
-      coverImageUrl = await searchOpenLibraryCover(title, author)
+      coverImageUrl = await searchBookCover(title, author)
     }
 
     const pages = await extractPagesForFile(req.file)

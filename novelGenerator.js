@@ -2304,6 +2304,316 @@ function getWordCountTarget(tensionRating) {
   return WORD_COUNT_BY_TENSION.high
 }
 
+// =============================================================================
+// SCENE-BY-SCENE GENERATION
+// =============================================================================
+
+// Calculate word count target for a scene based on beat count
+function getSceneWordCountTarget(beatCount) {
+  // Each beat should be 40-80 words of prose (allowing range for beat complexity)
+  // Minimum scene: 500 words, Maximum: 1500 words
+  const minWords = Math.max(500, beatCount * 40)
+  const maxWords = Math.min(1500, beatCount * 80)
+  return { min: minWords, max: maxWords }
+}
+
+const SCENE_SYSTEM_PROMPT = `You are a master prose stylist writing romance fiction in {{target_language}}. Your task is to write a SINGLE SCENE with deep focus on every micro-beat.
+
+## Your Mandate
+
+You are writing ONE SCENE — a continuous unit of action in one location and time. Your job is to DRAMATIZE every beat, not summarize them.
+
+WRONG: "She felt nervous as she entered the ballroom."
+RIGHT: "Her gloved fingers trembled against the doorframe. Three hundred candles. She counted them rather than meet anyone's eyes. The cello's low note vibrated in her chest, or perhaps that was just her heart, hammering."
+
+## Beat Execution
+
+Each beat you receive is a MICRO-MOMENT. Expand each into:
+- Sensory grounding (what does the POV character perceive?)
+- Interiority (what are they thinking/feeling?)
+- Physical action or reaction
+- Dialogue if the beat implies conversation
+- Atmospheric detail that reinforces mood
+
+A single beat like "Her eyes meet his across the crowded room" should become 50-100 words of prose, not 10.
+
+## Voice Consistency
+
+- Stay in the POV character's head throughout
+- Use THEIR speech patterns even in narration
+- Their background shapes what they notice and how they describe it
+- Internal monologue sounds like THEM talking to themselves
+
+## Scene Flow
+
+- Open with a sensory anchor (ground the reader in place/time)
+- Build through the beats in order
+- Each beat should flow into the next (avoid choppy transitions)
+- End with the specified exit/transition
+
+## Output Format (JSON)
+
+{
+  "scene": {
+    "scene_name": "Scene title",
+    "content": "The complete scene prose in {{target_language}}...",
+    "word_count": number,
+    "beats_dramatized": ["Beat 1", "Beat 2", ...],
+    "emotional_journey": "POV character's emotional arc through this scene",
+    "exit_state": "Where/how the scene ends (physical and emotional)"
+  }
+}
+
+CRITICAL: The "content" field must contain rich, immersive prose. Each beat gets real attention. No rushing. No summarizing.`
+
+// Build prompt for a single scene
+function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneExit, language) {
+  const protagonist = bible.characters.protagonist
+  const loveInterest = bible.characters.love_interest
+  const isPovProtagonist = chapter.pov === protagonist?.name
+  const povCharacter = isPovProtagonist ? protagonist : loveInterest
+  const otherCharacter = isPovProtagonist ? loveInterest : protagonist
+
+  const beatCount = scene.beats?.length || 0
+  const wordTarget = getSceneWordCountTarget(beatCount)
+
+  // Get prose guidance
+  const proseGuidance = bible.levelCheck?.prose_guidance || {}
+  const targetLevel = bible.levelCheck?.target_level || 'Intermediate'
+  const levelDef = LEVEL_DEFINITIONS[targetLevel] || LEVEL_DEFINITIONS.Intermediate
+
+  // Build level constraints text
+  const sentenceConstraints = proseGuidance.sentence_constraints || {}
+  const avgMin = sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min
+  const avgMax = sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max
+  const maxLen = sentenceConstraints.max_length || levelDef.sentences.maxLength
+
+  let levelText = `TARGET LEVEL: ${targetLevel}
+SENTENCE LENGTH: Average ${avgMin}-${avgMax} words, maximum ${maxLen} words
+`
+  if (targetLevel === 'Beginner') {
+    levelText += `CRITICAL BEGINNER CONSTRAINTS:
+- Simple subject-verb-object sentences only
+- No subordinate clauses or complex structures
+- Name emotions directly ("She felt angry") not indirectly ("Her jaw tightened")
+- Use only the 1500 most common words
+- Every meaning must be explicit — no subtext or implication
+- Dialogue should be direct and functional`
+  } else if (targetLevel === 'Intermediate') {
+    levelText += `INTERMEDIATE CONSTRAINTS:
+- Mix simple and compound sentences
+- Some complexity allowed but clarity is paramount
+- Occasional figurative language is fine
+- Key meanings should still be accessible`
+  }
+
+  // Previous context
+  const previousContext = previousSceneExit
+    ? `PREVIOUS SCENE ENDED: ${previousSceneExit}`
+    : sceneIndex === 0
+      ? `This is the first scene of Chapter ${chapter.number}.`
+      : 'Continue from where the story left off.'
+
+  return `=== STORY CONTEXT ===
+
+Story: ${bible.coreFoundation?.logline || 'A romance story'}
+Setting: ${bible.world?.setting?.location}, ${bible.world?.setting?.time_period}
+
+POV CHARACTER: ${povCharacter?.name}
+- Voice: ${povCharacter?.voice?.speech_patterns || 'Natural'}
+- Verbal tics: ${povCharacter?.voice?.verbal_tics || 'None'}
+- Emotional expression: ${povCharacter?.voice?.emotional_expression || 'Moderate'}
+- What they notice: A ${povCharacter?.archetype || 'character'} notices ${povCharacter?.voice?.topics_avoided ? 'everything except ' + povCharacter.voice.topics_avoided : 'the details of their world'}
+
+OTHER CHARACTER PRESENT: ${otherCharacter?.name}
+- Voice: ${otherCharacter?.voice?.speech_patterns || 'Natural'}
+
+---
+
+=== CHAPTER ${chapter.number}: ${chapter.title} ===
+
+Chapter Tension: ${chapter.tension_rating || 5}/10
+Chapter Emotional Arc: ${chapter.emotional_arc?.opens || 'N/A'} → ${chapter.emotional_arc?.turns || 'N/A'} → ${chapter.emotional_arc?.closes || 'N/A'}
+
+---
+
+=== SCENE ${sceneIndex + 1}: ${scene.scene_name || 'Untitled'} ===
+
+LOCATION: ${scene.location || 'Unknown'}
+TIME: ${scene.time_of_day || 'Unspecified'}
+ATMOSPHERE: ${scene.weather_mood || 'Neutral'}
+CHARACTERS PRESENT: ${scene.characters_present?.join(', ') || chapter.pov}
+
+SENSORY ANCHOR (ground the reader here):
+${scene.sensory_anchor || 'Establish the physical environment through the POV character\'s senses'}
+
+SCENE PURPOSE: ${scene.scene_purpose || 'Advance the story'}
+
+---
+
+=== MICRO-BEATS TO DRAMATIZE ===
+${scene.beats?.map((beat, i) => `${i + 1}. ${beat}`).join('\n') || 'No beats specified'}
+
+---
+
+SCENE TURN: ${scene.scene_turn || 'A shift in the emotional dynamic'}
+SCENE EXIT: ${scene.exits_with || 'Transition to next scene'}
+
+---
+
+${previousContext}
+
+---
+
+=== LEVEL CONSTRAINTS (NON-NEGOTIABLE) ===
+${levelText}
+=== END CONSTRAINTS ===
+
+---
+
+TARGET: ${wordTarget.min}-${wordTarget.max} words (${beatCount} beats × ~60 words each)
+LANGUAGE: ${language}
+
+Write this scene now. Dramatize EVERY beat. Make each one vivid and immersive.`
+}
+
+// Generate a single scene
+async function generateScene(bible, chapter, scene, sceneIndex, previousSceneExit, language) {
+  const beatCount = scene.beats?.length || 0
+  console.log(`  Generating Scene ${sceneIndex + 1}: "${scene.scene_name || 'Untitled'}" (${beatCount} beats)...`)
+
+  const systemPrompt = SCENE_SYSTEM_PROMPT.replace(/\{\{target_language\}\}/g, language)
+  const userPrompt = buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneExit, language)
+
+  const response = await callClaude(systemPrompt, userPrompt, {
+    temperature: 0.85, // Slightly higher for creative scene writing
+    maxTokens: 4096   // Enough for a single scene
+  })
+
+  const parsed = parseJSON(response)
+  if (!parsed.success) {
+    throw new Error(`Scene ${sceneIndex + 1} JSON parse failed: ${parsed.error}`)
+  }
+
+  const sceneData = parsed.data.scene || parsed.data
+  const wordCount = sceneData.content?.split(/\s+/).length || 0
+  const wordTarget = getSceneWordCountTarget(beatCount)
+
+  console.log(`    Scene ${sceneIndex + 1} generated: ${wordCount} words (target: ${wordTarget.min}-${wordTarget.max})`)
+
+  return {
+    ...sceneData,
+    sceneIndex,
+    wordCount,
+    wordTarget
+  }
+}
+
+// Generate a full chapter by generating each scene individually
+async function generateChapterByScenes(bible, chapterIndex, previousSummaries, language) {
+  console.log(`Generating Chapter ${chapterIndex} scene-by-scene...`)
+
+  const indexValidation = validateChapterIndex(chapterIndex, bible)
+  const chapter = indexValidation.chapter
+
+  // Check if chapter has scenes defined
+  if (!chapter.scenes || chapter.scenes.length === 0) {
+    console.log(`  Chapter ${chapterIndex} has no scenes defined, falling back to single-pass generation`)
+    return await generateChapter(bible, chapterIndex, previousSummaries, language)
+  }
+
+  console.log(`  Chapter ${chapterIndex} has ${chapter.scenes.length} scenes`)
+
+  // Generate each scene
+  const generatedScenes = []
+  let previousSceneExit = null
+
+  // Build previous chapter context for first scene
+  if (previousSummaries && previousSummaries.length > 0) {
+    const lastSummary = previousSummaries[previousSummaries.length - 1]
+    if (lastSummary.summary) {
+      previousSceneExit = `Previous chapter ended: ${lastSummary.summary.locationEnd || 'Unknown location'}. ${lastSummary.summary.relationshipState || ''}`
+    }
+  }
+
+  for (let i = 0; i < chapter.scenes.length; i++) {
+    const scene = chapter.scenes[i]
+
+    const generatedScene = await generateScene(
+      bible,
+      chapter,
+      scene,
+      i,
+      previousSceneExit,
+      language
+    )
+
+    generatedScenes.push(generatedScene)
+
+    // Update context for next scene
+    previousSceneExit = generatedScene.exit_state || generatedScene.exits_with || 'Scene ended.'
+  }
+
+  // Concatenate all scene content into chapter
+  const fullContent = generatedScenes.map(s => s.content).join('\n\n---\n\n')
+  const totalWordCount = generatedScenes.reduce((sum, s) => sum + (s.wordCount || 0), 0)
+  const allBeatsDramatized = generatedScenes.flatMap(s => s.beats_dramatized || [])
+
+  console.log(`  Chapter ${chapterIndex} complete: ${totalWordCount} total words from ${generatedScenes.length} scenes`)
+
+  // Get level and prose guidance from bible for validation
+  const level = bible.levelCheck?.target_level || 'Intermediate'
+  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
+
+  // Collect all expected beats
+  const allExpectedBeats = chapter.scenes.flatMap(scene => scene.beats || [])
+
+  // Validate the combined chapter
+  const validation = validateChapterOutput(
+    { chapter: { content: fullContent } },
+    allExpectedBeats,
+    chapter.chapter_hook?.type || chapter.hook?.type,
+    wordCountTarget,
+    level,
+    proseGuidance
+  )
+
+  // Build summary from scene data
+  const summary = {
+    events: generatedScenes.map(s => s.emotional_journey || s.scene_name).filter(Boolean),
+    characterStates: {
+      [chapter.pov]: generatedScenes[generatedScenes.length - 1]?.exit_state || 'Unknown'
+    },
+    relationshipState: 'See events',
+    reveals: [],
+    seedsPlanted: [],
+    seedsPaid: [],
+    locationEnd: chapter.scenes[chapter.scenes.length - 1]?.location || 'Unknown',
+    timeElapsed: chapter.story_time || 'Unknown'
+  }
+
+  return {
+    chapter: {
+      title: chapter.title,
+      content: fullContent
+    },
+    summary,
+    metadata: {
+      wordCount: totalWordCount,
+      beatsCovered: allBeatsDramatized,
+      hookDelivered: chapter.hook?.description || 'Chapter concluded',
+      hookType: chapter.hook?.type || 'emotional',
+      scenesGenerated: generatedScenes.length,
+      sceneWordCounts: generatedScenes.map(s => s.wordCount)
+    },
+    validation,
+    generatedAt: new Date().toISOString(),
+    generationMethod: 'scene-by-scene'
+  }
+}
+
+// Legacy single-pass chapter generation (kept for fallback)
 function buildChapterUserPrompt(bible, chapterIndex, previousSummaries, language) {
   const chapter = bible.chapters.chapters[chapterIndex - 1]
   if (!chapter) throw new Error(`Chapter ${chapterIndex} not found in bible`)
@@ -3240,19 +3550,30 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
 }
 
 // Main function to generate chapter with validation and potential regeneration
+// Now uses scene-by-scene generation for chapters with scenes defined
 async function generateChapterWithValidation(bible, chapterIndex, previousSummaries, language, maxAttempts = 2) {
   let attempts = 0
   let lastOutput = null
   let lastIssues = []
 
+  // Check if chapter has scenes - use scene-by-scene generation
+  const chapter = bible.chapters?.chapters?.[chapterIndex - 1]
+  const hasScenes = chapter?.scenes && chapter.scenes.length > 0
+
   while (attempts < maxAttempts) {
     attempts++
-    console.log(`Chapter ${chapterIndex} generation attempt ${attempts}/${maxAttempts}`)
+    console.log(`Chapter ${chapterIndex} generation attempt ${attempts}/${maxAttempts}${hasScenes ? ' (scene-by-scene)' : ' (single-pass)'}`)
 
     try {
       if (attempts === 1) {
-        lastOutput = await generateChapter(bible, chapterIndex, previousSummaries, language)
+        // First attempt: use scene-by-scene if scenes exist, otherwise single-pass
+        if (hasScenes) {
+          lastOutput = await generateChapterByScenes(bible, chapterIndex, previousSummaries, language)
+        } else {
+          lastOutput = await generateChapter(bible, chapterIndex, previousSummaries, language)
+        }
       } else {
+        // Retry: use legacy regeneration (scene-by-scene doesn't have regeneration yet)
         lastOutput = await regenerateChapter(bible, chapterIndex, previousSummaries, language, lastOutput, lastIssues)
       }
 
@@ -3261,7 +3582,8 @@ async function generateChapterWithValidation(bible, chapterIndex, previousSummar
         return {
           success: true,
           chapter: lastOutput,
-          attempts
+          attempts,
+          generationMethod: lastOutput.generationMethod || 'single-pass'
         }
       }
 
@@ -3281,12 +3603,15 @@ async function generateChapterWithValidation(bible, chapterIndex, previousSummar
     chapter: lastOutput,
     attempts,
     issues: lastIssues,
-    needsReview: true
+    needsReview: true,
+    generationMethod: lastOutput?.generationMethod || 'single-pass'
   }
 }
 
 export {
   generateChapter,
+  generateChapterByScenes,
+  generateScene,
   generateChapterWithValidation,
   buildPreviousContext,
   compressSummaries,
@@ -3295,6 +3620,7 @@ export {
   validateChapterIndex,
   analyzeSentenceStats,
   getWordCountTarget,
+  getSceneWordCountTarget,
   getLevelDefinition,
   formatLevelDefinitionForPrompt,
   WORD_COUNT_BY_TENSION,
@@ -3306,6 +3632,8 @@ export {
 export default {
   generateBible,
   generateChapter,
+  generateChapterByScenes,
+  generateScene,
   generateChapterWithValidation,
   buildPreviousContext,
   compressSummaries,

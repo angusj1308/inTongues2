@@ -3521,12 +3521,15 @@ app.post('/api/generate', async (req, res) => {
     let resolvedVoiceId = ''
     let resolvedVoiceGender = ''
 
-    try {
-      const voiceSelection = resolveElevenLabsVoiceId(language, voiceGender)
-      resolvedVoiceId = voiceSelection.voiceId
-      resolvedVoiceGender = voiceSelection.voiceGender
-    } catch (voiceError) {
-      return res.status(400).json({ error: voiceError?.message || 'Invalid voice selection' })
+    // Only resolve voice settings if voiceGender is provided (audio generation requested)
+    if (voiceGender) {
+      try {
+        const voiceSelection = resolveElevenLabsVoiceId(language, voiceGender)
+        resolvedVoiceId = voiceSelection.voiceId
+        resolvedVoiceGender = voiceSelection.voiceGender
+      } catch (voiceError) {
+        return res.status(400).json({ error: voiceError?.message || 'Invalid voice selection' })
+      }
     }
 
     let title = 'Untitled Story'

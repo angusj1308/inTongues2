@@ -1,19 +1,19 @@
 // Novel Generator - Bible Generation Pipeline
 // Implements Phases 1-8 for generating complete story bibles
 
-import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import fs from 'fs/promises'
 import path from 'path'
 
-// Lazy-initialized OpenAI client (deferred to avoid initialization without API key)
+// Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
 
-function getOpenAIClient() {
+function getAnthropicClient() {
   if (!client) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY environment variable is not set')
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY environment variable is not set')
     }
-    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   }
   return client
 }
@@ -23,11 +23,12 @@ function getOpenAIClient() {
 // =============================================================================
 
 const CONFIG = {
-  model: 'gpt-4o',
+  model: 'claude-sonnet-4-20250514',
   maxRetries: 3,
   retryDelays: [2000, 4000, 8000],
-  timeoutMs: 90000,
-  temperature: 0.7,
+  timeoutMs: 120000, // Claude can take longer for complex creative tasks
+  temperature: 0.8, // Slightly higher for creative writing
+  maxTokens: 8192,
   // Chapter counts by length preset
   chapterCounts: {
     novella: 12,
@@ -36,40 +37,34 @@ const CONFIG = {
 }
 
 // =============================================================================
-// OPENAI WRAPPER
+// CLAUDE API WRAPPER
 // =============================================================================
 
-async function callOpenAI(systemPrompt, userPrompt, options = {}) {
+async function callClaude(systemPrompt, userPrompt, options = {}) {
   const { maxRetries = CONFIG.maxRetries, timeoutMs = CONFIG.timeoutMs } = options
   let lastError = null
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+      const response = await getAnthropicClient().messages.create({
+        model: CONFIG.model,
+        max_tokens: options.maxTokens ?? CONFIG.maxTokens,
+        system: systemPrompt,
+        messages: [
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: options.temperature ?? CONFIG.temperature
+      })
 
-      try {
-        const response = await getOpenAIClient().chat.completions.create({
-          model: CONFIG.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: options.temperature ?? CONFIG.temperature,
-          response_format: { type: 'json_object' }
-        })
-        clearTimeout(timeoutId)
-        return response.choices[0].message.content
-      } finally {
-        clearTimeout(timeoutId)
+      // Extract text content from response
+      const textContent = response.content.find(block => block.type === 'text')
+      if (!textContent) {
+        throw new Error('No text content in Claude response')
       }
+      return textContent.text
     } catch (error) {
       lastError = error
-      console.error(`OpenAI call attempt ${attempt + 1} failed:`, error.message)
-
-      if (error.name === 'AbortError') {
-        throw new Error(`OpenAI call timed out after ${timeoutMs}ms`)
-      }
+      console.error(`Claude call attempt ${attempt + 1} failed:`, error.message)
 
       if (attempt < maxRetries - 1) {
         await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
@@ -77,8 +72,11 @@ async function callOpenAI(systemPrompt, userPrompt, options = {}) {
     }
   }
 
-  throw lastError || new Error('OpenAI call failed after all retries')
+  throw lastError || new Error('Claude call failed after all retries')
 }
+
+// Alias for backward compatibility
+const callOpenAI = callClaude
 
 // =============================================================================
 // JSON PARSING

@@ -198,11 +198,28 @@ const ADAPTATION_SYSTEM_PROMPT = `
 You are adapting a book for language learners. Write only in the requested target language.
 
 LEVELS:
-- Native: Faithful translation. Preserve the author's style, sentence structure, and vocabulary complexity. No simplification.
-- Intermediate: Simplify vocabulary and clarify implicit meaning. Keep most structure but may split complex sentences. Natural, clear prose.
-- Beginner: Short sentences, common words, explicit meaning. Freely restructure and split complex ideas.
 
-FREEDOMS:
+NATIVE (Translation):
+- This is TRANSLATION, not adaptation—preserve full complexity
+- Maintain the author's sentence structure, vocabulary sophistication, and literary style
+- Preserve the author's deliberate choices: if they use Latin phrases (e.g., "sine qua non"), foreign words, or technical terms, keep them
+- Convert English idioms and expressions to natural equivalents in the target language (not literal word-for-word translations)
+- For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
+- Maintain the same register (formal, academic, literary, colloquial, etc.)
+
+INTERMEDIATE (Simplified):
+- Simplify vocabulary and clarify implicit meaning
+- Keep most sentence structure but may split complex sentences
+- Natural, clear prose that flows well
+- Make subtext more accessible while preserving tone
+
+BEGINNER (Easy):
+- Short sentences, common words, explicit meaning
+- Freely restructure and split complex ideas
+- Prioritize clarity over style
+- Make all meaning obvious and direct
+
+FREEDOMS (for Intermediate and Beginner only):
 - Use any vocabulary that conveys the same meaning
 - Restructure sentences, split clauses, reorder ideas
 - Not bound by the author's syntax or word choices
@@ -217,7 +234,7 @@ NEVER:
 
 ALWAYS:
 - Represent every concept from the source
-- Preserve all proper nouns exactly as written
+- Preserve all proper nouns (use target language spelling where standard, e.g., London → Londres)
 - Maintain the same narrative beats
 - Use natural punctuation and full sentences
 - Preserve paragraph breaks from the original text (use blank lines between paragraphs)
@@ -343,11 +360,28 @@ const ADAPTATION_WITH_CONTEXT_PROMPT = `
 You are adapting a book for language learners. Write only in the requested target language.
 
 LEVELS:
-- Native: Faithful translation. Preserve the author's style, sentence structure, and vocabulary complexity. No simplification.
-- Intermediate: Simplify vocabulary and clarify implicit meaning. Keep most structure but may split complex sentences. Natural, clear prose.
-- Beginner: Short sentences, common words, explicit meaning. Freely restructure and split complex ideas.
 
-FREEDOMS:
+NATIVE (Translation):
+- This is TRANSLATION, not adaptation—preserve full complexity
+- Maintain the author's sentence structure, vocabulary sophistication, and literary style
+- Preserve the author's deliberate choices: if they use Latin phrases (e.g., "sine qua non"), foreign words, or technical terms, keep them
+- Convert English idioms and expressions to natural equivalents in the target language (not literal word-for-word translations)
+- For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
+- Maintain the same register (formal, academic, literary, colloquial, etc.)
+
+INTERMEDIATE (Simplified):
+- Simplify vocabulary and clarify implicit meaning
+- Keep most sentence structure but may split complex sentences
+- Natural, clear prose that flows well
+- Make subtext more accessible while preserving tone
+
+BEGINNER (Easy):
+- Short sentences, common words, explicit meaning
+- Freely restructure and split complex ideas
+- Prioritize clarity over style
+- Make all meaning obvious and direct
+
+FREEDOMS (for Intermediate and Beginner only):
 - Use any vocabulary that conveys the same meaning
 - Restructure sentences, split clauses, reorder ideas
 - Not bound by the author's syntax or word choices
@@ -362,7 +396,7 @@ NEVER:
 
 ALWAYS:
 - Represent every concept from the source
-- Preserve all proper nouns exactly as written
+- Preserve all proper nouns (use target language spelling where standard, e.g., London → Londres)
 - Maintain the same narrative beats
 - Use natural punctuation and full sentences
 - Preserve paragraph breaks from the original text (use blank lines between paragraphs)
@@ -502,7 +536,11 @@ async function adaptWithRetry(pageText, options, maxRetries = 2) {
     try {
       // Build prompt based on whether we have context
       let systemPrompt = context ? ADAPTATION_WITH_CONTEXT_PROMPT : ADAPTATION_SYSTEM_PROMPT
-      let userPrompt = `Adapt the following text to ${level} level in ${targetLanguage}:`
+
+      // Use "Translate" for Native level, "Adapt" for others
+      let userPrompt = level === 'Native'
+        ? `Translate the following text into ${targetLanguage} at Native level (full complexity, natural idioms):`
+        : `Adapt the following text to ${level} level in ${targetLanguage}:`
 
       if (context) {
         userPrompt = `PREVIOUS CONTEXT (do not repeat, continue from here):\n"${context}"\n\n${userPrompt}`

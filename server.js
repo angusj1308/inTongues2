@@ -5438,29 +5438,13 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     if (fileType === 'pdf') {
       const extracted = await extractPdf(req.file.path)
       console.log('PDF using flat adaptation flow')
-    // Handle other file types (PDF) with existing flat page flow
-    // PDF files don't have embedded covers we can easily extract, so search Open Library
-    let coverImageUrl = null
-    if (title || author) {
-      console.log('Searching Open Library for PDF cover...')
-      coverImageUrl = await searchBookCover(title, author)
-    }
 
-    const pages = await extractPagesForFile(req.file)
-    const bookId = await saveImportedBookToFirestore({
-      userId,
-      title,
-      author,
-      originalLanguage,
-      outputLanguage,
-      translationMode,
-      level,
-      isPublicDomain,
-      pages,
-      voiceGender,
-      coverImageUrl,
-    })
-    console.log('Stub extracted pages count:', pages.length)
+      // PDF files don't have embedded covers we can easily extract, so search Open Library
+      let coverImageUrl = null
+      if (title || author) {
+        console.log('Searching Open Library for PDF cover...')
+        coverImageUrl = await searchBookCover(title, author)
+      }
 
       const bookId = await saveImportedFlatBookToFirestore({
         userId,
@@ -5478,6 +5462,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         wordCount: extracted.wordCount,
         voiceGender,
         sourceType: 'pdf',
+        coverImageUrl,
       })
 
       // Fire-and-forget flat adaptation trigger
@@ -5502,6 +5487,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         chunkCount: extracted.adaptationChunks.length,
         sourceType: 'pdf',
         isFlat: true,
+        coverImageUrl,
       })
     }
 
@@ -5509,12 +5495,6 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     return res.status(400).json({
       error: 'UNSUPPORTED_FILE_TYPE',
       message: 'Only .txt, .pdf, and .epub files are supported.',
-    return res.json({
-      success: true,
-      message: 'Import processed successfully',
-      bookId,
-      pageCount: pages.length,
-      coverImageUrl,
     })
   } catch (error) {
     console.error('Error handling import upload:', error)

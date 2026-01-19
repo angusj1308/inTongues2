@@ -1104,10 +1104,22 @@ const Dashboard = () => {
                                       }}
                                     />
                                   )}
-                                </div>
-                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                                <div className="reading-shelf-progress">
-                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                                  {!book.coverImageUrl && (
+                                    <div className="reading-shelf-no-cover">
+                                      <span>{getStoryTitle(book)}</span>
+                                    </div>
+                                  )}
+                                  <div className="reading-shelf-hover-overlay">
+                                    <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
+                                    <div className="reading-shelf-hover-meta">
+                                      {book.level ? `Level ${book.level}` : ''}
+                                      {book.level && book.pageCount ? ' · ' : ''}
+                                      {book.pageCount ? `${book.pageCount} pages` : ''}
+                                    </div>
+                                    <div className="reading-shelf-hover-progress">
+                                      <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
+                                    </div>
+                                  </div>
                                 </div>
                               </button>
                             </div>
@@ -1157,10 +1169,22 @@ const Dashboard = () => {
                                       }}
                                     />
                                   )}
-                                </div>
-                                <span className="reading-shelf-title">{getStoryTitle(book)}</span>
-                                <div className="reading-shelf-progress">
-                                  <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
+                                  {!book.coverImageUrl && (
+                                    <div className="reading-shelf-no-cover">
+                                      <span>{getStoryTitle(book)}</span>
+                                    </div>
+                                  )}
+                                  <div className="reading-shelf-hover-overlay">
+                                    <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
+                                    <div className="reading-shelf-hover-meta">
+                                      {book.level ? `Level ${book.level}` : ''}
+                                      {book.level && book.pageCount ? ' · ' : ''}
+                                      {book.pageCount ? `${book.pageCount} pages` : ''}
+                                    </div>
+                                    <div className="reading-shelf-hover-progress">
+                                      <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
+                                    </div>
+                                  </div>
                                 </div>
                               </button>
                             </div>

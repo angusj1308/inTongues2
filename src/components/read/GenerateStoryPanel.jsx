@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
+import { generateBible } from '../../services/novelGenerator'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -63,6 +64,7 @@ const GenerateStoryPanel = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [exampleIndex, setExampleIndex] = useState(0)
+  const [bibleProgress, setBibleProgress] = useState('') // Progress message for bible generation
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -140,6 +142,42 @@ const GenerateStoryPanel = ({
     setError('')
     setIsSubmitting(true)
 
+    // Use bible generation pipeline for novella/novel length
+    const useBiblePipeline = lengthPreset === 'novella' || lengthPreset === 'novel'
+
+    if (useBiblePipeline) {
+      // Bible generation pipeline for longer stories
+      setBibleProgress('Starting 8-phase story bible generation...')
+      try {
+        const result = await generateBible({
+          uid: user.uid,
+          concept: description.trim() || 'A compelling romance story',
+          level: LEVELS[levelIndex],
+          lengthPreset: lengthPreset, // 'novella' or 'novel'
+          language: activeLanguage,
+          generateAudio,
+        })
+
+        if (result.success) {
+          setBibleProgress('Bible complete! Loading your story...')
+          if (onClose) {
+            onClose()
+          }
+          // Navigate to reader with the generated book
+          navigate(`/reader/${activeLanguage}/${result.bookId}`)
+        } else {
+          setError(result.error || 'Failed to generate novel')
+        }
+      } catch (submissionError) {
+        setError(submissionError?.message || 'Unable to generate novel.')
+      } finally {
+        setIsSubmitting(false)
+        setBibleProgress('')
+      }
+      return
+    }
+
+    // Original short story generation for 'short' preset
     const params = {
       level: LEVELS[levelIndex],
       genre: GENRES.find((g) => g.id === genre)?.label || 'Romance',
@@ -354,14 +392,25 @@ const GenerateStoryPanel = ({
           </label>
         )}
 
+        {/* Progress display for bible generation */}
+        {isSubmitting && bibleProgress && (
+          <div className="bible-progress">
+            <div className="progress-spinner" />
+            <p className="progress-text">{bibleProgress}</p>
+            <p className="progress-hint muted small">This may take 5-10 minutes as we craft your story through 8 validation phases.</p>
+          </div>
+        )}
+
         <div className="action-row">
           {(onBack || onClose) && (
-            <button className="button ghost" type="button" onClick={onClose || onBack}>
+            <button className="button ghost" type="button" onClick={onClose || onBack} disabled={isSubmitting}>
               Cancel
             </button>
           )}
           <button className="button primary" type="submit" disabled={!activeLanguage || isSubmitting}>
-            {isSubmitting ? 'Generating...' : 'Generate'}
+            {isSubmitting
+              ? (bibleProgress ? 'Generating Novel...' : 'Generating...')
+              : 'Generate'}
           </button>
         </div>
       </form>

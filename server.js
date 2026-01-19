@@ -4267,8 +4267,24 @@ async function extractPdf(filePath) {
     throw err
   }
 
-  // Return as single adaptation chunk
-  return splitTextIntoAdaptationChunks(fullText)
+  // Normalize text while preserving paragraph structure
+  const cleanText = normalizeTextWithParagraphs(fullText)
+  const words = cleanText.split(/\s+/)
+
+  // PDF doesn't have chapter headers/outlines like TXT, so we use empty strings
+  const adaptationChunks = splitTextIntoAdaptationChunks(cleanText)
+
+  console.log(`PDF extracted: ${words.length} words, ${adaptationChunks.length} chunks`)
+
+  // Return flat structure (same as flat TXT) for client-side pagination
+  return {
+    isFlat: true,
+    originalText: cleanText,
+    adaptationChunks,
+    chapterHeader: '',
+    chapterOutline: '',
+    wordCount: words.length,
+  }
 }
 
 /**
@@ -5325,6 +5341,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
     }
 
+    // Handle PDF with flat book flow (same as flat TXT for client-side pagination)
+    if (fileType === 'pdf') {
+      const extracted = await extractPdf(req.file.path)
+      console.log('PDF using flat adaptation flow')
     // Handle other file types (PDF) with existing flat page flow
     // PDF files don't have embedded covers we can easily extract, so search Open Library
     let coverImageUrl = null
@@ -5349,21 +5369,53 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
     })
     console.log('Stub extracted pages count:', pages.length)
 
-    // Fire-and-forget adaptation trigger
-    const adaptPayload = {
-      uid: userId,
-      storyId: bookId,
-      targetLanguage: outputLanguage,
-      level,
-      generateAudio: generateAudio === 'true',
+      const bookId = await saveImportedFlatBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        originalText: extracted.originalText,
+        adaptationChunks: extracted.adaptationChunks,
+        chapterHeader: extracted.chapterHeader,
+        chapterOutline: extracted.chapterOutline,
+        wordCount: extracted.wordCount,
+        voiceGender,
+        sourceType: 'pdf',
+      })
+
+      // Fire-and-forget flat adaptation trigger
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-flat-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt PDF trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'PDF import processed successfully',
+        bookId,
+        chunkCount: extracted.adaptationChunks.length,
+        sourceType: 'pdf',
+        isFlat: true,
+      })
     }
 
-    fetch('http://localhost:4000/api/adapt-imported-book', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(adaptPayload),
-    }).catch((err) => console.error('Auto-adapt trigger failed:', err))
-
+    // Fallback for unknown file types
+    return res.status(400).json({
+      error: 'UNSUPPORTED_FILE_TYPE',
+      message: 'Only .txt, .pdf, and .epub files are supported.',
     return res.json({
       success: true,
       message: 'Import processed successfully',

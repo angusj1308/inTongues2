@@ -860,15 +860,18 @@ const Dashboard = () => {
     e.stopPropagation() // Prevent opening the book
     if (!book?.id || !user?.uid) return
 
-    const confirmed = window.confirm(`Delete "${book.title || 'this book'}" from your library?\n\nYour vocabulary progress will be preserved.`)
+    const bookTitle = book.title || book.concept || 'this book'
+    const confirmed = window.confirm(`Delete "${bookTitle}" from your library?\n\nYour vocabulary progress will be preserved.`)
     if (!confirmed) return
 
     try {
-      // 1. Delete the story document and pages via API
+      // 1. Delete the story document and pages/chapters via API
+      // Pass collectionType so server knows which collection to delete from
+      const collectionType = book.isGeneratedBook ? 'generatedBooks' : 'stories'
       const response = await fetch('/api/delete-story', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: user.uid, storyId: book.id }),
+        body: JSON.stringify({ uid: user.uid, storyId: book.id, collectionType }),
       })
 
       if (!response.ok) {

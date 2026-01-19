@@ -259,6 +259,16 @@ const BookGrid = ({
               }
             >
               <div className="book-tile-cover">
+                {book.coverImageUrl && (
+                  <img
+                    src={book.coverImageUrl}
+                    alt={`Cover of ${titleText}`}
+                    className="book-tile-cover-img"
+                    onError={(e) => {
+                      e.target.style.display = 'none'
+                    }}
+                  />
+                )}
                 {isProcessing && (
                   <div className="book-tile-processing-overlay">
                     <div className="book-tile-spinner" />
@@ -1075,7 +1085,18 @@ const Dashboard = () => {
                                 className="reading-shelf-item-content"
                                 onClick={() => handleOpenBook(book)}
                               >
-                                <div className="reading-shelf-cover" />
+                                <div className="reading-shelf-cover">
+                                  {book.coverImageUrl && (
+                                    <img
+                                      src={book.coverImageUrl}
+                                      alt={`Cover of ${getStoryTitle(book)}`}
+                                      className="reading-shelf-cover-img"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none'
+                                      }}
+                                    />
+                                  )}
+                                </div>
                                 <span className="reading-shelf-title">{getStoryTitle(book)}</span>
                                 <div className="reading-shelf-progress">
                                   <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />
@@ -1117,7 +1138,18 @@ const Dashboard = () => {
                                 className="reading-shelf-item-content"
                                 onClick={() => handleOpenBook(book)}
                               >
-                                <div className="reading-shelf-cover" />
+                                <div className="reading-shelf-cover">
+                                  {book.coverImageUrl && (
+                                    <img
+                                      src={book.coverImageUrl}
+                                      alt={`Cover of ${getStoryTitle(book)}`}
+                                      className="reading-shelf-cover-img"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none'
+                                      }}
+                                    />
+                                  )}
+                                </div>
                                 <span className="reading-shelf-title">{getStoryTitle(book)}</span>
                                 <div className="reading-shelf-progress">
                                   <div className="reading-shelf-progress-bar" style={{ width: `${progress}%` }} />

@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import { incrementWordsRead } from '../services/stats'
+import { generateChapter } from '../services/novelGenerator'
 import WordToken from '../components/read/WordToken'
 import { readerModes } from '../constants/readerModes'
 import {
@@ -89,6 +90,14 @@ const Reader = ({ initialMode }) => {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Generated book state
+  const [isGeneratedBook, setIsGeneratedBook] = useState(false)
+  const [generatedBookData, setGeneratedBookData] = useState(null)
+  const [totalChapters, setTotalChapters] = useState(0)
+  const [generatedChapterCount, setGeneratedChapterCount] = useState(0)
+  const [isGeneratingChapter, setIsGeneratingChapter] = useState(false)
+  const [chapterGenerationError, setChapterGenerationError] = useState('')
   const [voiceGender, setVoiceGender] = useState('male')
   const [popup, setPopup] = useState(null)
   const [vocabEntries, setVocabEntries] = useState({})
@@ -531,66 +540,106 @@ const Reader = ({ initialMode }) => {
     const loadContent = async () => {
       setLoading(true)
       setPaginationReady(false)
+      setIsGeneratedBook(false)
+      setGeneratedBookData(null)
+
       try {
-        // First check if this is a flat book (no chapters)
+        // First try regular stories collection
         const storyRef = doc(db, 'users', user.uid, 'stories', id)
         const storySnap = await getDoc(storyRef)
 
-        if (!storySnap.exists()) {
-          setError('Story not found')
-          setLoading(false)
-          return
-        }
+        if (storySnap.exists()) {
+          // Regular story found
+          const storyData = storySnap.data() || {}
 
-        const storyData = storySnap.data() || {}
+          // Check if pre-computed pages exist
+          const pagesRef = collection(db, 'users', user.uid, 'stories', id, 'pages')
+          const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
+          const pagesSnapshot = await getDocs(pagesQuery)
 
-        // Check if pre-computed pages exist
-        const pagesRef = collection(db, 'users', user.uid, 'stories', id, 'pages')
-        const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
-        const pagesSnapshot = await getDocs(pagesQuery)
+          if (pagesSnapshot.docs.length > 0) {
+            // Pre-computed pages exist - load them directly
+            const loadedPages = pagesSnapshot.docs.map((docSnap) => ({
+              id: docSnap.id,
+              ...docSnap.data(),
+            }))
+            console.log(`Loaded ${loadedPages.length} pre-computed pages`)
+            setPages(loadedPages)
+            setPaginationReady(true)
+            setChapters([])
+            setError('')
+            setLoading(false)
+            return
+          }
 
-        if (pagesSnapshot.docs.length > 0) {
-          // Pre-computed pages exist - load them directly
-          const loadedPages = pagesSnapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          }))
-          console.log(`Loaded ${loadedPages.length} pre-computed pages`)
-          setPages(loadedPages)
-          setPaginationReady(true)
-          setChapters([]) // Clear chapters since we don't need them for pagination
+          // No pre-computed pages - fall back to loading chapters for on-the-fly pagination
+          console.log('No pre-computed pages found, falling back to chapter-based pagination')
+
+          if (storyData.isFlat) {
+            const flatChapter = {
+              id: 'flat-0',
+              index: 0,
+              title: storyData.title || 'Untitled',
+              adaptedText: storyData.adaptedTextBlob || '',
+              adaptedChapterHeader: storyData.adaptedChapterHeader || storyData.chapterHeader || null,
+              adaptedChapterOutline: storyData.adaptedChapterOutline || storyData.chapterOutline || null,
+            }
+            setChapters([flatChapter])
+          } else {
+            const chaptersRef = collection(db, 'users', user.uid, 'stories', id, 'chapters')
+            const chaptersQuery = query(chaptersRef, orderBy('index', 'asc'))
+            const snapshot = await getDocs(chaptersQuery)
+            const loadedChapters = snapshot.docs.map((docSnap) => ({
+              id: docSnap.id,
+              ...docSnap.data(),
+            }))
+            setChapters(loadedChapters)
+          }
           setError('')
           setLoading(false)
           return
         }
 
-        // No pre-computed pages - fall back to loading chapters for on-the-fly pagination
-        console.log('No pre-computed pages found, falling back to chapter-based pagination')
+        // Story not found in stories - check generatedBooks collection
+        console.log('Story not found in stories, checking generatedBooks...')
+        const generatedBookRef = doc(db, 'users', user.uid, 'generatedBooks', id)
+        const generatedBookSnap = await getDoc(generatedBookRef)
 
-        if (storyData.isFlat) {
-          // Flat book - create virtual chapter from adaptedTextBlob
-          // Use translated header/outline (adaptedChapterHeader/adaptedChapterOutline)
-          // Fall back to original if translated versions don't exist
-          const flatChapter = {
-            id: 'flat-0',
-            index: 0,
-            title: storyData.title || 'Untitled',
-            adaptedText: storyData.adaptedTextBlob || '',
-            adaptedChapterHeader: storyData.adaptedChapterHeader || storyData.chapterHeader || null,
-            adaptedChapterOutline: storyData.adaptedChapterOutline || storyData.chapterOutline || null,
-          }
-          setChapters([flatChapter])
-        } else {
-          // Chapter-based book - load from chapters collection
-          const chaptersRef = collection(db, 'users', user.uid, 'stories', id, 'chapters')
-          const chaptersQuery = query(chaptersRef, orderBy('index', 'asc'))
-          const snapshot = await getDocs(chaptersQuery)
-          const loadedChapters = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          }))
-          setChapters(loadedChapters)
+        if (!generatedBookSnap.exists()) {
+          setError('Story not found')
+          setLoading(false)
+          return
         }
+
+        // Generated book found
+        const bookData = generatedBookSnap.data() || {}
+        console.log('Found generated book:', bookData.concept)
+
+        setIsGeneratedBook(true)
+        setGeneratedBookData(bookData)
+        setTotalChapters(bookData.chapterCount || 12)
+
+        // Load generated chapters
+        const chaptersRef = collection(db, 'users', user.uid, 'generatedBooks', id, 'chapters')
+        const chaptersQuery = query(chaptersRef, orderBy('index', 'asc'))
+        const chaptersSnapshot = await getDocs(chaptersQuery)
+
+        const loadedChapters = chaptersSnapshot.docs.map((docSnap) => {
+          const data = docSnap.data()
+          return {
+            id: docSnap.id,
+            index: data.index - 1, // Convert 1-based to 0-based for consistency
+            title: data.title || `Chapter ${data.index}`,
+            adaptedText: data.content || '',
+            // No header/outline for generated books currently
+            adaptedChapterHeader: null,
+            adaptedChapterOutline: null,
+          }
+        })
+
+        console.log(`Loaded ${loadedChapters.length} generated chapters`)
+        setGeneratedChapterCount(loadedChapters.length)
+        setChapters(loadedChapters)
         setError('')
       } catch (loadError) {
         console.error(loadError)
@@ -1259,6 +1308,58 @@ const Reader = ({ initialMode }) => {
     if (!canFinish) return
 
     navigate('/dashboard', { state: { initialTab: 'read' } })
+  }
+
+  // Handle generating the next chapter for generated books
+  const handleGenerateNextChapter = async () => {
+    if (!isGeneratedBook || !user?.uid || isGeneratingChapter) return
+
+    const nextChapterIndex = generatedChapterCount + 1
+
+    if (nextChapterIndex > totalChapters) {
+      console.log('All chapters already generated')
+      return
+    }
+
+    setIsGeneratingChapter(true)
+    setChapterGenerationError('')
+
+    try {
+      console.log(`Generating Chapter ${nextChapterIndex}...`)
+
+      const result = await generateChapter({
+        uid: user.uid,
+        bookId: id,
+        chapterIndex: nextChapterIndex,
+      })
+
+      if (result.success && result.chapter) {
+        // Add the new chapter to our local chapters array
+        const newChapter = {
+          id: String(nextChapterIndex),
+          index: nextChapterIndex - 1, // 0-based for consistency
+          title: result.chapter.title || `Chapter ${nextChapterIndex}`,
+          adaptedText: result.chapter.content || '',
+          adaptedChapterHeader: null,
+          adaptedChapterOutline: null,
+        }
+
+        setChapters(prev => [...prev, newChapter])
+        setGeneratedChapterCount(nextChapterIndex)
+
+        // Reset pagination to include new chapter
+        setPaginationReady(false)
+
+        console.log(`Chapter ${nextChapterIndex} generated successfully`)
+      } else {
+        throw new Error(result.error || 'Failed to generate chapter')
+      }
+    } catch (err) {
+      console.error('Chapter generation failed:', err)
+      setChapterGenerationError(err.message || 'Failed to generate chapter. Please try again.')
+    } finally {
+      setIsGeneratingChapter(false)
+    }
   }
 
   const isWordChar = (ch) => {
@@ -2212,13 +2313,61 @@ const Reader = ({ initialMode }) => {
 
               {!hasNext && (
                 <div className="reader-end-actions">
-                  <button
-                    type="button"
-                    className="reader-end-button"
-                    onClick={handleFinishStory}
-                  >
-                    End story
-                  </button>
+                  {isGeneratedBook ? (
+                    // Generated book end actions
+                    generatedChapterCount < totalChapters ? (
+                      // More chapters to generate
+                      <div className="reader-generate-next">
+                        {isGeneratingChapter ? (
+                          <div className="reader-generating-state">
+                            <div className="progress-spinner" />
+                            <p>Generating Chapter {generatedChapterCount + 1}...</p>
+                            <p className="reader-generating-hint">This may take up to a minute</p>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="reader-chapter-progress">
+                              Chapter {generatedChapterCount} of {totalChapters}
+                            </p>
+                            <button
+                              type="button"
+                              className="reader-end-button reader-generate-button"
+                              onClick={handleGenerateNextChapter}
+                            >
+                              Generate Next Chapter
+                            </button>
+                            {chapterGenerationError && (
+                              <p className="error reader-generation-error">{chapterGenerationError}</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      // All chapters generated - book complete
+                      <div className="reader-book-complete">
+                        <p className="reader-the-end">The End</p>
+                        <p className="reader-chapter-progress">
+                          {totalChapters} chapters complete
+                        </p>
+                        <button
+                          type="button"
+                          className="reader-end-button"
+                          onClick={handleFinishStory}
+                        >
+                          Back to Library
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    // Regular story end action
+                    <button
+                      type="button"
+                      className="reader-end-button"
+                      onClick={handleFinishStory}
+                    >
+                      End story
+                    </button>
+                  )}
                 </div>
               )}
             </>

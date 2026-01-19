@@ -7886,24 +7886,81 @@ app.post('/api/generate/bible', async (req, res) => {
     }
 
     // Update book with completed bible
-    const finalStatus = result.validationStatus === 'PASS' || result.validationStatus === 'CONDITIONAL_PASS'
+    const bibleStatus = result.validationStatus === 'PASS' || result.validationStatus === 'CONDITIONAL_PASS'
       ? 'bible_complete'
       : 'bible_needs_review'
 
     await bookRef.update({
       bible: result.bible,
-      status: finalStatus,
+      status: bibleStatus,
       validationStatus: result.validationStatus,
       validationAttempts: result.validationAttempts
     })
 
+    // Auto-generate Chapter 1 so user can start reading immediately
+    console.log(`Auto-generating Chapter 1 for book ${bookId}...`)
+    let chapter1 = null
+    let chapter1Error = null
+
+    try {
+      // Generate Chapter 1 (no previous summaries needed)
+      const chapter1Result = await generateChapterWithValidation(
+        result.bible,
+        1,
+        [], // No previous summaries for Chapter 1
+        language
+      )
+
+      // Get chapter info from bible
+      const bibleChapter = result.bible.chapters?.chapters?.[0] || {}
+
+      // Build chapter document
+      const chapterDoc = {
+        index: 1,
+        title: chapter1Result.chapter?.chapter?.title || bibleChapter.title || 'Chapter 1',
+        pov: bibleChapter.pov || 'Unknown',
+        content: chapter1Result.chapter?.chapter?.content || '',
+        wordCount: chapter1Result.chapter?.validation?.wordCount || 0,
+        tensionRating: bibleChapter.tension_rating || 5,
+        summary: chapter1Result.chapter?.summary || {},
+        compressedSummary: null,
+        ultraSummary: null,
+        audioUrl: null,
+        audioStatus: 'none',
+        validationPassed: chapter1Result.success,
+        regenerationCount: chapter1Result.attempts - 1,
+        needsReview: chapter1Result.needsReview || false,
+        generatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }
+
+      // Save Chapter 1 to Firestore
+      const chapter1Ref = bookRef.collection('chapters').doc('1')
+      await chapter1Ref.set(chapterDoc)
+
+      // Update book status to in_progress (since we have a chapter now)
+      await bookRef.update({ status: 'in_progress' })
+
+      chapter1 = {
+        ...chapterDoc,
+        generatedAt: new Date().toISOString()
+      }
+
+      console.log(`Chapter 1 generated successfully for book ${bookId}`)
+    } catch (chapterError) {
+      console.error(`Failed to auto-generate Chapter 1 for book ${bookId}:`, chapterError)
+      chapter1Error = chapterError.message
+      // Book stays at bible_complete status - user can still trigger chapter generation manually
+    }
+
     return res.status(201).json({
       success: true,
       bookId,
-      status: finalStatus,
+      status: chapter1 ? 'in_progress' : bibleStatus,
       validationStatus: result.validationStatus,
       validationAttempts: result.validationAttempts,
-      bible: result.bible
+      bible: result.bible,
+      chapter1,
+      chapter1Error
     })
 
   } catch (error) {

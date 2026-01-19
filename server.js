@@ -4329,6 +4329,157 @@ function parseEpub(filePath) {
   })
 }
 
+/**
+ * Extract cover image from EPUB file
+ * @param {Object} epub - Parsed epub object from parseEpub
+ * @returns {Promise<{buffer: Buffer, mimeType: string}|null>} Cover image data or null
+ */
+async function extractEpubCover(epub) {
+  try {
+    // Method 1: Check metadata for cover reference
+    let coverId = epub.metadata?.cover
+
+    // Method 2: Search manifest for cover image by properties or id patterns
+    if (!coverId && epub.manifest) {
+      for (const [id, item] of Object.entries(epub.manifest)) {
+        // Check for cover property (EPUB3) or common cover id patterns
+        if (
+          item.properties === 'cover-image' ||
+          id === 'cover' ||
+          id === 'cover-image' ||
+          id.toLowerCase().includes('cover') ||
+          (item.href && item.href.toLowerCase().includes('cover'))
+        ) {
+          // Verify it's an image type
+          if (item['media-type']?.startsWith('image/')) {
+            coverId = id
+            break
+          }
+        }
+      }
+    }
+
+    // Method 3: Look for cover in guide section (older EPUBs)
+    if (!coverId && epub.guide) {
+      for (const item of epub.guide) {
+        if (item.type === 'cover' && item.href) {
+          // The href might point to an HTML page containing the cover
+          // Try to find the corresponding manifest item
+          const hrefBase = item.href.split('#')[0]
+          for (const [id, manifestItem] of Object.entries(epub.manifest)) {
+            if (manifestItem.href === hrefBase && manifestItem['media-type']?.startsWith('image/')) {
+              coverId = id
+              break
+            }
+          }
+        }
+      }
+    }
+
+    if (!coverId) {
+      console.log('No cover image found in EPUB metadata or manifest')
+      return null
+    }
+
+    // Get the image using epub2's getImage method
+    return new Promise((resolve) => {
+      epub.getImage(coverId, (err, data, mimeType) => {
+        if (err || !data) {
+          console.log('Failed to extract cover image:', err?.message || 'No data')
+          resolve(null)
+        } else {
+          console.log(`Extracted EPUB cover: ${coverId}, type: ${mimeType}, size: ${data.length} bytes`)
+          resolve({ buffer: data, mimeType: mimeType || 'image/jpeg' })
+        }
+      })
+    })
+  } catch (error) {
+    console.error('Error extracting EPUB cover:', error)
+    return null
+  }
+}
+
+/**
+ * Upload cover image to Firebase Storage
+ * @param {Buffer} imageBuffer - Image data
+ * @param {string} mimeType - Image MIME type
+ * @param {string} userId - User ID for storage path
+ * @param {string} bookId - Book ID for storage path
+ * @returns {Promise<string|null>} Public URL of uploaded cover or null
+ */
+async function uploadCoverToStorage(imageBuffer, mimeType, userId, bookId) {
+  if (!bucket || !imageBuffer) return null
+
+  try {
+    const extension = mimeType.includes('png') ? 'png' : mimeType.includes('gif') ? 'gif' : 'jpg'
+    const storagePath = `covers/${userId}/${bookId}.${extension}`
+
+    const file = bucket.file(storagePath)
+    await file.save(imageBuffer, {
+      contentType: mimeType,
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+      },
+    })
+    await file.makePublic()
+
+    const coverUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+    console.log('Cover uploaded to:', coverUrl)
+    return coverUrl
+  } catch (error) {
+    console.error('Failed to upload cover to storage:', error)
+    return null
+  }
+}
+
+/**
+ * Search Open Library for a book cover by title and author
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchOpenLibraryCover(title, author) {
+  if (!title && !author) return null
+
+  const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'
+  const OPEN_LIBRARY_COVERS_URL = 'https://covers.openlibrary.org/b'
+
+  try {
+    const params = new URLSearchParams()
+    if (title) params.append('title', title)
+    if (author) params.append('author', author)
+    params.append('limit', '3')
+    params.append('fields', 'cover_i')
+
+    const url = `${OPEN_LIBRARY_SEARCH_URL}?${params.toString()}`
+    console.log('Searching Open Library for cover:', url)
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.error(`Open Library API error: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const docs = data.docs || []
+
+    // Find first result with a cover
+    for (const doc of docs) {
+      if (doc.cover_i) {
+        const coverUrl = `${OPEN_LIBRARY_COVERS_URL}/id/${doc.cover_i}-L.jpg`
+        console.log('Found Open Library cover:', coverUrl)
+        return coverUrl
+      }
+    }
+
+    console.log('No cover found on Open Library')
+    return null
+  } catch (error) {
+    console.error('Open Library search failed:', error)
+    return null
+  }
+}
+
 function getChapterAsync(epub, id) {
   return new Promise((resolve, reject) => {
     epub.getChapter(id, (err, text) => {
@@ -4358,11 +4509,11 @@ async function extractEpub(filePath) {
 }
 
 /**
- * Extract EPUB with chapter structure preserved.
+ * Extract EPUB with chapter structure preserved from a pre-parsed epub object.
  * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ * @param {Object} epub - Already parsed epub object from parseEpub()
  */
-async function extractEpubWithChapters(filePath) {
-  const epub = await parseEpub(filePath)
+async function extractEpubWithChaptersFromParsed(epub) {
   const chapters = []
 
   // epub.flow is the reading order, epub.toc has chapter titles
@@ -4420,6 +4571,16 @@ async function extractEpubWithChapters(filePath) {
   }
 
   return chapters
+}
+
+/**
+ * Extract EPUB with chapter structure preserved.
+ * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ * @param {string} filePath - Path to EPUB file
+ */
+async function extractEpubWithChapters(filePath) {
+  const epub = await parseEpub(filePath)
+  return extractEpubWithChaptersFromParsed(epub)
 }
 
 /**
@@ -4588,6 +4749,7 @@ async function saveImportedBookToFirestore({
   isPublicDomain,
   pages,
   voiceGender,
+  coverImageUrl = null,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -4633,6 +4795,7 @@ async function saveImportedBookToFirestore({
     voiceId,
     voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
   })
 
   const batch = firestore.batch()
@@ -4677,6 +4840,7 @@ async function saveImportedFlatBookToFirestore({
   wordCount,
   voiceGender,
   sourceType = 'txt',
+  coverImageUrl = null,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -4734,6 +4898,7 @@ async function saveImportedFlatBookToFirestore({
     voiceId,
     voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
   })
 
   return storyRef.id
@@ -4757,6 +4922,7 @@ async function saveImportedChapterBookToFirestore({
   chapters,
   voiceGender,
   sourceType = 'epub', // 'epub', 'txt', etc.
+  coverImageUrl = null,
 }) {
   if (!userId) {
     throw new Error('userId is required to import a book')
@@ -4812,6 +4978,7 @@ async function saveImportedChapterBookToFirestore({
     voiceId,
     voiceGender: resolvedVoiceGender,
     description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
   })
 
   // Save chapters
@@ -4987,8 +5154,32 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
     // Handle EPUB with chapter-based flow
     if (fileType === 'epub') {
-      const chapters = await extractEpubWithChapters(req.file.path)
+      // Parse EPUB to extract both chapters and cover
+      const epub = await parseEpub(req.file.path)
+      const chapters = await extractEpubWithChaptersFromParsed(epub)
       console.log('Extracted EPUB chapters:', chapters.length)
+
+      // Try to extract cover from EPUB
+      let coverImageUrl = null
+      const epubCover = await extractEpubCover(epub)
+
+      if (epubCover) {
+        // Generate a temporary book ID for the cover path
+        const tempBookId = `epub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        coverImageUrl = await uploadCoverToStorage(
+          epubCover.buffer,
+          epubCover.mimeType,
+          userId,
+          tempBookId
+        )
+        console.log('EPUB cover extracted and uploaded:', coverImageUrl)
+      }
+
+      // If no cover in EPUB, search Open Library
+      if (!coverImageUrl && (title || author)) {
+        console.log('No EPUB cover found, searching Open Library...')
+        coverImageUrl = await searchOpenLibraryCover(title, author)
+      }
 
       const bookId = await saveImportedChapterBookToFirestore({
         userId,
@@ -5002,6 +5193,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         chapters,
         voiceGender,
         sourceType: 'epub',
+        coverImageUrl,
       })
 
       // Fire-and-forget EPUB adaptation trigger
@@ -5025,12 +5217,20 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         bookId,
         chapterCount: chapters.length,
         sourceType: 'epub',
+        coverImageUrl,
       })
     }
 
     // Handle TXT with structural chapter detection
     if (fileType === 'txt') {
       const extracted = await extractTxtWithChapters(req.file.path)
+
+      // TXT files don't have embedded covers, so search Open Library
+      let coverImageUrl = null
+      if (title || author) {
+        console.log('Searching Open Library for TXT cover...')
+        coverImageUrl = await searchOpenLibraryCover(title, author)
+      }
 
       // Check if chapters were detected or if it's a flat book
       if (extracted.isFlat) {
@@ -5052,6 +5252,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           wordCount: extracted.wordCount,
           voiceGender,
           sourceType: 'txt',
+          coverImageUrl,
         })
 
         // Fire-and-forget flat adaptation trigger
@@ -5076,6 +5277,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           chunkCount: extracted.adaptationChunks.length,
           sourceType: 'txt',
           isFlat: true,
+          coverImageUrl,
         })
       }
 
@@ -5095,6 +5297,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         chapters,
         voiceGender,
         sourceType: 'txt',
+        coverImageUrl,
       })
 
       // Fire-and-forget adaptation trigger (same endpoint as EPUB)
@@ -5118,10 +5321,18 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         bookId,
         chapterCount: chapters.length,
         sourceType: 'txt',
+        coverImageUrl,
       })
     }
 
     // Handle other file types (PDF) with existing flat page flow
+    // PDF files don't have embedded covers we can easily extract, so search Open Library
+    let coverImageUrl = null
+    if (title || author) {
+      console.log('Searching Open Library for PDF cover...')
+      coverImageUrl = await searchOpenLibraryCover(title, author)
+    }
+
     const pages = await extractPagesForFile(req.file)
     const bookId = await saveImportedBookToFirestore({
       userId,
@@ -5134,6 +5345,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       isPublicDomain,
       pages,
       voiceGender,
+      coverImageUrl,
     })
     console.log('Stub extracted pages count:', pages.length)
 
@@ -5157,6 +5369,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       message: 'Import processed successfully',
       bookId,
       pageCount: pages.length,
+      coverImageUrl,
     })
   } catch (error) {
     console.error('Error handling import upload:', error)

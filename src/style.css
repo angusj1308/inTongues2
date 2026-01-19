@@ -1475,6 +1475,13 @@ textarea {
   overflow: hidden;
 }
 
+.book-tile-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
 /* Processing state for books that are adapting or paginating */
 .book-tile--processing {
   cursor: not-allowed;
@@ -23218,6 +23225,15 @@ body.active-pass-locked {
   width: 100%;
   height: 100px;
   background: #e7e5e4;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reading-shelf-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 4px;
 }
 

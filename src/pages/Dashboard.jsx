@@ -269,6 +269,11 @@ const BookGrid = ({
                     }}
                   />
                 )}
+                {!book.coverImageUrl && (
+                  <div className="book-tile-no-cover">
+                    <span className="book-tile-no-cover-title">{titleText}</span>
+                  </div>
+                )}
                 {isProcessing && (
                   <div className="book-tile-processing-overlay">
                     <div className="book-tile-spinner" />
@@ -277,14 +282,17 @@ const BookGrid = ({
                     </span>
                   </div>
                 )}
-              </div>
-              <div className="book-tile-title">{titleText}</div>
-              <div className="book-tile-meta ui-text">
-                {book.language || 'Unknown language'}
-                {book.level ? ` · Level ${book.level}` : ''}
-              </div>
-              <div className="book-progress-bar">
-                <div className="book-progress-bar-inner" style={{ width: `${progress}%` }} />
+                <div className="book-tile-hover-overlay">
+                  <div className="book-tile-hover-title">{titleText}</div>
+                  <div className="book-tile-hover-meta">
+                    {book.level ? `Level ${book.level}` : ''}
+                    {book.level && book.pageCount ? ' · ' : ''}
+                    {book.pageCount ? `${book.pageCount} pages` : ''}
+                  </div>
+                  <div className="book-tile-hover-progress">
+                    <div className="book-tile-hover-progress-bar" style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
               </div>
             </div>
           )

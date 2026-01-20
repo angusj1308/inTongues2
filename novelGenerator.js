@@ -219,12 +219,12 @@ const LEVEL_DEFINITIONS = {
     name: 'Intermediate',
     description: 'For learners with foundation knowledge (B1-B2 equivalent)',
 
-    // Sentence constraints
+    // Sentence constraints - TIGHTENED
     sentences: {
-      averageLength: { min: 12, max: 20 },
-      maxLength: 25,
-      structure: 'Mix of simple and compound sentences. Some subordinate clauses allowed.',
-      connectors: 'Full range of common connectors: although, however, therefore, despite, unless, while',
+      averageLength: { min: 10, max: 18 },
+      maxLength: 20, // HARD LIMIT - reduced from 25
+      structure: 'Mix of simple and compound sentences. Subordinate clauses allowed BUT total must stay under 20 words.',
+      connectors: 'Common connectors: aunque, sin embargo, por eso, mientras, cuando, porque, pero',
     },
 
     // Vocabulary constraints
@@ -233,9 +233,10 @@ const LEVEL_DEFINITIONS = {
       exceptions: 'Can use less common words if meaning is clear from context',
       forbidden: [
         'Obscure literary terms',
-        'Archaic language',
+        'Archaic language (19th century formal Spanish)',
         'Heavy slang or dialect',
         'Untranslatable idioms without explanation',
+        'Anachronistic vocabulary (modern terms in historical settings)',
       ],
       handling: 'Context should make meaning inferable. No need for explicit definitions.',
     },
@@ -248,12 +249,12 @@ const LEVEL_DEFINITIONS = {
       motivation: 'Core motivations clear. Secondary motivations can be implied.',
     },
 
-    // Narrative technique
+    // Narrative technique - TIGHTENED
     narrative: {
-      causeEffect: 'Can have slightly delayed cause-effect. Multi-step chains OK.',
-      timeflow: 'Primarily chronological. Brief, clearly-marked flashbacks allowed.',
-      pov: 'Clear POV with smooth transitions if multiple. Signal shifts clearly.',
-      showing: 'Balance of show and tell. Important moments: show. Transitions: tell.',
+      causeEffect: 'Direct cause-effect preferred. Multi-step chains OK if clear.',
+      timeflow: 'Strictly chronological. No flashbacks or temporal jumps.',
+      pov: 'Clear single POV throughout scene. No head-hopping.',
+      showing: 'IMMEDIATE ACTION over reflection. Dramatize, do not summarize.',
     },
 
     // Dialogue
@@ -271,7 +272,7 @@ const LEVEL_DEFINITIONS = {
       customs: 'Customs can be shown naturally if context makes them understandable',
     },
 
-    // What to avoid
+    // What to avoid - EXPANDED
     forbidden: [
       'Dense literary prose',
       'Heavy use of passive voice',
@@ -279,6 +280,11 @@ const LEVEL_DEFINITIONS = {
       'Experimental structure',
       'Heavy dialect transcription',
       'Obscure cultural references without context',
+      'Backstory dumps or exposition paragraphs',
+      'Character description blocks',
+      'Sentences over 20 words',
+      'Long internal monologue passages',
+      'Summarizing instead of dramatizing',
     ],
   },
 
@@ -1664,6 +1670,8 @@ A beat is a MICRO-MOMENT — one specific action, reaction, sensory detail, or e
 WRONG (scene summaries, NOT beats):
 - "They have dinner together"
 - "She meets the soldier"
+- "She reflects on her situation"
+- "He thinks about his past"
 
 RIGHT (actual micro-beats):
 - "Her fork scrapes porcelain — the silence stretches"
@@ -1671,6 +1679,28 @@ RIGHT (actual micro-beats):
 - "She counts the candlelight reflections rather than meet his eyes"
 
 Each beat should generate 1-3 sentences of prose.
+
+## ANTI-EXPOSITION RULES (CRITICAL)
+
+Every beat MUST be DRAMATIZABLE as immediate action. Never create beats that are:
+
+FORBIDDEN BEAT TYPES:
+- Summary beats: "She remembers...", "He thinks about...", "She reflects on..."
+- Backstory beats: "Her childhood taught her...", "Years of experience..."
+- Emotional dumps: "She felt overwhelmed by sadness", "Fear consumed him"
+- Omniscient narration: "The tension in the room grew", "Time seemed to slow"
+- Character description: "She was a woman who...", "He had always been..."
+
+EVERY BEAT MUST ANSWER: "What is the character DOING right now?"
+
+CORRECT BEAT STRUCTURE:
+- Physical action: "He sets down his glass with deliberate care"
+- Sensory perception: "The candle smoke stings her eyes"
+- Dialogue moment: "His words land like a slap"
+- Micro-reaction: "Her breath catches"
+- Environmental detail through POV: "The clock's tick seems louder now"
+
+If a beat cannot be dramatized as immediate action, REWRITE IT.
 
 ## Output Format
 
@@ -2494,6 +2524,27 @@ You will receive detailed prose_guidance with EXACT constraints. You MUST follow
 
 VIOLATION OF LEVEL CONSTRAINTS IS A FAILURE. The chapter will be rejected if it does not comply.
 
+## ANTI-EXPOSITION RULES (MANDATORY)
+
+NEVER write these types of prose:
+- Backstory dumps: "She remembered her childhood...", "Years ago, he had..."
+- Character description paragraphs: "She was a woman who...", "He had always been..."
+- Setting lectures: "The house had been built in 1850 and featured..."
+- Emotional summaries: "She felt a wave of sadness wash over her"
+- Internal monologue exposition: "She thought about how different things were now"
+
+ALWAYS dramatize in the present moment:
+- Show backstory through triggered memory fragments (one sentence max)
+- Reveal character through action, not description
+- Let setting emerge through sensory details the POV notices NOW
+- Externalize emotions through physical sensation and action
+- Keep internal monologue as immediate reaction, not reflection
+
+WRONG: "Elena había crecido en una familia conservadora donde las mujeres no expresaban sus opiniones."
+RIGHT: "Su madre habría desaprobado esto. Elena enderezó los hombros."
+
+Every paragraph must answer: "What is the character DOING or EXPERIENCING right now?"
+
 ## Output Format
 
 Respond with a JSON object:
@@ -2562,6 +2613,37 @@ You are writing ONE SCENE — a continuous unit of action in one location and ti
 WRONG: "She felt nervous as she entered the ballroom."
 RIGHT: "Her gloved fingers trembled against the doorframe. Three hundred candles. She counted them rather than meet anyone's eyes. The cello's low note vibrated in her chest, or perhaps that was just her heart, hammering."
 
+## SENTENCE LENGTH RULES (MANDATORY)
+
+Your sentences MUST follow the reading level constraints provided. For Intermediate level:
+- MAXIMUM 20 words per sentence. No exceptions.
+- AVERAGE 12-18 words per sentence.
+- Vary sentence length for rhythm: short (5-8), medium (10-15), longer (16-20).
+- If a sentence exceeds 20 words, SPLIT IT into two sentences.
+- Subordinate clauses are allowed BUT the total must stay under 20 words.
+
+WRONG (too long): "Elena miró hacia la ventana mientras pensaba en todas las cosas que habían sucedido durante los últimos meses de su vida en Buenos Aires."
+RIGHT (split): "Elena miró hacia la ventana. Pensaba en los últimos meses. Tantas cosas habían cambiado en Buenos Aires."
+
+## ANTI-EXPOSITION RULES (MANDATORY)
+
+NEVER write these types of prose:
+- Backstory dumps: "She remembered her childhood...", "Years ago, he had..."
+- Character description paragraphs: "She was a woman who...", "He had always been..."
+- Setting lectures: "The house had been built in 1850 and featured..."
+- Emotional summaries: "She felt a wave of sadness wash over her"
+- Internal monologue exposition: "She thought about how different things were now"
+
+ALWAYS dramatize in the present moment:
+- Show backstory through triggered memory fragments (one sentence max)
+- Reveal character through action, not description
+- Let setting emerge through sensory details the POV notices NOW
+- Externalize emotions through physical sensation and action
+- Keep internal monologue as immediate reaction, not reflection
+
+WRONG: "Elena había crecido en una familia conservadora donde las mujeres no expresaban sus opiniones. Esto la había marcado profundamente."
+RIGHT: "Su madre habría desaprobado esto. Elena enderezó los hombros."
+
 ## Beat Execution
 
 Each beat you receive is a MICRO-MOMENT. Expand each into:
@@ -2600,7 +2682,7 @@ A single beat like "Her eyes meet his across the crowded room" should become 50-
   }
 }
 
-CRITICAL: The "content" field must contain rich, immersive prose. Each beat gets real attention. No rushing. No summarizing.`
+CRITICAL: The "content" field must contain rich, immersive prose. Each beat gets real attention. No rushing. No summarizing. But sentences MUST stay under the word limit.`
 
 // Build prompt for a single scene
 function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneExit, language) {
@@ -2636,11 +2718,16 @@ SENTENCE LENGTH: Average ${avgMin}-${avgMax} words, maximum ${maxLen} words
 - Every meaning must be explicit — no subtext or implication
 - Dialogue should be direct and functional`
   } else if (targetLevel === 'Intermediate') {
-    levelText += `INTERMEDIATE CONSTRAINTS:
-- Mix simple and compound sentences
-- Some complexity allowed but clarity is paramount
-- Occasional figurative language is fine
-- Key meanings should still be accessible`
+    levelText += `INTERMEDIATE CONSTRAINTS (MANDATORY):
+- MAXIMUM 20 WORDS PER SENTENCE. No exceptions. Split long sentences.
+- Average sentence length: 10-18 words
+- Mix simple and compound sentences, but keep them SHORT
+- Subordinate clauses allowed IF total stays under 20 words
+- NO backstory dumps. NO exposition paragraphs. NO character descriptions.
+- DRAMATIZE in present moment — show action, not reflection
+- Strictly chronological — no flashbacks or temporal jumps
+- Clarity is paramount. If in doubt, use simpler structure.
+- Avoid archaic/literary vocabulary. Use common, accessible words.`
   }
 
   // Previous context

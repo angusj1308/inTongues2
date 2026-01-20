@@ -2720,6 +2720,8 @@ This is the most common prose failure. You MUST eliminate these patterns:
 
 NEVER name an emotion directly (nervios, ansiedad, tensión, miedo, emoción, alivio, frustración, confusión, esperanza, desesperación). NEVER write "sentía" or "sintió" followed by an emotion.
 
+This includes abstract nouns that name internal states: la confianza, la satisfacción, la expectativa, la autoridad, el orgullo, la rendición. If it can be named — as verb, adjective, or noun — show it instead.
+
 Instead, SHOW emotion through:
 - **Action** (like Hemingway would): physical behavior, gesture, movement that reveals internal state
 - **Psychological interiority** (like Dostoevsky would): the character's racing thoughts, observations, associations
@@ -2729,7 +2731,9 @@ The rule is simple: the emotion label itself must never appear. The reader infer
 
 ### 2. NEVER EXPLAIN WHAT YOU JUST SHOWED — TRUST THE READER
 
-If you showed something through action/dialogue, DO NOT follow with explanation. The reader understood.
+If you showed something through action, dialogue, or physical description, DO NOT follow with explanation. The reader understood.
+
+After describing a physical state (posture, gesture, expression, action), STOP. Do not follow with interpretation of what that state means or represents. The physical description did the work. Adding meaning undermines it.
 
 WRONG: "—No es nada —dijo, apartando la mirada. No quería que él viera lo mucho que le afectaban sus palabras."
 RIGHT: "—No es nada —dijo, apartando la mirada."

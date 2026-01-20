@@ -1362,6 +1362,55 @@ const Reader = ({ initialMode }) => {
     }
   }
 
+  // Handle regenerating the current chapter (for testing)
+  const handleRegenerateChapter = async () => {
+    if (!isGeneratedBook || !user?.uid || isGeneratingChapter) return
+    if (generatedChapterCount < 1) return
+
+    const chapterToRegenerate = generatedChapterCount
+
+    setIsGeneratingChapter(true)
+    setChapterGenerationError('')
+
+    try {
+      console.log(`Regenerating Chapter ${chapterToRegenerate}...`)
+
+      const result = await generateChapter({
+        uid: user.uid,
+        bookId: id,
+        chapterIndex: chapterToRegenerate,
+      })
+
+      if (result.success && result.chapter) {
+        // Replace the chapter in our local chapters array
+        const updatedChapter = {
+          id: String(chapterToRegenerate),
+          index: chapterToRegenerate - 1,
+          title: result.chapter.title || `Chapter ${chapterToRegenerate}`,
+          adaptedText: result.chapter.content || '',
+          adaptedChapterHeader: null,
+          adaptedChapterOutline: null,
+        }
+
+        setChapters(prev => prev.map(ch =>
+          ch.index === chapterToRegenerate - 1 ? updatedChapter : ch
+        ))
+
+        // Reset pagination to reflect updated content
+        setPaginationReady(false)
+
+        console.log(`Chapter ${chapterToRegenerate} regenerated successfully`)
+      } else {
+        throw new Error(result.error || 'Failed to regenerate chapter')
+      }
+    } catch (err) {
+      console.error('Chapter regeneration failed:', err)
+      setChapterGenerationError(err.message || 'Failed to regenerate chapter. Please try again.')
+    } finally {
+      setIsGeneratingChapter(false)
+    }
+  }
+
   const isWordChar = (ch) => {
     if (!ch) return false
     return /\p{L}|\p{N}/u.test(ch)
@@ -2335,6 +2384,14 @@ const Reader = ({ initialMode }) => {
                               onClick={handleGenerateNextChapter}
                             >
                               Generate Next Chapter
+                            </button>
+                            <button
+                              type="button"
+                              className="reader-end-button reader-regenerate-button"
+                              onClick={handleRegenerateChapter}
+                              style={{ marginLeft: '10px', backgroundColor: '#666' }}
+                            >
+                              Regenerate Chapter {generatedChapterCount}
                             </button>
                             {chapterGenerationError && (
                               <p className="error reader-generation-error">{chapterGenerationError}</p>

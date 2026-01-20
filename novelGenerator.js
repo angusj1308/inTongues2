@@ -212,6 +212,12 @@ const LEVEL_DEFINITIONS = {
       'Multiple POVs in single scene',
       'Metaphors and similes',
       'Poetic or lyrical prose',
+      // Universal anti-exposition (applies to all levels)
+      'Backstory dumps or exposition paragraphs',
+      'Character description blocks',
+      'Setting lectures',
+      'Long internal monologue passages',
+      'Summarizing instead of dramatizing',
     ],
   },
 
@@ -339,8 +345,12 @@ const LEVEL_DEFINITIONS = {
       customs: 'Shown naturally as characters would experience them',
     },
 
-    // What to avoid
-    forbidden: [], // Nothing forbidden at native level
+    // What to avoid - even at Native, avoid blatant prose sins
+    forbidden: [
+      'Blatant backstory dumps (weave backstory naturally instead)',
+      'Character description blocks (reveal through action)',
+      'Info-dump paragraphs (trust the reader)',
+    ],
   },
 }
 
@@ -2615,14 +2625,18 @@ RIGHT: "Her gloved fingers trembled against the doorframe. Three hundred candles
 
 ## SENTENCE LENGTH RULES (MANDATORY)
 
-Your sentences MUST follow the reading level constraints provided. For Intermediate level:
-- MAXIMUM 20 words per sentence. No exceptions.
-- AVERAGE 12-18 words per sentence.
-- Vary sentence length for rhythm: short (5-8), medium (10-15), longer (16-20).
-- If a sentence exceeds 20 words, SPLIT IT into two sentences.
-- Subordinate clauses are allowed BUT the total must stay under 20 words.
+Your sentences MUST follow the reading level constraints provided in the user prompt.
+- The user prompt specifies MAXIMUM and AVERAGE sentence lengths for this level
+- If a sentence exceeds the maximum, SPLIT IT into two sentences
+- Vary sentence length for rhythm within the allowed range
+- Subordinate clauses are allowed BUT the total must stay under the maximum
 
-WRONG (too long): "Elena miró hacia la ventana mientras pensaba en todas las cosas que habían sucedido durante los últimos meses de su vida en Buenos Aires."
+Level-specific maximums (for reference):
+- Beginner: MAX 15 words per sentence
+- Intermediate: MAX 20 words per sentence
+- Native: No hard limit, but avoid run-on sentences
+
+WRONG (too long for Intermediate): "Elena miró hacia la ventana mientras pensaba en todas las cosas que habían sucedido durante los últimos meses de su vida en Buenos Aires."
 RIGHT (split): "Elena miró hacia la ventana. Pensaba en los últimos meses. Tantas cosas habían cambiado en Buenos Aires."
 
 ## ANTI-EXPOSITION RULES (MANDATORY)
@@ -2710,13 +2724,17 @@ function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneEx
 SENTENCE LENGTH: Average ${avgMin}-${avgMax} words, maximum ${maxLen} words
 `
   if (targetLevel === 'Beginner') {
-    levelText += `CRITICAL BEGINNER CONSTRAINTS:
+    levelText += `CRITICAL BEGINNER CONSTRAINTS (MANDATORY):
+- MAXIMUM 15 WORDS PER SENTENCE. No exceptions. Split long sentences.
 - Simple subject-verb-object sentences only
 - No subordinate clauses or complex structures
 - Name emotions directly ("She felt angry") not indirectly ("Her jaw tightened")
 - Use only the 1500 most common words
 - Every meaning must be explicit — no subtext or implication
-- Dialogue should be direct and functional`
+- Dialogue should be direct and functional
+- NO backstory dumps. NO exposition paragraphs. NO character descriptions.
+- DRAMATIZE in present moment — show action, not reflection
+- Strictly chronological — no flashbacks or temporal jumps`
   } else if (targetLevel === 'Intermediate') {
     levelText += `INTERMEDIATE CONSTRAINTS (MANDATORY):
 - MAXIMUM 20 WORDS PER SENTENCE. No exceptions. Split long sentences.
@@ -2728,6 +2746,15 @@ SENTENCE LENGTH: Average ${avgMin}-${avgMax} words, maximum ${maxLen} words
 - Strictly chronological — no flashbacks or temporal jumps
 - Clarity is paramount. If in doubt, use simpler structure.
 - Avoid archaic/literary vocabulary. Use common, accessible words.`
+  } else if (targetLevel === 'Native') {
+    levelText += `NATIVE LEVEL GUIDELINES:
+- Full sentence variety available. No hard word limits.
+- Literary techniques allowed: subtext, implication, showing over telling.
+- Non-linear timeline available if it serves the story.
+- STILL AVOID: Blatant backstory dumps, info-dumps, or character description blocks.
+- STILL DRAMATIZE: Show through action and sensory detail, not exposition.
+- Exposition should be woven naturally into scenes, never delivered as lectures.
+- Trust the reader to infer meaning from well-crafted scenes.`
   }
 
   // Previous context

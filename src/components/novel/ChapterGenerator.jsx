@@ -187,15 +187,27 @@ const ChapterGenerator = ({ bookId, uid, bible, bookData, onComplete, onBack }) 
                   </button>
                 )}
                 {status === 'complete' && (
-                  <button
-                    className="button ghost small"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedChapter(generatedChapter)
-                    }}
-                  >
-                    Read
-                  </button>
+                  <>
+                    <button
+                      className="button ghost small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedChapter(generatedChapter)
+                      }}
+                    >
+                      Read
+                    </button>
+                    <button
+                      className="button secondary small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleGenerateChapter(chapterNum)
+                      }}
+                      disabled={isGenerating}
+                    >
+                      Regenerate
+                    </button>
+                  </>
                 )}
               </div>
             </div>

@@ -2986,16 +2986,6 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
   // Collect all expected beats
   const allExpectedBeats = chapter.scenes.flatMap(scene => scene.beats || [])
 
-  // Validate the combined chapter
-  const validation = validateChapterOutput(
-    { chapter: { content: fullContent } },
-    allExpectedBeats,
-    chapter.chapter_hook?.type || chapter.hook?.type,
-    wordCountTarget,
-    level,
-    proseGuidance
-  )
-
   // Build summary from scene data
   const summary = {
     events: generatedScenes.map(s => s.emotional_journey || s.scene_name).filter(Boolean),
@@ -3010,7 +3000,8 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
     timeElapsed: chapter.story_time || 'Unknown'
   }
 
-  return {
+  // Build the full result object BEFORE validation
+  const result = {
     chapter: {
       title: chapter.title,
       content: fullContent
@@ -3024,10 +3015,22 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
       scenesGenerated: generatedScenes.length,
       sceneWordCounts: generatedScenes.map(s => s.wordCount)
     },
-    validation,
     generatedAt: new Date().toISOString(),
     generationMethod: 'scene-by-scene'
   }
+
+  // Validate the combined chapter with full data
+  const validation = validateChapterOutput(
+    result,
+    allExpectedBeats,
+    chapter.chapter_hook?.type || chapter.hook?.type,
+    wordCountTarget,
+    level,
+    proseGuidance
+  )
+
+  result.validation = validation
+  return result
 }
 
 // Legacy single-pass chapter generation (kept for fallback)

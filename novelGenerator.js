@@ -2719,6 +2719,47 @@ ALWAYS dramatize in the present moment:
 WRONG: "Elena había crecido en una familia conservadora donde las mujeres no expresaban sus opiniones. Esto la había marcado profundamente."
 RIGHT: "Su madre habría desaprobado esto. Elena enderezó los hombros."
 
+## MICRO-TELLING PROHIBITION (MANDATORY)
+
+This is the most common prose failure. You MUST eliminate these patterns:
+
+### 1. NEVER LABEL EMOTIONS — SHOW THEM
+
+NEVER name an emotion directly (nervios, ansiedad, tensión, miedo, emoción, alivio, frustración, confusión, esperanza, desesperación). NEVER write "sentía" or "sintió" followed by an emotion.
+
+Instead, SHOW emotion through:
+- **Action** (like Hemingway would): physical behavior, gesture, movement that reveals internal state
+- **Psychological interiority** (like Dostoevsky would): the character's racing thoughts, observations, associations
+- **Dialogue** (when appropriate to the character's voice and the scene): what they say or don't say, how they say it
+
+The rule is simple: the emotion label itself must never appear. The reader infers the emotion from what you show.
+
+### 2. NEVER EXPLAIN WHAT YOU JUST SHOWED — TRUST THE READER
+
+If you showed something through action/dialogue, DO NOT follow with explanation. The reader understood.
+
+WRONG: "—No es nada —dijo, apartando la mirada. No quería que él viera lo mucho que le afectaban sus palabras."
+RIGHT: "—No es nada —dijo, apartando la mirada."
+(The action SHOWED she's affected. The explanation is redundant.)
+
+WRONG: "Él sonrió, una sonrisa que no llegó a sus ojos. Estaba claro que fingía."
+RIGHT: "Él sonrió. La sonrisa no llegó a sus ojos."
+(We can SEE it's fake. Don't tell us it's fake.)
+
+WRONG: "Sus manos temblaron mientras servía el café. Los nervios la traicionaban."
+RIGHT: "Sus manos temblaron mientras servía el café."
+(Trembling hands ARE nerves. Don't explain.)
+
+### 3. SENSORY SPECIFICITY OVER VAGUE DESCRIPTION
+
+Every physical detail must be CONCRETE and SPECIFIC. Vague sensations are lazy telling.
+
+WRONG: "Sintió algo extraño en el estómago."
+WRONG: "Un escalofrío recorrió su espalda."
+WRONG: "Su corazón latía con fuerza."
+
+These are generic placeholders. Replace them with specific, observable, concrete sensory details unique to this moment and character.
+
 ## Beat Execution
 
 Each beat you receive is a MICRO-MOMENT. Expand each into:

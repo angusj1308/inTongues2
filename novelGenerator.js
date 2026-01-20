@@ -2684,21 +2684,14 @@ You are writing ONE SCENE — a continuous unit of action in one location and ti
 WRONG: "She felt nervous as she entered the ballroom."
 RIGHT: "Her gloved fingers trembled against the doorframe. Three hundred candles. She counted them rather than meet anyone's eyes. The cello's low note vibrated in her chest, or perhaps that was just her heart, hammering."
 
-## SENTENCE LENGTH RULES (MANDATORY)
+## SENTENCE LENGTH RULES
 
-Your sentences MUST follow the reading level constraints provided in the user prompt.
-- The user prompt specifies MAXIMUM and AVERAGE sentence lengths for this level
-- If a sentence exceeds the maximum, SPLIT IT into two sentences
-- Vary sentence length for rhythm within the allowed range
-- Subordinate clauses are allowed BUT the total must stay under the maximum
+Level-specific guidance:
+- Beginner: MAX 15 words per sentence (strict — learners need short, clear sentences)
+- Intermediate: No hard limit — if vocabulary is comprehensible, sentence length is flexible. Prioritize natural prose rhythm.
+- Native: No limit — write naturally, avoid run-on sentences
 
-Level-specific maximums (for reference):
-- Beginner: MAX 15 words per sentence
-- Intermediate: MAX 20 words per sentence
-- Native: No hard limit, but avoid run-on sentences
-
-WRONG (too long for Intermediate): "Elena miró hacia la ventana mientras pensaba en todas las cosas que habían sucedido durante los últimos meses de su vida en Buenos Aires."
-RIGHT (split): "Elena miró hacia la ventana. Pensaba en los últimos meses. Tantas cosas habían cambiado en Buenos Aires."
+For Beginner level only, split sentences that exceed the maximum. For Intermediate and Native, vary sentence length for rhythm and flow.
 
 ## ANTI-EXPOSITION RULES (MANDATORY)
 
@@ -2718,6 +2711,47 @@ ALWAYS dramatize in the present moment:
 
 WRONG: "Elena había crecido en una familia conservadora donde las mujeres no expresaban sus opiniones. Esto la había marcado profundamente."
 RIGHT: "Su madre habría desaprobado esto. Elena enderezó los hombros."
+
+## MICRO-TELLING PROHIBITION (MANDATORY)
+
+This is the most common prose failure. You MUST eliminate these patterns:
+
+### 1. NEVER LABEL EMOTIONS — SHOW THEM
+
+NEVER name an emotion directly (nervios, ansiedad, tensión, miedo, emoción, alivio, frustración, confusión, esperanza, desesperación). NEVER write "sentía" or "sintió" followed by an emotion.
+
+Instead, SHOW emotion through:
+- **Action** (like Hemingway would): physical behavior, gesture, movement that reveals internal state
+- **Psychological interiority** (like Dostoevsky would): the character's racing thoughts, observations, associations
+- **Dialogue** (when appropriate to the character's voice and the scene): what they say or don't say, how they say it
+
+The rule is simple: the emotion label itself must never appear. The reader infers the emotion from what you show.
+
+### 2. NEVER EXPLAIN WHAT YOU JUST SHOWED — TRUST THE READER
+
+If you showed something through action/dialogue, DO NOT follow with explanation. The reader understood.
+
+WRONG: "—No es nada —dijo, apartando la mirada. No quería que él viera lo mucho que le afectaban sus palabras."
+RIGHT: "—No es nada —dijo, apartando la mirada."
+(The action SHOWED she's affected. The explanation is redundant.)
+
+WRONG: "Él sonrió, una sonrisa que no llegó a sus ojos. Estaba claro que fingía."
+RIGHT: "Él sonrió. La sonrisa no llegó a sus ojos."
+(We can SEE it's fake. Don't tell us it's fake.)
+
+WRONG: "Sus manos temblaron mientras servía el café. Los nervios la traicionaban."
+RIGHT: "Sus manos temblaron mientras servía el café."
+(Trembling hands ARE nerves. Don't explain.)
+
+### 3. SENSORY SPECIFICITY OVER VAGUE DESCRIPTION
+
+Every physical detail must be CONCRETE and SPECIFIC. Vague sensations are lazy telling.
+
+WRONG: "Sintió algo extraño en el estómago."
+WRONG: "Un escalofrío recorrió su espalda."
+WRONG: "Su corazón latía con fuerza."
+
+These are generic placeholders. Replace them with specific, observable, concrete sensory details unique to this moment and character.
 
 ## Beat Execution
 

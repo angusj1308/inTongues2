@@ -67,7 +67,14 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
       console.error(`Claude call attempt ${attempt + 1} failed:`, error.message)
 
       if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+        // Check for rate limit error (429) - wait 60 seconds
+        if (error.status === 429) {
+          console.log(`  Rate limited. Waiting 60s before retry...`)
+          await new Promise(resolve => setTimeout(resolve, 60000))
+        } else {
+          // Normal retry delay for other errors
+          await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+        }
       }
     }
   }
@@ -2171,7 +2178,43 @@ PASS: All checks pass. Ready for generation.
 CONDITIONAL_PASS: Some warnings but no failures. Can proceed with noted cautions.
 FAIL: One or more critical failures. Must regenerate specified phases.`
 
+// Compress chapters for Phase 8 validation (keeps structure, removes beat details)
+function compressChaptersForValidation(chapters) {
+  if (!chapters?.chapters) return chapters
+
+  return {
+    ...chapters,
+    chapters: chapters.chapters.map(ch => ({
+      number: ch.number,
+      title: ch.title,
+      pov: ch.pov,
+      story_time: ch.story_time,
+      chapter_purpose: ch.chapter_purpose,
+      emotional_arc: ch.emotional_arc,
+      location_primary: ch.location_primary,
+      phase_4_moment: ch.phase_4_moment,
+      phase_5_beats: ch.phase_5_beats,
+      tension_rating: ch.tension_rating,
+      hook_type: ch.hook_type,
+      // Compressed scene info (counts only, not full beats)
+      scene_count: ch.scenes?.length || 0,
+      total_beats: ch.scenes?.reduce((sum, s) => sum + (s.beats?.length || 0), 0) || 0,
+      scene_summaries: ch.scenes?.map(s => ({
+        scene_name: s.scene_name,
+        location: s.location,
+        scene_purpose: s.scene_purpose,
+        beat_count: s.beats?.length || 0
+      })) || [],
+      foreshadowing: ch.foreshadowing,
+      chapter_hook: ch.chapter_hook
+    }))
+  }
+}
+
 function buildPhase8UserPrompt(completeBible) {
+  // Compress Phase 6 chapters to avoid token limit issues
+  const compressedChapters = compressChaptersForValidation(completeBible.chapters)
+
   return `COMPLETE BIBLE:
 
 PHASE 1 - CORE FOUNDATION:
@@ -2189,8 +2232,8 @@ ${JSON.stringify(completeBible.chemistry, null, 2)}
 PHASE 5 - PLOT ARCHITECTURE:
 ${JSON.stringify(completeBible.plot, null, 2)}
 
-PHASE 6 - CHAPTER BREAKDOWN:
-${JSON.stringify(completeBible.chapters, null, 2)}
+PHASE 6 - CHAPTER BREAKDOWN (compressed - full beats available for generation):
+${JSON.stringify(compressedChapters, null, 2)}
 
 PHASE 7 - LEVEL CHECK:
 ${JSON.stringify(completeBible.levelCheck, null, 2)}

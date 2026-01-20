@@ -2684,21 +2684,14 @@ You are writing ONE SCENE — a continuous unit of action in one location and ti
 WRONG: "She felt nervous as she entered the ballroom."
 RIGHT: "Her gloved fingers trembled against the doorframe. Three hundred candles. She counted them rather than meet anyone's eyes. The cello's low note vibrated in her chest, or perhaps that was just her heart, hammering."
 
-## SENTENCE LENGTH RULES (MANDATORY)
+## SENTENCE LENGTH RULES
 
-Your sentences MUST follow the reading level constraints provided in the user prompt.
-- The user prompt specifies MAXIMUM and AVERAGE sentence lengths for this level
-- If a sentence exceeds the maximum, SPLIT IT into two sentences
-- Vary sentence length for rhythm within the allowed range
-- Subordinate clauses are allowed BUT the total must stay under the maximum
+Level-specific guidance:
+- Beginner: MAX 15 words per sentence (strict — learners need short, clear sentences)
+- Intermediate: No hard limit — if vocabulary is comprehensible, sentence length is flexible. Prioritize natural prose rhythm.
+- Native: No limit — write naturally, avoid run-on sentences
 
-Level-specific maximums (for reference):
-- Beginner: MAX 15 words per sentence
-- Intermediate: MAX 20 words per sentence
-- Native: No hard limit, but avoid run-on sentences
-
-WRONG (too long for Intermediate): "Elena miró hacia la ventana mientras pensaba en todas las cosas que habían sucedido durante los últimos meses de su vida en Buenos Aires."
-RIGHT (split): "Elena miró hacia la ventana. Pensaba en los últimos meses. Tantas cosas habían cambiado en Buenos Aires."
+For Beginner level only, split sentences that exceed the maximum. For Intermediate and Native, vary sentence length for rhythm and flow.
 
 ## ANTI-EXPOSITION RULES (MANDATORY)
 

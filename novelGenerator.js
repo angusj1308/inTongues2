@@ -1675,42 +1675,39 @@ const PHASE_6_BATCH_SYSTEM_PROMPT = `You are a master scene architect. For the g
 
 ## CRITICAL: What is a Beat?
 
-A beat is a MICRO-MOMENT — one specific action, reaction, sensory detail, or emotional shift.
+A beat is a MICRO-MOMENT — one specific action, reaction, sensory detail, or emotional shift. Each beat should generate 1-3 sentences of prose.
 
-WRONG (scene summaries, NOT beats):
-- "They have dinner together"
-- "She meets the soldier"
-- "She reflects on her situation"
-- "He thinks about his past"
+WRONG (scene summary): "They have dinner together"
+RIGHT (micro-beat): "Her fork scrapes porcelain — the silence stretches"
 
-RIGHT (actual micro-beats):
-- "Her fork scrapes porcelain — the silence stretches"
-- "His cologne arrives first: sandalwood and tobacco"
-- "She counts the candlelight reflections rather than meet his eyes"
+## BEAT CATEGORIES
 
-Each beat should generate 1-3 sentences of prose.
-
-## ANTI-EXPOSITION RULES (CRITICAL)
-
-Every beat MUST be DRAMATIZABLE as immediate action. Never create beats that are:
-
-FORBIDDEN BEAT TYPES:
-- Summary beats: "She remembers...", "He thinks about...", "She reflects on..."
-- Backstory beats: "Her childhood taught her...", "Years of experience..."
-- Emotional dumps: "She felt overwhelmed by sadness", "Fear consumed him"
-- Omniscient narration: "The tension in the room grew", "Time seemed to slow"
-- Character description: "She was a woman who...", "He had always been..."
-
-EVERY BEAT MUST ANSWER: "What is the character DOING right now?"
-
-CORRECT BEAT STRUCTURE:
-- Physical action: "He sets down his glass with deliberate care"
-- Sensory perception: "The candle smoke stings her eyes"
-- Dialogue moment: "His words land like a slap"
-- Micro-reaction: "Her breath catches"
-- Environmental detail through POV: "The clock's tick seems louder now"
+Valid beat types:
+- Physical action
+- Sensory perception
+- Dialogue moment
+- Micro-reaction
+- Environmental detail through POV
+- Character choice or decision
 
 If a beat cannot be dramatized as immediate action, REWRITE IT.
+
+## AVOID
+
+- Summary beats: "She remembers...", "He thinks about..."
+- Backstory beats: "Her childhood taught her..."
+- Emotional dumps: "She felt overwhelmed by sadness"
+- Omniscient narration: "The tension in the room grew"
+- Character description: "She was a woman who..."
+- Theme-stating beats: "She realized she had never been free"
+- Metaphors that spell out the character's journey
+- Rhetorical questions that state the story's meaning
+
+## OPPORTUNITIES
+
+- Theme can emerge through choices, actions, dialogue
+- Life reflection is available — just not explicit theme articulation
+- Internal monologue can be Dostoevskian — immediate, unresolved, contradictory, human
 
 ## Output Format
 
@@ -1724,7 +1721,7 @@ If a beat cannot be dramatized as immediate action, REWRITE IT.
           "scene_name": "Evocative scene name",
           "location": "Specific location",
           "time_of_day": "morning/afternoon/evening/night",
-          "weather_mood": "Atmospheric detail mirroring emotion",
+          "weather_mood": "Atmospheric context",
           "characters_present": ["Character names"],
           "scene_purpose": "setup/confrontation/revelation/intimacy",
           "sensory_anchor": "Dominant sense for this scene",
@@ -2683,6 +2680,12 @@ A single beat like "Her eyes meet his across the crowded room" should become 50-
 - Each beat should flow into the next (avoid choppy transitions)
 - End with the specified exit/transition
 
+## WORD COUNT
+
+Each scene has a target word count provided in the prompt. If your scene is significantly under target, you are likely summarizing instead of dramatizing.
+
+Dwell in each moment. Let the reader experience it in real time. Each beat should expand into full prose, not compress into a single sentence.
+
 ## Output Format (JSON)
 
 {
@@ -2696,7 +2699,7 @@ A single beat like "Her eyes meet his across the crowded room" should become 50-
   }
 }
 
-CRITICAL: The "content" field must contain rich, immersive prose. Each beat gets real attention. No rushing. No summarizing. But sentences MUST stay under the word limit.`
+CRITICAL: The "content" field must contain rich, immersive prose. Each beat gets real attention. No rushing. No summarizing.`
 
 // Build prompt for a single scene
 function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneExit, language) {

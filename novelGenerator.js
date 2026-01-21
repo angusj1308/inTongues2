@@ -1453,21 +1453,17 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 // PHASE 6: CHAPTER & SCENE BREAKDOWN
 // =============================================================================
 
-const PHASE_6_SYSTEM_PROMPT = `You are a story architect. Your task is to create a chapter-by-chapter breakdown showing WHAT HAPPENS in each scene.
+const PHASE_6_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter breakdown showing WHAT HAPPENS in each scene.
 
-## CRITICAL PHILOSOPHY
+## CRITICAL RULE
 
-You are creating a STRUCTURAL OUTLINE, not prose notes. Describe EVENTS, not how to write them.
+Describe EVENTS (what happens), not PROSE (how to write it).
 
-WRONG (prose direction):
-- "Champagne bubbles catch candlelight — she counts them instead of listening"
-- "His cologne arrives before he does — sandalwood and possession"
+An event is a simple factual statement: [Character] [action/discovery/decision]
+- One clause, no imagery, no sensory detail, no description of manner
+- WHAT happens, never HOW it looks/feels/sounds
 
-RIGHT (event description):
-- "She attends the betrothal ceremony, distracted and unhappy"
-- "Don Álvarez approaches and claims her for a dance"
-
-The generation phase will dramatize these events. Your job is only to specify WHAT happens, not HOW it's written.
+The generation phase handles all dramatization. You specify plot only.
 
 ## Output Format
 
@@ -1475,71 +1471,46 @@ The generation phase will dramatize these events. Your job is only to specify WH
   "chapters": [
     {
       "number": 1,
-      "title": "Evocative chapter title",
+      "title": "Chapter title",
       "pov": "POV character name",
-      "purpose": "What this chapter accomplishes for the story",
+      "purpose": "What this chapter accomplishes",
       "scenes": [
         {
           "scene_number": 1,
-          "location": "Specific location from Phase 2",
+          "location": "Location from Phase 2",
           "characters": ["Characters present"],
           "events": [
-            "First thing that happens",
-            "Second thing that happens",
-            "Third thing that happens"
+            "[Character] [action]",
+            "[Character] [discovery or decision]",
+            "[Next plot point]"
           ],
-          "function": "What this scene accomplishes (setup/confrontation/revelation/intimacy/turning point)"
+          "function": "setup | confrontation | revelation | intimacy | turning point"
         }
       ],
       "emotional_arc": {
-        "starts": "POV character's emotional state at chapter start",
-        "ends": "POV character's emotional state at chapter end"
+        "starts": "POV emotional state at chapter start",
+        "ends": "POV emotional state at chapter end"
       },
-      "ends_with": "What happens at the end that propels reader forward",
-      "phase_4_moment": "If this chapter contains a Phase 4 pivotal moment, name it (or null)",
-      "phase_5_beats": ["Which Phase 5 plot beats appear in this chapter"]
+      "ends_with": "What propels reader to next chapter",
+      "phase_4_moment": "Phase 4 moment if applicable, or null",
+      "phase_5_beats": ["Phase 5 beats placed in this chapter"]
     }
   ],
   "pov_distribution": {
-    "protagonist_chapters": [1, 3, 5],
-    "love_interest_chapters": [2, 4, 6]
+    "protagonist_chapters": [],
+    "love_interest_chapters": []
   }
 }
 
-## SCENE REQUIREMENTS
+## EVENT RULES
 
-EVENTS PER SCENE:
-- Each scene should have 3-6 events
-- Events are THINGS THAT HAPPEN, not prose descriptions
-- Each event is one clear action, discovery, decision, or exchange
+Each scene: 3-6 events.
 
-GOOD EVENTS:
-- "She discovers the letter hidden in his desk"
-- "They argue about whether to tell her father"
-- "He kisses her for the first time"
-- "She overhears the conspiracy from the next room"
+Events MUST be plain factual statements — no adjectives, adverbs, imagery, or manner descriptions.
 
-BAD EVENTS (too prescriptive):
-- "Her fingers tremble as she unfolds the yellowed paper"
-- "Their voices rise, sharp syllables cutting the humid air"
-- "His lips find hers, tentative, questioning"
+Events MUST NOT include: sensory details, emotional descriptors, metaphors, specific gestures, dialogue lines, or atmosphere.
 
-## WHAT TO INCLUDE
-
-- Plot events (what happens)
-- Character decisions and actions
-- Key dialogue topics (not specific lines)
-- Discoveries and revelations
-- Relationship developments
-
-## WHAT TO OMIT
-
-- Sensory details (let generation decide)
-- Imagery and metaphor (let generation decide)
-- Weather and atmosphere (let generation decide)
-- Internal monologue style (let generation decide)
-- Specific gestures and micro-actions (let generation decide)
-- Literary devices (let generation decide)`
+Just state what happens. Generation will dramatize.`
 
 function buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]
@@ -1576,7 +1547,7 @@ REQUIREMENTS:
 4. Every Phase 5 plot beat is placed in a specific chapter
 5. Locations come from Phase 2
 
-REMEMBER: Describe EVENTS, not prose. "She discovers his secret" not "Her breath catches as the truth unfolds before her trembling hands."`
+Events are plain factual statements. No imagery, sensory detail, or prose style.`
 }
 
 // Phase 6 now generates scenes per-chapter for reliability
@@ -1612,15 +1583,11 @@ Output JSON:
 // System prompt for generating scene breakdown for a single chapter
 const PHASE_6_CHAPTER_SYSTEM_PROMPT = `You are a story architect. Create a scene breakdown showing WHAT HAPPENS in each scene.
 
-## CRITICAL PHILOSOPHY
+## CRITICAL RULE
 
-Describe EVENTS, not prose. Your job is to say what happens, not how to write it.
-
-WRONG (prose direction): "Her fork scrapes porcelain — the silence stretches"
-RIGHT (event): "They eat in tense silence, neither willing to speak first"
-
-WRONG: "His eyes darken with unspoken accusations"
-RIGHT: "He confronts her about the missing letter"
+Events are plain factual statements: [Character] [action/discovery/decision]
+- One clause, no imagery, no sensory detail, no manner descriptions
+- WHAT happens, never HOW it looks/feels/sounds
 
 ## Output Format
 
@@ -1629,34 +1596,26 @@ RIGHT: "He confronts her about the missing letter"
   "scenes": [
     {
       "scene_number": 1,
-      "location": "Specific location",
-      "characters": ["Character names"],
+      "location": "Location",
+      "characters": ["Characters present"],
       "events": [
-        "First thing that happens",
-        "Second thing that happens",
-        "Third thing that happens"
+        "[Character] [action]",
+        "[Character] [discovery or decision]",
+        "[Next plot point]"
       ],
-      "function": "What this scene accomplishes"
+      "function": "setup | confrontation | revelation | intimacy | turning point"
     }
   ],
   "ends_with": "What propels reader forward"
 }
 
-## EVENT GUIDELINES
+## EVENT RULES
 
-Each scene needs 3-6 events. Events are:
-- Actions characters take
-- Discoveries they make
-- Decisions they reach
-- Conversations they have (topic, not dialogue)
-- Revelations that occur
+Each scene: 3-6 events.
 
-Events are NOT:
-- Sensory descriptions
-- Atmospheric details
-- Internal monologue
-- Literary devices
-- Specific gestures or micro-actions`
+Events are: actions, discoveries, decisions, conversation topics, revelations.
+
+Events are NOT: sensory details, atmosphere, emotions, gestures, dialogue lines, imagery.`
 
 function buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]
@@ -1704,9 +1663,7 @@ Create 2-4 scenes for this chapter. Each scene needs:
 - 3-6 events (WHAT happens, not HOW it's written)
 - Function (what the scene accomplishes)
 
-REMEMBER: Events are plot points, not prose descriptions.
-RIGHT: "She discovers the letter hidden in his desk"
-WRONG: "Her trembling fingers find the yellowed paper"`
+Events are plain factual statements. No imagery, sensory detail, or prose style.`
 }
 
 async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {

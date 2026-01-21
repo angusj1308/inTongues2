@@ -2757,18 +2757,11 @@ WRONG: "Su corazón latía con fuerza."
 
 These are generic placeholders. Replace them with specific, observable, concrete sensory details unique to this moment and character.
 
-## FIGURATIVE LANGUAGE (MANDATORY)
+## FIGURATIVE LANGUAGE
 
-DEFAULT: No similes or metaphors. Describe what things ARE, not what they're like. Write action and sensory detail. Let readers infer meaning. This is the Hemingway approach.
+Do not use similes or metaphors. No "como X" comparisons.
 
-EXCEPTION (max 1 per 500 words): Only when plain description genuinely cannot achieve the effect.
-
-WHEN USED, must be:
-- **POV-native**: a comparison this specific character would make from their profession, background, or immediate environment
-- **Concrete**: physical vehicle, not abstract
-- **Novel**: never a cliché — if you've seen it before, don't use it
-
-BANNED CLICHÉS: waves/storms of emotion, walls/doors/masks for emotional barriers, weight/burden, temperature for emotion (cold dread, warm feeling), precious materials for beauty (porcelain skin, silk hair), weapons for pain (daggers, knives, cutting), time stopping, breath catching, hearts pounding/racing, "like stone," "like fire," "like ice."
+Describe what things ARE directly, in a Hemingway style. Write action and sensory detail. The reader infers meaning.
 
 ## Beat Execution
 

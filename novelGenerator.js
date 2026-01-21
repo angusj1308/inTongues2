@@ -2005,10 +2005,27 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   }
 
   try {
-    // Phase 1: Core Foundation
+    // Phase 1: Story DNA
     reportProgress(1, 'starting')
     bible.coreFoundation = await executePhase1(concept, lengthPreset, level)
-    reportProgress(1, 'complete', { genre: bible.coreFoundation.genre, theme: bible.coreFoundation.theme })
+    reportProgress(1, 'complete', {
+      subgenre: bible.coreFoundation.subgenre,
+      origin: bible.coreFoundation.tropes?.origin,
+      theme: bible.coreFoundation.theme
+    })
+
+    // TESTING: Stop after Phase 1 to validate new Story DNA output
+    console.log('='.repeat(60))
+    console.log('PHASE 1 TEST MODE - Stopping after Phase 1')
+    console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
+    console.log('='.repeat(60))
+
+    return {
+      success: true,
+      bible,
+      validationStatus: 'PHASE_1_TEST',
+      validationAttempts: 0
+    }
 
     // Phase 2: World/Setting
     reportProgress(2, 'starting')

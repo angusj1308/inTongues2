@@ -568,112 +568,114 @@ function validateCoherence(coherenceCheck, requiredFields) {
 }
 
 // =============================================================================
-// PHASE 1: CORE FOUNDATION
+// PHASE 1: STORY DNA
 // =============================================================================
 
-const PHASE_1_SYSTEM_PROMPT = `You are a romance novel architect. Your task is to establish the core foundation of a romance story from a user's concept.
+const PHASE_1_SYSTEM_PROMPT = `Analyze the user's concept and establish the story's DNA.
 
-You will receive:
-- A story concept (1-3 sentences from the user)
-- Length preset (novella: 12 chapters, novel: 35 chapters)
-- Target reading level (Beginner, Intermediate, Native)
+The user may not name tropes. Infer from their concept.
 
-Your job is to define the fundamental elements that every other phase will build upon. Think of this as the story's DNA.
+## Decisions
 
-IMPORTANT: Level affects PROSE STYLE only, not plot complexity. A Beginner-level story has the same emotional depth and plot sophistication as Native — only the vocabulary and sentence structure differ during chapter generation.
+TROPES
+- Origin (pick one): Enemies to Lovers, Friends to Lovers, Strangers to Lovers, Second Chance, Childhood Sweethearts
+- Situation (pick zero to three): Forbidden Love, Arranged Marriage, Marriage of Convenience, Fake Dating, Forced Proximity, Workplace Romance, Secret Identity
+- Dynamic (pick one or two): Slow Burn, Fast Burn, Opposites Attract, Grumpy/Sunshine
+- Complication (optional): Love Triangle
 
-## Output Format
+SUBGENRE
+Historical, Contemporary, Paranormal, Fantasy, Sci-Fi, Romantic Suspense, etc.
 
-Respond with a JSON object:
+TIMESPAN
+How long does the story cover? Days, weeks, months, years?
+
+POV STRUCTURE
+- Single: One perspective throughout
+- Dual-Alternating: Both protagonists, alternating chapters
+- Multiple: More than two POVs
+
+ENDING
+- HEA: Together permanently
+- HFN: Together, future uncertain
+- Bittersweet: Apart but transformed
+- Tragic: Loss or permanent separation
+
+If the concept implies an ending, use it. Otherwise, choose what fits.
+
+TONE
+- Lightness: 0-10 (0 = heavy drama, 10 = light comedy)
+- Sensuality: 0-10 (0 = closed door, 10 = explicit)
+- Fade to black: true/false
+- Mood: hopeful, bittersweet, intense, playful, dark
+
+THEME
+What question does this story explore?
+
+CONFLICT
+- External: What circumstance keeps them apart?
+- Internal: What psychological barrier keeps them apart?
+
+## Output
 
 {
-  "genre": "Romance",
-  "subgenre": "The specific romance subgenre (e.g., Contemporary, Historical, Paranormal)",
-  "central_conflict": {
-    "external": "The external obstacle keeping them apart (society, circumstances, enemies)",
-    "internal": "The internal psychological barriers (fears, wounds, beliefs)",
-    "synthesis": "One sentence combining both: 'They must overcome [external] while battling [internal]'"
+  "subgenre": string,
+  "tropes": {
+    "origin": string,
+    "situation": [],
+    "dynamic": [],
+    "complication": string or null
   },
-  "theme": "The thematic statement this story explores (e.g., 'Love requires vulnerability')",
-  "emotional_stakes": {
-    "if_together": "What they gain emotionally/spiritually if they end up together",
-    "if_apart": "What they lose emotionally/spiritually if they don't"
+  "ending": {
+    "type": "HEA | HFN | Bittersweet | Tragic",
+    "reason": string
   },
   "tone": {
-    "lightness": "0-10 scale (0 = heavy drama, 10 = light comedy)",
-    "humor": "Type of humor if any (witty banter, physical comedy, dry wit, none)",
-    "sensuality": "0-10 scale (0 = closed door, 10 = explicit)",
-    "mood": "Primary emotional atmosphere (hopeful, bittersweet, intense, playful)"
-  },
-  "genre_hooks": {
-    "trope_primary": "The main romance trope (enemies-to-lovers, forbidden love, second chance, etc.)",
-    "trope_secondary": "A secondary trope that adds dimension",
-    "unique_twist": "What makes THIS story's take on the trope fresh"
+    "lightness": number,
+    "sensuality": number,
+    "fade_to_black": boolean,
+    "mood": string
   },
   "timespan": {
-    "duration": "How long the story covers (days, weeks, months, years)",
-    "pacing_rationale": "Why this timespan works for the emotional arc"
+    "duration": string,
+    "rationale": string
   },
-  "heat_level": {
-    "level": "Sweet | Warm | Hot | Explicit",
-    "description": "What this means for this specific story",
-    "fade_to_black": true | false
+  "pov": {
+    "structure": "Single | Dual-Alternating | Multiple",
+    "primary": string,
+    "rationale": string
   },
-  "pov_structure": {
-    "type": "Single | Dual-Alternating | Multiple",
-    "primary_pov": "Whose perspective anchors the story",
-    "rationale": "Why this POV structure serves the story"
-  }
-}
-
-## Guidelines
-
-CONFLICT:
-- External conflict should create real obstacles, not just misunderstandings
-- Internal conflict should connect to character psychology (wounds, fears, lies they believe)
-- The two should interlock — external pressures should trigger internal fears
-
-THEME:
-- Should emerge naturally from the conflict
-- Not a message to preach, but a question to explore
-- Should resonate through both character arcs
-
-TONE:
-- Be specific. "Romantic" is not enough. Is it swoony? Angsty? Playful? Intense?
-- Tone should match the concept. A war-time romance has different tone than a beach read.
-
-TROPES:
-- Identify the trope honestly — readers expect trope delivery
-- The twist should subvert expectations without betraying the trope's appeal
-
-HEAT LEVEL:
-- Default to "Warm" (fade-to-black) unless concept suggests otherwise
-- Heat level affects scene selection in later phases`
+  "theme": string,
+  "conflict": {
+    "external": string,
+    "internal": string
+  },
+  "premise": string
+}`
 
 function buildPhase1UserPrompt(concept, lengthPreset, level) {
-  return `STORY CONCEPT: ${concept}
+  return `CONCEPT: ${concept}
 
-LENGTH: ${lengthPreset} (${CONFIG.chapterCounts[lengthPreset]} chapters)
+LENGTH: ${lengthPreset}
+LEVEL: ${level}
 
-TARGET LEVEL: ${level}
-
-Generate the core foundation for this romance story. Remember: level affects prose style only, not plot complexity or emotional depth.`
+Analyze this concept and establish the story's DNA.`
 }
 
 async function executePhase1(concept, lengthPreset, level) {
-  console.log('Executing Phase 1: Core Foundation...')
+  console.log('Executing Phase 1: Story DNA...')
 
   const userPrompt = buildPhase1UserPrompt(concept, lengthPreset, level)
-  const response = await callOpenAI(PHASE_1_SYSTEM_PROMPT, userPrompt)
+  const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
     throw new Error(`Phase 1 JSON parse failed: ${parsed.error}`)
   }
 
-  // Validate required fields
   const data = parsed.data
-  const requiredFields = ['genre', 'central_conflict', 'theme', 'emotional_stakes', 'tone', 'genre_hooks', 'timespan', 'heat_level', 'pov_structure']
+
+  // Validate required fields
+  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'theme', 'conflict', 'premise']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
@@ -681,6 +683,13 @@ async function executePhase1(concept, lengthPreset, level) {
   }
 
   console.log('Phase 1 complete.')
+  console.log(`  Subgenre: ${data.subgenre}`)
+  console.log(`  Origin: ${data.tropes.origin}`)
+  console.log(`  Situation: ${data.tropes.situation.join(', ') || 'None'}`)
+  console.log(`  POV: ${data.pov.structure}`)
+  console.log(`  Timespan: ${data.timespan.duration}`)
+  console.log(`  Ending: ${data.ending.type}`)
+
   return data
 }
 
@@ -1996,10 +2005,27 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   }
 
   try {
-    // Phase 1: Core Foundation
+    // Phase 1: Story DNA
     reportProgress(1, 'starting')
     bible.coreFoundation = await executePhase1(concept, lengthPreset, level)
-    reportProgress(1, 'complete', { genre: bible.coreFoundation.genre, theme: bible.coreFoundation.theme })
+    reportProgress(1, 'complete', {
+      subgenre: bible.coreFoundation.subgenre,
+      origin: bible.coreFoundation.tropes?.origin,
+      theme: bible.coreFoundation.theme
+    })
+
+    // TESTING: Stop after Phase 1 to validate new Story DNA output
+    console.log('='.repeat(60))
+    console.log('PHASE 1 TEST MODE - Stopping after Phase 1')
+    console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
+    console.log('='.repeat(60))
+
+    return {
+      success: true,
+      bible,
+      validationStatus: 'PHASE_1_TEST',
+      validationAttempts: 0
+    }
 
     // Phase 2: World/Setting
     reportProgress(2, 'starting')

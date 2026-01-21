@@ -5,7 +5,7 @@ import GenerateNovelPanel from '../components/novel/GenerateNovelPanel'
 // BibleReview and ChapterGenerator kept for admin/QA access but not in normal user flow
 import BibleReview from '../components/novel/BibleReview'
 import ChapterGenerator from '../components/novel/ChapterGenerator'
-import { getBook } from '../services/novelGenerator'
+import { getBook } from '../services/novelApiClient'
 
 // Flow steps - simplified for users (they only see SETUP, then go straight to reader)
 // REVIEW and GENERATE kept for admin/QA access via URL params

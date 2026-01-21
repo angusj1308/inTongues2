@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import { incrementWordsRead } from '../services/stats'
-import { generateChapter } from '../services/novelGenerator'
+import { generateChapter } from '../services/novelApiClient'
 import WordToken from '../components/read/WordToken'
 import { readerModes } from '../constants/readerModes'
 import {

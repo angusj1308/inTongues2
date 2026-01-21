@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
-import { generateBible, NOVEL_LEVELS, LENGTH_PRESETS } from '../../services/novelGenerator'
+import { generateBible, NOVEL_LEVELS, LENGTH_PRESETS } from '../../services/novelApiClient'
 
 const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
   const { user, profile, setLastUsedLanguage } = useAuth()

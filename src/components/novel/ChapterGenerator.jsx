@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { generateChapter, getBook } from '../../services/novelGenerator'
+import { generateChapter, getBook } from '../../services/novelApiClient'
 
 const ChapterGenerator = ({ bookId, uid, bible, bookData, onComplete, onBack }) => {
   const [chapters, setChapters] = useState([])

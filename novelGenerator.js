@@ -1453,301 +1453,136 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 // PHASE 6: CHAPTER & SCENE BREAKDOWN
 // =============================================================================
 
-const PHASE_6_SYSTEM_PROMPT = `You are a master scene architect for romance fiction. Your task is to create a GRANULAR breakdown of every chapter into SCENES, and every scene into MICRO-BEATS that will guide actual prose generation.
+const PHASE_6_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter breakdown.
 
-## CRITICAL DISTINCTION: Scenes vs Beats
+## CRITICAL RULE
 
-A SCENE is a continuous unit of action in one location/time. When location or time changes significantly, it's a new scene.
-
-A BEAT is a MICRO-MOMENT — a single action, reaction, sensory detail, or emotional shift. One sentence of prose might contain 1-3 beats.
-
-WRONG (too vague, this is a scene summary, not beats):
-- "Isabella attends the betrothal ceremony"
-- "She meets the British soldier"
-- "They feel attraction"
-
-RIGHT (actual micro-beats):
-- "Champagne bubbles catch candlelight — she counts them instead of listening"
-- "Don Álvarez's cologne arrives before he does — sandalwood and possession"
-- "His hand finds her waist; her spine stiffens imperceptibly"
-- "She murmurs about needing air, already stepping backward"
-- "The garden door handle: cool brass, escape"
-- "Jasmine hits her lungs — freedom smells like this"
-- "A rustle in the hedges — wrong rhythm for wind"
-- "Blue wool between green leaves. British uniform. Blood."
-- "Their eyes lock. He calculates escape routes; she forgets to scream."
-- "Her hand moves toward him before her mind can object"
-
-Each beat is SPECIFIC, SENSORY, and DRAMATIZABLE.
+Events are plain factual statements of WHAT happens. No prose, imagery, or style.
+Generation handles dramatization. You specify plot only.
 
 ## Output Format
-
-Respond with a JSON object:
 
 {
   "chapters": [
     {
-      "number": 1,
-      "title": "Chapter title (evocative, not generic)",
-      "pov": "POV character name",
-      "story_time": "When in the story timeline",
-      "chapter_purpose": "What this chapter accomplishes for the story",
-      "emotional_arc": {
-        "opens": "POV character's emotional state at chapter start",
-        "turns": "The key emotional shift mid-chapter",
-        "closes": "POV character's emotional state at chapter end"
-      },
+      "number": number,
+      "title": string,
+      "pov": string,
+      "purpose": string,
       "scenes": [
         {
-          "scene_number": 1,
-          "scene_name": "Evocative name for this scene",
-          "location": "Specific location from Phase 2",
-          "time_of_day": "morning/afternoon/evening/night",
-          "weather_mood": "Weather or atmospheric detail that mirrors emotion",
-          "characters_present": ["List of characters in scene"],
-          "scene_purpose": "What this scene accomplishes (setup/confrontation/revelation/intimacy/etc)",
-          "sensory_anchor": "The dominant sense for this scene (smell of jasmine, sound of distant music, etc)",
-          "beats": [
-            "Micro-beat 1: specific sensory/action moment",
-            "Micro-beat 2: character reaction or internal thought",
-            "Micro-beat 3: dialogue beat or physical action",
-            "... continue for 15-25 beats per scene"
-          ],
-          "scene_turn": "The moment the scene pivots or shifts",
-          "exits_with": "How/why the scene ends"
+          "scene_number": number,
+          "location": string,
+          "characters": [],
+          "events": [],
+          "function": string
         }
       ],
-      "phase_4_moment": "If this chapter contains a Phase 4 pivotal moment, name it (or null)",
-      "foreshadowing": {
-        "plants": ["Specific seeds planted this chapter"],
-        "payoffs": ["Seeds from earlier chapters paid off here"]
-      },
-      "tension_rating": 5,
-      "chapter_hook": {
-        "type": "cliffhanger | question | revelation | emotional | decision",
-        "description": "What specifically hooks the reader to continue"
-      }
+      "emotional_arc": { "starts": string, "ends": string },
+      "ends_with": string,
+      "phase_4_moment": string or null,
+      "phase_5_beats": []
     }
   ],
-  "pov_distribution": {
-    "protagonist_chapters": [1, 3, 5],
-    "love_interest_chapters": [2, 4, 6],
-    "balance_percentage": "50/50 or ratio"
-  },
-  "timeline": {
-    "total_story_time": "How much time passes from Ch 1 to final chapter",
-    "time_jumps": [
-      {"between_chapters": "X-Y", "duration": "How much time passes"}
-    ]
-  },
-  "coherence_check": {
-    "pov_structure_honored": "Confirmation POV follows Phase 1 structure",
-    "all_phase5_beats_placed": "Confirmation all Phase 5 plot beats appear",
-    "all_phase4_moments_placed": "Confirmation all Phase 4 pivotal moments appear",
-    "all_foreshadowing_tracked": "Confirmation all seeds planted and paid off",
-    "locations_from_phase2": "Confirmation all locations come from Phase 2",
-    "tension_curve_matches_phase5": "Confirmation tension ratings follow Phase 5 curve",
-    "chapter_count_correct": "Matches length preset"
-  }
+  "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
 }
 
-## SCENE & BEAT REQUIREMENTS
+## RULES
 
-SCENES PER CHAPTER:
-- Each chapter MUST have 2-4 scenes
-- A scene change = location change OR significant time skip
-- Each scene should be 800-1500 words when written as prose
-
-BEATS PER SCENE:
-- Each scene MUST have 15-25 micro-beats
-- Beats should alternate between: action, reaction, sensory, dialogue, internal thought
-- Every beat must be SPECIFIC enough to generate 1-3 sentences of prose
-- NO vague beats like "they talk" or "time passes" — be specific
-
-BEAT TYPES TO INCLUDE:
-- Sensory anchors: what they see/hear/smell/taste/touch
-- Physical actions: specific gestures, movements
-- Dialogue beats: key lines or exchanges (paraphrased)
-- Internal reactions: thoughts, memories triggered, emotions felt
-- Micro-tensions: small conflicts, hesitations, decisions
-- Environmental details: weather, lighting, background sounds
-
-## GUIDELINES
-
-SHOW DON'T TELL:
-- Beats should show emotion through action, not state it
-- WRONG: "She feels nervous"
-- RIGHT: "She smooths her skirt for the third time"
-
-SENSORY SPECIFICITY:
-- Every scene needs a dominant sensory anchor
-- Use all five senses across the chapter
-- Sensory details should reflect emotional state
-
-PACING:
-- High-tension scenes: shorter, punchier beats
-- Intimate scenes: longer, more sensory beats
-- Action scenes: rapid-fire beats, one per line
-
-POV DISCIPLINE:
-- All beats must be perceivable by the POV character
-- Internal thoughts only for POV character
-- Other characters' emotions shown through observable behavior`
+- Each scene: 3-6 events
+- Events: plain factual statements, no adjectives/adverbs/imagery
+- Just what happens, not how it looks/feels/sounds`
 
 function buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]
   const scenesPerChapter = lengthPreset === 'novella' ? '2-3' : '2-4'
-  const beatsPerScene = '15-25'
 
-  return `ORIGINAL CONCEPT: ${concept}
+  return `CONCEPT: ${concept}
 
 LENGTH: ${lengthPreset} (${chapterCount} chapters)
-TARGET: Each chapter needs ${scenesPerChapter} scenes, each scene needs ${beatsPerScene} micro-beats.
+Each chapter needs ${scenesPerChapter} scenes.
 
-PHASE 1 OUTPUT (Core Foundation):
+PHASE 1 (Core Foundation):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (World/Setting - USE THESE LOCATIONS):
+PHASE 2 (World/Setting - use these locations):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Characters - USE THESE DETAILS):
+PHASE 3 (Characters):
 ${JSON.stringify(phase3, null, 2)}
 
-PHASE 4 OUTPUT (Chemistry - THESE MOMENTS MUST APPEAR):
+PHASE 4 (Chemistry - these moments must appear):
 ${JSON.stringify(phase4, null, 2)}
 
-PHASE 5 OUTPUT (Plot Architecture - THESE BEATS MUST BE PLACED):
+PHASE 5 (Plot Architecture - these beats must be placed):
 ${JSON.stringify(phase5, null, 2)}
 
 ## YOUR TASK
 
-Create a GRANULAR chapter-by-chapter, scene-by-scene, beat-by-beat breakdown for all ${chapterCount} chapters.
+Create a chapter-by-chapter, scene-by-scene breakdown for all ${chapterCount} chapters.
 
 REQUIREMENTS:
-1. Every chapter must have ${scenesPerChapter} distinct scenes
-2. Every scene must have ${beatsPerScene} specific micro-beats (NOT vague summaries)
-3. Every Phase 4 pivotal moment must appear in a specific scene
-4. Every Phase 5 plot beat must be placed in a specific chapter
-5. All locations must come from Phase 2
-6. All foreshadowing seeds must be planted and paid off
+1. Every chapter has ${scenesPerChapter} scenes
+2. Every scene has 3-6 events (WHAT happens, not HOW it's written)
+3. Every Phase 4 pivotal moment appears in a specific chapter
+4. Every Phase 5 plot beat is placed in a specific chapter
+5. Locations come from Phase 2
 
-REMEMBER: A beat is a MICRO-MOMENT. "She smooths her skirt nervously" is a beat. "They have a conversation" is NOT a beat — that's a scene summary. Be specific enough that each beat can generate 1-3 sentences of prose.`
+Events are plain factual statements. No imagery, sensory detail, or prose style.`
 }
-
-const PHASE_6_COHERENCE_FIELDS = [
-  'pov_structure_honored',
-  'all_phase5_beats_placed',
-  'all_phase4_moments_placed',
-  'all_foreshadowing_tracked',
-  'locations_from_phase2',
-  'tension_curve_matches_phase5',
-  'chapter_count_correct'
-]
 
 // Phase 6 now generates scenes per-chapter for reliability
 const PHASE_6_MAX_RETRIES = 2
 
-// System prompt for generating chapter outlines (no beats yet)
-const PHASE_6_OUTLINE_SYSTEM_PROMPT = `You are a master story architect. Create a chapter-by-chapter outline showing structure, POV, and purpose for each chapter.
+// System prompt for generating chapter outlines (structure only)
+const PHASE_6_OUTLINE_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter outline showing structure, POV, and purpose.
 
 Output JSON:
 {
   "chapters": [
     {
-      "number": 1,
-      "title": "Evocative chapter title",
-      "pov": "POV character name",
-      "story_time": "When in story timeline",
-      "chapter_purpose": "What this chapter accomplishes",
-      "emotional_arc": {
-        "opens": "Starting emotional state",
-        "turns": "Key shift mid-chapter",
-        "closes": "Ending emotional state"
-      },
-      "location_primary": "Main location from Phase 2",
-      "phase_4_moment": "Phase 4 moment if applicable, or null",
-      "phase_5_beats": ["List Phase 5 beats that appear in this chapter"],
-      "tension_rating": 5,
-      "hook_type": "cliffhanger | question | revelation | emotional | decision"
+      "number": number,
+      "title": string,
+      "pov": string,
+      "purpose": string,
+      "location_primary": string,
+      "phase_4_moment": string or null,
+      "phase_5_beats": [],
+      "emotional_arc": { "starts": string, "ends": string },
+      "ends_with": string
     }
   ],
-  "pov_distribution": {
-    "protagonist_chapters": [1, 3, 5],
-    "love_interest_chapters": [2, 4, 6]
-  }
+  "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
 }`
 
-// System prompt for generating detailed scenes/beats for a single chapter
-const PHASE_6_CHAPTER_SYSTEM_PROMPT = `You are a master scene architect. Create a DETAILED scene breakdown with micro-beats for the given chapter.
+// System prompt for generating scene breakdown for a single chapter
+const PHASE_6_CHAPTER_SYSTEM_PROMPT = `You are a story architect. Create a scene breakdown showing WHAT HAPPENS in each scene.
 
-## CRITICAL: What is a Beat?
+## CRITICAL RULE
 
-A beat is a MICRO-MOMENT — one specific action, reaction, sensory detail, or emotional shift. Each beat should generate 1-3 sentences of prose.
-
-WRONG (scene summary): "They have dinner together"
-RIGHT (micro-beat): "Her fork scrapes porcelain — the silence stretches"
-
-## BEAT CATEGORIES
-
-Valid beat types:
-- Physical action
-- Sensory perception
-- Dialogue moment
-- Micro-reaction
-- Environmental detail through POV
-- Character choice or decision
-
-If a beat cannot be dramatized as immediate action, REWRITE IT.
-
-## AVOID
-
-- Summary beats: "She remembers...", "He thinks about..."
-- Backstory beats: "Her childhood taught her..."
-- Emotional dumps: "She felt overwhelmed by sadness"
-- Omniscient narration: "The tension in the room grew"
-- Character description: "She was a woman who..."
-- Theme-stating beats: "She realized she had never been free"
-- Metaphors that spell out the character's journey
-- Rhetorical questions that state the story's meaning
-
-## OPPORTUNITIES
-
-- Theme can emerge through choices, actions, dialogue
-- Life reflection is available — just not explicit theme articulation
-- Internal monologue can be Dostoevskian — immediate, unresolved, contradictory, human
+Events are plain factual statements. WHAT happens, not HOW it looks/feels/sounds.
 
 ## Output Format
 
 {
-  "number": 1,
+  "number": number,
   "scenes": [
     {
-      "scene_number": 1,
-      "scene_name": "Evocative scene name",
-      "location": "Specific location",
-      "time_of_day": "morning/afternoon/evening/night",
-      "weather_mood": "Atmospheric context",
-      "characters_present": ["Character names"],
-      "scene_purpose": "setup/confrontation/revelation/intimacy",
-      "sensory_anchor": "Dominant sense for this scene",
-      "beats": [
-        "Beat 1: specific micro-moment",
-        "Beat 2: reaction or thought",
-        "... 15-25 beats per scene"
-      ],
-      "scene_turn": "The pivotal moment",
-      "exits_with": "How scene ends"
+      "scene_number": number,
+      "location": string,
+      "characters": [],
+      "events": [],
+      "function": string
     }
   ],
-  "foreshadowing": {
-    "plants": ["Seeds planted"],
-    "payoffs": ["Seeds paid off"]
-  },
-  "chapter_hook": {
-    "type": "cliffhanger | question | revelation | emotional | decision",
-    "description": "What hooks the reader"
-  }
-}`
+  "ends_with": string
+}
+
+## RULES
+
+- Each scene: 3-6 events
+- Events are: actions, discoveries, decisions, conversation topics, revelations
+- Events are NOT: sensory details, atmosphere, emotions, gestures, dialogue, imagery`
 
 function buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]
@@ -1759,43 +1594,43 @@ LENGTH: ${lengthPreset} (${chapterCount} chapters)
 PHASE 1 (Core Foundation):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 4 (Chemistry Moments - MUST BE PLACED):
+PHASE 4 (Chemistry Moments - must be placed):
 ${JSON.stringify(phase4, null, 2)}
 
-PHASE 5 (Plot Architecture - BEATS MUST BE DISTRIBUTED):
+PHASE 5 (Plot Architecture - beats must be distributed):
 ${JSON.stringify(phase5, null, 2)}
 
-Create an outline for all ${chapterCount} chapters. For each chapter, specify:
-- Which POV character
+Create an outline for all ${chapterCount} chapters. For each chapter:
+- POV character
+- Purpose (what it accomplishes)
 - Which Phase 4 moment it contains (if any)
 - Which Phase 5 beats appear in it
-- The emotional arc and tension rating
+- Emotional arc (starts/ends)
+- What it ends with (hook for next chapter)
 
-This is structure only - scenes and beats come later.`
+Structure only - scene details come later.`
 }
 
 function buildPhase6ChapterPrompt(concept, phase2, phase3, chapterOutline, chapterNumber) {
   return `CONCEPT: ${concept}
 
-SETTING/LOCATIONS (use these):
-${JSON.stringify(phase2.setting, null, 2)}
+LOCATIONS (use these):
 ${JSON.stringify(phase2.locations, null, 2)}
 
 CHARACTERS:
 Protagonist: ${phase3.protagonist?.name}
 Love Interest: ${phase3.love_interest?.name}
 
-CHAPTER ${chapterNumber} TO DETAIL:
+CHAPTER ${chapterNumber} OUTLINE:
 ${JSON.stringify(chapterOutline, null, 2)}
 
-Create 2-4 scenes with 15-25 micro-beats each for this chapter.
+Create 2-4 scenes for this chapter. Each scene needs:
+- Location (from the list above)
+- Characters present
+- 3-6 events (WHAT happens, not HOW it's written)
+- Function (what the scene accomplishes)
 
-REMEMBER:
-- Every beat is a MICRO-MOMENT (1-3 sentences of prose worth)
-- Use specific locations from the setting
-- Sensory details reflect emotional state
-- Each scene needs a clear turn and exit
-- Return JSON for this single chapter (not wrapped in an array)`
+Events are plain factual statements. No imagery, sensory detail, or prose style.`
 }
 
 async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
@@ -1851,7 +1686,7 @@ async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, le
 
           if (data.scenes && data.scenes.length > 0) {
             chapterData = data
-            console.log(`    ✓ ${data.scenes.length} scenes, ${data.scenes.reduce((sum, s) => sum + (s.beats?.length || 0), 0)} total beats`)
+            console.log(`    ✓ ${data.scenes.length} scenes, ${data.scenes.reduce((sum, s) => sum + ((s.events || s.beats)?.length || 0), 0)} total events`)
           } else {
             console.warn(`    Attempt ${attempts}: No scenes in response, retrying...`)
           }
@@ -1910,181 +1745,13 @@ async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, le
 }
 
 // =============================================================================
-// PHASE 7: LEVEL CHECK
+// PHASE 7: VALIDATION
 // =============================================================================
 
-const PHASE_7_SYSTEM_PROMPT = `You are a language learning content specialist. Your task is to review a complete story bible and chapter outline to verify it will work at the target reading level.
+const PHASE_7_SYSTEM_PROMPT = `You are a story validation specialist. Your task is to perform a comprehensive audit of a complete story bible, checking for coherence, completeness, and internal consistency.
 
 You will receive:
-- Target level with DETAILED, PRESCRIPTIVE constraints (these are non-negotiable rules)
-- Target language with language-specific grammatical rules
 - The complete bible (Phases 1-6 output)
-
-CRITICAL: Level affects PROSE ONLY, not plot structure. However, some story elements are harder to convey at lower levels. Your job is to:
-
-1. Review the bible against the SPECIFIC level constraints provided
-2. Flag any story elements that would violate level constraints
-3. Provide PRESCRIPTIVE prose guidance that maps directly to the level rules
-4. Confirm readiness or identify blocking issues
-
-## Output Format
-
-Respond with a JSON object:
-
-{
-  "target_level": "Beginner | Intermediate | Native",
-  "target_language": "The target language",
-  "assessment": "ready | minor_issues | significant_issues | blocked",
-  "flags": [
-    {
-      "element": "What story element might be problematic",
-      "location": "Which phase/chapter",
-      "issue": "Which specific level constraint this violates",
-      "suggestion": "How to handle in generation (must comply with level rules)",
-      "severity": "low | medium | high | blocking"
-    }
-  ],
-  "prose_guidance": {
-    "sentence_constraints": {
-      "average_length_min": number,
-      "average_length_max": number,
-      "max_length": number or null,
-      "structure_rule": "Exact rule from level definition",
-      "allowed_connectors": "List of allowed connectors"
-    },
-    "vocabulary_constraints": {
-      "scope": "Exact scope from level definition",
-      "forbidden_types": ["List of forbidden vocabulary types"],
-      "handling_rule": "How to handle difficult concepts"
-    },
-    "meaning_constraints": {
-      "explicitness_rule": "Exact rule",
-      "subtext_rule": "Exact rule",
-      "emotion_rule": "How to express emotions",
-      "motivation_rule": "How to show motivation"
-    },
-    "dialogue_constraints": {
-      "style_rule": "Exact rule",
-      "length_rule": "Exact rule",
-      "attribution_rule": "Exact rule",
-      "subtext_rule": "Exact rule"
-    },
-    "narrative_constraints": {
-      "cause_effect_rule": "Exact rule",
-      "timeline_rule": "Exact rule",
-      "pov_rule": "Exact rule",
-      "show_tell_rule": "Exact rule"
-    },
-    "language_specific_rules": ["List of language-specific grammatical constraints"]
-  },
-  "forbidden_techniques": ["List of techniques FORBIDDEN at this level"],
-  "chapter_specific_notes": [
-    {
-      "chapter": 1,
-      "potential_violations": ["List of potential level violations in this chapter's outline"],
-      "mitigation": "How to write this chapter within level constraints"
-    }
-  ],
-  "ready_for_generation": true,
-  "blocking_issues": []
-}
-
-## Guidelines
-
-WHAT TO FLAG:
-
-For Beginner level, flag ANY of these as violations:
-- Scenes requiring subtext or implication (BLOCKING if central to meaning)
-- Complex sentence structures planned in any beat
-- Scenes relying on showing over telling for key emotions
-- Dialogue requiring inference
-- Cultural/historical references without explicit explanation
-- Multiple plot threads active in single scene
-- Any planned metaphors, similes, or figurative language
-- Scenes with unreliable narration or ambiguity
-
-For Intermediate level, flag:
-- Heavy reliance on subtext for plot-critical information
-- Dense cultural references without context
-- Complex nested sentence structures
-- Heavy dialect or slang
-
-For Native level:
-- Typically no flags — full toolkit available
-
-WHAT NOT TO FLAG (these are OK at any level):
-- Plot complexity (level doesn't change WHAT happens, only HOW it's expressed)
-- Character psychological depth (same depth, different articulation)
-- Theme complexity (same theme, simpler words)
-- Emotional stakes (same stakes, clearer expression at lower levels)
-
-CRITICAL: The prose_guidance you output will be used VERBATIM in chapter generation prompts. It must be specific, actionable, and directly derived from the level constraints provided.`
-
-function buildPhase7UserPrompt(level, phases1to6, language = 'English') {
-  // Get the full prescriptive level definition
-  const levelDefinition = formatLevelDefinitionForPrompt(level, language)
-
-  return `TARGET LEVEL: ${level}
-TARGET LANGUAGE: ${language}
-
-=== PRESCRIPTIVE LEVEL CONSTRAINTS (NON-NEGOTIABLE) ===
-
-${levelDefinition}
-
-=== END LEVEL CONSTRAINTS ===
-
-COMPLETE BIBLE:
-${JSON.stringify(phases1to6, null, 2)}
-
-Review this bible against the SPECIFIC level constraints above. Your prose_guidance output must directly reflect these constraints - they will be used verbatim in chapter generation.
-
-For each chapter in the outline, check if any planned beats or scenes would require techniques FORBIDDEN at this level. Flag them with specific mitigation strategies that comply with the level rules.`
-}
-
-async function executePhase7(level, phases1to6, language = 'English') {
-  console.log(`Executing Phase 7: Level Check for ${level} level in ${language}...`)
-
-  const userPrompt = buildPhase7UserPrompt(level, phases1to6, language)
-  const response = await callOpenAI(PHASE_7_SYSTEM_PROMPT, userPrompt)
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    throw new Error(`Phase 7 JSON parse failed: ${parsed.error}`)
-  }
-
-  const data = parsed.data
-
-  // Validate that prose_guidance has required structure
-  if (!data.prose_guidance?.sentence_constraints) {
-    console.warn('Phase 7: prose_guidance missing sentence_constraints, using defaults from level definition')
-    const levelDef = LEVEL_DEFINITIONS[level]
-    data.prose_guidance = data.prose_guidance || {}
-    data.prose_guidance.sentence_constraints = {
-      average_length_min: levelDef.sentences.averageLength.min,
-      average_length_max: levelDef.sentences.averageLength.max,
-      max_length: levelDef.sentences.maxLength,
-      structure_rule: levelDef.sentences.structure,
-      allowed_connectors: levelDef.sentences.connectors,
-    }
-  }
-
-  if (!data.ready_for_generation) {
-    console.warn('Phase 7: Bible flagged as not ready for generation')
-    console.warn('Blocking issues:', data.blocking_issues)
-  }
-
-  console.log('Phase 7 complete.')
-  return data
-}
-
-// =============================================================================
-// PHASE 8: VALIDATION
-// =============================================================================
-
-const PHASE_8_SYSTEM_PROMPT = `You are a story validation specialist. Your task is to perform a comprehensive audit of a complete story bible, checking for coherence, completeness, and internal consistency.
-
-You will receive:
-- The complete bible (Phases 1-7 output)
 
 Your job is to:
 1. Validate every element against every other element
@@ -2112,7 +1779,6 @@ You must check ALL of the following:
 11. THEME EXPRESSION - Theme expressed through character choices
 12. LOCATION USAGE - All key locations used
 13. CONSTRAINT ENFORCEMENT - Phase 2 constraints create real obstacles
-14. LEVEL READINESS - Phase 7 flags are addressable
 
 ## Output Format
 
@@ -2138,8 +1804,7 @@ Respond with a JSON object:
     "pov_balance": { "status": "pass | fail | warning", "details": "", "issues": [] },
     "theme_expression": { "status": "pass | fail | warning", "details": "", "issues": [] },
     "location_usage": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "constraint_enforcement": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "level_readiness": { "status": "pass | fail | warning", "details": "", "issues": [] }
+    "constraint_enforcement": { "status": "pass | fail | warning", "details": "", "issues": [] }
   },
   "critical_issues": [
     {
@@ -2178,7 +1843,7 @@ PASS: All checks pass. Ready for generation.
 CONDITIONAL_PASS: Some warnings but no failures. Can proceed with noted cautions.
 FAIL: One or more critical failures. Must regenerate specified phases.`
 
-// Compress chapters for Phase 8 validation (keeps structure, removes beat details)
+// Compress chapters for Phase 7 validation (keeps structure, removes beat details)
 function compressChaptersForValidation(chapters) {
   if (!chapters?.chapters) return chapters
 
@@ -2196,22 +1861,20 @@ function compressChaptersForValidation(chapters) {
       phase_5_beats: ch.phase_5_beats,
       tension_rating: ch.tension_rating,
       hook_type: ch.hook_type,
-      // Compressed scene info (counts only, not full beats)
+      // Compressed scene info (counts only, not full events)
       scene_count: ch.scenes?.length || 0,
-      total_beats: ch.scenes?.reduce((sum, s) => sum + (s.beats?.length || 0), 0) || 0,
+      total_events: ch.scenes?.reduce((sum, s) => sum + ((s.events || s.beats)?.length || 0), 0) || 0,
       scene_summaries: ch.scenes?.map(s => ({
-        scene_name: s.scene_name,
         location: s.location,
-        scene_purpose: s.scene_purpose,
-        beat_count: s.beats?.length || 0
+        function: s.function || s.scene_purpose,
+        event_count: (s.events || s.beats)?.length || 0
       })) || [],
-      foreshadowing: ch.foreshadowing,
-      chapter_hook: ch.chapter_hook
+      ends_with: ch.ends_with || ch.chapter_hook?.description
     }))
   }
 }
 
-function buildPhase8UserPrompt(completeBible) {
+function buildPhase7UserPrompt(completeBible) {
   // Compress Phase 6 chapters to avoid token limit issues
   const compressedChapters = compressChaptersForValidation(completeBible.chapters)
 
@@ -2235,26 +1898,23 @@ ${JSON.stringify(completeBible.plot, null, 2)}
 PHASE 6 - CHAPTER BREAKDOWN (compressed - full beats available for generation):
 ${JSON.stringify(compressedChapters, null, 2)}
 
-PHASE 7 - LEVEL CHECK:
-${JSON.stringify(completeBible.levelCheck, null, 2)}
-
-Perform comprehensive validation of this bible. Check all 14 categories. Identify any issues and specify recovery paths. Approve for generation only if the bible is complete and internally consistent.`
+Perform comprehensive validation of this bible. Check all 13 categories. Identify any issues and specify recovery paths. Approve for generation only if the bible is complete and internally consistent.`
 }
 
-async function executePhase8(completeBible) {
-  console.log('Executing Phase 8: Validation...')
+async function executePhase7(completeBible) {
+  console.log('Executing Phase 7: Validation...')
 
-  const userPrompt = buildPhase8UserPrompt(completeBible)
-  const response = await callOpenAI(PHASE_8_SYSTEM_PROMPT, userPrompt)
+  const userPrompt = buildPhase7UserPrompt(completeBible)
+  const response = await callOpenAI(PHASE_7_SYSTEM_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
-    throw new Error(`Phase 8 JSON parse failed: ${parsed.error}`)
+    throw new Error(`Phase 7 JSON parse failed: ${parsed.error}`)
   }
 
   const data = parsed.data
 
-  console.log(`Phase 8 complete. Status: ${data.validation_status}`)
+  console.log(`Phase 7 complete. Status: ${data.validation_status}`)
 
   if (data.validation_status === 'FAIL') {
     console.warn('Validation failed. Critical issues:', data.critical_issues)
@@ -2298,18 +1958,6 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       if (phaseNumber <= 6) {
         updatedBible.chapters = await executePhase6(concept, updatedBible.coreFoundation, updatedBible.world, updatedBible.characters, updatedBible.chemistry, updatedBible.plot, lengthPreset)
       }
-    case 7:
-      if (phaseNumber <= 7) {
-        const phases1to6 = {
-          coreFoundation: updatedBible.coreFoundation,
-          world: updatedBible.world,
-          characters: updatedBible.characters,
-          chemistry: updatedBible.chemistry,
-          plot: updatedBible.plot,
-          chapters: updatedBible.chapters
-        }
-        updatedBible.levelCheck = await executePhase7(level, phases1to6, language)
-      }
       break
   }
 
@@ -2328,12 +1976,11 @@ const PHASE_DESCRIPTIONS = {
   4: { name: 'Chemistry', description: 'Designing the romance arc and pivotal moments' },
   5: { name: 'Plot Architecture', description: 'Creating the beat sheet and tension curve' },
   6: { name: 'Chapter Breakdown', description: 'Outlining each chapter with beats and hooks' },
-  7: { name: 'Level Check', description: 'Validating prose requirements for target reading level' },
-  8: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
+  7: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
 }
 
 /**
- * Generate a complete story bible through the 8-phase pipeline
+ * Generate a complete story bible through the 7-phase pipeline
  * @param {string} concept - Story concept/description
  * @param {string} level - Reading level (Beginner, Intermediate, Native)
  * @param {string} lengthPreset - 'novella' (12 chapters) or 'novel' (35 chapters)
@@ -2351,7 +1998,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   let bible = {}
   let validationAttempts = 0
-  const totalPhases = 8
+  const totalPhases = 7
 
   // Helper to report progress
   const reportProgress = (phase, status = 'in_progress', details = null) => {
@@ -2408,34 +2055,21 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     bible.chapters = await executePhase6(concept, bible.coreFoundation, bible.world, bible.characters, bible.chemistry, bible.plot, lengthPreset)
     reportProgress(6, 'complete', { chapterCount: bible.chapters.chapters?.length || 0 })
 
-    // Phase 7: Level Check
-    reportProgress(7, 'starting', { targetLevel: level, targetLanguage: language })
-    const phases1to6 = {
-      coreFoundation: bible.coreFoundation,
-      world: bible.world,
-      characters: bible.characters,
-      chemistry: bible.chemistry,
-      plot: bible.plot,
-      chapters: bible.chapters
-    }
-    bible.levelCheck = await executePhase7(level, phases1to6, language)
-    reportProgress(7, 'complete', {
-      assessment: bible.levelCheck.assessment,
-      readyForGeneration: bible.levelCheck.ready_for_generation,
-      flagCount: bible.levelCheck.flags?.length || 0
-    })
+    // Store level and language on bible for chapter generation
+    bible.level = level
+    bible.language = language
 
-    // Phase 8: Validation (with potential regeneration)
-    reportProgress(8, 'starting')
+    // Phase 7: Validation (with potential regeneration)
+    reportProgress(7, 'starting')
     while (validationAttempts < maxValidationAttempts) {
       validationAttempts++
       console.log(`Validation attempt ${validationAttempts}/${maxValidationAttempts}`)
 
-      bible.validation = await executePhase8(bible)
+      bible.validation = await executePhase7(bible)
 
       if (bible.validation.validation_status === 'PASS' || bible.validation.validation_status === 'CONDITIONAL_PASS') {
         console.log('Bible validation passed!')
-        reportProgress(8, 'complete', {
+        reportProgress(7, 'complete', {
           validationStatus: bible.validation.validation_status,
           attempts: validationAttempts
         })
@@ -2448,7 +2082,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
         const phaseNumbers = phasesToRegenerate.map(p => parseInt(p.replace('Phase ', '')))
         const earliestPhase = Math.min(...phaseNumbers)
 
-        reportProgress(8, 'regenerating', {
+        reportProgress(7, 'regenerating', {
           fromPhase: earliestPhase,
           phasesToFix: phasesToRegenerate
         })
@@ -2468,7 +2102,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
     // Final status if we exhausted attempts
     if (bible.validation?.validation_status !== 'PASS' && bible.validation?.validation_status !== 'CONDITIONAL_PASS') {
-      reportProgress(8, 'complete_with_issues', {
+      reportProgress(7, 'complete_with_issues', {
         validationStatus: bible.validation?.validation_status,
         attempts: validationAttempts
       })
@@ -2641,7 +2275,7 @@ Respond with a JSON object:
   },
   "metadata": {
     "wordCount": number,
-    "beatsCovered": ["Beat 1", "Beat 2"],
+    "eventsCovered": ["Event 1", "Event 2"],
     "hookDelivered": "Description of how chapter ends",
     "hookType": "cliffhanger | question | revelation | emotional | decision"
   }
@@ -2667,26 +2301,26 @@ function getWordCountTarget(tensionRating) {
 // =============================================================================
 
 // Calculate word count target for a scene based on beat count
-function getSceneWordCountTarget(beatCount) {
-  // Each beat should be 40-80 words of prose (allowing range for beat complexity)
-  // Minimum scene: 500 words, Maximum: 1500 words
-  const minWords = Math.max(500, beatCount * 40)
-  const maxWords = Math.min(1500, beatCount * 80)
+function getSceneWordCountTarget(eventCount = 4) {
+  // Each event should expand to ~150-200 words of prose
+  // Scenes typically have 3-6 events, so 600-1200 words is reasonable
+  const minWords = Math.max(500, eventCount * 120)
+  const maxWords = Math.min(1500, eventCount * 250)
   return { min: minWords, max: maxWords }
 }
 
-const SCENE_SYSTEM_PROMPT = `Write in the style of Charlotte Brontë's Jane Eyre. Write in {{target_language}}.
+const SCENE_SYSTEM_PROMPT = `You are a novelist. Write this scene in {{target_language}}.
+
+Your prose should be immersive, vivid, and emotionally resonant. Dramatize the events through action, dialogue, and interiority. Trust the reader — show, don't tell.
 
 ## Output Format (JSON)
 
 {
   "scene": {
-    "scene_name": "Scene title",
     "content": "The complete scene prose in {{target_language}}...",
     "word_count": number,
-    "beats_dramatized": ["Beat 1", "Beat 2", ...],
-    "emotional_journey": "POV character's emotional arc through this scene",
-    "exit_state": "Where/how the scene ends (physical and emotional)"
+    "events_dramatized": ["Event 1", "Event 2", ...],
+    "exit_state": "Where the scene ends (physical and emotional)"
   }
 }`
 
@@ -2698,131 +2332,58 @@ function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneEx
   const povCharacter = isPovProtagonist ? protagonist : loveInterest
   const otherCharacter = isPovProtagonist ? loveInterest : protagonist
 
-  const beatCount = scene.beats?.length || 0
-  const wordTarget = getSceneWordCountTarget(beatCount)
+  // Get events (new structure) or beats (legacy)
+  const events = scene.events || scene.beats || []
+  const eventCount = events.length || 4
+  const wordTarget = getSceneWordCountTarget(eventCount)
 
-  // Get prose guidance
-  const proseGuidance = bible.levelCheck?.prose_guidance || {}
-  const targetLevel = bible.levelCheck?.target_level || 'Intermediate'
+  // Get level constraints
+  const targetLevel = bible.level || 'Intermediate'
   const levelDef = LEVEL_DEFINITIONS[targetLevel] || LEVEL_DEFINITIONS.Intermediate
-
-  // Build level constraints text
-  const sentenceConstraints = proseGuidance.sentence_constraints || {}
-  const avgMin = sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min
-  const avgMax = sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max
-  const maxLen = sentenceConstraints.max_length || levelDef.sentences.maxLength
-
-  let levelText = `TARGET LEVEL: ${targetLevel}
-SENTENCE LENGTH: Average ${avgMin}-${avgMax} words, maximum ${maxLen} words
-`
-  if (targetLevel === 'Beginner') {
-    levelText += `CRITICAL BEGINNER CONSTRAINTS (MANDATORY):
-- MAXIMUM 15 WORDS PER SENTENCE. No exceptions. Split long sentences.
-- Simple subject-verb-object sentences only
-- No subordinate clauses or complex structures
-- Name emotions directly ("She felt angry") not indirectly ("Her jaw tightened")
-- Use only the 1500 most common words
-- Every meaning must be explicit — no subtext or implication
-- Dialogue should be direct and functional
-- NO backstory dumps. NO exposition paragraphs. NO character descriptions.
-- DRAMATIZE in present moment — show action, not reflection
-- Strictly chronological — no flashbacks or temporal jumps`
-  } else if (targetLevel === 'Intermediate') {
-    levelText += `INTERMEDIATE CONSTRAINTS (MANDATORY):
-- MAXIMUM 20 WORDS PER SENTENCE. No exceptions. Split long sentences.
-- Average sentence length: 10-18 words
-- Mix simple and compound sentences, but keep them SHORT
-- Subordinate clauses allowed IF total stays under 20 words
-- NO backstory dumps. NO exposition paragraphs. NO character descriptions.
-- DRAMATIZE in present moment — show action, not reflection
-- Strictly chronological — no flashbacks or temporal jumps
-- Clarity is paramount. If in doubt, use simpler structure.
-- Avoid archaic/literary vocabulary. Use common, accessible words.`
-  } else if (targetLevel === 'Native') {
-    levelText += `NATIVE LEVEL GUIDELINES:
-- Full sentence variety available. No hard word limits.
-- Literary techniques allowed: subtext, implication, showing over telling.
-- Non-linear timeline available if it serves the story.
-- STILL AVOID: Blatant backstory dumps, info-dumps, or character description blocks.
-- STILL DRAMATIZE: Show through action and sensory detail, not exposition.
-- Exposition should be woven naturally into scenes, never delivered as lectures.
-- Trust the reader to infer meaning from well-crafted scenes.`
-  }
 
   // Previous context
   const previousContext = previousSceneExit
-    ? `PREVIOUS SCENE ENDED: ${previousSceneExit}`
+    ? `Previous scene ended: ${previousSceneExit}`
     : sceneIndex === 0
       ? `This is the first scene of Chapter ${chapter.number}.`
-      : 'Continue from where the story left off.'
+      : ''
 
-  return `=== STORY CONTEXT ===
+  // Characters present
+  const charactersPresent = scene.characters || scene.characters_present || [chapter.pov]
 
-Story: ${bible.coreFoundation?.logline || 'A romance story'}
-Setting: ${bible.world?.setting?.location}, ${bible.world?.setting?.time_period}
+  return `STORY: ${bible.coreFoundation?.logline || 'A romance story'}
+SETTING: ${bible.world?.setting?.location}, ${bible.world?.setting?.time_period}
 
-POV CHARACTER: ${povCharacter?.name}
-- Voice: ${povCharacter?.voice?.speech_patterns || 'Natural'}
-- Verbal tics: ${povCharacter?.voice?.verbal_tics || 'None'}
-- Emotional expression: ${povCharacter?.voice?.emotional_expression || 'Moderate'}
-- What they notice: A ${povCharacter?.archetype || 'character'} notices ${povCharacter?.voice?.topics_avoided ? 'everything except ' + povCharacter.voice.topics_avoided : 'the details of their world'}
-
-OTHER CHARACTER PRESENT: ${otherCharacter?.name}
-- Voice: ${otherCharacter?.voice?.speech_patterns || 'Natural'}
+CHAPTER ${chapter.number}: ${chapter.title}
+POV: ${chapter.pov}
+Emotional arc: ${chapter.emotional_arc?.starts || 'N/A'} → ${chapter.emotional_arc?.ends || 'N/A'}
 
 ---
 
-=== CHAPTER ${chapter.number}: ${chapter.title} ===
+SCENE ${sceneIndex + 1}
+Location: ${scene.location}
+Characters: ${charactersPresent.join(', ')}
+${scene.function ? `Purpose: ${scene.function}` : ''}
 
-Chapter Tension: ${chapter.tension_rating || 5}/10
-Chapter Emotional Arc: ${chapter.emotional_arc?.opens || 'N/A'} → ${chapter.emotional_arc?.turns || 'N/A'} → ${chapter.emotional_arc?.closes || 'N/A'}
-
----
-
-=== SCENE ${sceneIndex + 1}: ${scene.scene_name || 'Untitled'} ===
-
-LOCATION: ${scene.location || 'Unknown'}
-TIME: ${scene.time_of_day || 'Unspecified'}
-ATMOSPHERE: ${scene.weather_mood || 'Neutral'}
-CHARACTERS PRESENT: ${scene.characters_present?.join(', ') || chapter.pov}
-
-SENSORY ANCHOR (ground the reader here):
-${scene.sensory_anchor || 'Establish the physical environment through the POV character\'s senses'}
-
-SCENE PURPOSE: ${scene.scene_purpose || 'Advance the story'}
-
----
-
-=== MICRO-BEATS TO DRAMATIZE ===
-${scene.beats?.map((beat, i) => `${i + 1}. ${beat}`).join('\n') || 'No beats specified'}
-
----
-
-SCENE TURN: ${scene.scene_turn || 'A shift in the emotional dynamic'}
-SCENE EXIT: ${scene.exits_with || 'Transition to next scene'}
-
----
+WHAT HAPPENS:
+${events.map((event, i) => `${i + 1}. ${event}`).join('\n')}
 
 ${previousContext}
 
 ---
 
-=== LEVEL CONSTRAINTS (NON-NEGOTIABLE) ===
-${levelText}
-=== END CONSTRAINTS ===
-
----
-
-TARGET: ${wordTarget.min}-${wordTarget.max} words (${beatCount} beats × ~60 words each)
 LANGUAGE: ${language}
+TARGET: ${wordTarget.min}-${wordTarget.max} words
+LEVEL: ${targetLevel} (max ${levelDef.sentences.maxLength || 'no limit'} words per sentence)
 
-Write this scene now. Dramatize EVERY beat. Make each one vivid and immersive.`
+Dramatize this scene. Make it vivid and immersive.`
 }
 
 // Generate a single scene
 async function generateScene(bible, chapter, scene, sceneIndex, previousSceneExit, language) {
-  const beatCount = scene.beats?.length || 0
-  console.log(`  Generating Scene ${sceneIndex + 1}: "${scene.scene_name || 'Untitled'}" (${beatCount} beats)...`)
+  const events = scene.events || scene.beats || []
+  const eventCount = events.length || 4
+  console.log(`  Generating Scene ${sceneIndex + 1}: "${scene.location || 'Scene'}" (${eventCount} events)...`)
 
   const systemPrompt = SCENE_SYSTEM_PROMPT.replace(/\{\{target_language\}\}/g, language)
   const userPrompt = buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneExit, language)
@@ -2839,7 +2400,7 @@ async function generateScene(bible, chapter, scene, sceneIndex, previousSceneExi
 
   const sceneData = parsed.data.scene || parsed.data
   const wordCount = sceneData.content?.split(/\s+/).length || 0
-  const wordTarget = getSceneWordCountTarget(beatCount)
+  const wordTarget = getSceneWordCountTarget(eventCount)
 
   console.log(`    Scene ${sceneIndex + 1} generated: ${wordCount} words (target: ${wordTarget.min}-${wordTarget.max})`)
 
@@ -2899,17 +2460,16 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
   // Concatenate all scene content into chapter
   const fullContent = generatedScenes.map(s => s.content).join('\n\n---\n\n')
   const totalWordCount = generatedScenes.reduce((sum, s) => sum + (s.wordCount || 0), 0)
-  const allBeatsDramatized = generatedScenes.flatMap(s => s.beats_dramatized || [])
+  const allEventsDramatized = generatedScenes.flatMap(s => s.events_dramatized || s.beats_dramatized || [])
 
   console.log(`  Chapter ${chapterIndex} complete: ${totalWordCount} total words from ${generatedScenes.length} scenes`)
 
-  // Get level and prose guidance from bible for validation
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible for validation
+  const level = bible.level || 'Intermediate'
   const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
 
-  // Collect all expected beats
-  const allExpectedBeats = chapter.scenes.flatMap(scene => scene.beats || [])
+  // Collect all expected events (with fallback for legacy beats)
+  const allExpectedEvents = chapter.scenes.flatMap(scene => scene.events || scene.beats || [])
 
   // Build summary from scene data
   const summary = {
@@ -2934,8 +2494,8 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
     summary,
     metadata: {
       wordCount: totalWordCount,
-      beatsCovered: allBeatsDramatized,
-      hookDelivered: chapter.hook?.description || 'Chapter concluded',
+      eventsCovered: allEventsDramatized,
+      hookDelivered: chapter.ends_with || chapter.hook?.description || 'Chapter concluded',
       hookType: chapter.hook?.type || 'emotional',
       scenesGenerated: generatedScenes.length,
       sceneWordCounts: generatedScenes.map(s => s.wordCount)
@@ -2947,11 +2507,11 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
   // Validate the combined chapter with full data
   const validation = validateChapterOutput(
     result,
-    allExpectedBeats,
+    allExpectedEvents,
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   result.validation = validation
@@ -2990,60 +2550,42 @@ Emotional state: ${JSON.stringify(s.summary.characterStates || {})}`
     previousContext = 'This is Chapter 1. No previous context.'
   }
 
-  // Get prose guidance from levelCheck - now structured
-  const proseGuidance = bible.levelCheck?.prose_guidance || {}
-  const targetLevel = bible.levelCheck?.target_level || 'Intermediate'
-
-  // Get the base level definition for fallbacks
+  // Get level constraints directly from LEVEL_DEFINITIONS
+  const targetLevel = bible.level || 'Intermediate'
   const levelDef = LEVEL_DEFINITIONS[targetLevel] || LEVEL_DEFINITIONS.Intermediate
-
-  // Build structured prose guidance text
-  const sentenceConstraints = proseGuidance.sentence_constraints || {}
-  const vocabConstraints = proseGuidance.vocabulary_constraints || {}
-  const meaningConstraints = proseGuidance.meaning_constraints || {}
-  const dialogueConstraints = proseGuidance.dialogue_constraints || {}
-  const narrativeConstraints = proseGuidance.narrative_constraints || {}
-  const languageRules = proseGuidance.language_specific_rules || []
-  const forbiddenTechniques = bible.levelCheck?.forbidden_techniques || levelDef.forbidden || []
-
-  // Get chapter-specific notes if available
-  const chapterNotes = bible.levelCheck?.chapter_specific_notes?.find(n => n.chapter === chapterIndex)
+  const forbiddenTechniques = levelDef.forbidden || []
 
   const proseGuidanceText = `
 ### SENTENCE CONSTRAINTS (MANDATORY):
-- Average length: ${sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min}-${sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max} words per sentence
-- Maximum length: ${sentenceConstraints.max_length || levelDef.sentences.maxLength || 'no hard limit'} words
-- Structure: ${sentenceConstraints.structure_rule || levelDef.sentences.structure}
-- Allowed connectors: ${sentenceConstraints.allowed_connectors || levelDef.sentences.connectors}
+- Average length: ${levelDef.sentences.averageLength.min}-${levelDef.sentences.averageLength.max} words per sentence
+- Maximum length: ${levelDef.sentences.maxLength || 'no hard limit'} words
+- Structure: ${levelDef.sentences.structure}
+- Allowed connectors: ${levelDef.sentences.connectors}
 
 ### VOCABULARY CONSTRAINTS (MANDATORY):
-- Scope: ${vocabConstraints.scope || levelDef.vocabulary.scope}
-- Handling difficult concepts: ${vocabConstraints.handling_rule || levelDef.vocabulary.handling}
-${vocabConstraints.forbidden_types?.length > 0 || levelDef.vocabulary.forbidden?.length > 0 ? `- FORBIDDEN vocabulary types:\n${(vocabConstraints.forbidden_types || levelDef.vocabulary.forbidden).map(f => `  * ${f}`).join('\n')}` : ''}
+- Scope: ${levelDef.vocabulary.scope}
+- Handling difficult concepts: ${levelDef.vocabulary.handling}
+${levelDef.vocabulary.forbidden?.length > 0 ? `- FORBIDDEN vocabulary types:\n${levelDef.vocabulary.forbidden.map(f => `  * ${f}`).join('\n')}` : ''}
 
 ### MEANING & SUBTEXT (MANDATORY):
-- Explicitness: ${meaningConstraints.explicitness_rule || levelDef.meaning.explicitness}
-- Subtext rule: ${meaningConstraints.subtext_rule || levelDef.meaning.subtext}
-- Emotion expression: ${meaningConstraints.emotion_rule || levelDef.meaning.emotions}
-- Motivation clarity: ${meaningConstraints.motivation_rule || levelDef.meaning.motivation}
+- Explicitness: ${levelDef.meaning.explicitness}
+- Subtext rule: ${levelDef.meaning.subtext}
+- Emotion expression: ${levelDef.meaning.emotions}
+- Motivation clarity: ${levelDef.meaning.motivation}
 
 ### DIALOGUE CONSTRAINTS (MANDATORY):
-- Style: ${dialogueConstraints.style_rule || levelDef.dialogue.style}
-- Length: ${dialogueConstraints.length_rule || levelDef.dialogue.length}
-- Attribution: ${dialogueConstraints.attribution_rule || levelDef.dialogue.attribution}
-- Subtext: ${dialogueConstraints.subtext_rule || levelDef.dialogue.subtext}
+- Style: ${levelDef.dialogue.style}
+- Length: ${levelDef.dialogue.length}
+- Attribution: ${levelDef.dialogue.attribution}
+- Subtext: ${levelDef.dialogue.subtext}
 
 ### NARRATIVE TECHNIQUE (MANDATORY):
-- Cause/Effect: ${narrativeConstraints.cause_effect_rule || levelDef.narrative.causeEffect}
-- Timeline: ${narrativeConstraints.timeline_rule || levelDef.narrative.timeflow}
-- POV handling: ${narrativeConstraints.pov_rule || levelDef.narrative.pov}
-- Show vs Tell: ${narrativeConstraints.show_tell_rule || levelDef.narrative.showing}
+- Cause/Effect: ${levelDef.narrative.causeEffect}
+- Timeline: ${levelDef.narrative.timeflow}
+- POV handling: ${levelDef.narrative.pov}
+- Show vs Tell: ${levelDef.narrative.showing}
 
-${languageRules.length > 0 ? `### ${language.toUpperCase()}-SPECIFIC GRAMMAR RULES (MANDATORY):\n${languageRules.map(r => `- ${r}`).join('\n')}` : ''}
-
-${forbiddenTechniques.length > 0 ? `### FORBIDDEN AT THIS LEVEL (DO NOT USE):\n${forbiddenTechniques.map(f => `- ${f}`).join('\n')}` : ''}
-
-${chapterNotes ? `### CHAPTER ${chapterIndex} SPECIFIC GUIDANCE:\n- Potential issues: ${chapterNotes.potential_violations?.join(', ') || 'None'}\n- Mitigation: ${chapterNotes.mitigation || 'Follow standard level rules'}` : ''}`
+${forbiddenTechniques.length > 0 ? `### FORBIDDEN AT THIS LEVEL (DO NOT USE):\n${forbiddenTechniques.map(f => `- ${f}`).join('\n')}` : ''}`
 
   return `STORY BIBLE:
 
@@ -3097,35 +2639,27 @@ Emotional Arc:
 - Turns: ${chapter.emotional_arc?.turns || 'N/A'}
 - Closes: ${chapter.emotional_arc?.closes || 'N/A'}
 
-=== SCENES & MICRO-BEATS (WRITE THESE IN ORDER) ===
+=== SCENES ===
 
-${chapter.scenes?.map((scene, sceneIdx) => `
---- SCENE ${sceneIdx + 1}: ${scene.scene_name || 'Untitled Scene'} ---
+${chapter.scenes?.map((scene, sceneIdx) => {
+  const events = scene.events || scene.beats || []
+  const characters = scene.characters || scene.characters_present || []
+  return `
+--- SCENE ${sceneIdx + 1} ---
 Location: ${scene.location || 'N/A'}
-Time: ${scene.time_of_day || 'N/A'}
-Atmosphere: ${scene.weather_mood || 'N/A'}
-Characters: ${scene.characters_present?.join(', ') || 'N/A'}
-Scene Purpose: ${scene.scene_purpose || 'N/A'}
-Sensory Anchor: ${scene.sensory_anchor || 'N/A'}
+Characters: ${characters.join(', ') || 'N/A'}
+${scene.function ? `Purpose: ${scene.function}` : ''}
 
-MICRO-BEATS TO DRAMATIZE (each beat = 1-3 sentences of prose):
-${scene.beats?.map((beat, beatIdx) => `  ${beatIdx + 1}. ${beat}`).join('\n') || 'N/A'}
-
-Scene Turn: ${scene.scene_turn || 'N/A'}
-Exit: ${scene.exits_with || 'N/A'}
-`).join('\n') || 'N/A'}
+WHAT HAPPENS:
+${events.map((event, idx) => `  ${idx + 1}. ${event}`).join('\n') || 'N/A'}
+`
+}).join('\n') || 'N/A'}
 
 === END SCENES ===
 
 ${chapter.phase_4_moment ? `KEY MOMENT: This chapter contains "${chapter.phase_4_moment}" — a pivotal relationship moment. Give it weight.` : ''}
 
-FORESHADOWING:
-${chapter.foreshadowing?.plants?.length > 0 ? `Plant these seeds (weave naturally):\n${chapter.foreshadowing.plants.map(s => `- ${s}`).join('\n')}` : ''}
-${chapter.foreshadowing?.payoffs?.length > 0 ? `Pay off these seeds (callback to earlier):\n${chapter.foreshadowing.payoffs.map(s => `- ${s}`).join('\n')}` : ''}
-
-CHAPTER ENDING:
-Hook Type: ${chapter.hook?.type || 'emotional'}
-Hook Description: ${chapter.hook?.description || 'End with emotional resonance'}
+CHAPTER ENDING: ${chapter.ends_with || chapter.hook?.description || 'End with emotional resonance'}
 
 Tension Rating: ${chapter.tension_rating || 5}/10
 Target Word Count: ${wordCountTarget.min}-${wordCountTarget.max} words
@@ -3338,10 +2872,10 @@ function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wor
     issues.push({ type: 'wrong_hook', message: `Hook type ${hookType} doesn't match expected ${expectedHookType}`, expected: expectedHookType, actual: hookType })
   }
 
-  // Check beats covered
-  const beatsCovered = chapterData?.metadata?.beatsCovered || []
-  if (expectedBeats && beatsCovered.length < expectedBeats.length * 0.7) {
-    issues.push({ type: 'missing_beats', message: `Only ${beatsCovered.length} of ${expectedBeats.length} beats covered`, expected: expectedBeats.length, actual: beatsCovered.length })
+  // Check events covered (with fallback for legacy beats)
+  const eventsCovered = chapterData?.metadata?.eventsCovered || chapterData?.metadata?.beatsCovered || []
+  if (expectedBeats && expectedBeats.length > 0 && eventsCovered.length < expectedBeats.length * 0.5) {
+    warnings.push({ type: 'missing_events', message: `Only ${eventsCovered.length} of ${expectedBeats.length} events explicitly covered` })
   }
 
   // Check summary exists
@@ -3369,7 +2903,7 @@ function validateChapterOutput(chapterData, expectedBeats, expectedHookType, wor
     issues,
     warnings,
     wordCount,
-    beatsCovered: beatsCovered.length,
+    eventsCovered: eventsCovered.length,
     levelValidation
   }
 }
@@ -3426,23 +2960,22 @@ async function generateChapter(bible, chapterIndex, previousSummaries, language)
 
   const chapterData = parsed.data
 
-  // Get level and prose guidance from bible
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible
+  const level = bible.level || 'Intermediate'
 
-  // Collect all beats from all scenes (new structure) or fall back to old structure
-  const allBeats = chapter.scenes
-    ? chapter.scenes.flatMap(scene => scene.beats || [])
-    : (chapter.beats || [])
+  // Collect all events from all scenes (with fallback for legacy beats)
+  const allEvents = chapter.scenes
+    ? chapter.scenes.flatMap(scene => scene.events || scene.beats || [])
+    : (chapter.events || chapter.beats || [])
 
   // Validate output including level compliance
   const validation = validateChapterOutput(
     chapterData,
-    allBeats,
+    allEvents,
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   if (!validation.valid) {
@@ -3700,22 +3233,21 @@ Please fix these issues while maintaining story quality.`
 
   const chapterData = parsed.data
 
-  // Get level and prose guidance from bible
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible
+  const level = bible.level || 'Intermediate'
 
-  // Collect all beats from all scenes (new structure) or fall back to old structure
-  const allBeats = chapter.scenes
-    ? chapter.scenes.flatMap(scene => scene.beats || [])
-    : (chapter.beats || [])
+  // Collect all events from all scenes (with fallback for legacy beats)
+  const allEvents = chapter.scenes
+    ? chapter.scenes.flatMap(scene => scene.events || scene.beats || [])
+    : (chapter.events || chapter.beats || [])
 
   const validation = validateChapterOutput(
     chapterData,
-    allBeats,
+    allEvents,
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   console.log(`Chapter ${chapterIndex} regenerated. Word count: ${validation.wordCount}`)
@@ -3854,7 +3386,7 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
   "summary": ${JSON.stringify(previousOutput.summary || {})},
   "metadata": {
     "wordCount": number,
-    "beatsCovered": ${JSON.stringify(previousOutput.metadata?.beatsCovered || [])},
+    "eventsCovered": ${JSON.stringify(previousOutput.metadata?.eventsCovered || previousOutput.metadata?.beatsCovered || [])},
     "hookDelivered": "${previousOutput.metadata?.hookDelivered || ''}",
     "hookType": "${previousOutput.metadata?.hookType || chapter.hook?.type || 'emotional'}"
   }
@@ -3867,22 +3399,21 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
     throw new Error('Chapter expansion failed to parse')
   }
 
-  // Get level and prose guidance from bible
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible
+  const level = bible.level || 'Intermediate'
 
-  // Collect all beats from all scenes (new structure) or fall back to old structure
-  const allBeats = chapter.scenes
-    ? chapter.scenes.flatMap(scene => scene.beats || [])
-    : (chapter.beats || [])
+  // Collect all events from all scenes (with fallback for legacy beats)
+  const allEvents = chapter.scenes
+    ? chapter.scenes.flatMap(scene => scene.events || scene.beats || [])
+    : (chapter.events || chapter.beats || [])
 
   const validation = validateChapterOutput(
     parsed.data,
-    allBeats,
+    allEvents,
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   return {
@@ -3989,7 +3520,6 @@ export default {
   executePhase5,
   executePhase6,
   executePhase7,
-  executePhase8,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

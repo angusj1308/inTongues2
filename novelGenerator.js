@@ -583,6 +583,17 @@ TROPES
 - Dynamic (pick one or two): Slow Burn, Fast Burn, Opposites Attract, Grumpy/Sunshine
 - Complication (optional): Love Triangle
 
+SUBGENRE
+Historical, Contemporary, Paranormal, Fantasy, Sci-Fi, Romantic Suspense, etc.
+
+TIMESPAN
+How long does the story cover? Days, weeks, months, years?
+
+POV STRUCTURE
+- Single: One perspective throughout
+- Dual-Alternating: Both protagonists, alternating chapters
+- Multiple: More than two POVs
+
 ENDING
 - HEA: Together permanently
 - HFN: Together, future uncertain
@@ -594,6 +605,7 @@ If the concept implies an ending, use it. Otherwise, choose what fits.
 TONE
 - Lightness: 0-10 (0 = heavy drama, 10 = light comedy)
 - Sensuality: 0-10 (0 = closed door, 10 = explicit)
+- Fade to black: true/false
 - Mood: hopeful, bittersweet, intense, playful, dark
 
 THEME
@@ -606,6 +618,7 @@ CONFLICT
 ## Output
 
 {
+  "subgenre": string,
   "tropes": {
     "origin": string,
     "situation": [],
@@ -619,7 +632,17 @@ CONFLICT
   "tone": {
     "lightness": number,
     "sensuality": number,
+    "fade_to_black": boolean,
     "mood": string
+  },
+  "timespan": {
+    "duration": string,
+    "rationale": string
+  },
+  "pov": {
+    "structure": "Single | Dual-Alternating | Multiple",
+    "primary": string,
+    "rationale": string
   },
   "theme": string,
   "conflict": {
@@ -652,7 +675,7 @@ async function executePhase1(concept, lengthPreset, level) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['tropes', 'ending', 'tone', 'theme', 'conflict', 'premise']
+  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'theme', 'conflict', 'premise']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
@@ -660,8 +683,11 @@ async function executePhase1(concept, lengthPreset, level) {
   }
 
   console.log('Phase 1 complete.')
+  console.log(`  Subgenre: ${data.subgenre}`)
   console.log(`  Origin: ${data.tropes.origin}`)
   console.log(`  Situation: ${data.tropes.situation.join(', ') || 'None'}`)
+  console.log(`  POV: ${data.pov.structure}`)
+  console.log(`  Timespan: ${data.timespan.duration}`)
   console.log(`  Ending: ${data.ending.type}`)
 
   return data

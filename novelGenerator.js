@@ -1453,14 +1453,11 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 // PHASE 6: CHAPTER & SCENE BREAKDOWN
 // =============================================================================
 
-const PHASE_6_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter breakdown.
+const PHASE_6_SYSTEM_PROMPT = `Distribute plot across chapters.
 
-## CRITICAL RULE
+Phase 5 defined broad story arc. You define what happens in each chapter, WHEN and WHERE they happen.
 
-Events are plain factual statements of WHAT happens. No prose, imagery, or style.
-Generation handles dramatization. You specify plot only.
-
-## Output Format
+Output events for generation to dramatize. Do not write prose.
 
 {
   "chapters": [
@@ -1471,27 +1468,20 @@ Generation handles dramatization. You specify plot only.
       "purpose": string,
       "scenes": [
         {
-          "scene_number": number,
           "location": string,
           "characters": [],
           "events": [],
           "function": string
         }
       ],
-      "emotional_arc": { "starts": string, "ends": string },
-      "ends_with": string,
       "phase_4_moment": string or null,
-      "phase_5_beats": []
+      "phase_5_beats": [],
+      "reader_learns": [],
+      "ends_with": string
     }
   ],
   "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
-}
-
-## RULES
-
-- Each scene: 3-6 events
-- Events: plain factual statements, no adjectives/adverbs/imagery
-- Just what happens, not how it looks/feels/sounds`
+}`
 
 function buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]
@@ -1535,9 +1525,8 @@ Events are plain factual statements. No imagery, sensory detail, or prose style.
 const PHASE_6_MAX_RETRIES = 2
 
 // System prompt for generating chapter outlines (structure only)
-const PHASE_6_OUTLINE_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter outline showing structure, POV, and purpose.
+const PHASE_6_OUTLINE_SYSTEM_PROMPT = `Assign Phase 5 beats and Phase 4 moments to chapters.
 
-Output JSON:
 {
   "chapters": [
     {
@@ -1545,10 +1534,8 @@ Output JSON:
       "title": string,
       "pov": string,
       "purpose": string,
-      "location_primary": string,
       "phase_4_moment": string or null,
       "phase_5_beats": [],
-      "emotional_arc": { "starts": string, "ends": string },
       "ends_with": string
     }
   ],
@@ -1556,33 +1543,20 @@ Output JSON:
 }`
 
 // System prompt for generating scene breakdown for a single chapter
-const PHASE_6_CHAPTER_SYSTEM_PROMPT = `You are a story architect. Create a scene breakdown showing WHAT HAPPENS in each scene.
-
-## CRITICAL RULE
-
-Events are plain factual statements. WHAT happens, not HOW it looks/feels/sounds.
-
-## Output Format
+const PHASE_6_CHAPTER_SYSTEM_PROMPT = `List what happens in this chapter. Do not write prose.
 
 {
-  "number": number,
   "scenes": [
     {
-      "scene_number": number,
       "location": string,
       "characters": [],
       "events": [],
       "function": string
     }
   ],
+  "reader_learns": [],
   "ends_with": string
-}
-
-## RULES
-
-- Each scene: 3-6 events
-- Events are: actions, discoveries, decisions, conversation topics, revelations
-- Events are NOT: sensory details, atmosphere, emotions, gestures, dialogue, imagery`
+}`
 
 function buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]

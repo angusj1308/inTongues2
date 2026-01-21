@@ -579,7 +579,11 @@ The user may not name tropes. Infer from their concept.
 
 TROPES
 - Origin (pick one): Enemies to Lovers, Friends to Lovers, Strangers to Lovers, Second Chance, Childhood Sweethearts
-- Situation (pick zero to three): Forbidden Love, Arranged Marriage, Marriage of Convenience, Fake Dating, Forced Proximity, Workplace Romance, Secret Identity
+- Situation: What external circumstances shape the romance?
+  - What forces them together?
+  - What keeps them apart?
+  - What arrangement binds them?
+  - If none — straightforward romance with no external pressure
 - Dynamic (pick one or two): Slow Burn, Fast Burn, Opposites Attract, Grumpy/Sunshine
 - Complication (optional): Love Triangle
 
@@ -621,7 +625,11 @@ CONFLICT
   "subgenre": string,
   "tropes": {
     "origin": string,
-    "situation": [],
+    "situation": {
+      "forces_together": string or null,
+      "keeps_apart": string or null,
+      "arrangement": string or null
+    },
     "dynamic": [],
     "complication": string or null
   },
@@ -685,7 +693,13 @@ async function executePhase1(concept, lengthPreset, level) {
   console.log('Phase 1 complete.')
   console.log(`  Subgenre: ${data.subgenre}`)
   console.log(`  Origin: ${data.tropes.origin}`)
-  console.log(`  Situation: ${data.tropes.situation.join(', ') || 'None'}`)
+  const situation = data.tropes.situation
+  const situationParts = [
+    situation?.forces_together && `Together: ${situation.forces_together}`,
+    situation?.keeps_apart && `Apart: ${situation.keeps_apart}`,
+    situation?.arrangement && `Arrangement: ${situation.arrangement}`
+  ].filter(Boolean)
+  console.log(`  Situation: ${situationParts.length ? situationParts.join(', ') : 'None'}`)
   console.log(`  POV: ${data.pov.structure}`)
   console.log(`  Timespan: ${data.timespan.duration}`)
   console.log(`  Ending: ${data.ending.type}`)

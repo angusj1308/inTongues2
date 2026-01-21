@@ -612,9 +612,6 @@ TONE
 - Fade to black: true/false
 - Mood: hopeful, bittersweet, intense, playful, dark
 
-THEME
-What question does this story explore?
-
 CONFLICT
 - External: What circumstance keeps them apart?
 - Internal: What psychological barrier keeps them apart?
@@ -649,10 +646,8 @@ CONFLICT
   },
   "pov": {
     "structure": "Single | Dual-Alternating | Multiple",
-    "primary": string,
     "rationale": string
   },
-  "theme": string,
   "conflict": {
     "external": string,
     "internal": string
@@ -683,7 +678,7 @@ async function executePhase1(concept, lengthPreset, level) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'theme', 'conflict', 'premise']
+  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'premise']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {

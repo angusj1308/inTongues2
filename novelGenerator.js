@@ -646,7 +646,6 @@ CONFLICT
   },
   "pov": {
     "structure": "Single | Dual-Alternating | Multiple",
-    "primary": string,
     "rationale": string
   },
   "conflict": {

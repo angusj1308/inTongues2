@@ -1453,64 +1453,45 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 // PHASE 6: CHAPTER & SCENE BREAKDOWN
 // =============================================================================
 
-const PHASE_6_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter breakdown showing WHAT HAPPENS in each scene.
+const PHASE_6_SYSTEM_PROMPT = `You are a story architect. Create a chapter-by-chapter breakdown.
 
 ## CRITICAL RULE
 
-Describe EVENTS (what happens), not PROSE (how to write it).
-
-An event is a simple factual statement: [Character] [action/discovery/decision]
-- One clause, no imagery, no sensory detail, no description of manner
-- WHAT happens, never HOW it looks/feels/sounds
-
-The generation phase handles all dramatization. You specify plot only.
+Events are plain factual statements of WHAT happens. No prose, imagery, or style.
+Generation handles dramatization. You specify plot only.
 
 ## Output Format
 
 {
   "chapters": [
     {
-      "number": 1,
-      "title": "Chapter title",
-      "pov": "POV character name",
-      "purpose": "What this chapter accomplishes",
+      "number": number,
+      "title": string,
+      "pov": string,
+      "purpose": string,
       "scenes": [
         {
-          "scene_number": 1,
-          "location": "Location from Phase 2",
-          "characters": ["Characters present"],
-          "events": [
-            "[Character] [action]",
-            "[Character] [discovery or decision]",
-            "[Next plot point]"
-          ],
-          "function": "setup | confrontation | revelation | intimacy | turning point"
+          "scene_number": number,
+          "location": string,
+          "characters": [],
+          "events": [],
+          "function": string
         }
       ],
-      "emotional_arc": {
-        "starts": "POV emotional state at chapter start",
-        "ends": "POV emotional state at chapter end"
-      },
-      "ends_with": "What propels reader to next chapter",
-      "phase_4_moment": "Phase 4 moment if applicable, or null",
-      "phase_5_beats": ["Phase 5 beats placed in this chapter"]
+      "emotional_arc": { "starts": string, "ends": string },
+      "ends_with": string,
+      "phase_4_moment": string or null,
+      "phase_5_beats": []
     }
   ],
-  "pov_distribution": {
-    "protagonist_chapters": [],
-    "love_interest_chapters": []
-  }
+  "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
 }
 
-## EVENT RULES
+## RULES
 
-Each scene: 3-6 events.
-
-Events MUST be plain factual statements — no adjectives, adverbs, imagery, or manner descriptions.
-
-Events MUST NOT include: sensory details, emotional descriptors, metaphors, specific gestures, dialogue lines, or atmosphere.
-
-Just state what happens. Generation will dramatize.`
+- Each scene: 3-6 events
+- Events: plain factual statements, no adjectives/adverbs/imagery
+- Just what happens, not how it looks/feels/sounds`
 
 function buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]
@@ -1560,24 +1541,18 @@ Output JSON:
 {
   "chapters": [
     {
-      "number": 1,
-      "title": "Chapter title",
-      "pov": "POV character name",
-      "purpose": "What this chapter accomplishes",
-      "location_primary": "Main location from Phase 2",
-      "phase_4_moment": "Phase 4 moment if applicable, or null",
-      "phase_5_beats": ["Phase 5 beats in this chapter"],
-      "emotional_arc": {
-        "starts": "Starting emotional state",
-        "ends": "Ending emotional state"
-      },
-      "ends_with": "What propels reader to next chapter"
+      "number": number,
+      "title": string,
+      "pov": string,
+      "purpose": string,
+      "location_primary": string,
+      "phase_4_moment": string or null,
+      "phase_5_beats": [],
+      "emotional_arc": { "starts": string, "ends": string },
+      "ends_with": string
     }
   ],
-  "pov_distribution": {
-    "protagonist_chapters": [1, 3, 5],
-    "love_interest_chapters": [2, 4, 6]
-  }
+  "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
 }`
 
 // System prompt for generating scene breakdown for a single chapter
@@ -1585,37 +1560,29 @@ const PHASE_6_CHAPTER_SYSTEM_PROMPT = `You are a story architect. Create a scene
 
 ## CRITICAL RULE
 
-Events are plain factual statements: [Character] [action/discovery/decision]
-- One clause, no imagery, no sensory detail, no manner descriptions
-- WHAT happens, never HOW it looks/feels/sounds
+Events are plain factual statements. WHAT happens, not HOW it looks/feels/sounds.
 
 ## Output Format
 
 {
-  "number": 1,
+  "number": number,
   "scenes": [
     {
-      "scene_number": 1,
-      "location": "Location",
-      "characters": ["Characters present"],
-      "events": [
-        "[Character] [action]",
-        "[Character] [discovery or decision]",
-        "[Next plot point]"
-      ],
-      "function": "setup | confrontation | revelation | intimacy | turning point"
+      "scene_number": number,
+      "location": string,
+      "characters": [],
+      "events": [],
+      "function": string
     }
   ],
-  "ends_with": "What propels reader forward"
+  "ends_with": string
 }
 
-## EVENT RULES
+## RULES
 
-Each scene: 3-6 events.
-
-Events are: actions, discoveries, decisions, conversation topics, revelations.
-
-Events are NOT: sensory details, atmosphere, emotions, gestures, dialogue lines, imagery.`
+- Each scene: 3-6 events
+- Events are: actions, discoveries, decisions, conversation topics, revelations
+- Events are NOT: sensory details, atmosphere, emotions, gestures, dialogue, imagery`
 
 function buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
   const chapterCount = CONFIG.chapterCounts[lengthPreset]

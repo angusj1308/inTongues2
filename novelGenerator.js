@@ -594,9 +594,18 @@ TIMESPAN
 How long does the story cover? Days, weeks, months, years?
 
 POV STRUCTURE
-- Single: One perspective throughout
-- Dual-Alternating: Both protagonists, alternating chapters
-- Multiple: More than two POVs
+First Person:
+- Single: One narrator throughout
+- Dual-Alternating: Two narrators, alternating chapters
+- Multiple: Three or more narrators
+
+Third Person:
+- Single: One character's perspective
+- Dual-Alternating: Two perspectives, alternating chapters
+- Multiple: Three or more perspectives
+- Omniscient: Narrator sees all
+
+Select the most appropriate for the story.
 
 ENDING
 - HEA: Together permanently
@@ -645,7 +654,8 @@ CONFLICT
     "rationale": string
   },
   "pov": {
-    "structure": "Single | Dual-Alternating | Multiple",
+    "person": "First | Third",
+    "structure": "Single | Dual-Alternating | Multiple | Omniscient",
     "rationale": string
   },
   "conflict": {
@@ -695,7 +705,7 @@ async function executePhase1(concept, lengthPreset, level) {
     situation?.arrangement && `Arrangement: ${situation.arrangement}`
   ].filter(Boolean)
   console.log(`  Situation: ${situationParts.length ? situationParts.join(', ') : 'None'}`)
-  console.log(`  POV: ${data.pov.structure}`)
+  console.log(`  POV: ${data.pov.person} Person, ${data.pov.structure}`)
   console.log(`  Timespan: ${data.timespan.duration}`)
   console.log(`  Ending: ${data.ending.type}`)
 

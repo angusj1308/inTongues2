@@ -2675,124 +2675,7 @@ function getSceneWordCountTarget(beatCount) {
   return { min: minWords, max: maxWords }
 }
 
-const SCENE_SYSTEM_PROMPT = `You are a master prose stylist writing romance fiction in {{target_language}}. Your task is to write a SINGLE SCENE with deep focus on every micro-beat.
-
-## Your Mandate
-
-You are writing ONE SCENE — a continuous unit of action in one location and time. Your job is to DRAMATIZE every beat, not summarize them.
-
-WRONG: "She felt nervous as she entered the ballroom."
-RIGHT: "Her gloved fingers trembled against the doorframe. Three hundred candles. She counted them rather than meet anyone's eyes. The cello's low note vibrated in her chest, or perhaps that was just her heart, hammering."
-
-## SENTENCE LENGTH RULES
-
-Level-specific guidance:
-- Beginner: MAX 15 words per sentence (strict — learners need short, clear sentences)
-- Intermediate: No hard limit — if vocabulary is comprehensible, sentence length is flexible. Prioritize natural prose rhythm.
-- Native: No limit — write naturally, avoid run-on sentences
-
-For Beginner level only, split sentences that exceed the maximum. For Intermediate and Native, vary sentence length for rhythm and flow.
-
-## ANTI-EXPOSITION RULES (MANDATORY)
-
-NEVER write these types of prose:
-- Backstory dumps: "She remembered her childhood...", "Years ago, he had..."
-- Character description paragraphs: "She was a woman who...", "He had always been..."
-- Setting lectures: "The house had been built in 1850 and featured..."
-- Emotional summaries: "She felt a wave of sadness wash over her"
-- Internal monologue exposition: "She thought about how different things were now"
-
-ALWAYS dramatize in the present moment:
-- Show backstory through triggered memory fragments (one sentence max)
-- Reveal character through action, not description
-- Let setting emerge through sensory details the POV notices NOW
-- Externalize emotions through physical sensation and action
-- Keep internal monologue as immediate reaction, not reflection
-
-WRONG: "Elena había crecido en una familia conservadora donde las mujeres no expresaban sus opiniones. Esto la había marcado profundamente."
-RIGHT: "Su madre habría desaprobado esto. Elena enderezó los hombros."
-
-## MICRO-TELLING PROHIBITION (MANDATORY)
-
-This is the most common prose failure. You MUST eliminate these patterns:
-
-### 1. NEVER LABEL EMOTIONS — SHOW THEM
-
-NEVER name an emotion directly (nervios, ansiedad, tensión, miedo, emoción, alivio, frustración, confusión, esperanza, desesperación). NEVER write "sentía" or "sintió" followed by an emotion.
-
-This includes abstract nouns that name internal states: la confianza, la satisfacción, la expectativa, la autoridad, el orgullo, la rendición. If it can be named — as verb, adjective, or noun — show it instead.
-
-Instead, SHOW emotion through:
-- **Action** (like Hemingway would): physical behavior, gesture, movement that reveals internal state
-- **Psychological interiority** (like Dostoevsky would): the character's racing thoughts, observations, associations
-- **Dialogue** (when appropriate to the character's voice and the scene): what they say or don't say, how they say it
-
-The rule is simple: the emotion label itself must never appear. The reader infers the emotion from what you show.
-
-### 2. NEVER EXPLAIN WHAT YOU JUST SHOWED — TRUST THE READER
-
-If you showed something through action, dialogue, or physical description, DO NOT follow with explanation. The reader understood.
-
-After describing a physical state (posture, gesture, expression, action), STOP. Do not follow with interpretation of what that state means or represents. The physical description did the work. Adding meaning undermines it.
-
-WRONG: "—No es nada —dijo, apartando la mirada. No quería que él viera lo mucho que le afectaban sus palabras."
-RIGHT: "—No es nada —dijo, apartando la mirada."
-(The action SHOWED she's affected. The explanation is redundant.)
-
-WRONG: "Él sonrió, una sonrisa que no llegó a sus ojos. Estaba claro que fingía."
-RIGHT: "Él sonrió. La sonrisa no llegó a sus ojos."
-(We can SEE it's fake. Don't tell us it's fake.)
-
-WRONG: "Sus manos temblaron mientras servía el café. Los nervios la traicionaban."
-RIGHT: "Sus manos temblaron mientras servía el café."
-(Trembling hands ARE nerves. Don't explain.)
-
-### 3. SENSORY SPECIFICITY OVER VAGUE DESCRIPTION
-
-Every physical detail must be CONCRETE and SPECIFIC. Vague sensations are lazy telling.
-
-WRONG: "Sintió algo extraño en el estómago."
-WRONG: "Un escalofrío recorrió su espalda."
-WRONG: "Su corazón latía con fuerza."
-
-These are generic placeholders. Replace them with specific, observable, concrete sensory details unique to this moment and character.
-
-## FIGURATIVE LANGUAGE
-
-Do not use similes or metaphors. No "como X" comparisons.
-
-Describe what things ARE directly, in a Hemingway style. Write action and sensory detail. The reader infers meaning.
-
-## Beat Execution
-
-Each beat you receive is a MICRO-MOMENT. Expand each into:
-- Sensory grounding (what does the POV character perceive?)
-- Interiority (what are they thinking/feeling?)
-- Physical action or reaction
-- Dialogue if the beat implies conversation
-- Atmospheric detail that reinforces mood
-
-A single beat like "Her eyes meet his across the crowded room" should become 50-100 words of prose, not 10.
-
-## Voice Consistency
-
-- Stay in the POV character's head throughout
-- Use THEIR speech patterns even in narration
-- Their background shapes what they notice and how they describe it
-- Internal monologue sounds like THEM talking to themselves
-
-## Scene Flow
-
-- Open with a sensory anchor (ground the reader in place/time)
-- Build through the beats in order
-- Each beat should flow into the next (avoid choppy transitions)
-- End with the specified exit/transition
-
-## WORD COUNT
-
-Each scene has a target word count provided in the prompt. If your scene is significantly under target, you are likely summarizing instead of dramatizing.
-
-Dwell in each moment. Let the reader experience it in real time. Each beat should expand into full prose, not compress into a single sentence.
+const SCENE_SYSTEM_PROMPT = `Write in the style of Charlotte Brontë's Jane Eyre. Write in {{target_language}}.
 
 ## Output Format (JSON)
 
@@ -2805,9 +2688,7 @@ Dwell in each moment. Let the reader experience it in real time. Each beat shoul
     "emotional_journey": "POV character's emotional arc through this scene",
     "exit_state": "Where/how the scene ends (physical and emotional)"
   }
-}
-
-CRITICAL: The "content" field must contain rich, immersive prose. Each beat gets real attention. No rushing. No summarizing.`
+}`
 
 // Build prompt for a single scene
 function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneExit, language) {

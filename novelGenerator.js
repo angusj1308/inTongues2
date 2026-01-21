@@ -1910,181 +1910,13 @@ async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, le
 }
 
 // =============================================================================
-// PHASE 7: LEVEL CHECK
+// PHASE 7: VALIDATION
 // =============================================================================
 
-const PHASE_7_SYSTEM_PROMPT = `You are a language learning content specialist. Your task is to review a complete story bible and chapter outline to verify it will work at the target reading level.
+const PHASE_7_SYSTEM_PROMPT = `You are a story validation specialist. Your task is to perform a comprehensive audit of a complete story bible, checking for coherence, completeness, and internal consistency.
 
 You will receive:
-- Target level with DETAILED, PRESCRIPTIVE constraints (these are non-negotiable rules)
-- Target language with language-specific grammatical rules
 - The complete bible (Phases 1-6 output)
-
-CRITICAL: Level affects PROSE ONLY, not plot structure. However, some story elements are harder to convey at lower levels. Your job is to:
-
-1. Review the bible against the SPECIFIC level constraints provided
-2. Flag any story elements that would violate level constraints
-3. Provide PRESCRIPTIVE prose guidance that maps directly to the level rules
-4. Confirm readiness or identify blocking issues
-
-## Output Format
-
-Respond with a JSON object:
-
-{
-  "target_level": "Beginner | Intermediate | Native",
-  "target_language": "The target language",
-  "assessment": "ready | minor_issues | significant_issues | blocked",
-  "flags": [
-    {
-      "element": "What story element might be problematic",
-      "location": "Which phase/chapter",
-      "issue": "Which specific level constraint this violates",
-      "suggestion": "How to handle in generation (must comply with level rules)",
-      "severity": "low | medium | high | blocking"
-    }
-  ],
-  "prose_guidance": {
-    "sentence_constraints": {
-      "average_length_min": number,
-      "average_length_max": number,
-      "max_length": number or null,
-      "structure_rule": "Exact rule from level definition",
-      "allowed_connectors": "List of allowed connectors"
-    },
-    "vocabulary_constraints": {
-      "scope": "Exact scope from level definition",
-      "forbidden_types": ["List of forbidden vocabulary types"],
-      "handling_rule": "How to handle difficult concepts"
-    },
-    "meaning_constraints": {
-      "explicitness_rule": "Exact rule",
-      "subtext_rule": "Exact rule",
-      "emotion_rule": "How to express emotions",
-      "motivation_rule": "How to show motivation"
-    },
-    "dialogue_constraints": {
-      "style_rule": "Exact rule",
-      "length_rule": "Exact rule",
-      "attribution_rule": "Exact rule",
-      "subtext_rule": "Exact rule"
-    },
-    "narrative_constraints": {
-      "cause_effect_rule": "Exact rule",
-      "timeline_rule": "Exact rule",
-      "pov_rule": "Exact rule",
-      "show_tell_rule": "Exact rule"
-    },
-    "language_specific_rules": ["List of language-specific grammatical constraints"]
-  },
-  "forbidden_techniques": ["List of techniques FORBIDDEN at this level"],
-  "chapter_specific_notes": [
-    {
-      "chapter": 1,
-      "potential_violations": ["List of potential level violations in this chapter's outline"],
-      "mitigation": "How to write this chapter within level constraints"
-    }
-  ],
-  "ready_for_generation": true,
-  "blocking_issues": []
-}
-
-## Guidelines
-
-WHAT TO FLAG:
-
-For Beginner level, flag ANY of these as violations:
-- Scenes requiring subtext or implication (BLOCKING if central to meaning)
-- Complex sentence structures planned in any beat
-- Scenes relying on showing over telling for key emotions
-- Dialogue requiring inference
-- Cultural/historical references without explicit explanation
-- Multiple plot threads active in single scene
-- Any planned metaphors, similes, or figurative language
-- Scenes with unreliable narration or ambiguity
-
-For Intermediate level, flag:
-- Heavy reliance on subtext for plot-critical information
-- Dense cultural references without context
-- Complex nested sentence structures
-- Heavy dialect or slang
-
-For Native level:
-- Typically no flags — full toolkit available
-
-WHAT NOT TO FLAG (these are OK at any level):
-- Plot complexity (level doesn't change WHAT happens, only HOW it's expressed)
-- Character psychological depth (same depth, different articulation)
-- Theme complexity (same theme, simpler words)
-- Emotional stakes (same stakes, clearer expression at lower levels)
-
-CRITICAL: The prose_guidance you output will be used VERBATIM in chapter generation prompts. It must be specific, actionable, and directly derived from the level constraints provided.`
-
-function buildPhase7UserPrompt(level, phases1to6, language = 'English') {
-  // Get the full prescriptive level definition
-  const levelDefinition = formatLevelDefinitionForPrompt(level, language)
-
-  return `TARGET LEVEL: ${level}
-TARGET LANGUAGE: ${language}
-
-=== PRESCRIPTIVE LEVEL CONSTRAINTS (NON-NEGOTIABLE) ===
-
-${levelDefinition}
-
-=== END LEVEL CONSTRAINTS ===
-
-COMPLETE BIBLE:
-${JSON.stringify(phases1to6, null, 2)}
-
-Review this bible against the SPECIFIC level constraints above. Your prose_guidance output must directly reflect these constraints - they will be used verbatim in chapter generation.
-
-For each chapter in the outline, check if any planned beats or scenes would require techniques FORBIDDEN at this level. Flag them with specific mitigation strategies that comply with the level rules.`
-}
-
-async function executePhase7(level, phases1to6, language = 'English') {
-  console.log(`Executing Phase 7: Level Check for ${level} level in ${language}...`)
-
-  const userPrompt = buildPhase7UserPrompt(level, phases1to6, language)
-  const response = await callOpenAI(PHASE_7_SYSTEM_PROMPT, userPrompt)
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    throw new Error(`Phase 7 JSON parse failed: ${parsed.error}`)
-  }
-
-  const data = parsed.data
-
-  // Validate that prose_guidance has required structure
-  if (!data.prose_guidance?.sentence_constraints) {
-    console.warn('Phase 7: prose_guidance missing sentence_constraints, using defaults from level definition')
-    const levelDef = LEVEL_DEFINITIONS[level]
-    data.prose_guidance = data.prose_guidance || {}
-    data.prose_guidance.sentence_constraints = {
-      average_length_min: levelDef.sentences.averageLength.min,
-      average_length_max: levelDef.sentences.averageLength.max,
-      max_length: levelDef.sentences.maxLength,
-      structure_rule: levelDef.sentences.structure,
-      allowed_connectors: levelDef.sentences.connectors,
-    }
-  }
-
-  if (!data.ready_for_generation) {
-    console.warn('Phase 7: Bible flagged as not ready for generation')
-    console.warn('Blocking issues:', data.blocking_issues)
-  }
-
-  console.log('Phase 7 complete.')
-  return data
-}
-
-// =============================================================================
-// PHASE 8: VALIDATION
-// =============================================================================
-
-const PHASE_8_SYSTEM_PROMPT = `You are a story validation specialist. Your task is to perform a comprehensive audit of a complete story bible, checking for coherence, completeness, and internal consistency.
-
-You will receive:
-- The complete bible (Phases 1-7 output)
 
 Your job is to:
 1. Validate every element against every other element
@@ -2112,7 +1944,6 @@ You must check ALL of the following:
 11. THEME EXPRESSION - Theme expressed through character choices
 12. LOCATION USAGE - All key locations used
 13. CONSTRAINT ENFORCEMENT - Phase 2 constraints create real obstacles
-14. LEVEL READINESS - Phase 7 flags are addressable
 
 ## Output Format
 
@@ -2138,8 +1969,7 @@ Respond with a JSON object:
     "pov_balance": { "status": "pass | fail | warning", "details": "", "issues": [] },
     "theme_expression": { "status": "pass | fail | warning", "details": "", "issues": [] },
     "location_usage": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "constraint_enforcement": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "level_readiness": { "status": "pass | fail | warning", "details": "", "issues": [] }
+    "constraint_enforcement": { "status": "pass | fail | warning", "details": "", "issues": [] }
   },
   "critical_issues": [
     {
@@ -2178,7 +2008,7 @@ PASS: All checks pass. Ready for generation.
 CONDITIONAL_PASS: Some warnings but no failures. Can proceed with noted cautions.
 FAIL: One or more critical failures. Must regenerate specified phases.`
 
-// Compress chapters for Phase 8 validation (keeps structure, removes beat details)
+// Compress chapters for Phase 7 validation (keeps structure, removes beat details)
 function compressChaptersForValidation(chapters) {
   if (!chapters?.chapters) return chapters
 
@@ -2211,7 +2041,7 @@ function compressChaptersForValidation(chapters) {
   }
 }
 
-function buildPhase8UserPrompt(completeBible) {
+function buildPhase7UserPrompt(completeBible) {
   // Compress Phase 6 chapters to avoid token limit issues
   const compressedChapters = compressChaptersForValidation(completeBible.chapters)
 
@@ -2235,26 +2065,23 @@ ${JSON.stringify(completeBible.plot, null, 2)}
 PHASE 6 - CHAPTER BREAKDOWN (compressed - full beats available for generation):
 ${JSON.stringify(compressedChapters, null, 2)}
 
-PHASE 7 - LEVEL CHECK:
-${JSON.stringify(completeBible.levelCheck, null, 2)}
-
-Perform comprehensive validation of this bible. Check all 14 categories. Identify any issues and specify recovery paths. Approve for generation only if the bible is complete and internally consistent.`
+Perform comprehensive validation of this bible. Check all 13 categories. Identify any issues and specify recovery paths. Approve for generation only if the bible is complete and internally consistent.`
 }
 
-async function executePhase8(completeBible) {
-  console.log('Executing Phase 8: Validation...')
+async function executePhase7(completeBible) {
+  console.log('Executing Phase 7: Validation...')
 
-  const userPrompt = buildPhase8UserPrompt(completeBible)
-  const response = await callOpenAI(PHASE_8_SYSTEM_PROMPT, userPrompt)
+  const userPrompt = buildPhase7UserPrompt(completeBible)
+  const response = await callOpenAI(PHASE_7_SYSTEM_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
-    throw new Error(`Phase 8 JSON parse failed: ${parsed.error}`)
+    throw new Error(`Phase 7 JSON parse failed: ${parsed.error}`)
   }
 
   const data = parsed.data
 
-  console.log(`Phase 8 complete. Status: ${data.validation_status}`)
+  console.log(`Phase 7 complete. Status: ${data.validation_status}`)
 
   if (data.validation_status === 'FAIL') {
     console.warn('Validation failed. Critical issues:', data.critical_issues)
@@ -2298,18 +2125,6 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       if (phaseNumber <= 6) {
         updatedBible.chapters = await executePhase6(concept, updatedBible.coreFoundation, updatedBible.world, updatedBible.characters, updatedBible.chemistry, updatedBible.plot, lengthPreset)
       }
-    case 7:
-      if (phaseNumber <= 7) {
-        const phases1to6 = {
-          coreFoundation: updatedBible.coreFoundation,
-          world: updatedBible.world,
-          characters: updatedBible.characters,
-          chemistry: updatedBible.chemistry,
-          plot: updatedBible.plot,
-          chapters: updatedBible.chapters
-        }
-        updatedBible.levelCheck = await executePhase7(level, phases1to6, language)
-      }
       break
   }
 
@@ -2328,12 +2143,11 @@ const PHASE_DESCRIPTIONS = {
   4: { name: 'Chemistry', description: 'Designing the romance arc and pivotal moments' },
   5: { name: 'Plot Architecture', description: 'Creating the beat sheet and tension curve' },
   6: { name: 'Chapter Breakdown', description: 'Outlining each chapter with beats and hooks' },
-  7: { name: 'Level Check', description: 'Validating prose requirements for target reading level' },
-  8: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
+  7: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
 }
 
 /**
- * Generate a complete story bible through the 8-phase pipeline
+ * Generate a complete story bible through the 7-phase pipeline
  * @param {string} concept - Story concept/description
  * @param {string} level - Reading level (Beginner, Intermediate, Native)
  * @param {string} lengthPreset - 'novella' (12 chapters) or 'novel' (35 chapters)
@@ -2351,7 +2165,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   let bible = {}
   let validationAttempts = 0
-  const totalPhases = 8
+  const totalPhases = 7
 
   // Helper to report progress
   const reportProgress = (phase, status = 'in_progress', details = null) => {
@@ -2408,34 +2222,21 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     bible.chapters = await executePhase6(concept, bible.coreFoundation, bible.world, bible.characters, bible.chemistry, bible.plot, lengthPreset)
     reportProgress(6, 'complete', { chapterCount: bible.chapters.chapters?.length || 0 })
 
-    // Phase 7: Level Check
-    reportProgress(7, 'starting', { targetLevel: level, targetLanguage: language })
-    const phases1to6 = {
-      coreFoundation: bible.coreFoundation,
-      world: bible.world,
-      characters: bible.characters,
-      chemistry: bible.chemistry,
-      plot: bible.plot,
-      chapters: bible.chapters
-    }
-    bible.levelCheck = await executePhase7(level, phases1to6, language)
-    reportProgress(7, 'complete', {
-      assessment: bible.levelCheck.assessment,
-      readyForGeneration: bible.levelCheck.ready_for_generation,
-      flagCount: bible.levelCheck.flags?.length || 0
-    })
+    // Store level and language on bible for chapter generation
+    bible.level = level
+    bible.language = language
 
-    // Phase 8: Validation (with potential regeneration)
-    reportProgress(8, 'starting')
+    // Phase 7: Validation (with potential regeneration)
+    reportProgress(7, 'starting')
     while (validationAttempts < maxValidationAttempts) {
       validationAttempts++
       console.log(`Validation attempt ${validationAttempts}/${maxValidationAttempts}`)
 
-      bible.validation = await executePhase8(bible)
+      bible.validation = await executePhase7(bible)
 
       if (bible.validation.validation_status === 'PASS' || bible.validation.validation_status === 'CONDITIONAL_PASS') {
         console.log('Bible validation passed!')
-        reportProgress(8, 'complete', {
+        reportProgress(7, 'complete', {
           validationStatus: bible.validation.validation_status,
           attempts: validationAttempts
         })
@@ -2448,7 +2249,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
         const phaseNumbers = phasesToRegenerate.map(p => parseInt(p.replace('Phase ', '')))
         const earliestPhase = Math.min(...phaseNumbers)
 
-        reportProgress(8, 'regenerating', {
+        reportProgress(7, 'regenerating', {
           fromPhase: earliestPhase,
           phasesToFix: phasesToRegenerate
         })
@@ -2468,7 +2269,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
     // Final status if we exhausted attempts
     if (bible.validation?.validation_status !== 'PASS' && bible.validation?.validation_status !== 'CONDITIONAL_PASS') {
-      reportProgress(8, 'complete_with_issues', {
+      reportProgress(7, 'complete_with_issues', {
         validationStatus: bible.validation?.validation_status,
         attempts: validationAttempts
       })
@@ -2701,16 +2502,14 @@ function buildSceneUserPrompt(bible, chapter, scene, sceneIndex, previousSceneEx
   const beatCount = scene.beats?.length || 0
   const wordTarget = getSceneWordCountTarget(beatCount)
 
-  // Get prose guidance
-  const proseGuidance = bible.levelCheck?.prose_guidance || {}
-  const targetLevel = bible.levelCheck?.target_level || 'Intermediate'
+  // Get level constraints directly from LEVEL_DEFINITIONS
+  const targetLevel = bible.level || 'Intermediate'
   const levelDef = LEVEL_DEFINITIONS[targetLevel] || LEVEL_DEFINITIONS.Intermediate
 
   // Build level constraints text
-  const sentenceConstraints = proseGuidance.sentence_constraints || {}
-  const avgMin = sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min
-  const avgMax = sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max
-  const maxLen = sentenceConstraints.max_length || levelDef.sentences.maxLength
+  const avgMin = levelDef.sentences.averageLength.min
+  const avgMax = levelDef.sentences.averageLength.max
+  const maxLen = levelDef.sentences.maxLength
 
   let levelText = `TARGET LEVEL: ${targetLevel}
 SENTENCE LENGTH: Average ${avgMin}-${avgMax} words, maximum ${maxLen} words
@@ -2903,9 +2702,8 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
 
   console.log(`  Chapter ${chapterIndex} complete: ${totalWordCount} total words from ${generatedScenes.length} scenes`)
 
-  // Get level and prose guidance from bible for validation
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible for validation
+  const level = bible.level || 'Intermediate'
   const wordCountTarget = getWordCountTarget(chapter.tension_rating || 5)
 
   // Collect all expected beats
@@ -2951,7 +2749,7 @@ async function generateChapterByScenes(bible, chapterIndex, previousSummaries, l
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   result.validation = validation
@@ -2990,60 +2788,42 @@ Emotional state: ${JSON.stringify(s.summary.characterStates || {})}`
     previousContext = 'This is Chapter 1. No previous context.'
   }
 
-  // Get prose guidance from levelCheck - now structured
-  const proseGuidance = bible.levelCheck?.prose_guidance || {}
-  const targetLevel = bible.levelCheck?.target_level || 'Intermediate'
-
-  // Get the base level definition for fallbacks
+  // Get level constraints directly from LEVEL_DEFINITIONS
+  const targetLevel = bible.level || 'Intermediate'
   const levelDef = LEVEL_DEFINITIONS[targetLevel] || LEVEL_DEFINITIONS.Intermediate
-
-  // Build structured prose guidance text
-  const sentenceConstraints = proseGuidance.sentence_constraints || {}
-  const vocabConstraints = proseGuidance.vocabulary_constraints || {}
-  const meaningConstraints = proseGuidance.meaning_constraints || {}
-  const dialogueConstraints = proseGuidance.dialogue_constraints || {}
-  const narrativeConstraints = proseGuidance.narrative_constraints || {}
-  const languageRules = proseGuidance.language_specific_rules || []
-  const forbiddenTechniques = bible.levelCheck?.forbidden_techniques || levelDef.forbidden || []
-
-  // Get chapter-specific notes if available
-  const chapterNotes = bible.levelCheck?.chapter_specific_notes?.find(n => n.chapter === chapterIndex)
+  const forbiddenTechniques = levelDef.forbidden || []
 
   const proseGuidanceText = `
 ### SENTENCE CONSTRAINTS (MANDATORY):
-- Average length: ${sentenceConstraints.average_length_min || levelDef.sentences.averageLength.min}-${sentenceConstraints.average_length_max || levelDef.sentences.averageLength.max} words per sentence
-- Maximum length: ${sentenceConstraints.max_length || levelDef.sentences.maxLength || 'no hard limit'} words
-- Structure: ${sentenceConstraints.structure_rule || levelDef.sentences.structure}
-- Allowed connectors: ${sentenceConstraints.allowed_connectors || levelDef.sentences.connectors}
+- Average length: ${levelDef.sentences.averageLength.min}-${levelDef.sentences.averageLength.max} words per sentence
+- Maximum length: ${levelDef.sentences.maxLength || 'no hard limit'} words
+- Structure: ${levelDef.sentences.structure}
+- Allowed connectors: ${levelDef.sentences.connectors}
 
 ### VOCABULARY CONSTRAINTS (MANDATORY):
-- Scope: ${vocabConstraints.scope || levelDef.vocabulary.scope}
-- Handling difficult concepts: ${vocabConstraints.handling_rule || levelDef.vocabulary.handling}
-${vocabConstraints.forbidden_types?.length > 0 || levelDef.vocabulary.forbidden?.length > 0 ? `- FORBIDDEN vocabulary types:\n${(vocabConstraints.forbidden_types || levelDef.vocabulary.forbidden).map(f => `  * ${f}`).join('\n')}` : ''}
+- Scope: ${levelDef.vocabulary.scope}
+- Handling difficult concepts: ${levelDef.vocabulary.handling}
+${levelDef.vocabulary.forbidden?.length > 0 ? `- FORBIDDEN vocabulary types:\n${levelDef.vocabulary.forbidden.map(f => `  * ${f}`).join('\n')}` : ''}
 
 ### MEANING & SUBTEXT (MANDATORY):
-- Explicitness: ${meaningConstraints.explicitness_rule || levelDef.meaning.explicitness}
-- Subtext rule: ${meaningConstraints.subtext_rule || levelDef.meaning.subtext}
-- Emotion expression: ${meaningConstraints.emotion_rule || levelDef.meaning.emotions}
-- Motivation clarity: ${meaningConstraints.motivation_rule || levelDef.meaning.motivation}
+- Explicitness: ${levelDef.meaning.explicitness}
+- Subtext rule: ${levelDef.meaning.subtext}
+- Emotion expression: ${levelDef.meaning.emotions}
+- Motivation clarity: ${levelDef.meaning.motivation}
 
 ### DIALOGUE CONSTRAINTS (MANDATORY):
-- Style: ${dialogueConstraints.style_rule || levelDef.dialogue.style}
-- Length: ${dialogueConstraints.length_rule || levelDef.dialogue.length}
-- Attribution: ${dialogueConstraints.attribution_rule || levelDef.dialogue.attribution}
-- Subtext: ${dialogueConstraints.subtext_rule || levelDef.dialogue.subtext}
+- Style: ${levelDef.dialogue.style}
+- Length: ${levelDef.dialogue.length}
+- Attribution: ${levelDef.dialogue.attribution}
+- Subtext: ${levelDef.dialogue.subtext}
 
 ### NARRATIVE TECHNIQUE (MANDATORY):
-- Cause/Effect: ${narrativeConstraints.cause_effect_rule || levelDef.narrative.causeEffect}
-- Timeline: ${narrativeConstraints.timeline_rule || levelDef.narrative.timeflow}
-- POV handling: ${narrativeConstraints.pov_rule || levelDef.narrative.pov}
-- Show vs Tell: ${narrativeConstraints.show_tell_rule || levelDef.narrative.showing}
+- Cause/Effect: ${levelDef.narrative.causeEffect}
+- Timeline: ${levelDef.narrative.timeflow}
+- POV handling: ${levelDef.narrative.pov}
+- Show vs Tell: ${levelDef.narrative.showing}
 
-${languageRules.length > 0 ? `### ${language.toUpperCase()}-SPECIFIC GRAMMAR RULES (MANDATORY):\n${languageRules.map(r => `- ${r}`).join('\n')}` : ''}
-
-${forbiddenTechniques.length > 0 ? `### FORBIDDEN AT THIS LEVEL (DO NOT USE):\n${forbiddenTechniques.map(f => `- ${f}`).join('\n')}` : ''}
-
-${chapterNotes ? `### CHAPTER ${chapterIndex} SPECIFIC GUIDANCE:\n- Potential issues: ${chapterNotes.potential_violations?.join(', ') || 'None'}\n- Mitigation: ${chapterNotes.mitigation || 'Follow standard level rules'}` : ''}`
+${forbiddenTechniques.length > 0 ? `### FORBIDDEN AT THIS LEVEL (DO NOT USE):\n${forbiddenTechniques.map(f => `- ${f}`).join('\n')}` : ''}`
 
   return `STORY BIBLE:
 
@@ -3426,9 +3206,8 @@ async function generateChapter(bible, chapterIndex, previousSummaries, language)
 
   const chapterData = parsed.data
 
-  // Get level and prose guidance from bible
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible
+  const level = bible.level || 'Intermediate'
 
   // Collect all beats from all scenes (new structure) or fall back to old structure
   const allBeats = chapter.scenes
@@ -3442,7 +3221,7 @@ async function generateChapter(bible, chapterIndex, previousSummaries, language)
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   if (!validation.valid) {
@@ -3700,9 +3479,8 @@ Please fix these issues while maintaining story quality.`
 
   const chapterData = parsed.data
 
-  // Get level and prose guidance from bible
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible
+  const level = bible.level || 'Intermediate'
 
   // Collect all beats from all scenes (new structure) or fall back to old structure
   const allBeats = chapter.scenes
@@ -3715,7 +3493,7 @@ Please fix these issues while maintaining story quality.`
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   console.log(`Chapter ${chapterIndex} regenerated. Word count: ${validation.wordCount}`)
@@ -3867,9 +3645,8 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
     throw new Error('Chapter expansion failed to parse')
   }
 
-  // Get level and prose guidance from bible
-  const level = bible.levelCheck?.target_level || 'Intermediate'
-  const proseGuidance = bible.levelCheck?.prose_guidance || null
+  // Get level from bible
+  const level = bible.level || 'Intermediate'
 
   // Collect all beats from all scenes (new structure) or fall back to old structure
   const allBeats = chapter.scenes
@@ -3882,7 +3659,7 @@ Expand the chapter to ${wordCountTarget.min}-${wordCountTarget.max} words in ${l
     chapter.chapter_hook?.type || chapter.hook?.type,
     wordCountTarget,
     level,
-    proseGuidance
+    null
   )
 
   return {
@@ -3989,7 +3766,6 @@ export default {
   executePhase5,
   executePhase6,
   executePhase7,
-  executePhase8,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

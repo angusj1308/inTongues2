@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
-import { generateBible, generatePrompt } from '../../services/novelApiClient'
+import { generateBible, generatePrompt, expandPrompt } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -133,11 +133,13 @@ const GenerateStoryPanel = ({
     setLastUsedLanguage(resolved)
   }
 
-  const handleGeneratePrompt = async () => {
+  const handleGenerateOrExpandPrompt = async () => {
     setIsGeneratingPrompt(true)
     setError('')
     try {
-      const prompt = await generatePrompt()
+      const prompt = description.trim()
+        ? await expandPrompt(description.trim())
+        : await generatePrompt()
       setDescription(prompt)
     } catch (err) {
       setError(err.message || 'Failed to generate prompt')
@@ -390,12 +392,20 @@ const GenerateStoryPanel = ({
             <button
               type="button"
               className="button ghost small"
-              onClick={handleGeneratePrompt}
+              onClick={handleGenerateOrExpandPrompt}
               disabled={isGeneratingPrompt}
             >
-              {isGeneratingPrompt ? 'Generating...' : 'Generate Prompt'}
+              {isGeneratingPrompt
+                ? 'Generating...'
+                : description.trim()
+                  ? 'Expand My Prompt'
+                  : 'Generate Prompt'}
             </button>
-            <p className="muted small ui-text">Or describe the time, place, and setting for your story.</p>
+            <p className="muted small ui-text">
+              {description.trim()
+                ? 'Add detail to your concept, or clear to generate a new one.'
+                : 'Or describe the time, place, and setting for your story.'}
+            </p>
           </div>
         </label>
 

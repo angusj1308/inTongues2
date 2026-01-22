@@ -7984,6 +7984,26 @@ app.post('/api/generate/prompt', async (req, res) => {
   }
 })
 
+// POST /api/generate/expand-prompt - Expand a vague story concept
+app.post('/api/generate/expand-prompt', async (req, res) => {
+  try {
+    const { concept } = req.body
+
+    if (!concept || !concept.trim()) {
+      return res.status(400).json({ error: 'concept is required' })
+    }
+
+    const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Be original and surprising with your character choices - avoid the obvious.`
+
+    const response = await callClaude(systemPrompt, concept.trim())
+
+    return res.json({ success: true, prompt: response })
+  } catch (error) {
+    console.error('Expand prompt error:', error)
+    return res.status(500).json({ error: 'Failed to expand prompt', details: error.message })
+  }
+})
+
 // POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
 app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
   try {

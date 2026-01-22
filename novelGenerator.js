@@ -674,10 +674,32 @@ LEVEL: ${level}
 Analyze this concept and establish the story's DNA.`
 }
 
+// Expand vague concepts before Phase 1
+async function expandVagueConcept(concept) {
+  const wordCount = concept.trim().split(/\s+/).length
+
+  if (wordCount >= 20) {
+    return concept // Detailed enough
+  }
+
+  console.log(`Concept is ${wordCount} words - expanding for originality...`)
+
+  const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. Keep everything the user specified. Be original.`
+
+  const response = await callClaude(systemPrompt, concept)
+
+  console.log(`Expanded concept: ${response.substring(0, 100)}...`)
+
+  return response
+}
+
 async function executePhase1(concept, lengthPreset, level) {
   console.log('Executing Phase 1: Story DNA...')
 
-  const userPrompt = buildPhase1UserPrompt(concept, lengthPreset, level)
+  // Expand vague concepts first
+  const expandedConcept = await expandVagueConcept(concept)
+
+  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level)
   const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 

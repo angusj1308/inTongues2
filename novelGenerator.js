@@ -677,18 +677,20 @@ Analyze this concept and establish the story's DNA.`
 // Expand vague concepts before Phase 1
 async function expandVagueConcept(concept) {
   const wordCount = concept.trim().split(/\s+/).length
+  console.log(`[Expansion Check] Concept: "${concept}" (${wordCount} words)`)
 
   if (wordCount >= 20) {
+    console.log('[Expansion Check] Skipping - concept is detailed enough')
     return concept // Detailed enough
   }
 
-  console.log(`Concept is ${wordCount} words - expanding for originality...`)
+  console.log(`[Expansion Check] Expanding vague concept...`)
 
   const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. Keep everything the user specified. Be original.`
 
   const response = await callClaude(systemPrompt, concept)
 
-  console.log(`Expanded concept: ${response.substring(0, 100)}...`)
+  console.log(`[Expansion Check] Expanded to: ${response.substring(0, 100)}...`)
 
   return response
 }

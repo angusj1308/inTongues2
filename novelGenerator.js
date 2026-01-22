@@ -27,7 +27,7 @@ const CONFIG = {
   maxRetries: 3,
   retryDelays: [2000, 4000, 8000],
   timeoutMs: 120000, // Claude can take longer for complex creative tasks
-  temperature: 0.8, // Slightly higher for creative writing
+  temperature: 1.0, // Higher for creative writing
   maxTokens: 8192,
   // Chapter counts by length preset
   chapterCounts: {

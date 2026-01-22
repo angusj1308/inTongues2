@@ -41,13 +41,13 @@ const CONFIG = {
 // =============================================================================
 
 async function callClaude(systemPrompt, userPrompt, options = {}) {
-  const { maxRetries = CONFIG.maxRetries, timeoutMs = CONFIG.timeoutMs } = options
+  const { maxRetries = CONFIG.maxRetries, timeoutMs = CONFIG.timeoutMs, model = CONFIG.model } = options
   let lastError = null
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await getAnthropicClient().messages.create({
-        model: CONFIG.model,
+        model: model,
         max_tokens: options.maxTokens ?? CONFIG.maxTokens,
         system: systemPrompt,
         messages: [
@@ -688,7 +688,9 @@ async function expandVagueConcept(concept) {
 
   const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Create original and complex characters. Vary the time period.`
 
-  const response = await callClaude(systemPrompt, concept)
+  const response = await callClaude(systemPrompt, concept, {
+    model: 'claude-3-opus-20240229'
+  })
 
   console.log(`[Expansion Check] Expanded to: ${response.substring(0, 100)}...`)
 
@@ -702,7 +704,9 @@ async function executePhase1(concept, lengthPreset, level) {
   const expandedConcept = await expandVagueConcept(concept)
 
   const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level)
-  const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt)
+  const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-3-opus-20240229'
+  })
   const parsed = parseJSON(response)
 
   if (!parsed.success) {

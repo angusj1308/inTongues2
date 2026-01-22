@@ -689,7 +689,7 @@ async function expandVagueConcept(concept) {
   const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Create original and complex characters. Vary the time period.`
 
   const response = await callClaude(systemPrompt, concept, {
-    model: 'claude-3-opus-20240229'
+    model: 'claude-opus-4-20250514'
   })
 
   console.log(`[Expansion Check] Expanded to: ${response.substring(0, 100)}...`)
@@ -705,7 +705,7 @@ async function executePhase1(concept, lengthPreset, level) {
 
   const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level)
   const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
-    model: 'claude-3-opus-20240229'
+    model: 'claude-opus-4-20250514'
   })
   const parsed = parseJSON(response)
 

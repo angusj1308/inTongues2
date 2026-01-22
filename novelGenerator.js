@@ -674,7 +674,7 @@ LEVEL: ${level}
 Analyze this concept and establish the story's DNA.`
 }
 
-// Expand vague concepts before Phase 1
+// Expand vague concepts before Phase 1 using iterative expansion for variety
 async function expandVagueConcept(concept) {
   const wordCount = concept.trim().split(/\s+/).length
   console.log(`[Expansion Check] Concept: "${concept}" (${wordCount} words)`)
@@ -684,17 +684,48 @@ async function expandVagueConcept(concept) {
     return concept // Detailed enough
   }
 
-  console.log(`[Expansion Check] Expanding vague concept...`)
+  console.log(`[Expansion Check] Running iterative expansion (3 passes)...`)
 
-  const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Create original and complex characters. Vary the time period.`
+  // Pass 1: Initial expansion
+  const prompt1 = `Expand this into a romance story concept with specific characters, setting, and situation.`
 
-  const response = await callClaude(systemPrompt, concept, {
+  console.log('[Expansion Pass 1]')
+  const expansion1 = await callClaude(prompt1, concept, {
     model: 'claude-opus-4-20250514'
   })
+  console.log(`  Result: ${expansion1.substring(0, 80)}...`)
 
-  console.log(`[Expansion Check] Expanded to: ${response.substring(0, 100)}...`)
+  // Pass 2: Different from pass 1
+  const prompt2 = `Create a completely different romance concept. Same core request from the user, different everything else — different era, different tone, different character types, different situation.
 
-  return response
+User's original request: ${concept}
+
+Previous concept (do NOT repeat this):
+${expansion1}`
+
+  console.log('[Expansion Pass 2]')
+  const expansion2 = await callClaude(prompt2, 'Generate a different concept.', {
+    model: 'claude-opus-4-20250514'
+  })
+  console.log(`  Result: ${expansion2.substring(0, 80)}...`)
+
+  // Pass 3: Different from both previous
+  const prompt3 = `Create a third romance concept, completely different from both previous attempts.
+
+User's original request: ${concept}
+
+Previous concepts (do NOT repeat these):
+1. ${expansion1}
+2. ${expansion2}`
+
+  console.log('[Expansion Pass 3]')
+  const expansion3 = await callClaude(prompt3, 'Generate a third unique concept.', {
+    model: 'claude-opus-4-20250514'
+  })
+  console.log(`  Result: ${expansion3.substring(0, 80)}...`)
+
+  console.log('[Expansion Check] Using pass 3 result for Phase 1')
+  return expansion3
 }
 
 async function executePhase1(concept, lengthPreset, level) {

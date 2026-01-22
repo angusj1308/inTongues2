@@ -571,7 +571,7 @@ function validateCoherence(coherenceCheck, requiredFields) {
 // PHASE 1: STORY DNA
 // =============================================================================
 
-const PHASE_1_SYSTEM_PROMPT = `Analyze the user's concept and establish the story's DNA. Be creative and original.
+const PHASE_1_SYSTEM_PROMPT = `Analyze the user's concept and establish the story's DNA. Be creative and original. If the user's concept is vague or generic, select tropes randomly rather than defaulting to the most common choices.
 
 The user may not name tropes. Infer from their concept.
 

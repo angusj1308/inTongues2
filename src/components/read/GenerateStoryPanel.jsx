@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
-import { generateBible } from '../../services/novelApiClient'
+import { generateBible, generatePrompt } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -65,6 +65,7 @@ const GenerateStoryPanel = ({
   const [error, setError] = useState('')
   const [exampleIndex, setExampleIndex] = useState(0)
   const [bibleProgress, setBibleProgress] = useState('') // Progress message for bible generation
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -130,6 +131,19 @@ const GenerateStoryPanel = ({
     const resolved = toLanguageLabel(newLanguage)
     if (!resolved) return
     setLastUsedLanguage(resolved)
+  }
+
+  const handleGeneratePrompt = async () => {
+    setIsGeneratingPrompt(true)
+    setError('')
+    try {
+      const prompt = await generatePrompt()
+      setDescription(prompt)
+    } catch (err) {
+      setError(err.message || 'Failed to generate prompt')
+    } finally {
+      setIsGeneratingPrompt(false)
+    }
   }
 
   const handleSubmit = async (event) => {
@@ -372,7 +386,17 @@ const GenerateStoryPanel = ({
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
-          <p className="muted small ui-text">Describe the time, place, and setting for your story.</p>
+          <div className="setting-actions">
+            <button
+              type="button"
+              className="button ghost small"
+              onClick={handleGeneratePrompt}
+              disabled={isGeneratingPrompt}
+            >
+              {isGeneratingPrompt ? 'Generating...' : 'Generate Prompt'}
+            </button>
+            <p className="muted small ui-text">Or describe the time, place, and setting for your story.</p>
+          </div>
         </label>
 
         <label className="checkbox ui-text">

@@ -111,6 +111,25 @@ export async function deleteBook(uid, bookId) {
   return response.json()
 }
 
+/**
+ * Generate a random story concept prompt
+ * @returns {Promise<string>} Generated story concept
+ */
+export async function generatePrompt() {
+  const response = await fetch(`${API_BASE}/api/generate/prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to generate prompt')
+  }
+
+  const data = await response.json()
+  return data.prompt
+}
+
 // Level mapping for display
 export const NOVEL_LEVELS = [
   { value: 'Beginner', label: 'Beginner', description: 'Simple vocabulary and short sentences' },

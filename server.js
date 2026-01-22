@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -7967,6 +7967,20 @@ app.post('/api/generate/bible', async (req, res) => {
   } catch (error) {
     console.error('Generate bible error:', error)
     return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
+  }
+})
+
+// POST /api/generate/prompt - Generate a story concept prompt
+app.post('/api/generate/prompt', async (req, res) => {
+  try {
+    const systemPrompt = `Generate a unique romance story concept. Include time period, location, specific characters, conflict, and whose perspective the story is told from. The love story must be the central plot. Be original and surprising - avoid obvious character types and clichéd settings. Output 2-3 sentences only.`
+
+    const response = await callClaude(systemPrompt, 'Generate a romance story concept.')
+
+    return res.json({ success: true, prompt: response })
+  } catch (error) {
+    console.error('Generate prompt error:', error)
+    return res.status(500).json({ error: 'Failed to generate prompt', details: error.message })
   }
 })
 

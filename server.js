@@ -7973,7 +7973,7 @@ app.post('/api/generate/bible', async (req, res) => {
 // POST /api/generate/prompt - Generate a story concept prompt
 app.post('/api/generate/prompt', async (req, res) => {
   try {
-    const systemPrompt = `Generate a unique romance story concept. Include time period, location, specific characters, conflict, and whose perspective the story is told from. The love story must be the central plot. Be original and surprising - avoid obvious character types and clichéd settings. Output 2-3 sentences only.`
+    const systemPrompt = `Generate a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Create original and complex characters. Vary the time period.`
 
     const response = await callClaude(systemPrompt, 'Generate a romance story concept.')
 
@@ -7993,7 +7993,7 @@ app.post('/api/generate/expand-prompt', async (req, res) => {
       return res.status(400).json({ error: 'concept is required' })
     }
 
-    const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Be original and surprising with your character choices - avoid the obvious.`
+    const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Create original and complex characters. Vary the time period.`
 
     const response = await callClaude(systemPrompt, concept.trim())
 

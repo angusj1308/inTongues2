@@ -686,7 +686,7 @@ async function expandVagueConcept(concept) {
 
   console.log(`[Expansion Check] Expanding vague concept...`)
 
-  const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Be original and surprising with your character choices - avoid the obvious.`
+  const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Create original and complex characters. Vary the time period.`
 
   const response = await callClaude(systemPrompt, concept)
 

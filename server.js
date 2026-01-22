@@ -7273,17 +7273,18 @@ app.post('/api/delete-story', async (req, res) => {
 
     console.log(`Deleted story ${storyId}: ${pagesDeleted} pages, ${chaptersDeleted} chapters, ${transcriptsDeleted} transcripts`)
 
-    // Delete audio file (ignore if missing)
-    const audioFilePath = `audio/full/${uid}/${storyId}.mp3`
-    const audioFile = bucket.file(audioFilePath)
-    try {
-      await audioFile.delete({ ignoreNotFound: true })
-    } catch (audioErr) {
-      console.error('Error deleting audio file (ignored):', {
-        message: audioErr?.message,
-        code: audioErr?.code,
-        stack: audioErr?.stack,
-      })
+    // Delete audio file (ignore if missing or bucket not available)
+    if (bucket) {
+      const audioFilePath = `audio/full/${uid}/${storyId}.mp3`
+      try {
+        const audioFile = bucket.file(audioFilePath)
+        await audioFile.delete({ ignoreNotFound: true })
+      } catch (audioErr) {
+        console.error('Error deleting audio file (ignored):', {
+          message: audioErr?.message,
+          code: audioErr?.code,
+        })
+      }
     }
 
     // Delete the story doc itself

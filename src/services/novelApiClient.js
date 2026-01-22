@@ -111,6 +111,46 @@ export async function deleteBook(uid, bookId) {
   return response.json()
 }
 
+/**
+ * Generate a random story concept prompt
+ * @returns {Promise<string>} Generated story concept
+ */
+export async function generatePrompt() {
+  const response = await fetch(`${API_BASE}/api/generate/prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to generate prompt')
+  }
+
+  const data = await response.json()
+  return data.prompt
+}
+
+/**
+ * Expand a vague story concept into a detailed one
+ * @param {string} concept - The user's vague concept
+ * @returns {Promise<string>} Expanded story concept
+ */
+export async function expandPrompt(concept) {
+  const response = await fetch(`${API_BASE}/api/generate/expand-prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ concept }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to expand prompt')
+  }
+
+  const data = await response.json()
+  return data.prompt
+}
+
 // Level mapping for display
 export const NOVEL_LEVELS = [
   { value: 'Beginner', label: 'Beginner', description: 'Simple vocabulary and short sentences' },

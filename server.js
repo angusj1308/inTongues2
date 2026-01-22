@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -7967,6 +7967,40 @@ app.post('/api/generate/bible', async (req, res) => {
   } catch (error) {
     console.error('Generate bible error:', error)
     return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
+  }
+})
+
+// POST /api/generate/prompt - Generate a story concept prompt
+app.post('/api/generate/prompt', async (req, res) => {
+  try {
+    const systemPrompt = `Generate a unique romance story concept. Include time period, location, specific characters, conflict, and whose perspective the story is told from. The love story must be the central plot. Be original and surprising - avoid obvious character types and clichéd settings. Output 2-3 sentences only.`
+
+    const response = await callClaude(systemPrompt, 'Generate a romance story concept.')
+
+    return res.json({ success: true, prompt: response })
+  } catch (error) {
+    console.error('Generate prompt error:', error)
+    return res.status(500).json({ error: 'Failed to generate prompt', details: error.message })
+  }
+})
+
+// POST /api/generate/expand-prompt - Expand a vague story concept
+app.post('/api/generate/expand-prompt', async (req, res) => {
+  try {
+    const { concept } = req.body
+
+    if (!concept || !concept.trim()) {
+      return res.status(400).json({ error: 'concept is required' })
+    }
+
+    const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Be original and surprising with your character choices - avoid the obvious.`
+
+    const response = await callClaude(systemPrompt, concept.trim())
+
+    return res.json({ success: true, prompt: response })
+  } catch (error) {
+    console.error('Expand prompt error:', error)
+    return res.status(500).json({ error: 'Failed to expand prompt', details: error.message })
   }
 })
 

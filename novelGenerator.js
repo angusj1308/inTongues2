@@ -98,7 +98,7 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
 
 // Actual OpenAI ChatGPT API call
 async function callChatGPT(systemPrompt, userPrompt, options = {}) {
-  const { maxRetries = CONFIG.maxRetries, model = 'gpt-4o', temperature = 1.0 } = options
+  const { maxRetries = CONFIG.maxRetries, model = 'gpt-5', temperature = 1.0 } = options
   let lastError = null
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {

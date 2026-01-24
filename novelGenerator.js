@@ -110,7 +110,7 @@ async function callChatGPT(systemPrompt, userPrompt, options = {}) {
           { role: 'user', content: userPrompt }
         ],
         temperature: temperature,
-        max_completion_tokens: options.maxTokens ?? 2048
+        max_completion_tokens: options.maxTokens ?? 16384
       })
 
       // Debug: log the full response structure
@@ -789,44 +789,25 @@ async function generateDifferentConcept(existingConcept) {
   console.log(`[Different Concept] Generating concept different from existing...`)
 
   const systemPrompt = `You are a classic romance novelist.`
+  const basePrompt = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
 
-  // Pass 1: Different from existing
-  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from this:
-
-${existingConcept}`
-
+  // Generate 3 independent ideas (GPT-5 has issues with "different from" prompts causing empty responses)
   console.log('\n[Different Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', user1)
-  const expansion1 = await callChatGPT(systemPrompt, user1)
+  console.log('  USER:', basePrompt)
+  const expansion1 = await callChatGPT(systemPrompt, basePrompt)
   console.log('  RESPONSE:', expansion1)
-
-  // Pass 2: Different from existing AND pass 1
-  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from both of these:
-
-1. ${existingConcept}
-
-2. ${expansion1}`
 
   console.log('\n[Different Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', user2)
-  const expansion2 = await callChatGPT(systemPrompt, user2)
+  console.log('  USER:', basePrompt)
+  const expansion2 = await callChatGPT(systemPrompt, basePrompt)
   console.log('  RESPONSE:', expansion2)
-
-  // Pass 3: Different from all three
-  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from all of these:
-
-1. ${existingConcept}
-
-2. ${expansion1}
-
-3. ${expansion2}`
 
   console.log('\n[Different Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', user3)
-  const expansion3 = await callChatGPT(systemPrompt, user3)
+  console.log('  USER:', basePrompt)
+  const expansion3 = await callChatGPT(systemPrompt, basePrompt)
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Different Concept] Using pass 3 result')

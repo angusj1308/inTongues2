@@ -3564,6 +3564,7 @@ async function generateChapterWithValidation(bible, chapterIndex, previousSummar
 
 export {
   callClaude,
+  expandVagueConcept,
   generateChapter,
   generateChapterByScenes,
   generateScene,

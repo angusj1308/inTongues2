@@ -689,7 +689,7 @@ async function expandVagueConcept(concept) {
   const systemPrompt = `You are a classic romance novelist.`
 
   // Pass 1: Initial concept
-  const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only.`
+  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Austen, Brontë, Hardy, or Hemingway's Farewell to Arms. Set anywhere in the Spanish-speaking world, in any time period, with a compelling romantic conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
 
   console.log('\n[Expansion Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
@@ -700,7 +700,7 @@ async function expandVagueConcept(concept) {
   console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Different from pass 1
-  const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from this:
+  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Austen, Brontë, Hardy, or Hemingway's Farewell to Arms. Set anywhere in the Spanish-speaking world, in any time period, with a compelling romantic conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from this:
 
 ${expansion1}`
 
@@ -713,7 +713,7 @@ ${expansion1}`
   console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Different from both previous
-  const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from both of these:
+  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Austen, Brontë, Hardy, or Hemingway's Farewell to Arms. Set anywhere in the Spanish-speaking world, in any time period, with a compelling romantic conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from both of these:
 
 1. ${expansion1}
 
@@ -738,7 +738,7 @@ async function generateDifferentConcept(existingConcept) {
   const systemPrompt = `You are a classic romance novelist.`
 
   // Pass 1: Different from existing
-  const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from this:
+  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Austen, Brontë, Hardy, or Hemingway's Farewell to Arms. Set anywhere in the Spanish-speaking world, in any time period, with a compelling romantic conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from this:
 
 ${existingConcept}`
 
@@ -751,7 +751,7 @@ ${existingConcept}`
   console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Different from existing AND pass 1
-  const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from both of these:
+  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Austen, Brontë, Hardy, or Hemingway's Farewell to Arms. Set anywhere in the Spanish-speaking world, in any time period, with a compelling romantic conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from both of these:
 
 1. ${existingConcept}
 
@@ -766,7 +766,7 @@ ${existingConcept}`
   console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Different from all three
-  const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from all of these:
+  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Austen, Brontë, Hardy, or Hemingway's Farewell to Arms. Set anywhere in the Spanish-speaking world, in any time period, with a compelling romantic conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from all of these:
 
 1. ${existingConcept}
 

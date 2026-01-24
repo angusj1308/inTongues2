@@ -151,6 +151,27 @@ export async function expandPrompt(concept) {
   return data.prompt
 }
 
+/**
+ * Generate a completely different story concept from an existing one
+ * @param {string} existingConcept - The concept to avoid/differ from
+ * @returns {Promise<string>} A new, different story concept
+ */
+export async function generateDifferentPrompt(existingConcept) {
+  const response = await fetch(`${API_BASE}/api/generate/different-prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ existingConcept }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to generate different prompt')
+  }
+
+  const data = await response.json()
+  return data.prompt
+}
+
 // Level mapping for display
 export const NOVEL_LEVELS = [
   { value: 'Beginner', label: 'Beginner', description: 'Simple vocabulary and short sentences' },

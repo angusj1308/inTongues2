@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8001,6 +8001,24 @@ app.post('/api/generate/expand-prompt', async (req, res) => {
   } catch (error) {
     console.error('Expand prompt error:', error)
     return res.status(500).json({ error: 'Failed to expand prompt', details: error.message })
+  }
+})
+
+// POST /api/generate/different-prompt - Generate a completely different story concept
+app.post('/api/generate/different-prompt', async (req, res) => {
+  try {
+    const { existingConcept } = req.body
+
+    if (!existingConcept || !existingConcept.trim()) {
+      return res.status(400).json({ error: 'existingConcept is required' })
+    }
+
+    const response = await generateDifferentConcept(existingConcept.trim())
+
+    return res.json({ success: true, prompt: response })
+  } catch (error) {
+    console.error('Generate different prompt error:', error)
+    return res.status(500).json({ error: 'Failed to generate different prompt', details: error.message })
   }
 })
 

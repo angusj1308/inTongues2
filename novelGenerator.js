@@ -687,34 +687,34 @@ async function expandVagueConcept(concept) {
   console.log(`[Expansion Check] Running iterative expansion (3 passes)...`)
 
   // Pass 1: Initial concept
-  const prompt1 = `Generate an original book concept for a romance novel.`
+  const prompt1 = `Generate idea for a classic romance novel.`
 
   console.log('[Expansion Pass 1]')
-  const expansion1 = await callClaude(prompt1, concept, {
+  const expansion1 = await callClaude(prompt1, 'Go', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion1.substring(0, 80)}...`)
 
   // Pass 2: Different from pass 1
-  const prompt2 = `Generate another book concept for a romance novel, different from this one:
+  const prompt2 = `Generate idea for a classic romance novel, different from this one:
 
 ${expansion1}`
 
   console.log('[Expansion Pass 2]')
-  const expansion2 = await callClaude(prompt2, concept, {
+  const expansion2 = await callClaude(prompt2, 'Go', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion2.substring(0, 80)}...`)
 
   // Pass 3: Different from both previous, brief format
-  const prompt3 = `Generate another book concept for a romance novel, different from both of these. Output 2-3 sentences only.
+  const prompt3 = `Generate idea for a classic romance novel, different from both of these. Output 2-3 sentences only.
 
 1. ${expansion1}
 
 2. ${expansion2}`
 
   console.log('[Expansion Pass 3]')
-  const expansion3 = await callClaude(prompt3, concept, {
+  const expansion3 = await callClaude(prompt3, 'Go', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion3.substring(0, 80)}...`)
@@ -728,31 +728,31 @@ async function generateDifferentConcept(existingConcept) {
   console.log(`[Different Concept] Generating concept different from existing...`)
 
   // Pass 1: Different from existing
-  const prompt1 = `Generate another book concept for a romance novel, different from this one:
+  const prompt1 = `Generate idea for a classic romance novel, different from this one:
 
 ${existingConcept}`
 
   console.log('[Different Pass 1]')
-  const expansion1 = await callClaude(prompt1, 'Generate a different concept.', {
+  const expansion1 = await callClaude(prompt1, 'Go', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion1.substring(0, 80)}...`)
 
   // Pass 2: Different from existing AND pass 1
-  const prompt2 = `Generate another book concept for a romance novel, different from both of these:
+  const prompt2 = `Generate idea for a classic romance novel, different from both of these:
 
 1. ${existingConcept}
 
 2. ${expansion1}`
 
   console.log('[Different Pass 2]')
-  const expansion2 = await callClaude(prompt2, 'Generate a different concept.', {
+  const expansion2 = await callClaude(prompt2, 'Go', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion2.substring(0, 80)}...`)
 
   // Pass 3: Different from all three, brief format
-  const prompt3 = `Generate another book concept for a romance novel, different from all of these. Output 2-3 sentences only.
+  const prompt3 = `Generate idea for a classic romance novel, different from all of these. Output 2-3 sentences only.
 
 1. ${existingConcept}
 
@@ -761,7 +761,7 @@ ${existingConcept}`
 3. ${expansion2}`
 
   console.log('[Different Pass 3]')
-  const expansion3 = await callClaude(prompt3, 'Generate a different concept in 2-3 sentences.', {
+  const expansion3 = await callClaude(prompt3, 'Go', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion3.substring(0, 80)}...`)

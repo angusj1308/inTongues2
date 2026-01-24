@@ -691,22 +691,26 @@ async function expandVagueConcept(concept) {
   // Pass 1: Initial concept
   const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only.`
 
-  console.log('[Expansion Pass 1]')
+  console.log('\n[Expansion Pass 1]')
+  console.log('  SYSTEM:', systemPrompt)
+  console.log('  USER:', user1)
   const expansion1 = await callClaude(systemPrompt, user1, {
     model: 'claude-opus-4-20250514'
   })
-  console.log(`  Result: ${expansion1.substring(0, 80)}...`)
+  console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Different from pass 1
   const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from this:
 
 ${expansion1}`
 
-  console.log('[Expansion Pass 2]')
+  console.log('\n[Expansion Pass 2]')
+  console.log('  SYSTEM:', systemPrompt)
+  console.log('  USER:', user2)
   const expansion2 = await callClaude(systemPrompt, user2, {
     model: 'claude-opus-4-20250514'
   })
-  console.log(`  Result: ${expansion2.substring(0, 80)}...`)
+  console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Different from both previous
   const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from both of these:
@@ -715,11 +719,13 @@ ${expansion1}`
 
 2. ${expansion2}`
 
-  console.log('[Expansion Pass 3]')
+  console.log('\n[Expansion Pass 3]')
+  console.log('  SYSTEM:', systemPrompt)
+  console.log('  USER:', user3)
   const expansion3 = await callClaude(systemPrompt, user3, {
     model: 'claude-opus-4-20250514'
   })
-  console.log(`  Result: ${expansion3.substring(0, 80)}...`)
+  console.log('  RESPONSE:', expansion3)
 
   console.log('[Expansion Check] Using pass 3 result for Phase 1')
   return expansion3
@@ -736,11 +742,13 @@ async function generateDifferentConcept(existingConcept) {
 
 ${existingConcept}`
 
-  console.log('[Different Pass 1]')
+  console.log('\n[Different Pass 1]')
+  console.log('  SYSTEM:', systemPrompt)
+  console.log('  USER:', user1)
   const expansion1 = await callClaude(systemPrompt, user1, {
     model: 'claude-opus-4-20250514'
   })
-  console.log(`  Result: ${expansion1.substring(0, 80)}...`)
+  console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Different from existing AND pass 1
   const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from both of these:
@@ -749,11 +757,13 @@ ${existingConcept}`
 
 2. ${expansion1}`
 
-  console.log('[Different Pass 2]')
+  console.log('\n[Different Pass 2]')
+  console.log('  SYSTEM:', systemPrompt)
+  console.log('  USER:', user2)
   const expansion2 = await callClaude(systemPrompt, user2, {
     model: 'claude-opus-4-20250514'
   })
-  console.log(`  Result: ${expansion2.substring(0, 80)}...`)
+  console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Different from all three
   const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from all of these:
@@ -764,11 +774,13 @@ ${existingConcept}`
 
 3. ${expansion2}`
 
-  console.log('[Different Pass 3]')
+  console.log('\n[Different Pass 3]')
+  console.log('  SYSTEM:', systemPrompt)
+  console.log('  USER:', user3)
   const expansion3 = await callClaude(systemPrompt, user3, {
     model: 'claude-opus-4-20250514'
   })
-  console.log(`  Result: ${expansion3.substring(0, 80)}...`)
+  console.log('  RESPONSE:', expansion3)
 
   console.log('[Different Concept] Using pass 3 result')
   return expansion3

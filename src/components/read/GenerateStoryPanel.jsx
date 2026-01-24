@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
-import { generateBible, generatePrompt, expandPrompt } from '../../services/novelApiClient'
+import { generateBible, generatePrompt, expandPrompt, generateDifferentPrompt } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -66,6 +66,7 @@ const GenerateStoryPanel = ({
   const [exampleIndex, setExampleIndex] = useState(0)
   const [bibleProgress, setBibleProgress] = useState('') // Progress message for bible generation
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
+  const [isGeneratedContent, setIsGeneratedContent] = useState(false) // Track if description was AI-generated
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -137,13 +138,22 @@ const GenerateStoryPanel = ({
     setIsGeneratingPrompt(true)
     setError('')
     try {
-      // If user has typed something, use their text as seed for 3-pass expansion
-      // Otherwise generate a fresh concept
       const currentText = description.trim()
-      const prompt = currentText
-        ? await expandPrompt(currentText)
-        : await generatePrompt()
+      let prompt
+
+      if (!currentText) {
+        // Empty field: generate fresh concept
+        prompt = await generatePrompt()
+      } else if (isGeneratedContent) {
+        // Already generated: create something completely different
+        prompt = await generateDifferentPrompt(currentText)
+      } else {
+        // User typed something: expand their idea
+        prompt = await expandPrompt(currentText)
+      }
+
       setDescription(prompt)
+      setIsGeneratedContent(true)
     } catch (err) {
       setError(err.message || 'Failed to generate prompt')
     } finally {
@@ -389,7 +399,10 @@ const GenerateStoryPanel = ({
           <textarea
             placeholder={SETTING_EXAMPLES[exampleIndex]}
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) => {
+              setDescription(event.target.value)
+              setIsGeneratedContent(false)
+            }}
           />
           <div className="setting-actions">
             <button
@@ -400,9 +413,11 @@ const GenerateStoryPanel = ({
             >
               {isGeneratingPrompt
                 ? 'Generating...'
-                : description.trim()
-                  ? 'Expand My Prompt'
-                  : 'Generate Prompt'}
+                : !description.trim()
+                  ? 'Generate Prompt'
+                  : isGeneratedContent
+                    ? 'New Story Idea'
+                    : 'Expand My Prompt'}
             </button>
             <p className="muted small ui-text">
               {description.trim()

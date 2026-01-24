@@ -728,6 +728,53 @@ Previous concepts (do NOT repeat these):
   return expansion3
 }
 
+// Generate a completely different concept from an existing one
+async function generateDifferentConcept(existingConcept) {
+  console.log(`[Different Concept] Generating concept different from existing...`)
+
+  // Pass 1: Generate something completely different
+  const prompt1 = `Create an original romance story concept that is COMPLETELY DIFFERENT from this existing concept. Different era, different setting, different character types, different tone, different situation. Only similarity should be that it's a romance.
+
+AVOID THIS CONCEPT:
+${existingConcept}`
+
+  console.log('[Different Pass 1]')
+  const expansion1 = await callClaude(prompt1, 'Generate a completely different romance concept.', {
+    model: 'claude-opus-4-20250514'
+  })
+  console.log(`  Result: ${expansion1.substring(0, 80)}...`)
+
+  // Pass 2: Different from both existing AND pass 1
+  const prompt2 = `Create another original romance story concept that is COMPLETELY DIFFERENT from BOTH of these concepts. Different era, different setting, different character types, different tone, different situation.
+
+AVOID THESE CONCEPTS:
+1. ${existingConcept}
+2. ${expansion1}`
+
+  console.log('[Different Pass 2]')
+  const expansion2 = await callClaude(prompt2, 'Generate a different romance concept.', {
+    model: 'claude-opus-4-20250514'
+  })
+  console.log(`  Result: ${expansion2.substring(0, 80)}...`)
+
+  // Pass 3: Different from all three, brief format
+  const prompt3 = `Create a third romance concept, COMPLETELY DIFFERENT from all three concepts below. Output 2-3 sentences only — a brief synopsis, not the full story.
+
+AVOID THESE CONCEPTS:
+1. ${existingConcept}
+2. ${expansion1}
+3. ${expansion2}`
+
+  console.log('[Different Pass 3]')
+  const expansion3 = await callClaude(prompt3, 'Generate a third unique concept in 2-3 sentences.', {
+    model: 'claude-opus-4-20250514'
+  })
+  console.log(`  Result: ${expansion3.substring(0, 80)}...`)
+
+  console.log('[Different Concept] Using pass 3 result')
+  return expansion3
+}
+
 async function executePhase1(concept, lengthPreset, level) {
   console.log('Executing Phase 1: Story DNA...')
 
@@ -3565,6 +3612,7 @@ async function generateChapterWithValidation(bible, chapterIndex, previousSummar
 export {
   callClaude,
   expandVagueConcept,
+  generateDifferentConcept,
   generateChapter,
   generateChapterByScenes,
   generateScene,

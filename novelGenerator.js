@@ -113,7 +113,19 @@ async function callChatGPT(systemPrompt, userPrompt, options = {}) {
         max_completion_tokens: options.maxTokens ?? 2048
       })
 
-      return response.choices[0].message.content
+      const content = response.choices[0].message.content
+
+      // Check for empty response and retry
+      if (!content || content.trim() === '') {
+        console.warn(`ChatGPT returned empty response on attempt ${attempt + 1}, retrying...`)
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+          continue
+        }
+        throw new Error('ChatGPT returned empty response after all retries')
+      }
+
+      return content
     } catch (error) {
       lastError = error
       console.error(`ChatGPT call attempt ${attempt + 1} failed:`, error.message)

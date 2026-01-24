@@ -133,12 +133,15 @@ const GenerateStoryPanel = ({
     setLastUsedLanguage(resolved)
   }
 
-  const handleGenerateOrExpandPrompt = async () => {
+  const handleGeneratePrompt = async () => {
     setIsGeneratingPrompt(true)
     setError('')
     try {
-      const prompt = description.trim()
-        ? await expandPrompt(description.trim())
+      // If user has typed something, use their text as seed for 3-pass expansion
+      // Otherwise generate a fresh concept
+      const currentText = description.trim()
+      const prompt = currentText
+        ? await expandPrompt(currentText)
         : await generatePrompt()
       setDescription(prompt)
     } catch (err) {
@@ -392,7 +395,7 @@ const GenerateStoryPanel = ({
             <button
               type="button"
               className="button ghost small"
-              onClick={handleGenerateOrExpandPrompt}
+              onClick={handleGeneratePrompt}
               disabled={isGeneratingPrompt}
             >
               {isGeneratingPrompt
@@ -403,7 +406,7 @@ const GenerateStoryPanel = ({
             </button>
             <p className="muted small ui-text">
               {description.trim()
-                ? 'Add detail to your concept, or clear to generate a new one.'
+                ? 'Generate a different concept, or edit the one above.'
                 : 'Or describe the time, place, and setting for your story.'}
             </p>
           </div>

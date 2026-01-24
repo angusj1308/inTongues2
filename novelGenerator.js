@@ -689,7 +689,7 @@ async function expandVagueConcept(concept) {
   const systemPrompt = `You are a classic romance novelist.`
 
   // Pass 1: Initial concept
-  const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period. Output 2-3 sentences only.`
+  const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only.`
 
   console.log('[Expansion Pass 1]')
   const expansion1 = await callClaude(systemPrompt, user1, {
@@ -698,7 +698,7 @@ async function expandVagueConcept(concept) {
   console.log(`  Result: ${expansion1.substring(0, 80)}...`)
 
   // Pass 2: Different from pass 1
-  const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period. Output 2-3 sentences only. It must be different in some way from this:
+  const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from this:
 
 ${expansion1}`
 
@@ -709,7 +709,7 @@ ${expansion1}`
   console.log(`  Result: ${expansion2.substring(0, 80)}...`)
 
   // Pass 3: Different from both previous
-  const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period. Output 2-3 sentences only. It must be different in some way from both of these:
+  const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from both of these:
 
 1. ${expansion1}
 
@@ -732,7 +732,7 @@ async function generateDifferentConcept(existingConcept) {
   const systemPrompt = `You are a classic romance novelist.`
 
   // Pass 1: Different from existing
-  const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period. Output 2-3 sentences only. It must be different in some way from this:
+  const user1 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from this:
 
 ${existingConcept}`
 
@@ -743,7 +743,7 @@ ${existingConcept}`
   console.log(`  Result: ${expansion1.substring(0, 80)}...`)
 
   // Pass 2: Different from existing AND pass 1
-  const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period. Output 2-3 sentences only. It must be different in some way from both of these:
+  const user2 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from both of these:
 
 1. ${existingConcept}
 
@@ -756,7 +756,7 @@ ${existingConcept}`
   console.log(`  Result: ${expansion2.substring(0, 80)}...`)
 
   // Pass 3: Different from all three
-  const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period. Output 2-3 sentences only. It must be different in some way from all of these:
+  const user3 = `Generate another original idea for a classic romance novel. The story can take place anywhere in the Spanish speaking world, in any time period, with a compelling central conflict. Output 2-3 sentences only. It must be different in some way from all of these:
 
 1. ${existingConcept}
 

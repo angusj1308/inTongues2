@@ -709,8 +709,8 @@ ${expansion1}`
   })
   console.log(`  Result: ${expansion2.substring(0, 80)}...`)
 
-  // Pass 3: Different from both previous
-  const prompt3 = `Create a third romance concept, completely different from both previous attempts.
+  // Pass 3: Different from both previous, brief synopsis format
+  const prompt3 = `Create a third romance concept, completely different from both previous attempts. Output 2-3 sentences only — a brief synopsis, not the full story.
 
 User's original request: ${concept}
 
@@ -719,7 +719,7 @@ Previous concepts (do NOT repeat these):
 2. ${expansion2}`
 
   console.log('[Expansion Pass 3]')
-  const expansion3 = await callClaude(prompt3, 'Generate a third unique concept.', {
+  const expansion3 = await callClaude(prompt3, 'Generate a third unique concept in 2-3 sentences.', {
     model: 'claude-opus-4-20250514'
   })
   console.log(`  Result: ${expansion3.substring(0, 80)}...`)

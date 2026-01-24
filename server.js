@@ -7975,7 +7975,7 @@ app.post('/api/generate/bible', async (req, res) => {
 app.post('/api/generate/prompt', async (req, res) => {
   try {
     // Use the 3-pass expansion system with a generic seed for maximum variation
-    const response = await expandVagueConcept('romance')
+    const response = await expandVagueConcept('original romance novel concept')
 
     return res.json({ success: true, prompt: response })
   } catch (error) {

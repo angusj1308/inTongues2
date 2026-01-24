@@ -98,20 +98,26 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
 
 // Actual OpenAI ChatGPT API call
 async function callChatGPT(systemPrompt, userPrompt, options = {}) {
-  const { maxRetries = CONFIG.maxRetries, model = 'gpt-5', temperature = 1.0 } = options
+  const { maxRetries = CONFIG.maxRetries, model = 'gpt-5', temperature = 1.0, noMaxTokens = false } = options
   let lastError = null
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await getOpenAIClient().chat.completions.create({
+      const requestParams = {
         model: model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: temperature,
-        max_completion_tokens: options.maxTokens ?? 16384
-      })
+        temperature: temperature
+      }
+
+      // Only add max_completion_tokens if not explicitly omitted
+      if (!noMaxTokens) {
+        requestParams.max_completion_tokens = options.maxTokens ?? 16384
+      }
+
+      const response = await getOpenAIClient().chat.completions.create(requestParams)
 
       // Debug: log the full response structure
       console.log('  DEBUG response.choices[0]:', JSON.stringify(response.choices[0], null, 2))
@@ -759,25 +765,33 @@ async function expandVagueConcept(concept) {
   console.log(`[Expansion Check] Running iterative expansion (3 passes) with ChatGPT...`)
 
   const systemPrompt = `You are a classic romance novelist.`
-  const basePrompt = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
 
-  // Generate 3 independent ideas (GPT-5 has issues with "different from" prompts)
+  // Two prompts to randomly select from (50/50)
+  const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
+  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
+
+  // Generate 3 independent ideas, randomly selecting prompt each time
+  const getRandomPrompt = () => Math.random() < 0.5 ? prompt1 : prompt2
+
+  const userPrompt1 = getRandomPrompt()
   console.log('\n[Expansion Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion1 = await callChatGPT(systemPrompt, basePrompt)
+  console.log('  USER:', userPrompt1)
+  const expansion1 = await callChatGPT(systemPrompt, userPrompt1, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion1)
 
+  const userPrompt2 = getRandomPrompt()
   console.log('\n[Expansion Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion2 = await callChatGPT(systemPrompt, basePrompt)
+  console.log('  USER:', userPrompt2)
+  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion2)
 
+  const userPrompt3 = getRandomPrompt()
   console.log('\n[Expansion Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion3 = await callChatGPT(systemPrompt, basePrompt)
+  console.log('  USER:', userPrompt3)
+  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Expansion Check] Using pass 3 result for Phase 1')
@@ -789,25 +803,33 @@ async function generateDifferentConcept(existingConcept) {
   console.log(`[Different Concept] Generating concept different from existing...`)
 
   const systemPrompt = `You are a classic romance novelist.`
-  const basePrompt = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
 
-  // Generate 3 independent ideas (GPT-5 has issues with "different from" prompts causing empty responses)
+  // Two prompts to randomly select from (50/50)
+  const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
+  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
+
+  // Generate 3 independent ideas, randomly selecting prompt each time
+  const getRandomPrompt = () => Math.random() < 0.5 ? prompt1 : prompt2
+
+  const userPrompt1 = getRandomPrompt()
   console.log('\n[Different Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion1 = await callChatGPT(systemPrompt, basePrompt)
+  console.log('  USER:', userPrompt1)
+  const expansion1 = await callChatGPT(systemPrompt, userPrompt1, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion1)
 
+  const userPrompt2 = getRandomPrompt()
   console.log('\n[Different Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion2 = await callChatGPT(systemPrompt, basePrompt)
+  console.log('  USER:', userPrompt2)
+  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion2)
 
+  const userPrompt3 = getRandomPrompt()
   console.log('\n[Different Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion3 = await callChatGPT(systemPrompt, basePrompt)
+  console.log('  USER:', userPrompt3)
+  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Different Concept] Using pass 3 result')

@@ -768,7 +768,7 @@ async function expandVagueConcept(concept) {
 
   // Two prompts to randomly select from (50/50)
   const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
-  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
+  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
 
   // Select base prompt randomly (same base used for all 3 passes)
   const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
@@ -777,7 +777,7 @@ async function expandVagueConcept(concept) {
   console.log('\n[Expansion Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', basePrompt)
-  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true })
+  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true, temperature: 1.5 })
   console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Base prompt + must be different from Pass 1
@@ -787,7 +787,7 @@ ${expansion1}`
   console.log('\n[Expansion Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt2)
-  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
+  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true, temperature: 1.5 })
   console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Base prompt + must be different from both Pass 1 and Pass 2
@@ -799,7 +799,7 @@ ${expansion1}`
   console.log('\n[Expansion Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt3)
-  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true })
+  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true, temperature: 1.5 })
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Expansion Check] Using pass 3 result for Phase 1')
@@ -814,7 +814,7 @@ async function generateDifferentConcept(existingConcept) {
 
   // Two prompts to randomly select from (50/50)
   const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
-  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
+  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
 
   // Select base prompt randomly (same base used for all 3 passes)
   const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
@@ -823,7 +823,7 @@ async function generateDifferentConcept(existingConcept) {
   console.log('\n[Different Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', basePrompt)
-  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true })
+  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true, temperature: 1.5 })
   console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Base prompt + must be different from Pass 1
@@ -833,7 +833,7 @@ ${expansion1}`
   console.log('\n[Different Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt2)
-  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
+  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true, temperature: 1.5 })
   console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Base prompt + must be different from both Pass 1 and Pass 2
@@ -845,7 +845,7 @@ ${expansion1}`
   console.log('\n[Different Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt3)
-  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true })
+  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true, temperature: 1.5 })
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Different Concept] Using pass 3 result')

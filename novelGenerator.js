@@ -770,24 +770,32 @@ async function expandVagueConcept(concept) {
   const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
   const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
 
-  // Generate 3 independent ideas, randomly selecting prompt each time
-  const getRandomPrompt = () => Math.random() < 0.5 ? prompt1 : prompt2
+  // Select base prompt randomly (same base used for all 3 passes)
+  const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
 
-  const userPrompt1 = getRandomPrompt()
+  // Pass 1: Just the base prompt
   console.log('\n[Expansion Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt1)
-  const expansion1 = await callChatGPT(systemPrompt, userPrompt1, { noMaxTokens: true })
+  console.log('  USER:', basePrompt)
+  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion1)
 
-  const userPrompt2 = getRandomPrompt()
+  // Pass 2: Base prompt + must be different from Pass 1
+  const userPrompt2 = `${basePrompt} It must be different in some way from this:
+
+${expansion1}`
   console.log('\n[Expansion Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt2)
   const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion2)
 
-  const userPrompt3 = getRandomPrompt()
+  // Pass 3: Base prompt + must be different from both Pass 1 and Pass 2
+  const userPrompt3 = `${basePrompt} It must be different in some way from both of these:
+
+1. ${expansion1}
+
+2. ${expansion2}`
   console.log('\n[Expansion Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt3)
@@ -808,24 +816,32 @@ async function generateDifferentConcept(existingConcept) {
   const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
   const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
 
-  // Generate 3 independent ideas, randomly selecting prompt each time
-  const getRandomPrompt = () => Math.random() < 0.5 ? prompt1 : prompt2
+  // Select base prompt randomly (same base used for all 3 passes)
+  const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
 
-  const userPrompt1 = getRandomPrompt()
+  // Pass 1: Just the base prompt
   console.log('\n[Different Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt1)
-  const expansion1 = await callChatGPT(systemPrompt, userPrompt1, { noMaxTokens: true })
+  console.log('  USER:', basePrompt)
+  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion1)
 
-  const userPrompt2 = getRandomPrompt()
+  // Pass 2: Base prompt + must be different from Pass 1
+  const userPrompt2 = `${basePrompt} It must be different in some way from this:
+
+${expansion1}`
   console.log('\n[Different Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt2)
   const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
   console.log('  RESPONSE:', expansion2)
 
-  const userPrompt3 = getRandomPrompt()
+  // Pass 3: Base prompt + must be different from both Pass 1 and Pass 2
+  const userPrompt3 = `${basePrompt} It must be different in some way from both of these:
+
+1. ${expansion1}
+
+2. ${expansion2}`
   console.log('\n[Different Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt3)

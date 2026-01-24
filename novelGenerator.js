@@ -2,6 +2,7 @@
 // Implements Phases 1-8 for generating complete story bibles
 
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -16,6 +17,19 @@ function getAnthropicClient() {
     client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   }
   return client
+}
+
+// Lazy-initialized OpenAI client
+let openaiClient = null
+
+function getOpenAIClient() {
+  if (!openaiClient) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return openaiClient
 }
 
 // =============================================================================
@@ -80,6 +94,42 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
   }
 
   throw lastError || new Error('Claude call failed after all retries')
+}
+
+// Actual OpenAI ChatGPT API call
+async function callChatGPT(systemPrompt, userPrompt, options = {}) {
+  const { maxRetries = CONFIG.maxRetries, model = 'gpt-4o', temperature = 1.0 } = options
+  let lastError = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await getOpenAIClient().chat.completions.create({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: temperature,
+        max_tokens: options.maxTokens ?? 2048
+      })
+
+      return response.choices[0].message.content
+    } catch (error) {
+      lastError = error
+      console.error(`ChatGPT call attempt ${attempt + 1} failed:`, error.message)
+
+      if (attempt < maxRetries - 1) {
+        if (error.status === 429) {
+          console.log(`  Rate limited. Waiting 60s before retry...`)
+          await new Promise(resolve => setTimeout(resolve, 60000))
+        } else {
+          await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error('ChatGPT call failed after all retries')
 }
 
 // Alias for backward compatibility
@@ -684,36 +734,32 @@ async function expandVagueConcept(concept) {
     return concept // Detailed enough
   }
 
-  console.log(`[Expansion Check] Running iterative expansion (3 passes)...`)
+  console.log(`[Expansion Check] Running iterative expansion (3 passes) with ChatGPT...`)
 
   const systemPrompt = `You are a classic romance novelist.`
 
   // Pass 1: Initial concept
-  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Output 2-3 sentences only.`
+  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
 
   console.log('\n[Expansion Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', user1)
-  const expansion1 = await callClaude(systemPrompt, user1, {
-    model: 'claude-opus-4-20250514'
-  })
+  const expansion1 = await callChatGPT(systemPrompt, user1)
   console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Different from pass 1
-  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Output 2-3 sentences only. It must be different in some way from this:
+  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from this:
 
 ${expansion1}`
 
   console.log('\n[Expansion Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', user2)
-  const expansion2 = await callClaude(systemPrompt, user2, {
-    model: 'claude-opus-4-20250514'
-  })
+  const expansion2 = await callChatGPT(systemPrompt, user2)
   console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Different from both previous
-  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Output 2-3 sentences only. It must be different in some way from both of these:
+  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from both of these:
 
 1. ${expansion1}
 
@@ -722,9 +768,7 @@ ${expansion1}`
   console.log('\n[Expansion Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', user3)
-  const expansion3 = await callClaude(systemPrompt, user3, {
-    model: 'claude-opus-4-20250514'
-  })
+  const expansion3 = await callChatGPT(systemPrompt, user3)
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Expansion Check] Using pass 3 result for Phase 1')
@@ -738,20 +782,18 @@ async function generateDifferentConcept(existingConcept) {
   const systemPrompt = `You are a classic romance novelist.`
 
   // Pass 1: Different from existing
-  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Output 2-3 sentences only. It must be different in some way from this:
+  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from this:
 
 ${existingConcept}`
 
   console.log('\n[Different Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', user1)
-  const expansion1 = await callClaude(systemPrompt, user1, {
-    model: 'claude-opus-4-20250514'
-  })
+  const expansion1 = await callChatGPT(systemPrompt, user1)
   console.log('  RESPONSE:', expansion1)
 
   // Pass 2: Different from existing AND pass 1
-  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Output 2-3 sentences only. It must be different in some way from both of these:
+  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from both of these:
 
 1. ${existingConcept}
 
@@ -760,13 +802,11 @@ ${existingConcept}`
   console.log('\n[Different Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', user2)
-  const expansion2 = await callClaude(systemPrompt, user2, {
-    model: 'claude-opus-4-20250514'
-  })
+  const expansion2 = await callChatGPT(systemPrompt, user2)
   console.log('  RESPONSE:', expansion2)
 
   // Pass 3: Different from all three
-  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Output 2-3 sentences only. It must be different in some way from all of these:
+  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from all of these:
 
 1. ${existingConcept}
 
@@ -777,9 +817,7 @@ ${existingConcept}`
   console.log('\n[Different Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', user3)
-  const expansion3 = await callClaude(systemPrompt, user3, {
-    model: 'claude-opus-4-20250514'
-  })
+  const expansion3 = await callChatGPT(systemPrompt, user3)
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Different Concept] Using pass 3 result')

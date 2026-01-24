@@ -7974,8 +7974,8 @@ app.post('/api/generate/bible', async (req, res) => {
 // POST /api/generate/prompt - Generate a story concept prompt using 3-pass expansion
 app.post('/api/generate/prompt', async (req, res) => {
   try {
-    // Use the 3-pass expansion system - minimal seed, let the prompt do the work
-    const response = await expandVagueConcept('romance')
+    // Use the 3-pass expansion system - 'from-scratch' triggers full generation
+    const response = await expandVagueConcept('from-scratch')
 
     return res.json({ success: true, prompt: response })
   } catch (error) {

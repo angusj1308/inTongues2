@@ -113,11 +113,21 @@ async function callChatGPT(systemPrompt, userPrompt, options = {}) {
         max_completion_tokens: options.maxTokens ?? 2048
       })
 
-      const content = response.choices[0].message.content
+      // Debug: log the full response structure
+      console.log('  DEBUG response.choices[0]:', JSON.stringify(response.choices[0], null, 2))
+
+      const message = response.choices[0].message
+      const content = message.content
+
+      // Check if there's a refusal
+      if (message.refusal) {
+        console.warn(`ChatGPT refused on attempt ${attempt + 1}: ${message.refusal}`)
+      }
 
       // Check for empty response and retry
       if (!content || content.trim() === '') {
         console.warn(`ChatGPT returned empty response on attempt ${attempt + 1}, retrying...`)
+        console.warn('  finish_reason:', response.choices[0].finish_reason)
         if (attempt < maxRetries - 1) {
           await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
           continue
@@ -749,38 +759,25 @@ async function expandVagueConcept(concept) {
   console.log(`[Expansion Check] Running iterative expansion (3 passes) with ChatGPT...`)
 
   const systemPrompt = `You are a classic romance novelist.`
+  const basePrompt = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
 
-  // Pass 1: Initial concept
-  const user1 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only.`
-
+  // Generate 3 independent ideas (GPT-5 has issues with "different from" prompts)
   console.log('\n[Expansion Pass 1]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', user1)
-  const expansion1 = await callChatGPT(systemPrompt, user1)
+  console.log('  USER:', basePrompt)
+  const expansion1 = await callChatGPT(systemPrompt, basePrompt)
   console.log('  RESPONSE:', expansion1)
-
-  // Pass 2: Different from pass 1
-  const user2 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from this:
-
-${expansion1}`
 
   console.log('\n[Expansion Pass 2]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', user2)
-  const expansion2 = await callChatGPT(systemPrompt, user2)
+  console.log('  USER:', basePrompt)
+  const expansion2 = await callChatGPT(systemPrompt, basePrompt)
   console.log('  RESPONSE:', expansion2)
-
-  // Pass 3: Different from both previous
-  const user3 = `Generate an original idea for a classic romance novel true to the tradition of Julia Quinn, Georgette Heyer, or Austen. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. It must be different in some way from both of these:
-
-1. ${expansion1}
-
-2. ${expansion2}`
 
   console.log('\n[Expansion Pass 3]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', user3)
-  const expansion3 = await callChatGPT(systemPrompt, user3)
+  console.log('  USER:', basePrompt)
+  const expansion3 = await callChatGPT(systemPrompt, basePrompt)
   console.log('  RESPONSE:', expansion3)
 
   console.log('[Expansion Check] Using pass 3 result for Phase 1')

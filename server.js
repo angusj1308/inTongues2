@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -7971,12 +7971,11 @@ app.post('/api/generate/bible', async (req, res) => {
   }
 })
 
-// POST /api/generate/prompt - Generate a story concept prompt
+// POST /api/generate/prompt - Generate a story concept prompt using 3-pass expansion
 app.post('/api/generate/prompt', async (req, res) => {
   try {
-    const systemPrompt = `Generate a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Create original and complex characters. Vary the time period.`
-
-    const response = await callClaude(systemPrompt, 'Generate a romance story concept.')
+    // Use the 3-pass expansion system with a generic seed for maximum variation
+    const response = await expandVagueConcept('romance')
 
     return res.json({ success: true, prompt: response })
   } catch (error) {

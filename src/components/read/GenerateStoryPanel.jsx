@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
-import { generateBible, generatePrompt } from '../../services/novelApiClient'
+import { generateBible, generatePrompt, expandPrompt } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -137,7 +137,12 @@ const GenerateStoryPanel = ({
     setIsGeneratingPrompt(true)
     setError('')
     try {
-      const prompt = await generatePrompt()
+      // If user has typed something, use their text as seed for 3-pass expansion
+      // Otherwise generate a fresh concept
+      const currentText = description.trim()
+      const prompt = currentText
+        ? await expandPrompt(currentText)
+        : await generatePrompt()
       setDescription(prompt)
     } catch (err) {
       setError(err.message || 'Failed to generate prompt')
@@ -396,7 +401,7 @@ const GenerateStoryPanel = ({
               {isGeneratingPrompt
                 ? 'Generating...'
                 : description.trim()
-                  ? 'New Story Idea'
+                  ? 'Expand My Prompt'
                   : 'Generate Prompt'}
             </button>
             <p className="muted small ui-text">

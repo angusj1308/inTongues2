@@ -110,7 +110,7 @@ async function callChatGPT(systemPrompt, userPrompt, options = {}) {
           { role: 'user', content: userPrompt }
         ],
         temperature: temperature,
-        max_tokens: options.maxTokens ?? 2048
+        max_completion_tokens: options.maxTokens ?? 2048
       })
 
       return response.choices[0].message.content

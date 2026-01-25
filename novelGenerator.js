@@ -1080,7 +1080,7 @@ You will receive:
 Your job is to create characters where:
 1. Wounds connect to the theme from Phase 1
 2. Arcs match the ending type (HEA = overcome flaws; Bittersweet/Tragic = flaws or circumstances win)
-3. The dynamic explains why THESE two people crack each other open
+3. The dynamics explain why THESE people crack each other open
 
 ## Output Format
 
@@ -1105,37 +1105,64 @@ Your job is to create characters where:
     }
   },
 
-  "love_interest": {
-    "name": "Full name",
-    "age": number,
-    "role": "Their position in this world",
-    "wound": "The specific formative hurt that shapes them",
-    "lie": "The false belief they hold because of the wound",
-    "want": "What they're consciously pursuing",
-    "need": "What they actually need (often unconscious)",
-    "flaw": "The trait that will sabotage the relationship",
-    "arc": {
-      "starts": "Who they are at the beginning",
-      "ends": "Who they become"
-    },
-    "voice": {
-      "register": "Formal/casual, educated/simple, warm/guarded",
-      "patterns": "How they talk - terse, verbose, deflecting, direct",
-      "tells": "What speech habits reveal their emotional state"
+  "love_interests": [
+    {
+      "name": "Full name",
+      "age": number,
+      "role": "Their position in this world",
+      "role_in_story": "Primary | Rival | Secondary",
+      "wound": "The specific formative hurt that shapes them",
+      "lie": "The false belief they hold because of the wound",
+      "want": "What they're consciously pursuing",
+      "need": "What they actually need (often unconscious)",
+      "flaw": "The trait that will sabotage the relationship",
+      "arc": {
+        "starts": "Who they are at the beginning",
+        "ends": "Who they become"
+      },
+      "voice": {
+        "register": "Formal/casual, educated/simple, warm/guarded",
+        "patterns": "How they talk - terse, verbose, deflecting, direct",
+        "tells": "What speech habits reveal their emotional state"
+      }
     }
-  },
+  ],
 
-  "third_love_interest": null,
-
-  "dynamic": {
-    "attraction": "What draws them together",
-    "friction": "What makes them clash",
-    "challenge": "How each forces the other to confront their lie",
-    "balance": "What each provides that the other lacks"
+  "dynamics": {
+    "romantic": [
+      {
+        "between": ["Protagonist name", "Love interest name"],
+        "attraction": "What draws them together",
+        "friction": "What makes them clash",
+        "challenge": "How each forces the other to confront their lie",
+        "balance": "What each provides that the other lacks"
+      }
+    ],
+    "rivals": [
+      {
+        "between": ["Love interest A", "Love interest B"],
+        "conflict_type": "How they oppose each other",
+        "methods": "How they compete or scheme",
+        "dynamic": "Respect, hatred, grudging admiration, etc."
+      }
+    ]
   }
 }
 
 ## Guidelines
+
+COUNTING LOVE INTERESTS:
+- Read the concept carefully for number of romantic interests
+- "3 suitors" = 3 love interests
+- "Love triangle" = 2 love interests
+- Standard romance = 1 love interest
+- Create exactly as many as the concept implies
+
+ROLE IN STORY:
+- Primary: The one protagonist ends up with (for HEA/HFN endings)
+- Rival: Competing for protagonist's heart
+- Secondary: Part of ensemble romance
+- One should be marked Primary unless ending is tragic or explicitly open
 
 NAMES:
 - If the concept names characters, use those exact names
@@ -1145,7 +1172,7 @@ WOUNDS:
 - Wounds should be specific events or circumstances, not abstract traits
 - "Abandoned by mother at age 7" not "has trust issues"
 - The wound is what happened; the lie is the belief that formed from it
-- Both characters' wounds should relate to the Phase 1 theme
+- All characters' wounds should relate to the Phase 1 theme
 
 WANT VS NEED:
 - Want is conscious: what they're actively pursuing
@@ -1154,28 +1181,34 @@ WANT VS NEED:
 - This is the engine of their arc
 
 ARCS AND ENDINGS:
-- HEA: Both characters overcome their lies and flaws
+- HEA: Characters overcome their lies and flaws
 - HFN: Characters grow but external circumstances remain uncertain
-- Bittersweet: One or both characters transform, but cannot be together
+- Bittersweet: Characters transform, but cannot be together
 - Tragic: Flaws or circumstances prove insurmountable
 
 VOICE:
 - Voice reflects role, class, education, and personality
-- A gaucho speaks differently than an heiress
+- Each character should sound distinct
 - Register, vocabulary, sentence length should all differ
 - Tells reveal emotion through speech patterns, not explicit statements
 
-DYNAMIC:
-- Attraction is not just physical — what does she see in him that others miss?
-- Friction is not just external obstacles — what about him challenges her worldview?
+ROMANTIC DYNAMICS:
+- Create one romantic dynamic for protagonist + each love interest
+- Attraction is not just physical — what do they see that others miss?
+- Friction is not just external — what challenges their worldview?
 - Challenge explains why THIS person forces growth
-- Balance shows complementarity — what each gives that the other lacks
+- Balance shows complementarity
 
-LOVE TRIANGLES:
-- Check Phase 1 tropes.complication for "Love Triangle"
-- If present, populate third_love_interest with full character structure
-- The choice between love interests should be thematic (each represents something)
-- If no love triangle, set third_love_interest to null`
+RIVAL DYNAMICS:
+- If multiple love interests, explain how they interact with EACH OTHER
+- Not just how each relates to protagonist
+- What's their history? How do they compete? What do they think of each other?
+- Only include if 2+ love interests exist
+
+DISTINCT CHARACTERS:
+- Each love interest must be meaningfully different
+- Different wounds, different lies, different approaches to love
+- Don't collapse similar characters — find what makes each unique`
 
 function buildPhase2UserPrompt(concept, phase1) {
   return `ORIGINAL CONCEPT: ${concept}
@@ -1183,7 +1216,16 @@ function buildPhase2UserPrompt(concept, phase1) {
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-Create the romantic leads for this story. Ensure their wounds connect to the theme "${phase1.theme?.core || 'from Phase 1'}", their arcs match the ${phase1.ending?.type || 'established'} ending, and their dynamic explains why these two people are destined to transform each other.`
+Create the romantic leads for this story.
+
+IMPORTANT: Count the number of love interests implied by the concept. If it mentions "3 suitors" create 3. If "love triangle" create 2. If standard romance create 1.
+
+Ensure:
+- All wounds connect to the theme "${phase1.theme?.core || 'from Phase 1'}"
+- Arcs match the ${phase1.ending?.type || 'established'} ending
+- Each love interest is distinct with different wounds and approaches
+- One love interest is marked Primary (unless tragic/open ending)
+- If multiple love interests, include rival dynamics between them`
 }
 
 async function executePhase2(concept, phase1) {
@@ -1200,20 +1242,23 @@ async function executePhase2(concept, phase1) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['protagonist', 'love_interest', 'dynamic']
-  const missing = requiredFields.filter(f => !data[f])
-
-  if (missing.length > 0) {
-    throw new Error(`Phase 2 missing required fields: ${missing.join(', ')}`)
+  if (!data.protagonist) {
+    throw new Error('Phase 2 missing protagonist')
+  }
+  if (!data.love_interests || !Array.isArray(data.love_interests) || data.love_interests.length === 0) {
+    throw new Error('Phase 2 must include at least one love interest')
+  }
+  if (!data.dynamics) {
+    throw new Error('Phase 2 missing dynamics')
   }
 
   console.log('Phase 2 complete.')
   console.log(`  Protagonist: ${data.protagonist?.name}`)
-  console.log(`  Love Interest: ${data.love_interest?.name}`)
-  if (data.third_love_interest) {
-    console.log(`  Third Love Interest: ${data.third_love_interest?.name}`)
-  }
-  console.log(`  Dynamic: ${data.dynamic?.attraction?.slice(0, 50)}...`)
+  console.log(`  Love interests: ${data.love_interests?.length}`)
+  data.love_interests?.forEach((li, i) => {
+    console.log(`    ${i + 1}. ${li.name} (${li.role_in_story})`)
+  })
+  console.log(`  Rival dynamics: ${data.dynamics?.rivals?.length || 0}`)
 
   return data
 }
@@ -1227,7 +1272,7 @@ const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to
 You will receive:
 - The original concept
 - Phase 1 output (tropes, conflict, theme, ending, tone, timespan)
-- Phase 2 output (protagonist, love_interest, third_love_interest if applicable, dynamic)
+- Phase 2 output (protagonist, love_interests array, dynamics)
 
 Your job is to create a plot where:
 1. Every beat emerges from character psychology, not template
@@ -1258,13 +1303,15 @@ Your job is to create a plot where:
       "lie_challenged_by": "What/who forces them to question it",
       "transformation_moment": "The specific moment they choose differently"
     },
-    "love_interest": {
-      "wound_triggered_by": "What event/action activates their wound",
-      "lie_reinforced_by": "What makes them double down on their false belief",
-      "lie_challenged_by": "What/who forces them to question it",
-      "transformation_moment": "The specific moment they choose differently"
-    },
-    "third_love_interest": null
+    "love_interests": [
+      {
+        "name": "Love interest name",
+        "wound_triggered_by": "What event/action activates their wound",
+        "lie_reinforced_by": "What makes them double down on their false belief",
+        "lie_challenged_by": "What/who forces them to question it",
+        "transformation_moment": "The specific moment they choose differently"
+      }
+    ]
   },
   "dark_moment": {
     "what_happens": "The apparent end of the relationship",
@@ -1319,10 +1366,11 @@ BE INVENTIVE:
 - The resolution is not always a grand gesture
 - Let the specific characters and situation dictate what happens
 
-LOVE TRIANGLES:
-- If Phase 2 includes third_love_interest, populate wound_integration.third_love_interest
-- The choice between love interests should be thematic
-- Include key moments that involve the triangle dynamic
+MULTIPLE LOVE INTERESTS:
+- Create wound_integration entry for EACH love interest from Phase 2
+- Primary love interest drives the main arc
+- Other love interests create key moments that complicate or pressure the protagonist
+- The choice between love interests should be thematic (each represents something)
 
 DO NOT INCLUDE:
 - Subplots (Phase 4)
@@ -1332,6 +1380,10 @@ DO NOT INCLUDE:
 - Scene-level detail (later phase)`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
+  // Get primary love interest (or first one)
+  const primaryLI = phase2.love_interests?.find(li => li.role_in_story === 'Primary') || phase2.love_interests?.[0]
+  const liCount = phase2.love_interests?.length || 1
+
   return `ORIGINAL CONCEPT: ${concept}
 
 PHASE 1 OUTPUT (Story DNA):
@@ -1340,7 +1392,14 @@ ${JSON.stringify(phase1, null, 2)}
 PHASE 2 OUTPUT (Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-Design the central romance arc for this story. The plot must emerge from ${phase2.protagonist?.name}'s wound ("${phase2.protagonist?.wound}") and ${phase2.love_interest?.name}'s wound ("${phase2.love_interest?.wound}"). Shape the arc according to the ${phase1.tropes?.origin} origin and ${phase1.tropes?.dynamic?.join('/') || 'established'} burn rate. Ensure the dark moment triggers their specific wounds, not generic conflict.`
+Design the central romance arc for this story. The plot must emerge from ${phase2.protagonist?.name}'s wound ("${phase2.protagonist?.wound}") and the love interests' wounds.
+
+Primary love interest: ${primaryLI?.name} ("${primaryLI?.wound}")
+Total love interests: ${liCount}
+
+Shape the arc according to the ${phase1.tropes?.origin} origin and ${phase1.tropes?.dynamic?.join('/') || 'established'} burn rate.
+
+IMPORTANT: Create wound_integration entries for ALL ${liCount} love interest(s). Ensure the dark moment triggers specific wounds, not generic conflict.`
 }
 
 async function executePhase3(concept, phase1, phase2) {
@@ -1381,7 +1440,7 @@ const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is
 You will receive:
 - The original concept
 - Phase 1 output (theme, tropes, ending, tone, timespan)
-- Phase 2 output (protagonist, love_interest, third_love_interest, dynamic)
+- Phase 2 output (protagonist, love_interests array, dynamics)
 - Phase 3 output (arc_shape, key_moments, wound_integration, dark_moment, resolution)
 - Length preset (to determine subplot count)
 
@@ -1520,7 +1579,9 @@ LENGTH PRESET: ${lengthPreset}
 
 Create supporting characters and subplots for this story. The theme is "${phase1.theme?.core}" which asks: "${phase1.theme?.question}"
 
-The main romance answers this through ${phase2.protagonist?.name} and ${phase2.love_interest?.name}. Each subplot must answer the same question differently.
+The main romance answers this through ${phase2.protagonist?.name} and the love interests. Each subplot must answer the same question differently.
+
+Note: Love interests from Phase 2 are romantic leads, NOT supporting cast. Do not duplicate them in supporting_cast.
 
 Phase 3 key moments to collide with: ${keyMomentNames}
 
@@ -2354,7 +2415,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     bible.characters = await executePhase2(concept, bible.coreFoundation)
     reportProgress(2, 'complete', {
       protagonist: bible.characters.protagonist?.name,
-      loveInterest: bible.characters.love_interest?.name
+      loveInterests: bible.characters.love_interests?.length
     })
 
     // Phase 3: Central Plot

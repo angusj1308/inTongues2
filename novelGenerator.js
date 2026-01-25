@@ -1435,32 +1435,81 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SUBPLOTS & SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is to create supporting characters and subplots that weave into the central romance, each offering a different answer to the story's thematic question.
+const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is to map all external forces and thematic positions acting on the story, then derive collision points where these forces hit the main plot.
 
 You will receive:
 - The original concept
-- Phase 1 output (theme, tropes, ending, tone, timespan)
+- Phase 1 output (theme, tropes, conflict, ending, tone)
 - Phase 2 output (protagonist, love_interests array, dynamics)
-- Phase 3 output (arc_shape, key_moments, wound_integration, dark_moment, resolution)
-- Length preset (to determine subplot count)
+- Phase 3 output (key_moments, wound_integration, dark_moment, resolution)
 
-## Core Principle
+## The Process
 
-Every subplot is a different answer to the thematic question from Phase 1.
+Work in three steps:
 
-The theme asks a question. The main romance gives one answer. Each subplot gives a different answer - cautionary, pragmatic, extreme, hopeful. This creates philosophical richness, not just plot complexity.
+**Step 1: Map all External Pressures**
+List every party with stakes in the outcome. Be exhaustive.
+- Each love interest's family/house
+- Institutional forces (church, court, workplace)
+- Political forces (factions, alliances)
+- Economic forces (creditors, inheritance)
+- Rival dynamics between love interests
+
+**Step 2: Map all Thematic Positions**
+State the theme question. List all answers:
+- Positions within the binary (different answers)
+- Positions that transcend or reject the binary
+Check Phase 2 love interests first - their lies ARE thematic positions. Don't duplicate.
+
+**Step 3: Derive Collision Points**
+For each force, ask: When does it hit the main plot? Which Phase 3 key moment?
 
 ## Output Format
 
 {
+  "external_pressures": [
+    {
+      "party": "Name of party/faction/family",
+      "interest": "What they want",
+      "pressure_on": "Which character(s) they pressure",
+      "methods": "How they apply pressure",
+      "embodied_by": "Character name (existing or new)",
+      "collision_points": [
+        {
+          "hits_moment": "Phase 3 key moment name",
+          "what_happens": "What they do",
+          "effect_on_main_plot": "How it changes things"
+        }
+      ]
+    }
+  ],
+
+  "thematic_positions": [
+    {
+      "position": "Their answer to the theme question",
+      "type": "past_mirror | present_mirror | transcends",
+      "embodied_by": "Character name (existing or new)",
+      "stance": "What they believe/chose",
+      "complication": "The contradiction or cost within this stance",
+      "outcome": "What happened/is happening to them",
+      "collision_points": [
+        {
+          "hits_moment": "Phase 3 key moment name",
+          "what_protagonist_sees": "What protagonist witnesses or learns",
+          "effect_on_protagonist": "How it affects their journey"
+        }
+      ]
+    }
+  ],
+
   "supporting_cast": [
     {
-      "name": "Full name",
+      "name": "Character name",
       "age": number,
       "role": "Their position in this world",
-      "relationship_to_leads": "How they connect to protagonist and/or love interest",
-      "function": "Obstacle | Confidant | Mirror | Catalyst | Antagonist",
-      "wound": "What shaped them (1 sentence - lighter than leads)",
+      "serves": "Which pressure or thematic position they embody",
+      "relationship_to_leads": "How they connect to protagonist/love interests",
+      "wound": "One sentence - lighter treatment than leads",
       "thematic_stance": "Their answer to the theme question",
       "arc": {
         "starts": "Who they are when we meet them",
@@ -1472,97 +1521,105 @@ The theme asks a question. The main romance gives one answer. Each subplot gives
       }
     }
   ],
-  "subplots": [
+
+  "collision_timeline": [
     {
-      "name": "Subplot name",
-      "type": "External Pressure | Mirror | Thematic Contrast | Secondary Romance",
-      "thematic_answer": "How this subplot answers the Phase 1 theme question differently than main romance",
-      "characters_involved": ["Character names from supporting_cast"],
-      "includes_romance": boolean,
-      "romance_dynamic": "If includes_romance is true - who loves whom and what's the obstacle",
-      "arc": {
-        "setup": "How it begins",
-        "escalation": "How it intensifies",
-        "resolution": "How it ends"
-      },
-      "collision_points": [
-        {
-          "collides_with": "Key moment name from Phase 3",
-          "what_happens": "What the subplot does at this moment",
-          "effect_on_main_plot": "How it raises stakes or complicates the central romance"
-        }
-      ]
-    }
-  ],
-  "subplot_timeline": [
-    {
-      "phase_3_moment": "Key moment name",
+      "phase_3_moment": "Key moment name from Phase 3",
       "main_plot": "What happens in central romance",
-      "subplot_a": "What happens in subplot A (or null)",
-      "subplot_b": "What happens in subplot B (or null)",
-      "subplot_c": "What happens in subplot C (or null)"
+      "pressures_active": ["Which external pressures collide here"],
+      "positions_active": ["Which thematic positions collide here"]
     }
   ]
 }
 
-## Guidelines
+## Guidelines for External Pressures
 
-SUBPLOT COUNT:
-- Three subplots for novels
-- Two subplots for novellas
-- Use length_preset to determine
+BE EXHAUSTIVE:
+- List ALL parties with stakes
+- Each love interest's family (if multiple suitors, each gets family pressure)
+- Institutions, factions, rivals, creditors
 
-THEMATIC ANSWERS:
-Each subplot answers the theme differently. If theme is "Can love transcend class?" then:
-- Main romance: Yes, through sacrifice (hopeful)
-- Subplot A (Mirror): No - character who chose safety is now trapped (cautionary)
-- Subplot B (Contrast): Who cares about class? Just have the affair (pragmatic)
-- Subplot C (External): The system punishes those who try (systemic)
+COMPLEXITY SCALES:
+- Simple romance: 2-4 pressures
+- Multiple suitors/political intrigue: 8-12 pressures
 
-COLLISION POINTS:
-Subplots must collide with Phase 3 key moments. Reference by name:
-- "Collides with: First Crack"
-- "Collides with: Dark Moment"
-- "Collides with: Resolution"
-No parallel storylines. Every subplot hits the main plot at specific beats.
+EACH MUST COLLIDE:
+- If a pressure never hits the main plot, cut it
+- External pressure collisions cause events (threats, ultimatums, revelations)
 
-SECONDARY ROMANCE:
-At least one subplot should include a secondary romance:
-- An existing relationship (trapped marriage, distant couple)
-- A developing relationship (friend meets someone)
-- A past relationship (affair that created current conflict)
+## Guidelines for Thematic Positions
 
-SUPPORTING CAST DEPTH:
-Lighter treatment than leads. Each supporting character gets:
-- One-sentence wound (not full wound/lie/want/need structure)
-- Thematic stance (their answer to the question)
+START WITH THEME QUESTION:
+- State it explicitly from Phase 1
+- List answers within the binary
+- List positions that transcend/reject the binary
+
+CATEGORIZE AS:
+- past_mirror: Already chose, living with consequences, static
+- present_mirror: Choosing now, arc runs parallel, dynamic
+- transcends: Outside the question, provides different lens
+
+CHECK EXISTING CHARACTERS:
+- Love interests from Phase 2 already have lies - these ARE positions
+- Don't duplicate. Map them, then identify missing positions.
+
+MIRRORS SHOULD BE GENUINE:
+- Both sides show real good AND real bad
+- Not strawmen
+
+## Guidelines for Supporting Cast
+
+CHARACTERS SERVE FORCES:
+- Don't invent characters then find roles
+- Identify what force needs embodiment, then create character
+
+LIGHTER TREATMENT:
+- One-sentence wound
+- Thematic stance
 - Simple arc (starts/ends)
-- Distinct voice
+- No full lie/want/need/flaw structure
 
-FUNCTION TYPES:
-- Obstacle: Actively blocks the romance
-- Confidant: Protagonist confides in them, provides advice (good or bad)
-- Mirror: Their situation reflects what protagonist fears or hopes for
-- Catalyst: Their actions force plot movement (reveals secret, delivers ultimatum)
-- Antagonist: Opposes the protagonist's goals (not just the romance)
+DON'T DUPLICATE PHASE 2:
+- Love interests already exist
+- Supporting cast is everyone else
 
-VARIETY:
-Don't create three Mirror subplots. Mix types:
-- One External Pressure (raises stakes from outside)
-- One Mirror (shows what could happen)
-- One Thematic Contrast (different worldview)
+## Guidelines for Collisions
 
-SUBPLOT TIMELINE:
-Shows how everything weaves together. For each Phase 3 key moment, show what's happening in each subplot (or null if not active at that moment).
+COLLISIONS ARE DERIVED:
+- For each force, ask: When would it naturally intervene?
+- Map to Phase 3 key moments
 
-DO NOT INCLUDE:
-- Specific locations (Phase 5)
-- Scene-level detail (later phase)
-- Chapter assignments (later phase)
-- Dialogue (later phase)`
+PRESSURE COLLISIONS CAUSE EVENTS:
+- "Family arrives and threatens" → forces confession
+- "Rival reveals secret" → triggers dark moment
+
+POSITION COLLISIONS ILLUMINATE CHOICES:
+- "Protagonist sees mother's hollow eyes" → feels weight of that path
+- "Protagonist watches friend choose love" → sees it's possible
+
+EVERY FORCE NEEDS COLLISION:
+- If it doesn't hit the main plot, cut it
+
+## Selection Criteria
+
+INCLUDE IF:
+- Creates genuine tension or illumination
+- Collides mechanically with main plot
+- World naturally supports this force
+- Character serves multiple purposes
+
+CUT IF:
+- Only thematic commentary without plot collision
+- Requires character just for one thing
+- Would feel forced
+- Redundant with another force
+
+Not every position needs equal weight. Central characters have complex positions. Supporting characters can embody extremes simply.`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   const keyMomentNames = phase3.key_moments?.map(m => m.moment).join(', ') || 'key moments'
+  const loveInterestNames = phase2.love_interests?.map(li => li.name).join(', ') || 'love interests'
+  const loveInterestLies = phase2.love_interests?.map(li => `${li.name}: "${li.lie}"`).join('\n    ') || ''
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -1577,19 +1634,28 @@ ${JSON.stringify(phase3, null, 2)}
 
 LENGTH PRESET: ${lengthPreset}
 
-Create supporting characters and subplots for this story. The theme is "${phase1.theme?.core}" which asks: "${phase1.theme?.question}"
+## Your Task
 
-The main romance answers this through ${phase2.protagonist?.name} and the love interests. Each subplot must answer the same question differently.
+Map all forces acting on this story, then derive collision points.
 
-Note: Love interests from Phase 2 are romantic leads, NOT supporting cast. Do not duplicate them in supporting_cast.
+**Theme Question:** "${phase1.theme?.question}"
+**Theme Core:** ${phase1.theme?.core}
 
-Phase 3 key moments to collide with: ${keyMomentNames}
+**Phase 3 Key Moments to collide with:** ${keyMomentNames}
 
-Requirements:
-- ${lengthPreset === 'novella' ? 'Two' : 'Three'} subplots
-- At least one subplot must include a secondary romance
-- Each subplot must collide with at least one Phase 3 key moment
-- Each supporting character needs a clear function and thematic stance`
+**Existing thematic positions (from Phase 2 love interests - DO NOT duplicate):**
+    ${loveInterestLies}
+
+**Step 1:** List ALL external pressures (families, institutions, rivals, factions)
+**Step 2:** List ALL thematic positions (answers to theme question) - check Phase 2 first
+**Step 3:** For each force, derive when it collides with Phase 3 key moments
+
+Love interests (${loveInterestNames}) are NOT supporting cast - they're already created in Phase 2.
+
+Complexity guide for ${lengthPreset}:
+- External pressures: ${lengthPreset === 'novella' ? '3-5' : '5-8'}
+- Thematic positions: ${lengthPreset === 'novella' ? '3-4' : '5-7'}
+- Supporting cast: ${lengthPreset === 'novella' ? '3-5' : '5-8'}`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
@@ -1606,19 +1672,27 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['supporting_cast', 'subplots', 'subplot_timeline']
-  const missing = requiredFields.filter(f => !data[f])
-
-  if (missing.length > 0) {
-    throw new Error(`Phase 4 missing required fields: ${missing.join(', ')}`)
+  if (!data.external_pressures || !Array.isArray(data.external_pressures)) {
+    throw new Error('Phase 4 missing external_pressures array')
+  }
+  if (!data.thematic_positions || !Array.isArray(data.thematic_positions)) {
+    throw new Error('Phase 4 missing thematic_positions array')
+  }
+  if (!data.supporting_cast || !Array.isArray(data.supporting_cast)) {
+    throw new Error('Phase 4 missing supporting_cast array')
+  }
+  if (!data.collision_timeline || !Array.isArray(data.collision_timeline)) {
+    throw new Error('Phase 4 missing collision_timeline array')
   }
 
   console.log('Phase 4 complete.')
-  console.log(`  Supporting cast: ${data.supporting_cast?.length} characters`)
-  console.log(`  Subplots: ${data.subplots?.length}`)
-  data.subplots?.forEach(s => {
-    console.log(`    - ${s.name} (${s.type}): "${s.thematic_answer?.slice(0, 40)}..."`)
-  })
+  console.log(`  External pressures: ${data.external_pressures?.length}`)
+  console.log(`  Thematic positions: ${data.thematic_positions?.length}`)
+  console.log(`    Past mirrors: ${data.thematic_positions?.filter(p => p.type === 'past_mirror').length}`)
+  console.log(`    Present mirrors: ${data.thematic_positions?.filter(p => p.type === 'present_mirror').length}`)
+  console.log(`    Transcends: ${data.thematic_positions?.filter(p => p.type === 'transcends').length}`)
+  console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
+  console.log(`  Collision points: ${data.collision_timeline?.length}`)
 
   return data
 }
@@ -2430,8 +2504,9 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'starting')
     bible.subplots = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
     reportProgress(4, 'complete', {
-      supportingCast: bible.subplots.supporting_cast?.length,
-      subplots: bible.subplots.subplots?.length
+      externalPressures: bible.subplots.external_pressures?.length,
+      thematicPositions: bible.subplots.thematic_positions?.length,
+      supportingCast: bible.subplots.supporting_cast?.length
     })
 
     // TESTING: Stop after Phase 4 to validate Subplots & Supporting Cast output

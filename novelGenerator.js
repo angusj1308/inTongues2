@@ -783,7 +783,13 @@ const PROMPT_TEMPLATES = {
   // For expanding user concepts (keeps what they said, fills in missing details)
   regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}, with a compelling social conflict as to why the lovers cannot simply be together. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
 
-  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`
+  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
+
+  // For neutral expansion (vague but specific - preserve user's style)
+  neutral: `Expand this into a complete romance novel concept. Keep everything the user specified. Add character names, specific setting details, and a clear obstacle to their relationship. Output 2-3 sentences only. Do not include any preamble.
+
+User's concept: "{user_concept}"
+Set in: {location}, {time_period}`
 }
 
 // Location patterns for Spanish-speaking world
@@ -878,47 +884,79 @@ function extractConceptSlots(userConcept) {
   return result
 }
 
+// Check if concept is effectively blank (needs full generation)
+function isBlankConcept(concept) {
+  if (!concept) return true
+  const normalized = concept.toLowerCase().trim()
+  const blankPatterns = [
+    'from-scratch',
+    'from scratch',
+    'romance',
+    'love story',
+    'a romance',
+    'a love story',
+    'romance novel',
+    'a romance novel'
+  ]
+  return blankPatterns.includes(normalized) || normalized.split(/\s+/).length < 3
+}
+
 // Expand vague concepts before Phase 1 using slot-based library-aware generation
 async function expandVagueConcept(concept, librarySummaries = []) {
   const wordCount = concept.trim().split(/\s+/).length
   console.log(`[Expansion Check] Concept: "${concept}" (${wordCount} words)`)
 
-  // Case 1: Detailed enough (20+ words) - pass through unchanged
+  // Path 3: Detailed enough (20+ words) - pass through unchanged
   if (wordCount >= 20) {
     console.log('[Expansion Check] Skipping - concept is detailed enough')
     return concept
   }
 
-  console.log(`[Expansion Check] Running slot-based generation with ChatGPT...`)
-  console.log(`[Expansion Check] Library has ${librarySummaries.length} existing books`)
-
-  // Case 2: Blank/from-scratch - use defaults for all slots
-  const isBlank = !concept || concept.toLowerCase() === 'from-scratch' || wordCount < 3
-
-  // Case 3: Vague concept - extract what user specified, default the rest
-  const slots = isBlank
-    ? { location: null, timePeriod: null }
-    : extractConceptSlots(concept)
-
+  // Extract slots for location and time period
+  const slots = extractConceptSlots(concept)
   const location = slots.location || SLOT_DEFAULTS.location
   const timePeriod = slots.timePeriod || SLOT_DEFAULTS.timePeriod
 
-  // Select track (50/50 between Regency and Literary)
-  const useRegency = Math.random() < 0.5
+  console.log(`[Expansion Check] Library has ${librarySummaries.length} existing books`)
 
-  // Use expand templates for user concepts, base templates for from-scratch
-  let promptTemplate
-  if (isBlank) {
-    promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
+  let systemPrompt
+  let userPrompt
+  let trackName
+
+  // Path 1: Blank concept - use Regency/Literary 50/50 tracks
+  if (isBlankConcept(concept)) {
+    console.log('[Expansion Check] Blank concept - using Regency/Literary tracks')
+
+    const useRegency = Math.random() < 0.5
+    trackName = useRegency ? 'Regency' : 'Literary'
+    systemPrompt = 'You are a classic romance novelist.'
+
+    // Use base templates for from-scratch, expand templates if there's any user input
+    const hasUserInput = concept && concept.toLowerCase().trim() !== 'from-scratch' && concept.toLowerCase().trim() !== 'from scratch'
+    let promptTemplate
+    if (hasUserInput) {
+      promptTemplate = useRegency ? PROMPT_TEMPLATES.regencyExpand : PROMPT_TEMPLATES.literaryExpand
+    } else {
+      promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
+    }
+
+    userPrompt = promptTemplate
+      .replace('{user_concept}', concept)
+      .replace('{location}', location)
+      .replace('{time_period}', timePeriod)
+
+  // Path 2: Vague but specific (3-19 words) - use neutral expansion
   } else {
-    promptTemplate = useRegency ? PROMPT_TEMPLATES.regencyExpand : PROMPT_TEMPLATES.literaryExpand
-  }
+    console.log('[Expansion Check] Vague but specific - using neutral expansion')
 
-  // Fill slots in template
-  let userPrompt = promptTemplate
-    .replace('{user_concept}', concept)
-    .replace('{location}', location)
-    .replace('{time_period}', timePeriod)
+    trackName = 'Neutral'
+    systemPrompt = 'You are a romance novelist.'
+
+    userPrompt = PROMPT_TEMPLATES.neutral
+      .replace('{user_concept}', concept)
+      .replace('{location}', location)
+      .replace('{time_period}', timePeriod)
+  }
 
   // Add library avoidance if available
   if (librarySummaries.length > 0) {
@@ -929,10 +967,8 @@ Do not generate a concept that duplicates any of these existing books:
 ${summaryList}`
   }
 
-  const systemPrompt = `You are a classic romance novelist.`
-
   console.log('\n[Expansion]')
-  console.log('  Track:', useRegency ? 'Regency' : 'Literary')
+  console.log('  Track:', trackName)
   console.log('  Location:', location)
   console.log('  Time Period:', timePeriod)
   console.log('  SYSTEM:', systemPrompt)

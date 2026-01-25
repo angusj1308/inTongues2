@@ -975,11 +975,11 @@ ${avoidList.join('\n')}`
   return response
 }
 
-async function executePhase1(concept, lengthPreset, level) {
+async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
   console.log('Executing Phase 1: Story DNA...')
 
-  // Expand vague concepts first
-  const expandedConcept = await expandVagueConcept(concept)
+  // Expand vague concepts first (with library awareness)
+  const expandedConcept = await expandVagueConcept(concept, librarySummaries)
 
   const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level)
   const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
@@ -2244,7 +2244,8 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 
   switch (phaseNumber) {
     case 1:
-      updatedBible.coreFoundation = await executePhase1(concept, lengthPreset, level)
+      // Note: regeneration doesn't use library summaries (concept already exists)
+      updatedBible.coreFoundation = await executePhase1(concept, lengthPreset, level, [])
       // Fall through to regenerate subsequent phases
     case 2:
       if (phaseNumber <= 2) {
@@ -2295,9 +2296,10 @@ const PHASE_DESCRIPTIONS = {
  * @param {string} language - Target language
  * @param {number} maxValidationAttempts - Max validation retry attempts (default 2)
  * @param {Function} onProgress - Optional callback for progress updates: (phase, totalPhases, phaseName, description, status) => void
+ * @param {Array} librarySummaries - Existing book summaries for diversity (default [])
  * @returns {Promise<Object>} Generated bible result
  */
-export async function generateBible(concept, level, lengthPreset, language, maxValidationAttempts = 2, onProgress = null) {
+export async function generateBible(concept, level, lengthPreset, language, maxValidationAttempts = 2, onProgress = null, librarySummaries = []) {
   console.log('='.repeat(60))
   console.log('STARTING BIBLE GENERATION PIPELINE')
   console.log(`Concept: ${concept}`)
@@ -2332,7 +2334,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   try {
     // Phase 1: Story DNA
     reportProgress(1, 'starting')
-    bible.coreFoundation = await executePhase1(concept, lengthPreset, level)
+    bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
     reportProgress(1, 'complete', {
       subgenre: bible.coreFoundation.subgenre,
       origin: bible.coreFoundation.tropes?.origin,

@@ -7926,9 +7926,12 @@ app.post('/api/generate/bible', async (req, res) => {
       bible: {} // Will be populated by phases
     }, { merge: true })
 
+    // Fetch library summaries for diversity in concept expansion
+    const librarySummaries = await getLibrarySummaries()
+
     // Generate the complete bible using the 8-phase pipeline
     console.log(`Starting bible generation for book ${bookId}...`)
-    const result = await generateBible(concept, level, lengthPreset, language)
+    const result = await generateBible(concept, level, lengthPreset, language, 2, null, librarySummaries)
 
     if (!result.success) {
       // Update book status to failed

@@ -2356,25 +2356,29 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       theme: bible.coreFoundation.theme
     })
 
-    // TESTING: Stop after Phase 1 to validate new Story DNA output
+    // Phase 2: Characters
+    reportProgress(2, 'starting')
+    bible.characters = await executePhase2(concept, bible.coreFoundation)
+    reportProgress(2, 'complete', {
+      protagonist: bible.characters.protagonist?.name,
+      loveInterest: bible.characters.love_interest?.name
+    })
+
+    // TESTING: Stop after Phase 2 to validate Characters output
     console.log('='.repeat(60))
-    console.log('PHASE 1 TEST MODE - Stopping after Phase 1')
+    console.log('TEST MODE - Stopping after Phase 2')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
+    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_1_TEST',
+      validationStatus: 'PHASE_2_TEST',
       validationAttempts: 0
     }
 
-    // Phase 2: World/Setting
-    reportProgress(2, 'starting')
-    bible.world = await executePhase2(concept, bible.coreFoundation)
-    reportProgress(2, 'complete', { location: bible.world.setting?.location })
-
-    // Phase 3: Characters
+    // Phase 3: Central Plot (TODO: rewrite)
     reportProgress(3, 'starting')
     bible.characters = await executePhase3(concept, bible.coreFoundation, bible.world)
     reportProgress(3, 'complete', {

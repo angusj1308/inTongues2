@@ -1032,130 +1032,126 @@ async function executePhase1(concept, lengthPreset, level) {
 }
 
 // =============================================================================
-// PHASE 2: WORLD/SETTING
+// PHASE 2: CHARACTERS (Romantic Leads)
 // =============================================================================
 
-const PHASE_2_SYSTEM_PROMPT = `You are a romance novel world-builder. Your task is to create the setting and social world that will pressure the central relationship.
+const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create psychologically complex, compelling romantic leads whose internal conflicts drive the romance.
 
 You will receive:
 - The user's original concept
-- Phase 1 output (core foundation)
+- Phase 1 output (subgenre, tropes, conflict, theme, ending, tone, timespan, POV, premise)
 
-Your job is to build a world that:
-1. Creates natural obstacles for the romance
-2. Provides rich sensory backdrop
-3. Establishes social rules that constrain the characters
-4. Offers meaningful locations for key scenes
+Your job is to create characters where:
+1. Wounds connect to the theme from Phase 1
+2. Arcs match the ending type (HEA = overcome flaws; Bittersweet/Tragic = flaws or circumstances win)
+3. The dynamic explains why THESE two people crack each other open
 
 ## Output Format
 
-Respond with a JSON object:
-
 {
-  "setting": {
-    "time_period": "When (era, year, season)",
-    "location": "Where (country, region, city/town)",
-    "social_context": "The social world they inhabit (class, profession, community)",
-    "atmosphere": "The sensory/emotional feel of this world"
-  },
-  "social_rules": {
-    "explicit_rules": ["Formal rules/laws that affect the relationship"],
-    "implicit_rules": ["Unspoken social expectations that create pressure"],
-    "consequences": "What happens if rules are broken"
-  },
-  "key_locations": [
-    {
-      "name": "Location name",
-      "type": "public | private | liminal | symbolic",
-      "significance": "Why this location matters to the romance",
-      "sensory_palette": {
-        "visual": "What they see",
-        "auditory": "What they hear",
-        "tactile": "What they feel",
-        "olfactory": "What they smell"
-      }
+  "protagonist": {
+    "name": "Full name",
+    "age": number,
+    "role": "Their position in this world",
+    "wound": "The specific formative hurt that shapes them",
+    "lie": "The false belief they hold because of the wound",
+    "want": "What they're consciously pursuing",
+    "need": "What they actually need (often unconscious)",
+    "flaw": "The trait that will sabotage the relationship",
+    "arc": {
+      "starts": "Who they are at the beginning",
+      "ends": "Who they become"
+    },
+    "voice": {
+      "register": "Formal/casual, educated/simple, warm/guarded",
+      "patterns": "How they talk - terse, verbose, deflecting, direct",
+      "tells": "What speech habits reveal their emotional state"
     }
-  ],
-  "cultural_context": {
-    "values": ["What this society values"],
-    "taboos": ["What is forbidden or frowned upon"],
-    "rituals": ["Social rituals relevant to the story (festivals, customs, ceremonies)"]
   },
-  "conflict_constraints": [
-    {
-      "constraint": "Specific worldbuilding element that creates obstacle",
-      "how_it_pressures": "How it affects the central relationship",
-      "potential_resolution": "How it might be overcome or navigated"
+
+  "love_interest": {
+    "name": "Full name",
+    "age": number,
+    "role": "Their position in this world",
+    "wound": "The specific formative hurt that shapes them",
+    "lie": "The false belief they hold because of the wound",
+    "want": "What they're consciously pursuing",
+    "need": "What they actually need (often unconscious)",
+    "flaw": "The trait that will sabotage the relationship",
+    "arc": {
+      "starts": "Who they are at the beginning",
+      "ends": "Who they become"
+    },
+    "voice": {
+      "register": "Formal/casual, educated/simple, warm/guarded",
+      "patterns": "How they talk - terse, verbose, deflecting, direct",
+      "tells": "What speech habits reveal their emotional state"
     }
-  ],
-  "time_pressure": {
-    "deadline": "If any external deadline exists (season end, departure, event)",
-    "urgency_source": "What creates time pressure for the relationship"
   },
-  "naming_conventions": {
-    "character_names": "Naming style appropriate to setting (cultural, era-appropriate)",
-    "place_names": "How locations are named",
-    "terms_of_address": "How characters address each other (formal/informal, titles)"
-  },
-  "available_roles": [
-    "Occupations/positions characters could hold in this world"
-  ],
-  "romance_opportunities": {
-    "where_they_meet": "Plausible meeting circumstances",
-    "where_they_connect": "Places for intimate conversations",
-    "where_they_hide": "Secret or private spaces"
-  },
-  "coherence_check": {
-    "conflict_supported": "How setting enables the central conflict from Phase 1",
-    "timespan_aligned": "How setting accommodates the story's timespan",
-    "tone_matched": "How setting supports the established tone",
-    "stakes_grounded": "How setting makes the emotional stakes tangible",
-    "hooks_enabled": "How setting facilitates the genre hooks/tropes",
-    "heat_level_possible": "How setting allows for the heat level (privacy, social mores)",
-    "theme_emergent": "How setting naturally raises the thematic question"
+
+  "third_love_interest": null,
+
+  "dynamic": {
+    "attraction": "What draws them together",
+    "friction": "What makes them clash",
+    "challenge": "How each forces the other to confront their lie",
+    "balance": "What each provides that the other lacks"
   }
 }
 
 ## Guidelines
 
-LOCATIONS:
-- Include 4-6 key locations minimum
-- Mix public (where they must perform) and private (where they can be real)
-- One location should be "theirs" — a space that becomes symbolic of the relationship
+NAMES:
+- If the concept names characters, use those exact names
+- Otherwise, choose names appropriate to the setting, era, and social class
 
-CONSTRAINTS:
-- World should create 4-6 specific obstacles
-- Constraints should feel organic, not contrived
-- Each constraint should have a plausible (if difficult) path through
+WOUNDS:
+- Wounds should be specific events or circumstances, not abstract traits
+- "Abandoned by mother at age 7" not "has trust issues"
+- The wound is what happened; the lie is the belief that formed from it
+- Both characters' wounds should relate to the Phase 1 theme
 
-SENSORY DETAIL:
-- Be specific. "A beach" is less useful than "A rocky cove where fishing boats shelter from storms, smelling of salt and diesel and the morning's catch"
+WANT VS NEED:
+- Want is conscious: what they're actively pursuing
+- Need is unconscious: what they actually require to be whole
+- The story moves them from pursuing want to discovering need
+- This is the engine of their arc
 
-COHERENCE:
-- Every worldbuilding choice should serve the romance
-- If a detail doesn't pressure, enable, or illuminate the relationship, reconsider it`
+ARCS AND ENDINGS:
+- HEA: Both characters overcome their lies and flaws
+- HFN: Characters grow but external circumstances remain uncertain
+- Bittersweet: One or both characters transform, but cannot be together
+- Tragic: Flaws or circumstances prove insurmountable
+
+VOICE:
+- Voice reflects role, class, education, and personality
+- A gaucho speaks differently than an heiress
+- Register, vocabulary, sentence length should all differ
+- Tells reveal emotion through speech patterns, not explicit statements
+
+DYNAMIC:
+- Attraction is not just physical — what does she see in him that others miss?
+- Friction is not just external obstacles — what about him challenges her worldview?
+- Challenge explains why THIS person forces growth
+- Balance shows complementarity — what each gives that the other lacks
+
+LOVE TRIANGLES:
+- Check Phase 1 tropes.complication for "Love Triangle"
+- If present, populate third_love_interest with full character structure
+- The choice between love interests should be thematic (each represents something)
+- If no love triangle, set third_love_interest to null`
 
 function buildPhase2UserPrompt(concept, phase1) {
   return `ORIGINAL CONCEPT: ${concept}
 
-PHASE 1 OUTPUT (Core Foundation):
+PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-Build the world and setting that will pressure this romance. Ensure all elements support the central conflict, theme, and tone established in Phase 1.`
+Create the romantic leads for this story. Ensure their wounds connect to the theme "${phase1.theme?.core || 'from Phase 1'}", their arcs match the ${phase1.ending?.type || 'established'} ending, and their dynamic explains why these two people are destined to transform each other.`
 }
 
-const PHASE_2_COHERENCE_FIELDS = [
-  'conflict_supported',
-  'timespan_aligned',
-  'tone_matched',
-  'stakes_grounded',
-  'hooks_enabled',
-  'heat_level_possible',
-  'theme_emergent'
-]
-
 async function executePhase2(concept, phase1) {
-  console.log('Executing Phase 2: World/Setting...')
+  console.log('Executing Phase 2: Characters...')
 
   const userPrompt = buildPhase2UserPrompt(concept, phase1)
   const response = await callOpenAI(PHASE_2_SYSTEM_PROMPT, userPrompt)
@@ -1167,14 +1163,22 @@ async function executePhase2(concept, phase1) {
 
   const data = parsed.data
 
-  // Validate coherence check
-  const coherenceResult = validateCoherence(data.coherence_check, PHASE_2_COHERENCE_FIELDS)
-  if (!coherenceResult.valid) {
-    console.warn(`Phase 2 coherence warning: ${coherenceResult.message}`)
-    // Could trigger regeneration here, but for now we continue with warning
+  // Validate required fields
+  const requiredFields = ['protagonist', 'love_interest', 'dynamic']
+  const missing = requiredFields.filter(f => !data[f])
+
+  if (missing.length > 0) {
+    throw new Error(`Phase 2 missing required fields: ${missing.join(', ')}`)
   }
 
   console.log('Phase 2 complete.')
+  console.log(`  Protagonist: ${data.protagonist?.name}`)
+  console.log(`  Love Interest: ${data.love_interest?.name}`)
+  if (data.third_love_interest) {
+    console.log(`  Third Love Interest: ${data.third_love_interest?.name}`)
+  }
+  console.log(`  Dynamic: ${data.dynamic?.attraction?.slice(0, 50)}...`)
+
   return data
 }
 

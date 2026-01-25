@@ -1183,182 +1183,132 @@ async function executePhase2(concept, phase1) {
 }
 
 // =============================================================================
-// PHASE 3: CHARACTERS
+// PHASE 3: CENTRAL PLOT
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create psychologically complex, compelling characters whose internal conflicts drive the romance.
+const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design the central romance arc derived from the characters' wounds and dynamics.
 
 You will receive:
-- The user's original concept
-- Phase 1 output (core foundation)
-- Phase 2 output (world/setting)
+- The original concept
+- Phase 1 output (tropes, conflict, theme, ending, tone, timespan)
+- Phase 2 output (protagonist, love_interest, third_love_interest if applicable, dynamic)
 
-Your job is to create:
-1. A protagonist with a deep wound that affects their ability to love
-2. A love interest whose wound complements/challenges the protagonist's
-3. Supporting characters who pressure, mirror, or illuminate the central relationship
+Your job is to create a plot where:
+1. Every beat emerges from character psychology, not template
+2. The trope shapes the arc structure
+3. The dark moment specifically triggers character wounds
+4. The resolution earns the ending type
 
 ## Output Format
 
-Respond with a JSON object:
-
 {
-  "protagonist": {
-    "name": "Full name",
-    "age": number,
-    "occupation": "From available roles in Phase 2",
-    "physical_presence": "How they carry themselves, distinctive features",
-    "first_impression": "How others perceive them initially",
-    "psychology": {
-      "wound": "The formative hurt that shapes them",
-      "lie_they_believe": "The false belief born from the wound",
-      "fear": "What they're afraid will happen if they're vulnerable",
-      "coping_mechanism": "How they protect themselves",
-      "external_want": "What they're pursuing (conscious goal)",
-      "internal_need": "What they actually need (often unconscious)",
-      "fatal_flaw": "The character trait that could doom the relationship"
-    },
-    "arc": {
-      "starts_as": "Who they are at chapter 1",
-      "catalyst": "What the love interest triggers in them",
-      "transformation": "Who they become by the end",
-      "proof_of_change": "The action that demonstrates transformation"
-    },
-    "voice": {
-      "speech_patterns": "How they talk (terse, verbose, formal, casual)",
-      "verbal_tics": "Repeated phrases, filler words, patterns",
-      "vocabulary_level": "Educated, street-smart, technical, poetic",
-      "humor_style": "How they're funny (if at all)",
-      "emotional_expression": "How they show (or hide) feelings",
-      "topics_avoided": "What they won't talk about"
-    },
-    "relationship_patterns": {
-      "attachment_style": "Secure, anxious, avoidant, disorganized",
-      "how_they_love": "Their love language, how they show care",
-      "how_they_sabotage": "How they undermine their own relationships",
-      "what_they_need_to_learn": "The relationship lesson for their arc"
-    }
+  "arc_shape": {
+    "origin_type": "How Phase 1 origin trope shapes this arc",
+    "burn_rate": "How Phase 1 dynamic shapes pacing",
+    "ending_type": "How Phase 1 ending shapes the third act"
   },
-  "love_interest": {
-    "name": "Full name",
-    "age": number,
-    "occupation": "From available roles in Phase 2",
-    "physical_presence": "How they carry themselves, distinctive features",
-    "first_impression": "How others perceive them initially",
-    "psychology": {
-      "wound": "The formative hurt that shapes them",
-      "lie_they_believe": "The false belief born from the wound",
-      "fear": "What they're afraid will happen if they're vulnerable",
-      "coping_mechanism": "How they protect themselves",
-      "external_want": "What they're pursuing (conscious goal)",
-      "internal_need": "What they actually need (often unconscious)",
-      "fatal_flaw": "The character trait that could doom the relationship"
-    },
-    "arc": {
-      "starts_as": "Who they are at chapter 1",
-      "catalyst": "What the protagonist triggers in them",
-      "transformation": "Who they become by the end",
-      "proof_of_change": "The action that demonstrates transformation"
-    },
-    "voice": {
-      "speech_patterns": "How they talk",
-      "verbal_tics": "Repeated phrases, patterns",
-      "vocabulary_level": "Educational/social level reflected in speech",
-      "humor_style": "How they're funny (if at all)",
-      "emotional_expression": "How they show (or hide) feelings",
-      "topics_avoided": "What they won't talk about"
-    },
-    "relationship_patterns": {
-      "attachment_style": "Secure, anxious, avoidant, disorganized",
-      "how_they_love": "Their love language, how they show care",
-      "how_they_sabotage": "How they undermine their own relationships",
-      "what_they_need_to_learn": "The relationship lesson for their arc"
-    }
-  },
-  "why_these_two": {
-    "magnetic_pull": "What draws them together despite obstacles",
-    "complementary_wounds": "How their wounds fit together (not identically, but meaningfully)",
-    "growth_catalyst": "Why each is the person who can help the other grow",
-    "friction_source": "Why they'll clash (beyond external obstacles)"
-  },
-  "supporting_cast": [
+  "key_moments": [
     {
-      "name": "Full name",
-      "role": "Their narrative function (mentor, antagonist, confidant, mirror, etc.)",
-      "relationship_to_protagonist": "How they know/relate to protagonist",
-      "relationship_to_love_interest": "How they know/relate to love interest",
-      "pressure_point": "How they create pressure on the central relationship",
-      "arc_contribution": "What role they play in the character arcs",
-      "voice_brief": "Key speech characteristics (2-3 traits)",
-      "secret_or_complexity": "What makes them more than a function"
+      "moment": "Name/label for this beat",
+      "what_happens": "What occurs",
+      "why_it_matters": "How it connects to wounds/theme",
+      "what_shifts": "What changes between them after this"
     }
   ],
-  "character_dynamics": {
-    "power_balance": "Who has power in different contexts",
-    "communication_patterns": "How they typically interact (banter, tension, avoidance)",
-    "conflict_style": "How they fight (if they fight)",
-    "intimacy_barriers": "What prevents easy intimacy",
-    "trust_journey": "What trust needs to be built and how"
+  "wound_integration": {
+    "protagonist": {
+      "wound_triggered_by": "What event/action activates their wound",
+      "lie_reinforced_by": "What makes them double down on their false belief",
+      "lie_challenged_by": "What/who forces them to question it",
+      "transformation_moment": "The specific moment they choose differently"
+    },
+    "love_interest": {
+      "wound_triggered_by": "What event/action activates their wound",
+      "lie_reinforced_by": "What makes them double down on their false belief",
+      "lie_challenged_by": "What/who forces them to question it",
+      "transformation_moment": "The specific moment they choose differently"
+    },
+    "third_love_interest": null
   },
-  "coherence_check": {
-    "internal_conflict_embodied": "How protagonist embodies the internal conflict from Phase 1",
-    "theme_served": "How both arcs explore the thematic question",
-    "stakes_real": "How character wounds make emotional stakes personal",
-    "names_sourced": "Confirmation names follow Phase 2 naming conventions",
-    "occupations_valid": "Confirmation occupations come from Phase 2 available roles",
-    "class_markers_present": "How speech/behavior reflects Phase 2 social context",
-    "constraints_enforced": "How Phase 2 constraints affect these specific characters",
-    "pov_supported": "How characters support the POV structure from Phase 1"
+  "dark_moment": {
+    "what_happens": "The apparent end of the relationship",
+    "why_it_feels_fatal": "Why this specifically feels insurmountable given their wounds",
+    "what_each_believes": "Protagonist's belief, love interest's belief"
+  },
+  "resolution": {
+    "what_changes": "What allows resolution to happen",
+    "who_acts": "Who makes the move to repair/claim",
+    "what_they_sacrifice": "What they risk or give up",
+    "final_state": "Where they end up"
   }
 }
 
 ## Guidelines
 
-WOUNDS:
-- Wounds should be specific, not generic ("abandoned by mother at 7" not "trust issues")
-- The wound should logically produce the lie, fear, and coping mechanism
-- Protagonist and love interest wounds should create interesting friction
+PLOT EMERGES FROM CHARACTER:
+- Do NOT use a generic beat sheet
+- Ask: given THIS protagonist's wound and THIS love interest's wound, what would crack them open?
+- What would trigger their deepest fear? What would force them to confront their lie?
 
-ARCS:
-- Transformation must be earned through story events
-- The "proof of change" should be a concrete action, not just a feeling
-- Love interest needs a full arc too — they're not just a prize
+TROPES SHAPE STRUCTURE:
+- Enemies to Lovers: Starts with antagonism. Include what makes them enemies, what forces respect, what cracks hostility.
+- Strangers to Lovers: Starts neutral. Include the meeting, what makes them notice each other, what draws them closer.
+- Friends to Lovers: Starts with comfort. Include what disrupts the friendship, the moment one realizes it's more.
+- Second Chance: Starts with history. Include what ended it before, the forced reunion, what's different now.
+- Childhood Sweethearts: Starts with innocence. Include the separation, the reunion, how they've changed.
 
-VOICE:
-- Each character should sound distinct
-- Voice should reflect background, education, region, personality
-- Include specific phrases or patterns readers will recognize
+BURN RATE AFFECTS PACING:
+- Slow Burn: More key moments before intimacy. Tension through near-misses, interrupted moments, denial.
+- Fast Burn: Fewer barriers to attraction. Conflict is about staying together, not getting together.
 
-SUPPORTING CAST:
-- 3-5 supporting characters for novella, 5-8 for novel
-- Each must serve a clear narrative function
-- Avoid purely functional characters — give each a secret or complexity`
+ENDING TYPE SHAPES THIRD ACT:
+- HEA: Dark moment is overcome. Both transform. They end up together permanently.
+- HFN: Together but with uncertainty. Growth happened but external factors remain unresolved.
+- Bittersweet: Transformation happens but circumstances separate them, OR together at significant cost.
+- Tragic: The flaw wins, or external circumstances destroy them.
+
+DARK MOMENT MUST CONNECT TO WOUNDS:
+- Should specifically trigger the protagonist's wound OR the love interest's wound
+- Must feel inevitable given who they are
+- Not always a misunderstanding - let the characters dictate what breaks them
+
+KEY MOMENTS ARE FLEXIBLE:
+- Don't prescribe a fixed number
+- Every moment must connect to character psychology
+- Every moment must shift something in the relationship
+
+BE INVENTIVE:
+- Do not default to common patterns
+- The dark moment is not always a misunderstanding
+- The resolution is not always a grand gesture
+- Let the specific characters and situation dictate what happens
+
+LOVE TRIANGLES:
+- If Phase 2 includes third_love_interest, populate wound_integration.third_love_interest
+- The choice between love interests should be thematic
+- Include key moments that involve the triangle dynamic
+
+DO NOT INCLUDE:
+- Subplots (Phase 4)
+- Supporting characters (Phase 4)
+- Specific locations (Phase 5)
+- Chapter assignments (later phase)
+- Scene-level detail (later phase)`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
   return `ORIGINAL CONCEPT: ${concept}
 
-PHASE 1 OUTPUT (Core Foundation):
+PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (World/Setting):
+PHASE 2 OUTPUT (Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-Create the characters for this romance. Ensure protagonist embodies the internal conflict, both characters have wounds that create meaningful friction, and all names/occupations come from the established world.`
+Design the central romance arc for this story. The plot must emerge from ${phase2.protagonist?.name}'s wound ("${phase2.protagonist?.wound}") and ${phase2.love_interest?.name}'s wound ("${phase2.love_interest?.wound}"). Shape the arc according to the ${phase1.tropes?.origin} origin and ${phase1.tropes?.dynamic?.join('/') || 'established'} burn rate. Ensure the dark moment triggers their specific wounds, not generic conflict.`
 }
 
-const PHASE_3_COHERENCE_FIELDS = [
-  'internal_conflict_embodied',
-  'theme_served',
-  'stakes_real',
-  'names_sourced',
-  'occupations_valid',
-  'class_markers_present',
-  'constraints_enforced',
-  'pov_supported'
-]
-
 async function executePhase3(concept, phase1, phase2) {
-  console.log('Executing Phase 3: Characters...')
+  console.log('Executing Phase 3: Central Plot...')
 
   const userPrompt = buildPhase3UserPrompt(concept, phase1, phase2)
   const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt)
@@ -1370,13 +1320,19 @@ async function executePhase3(concept, phase1, phase2) {
 
   const data = parsed.data
 
-  // Validate coherence check
-  const coherenceResult = validateCoherence(data.coherence_check, PHASE_3_COHERENCE_FIELDS)
-  if (!coherenceResult.valid) {
-    console.warn(`Phase 3 coherence warning: ${coherenceResult.message}`)
+  // Validate required fields
+  const requiredFields = ['arc_shape', 'key_moments', 'wound_integration', 'dark_moment', 'resolution']
+  const missing = requiredFields.filter(f => !data[f])
+
+  if (missing.length > 0) {
+    throw new Error(`Phase 3 missing required fields: ${missing.join(', ')}`)
   }
 
   console.log('Phase 3 complete.')
+  console.log(`  Arc: ${data.arc_shape?.origin_type} / ${data.arc_shape?.burn_rate}`)
+  console.log(`  Key moments: ${data.key_moments?.length}`)
+  console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 50)}...`)
+
   return data
 }
 
@@ -2364,27 +2320,31 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       loveInterest: bible.characters.love_interest?.name
     })
 
-    // TESTING: Stop after Phase 2 to validate Characters output
+    // Phase 3: Central Plot
+    reportProgress(3, 'starting')
+    bible.plot = await executePhase3(concept, bible.coreFoundation, bible.characters)
+    reportProgress(3, 'complete', {
+      keyMoments: bible.plot.key_moments?.length,
+      darkMoment: bible.plot.dark_moment?.what_happens?.slice(0, 30)
+    })
+
+    // TESTING: Stop after Phase 3 to validate Central Plot output
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 2')
+    console.log('TEST MODE - Stopping after Phase 3')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
+    console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_2_TEST',
+      validationStatus: 'PHASE_3_TEST',
       validationAttempts: 0
     }
 
-    // Phase 3: Central Plot (TODO: rewrite)
-    reportProgress(3, 'starting')
-    bible.characters = await executePhase3(concept, bible.coreFoundation, bible.world)
-    reportProgress(3, 'complete', {
-      protagonist: bible.characters.protagonist?.name,
-      loveInterest: bible.characters.love_interest?.name
-    })
+    // Phase 4: Subplots & Supporting Cast (TODO: rewrite)
+    reportProgress(4, 'starting')
 
     // Phase 4: Chemistry
     reportProgress(4, 'starting')

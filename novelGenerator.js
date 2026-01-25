@@ -1089,11 +1089,19 @@ Your job is to create characters where:
     "name": "Full name",
     "age": number,
     "role": "Their position in this world",
-    "wound": "The specific formative hurt that shapes them",
-    "lie": "The false belief they hold because of the wound",
+    "wound": {
+      "event": "What specifically happened to them",
+      "who_caused_it": "Person responsible (name them), or null if circumstance",
+      "age": "When it happened (age or 'childhood' or 'recently')"
+    },
+    "lie": "The false belief formed BECAUSE of the wound",
     "want": "What they're consciously pursuing",
     "need": "What they actually need (often unconscious)",
-    "flaw": "The trait that will sabotage the relationship",
+    "coping_mechanism": {
+      "behaviour": "What they learned to do to survive the wound",
+      "as_flaw": "How this behaviour sabotages them",
+      "as_virtue": "How this same behaviour serves them"
+    },
     "arc": {
       "starts": "Who they are at the beginning",
       "ends": "Who they become"
@@ -1111,11 +1119,19 @@ Your job is to create characters where:
       "age": number,
       "role": "Their position in this world",
       "role_in_story": "Primary | Rival | Secondary",
-      "wound": "The specific formative hurt that shapes them",
-      "lie": "The false belief they hold because of the wound",
+      "wound": {
+        "event": "What specifically happened to them",
+        "who_caused_it": "Person responsible (name them), or null if circumstance",
+        "age": "When it happened"
+      },
+      "lie": "The false belief formed BECAUSE of the wound",
       "want": "What they're consciously pursuing",
       "need": "What they actually need (often unconscious)",
-      "flaw": "The trait that will sabotage the relationship",
+      "coping_mechanism": {
+        "behaviour": "What they learned to do to survive the wound",
+        "as_flaw": "How this behaviour sabotages them",
+        "as_virtue": "How this same behaviour serves them"
+      },
       "arc": {
         "starts": "Who they are at the beginning",
         "ends": "Who they become"
@@ -1168,11 +1184,48 @@ NAMES:
 - If the concept names characters, use those exact names
 - Otherwise, choose names appropriate to the setting, era, and social class
 
-WOUNDS:
-- Wounds should be specific events or circumstances, not abstract traits
-- "Abandoned by mother at age 7" not "has trust issues"
-- The wound is what happened; the lie is the belief that formed from it
+## The Causal Wound Chain
+
+Every character's psychology follows a causal chain: wound → lie → coping mechanism
+
+THE WOUND CREATES THE LIE:
+- The wound is a specific event or circumstance
+- Ask: "What false belief would naturally form from this experience?"
+- "Father sent me away for being soft" → "Softness is weakness that gets you abandoned"
+
+THE LIE CREATES THE COPING MECHANISM:
+- Ask: "If someone believed this, how would they learn to protect themselves?"
+- "Softness is weakness" → "Proves strength constantly, never shows vulnerability"
+
+THE COPING MECHANISM IS BOTH FLAW AND VIRTUE:
+- Same trait, two expressions
+- Hypervigilance → Flaw: can't trust anyone / Virtue: perceptive, catches threats
+- People-pleasing → Flaw: loses authentic self / Virtue: attentive, adaptive
+- Aggression → Flaw: pushes people away / Virtue: brave, protective
+- Control → Flaw: suffocating / Virtue: reliable, organised
+- Withdrawal → Flaw: emotionally unavailable / Virtue: self-sufficient, calm
+
+THE BEHAVIOUR IS WHAT OTHERS OBSERVE:
+- Not internal psychology but external manifestation
+- How does this person ACT in the world because of their wound?
+
+## Guidelines for Wound Source
+
+NAME THE PERSON WHO CAUSED IT:
+- If a person caused the wound, name them: "Father, Lord Ashworth", "Former fiancée, Catherine"
+- This seeds Phase 4 supporting cast - the person may appear
+- If the wound was caused by circumstance (war, illness, accident), use null
+- Consider: even if circumstance, was there someone who FAILED to protect them?
+
+WOUND TIMING:
+- "age 7", "childhood", "at 16", "three years ago", "recently"
+- Earlier wounds run deeper but are more calcified
+- Recent wounds are rawer but more accessible
+
+WOUNDS CONNECT TO THEME:
 - All characters' wounds should relate to the Phase 1 theme
+- If theme is "duty vs desire", wounds involve choosing one at cost of other
+- This creates thematic resonance across the cast
 
 WANT VS NEED:
 - Want is conscious: what they're actively pursuing
@@ -1181,10 +1234,10 @@ WANT VS NEED:
 - This is the engine of their arc
 
 ARCS AND ENDINGS:
-- HEA: Characters overcome their lies and flaws
+- HEA: Characters overcome their lies and coping mechanisms
 - HFN: Characters grow but external circumstances remain uncertain
 - Bittersweet: Characters transform, but cannot be together
-- Tragic: Flaws or circumstances prove insurmountable
+- Tragic: Coping mechanisms or circumstances prove insurmountable
 
 VOICE:
 - Voice reflects role, class, education, and personality
@@ -1207,7 +1260,7 @@ RIVAL DYNAMICS:
 
 DISTINCT CHARACTERS:
 - Each love interest must be meaningfully different
-- Different wounds, different lies, different approaches to love
+- Different wounds, different lies, different coping mechanisms
 - Don't collapse similar characters — find what makes each unique`
 
 function buildPhase2UserPrompt(concept, phase1) {
@@ -1252,11 +1305,32 @@ async function executePhase2(concept, phase1) {
     throw new Error('Phase 2 missing dynamics')
   }
 
+  // Validate protagonist wound and coping_mechanism structure
+  if (!data.protagonist.wound || typeof data.protagonist.wound !== 'object') {
+    throw new Error('Phase 2 protagonist wound must be an object with event, who_caused_it, age')
+  }
+  if (!data.protagonist.coping_mechanism || typeof data.protagonist.coping_mechanism !== 'object') {
+    throw new Error('Phase 2 protagonist must have coping_mechanism object with behaviour, as_flaw, as_virtue')
+  }
+
+  // Validate love interests wound and coping_mechanism structure
+  for (const li of data.love_interests) {
+    if (!li.wound || typeof li.wound !== 'object') {
+      throw new Error(`Love interest "${li.name}" wound must be an object with event, who_caused_it, age`)
+    }
+    if (!li.coping_mechanism || typeof li.coping_mechanism !== 'object') {
+      throw new Error(`Love interest "${li.name}" must have coping_mechanism object with behaviour, as_flaw, as_virtue`)
+    }
+  }
+
   console.log('Phase 2 complete.')
   console.log(`  Protagonist: ${data.protagonist?.name}`)
+  console.log(`    Wound caused by: ${data.protagonist?.wound?.who_caused_it || 'circumstance'}`)
+  console.log(`    Coping mechanism: ${data.protagonist?.coping_mechanism?.behaviour}`)
   console.log(`  Love interests: ${data.love_interests?.length}`)
   data.love_interests?.forEach((li, i) => {
     console.log(`    ${i + 1}. ${li.name} (${li.role_in_story})`)
+    console.log(`       Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}`)
   })
   console.log(`  Rival dynamics: ${data.dynamics?.rivals?.length || 0}`)
 
@@ -1438,7 +1512,7 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
 
   // Build love interest summary
   const liSummary = phase2.love_interests?.map(li =>
-    `- ${li.name} (${li.role_in_story}): wound="${li.wound}", lie="${li.lie}"`
+    `- ${li.name} (${li.role_in_story}): wound="${li.wound?.event}", lie="${li.lie}"`
   ).join('\n') || ''
 
   // Calculate expected moments
@@ -1459,8 +1533,8 @@ ${JSON.stringify(phase2, null, 2)}
 Design complete romantic arcs for ALL love interests.
 
 **Protagonist:** ${phase2.protagonist?.name}
-  Wound: "${phase2.protagonist?.wound}"
-  Lie: "${phase2.protagonist?.lie}"
+  Wound: "${phase2.protagonist?.wound?.event}"
+  Lie: "${phase2.protagonist?.lie}"`
 
 **Love Interests:**
 ${liSummary}
@@ -1740,12 +1814,14 @@ CUT IF:
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   // Build main character summary for wound mapping
   const protagonistSummary = `**Protagonist: ${phase2.protagonist?.name}**
-  Wound: "${phase2.protagonist?.wound}"
+  Wound event: "${phase2.protagonist?.wound?.event}"
+  Wound caused by: ${phase2.protagonist?.wound?.who_caused_it || 'circumstance'}
   Lie: "${phase2.protagonist?.lie}"`
 
   const loveInterestSummaries = phase2.love_interests?.map((li, i) =>
     `**Love Interest ${i + 1}: ${li.name} (${li.role_in_story})**
-  Wound: "${li.wound}"
+  Wound event: "${li.wound?.event}"
+  Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}
   Lie: "${li.lie}"`
   ).join('\n\n') || ''
 

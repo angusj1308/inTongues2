@@ -1534,7 +1534,7 @@ Design complete romantic arcs for ALL love interests.
 
 **Protagonist:** ${phase2.protagonist?.name}
   Wound: "${phase2.protagonist?.wound?.event}"
-  Lie: "${phase2.protagonist?.lie}"`
+  Lie: "${phase2.protagonist?.lie}"
 
 **Love Interests:**
 ${liSummary}

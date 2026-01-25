@@ -805,6 +805,65 @@ async function getMissingPronunciations(words, targetLanguage, voiceId) {
   return missing
 }
 
+// =============================================
+// Library Summary Functions (for concept generation)
+// =============================================
+
+// Get all library summaries (one-line descriptions of completed books)
+async function getLibrarySummaries() {
+  try {
+    const snapshot = await firestore.collection('librarySummaries').get()
+    const summaries = []
+    snapshot.forEach(doc => {
+      const data = doc.data()
+      if (data.summary) {
+        summaries.push(data.summary)
+      }
+    })
+    console.log(`[Library] Fetched ${summaries.length} library summaries`)
+    return summaries
+  } catch (error) {
+    console.error('Error fetching library summaries:', error)
+    return []
+  }
+}
+
+// Save a library summary when a book is completed
+async function saveLibrarySummary(bookId, uid, bible) {
+  try {
+    // Extract key details from bible to create one-line summary
+    const storyDna = bible.story_dna || {}
+    const characters = bible.characters || {}
+
+    const era = storyDna.era || 'Unknown era'
+    const location = storyDna.primary_setting || storyDna.location || 'Unknown location'
+    const protagonist = characters.protagonist?.name || 'Unknown protagonist'
+    const protagonistDesc = characters.protagonist?.archetype || ''
+    const loveInterest = characters.love_interest?.name || 'Unknown love interest'
+    const conflict = storyDna.external_conflict || storyDna.conflict || ''
+
+    // Create one-line summary format: "Era, location, protagonist, love interest/conflict"
+    let summary = `${era}, ${location}, ${protagonist}`
+    if (protagonistDesc) summary += ` (${protagonistDesc})`
+    summary += ` and ${loveInterest}`
+    if (conflict) summary += ` - ${conflict}`
+
+    // Save to global collection
+    await firestore.collection('librarySummaries').doc(bookId).set({
+      bookId,
+      uid,
+      summary,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+
+    console.log(`[Library] Saved summary for book ${bookId}: ${summary}`)
+    return true
+  } catch (error) {
+    console.error('Error saving library summary:', error)
+    return false
+  }
+}
+
 // Batch check which translations are missing from cache
 async function getMissingTranslations(words, targetLanguage, nativeLanguage) {
   if (!words || !words.length) return []
@@ -7971,11 +8030,14 @@ app.post('/api/generate/bible', async (req, res) => {
   }
 })
 
-// POST /api/generate/prompt - Generate a story concept prompt using 3-pass expansion
+// POST /api/generate/prompt - Generate a story concept prompt (library-aware)
 app.post('/api/generate/prompt', async (req, res) => {
   try {
-    // Use the 3-pass expansion system - 'from-scratch' triggers full generation
-    const response = await expandVagueConcept('from-scratch')
+    // Fetch existing library summaries for diversity
+    const librarySummaries = await getLibrarySummaries()
+
+    // Generate concept with library awareness (single pass)
+    const response = await expandVagueConcept('from-scratch', librarySummaries)
 
     return res.json({ success: true, prompt: response })
   } catch (error) {
@@ -8013,7 +8075,10 @@ app.post('/api/generate/different-prompt', async (req, res) => {
       return res.status(400).json({ error: 'existingConcept is required' })
     }
 
-    const response = await generateDifferentConcept(existingConcept.trim())
+    // Fetch existing library summaries for diversity
+    const librarySummaries = await getLibrarySummaries()
+
+    const response = await generateDifferentConcept(existingConcept.trim(), librarySummaries)
 
     return res.json({ success: true, prompt: response })
   } catch (error) {
@@ -8125,6 +8190,8 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     // Check if this is the last chapter
     if (chapterNum === bookData.chapterCount) {
       await bookRef.update({ status: 'complete' })
+      // Save library summary for concept generation diversity
+      await saveLibrarySummary(bookId, uid, bookData.bible)
     }
 
     return res.status(201).json({

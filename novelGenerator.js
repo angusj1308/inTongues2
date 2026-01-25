@@ -752,8 +752,8 @@ LEVEL: ${level}
 Analyze this concept and establish the story's DNA.`
 }
 
-// Expand vague concepts before Phase 1 using iterative expansion for variety
-async function expandVagueConcept(concept) {
+// Expand vague concepts before Phase 1 using library-aware single-pass generation
+async function expandVagueConcept(concept, librarySummaries = []) {
   const wordCount = concept.trim().split(/\s+/).length
   console.log(`[Expansion Check] Concept: "${concept}" (${wordCount} words)`)
 
@@ -762,7 +762,8 @@ async function expandVagueConcept(concept) {
     return concept // Detailed enough
   }
 
-  console.log(`[Expansion Check] Running iterative expansion (3 passes) with ChatGPT...`)
+  console.log(`[Expansion Check] Running library-aware generation with ChatGPT...`)
+  console.log(`[Expansion Check] Library has ${librarySummaries.length} existing books`)
 
   const systemPrompt = `You are a classic romance novelist.`
 
@@ -770,45 +771,32 @@ async function expandVagueConcept(concept) {
   const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
   const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
 
-  // Select base prompt randomly (same base used for all 3 passes)
+  // Select base prompt randomly
   const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
 
-  // Pass 1: Just the base prompt
-  console.log('\n[Expansion Pass 1]')
+  // Build user prompt with library context if available
+  let userPrompt = basePrompt
+  if (librarySummaries.length > 0) {
+    const summaryList = librarySummaries.map((s, i) => `${i + 1}. ${s}`).join('\n')
+    userPrompt = `${basePrompt}
+
+The following books are already in the library. Generate something different from all of these:
+${summaryList}`
+  }
+
+  console.log('\n[Expansion]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true })
-  console.log('  RESPONSE:', expansion1)
+  console.log('  USER:', userPrompt)
+  const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
+  console.log('  RESPONSE:', response)
 
-  // Pass 2: Base prompt + must be different from Pass 1
-  const userPrompt2 = `${basePrompt} It must be different in some way from this:
-
-${expansion1}`
-  console.log('\n[Expansion Pass 2]')
-  console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt2)
-  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
-  console.log('  RESPONSE:', expansion2)
-
-  // Pass 3: Base prompt + must be different from both Pass 1 and Pass 2
-  const userPrompt3 = `${basePrompt} It must be different in some way from both of these:
-
-1. ${expansion1}
-
-2. ${expansion2}`
-  console.log('\n[Expansion Pass 3]')
-  console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt3)
-  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true })
-  console.log('  RESPONSE:', expansion3)
-
-  console.log('[Expansion Check] Using pass 3 result for Phase 1')
-  return expansion3
+  return response
 }
 
-// Generate a completely different concept from an existing one
-async function generateDifferentConcept(existingConcept) {
+// Generate a different concept from existing one using library-aware single-pass generation
+async function generateDifferentConcept(existingConcept, librarySummaries = []) {
   console.log(`[Different Concept] Generating concept different from existing...`)
+  console.log(`[Different Concept] Library has ${librarySummaries.length} existing books`)
 
   const systemPrompt = `You are a classic romance novelist.`
 
@@ -816,40 +804,27 @@ async function generateDifferentConcept(existingConcept) {
   const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
   const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
 
-  // Select base prompt randomly (same base used for all 3 passes)
+  // Select base prompt randomly
   const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
 
-  // Pass 1: Just the base prompt
-  console.log('\n[Different Pass 1]')
+  // Build avoidance list: current concept + library summaries
+  const avoidList = [`Current: ${existingConcept}`]
+  librarySummaries.forEach((s, i) => {
+    avoidList.push(`${i + 1}. ${s}`)
+  })
+
+  const userPrompt = `${basePrompt}
+
+Generate something different from all of these:
+${avoidList.join('\n')}`
+
+  console.log('\n[Different Concept]')
   console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', basePrompt)
-  const expansion1 = await callChatGPT(systemPrompt, basePrompt, { noMaxTokens: true })
-  console.log('  RESPONSE:', expansion1)
+  console.log('  USER:', userPrompt)
+  const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
+  console.log('  RESPONSE:', response)
 
-  // Pass 2: Base prompt + must be different from Pass 1
-  const userPrompt2 = `${basePrompt} It must be different in some way from this:
-
-${expansion1}`
-  console.log('\n[Different Pass 2]')
-  console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt2)
-  const expansion2 = await callChatGPT(systemPrompt, userPrompt2, { noMaxTokens: true })
-  console.log('  RESPONSE:', expansion2)
-
-  // Pass 3: Base prompt + must be different from both Pass 1 and Pass 2
-  const userPrompt3 = `${basePrompt} It must be different in some way from both of these:
-
-1. ${expansion1}
-
-2. ${expansion2}`
-  console.log('\n[Different Pass 3]')
-  console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt3)
-  const expansion3 = await callChatGPT(systemPrompt, userPrompt3, { noMaxTokens: true })
-  console.log('  RESPONSE:', expansion3)
-
-  console.log('[Different Concept] Using pass 3 result')
-  return expansion3
+  return response
 }
 
 async function executePhase1(concept, lengthPreset, level) {

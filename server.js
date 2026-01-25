@@ -8046,7 +8046,7 @@ app.post('/api/generate/prompt', async (req, res) => {
   }
 })
 
-// POST /api/generate/expand-prompt - Expand a vague story concept
+// POST /api/generate/expand-prompt - Expand a vague story concept (slot-based, library-aware)
 app.post('/api/generate/expand-prompt', async (req, res) => {
   try {
     const { concept } = req.body
@@ -8055,9 +8055,11 @@ app.post('/api/generate/expand-prompt', async (req, res) => {
       return res.status(400).json({ error: 'concept is required' })
     }
 
-    const systemPrompt = `Expand this into a unique romance story concept. Include time period, location, characters, and conflict. The love story must be the central plot. Keep everything the user specified. Create original and complex characters. Vary the time period.`
+    // Fetch existing library summaries for diversity
+    const librarySummaries = await getLibrarySummaries()
 
-    const response = await callClaude(systemPrompt, concept.trim())
+    // Use slot-based expansion (extracts user-specified location/time, defaults the rest)
+    const response = await expandVagueConcept(concept.trim(), librarySummaries)
 
     return res.json({ success: true, prompt: response })
   } catch (error) {

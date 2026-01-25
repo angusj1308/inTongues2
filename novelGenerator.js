@@ -752,60 +752,204 @@ LEVEL: ${level}
 Analyze this concept and establish the story's DNA.`
 }
 
-// Expand vague concepts before Phase 1 using library-aware single-pass generation
+// =============================================
+// Slot-Based Concept Expansion
+// =============================================
+
+// Default values for unfilled slots
+const SLOT_DEFAULTS = {
+  location: 'anywhere in the Spanish-speaking world',
+  timePeriod: 'any time period'
+}
+
+// Prompt templates with slot placeholders (50/50 random selection)
+const PROMPT_TEMPLATES = {
+  // For blank/from-scratch generation
+  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`,
+
+  literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
+
+  // For expanding user concepts (keeps what they said, fills in missing details)
+  regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}, with a compelling social conflict as to why the lovers cannot simply be together. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
+
+  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`
+}
+
+// Location patterns for Spanish-speaking world
+const LOCATION_PATTERNS = {
+  countries: [
+    'argentina', 'mexico', 'spain', 'colombia', 'peru', 'chile', 'cuba',
+    'venezuela', 'ecuador', 'guatemala', 'bolivia', 'dominican republic',
+    'honduras', 'paraguay', 'el salvador', 'nicaragua', 'costa rica',
+    'panama', 'uruguay', 'puerto rico'
+  ],
+  cities: [
+    'buenos aires', 'mexico city', 'madrid', 'barcelona', 'lima', 'bogotá',
+    'bogota', 'havana', 'santiago', 'caracas', 'quito', 'medellín', 'medellin',
+    'guadalajara', 'monterrey', 'seville', 'sevilla', 'valencia', 'cartagena',
+    'córdoba', 'cordoba', 'rosario', 'mendoza', 'cusco', 'cuzco', 'arequipa',
+    'san juan', 'montevideo', 'asunción', 'asuncion', 'la paz', 'santa cruz'
+  ],
+  regions: [
+    'patagonia', 'andalusia', 'andalucía', 'yucatan', 'yucatán', 'galicia',
+    'catalonia', 'cataluña', 'basque country', 'castile', 'la mancha',
+    'pampas', 'tierra del fuego', 'andes', 'amazon', 'oaxaca', 'chiapas'
+  ]
+}
+
+// Time period patterns
+const TIME_PATTERNS = {
+  decades: /\b(18[0-9]0s|19[0-9]0s|20[0-2]0s|the\s+(twenties|thirties|forties|fifties|sixties|seventies|eighties|nineties))\b/i,
+  centuries: /\b(1[6-9]th|20th|21st)\s+century\b/i,
+  eras: /\b(colonial|victorian|edwardian|post-war|postwar|pre-war|prewar|golden age|belle époque|belle epoque|prohibition|revolution|civil war)\b/i,
+  contemporary: /\b(contemporary|modern|present-day|present day|current|today|now|21st century|2000s|2010s|2020s)\b/i
+}
+
+// Extract slots from user concept
+function extractConceptSlots(userConcept) {
+  const concept = userConcept.toLowerCase()
+  const result = {
+    location: null,
+    timePeriod: null
+  }
+
+  // Extract location - check cities first (more specific), then countries, then regions
+  for (const city of LOCATION_PATTERNS.cities) {
+    if (concept.includes(city)) {
+      result.location = city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      break
+    }
+  }
+  if (!result.location) {
+    for (const country of LOCATION_PATTERNS.countries) {
+      if (concept.includes(country)) {
+        result.location = country.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+        break
+      }
+    }
+  }
+  if (!result.location) {
+    for (const region of LOCATION_PATTERNS.regions) {
+      if (concept.includes(region)) {
+        result.location = region.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+        break
+      }
+    }
+  }
+
+  // Extract time period - check all patterns
+  const contemporaryMatch = userConcept.match(TIME_PATTERNS.contemporary)
+  if (contemporaryMatch) {
+    result.timePeriod = contemporaryMatch[0].toLowerCase()
+  }
+  if (!result.timePeriod) {
+    const decadeMatch = userConcept.match(TIME_PATTERNS.decades)
+    if (decadeMatch) {
+      result.timePeriod = 'the ' + decadeMatch[0].toLowerCase().replace('the ', '')
+    }
+  }
+  if (!result.timePeriod) {
+    const centuryMatch = userConcept.match(TIME_PATTERNS.centuries)
+    if (centuryMatch) {
+      result.timePeriod = 'the ' + centuryMatch[0].toLowerCase()
+    }
+  }
+  if (!result.timePeriod) {
+    const eraMatch = userConcept.match(TIME_PATTERNS.eras)
+    if (eraMatch) {
+      result.timePeriod = 'the ' + eraMatch[0].toLowerCase() + ' era'
+    }
+  }
+
+  console.log(`[Slot Extraction] Input: "${userConcept}"`)
+  console.log(`[Slot Extraction] Extracted: location="${result.location}", timePeriod="${result.timePeriod}"`)
+
+  return result
+}
+
+// Expand vague concepts before Phase 1 using slot-based library-aware generation
 async function expandVagueConcept(concept, librarySummaries = []) {
   const wordCount = concept.trim().split(/\s+/).length
   console.log(`[Expansion Check] Concept: "${concept}" (${wordCount} words)`)
 
+  // Case 1: Detailed enough (20+ words) - pass through unchanged
   if (wordCount >= 20) {
     console.log('[Expansion Check] Skipping - concept is detailed enough')
-    return concept // Detailed enough
+    return concept
   }
 
-  console.log(`[Expansion Check] Running library-aware generation with ChatGPT...`)
+  console.log(`[Expansion Check] Running slot-based generation with ChatGPT...`)
   console.log(`[Expansion Check] Library has ${librarySummaries.length} existing books`)
 
-  const systemPrompt = `You are a classic romance novelist.`
+  // Case 2: Blank/from-scratch - use defaults for all slots
+  const isBlank = !concept || concept.toLowerCase() === 'from-scratch' || wordCount < 3
 
-  // Two prompts to randomly select from (50/50)
-  const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
-  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
+  // Case 3: Vague concept - extract what user specified, default the rest
+  const slots = isBlank
+    ? { location: null, timePeriod: null }
+    : extractConceptSlots(concept)
 
-  // Select base prompt randomly
-  const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
+  const location = slots.location || SLOT_DEFAULTS.location
+  const timePeriod = slots.timePeriod || SLOT_DEFAULTS.timePeriod
 
-  // Build user prompt with library context if available
-  let userPrompt = basePrompt
+  // Select track (50/50 between Regency and Literary)
+  const useRegency = Math.random() < 0.5
+
+  // Use expand templates for user concepts, base templates for from-scratch
+  let promptTemplate
+  if (isBlank) {
+    promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
+  } else {
+    promptTemplate = useRegency ? PROMPT_TEMPLATES.regencyExpand : PROMPT_TEMPLATES.literaryExpand
+  }
+
+  // Fill slots in template
+  let userPrompt = promptTemplate
+    .replace('{user_concept}', concept)
+    .replace('{location}', location)
+    .replace('{time_period}', timePeriod)
+
+  // Add library avoidance if available
   if (librarySummaries.length > 0) {
     const summaryList = librarySummaries.map((s, i) => `${i + 1}. ${s}`).join('\n')
-    userPrompt = `${basePrompt}
+    userPrompt += `
 
-The following books are already in the library. Generate something different from all of these:
+Do not generate a concept that duplicates any of these existing books:
 ${summaryList}`
   }
 
+  const systemPrompt = `You are a classic romance novelist.`
+
   console.log('\n[Expansion]')
+  console.log('  Track:', useRegency ? 'Regency' : 'Literary')
+  console.log('  Location:', location)
+  console.log('  Time Period:', timePeriod)
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt)
+
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
   return response
 }
 
-// Generate a different concept from existing one using library-aware single-pass generation
+// Generate a different concept from existing one using slot-based library-aware generation
 async function generateDifferentConcept(existingConcept, librarySummaries = []) {
   console.log(`[Different Concept] Generating concept different from existing...`)
   console.log(`[Different Concept] Library has ${librarySummaries.length} existing books`)
 
-  const systemPrompt = `You are a classic romance novelist.`
+  // Use defaults for location and time period (generating fresh concept)
+  const location = SLOT_DEFAULTS.location
+  const timePeriod = SLOT_DEFAULTS.timePeriod
 
-  // Two prompts to randomly select from (50/50)
-  const prompt1 = `Generate an original idea for a romance novel in the style of classic Regency romance. Set anywhere in the Spanish-speaking world, in any time period, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`
-  const prompt2 = `Generate an original idea for a literary romance novel. Set anywhere in the Spanish-speaking world, in any time period, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
+  // Select track (50/50 between Regency and Literary)
+  const useRegency = Math.random() < 0.5
+  const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
 
-  // Select base prompt randomly
-  const basePrompt = Math.random() < 0.5 ? prompt1 : prompt2
+  // Fill slots in template
+  let userPrompt = promptTemplate
+    .replace('{location}', location)
+    .replace('{time_period}', timePeriod)
 
   // Build avoidance list: current concept + library summaries
   const avoidList = [`Current: ${existingConcept}`]
@@ -813,14 +957,18 @@ async function generateDifferentConcept(existingConcept, librarySummaries = []) 
     avoidList.push(`${i + 1}. ${s}`)
   })
 
-  const userPrompt = `${basePrompt}
+  userPrompt += `
 
 Generate something different from all of these:
 ${avoidList.join('\n')}`
 
+  const systemPrompt = `You are a classic romance novelist.`
+
   console.log('\n[Different Concept]')
+  console.log('  Track:', useRegency ? 'Regency Historical' : 'Literary')
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt)
+
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 

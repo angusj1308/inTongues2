@@ -762,15 +762,10 @@ const SLOT_DEFAULTS = {
   timePeriod: 'any time period'
 }
 
-// Prompt templates with slot placeholders
+// Prompt templates with slot placeholders (50/50 random selection)
 const PROMPT_TEMPLATES = {
-  // Regency track - for historical or unspecified time periods
-  regencyHistorical: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`,
+  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`,
 
-  // Regency track - for contemporary settings (high society stakes)
-  regencyContemporary: `Generate an original idea for a romance novel with high society stakes—wealth, reputation, family expectations, social circles where everyone watches and judges. Set in {location}, in {time_period}, with a compelling social conflict as to why the lovers cannot simply be together. Output 2-3 sentences only. Do not include any preamble.`,
-
-  // Literary track - works across all eras
   literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}, with a compelling conflict as to why the lovers cannot simply be together. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`
 }
 
@@ -809,14 +804,12 @@ function extractConceptSlots(userConcept) {
   const concept = userConcept.toLowerCase()
   const result = {
     location: null,
-    timePeriod: null,
-    isContemporary: false
+    timePeriod: null
   }
 
   // Extract location - check cities first (more specific), then countries, then regions
   for (const city of LOCATION_PATTERNS.cities) {
     if (concept.includes(city)) {
-      // Capitalize properly
       result.location = city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
       break
     }
@@ -838,16 +831,11 @@ function extractConceptSlots(userConcept) {
     }
   }
 
-  // Check for contemporary markers first
-  if (TIME_PATTERNS.contemporary.test(userConcept)) {
-    result.isContemporary = true
-    const match = userConcept.match(TIME_PATTERNS.contemporary)
-    if (match) {
-      result.timePeriod = match[0].toLowerCase()
-    }
+  // Extract time period - check all patterns
+  const contemporaryMatch = userConcept.match(TIME_PATTERNS.contemporary)
+  if (contemporaryMatch) {
+    result.timePeriod = contemporaryMatch[0].toLowerCase()
   }
-
-  // Extract specific time period (decades, centuries, eras)
   if (!result.timePeriod) {
     const decadeMatch = userConcept.match(TIME_PATTERNS.decades)
     if (decadeMatch) {
@@ -868,7 +856,7 @@ function extractConceptSlots(userConcept) {
   }
 
   console.log(`[Slot Extraction] Input: "${userConcept}"`)
-  console.log(`[Slot Extraction] Extracted: location="${result.location}", timePeriod="${result.timePeriod}", isContemporary=${result.isContemporary}`)
+  console.log(`[Slot Extraction] Extracted: location="${result.location}", timePeriod="${result.timePeriod}"`)
 
   return result
 }
@@ -892,7 +880,7 @@ async function expandVagueConcept(concept, librarySummaries = []) {
 
   // Case 3: Vague concept - extract what user specified, default the rest
   const slots = isBlank
-    ? { location: null, timePeriod: null, isContemporary: false }
+    ? { location: null, timePeriod: null }
     : extractConceptSlots(concept)
 
   const location = slots.location || SLOT_DEFAULTS.location
@@ -900,16 +888,7 @@ async function expandVagueConcept(concept, librarySummaries = []) {
 
   // Select track (50/50 between Regency and Literary)
   const useRegency = Math.random() < 0.5
-
-  // Select appropriate prompt template
-  let promptTemplate
-  if (useRegency) {
-    promptTemplate = slots.isContemporary
-      ? PROMPT_TEMPLATES.regencyContemporary
-      : PROMPT_TEMPLATES.regencyHistorical
-  } else {
-    promptTemplate = PROMPT_TEMPLATES.literary
-  }
+  const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
 
   // Fill slots in template
   let userPrompt = promptTemplate
@@ -928,7 +907,7 @@ ${summaryList}`
   const systemPrompt = `You are a classic romance novelist.`
 
   console.log('\n[Expansion]')
-  console.log('  Track:', useRegency ? (slots.isContemporary ? 'Regency Contemporary' : 'Regency Historical') : 'Literary')
+  console.log('  Track:', useRegency ? 'Regency' : 'Literary')
   console.log('  Location:', location)
   console.log('  Time Period:', timePeriod)
   console.log('  SYSTEM:', systemPrompt)
@@ -951,11 +930,7 @@ async function generateDifferentConcept(existingConcept, librarySummaries = []) 
 
   // Select track (50/50 between Regency and Literary)
   const useRegency = Math.random() < 0.5
-
-  // Select appropriate prompt template (always use historical since we're generating fresh)
-  const promptTemplate = useRegency
-    ? PROMPT_TEMPLATES.regencyHistorical
-    : PROMPT_TEMPLATES.literary
+  const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
 
   // Fill slots in template
   let userPrompt = promptTemplate

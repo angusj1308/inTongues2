@@ -1435,7 +1435,7 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SUBPLOTS & SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is to map all external forces and thematic positions acting on the story, then derive collision points where these forces hit the main plot.
+const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is to map all forces acting on the story, consolidate them into subplots, and derive collision points.
 
 You will receive:
 - The original concept
@@ -1445,7 +1445,7 @@ You will receive:
 
 ## The Process
 
-Work in three steps:
+Work in four steps:
 
 **Step 1: Map all External Pressures**
 List every party with stakes in the outcome. Be exhaustive.
@@ -1459,66 +1459,83 @@ List every party with stakes in the outcome. Be exhaustive.
 State the theme question. List all answers:
 - Positions within the binary (different answers)
 - Positions that transcend or reject the binary
+For each position, identify BOTH the good and the bad (genuine, not strawman).
 Check Phase 2 love interests first - their lies ARE thematic positions. Don't duplicate.
 
-**Step 3: Derive Collision Points**
-For each force, ask: When does it hit the main plot? Which Phase 3 key moment?
+**Step 3: Consolidate into Subplots**
+Group forces that can be embodied by the same character. A mother can be:
+- Past mirror (chose duty, shows the cost)
+- External pressure (wants daughter to choose same)
+This is ONE subplot with ONE character serving TWO functions.
+Don't force consolidation - some forces need separate characters.
+
+**Step 4: Generate Key Moments and Collision Points**
+For each subplot, determine what the reader needs to see.
+Then map which moments collide with Phase 3 key moments.
 
 ## Output Format
 
 {
-  "external_pressures": [
-    {
-      "party": "Name of party/faction/family",
-      "interest": "What they want",
-      "pressure_on": "Which character(s) they pressure",
-      "methods": "How they apply pressure",
-      "embodied_by": "Character name (existing or new)",
-      "collision_points": [
-        {
-          "hits_moment": "Phase 3 key moment name",
-          "what_happens": "What they do",
-          "effect_on_main_plot": "How it changes things"
-        }
-      ]
-    }
-  ],
-
-  "thematic_positions": [
-    {
-      "position": "Their answer to the theme question",
-      "type": "past_mirror | present_mirror | transcends",
-      "embodied_by": "Character name (existing or new)",
-      "stance": "What they believe/chose",
-      "complication": "The contradiction or cost within this stance",
-      "outcome": "What happened/is happening to them",
-      "collision_points": [
-        {
-          "hits_moment": "Phase 3 key moment name",
-          "what_protagonist_sees": "What protagonist witnesses or learns",
-          "effect_on_protagonist": "How it affects their journey"
-        }
-      ]
-    }
-  ],
-
-  "supporting_cast": [
-    {
-      "name": "Character name",
-      "age": number,
-      "role": "Their position in this world",
-      "serves": "Which pressure or thematic position they embody",
-      "relationship_to_leads": "How they connect to protagonist/love interests",
-      "wound": "One sentence - lighter treatment than leads",
-      "thematic_stance": "Their answer to the theme question",
-      "arc": {
-        "starts": "Who they are when we meet them",
-        "ends": "Who they become or what happens to them"
-      },
-      "voice": {
-        "register": "How they speak",
-        "distinct_from_leads": "What makes them sound different"
+  "forces": {
+    "external_pressures": [
+      {
+        "party": "Name of party/faction/family",
+        "interest": "What they want",
+        "pressure_on": "Which character(s) they pressure"
       }
+    ],
+    "thematic_positions": [
+      {
+        "position": "Their answer to the theme question",
+        "type": "past_mirror | present_mirror | transcends",
+        "the_good": "Genuine benefit of this position",
+        "the_bad": "Genuine cost of this position"
+      }
+    ]
+  },
+
+  "subplots": [
+    {
+      "name": "Subplot name",
+      "functions": [
+        {
+          "type": "external_pressure",
+          "party": "Which party from forces list",
+          "interest": "What they want"
+        },
+        {
+          "type": "past_mirror | present_mirror | transcends",
+          "position": "Which position from forces list"
+        }
+      ],
+      "character": {
+        "name": "Full name",
+        "age": number,
+        "role": "Their position in this world",
+        "wound": "One sentence",
+        "thematic_stance": "Their answer to the theme question",
+        "relationship_to_leads": "How they connect to protagonist/love interests",
+        "voice": {
+          "register": "How they speak",
+          "distinct_from_leads": "What makes them sound different"
+        }
+      },
+      "key_moments": [
+        {
+          "moment": "Name of this moment",
+          "what_happens": "What occurs",
+          "why_it_matters": "Why the reader needs to see this",
+          "what_shifts": "What changes after this moment",
+          "serves_functions": ["Which functions this moment serves"]
+        }
+      ],
+      "collision_points": [
+        {
+          "subplot_moment": "Key moment name from this subplot",
+          "hits_phase_3_moment": "Key moment name from Phase 3",
+          "effect_on_main_plot": "How it affects the central romance"
+        }
+      ]
     }
   ],
 
@@ -1526,8 +1543,13 @@ For each force, ask: When does it hit the main plot? Which Phase 3 key moment?
     {
       "phase_3_moment": "Key moment name from Phase 3",
       "main_plot": "What happens in central romance",
-      "pressures_active": ["Which external pressures collide here"],
-      "positions_active": ["Which thematic positions collide here"]
+      "subplots_active": [
+        {
+          "subplot": "Subplot name",
+          "moment": "Which key moment from that subplot",
+          "what_happens": "What occurs"
+        }
+      ]
     }
   ]
 }
@@ -1543,10 +1565,6 @@ COMPLEXITY SCALES:
 - Simple romance: 2-4 pressures
 - Multiple suitors/political intrigue: 8-12 pressures
 
-EACH MUST COLLIDE:
-- If a pressure never hits the main plot, cut it
-- External pressure collisions cause events (threats, ultimatums, revelations)
-
 ## Guidelines for Thematic Positions
 
 START WITH THEME QUESTION:
@@ -1559,35 +1577,52 @@ CATEGORIZE AS:
 - present_mirror: Choosing now, arc runs parallel, dynamic
 - transcends: Outside the question, provides different lens
 
+GENUINE GOOD AND BAD:
+- Every position has real benefits AND real costs
+- Not strawmen - show why someone would choose this
+
 CHECK EXISTING CHARACTERS:
 - Love interests from Phase 2 already have lies - these ARE positions
 - Don't duplicate. Map them, then identify missing positions.
 
-MIRRORS SHOULD BE GENUINE:
-- Both sides show real good AND real bad
-- Not strawmen
+## Guidelines for Consolidation
 
-## Guidelines for Supporting Cast
+CHARACTERS CAN SERVE MULTIPLE FUNCTIONS:
+- A mother: past mirror (chose duty) + external pressure (wants same for daughter)
+- A rival: external pressure (blocking) + present mirror (choosing power over love)
 
-CHARACTERS SERVE FORCES:
-- Don't invent characters then find roles
-- Identify what force needs embodiment, then create character
+DON'T FORCE IT:
+- Some forces need separate characters
+- Consolidate when it creates depth, not to reduce cast
 
-LIGHTER TREATMENT:
-- One-sentence wound
-- Thematic stance
-- Simple arc (starts/ends)
-- No full lie/want/need/flaw structure
+ONE CHARACTER PER SUBPLOT:
+- Each subplot has exactly one character
+- That character can serve 1-3 functions
 
-DON'T DUPLICATE PHASE 2:
-- Love interests already exist
-- Supporting cast is everyone else
+## Guidelines for Key Moments
+
+KEY MOMENTS ARE WHAT THE READER NEEDS TO SEE:
+- Not scenes. Not beats. The essential moments.
+- Same structure as Phase 3: moment, what_happens, why_it_matters, what_shifts
+
+TAG WHICH FUNCTIONS EACH MOMENT SERVES:
+- A single moment might serve both mirror AND pressure functions
+
+NUMBER VARIES BY COMPLEXITY:
+- Simple past mirror: 2-3 moments
+- External pressure only: 3-4 moments
+- Character serving multiple functions: 4-6 moments
+- Present mirror with full arc: 4-5 moments
+
+NOT EVERY MOMENT IS A COLLISION:
+- Subplot moments can happen between Phase 3 moments
+- Only map actual collisions with Phase 3 key moments
 
 ## Guidelines for Collisions
 
 COLLISIONS ARE DERIVED:
-- For each force, ask: When would it naturally intervene?
-- Map to Phase 3 key moments
+- For each subplot key moment, ask: Does this hit a Phase 3 moment?
+- If yes, map the collision. If no, it happens independently.
 
 PRESSURE COLLISIONS CAUSE EVENTS:
 - "Family arrives and threatens" → forces confession
@@ -1597,8 +1632,8 @@ POSITION COLLISIONS ILLUMINATE CHOICES:
 - "Protagonist sees mother's hollow eyes" → feels weight of that path
 - "Protagonist watches friend choose love" → sees it's possible
 
-EVERY FORCE NEEDS COLLISION:
-- If it doesn't hit the main plot, cut it
+EVERY SUBPLOT NEEDS AT LEAST ONE COLLISION:
+- If a subplot never touches the main plot, reconsider it
 
 ## Selection Criteria
 
@@ -1612,9 +1647,7 @@ CUT IF:
 - Only thematic commentary without plot collision
 - Requires character just for one thing
 - Would feel forced
-- Redundant with another force
-
-Not every position needs equal weight. Central characters have complex positions. Supporting characters can embody extremes simply.`
+- Redundant with another force`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   const keyMomentNames = phase3.key_moments?.map(m => m.moment).join(', ') || 'key moments'
@@ -1636,8 +1669,6 @@ LENGTH PRESET: ${lengthPreset}
 
 ## Your Task
 
-Map all forces acting on this story, then derive collision points.
-
 **Theme Question:** "${phase1.theme?.question}"
 **Theme Core:** ${phase1.theme?.core}
 
@@ -1647,15 +1678,16 @@ Map all forces acting on this story, then derive collision points.
     ${loveInterestLies}
 
 **Step 1:** List ALL external pressures (families, institutions, rivals, factions)
-**Step 2:** List ALL thematic positions (answers to theme question) - check Phase 2 first
-**Step 3:** For each force, derive when it collides with Phase 3 key moments
+**Step 2:** List ALL thematic positions (answers to theme question) with genuine good AND bad for each
+**Step 3:** Consolidate forces into subplots (one character can serve multiple functions)
+**Step 4:** Generate key moments for each subplot, then map collision points to Phase 3
 
 Love interests (${loveInterestNames}) are NOT supporting cast - they're already created in Phase 2.
 
 Complexity guide for ${lengthPreset}:
 - External pressures: ${lengthPreset === 'novella' ? '3-5' : '5-8'}
 - Thematic positions: ${lengthPreset === 'novella' ? '3-4' : '5-7'}
-- Supporting cast: ${lengthPreset === 'novella' ? '3-5' : '5-8'}`
+- Subplots: ${lengthPreset === 'novella' ? '2-4' : '4-6'}`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
@@ -1672,27 +1704,32 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   const data = parsed.data
 
   // Validate required fields
-  if (!data.external_pressures || !Array.isArray(data.external_pressures)) {
-    throw new Error('Phase 4 missing external_pressures array')
+  if (!data.forces || !data.forces.external_pressures || !data.forces.thematic_positions) {
+    throw new Error('Phase 4 missing forces object with external_pressures and thematic_positions')
   }
-  if (!data.thematic_positions || !Array.isArray(data.thematic_positions)) {
-    throw new Error('Phase 4 missing thematic_positions array')
-  }
-  if (!data.supporting_cast || !Array.isArray(data.supporting_cast)) {
-    throw new Error('Phase 4 missing supporting_cast array')
+  if (!data.subplots || !Array.isArray(data.subplots) || data.subplots.length === 0) {
+    throw new Error('Phase 4 missing subplots array')
   }
   if (!data.collision_timeline || !Array.isArray(data.collision_timeline)) {
     throw new Error('Phase 4 missing collision_timeline array')
   }
 
+  // Validate each subplot has required fields
+  for (const subplot of data.subplots) {
+    if (!subplot.functions || !subplot.character || !subplot.key_moments || !subplot.collision_points) {
+      throw new Error(`Subplot "${subplot.name}" missing required fields (functions, character, key_moments, collision_points)`)
+    }
+  }
+
   console.log('Phase 4 complete.')
-  console.log(`  External pressures: ${data.external_pressures?.length}`)
-  console.log(`  Thematic positions: ${data.thematic_positions?.length}`)
-  console.log(`    Past mirrors: ${data.thematic_positions?.filter(p => p.type === 'past_mirror').length}`)
-  console.log(`    Present mirrors: ${data.thematic_positions?.filter(p => p.type === 'present_mirror').length}`)
-  console.log(`    Transcends: ${data.thematic_positions?.filter(p => p.type === 'transcends').length}`)
-  console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
-  console.log(`  Collision points: ${data.collision_timeline?.length}`)
+  console.log(`  Forces:`)
+  console.log(`    External pressures: ${data.forces?.external_pressures?.length}`)
+  console.log(`    Thematic positions: ${data.forces?.thematic_positions?.length}`)
+  console.log(`  Subplots: ${data.subplots?.length}`)
+  data.subplots?.forEach(s => {
+    console.log(`    - ${s.name}: ${s.functions?.length} functions, ${s.key_moments?.length} moments, ${s.collision_points?.length} collisions`)
+  })
+  console.log(`  Timeline entries: ${data.collision_timeline?.length}`)
 
   return data
 }

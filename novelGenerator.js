@@ -703,6 +703,12 @@ CONFLICT
 - External: What circumstance keeps them apart?
 - Internal: What psychological barrier keeps them apart?
 
+THEME
+- Core: What the story is really about (one word or short phrase)
+- Question: The thematic question the story asks
+- Explored through: How the romance embodies this theme
+The theme should emerge from what's already in the concept, not be imposed.
+
 ## Output
 
 {
@@ -739,6 +745,11 @@ CONFLICT
   "conflict": {
     "external": string,
     "internal": string
+  },
+  "theme": {
+    "core": "What the story is really about (one word or short phrase)",
+    "question": "The thematic question the story asks",
+    "explored_through": "How the romance embodies this theme"
   },
   "premise": string
 }`
@@ -994,7 +1005,7 @@ async function executePhase1(concept, lengthPreset, level) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'premise']
+  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'theme', 'premise']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
@@ -1014,6 +1025,8 @@ async function executePhase1(concept, lengthPreset, level) {
   console.log(`  POV: ${data.pov.person} Person, ${data.pov.structure}`)
   console.log(`  Timespan: ${data.timespan.duration}`)
   console.log(`  Ending: ${data.ending.type}`)
+  console.log(`  Theme: ${data.theme.core} — "${data.theme.question}"`)
+  console.log(`    Explored through: ${data.theme.explored_through}`)
 
   return data
 }

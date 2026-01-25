@@ -1593,12 +1593,22 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('Phase 3 complete.')
   console.log(`  Romantic arcs: ${data.romantic_arcs?.length}`)
   data.romantic_arcs?.forEach(arc => {
-    console.log(`    - ${arc.between.join(' + ')}: ${arc.key_moments?.length} moments`)
+    console.log(`    - ${arc.between.join(' + ')} (${arc.arc_type}):`)
+    arc.key_moments?.forEach((m, i) => {
+      console.log(`        ${i + 1}. ${m.moment}`)
+    })
+    const hasWoundIntegration = arc.wound_integration?.love_interest?.transformation_moment
+    console.log(`        Wound integration: ${hasWoundIntegration ? 'Yes' : 'MISSING'}`)
   })
   console.log(`  Rival dynamics: ${data.rival_dynamics?.length || 0}`)
   data.rival_dynamics?.forEach(dyn => {
-    console.log(`    - ${dyn.between.join(' vs ')}: ${dyn.key_moments?.length} moments`)
+    console.log(`    - ${dyn.between.join(' vs ')}:`)
+    dyn.key_moments?.forEach((m, i) => {
+      console.log(`        ${i + 1}. ${m.moment}`)
+    })
   })
+  console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 60)}...`)
+  console.log(`  Resolution: ${data.resolution?.final_state?.slice(0, 60)}...`)
 
   return data
 }
@@ -1607,86 +1617,60 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a character architect. Your task is to create the supporting cast — the people who shaped the main characters and embody the theme.
+const PHASE_4_SYSTEM_PROMPT = `You are a character architect creating the supporting cast for a romance novel.
 
-You will receive:
-- The original concept
-- Phase 1 output (theme, tropes, conflict, ending, tone)
-- Phase 2 output (protagonist, love_interests array, dynamics)
-- Phase 3 output (romantic_arcs, rival_dynamics, dark_moment, resolution)
+## OUTPUT FORMAT (REQUIRED - FOLLOW EXACTLY)
 
-## The Process
-
-Work in two passes:
-
-**Pass 1: Wound-Driven Characters**
-For each main character (protagonist + ALL love interests), ask:
-- Who created their wound?
-- Who reinforces their lie?
-- Who challenges their lie? (besides the love interests)
-
-These people are essential. They explain why the main characters are who they are.
-
-**Pass 2: Theme-Driven Characters**
-List all approaches to the theme question:
-- Extreme of one side
-- Extreme of other side
-- Variations between
-- Transcends the binary (different values entirely)
-- Rejects the question (cynics, hedonists)
-
-For each approach, who embodies it? Could be:
-- Someone from Pass 1 (consolidation)
-- A new character
-- Multiple characters at different weights
-
-## Output Format
+You MUST output this exact JSON structure:
 
 {
   "wound_sources": {
     "protagonist": {
-      "wound": "Copy from Phase 2 for reference",
+      "name": "Protagonist name from Phase 2",
+      "wound": "Copy wound.event from Phase 2",
       "created_by": {
-        "character": "Name or null if event/circumstance",
-        "relationship": "How connected",
-        "what_they_did": "How they created the wound"
+        "character": "Name of person who caused wound, or null",
+        "relationship": "Their relationship to protagonist",
+        "what_they_did": "How they caused the wound"
       },
       "reinforced_by": [
         {
           "character": "Name",
-          "relationship": "How connected",
-          "how_they_reinforce": "What they do/say that keeps the lie alive"
+          "relationship": "Their relationship",
+          "how_they_reinforce": "What they do that keeps the lie alive"
         }
       ],
       "challenged_by": [
         {
           "character": "Name",
-          "relationship": "How connected",
-          "how_they_challenge": "What they do/say that questions the lie"
+          "relationship": "Their relationship",
+          "how_they_challenge": "What they do that questions the lie"
         }
       ]
     },
     "love_interest_1": {
-      "name": "Love interest's name for reference",
-      "wound": "Copy from Phase 2",
+      "name": "First love interest name from Phase 2",
+      "wound": "Copy their wound.event from Phase 2",
       "created_by": { ... },
       "reinforced_by": [ ... ],
       "challenged_by": [ ... ]
-    }
+    },
+    "love_interest_2": { ... },
+    "love_interest_3": { ... }
   },
 
   "thematic_approaches": [
     {
-      "position": "Their answer to the theme question",
+      "position": "An answer to the theme question",
       "type": "past_mirror | present_mirror | transcends | rejects",
       "the_good": "Genuine benefit of this position",
       "the_bad": "Genuine cost of this position",
       "embodied_by": [
         {
           "character": "Name",
-          "relationship_to_protagonist": "How they connect",
-          "how_they_embody_it": "Their specific version of this position",
-          "outcome": "What happened/is happening to them",
+          "relationship_to_protagonist": "How connected",
+          "how_they_embody_it": "Their specific version",
+          "outcome": "What happened to them",
           "weight": "major | minor | referenced"
         }
       ]
@@ -1696,120 +1680,75 @@ For each approach, who embodies it? Could be:
   "supporting_cast": [
     {
       "name": "Full name",
-      "age": number,
+      "age": 0,
       "role": "Their position in this world",
-      "connected_to": "Which main character(s) they relate to",
+      "connected_to": "Which main character(s)",
       "functions": ["wound_source:protagonist", "past_mirror:position_name"],
-      "wound": "Their specific formative hurt",
-      "lie": "The false belief they hold",
-      "want": "What they're consciously pursuing",
+      "wound": "Their formative hurt",
+      "lie": "Their false belief",
+      "want": "What they pursue",
       "need": "What they actually need",
-      "flaw": "The trait that defines their limitation",
-      "thematic_stance": "Their answer to the theme question",
+      "coping_mechanism": {
+        "behaviour": "How they cope",
+        "as_flaw": "How it hurts them",
+        "as_virtue": "How it helps them"
+      },
+      "thematic_stance": "Their answer to theme",
       "arc": {
-        "starts": "Who they are when we meet them",
+        "starts": "Who they are at start",
         "ends": "Who they become"
       },
       "voice": {
         "register": "How they speak",
         "patterns": "Speech habits",
-        "tells": "What reveals their emotional state"
+        "tells": "Emotional reveals"
       },
       "weight": "major | minor | referenced"
     }
   ]
 }
 
-## Guidelines for Pass 1: Wound-Driven Characters
+## YOUR TASK
 
-FOR THE PROTAGONIST:
-- Who created their wound? (parent, ex, mentor, event)
-- Who reinforces their lie? (current relationships that validate the false belief)
-- Who challenges their lie? (besides the love interests - friends, mentors, antagonists)
+**Pass 1: Wound Sources**
 
-FOR EACH LOVE INTEREST:
-- Who created their wound?
-- Who reinforces their lie?
-- Who challenges their lie? (besides the protagonist)
+For the protagonist and EACH love interest from Phase 2:
+- Who CREATED their wound? (Name the person if applicable)
+- Who REINFORCES their lie? (People who keep them stuck)
+- Who CHALLENGES their lie? (People who push them to grow - besides the romantic leads)
 
-This naturally produces characters from each love interest's world:
-- Their families
-- Their retainers/servants/employees
-- Their rivals
-- The people who shaped them
+**Pass 2: Thematic Approaches**
 
-These characters get FULL treatment (wound, lie, want, need, flaw, arc, voice) because they're not minor — they shaped the main characters.
+List all approaches to the theme question from Phase 1:
+- Extremes of both sides of the binary
+- Variations between
+- Positions that transcend the binary (care about something else entirely)
+- Positions that reject the question
 
-## Guidelines for Pass 2: Theme-Driven Characters
+For each: who embodies it? Can be someone from Pass 1 or a new character. Multiple characters can embody the same position with different outcomes.
 
-LIST EXHAUSTIVE APPROACHES to the theme question from Phase 1:
+**Pass 3: Build Supporting Cast**
 
-Within the binary:
-- Extreme of side A (chose duty at all costs)
-- Extreme of side B (chose passion at all costs)
-- Variations and complications between
+Create full character entries for everyone identified above.
+- Major weight: Full detail, will have subplot
+- Minor weight: Lighter detail, appears in scenes
+- Referenced weight: Mentioned only, not present
 
-Transcends:
-- Characters who care about something else entirely (family, faith, survival, honour, wealth)
-- Their different values still create pressure
+## GUIDELINES
 
-Rejects:
-- Characters who reject the premise (cynics who believe love is illusion, hedonists who avoid choice)
+- Characters from love interests' worlds are essential (their families, retainers, rivals)
+- Wound source characters get full treatment - they shaped the main characters
+- Same character can serve multiple functions (consolidate where natural)
+- Check Phase 2 for existing thematic positions in love interests' lies - don't duplicate as new characters
 
-FOR EACH POSITION:
-- Is it already embodied by someone from Pass 1? (consolidation)
-- If not, create new character
-- Multiple characters can embody same position with different outcomes
+## DO NOT INCLUDE
 
-SAME POSITION, DIFFERENT OUTCOMES:
-- One character chose this path and found peace
-- Another chose it and found bitterness
-- Another is choosing it right now
-- Another is referenced but not present (dead, historical)
+- Key moments (Phase 5)
+- Collision points (Phase 5)
+- Subplot architecture (Phase 5)
+- Timeline (Phase 5)
 
-## Guidelines for Character Weight
-
-MAJOR: Will have subplot with key moments in Phase 5
-- Full treatment (wound, lie, want, need, flaw, arc, voice)
-- Connected directly to main characters
-- Embodies wound source AND/OR thematic position
-- Gets scenes of their own
-
-MINOR: Appears in scenes, no dedicated subplot
-- Lighter treatment (wound, stance, arc)
-- Supports or contrasts major characters
-- Present but not focal
-
-REFERENCED: Mentioned but not present
-- Dead, historical, absent
-- Their story told by others
-- Still matters thematically
-
-## What Phase 4 Does NOT Do
-
-- No key moments (Phase 5)
-- No collision points (Phase 5)
-- No subplot architecture (Phase 5)
-- No timeline (Phase 5)
-
-Just people. Who they are. Why they exist. How they connect.
-
-## Selection Criteria
-
-INCLUDE IF:
-- Created or reinforces a main character's wound
-- Challenges a main character's lie
-- Embodies a thematic position
-- Connected to multiple main characters
-
-CONSOLIDATE WHEN:
-- Same character serves multiple functions naturally
-- Creates depth rather than just reducing cast
-
-CUT IF:
-- Only serves one minor purpose
-- Would feel forced
-- Redundant with another character`
+Just people. Who they are. Why they exist. How they connect.`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   // Build main character summary for wound mapping
@@ -1880,7 +1819,16 @@ For each: Is it embodied by someone from Pass 1? Or need a new character?
 - Referenced characters (mentioned only): ${lengthPreset === 'novella' ? '1-2' : '2-4'}
 
 Remember: Love interests are NOT supporting cast - they're already created in Phase 2.
-Focus on characters from each love interest's world, not just the protagonist's.`
+Focus on characters from each love interest's world, not just the protagonist's.
+
+## CRITICAL: OUTPUT STRUCTURE
+
+You MUST output JSON with these three top-level keys:
+1. "wound_sources" - mapping for protagonist and each love interest
+2. "thematic_approaches" - array of positions on the theme
+3. "supporting_cast" - array of character objects
+
+Do NOT use any other structure. Do NOT use "external_pressures", "subplots", or "forces".`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
@@ -1896,15 +1844,19 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
 
   const data = parsed.data
 
-  // Validate required fields
+  // Debug: show what we received
+  console.log('Phase 4 received keys:', Object.keys(data))
+
+  // Validate required fields with helpful errors
   if (!data.wound_sources) {
-    throw new Error('Phase 4 missing wound_sources object')
+    console.error('Phase 4 output (first 500 chars):', JSON.stringify(data, null, 2).slice(0, 500))
+    throw new Error('Phase 4 missing wound_sources object. Received keys: ' + Object.keys(data).join(', '))
   }
   if (!data.thematic_approaches || !Array.isArray(data.thematic_approaches)) {
-    throw new Error('Phase 4 missing thematic_approaches array')
+    throw new Error('Phase 4 missing thematic_approaches array. Received keys: ' + Object.keys(data).join(', '))
   }
   if (!data.supporting_cast || !Array.isArray(data.supporting_cast)) {
-    throw new Error('Phase 4 missing supporting_cast array')
+    throw new Error('Phase 4 missing supporting_cast array. Received keys: ' + Object.keys(data).join(', '))
   }
 
   // Validate supporting cast has required fields
@@ -1914,17 +1866,32 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     }
   }
 
+  // Console logging
   console.log('Phase 4 complete.')
   console.log(`  Wound sources mapped for: ${Object.keys(data.wound_sources).length} characters`)
+  Object.entries(data.wound_sources).forEach(([key, ws]) => {
+    const createdBy = ws.created_by?.character || 'circumstance'
+    const reinforcerCount = ws.reinforced_by?.length || 0
+    const challengerCount = ws.challenged_by?.length || 0
+    console.log(`    - ${ws.name || key}:`)
+    console.log(`        Created by: ${createdBy}`)
+    console.log(`        Reinforced by: ${reinforcerCount} character(s)`)
+    console.log(`        Challenged by: ${challengerCount} character(s)`)
+  })
   console.log(`  Thematic approaches: ${data.thematic_approaches?.length}`)
   data.thematic_approaches?.forEach(pos => {
-    console.log(`    - "${pos.position}": ${pos.embodied_by?.length} characters`)
+    const characterCount = pos.embodied_by?.length || 0
+    const weights = pos.embodied_by?.map(e => e.weight).join(', ') || 'none'
+    console.log(`    - "${pos.position}" (${pos.type}): ${characterCount} character(s) [${weights}]`)
   })
   console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
-  const majors = data.supporting_cast?.filter(c => c.weight === 'major').length
-  const minors = data.supporting_cast?.filter(c => c.weight === 'minor').length
-  const refs = data.supporting_cast?.filter(c => c.weight === 'referenced').length
+  const majors = data.supporting_cast?.filter(c => c.weight === 'major').length || 0
+  const minors = data.supporting_cast?.filter(c => c.weight === 'minor').length || 0
+  const refs = data.supporting_cast?.filter(c => c.weight === 'referenced').length || 0
   console.log(`    Major: ${majors}, Minor: ${minors}, Referenced: ${refs}`)
+  data.supporting_cast?.filter(c => c.weight === 'major').forEach(c => {
+    console.log(`      - ${c.name} (${c.role}): ${c.functions?.join(', ')}`)
+  })
 
   return data
 }

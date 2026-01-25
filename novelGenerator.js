@@ -1267,71 +1267,94 @@ async function executePhase2(concept, phase1) {
 // PHASE 3: CENTRAL PLOT
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design the central romance arc derived from the characters' wounds and dynamics.
+const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design complete romantic arcs for ALL love interests, not just the primary one.
 
 You will receive:
 - The original concept
 - Phase 1 output (tropes, conflict, theme, ending, tone, timespan)
 - Phase 2 output (protagonist, love_interests array, dynamics)
 
-Your job is to create a plot where:
-1. Every beat emerges from character psychology, not template
-2. The trope shapes the arc structure
-3. The dark moment specifically triggers character wounds
-4. The resolution earns the ending type
+Your job is to create arcs where:
+1. Every love interest gets a full arc with key moments
+2. Rivals are not speedbumps - they complete their character arc even though the romance ends
+3. The primary romance gets the most moments, but rivals get real stories
+4. Rival dynamics between love interests also get key moments
 
 ## Output Format
 
 {
   "arc_shape": {
-    "origin_type": "How Phase 1 origin trope shapes this arc",
+    "origin_type": "How Phase 1 origin trope shapes the primary arc",
     "burn_rate": "How Phase 1 dynamic shapes pacing",
     "ending_type": "How Phase 1 ending shapes the third act"
   },
-  "key_moments": [
+
+  "romantic_arcs": [
     {
-      "moment": "Name/label for this beat",
-      "what_happens": "What occurs",
-      "why_it_matters": "How it connects to wounds/theme",
-      "what_shifts": "What changes between them after this"
+      "between": ["Protagonist name", "Love interest name"],
+      "arc_type": "Primary romance - ends together | Rival romance - ends in elimination but character completes arc",
+      "key_moments": [
+        {
+          "moment": "Name/label for this beat",
+          "what_happens": "What occurs",
+          "why_it_matters": "How it connects to wounds/theme",
+          "what_shifts": "What changes between them after this"
+        }
+      ],
+      "wound_integration": {
+        "protagonist": {
+          "wound_triggered_by": "What event/action activates their wound in THIS arc",
+          "lie_reinforced_by": "What makes them double down",
+          "lie_challenged_by": "What/who forces them to question it",
+          "transformation_moment": "The specific moment they choose differently"
+        },
+        "love_interest": {
+          "wound_triggered_by": "What event/action activates their wound",
+          "lie_reinforced_by": "What makes them double down",
+          "lie_challenged_by": "What/who forces them to question it",
+          "transformation_moment": "The specific moment they choose differently (even if they don't win)"
+        }
+      }
     }
   ],
-  "wound_integration": {
-    "protagonist": {
-      "wound_triggered_by": "What event/action activates their wound",
-      "lie_reinforced_by": "What makes them double down on their false belief",
-      "lie_challenged_by": "What/who forces them to question it",
-      "transformation_moment": "The specific moment they choose differently"
-    },
-    "love_interests": [
-      {
-        "name": "Love interest name",
-        "wound_triggered_by": "What event/action activates their wound",
-        "lie_reinforced_by": "What makes them double down on their false belief",
-        "lie_challenged_by": "What/who forces them to question it",
-        "transformation_moment": "The specific moment they choose differently"
-      }
-    ]
-  },
+
+  "rival_dynamics": [
+    {
+      "between": ["Love interest A name", "Love interest B name"],
+      "nature": "What their rivalry is about",
+      "key_moments": [
+        {
+          "moment": "Name/label",
+          "what_happens": "What occurs between them",
+          "why_it_matters": "How it affects the central romance",
+          "what_shifts": "What changes in their dynamic"
+        }
+      ]
+    }
+  ],
+
   "dark_moment": {
-    "what_happens": "The apparent end of the relationship",
+    "what_happens": "The apparent end of the primary relationship",
     "why_it_feels_fatal": "Why this specifically feels insurmountable given their wounds",
-    "what_each_believes": "Protagonist's belief, love interest's belief"
+    "what_each_believes": "Protagonist's belief, primary love interest's belief",
+    "rival_positions": "Where rivals stand at this moment"
   },
+
   "resolution": {
     "what_changes": "What allows resolution to happen",
     "who_acts": "Who makes the move to repair/claim",
     "what_they_sacrifice": "What they risk or give up",
-    "final_state": "Where they end up"
+    "rival_resolutions": "How each rival's arc completes",
+    "final_state": "Where everyone ends up"
   }
 }
 
-## Guidelines
+## Guidelines for Primary Romance (Protagonist + Primary Love Interest)
 
-PLOT EMERGES FROM CHARACTER:
-- Do NOT use a generic beat sheet
-- Ask: given THIS protagonist's wound and THIS love interest's wound, what would crack them open?
-- What would trigger their deepest fear? What would force them to confront their lie?
+KEY MOMENTS: 5-6 moments typical
+- Full wound integration for both characters
+- Ends in HEA/HFN or tragic resolution per Phase 1
+- Gets the most page time and emotional weight
 
 TROPES SHAPE STRUCTURE:
 - Enemies to Lovers: Starts with antagonism. Include what makes them enemies, what forces respect, what cracks hostility.
@@ -1344,45 +1367,84 @@ BURN RATE AFFECTS PACING:
 - Slow Burn: More key moments before intimacy. Tension through near-misses, interrupted moments, denial.
 - Fast Burn: Fewer barriers to attraction. Conflict is about staying together, not getting together.
 
-ENDING TYPE SHAPES THIRD ACT:
-- HEA: Dark moment is overcome. Both transform. They end up together permanently.
-- HFN: Together but with uncertainty. Growth happened but external factors remain unresolved.
-- Bittersweet: Transformation happens but circumstances separate them, OR together at significant cost.
-- Tragic: The flaw wins, or external circumstances destroy them.
+## Guidelines for Rival Romances (Protagonist + Each Rival)
 
-DARK MOMENT MUST CONNECT TO WOUNDS:
-- Should specifically trigger the protagonist's wound OR the love interest's wound
+KEY MOMENTS: 3-4 moments each
+- Full wound integration - rivals have real psychology
+- Ends in elimination BUT the rival completes their character arc
+- Their Phase 2 arc (wound, lie, transformation) must resolve
+
+RIVALS ARE NOT SPEEDBUMPS:
+- They are full characters whose stories happen to not end in romance with the protagonist
+- They have their wound triggered
+- They have their lie challenged
+- They transform (or fail to transform)
+- They exit with a complete arc
+
+WHY THEY LOSE:
+- Not because they're bad people
+- Because what they represent doesn't match what the protagonist needs
+- Or because their own wound prevents true connection
+- The protagonist choosing someone else IS part of the rival's growth
+
+## Guidelines for Rival Dynamics (Love Interests With Each Other)
+
+KEY MOMENTS: 2-3 moments per pairing
+- Scheming, alliances, confrontations
+- How they pressure and undermine each other
+- Only create if there are 2+ love interests
+
+TYPES OF DYNAMICS:
+- Direct competition (both actively pursuing)
+- One-sided awareness (one doesn't know they're competing)
+- Reluctant alliance (against a common obstacle)
+- Mutual respect despite rivalry
+
+## Key Moment Counts (Typical)
+
+Primary romance: 5-6 moments
+Each rival romance: 3-4 moments
+Each rival dynamic: 2-3 moments
+
+This scales with complexity:
+- Simple romance (one love interest): 5-6 moments total
+- Two suitors: 5-6 + 3-4 = 8-10 moments
+- Three suitors: 5-6 + 3-4 + 3-4 + 2-3 + 2-3 = 18-23 moments
+
+## Dark Moment and Resolution
+
+DARK MOMENT:
+- Specifically triggers the protagonist's wound OR the primary love interest's wound
 - Must feel inevitable given who they are
-- Not always a misunderstanding - let the characters dictate what breaks them
+- Include where rivals stand at this moment
 
-KEY MOMENTS ARE FLEXIBLE:
-- Don't prescribe a fixed number
-- Every moment must connect to character psychology
-- Every moment must shift something in the relationship
-
-BE INVENTIVE:
-- Do not default to common patterns
-- The dark moment is not always a misunderstanding
-- The resolution is not always a grand gesture
-- Let the specific characters and situation dictate what happens
-
-MULTIPLE LOVE INTERESTS:
-- Create wound_integration entry for EACH love interest from Phase 2
-- Primary love interest drives the main arc
-- Other love interests create key moments that complicate or pressure the protagonist
-- The choice between love interests should be thematic (each represents something)
+RESOLUTION:
+- Resolve the primary romance according to Phase 1 ending type
+- But ALSO resolve each rival's arc
+- Rivals can: accept and move on, grow from the experience, reveal they never really wanted this, find their own path
+- No rival exits without their arc completing
 
 DO NOT INCLUDE:
-- Subplots (Phase 4)
+- Subplots (Phase 4/5)
 - Supporting characters (Phase 4)
-- Specific locations (Phase 5)
+- Specific locations (later phase)
 - Chapter assignments (later phase)
 - Scene-level detail (later phase)`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
-  // Get primary love interest (or first one)
   const primaryLI = phase2.love_interests?.find(li => li.role_in_story === 'Primary') || phase2.love_interests?.[0]
+  const rivals = phase2.love_interests?.filter(li => li.role_in_story !== 'Primary') || []
   const liCount = phase2.love_interests?.length || 1
+
+  // Build love interest summary
+  const liSummary = phase2.love_interests?.map(li =>
+    `- ${li.name} (${li.role_in_story}): wound="${li.wound}", lie="${li.lie}"`
+  ).join('\n') || ''
+
+  // Calculate expected moments
+  const primaryMoments = '5-6'
+  const rivalMoments = rivals.length > 0 ? `${rivals.length} x 3-4 = ${rivals.length * 3}-${rivals.length * 4}` : '0'
+  const rivalDynamics = rivals.length > 0 ? `${rivals.length} x 2-3 = ${rivals.length * 2}-${rivals.length * 3}` : '0'
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -1392,14 +1454,34 @@ ${JSON.stringify(phase1, null, 2)}
 PHASE 2 OUTPUT (Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-Design the central romance arc for this story. The plot must emerge from ${phase2.protagonist?.name}'s wound ("${phase2.protagonist?.wound}") and the love interests' wounds.
+## Your Task
 
-Primary love interest: ${primaryLI?.name} ("${primaryLI?.wound}")
-Total love interests: ${liCount}
+Design complete romantic arcs for ALL love interests.
 
-Shape the arc according to the ${phase1.tropes?.origin} origin and ${phase1.tropes?.dynamic?.join('/') || 'established'} burn rate.
+**Protagonist:** ${phase2.protagonist?.name}
+  Wound: "${phase2.protagonist?.wound}"
+  Lie: "${phase2.protagonist?.lie}"
 
-IMPORTANT: Create wound_integration entries for ALL ${liCount} love interest(s). Ensure the dark moment triggers specific wounds, not generic conflict.`
+**Love Interests:**
+${liSummary}
+
+**Primary romance (${phase2.protagonist?.name} + ${primaryLI?.name}):**
+- ${primaryMoments} key moments
+- Full wound integration for both
+- Ends per Phase 1 ending type: ${phase1.ending?.type}
+
+${rivals.length > 0 ? `**Rival romances:**
+${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 key moments, full wound integration, ends in elimination BUT ${r.name} completes their arc`).join('\n')}
+
+**Rival dynamics:**
+${rivals.length >= 1 ? `- Between love interests: 2-3 moments per pairing showing competition, scheming, confrontation` : ''}
+
+**Expected moment counts:**
+- Primary: ${primaryMoments}
+- Rivals: ${rivalMoments}
+- Rival dynamics: ${rivalDynamics}` : '**Single love interest** - no rival arcs or dynamics needed.'}
+
+CRITICAL: Rivals are NOT speedbumps. ${rivals.map(r => r.name).join(' and ')}${rivals.length > 0 ? ' must have their wounds triggered, lies challenged, and exit with complete character arcs even though they don\'t end up with the protagonist.' : ''}`
 }
 
 async function executePhase3(concept, phase1, phase2) {
@@ -1416,243 +1498,261 @@ async function executePhase3(concept, phase1, phase2) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['arc_shape', 'key_moments', 'wound_integration', 'dark_moment', 'resolution']
+  const requiredFields = ['arc_shape', 'romantic_arcs', 'dark_moment', 'resolution']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
     throw new Error(`Phase 3 missing required fields: ${missing.join(', ')}`)
   }
 
+  // Validate romantic_arcs structure
+  if (!Array.isArray(data.romantic_arcs) || data.romantic_arcs.length === 0) {
+    throw new Error('Phase 3 must include at least one romantic arc')
+  }
+
+  for (const arc of data.romantic_arcs) {
+    if (!arc.between || !arc.key_moments || !arc.wound_integration) {
+      throw new Error(`Romantic arc missing required fields (between, key_moments, wound_integration)`)
+    }
+  }
+
   console.log('Phase 3 complete.')
-  console.log(`  Arc: ${data.arc_shape?.origin_type} / ${data.arc_shape?.burn_rate}`)
-  console.log(`  Key moments: ${data.key_moments?.length}`)
-  console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 50)}...`)
+  console.log(`  Romantic arcs: ${data.romantic_arcs?.length}`)
+  data.romantic_arcs?.forEach(arc => {
+    console.log(`    - ${arc.between.join(' + ')}: ${arc.key_moments?.length} moments`)
+  })
+  console.log(`  Rival dynamics: ${data.rival_dynamics?.length || 0}`)
+  data.rival_dynamics?.forEach(dyn => {
+    console.log(`    - ${dyn.between.join(' vs ')}: ${dyn.key_moments?.length} moments`)
+  })
 
   return data
 }
 
 // =============================================================================
-// PHASE 4: SUBPLOTS & SUPPORTING CAST
+// PHASE 4: SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is to map all forces acting on the story, consolidate them into subplots, and derive collision points.
+const PHASE_4_SYSTEM_PROMPT = `You are a character architect. Your task is to create the supporting cast — the people who shaped the main characters and embody the theme.
 
 You will receive:
 - The original concept
 - Phase 1 output (theme, tropes, conflict, ending, tone)
 - Phase 2 output (protagonist, love_interests array, dynamics)
-- Phase 3 output (key_moments, wound_integration, dark_moment, resolution)
+- Phase 3 output (romantic_arcs, rival_dynamics, dark_moment, resolution)
 
 ## The Process
 
-Work in four steps:
+Work in two passes:
 
-**Step 1: Map all External Pressures**
-List every party with stakes in the outcome. Be exhaustive.
-- Each love interest's family/house
-- Institutional forces (church, court, workplace)
-- Political forces (factions, alliances)
-- Economic forces (creditors, inheritance)
-- Rival dynamics between love interests
+**Pass 1: Wound-Driven Characters**
+For each main character (protagonist + ALL love interests), ask:
+- Who created their wound?
+- Who reinforces their lie?
+- Who challenges their lie? (besides the love interests)
 
-**Step 2: Map all Thematic Positions**
-State the theme question. List all answers:
-- Positions within the binary (different answers)
-- Positions that transcend or reject the binary
-For each position, identify BOTH the good and the bad (genuine, not strawman).
-Check Phase 2 love interests first - their lies ARE thematic positions. Don't duplicate.
+These people are essential. They explain why the main characters are who they are.
 
-**Step 3: Consolidate into Subplots**
-Group forces that can be embodied by the same character. A mother can be:
-- Past mirror (chose duty, shows the cost)
-- External pressure (wants daughter to choose same)
-This is ONE subplot with ONE character serving TWO functions.
-Don't force consolidation - some forces need separate characters.
+**Pass 2: Theme-Driven Characters**
+List all approaches to the theme question:
+- Extreme of one side
+- Extreme of other side
+- Variations between
+- Transcends the binary (different values entirely)
+- Rejects the question (cynics, hedonists)
 
-**Step 4: Generate Key Moments and Collision Points**
-For each subplot, determine what the reader needs to see.
-Then map which moments collide with Phase 3 key moments.
+For each approach, who embodies it? Could be:
+- Someone from Pass 1 (consolidation)
+- A new character
+- Multiple characters at different weights
 
 ## Output Format
 
 {
-  "forces": {
-    "external_pressures": [
-      {
-        "party": "Name of party/faction/family",
-        "interest": "What they want",
-        "pressure_on": "Which character(s) they pressure"
-      }
-    ],
-    "thematic_positions": [
-      {
-        "position": "Their answer to the theme question",
-        "type": "past_mirror | present_mirror | transcends",
-        "the_good": "Genuine benefit of this position",
-        "the_bad": "Genuine cost of this position"
-      }
-    ]
+  "wound_sources": {
+    "protagonist": {
+      "wound": "Copy from Phase 2 for reference",
+      "created_by": {
+        "character": "Name or null if event/circumstance",
+        "relationship": "How connected",
+        "what_they_did": "How they created the wound"
+      },
+      "reinforced_by": [
+        {
+          "character": "Name",
+          "relationship": "How connected",
+          "how_they_reinforce": "What they do/say that keeps the lie alive"
+        }
+      ],
+      "challenged_by": [
+        {
+          "character": "Name",
+          "relationship": "How connected",
+          "how_they_challenge": "What they do/say that questions the lie"
+        }
+      ]
+    },
+    "love_interest_1": {
+      "name": "Love interest's name for reference",
+      "wound": "Copy from Phase 2",
+      "created_by": { ... },
+      "reinforced_by": [ ... ],
+      "challenged_by": [ ... ]
+    }
   },
 
-  "subplots": [
+  "thematic_approaches": [
     {
-      "name": "Subplot name",
-      "functions": [
+      "position": "Their answer to the theme question",
+      "type": "past_mirror | present_mirror | transcends | rejects",
+      "the_good": "Genuine benefit of this position",
+      "the_bad": "Genuine cost of this position",
+      "embodied_by": [
         {
-          "type": "external_pressure",
-          "party": "Which party from forces list",
-          "interest": "What they want"
-        },
-        {
-          "type": "past_mirror | present_mirror | transcends",
-          "position": "Which position from forces list"
-        }
-      ],
-      "character": {
-        "name": "Full name",
-        "age": number,
-        "role": "Their position in this world",
-        "wound": "One sentence",
-        "thematic_stance": "Their answer to the theme question",
-        "relationship_to_leads": "How they connect to protagonist/love interests",
-        "voice": {
-          "register": "How they speak",
-          "distinct_from_leads": "What makes them sound different"
-        }
-      },
-      "key_moments": [
-        {
-          "moment": "Name of this moment",
-          "what_happens": "What occurs",
-          "why_it_matters": "Why the reader needs to see this",
-          "what_shifts": "What changes after this moment",
-          "serves_functions": ["Which functions this moment serves"]
-        }
-      ],
-      "collision_points": [
-        {
-          "subplot_moment": "Key moment name from this subplot",
-          "hits_phase_3_moment": "Key moment name from Phase 3",
-          "effect_on_main_plot": "How it affects the central romance"
+          "character": "Name",
+          "relationship_to_protagonist": "How they connect",
+          "how_they_embody_it": "Their specific version of this position",
+          "outcome": "What happened/is happening to them",
+          "weight": "major | minor | referenced"
         }
       ]
     }
   ],
 
-  "collision_timeline": [
+  "supporting_cast": [
     {
-      "phase_3_moment": "Key moment name from Phase 3",
-      "main_plot": "What happens in central romance",
-      "subplots_active": [
-        {
-          "subplot": "Subplot name",
-          "moment": "Which key moment from that subplot",
-          "what_happens": "What occurs"
-        }
-      ]
+      "name": "Full name",
+      "age": number,
+      "role": "Their position in this world",
+      "connected_to": "Which main character(s) they relate to",
+      "functions": ["wound_source:protagonist", "past_mirror:position_name"],
+      "wound": "Their specific formative hurt",
+      "lie": "The false belief they hold",
+      "want": "What they're consciously pursuing",
+      "need": "What they actually need",
+      "flaw": "The trait that defines their limitation",
+      "thematic_stance": "Their answer to the theme question",
+      "arc": {
+        "starts": "Who they are when we meet them",
+        "ends": "Who they become"
+      },
+      "voice": {
+        "register": "How they speak",
+        "patterns": "Speech habits",
+        "tells": "What reveals their emotional state"
+      },
+      "weight": "major | minor | referenced"
     }
   ]
 }
 
-## Guidelines for External Pressures
+## Guidelines for Pass 1: Wound-Driven Characters
 
-BE EXHAUSTIVE:
-- List ALL parties with stakes
-- Each love interest's family (if multiple suitors, each gets family pressure)
-- Institutions, factions, rivals, creditors
+FOR THE PROTAGONIST:
+- Who created their wound? (parent, ex, mentor, event)
+- Who reinforces their lie? (current relationships that validate the false belief)
+- Who challenges their lie? (besides the love interests - friends, mentors, antagonists)
 
-COMPLEXITY SCALES:
-- Simple romance: 2-4 pressures
-- Multiple suitors/political intrigue: 8-12 pressures
+FOR EACH LOVE INTEREST:
+- Who created their wound?
+- Who reinforces their lie?
+- Who challenges their lie? (besides the protagonist)
 
-## Guidelines for Thematic Positions
+This naturally produces characters from each love interest's world:
+- Their families
+- Their retainers/servants/employees
+- Their rivals
+- The people who shaped them
 
-START WITH THEME QUESTION:
-- State it explicitly from Phase 1
-- List answers within the binary
-- List positions that transcend/reject the binary
+These characters get FULL treatment (wound, lie, want, need, flaw, arc, voice) because they're not minor — they shaped the main characters.
 
-CATEGORIZE AS:
-- past_mirror: Already chose, living with consequences, static
-- present_mirror: Choosing now, arc runs parallel, dynamic
-- transcends: Outside the question, provides different lens
+## Guidelines for Pass 2: Theme-Driven Characters
 
-GENUINE GOOD AND BAD:
-- Every position has real benefits AND real costs
-- Not strawmen - show why someone would choose this
+LIST EXHAUSTIVE APPROACHES to the theme question from Phase 1:
 
-CHECK EXISTING CHARACTERS:
-- Love interests from Phase 2 already have lies - these ARE positions
-- Don't duplicate. Map them, then identify missing positions.
+Within the binary:
+- Extreme of side A (chose duty at all costs)
+- Extreme of side B (chose passion at all costs)
+- Variations and complications between
 
-## Guidelines for Consolidation
+Transcends:
+- Characters who care about something else entirely (family, faith, survival, honour, wealth)
+- Their different values still create pressure
 
-CHARACTERS CAN SERVE MULTIPLE FUNCTIONS:
-- A mother: past mirror (chose duty) + external pressure (wants same for daughter)
-- A rival: external pressure (blocking) + present mirror (choosing power over love)
+Rejects:
+- Characters who reject the premise (cynics who believe love is illusion, hedonists who avoid choice)
 
-DON'T FORCE IT:
-- Some forces need separate characters
-- Consolidate when it creates depth, not to reduce cast
+FOR EACH POSITION:
+- Is it already embodied by someone from Pass 1? (consolidation)
+- If not, create new character
+- Multiple characters can embody same position with different outcomes
 
-ONE CHARACTER PER SUBPLOT:
-- Each subplot has exactly one character
-- That character can serve 1-3 functions
+SAME POSITION, DIFFERENT OUTCOMES:
+- One character chose this path and found peace
+- Another chose it and found bitterness
+- Another is choosing it right now
+- Another is referenced but not present (dead, historical)
 
-## Guidelines for Key Moments
+## Guidelines for Character Weight
 
-KEY MOMENTS ARE WHAT THE READER NEEDS TO SEE:
-- Not scenes. Not beats. The essential moments.
-- Same structure as Phase 3: moment, what_happens, why_it_matters, what_shifts
+MAJOR: Will have subplot with key moments in Phase 5
+- Full treatment (wound, lie, want, need, flaw, arc, voice)
+- Connected directly to main characters
+- Embodies wound source AND/OR thematic position
+- Gets scenes of their own
 
-TAG WHICH FUNCTIONS EACH MOMENT SERVES:
-- A single moment might serve both mirror AND pressure functions
+MINOR: Appears in scenes, no dedicated subplot
+- Lighter treatment (wound, stance, arc)
+- Supports or contrasts major characters
+- Present but not focal
 
-NUMBER VARIES BY COMPLEXITY:
-- Simple past mirror: 2-3 moments
-- External pressure only: 3-4 moments
-- Character serving multiple functions: 4-6 moments
-- Present mirror with full arc: 4-5 moments
+REFERENCED: Mentioned but not present
+- Dead, historical, absent
+- Their story told by others
+- Still matters thematically
 
-NOT EVERY MOMENT IS A COLLISION:
-- Subplot moments can happen between Phase 3 moments
-- Only map actual collisions with Phase 3 key moments
+## What Phase 4 Does NOT Do
 
-## Guidelines for Collisions
+- No key moments (Phase 5)
+- No collision points (Phase 5)
+- No subplot architecture (Phase 5)
+- No timeline (Phase 5)
 
-COLLISIONS ARE DERIVED:
-- For each subplot key moment, ask: Does this hit a Phase 3 moment?
-- If yes, map the collision. If no, it happens independently.
-
-PRESSURE COLLISIONS CAUSE EVENTS:
-- "Family arrives and threatens" → forces confession
-- "Rival reveals secret" → triggers dark moment
-
-POSITION COLLISIONS ILLUMINATE CHOICES:
-- "Protagonist sees mother's hollow eyes" → feels weight of that path
-- "Protagonist watches friend choose love" → sees it's possible
-
-EVERY SUBPLOT NEEDS AT LEAST ONE COLLISION:
-- If a subplot never touches the main plot, reconsider it
+Just people. Who they are. Why they exist. How they connect.
 
 ## Selection Criteria
 
 INCLUDE IF:
-- Creates genuine tension or illumination
-- Collides mechanically with main plot
-- World naturally supports this force
-- Character serves multiple purposes
+- Created or reinforces a main character's wound
+- Challenges a main character's lie
+- Embodies a thematic position
+- Connected to multiple main characters
+
+CONSOLIDATE WHEN:
+- Same character serves multiple functions naturally
+- Creates depth rather than just reducing cast
 
 CUT IF:
-- Only thematic commentary without plot collision
-- Requires character just for one thing
+- Only serves one minor purpose
 - Would feel forced
-- Redundant with another force`
+- Redundant with another character`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
-  const keyMomentNames = phase3.key_moments?.map(m => m.moment).join(', ') || 'key moments'
-  const loveInterestNames = phase2.love_interests?.map(li => li.name).join(', ') || 'love interests'
-  const loveInterestLies = phase2.love_interests?.map(li => `${li.name}: "${li.lie}"`).join('\n    ') || ''
+  // Build main character summary for wound mapping
+  const protagonistSummary = `**Protagonist: ${phase2.protagonist?.name}**
+  Wound: "${phase2.protagonist?.wound}"
+  Lie: "${phase2.protagonist?.lie}"`
+
+  const loveInterestSummaries = phase2.love_interests?.map((li, i) =>
+    `**Love Interest ${i + 1}: ${li.name} (${li.role_in_story})**
+  Wound: "${li.wound}"
+  Lie: "${li.lie}"`
+  ).join('\n\n') || ''
+
+  // Build thematic positions from love interests (to avoid duplication)
+  const existingPositions = phase2.love_interests?.map(li =>
+    `- ${li.name}'s lie "${li.lie}" is already a thematic position`
+  ).join('\n') || ''
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -1662,36 +1762,53 @@ ${JSON.stringify(phase1, null, 2)}
 PHASE 2 OUTPUT (Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Central Plot):
+PHASE 3 OUTPUT (Romantic Arcs):
 ${JSON.stringify(phase3, null, 2)}
 
 LENGTH PRESET: ${lengthPreset}
 
-## Your Task
+## Your Task: Create the Supporting Cast
 
 **Theme Question:** "${phase1.theme?.question}"
 **Theme Core:** ${phase1.theme?.core}
 
-**Phase 3 Key Moments to collide with:** ${keyMomentNames}
+### Pass 1: Wound-Driven Characters
 
-**Existing thematic positions (from Phase 2 love interests - DO NOT duplicate):**
-    ${loveInterestLies}
+For each main character, identify who created, reinforces, and challenges their wound:
 
-**Step 1:** List ALL external pressures (families, institutions, rivals, factions)
-**Step 2:** List ALL thematic positions (answers to theme question) with genuine good AND bad for each
-**Step 3:** Consolidate forces into subplots (one character can serve multiple functions)
-**Step 4:** Generate key moments for each subplot, then map collision points to Phase 3
+${protagonistSummary}
+- Who created this wound?
+- Who reinforces this lie?
+- Who challenges this lie? (besides the love interests)
 
-Love interests (${loveInterestNames}) are NOT supporting cast - they're already created in Phase 2.
+${loveInterestSummaries}
+- For each: Who created their wound? Who reinforces? Who challenges?
 
-Complexity guide for ${lengthPreset}:
-- External pressures: ${lengthPreset === 'novella' ? '3-5' : '5-8'}
-- Thematic positions: ${lengthPreset === 'novella' ? '3-4' : '5-7'}
-- Subplots: ${lengthPreset === 'novella' ? '2-4' : '4-6'}`
+### Pass 2: Theme-Driven Characters
+
+**Existing thematic positions (from Phase 2 - DO NOT duplicate as new characters):**
+${existingPositions}
+
+**Identify remaining thematic approaches:**
+- Extreme of side A of the theme question
+- Extreme of side B
+- Variations between
+- Transcends the binary (different values entirely)
+- Rejects the question
+
+For each: Is it embodied by someone from Pass 1? Or need a new character?
+
+### Complexity Guide for ${lengthPreset}:
+- Major characters (full subplot in Phase 5): ${lengthPreset === 'novella' ? '2-4' : '4-6'}
+- Minor characters (supporting): ${lengthPreset === 'novella' ? '2-3' : '3-5'}
+- Referenced characters (mentioned only): ${lengthPreset === 'novella' ? '1-2' : '2-4'}
+
+Remember: Love interests are NOT supporting cast - they're already created in Phase 2.
+Focus on characters from each love interest's world, not just the protagonist's.`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
-  console.log('Executing Phase 4: Subplots & Supporting Cast...')
+  console.log('Executing Phase 4: Supporting Cast...')
 
   const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
   const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt)
@@ -1704,32 +1821,34 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   const data = parsed.data
 
   // Validate required fields
-  if (!data.forces || !data.forces.external_pressures || !data.forces.thematic_positions) {
-    throw new Error('Phase 4 missing forces object with external_pressures and thematic_positions')
+  if (!data.wound_sources) {
+    throw new Error('Phase 4 missing wound_sources object')
   }
-  if (!data.subplots || !Array.isArray(data.subplots) || data.subplots.length === 0) {
-    throw new Error('Phase 4 missing subplots array')
+  if (!data.thematic_approaches || !Array.isArray(data.thematic_approaches)) {
+    throw new Error('Phase 4 missing thematic_approaches array')
   }
-  if (!data.collision_timeline || !Array.isArray(data.collision_timeline)) {
-    throw new Error('Phase 4 missing collision_timeline array')
+  if (!data.supporting_cast || !Array.isArray(data.supporting_cast)) {
+    throw new Error('Phase 4 missing supporting_cast array')
   }
 
-  // Validate each subplot has required fields
-  for (const subplot of data.subplots) {
-    if (!subplot.functions || !subplot.character || !subplot.key_moments || !subplot.collision_points) {
-      throw new Error(`Subplot "${subplot.name}" missing required fields (functions, character, key_moments, collision_points)`)
+  // Validate supporting cast has required fields
+  for (const char of data.supporting_cast) {
+    if (!char.name || !char.functions || !char.weight) {
+      throw new Error(`Supporting cast member missing required fields (name, functions, weight)`)
     }
   }
 
   console.log('Phase 4 complete.')
-  console.log(`  Forces:`)
-  console.log(`    External pressures: ${data.forces?.external_pressures?.length}`)
-  console.log(`    Thematic positions: ${data.forces?.thematic_positions?.length}`)
-  console.log(`  Subplots: ${data.subplots?.length}`)
-  data.subplots?.forEach(s => {
-    console.log(`    - ${s.name}: ${s.functions?.length} functions, ${s.key_moments?.length} moments, ${s.collision_points?.length} collisions`)
+  console.log(`  Wound sources mapped for: ${Object.keys(data.wound_sources).length} characters`)
+  console.log(`  Thematic approaches: ${data.thematic_approaches?.length}`)
+  data.thematic_approaches?.forEach(pos => {
+    console.log(`    - "${pos.position}": ${pos.embodied_by?.length} characters`)
   })
-  console.log(`  Timeline entries: ${data.collision_timeline?.length}`)
+  console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
+  const majors = data.supporting_cast?.filter(c => c.weight === 'major').length
+  const minors = data.supporting_cast?.filter(c => c.weight === 'minor').length
+  const refs = data.supporting_cast?.filter(c => c.weight === 'referenced').length
+  console.log(`    Major: ${majors}, Minor: ${minors}, Referenced: ${refs}`)
 
   return data
 }

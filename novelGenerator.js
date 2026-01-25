@@ -1373,175 +1373,168 @@ async function executePhase3(concept, phase1, phase2) {
 }
 
 // =============================================================================
-// PHASE 4: CHEMISTRY
+// PHASE 4: SUBPLOTS & SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a romance chemistry architect. Your task is to design the specific dynamics, moments, and progression of the romantic relationship.
+const PHASE_4_SYSTEM_PROMPT = `You are a romance subplot architect. Your task is to create supporting characters and subplots that weave into the central romance, each offering a different answer to the story's thematic question.
 
 You will receive:
-- The user's original concept
-- Phases 1-3 output
+- The original concept
+- Phase 1 output (theme, tropes, ending, tone, timespan)
+- Phase 2 output (protagonist, love_interest, third_love_interest, dynamic)
+- Phase 3 output (arc_shape, key_moments, wound_integration, dark_moment, resolution)
+- Length preset (to determine subplot count)
 
-Your job is to:
-1. Define what makes these two people magnetic to each other
-2. Design the key relationship moments (beats)
-3. Map the emotional/physical progression
-4. Create the symbolic elements that will carry meaning
+## Core Principle
+
+Every subplot is a different answer to the thematic question from Phase 1.
+
+The theme asks a question. The main romance gives one answer. Each subplot gives a different answer - cautionary, pragmatic, extreme, hopeful. This creates philosophical richness, not just plot complexity.
 
 ## Output Format
 
-Respond with a JSON object:
-
 {
-  "magnetic_pull": {
-    "initial_attraction": "What first catches each person's attention",
-    "deeper_recognition": "What they see in each other that others miss",
-    "complementary_qualities": "How they balance each other",
-    "challenge_offered": "How each challenges the other to grow"
-  },
-  "friction": {
-    "surface_incompatibility": "The obvious reasons they shouldn't work",
-    "deep_incompatibility": "The wound-level conflicts that will emerge",
-    "external_barriers": "World/circumstance obstacles (from Phase 2)",
-    "internal_barriers": "Psychological obstacles (from Phase 3)"
-  },
-  "relationship_arc": {
-    "stages": [
-      {
-        "name": "Stage name (e.g., 'Awareness', 'Resistance', 'Surrender')",
-        "description": "What characterizes this stage",
-        "duration": "Approximate chapter range",
-        "key_dynamic": "The primary push/pull in this stage",
-        "ends_when": "What triggers transition to next stage"
+  "supporting_cast": [
+    {
+      "name": "Full name",
+      "age": number,
+      "role": "Their position in this world",
+      "relationship_to_leads": "How they connect to protagonist and/or love interest",
+      "function": "Obstacle | Confidant | Mirror | Catalyst | Antagonist",
+      "wound": "What shaped them (1 sentence - lighter than leads)",
+      "thematic_stance": "Their answer to the theme question",
+      "arc": {
+        "starts": "Who they are when we meet them",
+        "ends": "Who they become or what happens to them"
+      },
+      "voice": {
+        "register": "How they speak",
+        "distinct_from_leads": "What makes them sound different"
       }
-    ]
-  },
-  "pivotal_moments": {
-    "first_meeting": {
-      "circumstances": "How they meet",
-      "first_impressions": "What each thinks of the other",
-      "hook": "What makes them remember this moment",
-      "foreshadowing": "What this scene plants for later"
-    },
-    "first_real_conversation": {
-      "trigger": "What prompts genuine exchange",
-      "vulnerability": "What gets revealed",
-      "shift": "How perception changes",
-      "chapter_estimate": "Approximate chapter"
-    },
-    "point_of_no_return": {
-      "moment": "When they both know this is real",
-      "what_changes": "What's different after",
-      "chapter_estimate": "Approximate chapter"
-    },
-    "first_intimate_moment": {
-      "type": "First kiss, first touch, first confession — whatever fits heat level",
-      "emotional_context": "What makes this moment charged",
-      "consequences": "How it changes things",
-      "chapter_estimate": "Approximate chapter"
-    },
-    "intimacy_milestone": {
-      "description": "Major physical/emotional intimacy milestone",
-      "emotional_significance": "Why this matters beyond the physical",
-      "chapter_estimate": "Approximate chapter"
-    },
-    "dark_moment": {
-      "trigger": "What causes the apparent breakup/separation",
-      "misunderstanding_or_real": "Is it based on miscommunication or genuine conflict?",
-      "what_each_believes": "What protagonist thinks, what love interest thinks",
-      "chapter_estimate": "Approximate chapter"
-    },
-    "grand_gesture": {
-      "who_acts": "Who makes the move to repair",
-      "action": "What they do",
-      "sacrifice": "What they risk or give up",
-      "chapter_estimate": "Approximate chapter"
-    },
-    "resolution": {
-      "how_they_reunite": "The reconciliation moment",
-      "proof_of_growth": "How both demonstrate they've changed",
-      "new_equilibrium": "What their relationship looks like now",
-      "chapter_estimate": "Approximate chapter"
     }
-  },
-  "heat_progression": {
-    "awareness": "When/how physical awareness begins",
-    "tension": "How tension builds before first touch",
-    "first_touch": "The first meaningful physical contact",
-    "escalation": "How physical intimacy progresses",
-    "culmination": "The peak physical moment (appropriate to heat level)",
-    "after": "How physical relationship settles"
-  },
-  "dialogue_dynamics": {
-    "banter_style": "How they verbally spar",
-    "subtext_patterns": "What goes unsaid but understood",
-    "communication_evolution": "How their dialogue changes over the story",
-    "signature_exchanges": "Recurring dialogue patterns or callbacks"
-  },
-  "symbolic_elements": {
-    "their_place": "A location that becomes theirs (from Phase 2)",
-    "recurring_object": "An object that carries meaning",
-    "recurring_gesture": "A physical gesture that becomes significant",
-    "recurring_phrase": "A phrase that gains meaning through repetition"
-  },
-  "coherence_check": {
-    "magnetic_pull_from_psychology": "How attraction stems from Phase 3 character psychology",
-    "friction_matches_conflicts": "How relationship friction connects to Phase 1 conflicts",
-    "arc_serves_theme": "How relationship arc explores Phase 1 theme",
-    "moments_use_locations": "How pivotal moments use Phase 2 locations",
-    "heat_level_consistent": "How progression matches Phase 1 heat level",
-    "character_flaws_challenged": "How relationship challenges Phase 3 fatal flaws",
-    "arcs_aligned": "How relationship arc aligns with individual character arcs"
-  }
+  ],
+  "subplots": [
+    {
+      "name": "Subplot name",
+      "type": "External Pressure | Mirror | Thematic Contrast | Secondary Romance",
+      "thematic_answer": "How this subplot answers the Phase 1 theme question differently than main romance",
+      "characters_involved": ["Character names from supporting_cast"],
+      "includes_romance": boolean,
+      "romance_dynamic": "If includes_romance is true - who loves whom and what's the obstacle",
+      "arc": {
+        "setup": "How it begins",
+        "escalation": "How it intensifies",
+        "resolution": "How it ends"
+      },
+      "collision_points": [
+        {
+          "collides_with": "Key moment name from Phase 3",
+          "what_happens": "What the subplot does at this moment",
+          "effect_on_main_plot": "How it raises stakes or complicates the central romance"
+        }
+      ]
+    }
+  ],
+  "subplot_timeline": [
+    {
+      "phase_3_moment": "Key moment name",
+      "main_plot": "What happens in central romance",
+      "subplot_a": "What happens in subplot A (or null)",
+      "subplot_b": "What happens in subplot B (or null)",
+      "subplot_c": "What happens in subplot C (or null)"
+    }
+  ]
 }
 
 ## Guidelines
 
-PIVOTAL MOMENTS:
-- Each moment should be specific and visual
-- Moments should flow causally — each triggers the next
-- The dark moment should feel earned, not contrived
-- Grand gesture should prove character growth, not just grand romantic action
+SUBPLOT COUNT:
+- Three subplots for novels
+- Two subplots for novellas
+- Use length_preset to determine
 
-CHEMISTRY:
-- Physical chemistry is great, but emotional chemistry is essential
-- Show how they communicate differently with each other vs. others
-- Tension is as important as connection
+THEMATIC ANSWERS:
+Each subplot answers the theme differently. If theme is "Can love transcend class?" then:
+- Main romance: Yes, through sacrifice (hopeful)
+- Subplot A (Mirror): No - character who chose safety is now trapped (cautionary)
+- Subplot B (Contrast): Who cares about class? Just have the affair (pragmatic)
+- Subplot C (External): The system punishes those who try (systemic)
 
-SYMBOLISM:
-- Choose symbols that emerge naturally from the story world
-- Don't force symbols — they should feel organic
-- The best symbols gain meaning through story events`
+COLLISION POINTS:
+Subplots must collide with Phase 3 key moments. Reference by name:
+- "Collides with: First Crack"
+- "Collides with: Dark Moment"
+- "Collides with: Resolution"
+No parallel storylines. Every subplot hits the main plot at specific beats.
 
-function buildPhase4UserPrompt(concept, phase1, phase2, phase3) {
+SECONDARY ROMANCE:
+At least one subplot should include a secondary romance:
+- An existing relationship (trapped marriage, distant couple)
+- A developing relationship (friend meets someone)
+- A past relationship (affair that created current conflict)
+
+SUPPORTING CAST DEPTH:
+Lighter treatment than leads. Each supporting character gets:
+- One-sentence wound (not full wound/lie/want/need structure)
+- Thematic stance (their answer to the question)
+- Simple arc (starts/ends)
+- Distinct voice
+
+FUNCTION TYPES:
+- Obstacle: Actively blocks the romance
+- Confidant: Protagonist confides in them, provides advice (good or bad)
+- Mirror: Their situation reflects what protagonist fears or hopes for
+- Catalyst: Their actions force plot movement (reveals secret, delivers ultimatum)
+- Antagonist: Opposes the protagonist's goals (not just the romance)
+
+VARIETY:
+Don't create three Mirror subplots. Mix types:
+- One External Pressure (raises stakes from outside)
+- One Mirror (shows what could happen)
+- One Thematic Contrast (different worldview)
+
+SUBPLOT TIMELINE:
+Shows how everything weaves together. For each Phase 3 key moment, show what's happening in each subplot (or null if not active at that moment).
+
+DO NOT INCLUDE:
+- Specific locations (Phase 5)
+- Scene-level detail (later phase)
+- Chapter assignments (later phase)
+- Dialogue (later phase)`
+
+function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
+  const keyMomentNames = phase3.key_moments?.map(m => m.moment).join(', ') || 'key moments'
+
   return `ORIGINAL CONCEPT: ${concept}
 
-PHASE 1 OUTPUT (Core Foundation):
+PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (World/Setting):
+PHASE 2 OUTPUT (Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Characters):
+PHASE 3 OUTPUT (Central Plot):
 ${JSON.stringify(phase3, null, 2)}
 
-Design the romantic chemistry between ${phase3.protagonist?.name || 'the protagonist'} and ${phase3.love_interest?.name || 'the love interest'}. Ensure all moments use established locations, all dynamics stem from established psychology, and progression matches the established heat level.`
+LENGTH PRESET: ${lengthPreset}
+
+Create supporting characters and subplots for this story. The theme is "${phase1.theme?.core}" which asks: "${phase1.theme?.question}"
+
+The main romance answers this through ${phase2.protagonist?.name} and ${phase2.love_interest?.name}. Each subplot must answer the same question differently.
+
+Phase 3 key moments to collide with: ${keyMomentNames}
+
+Requirements:
+- ${lengthPreset === 'novella' ? 'Two' : 'Three'} subplots
+- At least one subplot must include a secondary romance
+- Each subplot must collide with at least one Phase 3 key moment
+- Each supporting character needs a clear function and thematic stance`
 }
 
-const PHASE_4_COHERENCE_FIELDS = [
-  'magnetic_pull_from_psychology',
-  'friction_matches_conflicts',
-  'arc_serves_theme',
-  'moments_use_locations',
-  'heat_level_consistent',
-  'character_flaws_challenged',
-  'arcs_aligned'
-]
+async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
+  console.log('Executing Phase 4: Subplots & Supporting Cast...')
 
-async function executePhase4(concept, phase1, phase2, phase3) {
-  console.log('Executing Phase 4: Chemistry...')
-
-  const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3)
+  const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
   const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 
@@ -1551,13 +1544,21 @@ async function executePhase4(concept, phase1, phase2, phase3) {
 
   const data = parsed.data
 
-  // Validate coherence check
-  const coherenceResult = validateCoherence(data.coherence_check, PHASE_4_COHERENCE_FIELDS)
-  if (!coherenceResult.valid) {
-    console.warn(`Phase 4 coherence warning: ${coherenceResult.message}`)
+  // Validate required fields
+  const requiredFields = ['supporting_cast', 'subplots', 'subplot_timeline']
+  const missing = requiredFields.filter(f => !data[f])
+
+  if (missing.length > 0) {
+    throw new Error(`Phase 4 missing required fields: ${missing.join(', ')}`)
   }
 
   console.log('Phase 4 complete.')
+  console.log(`  Supporting cast: ${data.supporting_cast?.length} characters`)
+  console.log(`  Subplots: ${data.subplots?.length}`)
+  data.subplots?.forEach(s => {
+    console.log(`    - ${s.name} (${s.type}): "${s.thematic_answer?.slice(0, 40)}..."`)
+  })
+
   return data
 }
 
@@ -2364,28 +2365,32 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       darkMoment: bible.plot.dark_moment?.what_happens?.slice(0, 30)
     })
 
-    // TESTING: Stop after Phase 3 to validate Central Plot output
+    // Phase 4: Subplots & Supporting Cast
+    reportProgress(4, 'starting')
+    bible.subplots = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
+    reportProgress(4, 'complete', {
+      supportingCast: bible.subplots.supporting_cast?.length,
+      subplots: bible.subplots.subplots?.length
+    })
+
+    // TESTING: Stop after Phase 4 to validate Subplots & Supporting Cast output
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 3')
+    console.log('TEST MODE - Stopping after Phase 4')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
+    console.log('Phase 4 Output:', JSON.stringify(bible.subplots, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_3_TEST',
+      validationStatus: 'PHASE_4_TEST',
       validationAttempts: 0
     }
 
-    // Phase 4: Subplots & Supporting Cast (TODO: rewrite)
-    reportProgress(4, 'starting')
-
-    // Phase 4: Chemistry
-    reportProgress(4, 'starting')
-    bible.chemistry = await executePhase4(concept, bible.coreFoundation, bible.world, bible.characters)
-    reportProgress(4, 'complete')
+    // Phase 5: World & Locations (TODO: rewrite)
+    reportProgress(5, 'starting')
 
     // Phase 5: Plot Architecture
     reportProgress(5, 'starting')

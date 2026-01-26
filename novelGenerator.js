@@ -2033,310 +2033,545 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
 }
 
 // =============================================================================
-// PHASE 5: MASTER TIMELINE
+// PHASE 5: MASTER TIMELINE (Iterative Character-by-Character Approach)
 // =============================================================================
 
-const PHASE_5_SYSTEM_PROMPT = `You are a story timeline architect. Your task is to create a master timeline integrating main romance moments with supporting cast appearances and subplot moments.
+// Step A: Presence Mapping - Which existing moments would this character be present at?
+const PHASE_5_PRESENCE_PROMPT = `You are mapping a character's presence across a story timeline.
 
-## INPUT
+Given the current timeline and a character's details, determine which existing moments this character would naturally be present at.
 
-You will receive:
-- Phase 3 timeline: All main moments (romantic arcs + rival dynamics) in chronological order
-- Phase 4 supporting cast: Characters with arcs, functions, thematic stances
-
-## YOUR TASK
-
-Create ONE master timeline that:
-1. Includes every main moment from Phase 3
-2. Layers supporting characters into main moments where they belong
-3. Inserts subplot moments between main moments where needed
-4. Makes every character's arc traceable through their appearances
-
-## OUTPUT FORMAT
+## OUTPUT FORMAT (JSON)
 
 {
-  "master_timeline": [
+  "character_name": "The character's name",
+  "presence": [
     {
-      "order": 1,
-      "moment": "Moment name",
-      "type": "main | subplot",
-      "source": "Which arc this comes from (e.g., 'Eleanor + Marcus' or 'Lady Ashworth subplot')",
-      "what_happens": "Full description of what occurs",
-      "present": [
-        {
-          "character": "Character name",
-          "role": "protagonist | love_interest | supporting",
-          "what_they_do": "Their specific action/reaction in this moment",
-          "arc_position": "Where they are in their arc (e.g., 'still believing lie', 'lie challenged', 'transformed')"
-        }
-      ],
-      "layered_characters": [
-        {
-          "character": "Supporting character name",
-          "function": "What function they serve here (wound_source, past_mirror, external_pressure, etc.)",
-          "what_they_do": "Their specific contribution to this moment",
-          "why_present": "Why they need to be here"
-        }
-      ],
-      "thematic_weight": "How this moment expresses the theme"
+      "moment": "Moment name from timeline",
+      "action": "What they specifically do or observe in this moment",
+      "why_present": "Why they would logically be here",
+      "arc_state": "Where they are in their arc (believing lie | lie challenged | transforming | transformed)"
     }
-  ],
-
-  "subplot_insertions": [
-    {
-      "subplot_moment": "Subplot moment name",
-      "inserted_after": "Main moment name it follows",
-      "inserted_before": "Main moment name it precedes",
-      "why_here": "Why this is the right placement"
-    }
-  ],
-
-  "character_arcs_through_timeline": [
-    {
-      "character": "Character name",
-      "appearances": [
-        {
-          "moment_order": 1,
-          "moment": "Moment name",
-          "arc_state": "Where they are in their arc",
-          "what_happens_to_them": "Their experience in this moment"
-        }
-      ],
-      "arc_completion": "How their arc resolves across these appearances"
-    }
-  ],
-
-  "arc_verification": {
-    "main_characters": [
-      {
-        "character": "Name",
-        "wound_triggered": "Moment # and name",
-        "lie_challenged": "Moment # and name",
-        "transformation": "Moment # and name"
-      }
-    ],
-    "supporting_characters": [
-      {
-        "character": "Name",
-        "function_served": "What function(s) they serve",
-        "key_appearances": ["Moment #: what they do", "Moment #: what they do"],
-        "arc_delivered": "Yes/No and how"
-      }
-    ]
-  }
+  ]
 }
 
 ## GUIDELINES
 
-### Layering Supporting Characters into Main Moments
+Consider the character's:
+- Functions (wound_source, past_mirror, external_pressure, etc.)
+- Relationships to main characters
+- Physical proximity in the story world
+- Thematic relevance to each moment
 
-For each main moment, ask:
-- Which supporting characters would naturally be present?
-- Which supporting character functions should activate here?
-- Who can witness/react to this moment in ways that serve their function?
+A character should be present when:
+- Their function would naturally activate
+- They would logically be in that location
+- Their presence adds meaning to the moment
+- They need to witness something for their own arc
 
-WOUND SOURCE characters should be present when:
-- The main character's wound is being triggered
-- The main character is reliving patterns from their wound
-- Confrontation with the wound source is needed
+Do NOT force presence. If a character has no business being somewhere, don't include that moment.`
 
-PAST MIRROR characters should be present when:
-- The protagonist needs to see what their choice could lead to
-- A thematic parallel needs to be drawn
-- The consequences of a position need to be visible
+// Step B: Subplot Generation - What new moments does this character need for their arc?
+const PHASE_5_SUBPLOT_PROMPT = `You are generating subplot moments for a supporting character.
 
-PRESENT MIRROR characters should be present when:
-- Parallel choices are being made
-- The protagonist needs to see another version of their struggle
-- Their arc intersects with the main plot
+Given:
+- This character's full details (wound, lie, arc)
+- Where they currently appear in the timeline
+- The full cast list
 
-EXTERNAL PRESSURE characters should be present when:
-- Pressure needs to be applied
-- Stakes need to be raised
-- Obstacles need to be created
+Determine what additional moments are needed for this character's arc to complete.
 
-### Inserting Subplot Moments
+## OUTPUT FORMAT (JSON)
 
-Subplot moments should be inserted when:
-- A supporting character's arc needs advancement
-- Thematic counterpoint is needed
-- Pacing requires a beat away from the main couple
-- Setup is needed for a later collision
+{
+  "character_name": "The character's name",
+  "arc_analysis": {
+    "current_appearances": "Summary of where they appear now",
+    "arc_gap": "What's missing for their arc to complete",
+    "needs_moments": true | false
+  },
+  "new_moments": [
+    {
+      "moment": "New moment name",
+      "what_happens": "What occurs in this moment",
+      "insert_after": "Name of existing moment this should follow",
+      "characters_present": [
+        {
+          "name": "Character name",
+          "role": "protagonist | love_interest | supporting",
+          "action": "What they do in this moment"
+        }
+      ],
+      "arc_purpose": "How this advances the character's arc",
+      "arc_state": "The character's arc state after this moment"
+    }
+  ]
+}
 
-Subplot moments should NOT:
-- Interrupt crucial main moments
-- Cluster together without main plot beats between them
-- Exist without connecting to the main story
+## GUIDELINES
 
-### Tracking Character Arcs
+Only create moments that are NECESSARY for arc completion. Ask:
+- Does this character's arc require visible transformation?
+- Is there a gap between their current appearances and arc resolution?
+- What's the MINIMUM needed?
 
-For each supporting character with an arc (major weight):
-- Their arc must be traceable through their appearances
-- They must start in one state and end in another
-- Their transformation (or failure to transform) must be visible
+Each new moment should:
+- Advance the character's arc (wound triggered → lie challenged → transformation)
+- Include other characters who would logically be present
+- Connect to the main plot or theme
+- Have a clear purpose
 
-For referenced characters:
-- They may never appear but their story must be told through others
-- Their fate illuminates the theme
+Major characters typically need 2-4 subplot moments.
+If arc can complete through existing presence, return empty new_moments array.`
 
-### Moment Counts
+// Final Verification - Check for gaps
+const PHASE_5_VERIFICATION_PROMPT = `You are verifying a master timeline for completeness.
 
-Typical master timeline:
-- Simple romance: 8-12 moments total
-- Multiple suitors: 20-30 moments total
-- Complex with subplots: 30-40 moments total
+Given the complete timeline and full cast, identify any gaps or issues.
 
-Main moments from Phase 3 should remain intact. Add:
-- 2-4 subplot moments per major supporting character
-- Layered presence for characters who don't need their own moments
+## OUTPUT FORMAT (JSON)
 
-## VERIFICATION
+{
+  "verification_passed": true | false,
+  "main_moments_preserved": {
+    "expected": number,
+    "found": number,
+    "missing": ["any missing main moment names"]
+  },
+  "character_arc_status": [
+    {
+      "character": "Name",
+      "role": "protagonist | love_interest | supporting_major | supporting_minor",
+      "appearances": number,
+      "arc_complete": true | false,
+      "arc_notes": "How their arc resolves, or what's missing"
+    }
+  ],
+  "gaps_found": [
+    {
+      "issue": "Description of the gap",
+      "severity": "critical | warning",
+      "suggestion": "How to fix"
+    }
+  ]
+}
 
-Before outputting, verify:
-1. Every Phase 3 timeline moment is included
-2. Every major supporting character has appearances that deliver their arc
-3. Every main character's wound/lie/transformation journey is traceable
-4. No supporting character appears without purpose
-5. Subplot moments are placed logically between main moments`
+## VERIFICATION CHECKS
 
-function buildPhase5UserPrompt(concept, phase1, phase2, phase3, phase4, lengthPreset) {
-  // Extract timeline from Phase 3
-  const timelineSummary = phase3.timeline?.map(t =>
-    `${t.order}. ${t.moment} (${t.arc})`
-  ).join('\n') || 'No timeline available'
+1. All Phase 3 main moments are present
+2. Every major supporting character has enough appearances for their arc
+3. No character appears without purpose
+4. Arc progression makes sense chronologically
+5. Main characters' wound/lie/transformation journey is traceable`
 
-  // Extract supporting cast summary
-  const majorCast = phase4.supporting_cast?.filter(c => c.weight === 'major') || []
-  const majorCastSummary = majorCast.map(c =>
-    `- ${c.name}: ${c.functions?.join(', ')} | Arc: ${c.arc?.starts} → ${c.arc?.ends}`
-  ).join('\n') || 'No major supporting cast'
+// Build compressed timeline for context
+function buildTimelineSummary(timeline) {
+  return timeline.map((m, i) =>
+    `${i + 1}. ${m.moment} [${m.source}]: ${m.what_happens?.slice(0, 80)}...`
+  ).join('\n')
+}
 
-  const minorCast = phase4.supporting_cast?.filter(c => c.weight === 'minor') || []
-  const minorCastSummary = minorCast.map(c =>
-    `- ${c.name}: ${c.functions?.join(', ')}`
-  ).join('\n') || 'No minor supporting cast'
+// Build cast list for subplot generation
+function buildCastList(phase2, phase4) {
+  const cast = []
 
-  // Main characters for arc verification
-  const protagonistName = phase2.protagonist?.name
-  const loveInterestNames = phase2.love_interests?.map(li => li.name).join(', ')
+  // Main characters
+  cast.push({
+    name: phase2.protagonist?.name,
+    role: 'protagonist',
+    brief: phase2.protagonist?.role
+  })
 
-  return `ORIGINAL CONCEPT: ${concept}
+  phase2.love_interests?.forEach(li => {
+    cast.push({
+      name: li.name,
+      role: 'love_interest',
+      brief: li.role
+    })
+  })
 
-## PHASE 3 TIMELINE (Main Moments in Order)
+  // Supporting cast
+  phase4.supporting_cast?.forEach(c => {
+    cast.push({
+      name: c.name,
+      role: `supporting_${c.weight}`,
+      brief: c.role
+    })
+  })
+
+  return cast
+}
+
+// Initialize timeline from Phase 3
+function initializeTimeline(phase3) {
+  const timeline = []
+
+  // Add all moments from Phase 3 timeline
+  phase3.timeline?.forEach((t, i) => {
+    // Find the full moment details from romantic_arcs or rival_dynamics
+    let momentDetails = null
+
+    for (const arc of (phase3.romantic_arcs || [])) {
+      const found = arc.key_moments?.find(m => m.moment === t.moment)
+      if (found) {
+        momentDetails = found
+        break
+      }
+    }
+
+    if (!momentDetails) {
+      for (const dyn of (phase3.rival_dynamics || [])) {
+        const found = dyn.key_moments?.find(m => m.moment === t.moment)
+        if (found) {
+          momentDetails = found
+          break
+        }
+      }
+    }
+
+    timeline.push({
+      order: i + 1,
+      moment: t.moment,
+      source: t.arc,
+      type: 'main',
+      what_happens: momentDetails?.what_happens || '',
+      characters_present: [] // Will be filled as we process
+    })
+  })
+
+  return timeline
+}
+
+// Process a single character's presence
+async function processCharacterPresence(character, timeline, castList) {
+  const timelineSummary = buildTimelineSummary(timeline)
+
+  const userPrompt = `## CHARACTER TO PROCESS
+
+Name: ${character.name}
+Role: ${character.role}
+Functions: ${character.functions?.join(', ') || 'none specified'}
+Connected to: ${character.connected_to || 'unspecified'}
+Wound: ${character.wound || 'none'}
+Lie: ${character.lie || 'none'}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
+Thematic stance: ${character.thematic_stance || 'none'}
+
+## CURRENT TIMELINE
 
 ${timelineSummary}
 
-## PHASE 3 FULL DATA (for moment details)
+## FULL CAST (for reference)
 
-${JSON.stringify(phase3, null, 2)}
+${castList.map(c => `- ${c.name} (${c.role})`).join('\n')}
 
-## PHASE 4 SUPPORTING CAST
+Determine which moments ${character.name} would naturally be present at.`
 
-**Major Characters (need subplot moments):**
-${majorCastSummary}
-
-**Minor Characters (layer into main moments):**
-${minorCastSummary}
-
-## PHASE 4 FULL DATA (for character details)
-
-${JSON.stringify(phase4, null, 2)}
-
-## PHASE 1 & 2 REFERENCE
-
-Theme: "${phase1.theme?.question}"
-Protagonist: ${protagonistName}
-Love Interests: ${loveInterestNames}
-
-## YOUR TASK
-
-Create the master timeline that:
-1. Includes ALL ${phase3.timeline?.length || 0} main moments from Phase 3 timeline
-2. Layers supporting characters into main moments where appropriate
-3. Inserts subplot moments for the ${majorCast.length} major supporting characters
-4. Makes every character's arc traceable through their appearances
-
-Main moments from Phase 3: ${phase3.timeline?.length || 0}
-Major supporting characters needing arcs: ${majorCast.length}
-Minor characters to layer: ${minorCast.length}
-
-Expected total moments: ${(phase3.timeline?.length || 0) + (majorCast.length * 3)} - ${(phase3.timeline?.length || 0) + (majorCast.length * 4)}`
-}
-
-async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPreset) {
-  console.log('Executing Phase 5: Master Timeline...')
-
-  const userPrompt = buildPhase5UserPrompt(concept, phase1, phase2, phase3, phase4, lengthPreset)
-  const response = await callOpenAI(PHASE_5_SYSTEM_PROMPT, userPrompt)
+  const response = await callOpenAI(PHASE_5_PRESENCE_PROMPT, userPrompt)
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
-    throw new Error(`Phase 5 JSON parse failed: ${parsed.error}`)
+    console.warn(`Presence mapping failed for ${character.name}: ${parsed.error}`)
+    return { character_name: character.name, presence: [] }
   }
 
-  const data = parsed.data
+  return parsed.data
+}
 
-  // Validate required fields
-  if (!data.master_timeline || !Array.isArray(data.master_timeline)) {
-    throw new Error('Phase 5 missing master_timeline array')
-  }
-  if (!data.character_arcs_through_timeline || !Array.isArray(data.character_arcs_through_timeline)) {
-    throw new Error('Phase 5 missing character_arcs_through_timeline array')
-  }
-  if (!data.arc_verification) {
-    throw new Error('Phase 5 missing arc_verification object')
+// Process a single character's subplot needs
+async function processCharacterSubplot(character, timeline, castList, presenceData) {
+  const timelineSummary = buildTimelineSummary(timeline)
+
+  const currentAppearances = presenceData.presence?.map(p => p.moment).join(', ') || 'none yet'
+
+  const userPrompt = `## CHARACTER TO PROCESS
+
+Name: ${character.name}
+Role: ${character.role}
+Functions: ${character.functions?.join(', ') || 'none specified'}
+Connected to: ${character.connected_to || 'unspecified'}
+Wound: ${character.wound || 'none'}
+Lie: ${character.lie || 'none'}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
+Thematic stance: ${character.thematic_stance || 'none'}
+Weight: ${character.weight}
+
+## CURRENT APPEARANCES
+
+${character.name} currently appears in: ${currentAppearances}
+
+Current arc states in those appearances:
+${presenceData.presence?.map(p => `- ${p.moment}: ${p.arc_state}`).join('\n') || 'none'}
+
+## CURRENT TIMELINE
+
+${timelineSummary}
+
+## FULL CAST (for casting new moments)
+
+${castList.map(c => `- ${c.name} (${c.role}): ${c.brief}`).join('\n')}
+
+Analyze if ${character.name} needs additional subplot moments for their arc to complete.
+If they have weight "minor", they likely don't need their own moments - just presence.
+If they have weight "major", they likely need 2-4 moments of their own.`
+
+  const response = await callOpenAI(PHASE_5_SUBPLOT_PROMPT, userPrompt)
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    console.warn(`Subplot generation failed for ${character.name}: ${parsed.error}`)
+    return { character_name: character.name, arc_analysis: { needs_moments: false }, new_moments: [] }
   }
 
-  // Count moment types
-  const mainMoments = data.master_timeline.filter(m => m.type === 'main').length
-  const subplotMoments = data.master_timeline.filter(m => m.type === 'subplot').length
+  return parsed.data
+}
 
-  // Check if Phase 3 moments are included
-  const phase3MomentCount = phase3.timeline?.length || 0
-  if (mainMoments < phase3MomentCount) {
-    console.warn(`Phase 5 warning: Only ${mainMoments} main moments but Phase 3 had ${phase3MomentCount}`)
+// Insert new moments into timeline
+function insertMomentsIntoTimeline(timeline, newMoments, characterName) {
+  if (!newMoments || newMoments.length === 0) return timeline
+
+  const updatedTimeline = [...timeline]
+
+  for (const newMoment of newMoments) {
+    // Find insertion point
+    const insertAfterIndex = updatedTimeline.findIndex(m => m.moment === newMoment.insert_after)
+
+    const momentToInsert = {
+      order: 0, // Will be recalculated
+      moment: newMoment.moment,
+      source: `${characterName} subplot`,
+      type: 'subplot',
+      what_happens: newMoment.what_happens,
+      characters_present: newMoment.characters_present || []
+    }
+
+    if (insertAfterIndex >= 0) {
+      updatedTimeline.splice(insertAfterIndex + 1, 0, momentToInsert)
+    } else {
+      // If we can't find the insertion point, add to end
+      updatedTimeline.push(momentToInsert)
+    }
   }
 
-  // Console logging
+  // Recalculate order numbers
+  updatedTimeline.forEach((m, i) => {
+    m.order = i + 1
+  })
+
+  return updatedTimeline
+}
+
+// Add character presence to timeline moments
+function addPresenceToTimeline(timeline, presenceData) {
+  if (!presenceData.presence) return timeline
+
+  for (const presence of presenceData.presence) {
+    const moment = timeline.find(m => m.moment === presence.moment)
+    if (moment) {
+      if (!moment.characters_present) {
+        moment.characters_present = []
+      }
+      moment.characters_present.push({
+        name: presenceData.character_name,
+        role: 'supporting',
+        action: presence.action,
+        arc_state: presence.arc_state
+      })
+    }
+  }
+
+  return timeline
+}
+
+// Run final verification
+async function runVerification(timeline, phase2, phase3, phase4) {
+  const castList = buildCastList(phase2, phase4)
+  const timelineSummary = buildTimelineSummary(timeline)
+
+  const userPrompt = `## COMPLETE TIMELINE
+
+${timelineSummary}
+
+## EXPECTED MAIN MOMENTS (from Phase 3)
+
+${phase3.timeline?.map(t => t.moment).join('\n') || 'none'}
+
+Total expected: ${phase3.timeline?.length || 0}
+
+## FULL CAST
+
+Protagonist: ${phase2.protagonist?.name}
+Love Interests: ${phase2.love_interests?.map(li => li.name).join(', ')}
+
+Supporting Cast:
+${phase4.supporting_cast?.map(c => `- ${c.name} (${c.weight}): ${c.functions?.join(', ')}`).join('\n')}
+
+## CHARACTER APPEARANCES IN TIMELINE
+
+${castList.map(c => {
+  const appearances = timeline.filter(m =>
+    m.characters_present?.some(p => p.name === c.name)
+  ).length
+  return `- ${c.name}: ${appearances} appearances`
+}).join('\n')}
+
+Verify this timeline is complete and all arcs are deliverable.`
+
+  const response = await callOpenAI(PHASE_5_VERIFICATION_PROMPT, userPrompt)
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    console.warn(`Verification failed to parse: ${parsed.error}`)
+    return { verification_passed: false, gaps_found: [{ issue: 'Verification parse failed', severity: 'warning' }] }
+  }
+
+  return parsed.data
+}
+
+// Build character_arcs summary from timeline
+function buildCharacterArcs(timeline, phase2, phase4) {
+  const arcs = []
+
+  // Track all characters
+  const allCharacters = [
+    { name: phase2.protagonist?.name, role: 'protagonist' },
+    ...(phase2.love_interests?.map(li => ({ name: li.name, role: 'love_interest' })) || []),
+    ...(phase4.supporting_cast?.map(c => ({ name: c.name, role: `supporting_${c.weight}` })) || [])
+  ]
+
+  for (const char of allCharacters) {
+    const appearances = []
+
+    for (const moment of timeline) {
+      const presence = moment.characters_present?.find(p => p.name === char.name)
+      if (presence) {
+        appearances.push({
+          moment_order: moment.order,
+          moment: moment.moment,
+          arc_state: presence.arc_state || 'present'
+        })
+      }
+    }
+
+    arcs.push({
+      character: char.name,
+      role: char.role,
+      appearances,
+      arc_complete: appearances.length > 0,
+      arc_notes: appearances.length > 0
+        ? `Appears in ${appearances.length} moments`
+        : 'No appearances tracked'
+    })
+  }
+
+  return arcs
+}
+
+async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPreset) {
+  console.log('Executing Phase 5: Master Timeline (Iterative)...')
+
+  // Initialize timeline from Phase 3
+  let timeline = initializeTimeline(phase3)
+  console.log(`  Initialized with ${timeline.length} main moments from Phase 3`)
+
+  // Build cast list for reference
+  const castList = buildCastList(phase2, phase4)
+  console.log(`  Full cast: ${castList.length} characters`)
+
+  // Get characters to process (major first, then minor)
+  const majorCast = phase4.supporting_cast?.filter(c => c.weight === 'major') || []
+  const minorCast = phase4.supporting_cast?.filter(c => c.weight === 'minor') || []
+
+  console.log(`  Processing ${majorCast.length} major + ${minorCast.length} minor characters...`)
+
+  // Store all presence data for arc tracking
+  const allPresenceData = []
+
+  // Process major characters (need subplot moments)
+  for (const character of majorCast) {
+    console.log(`    Processing ${character.name} (major)...`)
+
+    // Step A: Presence mapping
+    const presenceData = await processCharacterPresence(character, timeline, castList)
+    allPresenceData.push(presenceData)
+    console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
+
+    // Add presence to timeline
+    timeline = addPresenceToTimeline(timeline, presenceData)
+
+    // Step B: Subplot generation
+    const subplotData = await processCharacterSubplot(character, timeline, castList, presenceData)
+
+    if (subplotData.new_moments?.length > 0) {
+      console.log(`      - Generated ${subplotData.new_moments.length} new subplot moments`)
+      timeline = insertMomentsIntoTimeline(timeline, subplotData.new_moments, character.name)
+    } else {
+      console.log(`      - No new moments needed`)
+    }
+  }
+
+  // Process minor characters (presence only, no new moments)
+  for (const character of minorCast) {
+    console.log(`    Processing ${character.name} (minor)...`)
+
+    // Step A only: Presence mapping
+    const presenceData = await processCharacterPresence(character, timeline, castList)
+    allPresenceData.push(presenceData)
+    console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
+
+    // Add presence to timeline
+    timeline = addPresenceToTimeline(timeline, presenceData)
+  }
+
+  // Run verification
+  console.log(`  Running verification...`)
+  const verification = await runVerification(timeline, phase2, phase3, phase4)
+
+  // Build character arcs summary
+  const characterArcs = buildCharacterArcs(timeline, phase2, phase4)
+
+  // Final output
+  const result = {
+    master_timeline: timeline,
+    character_arcs: characterArcs,
+    verification
+  }
+
+  // Console summary
+  const mainMoments = timeline.filter(m => m.type === 'main').length
+  const subplotMoments = timeline.filter(m => m.type === 'subplot').length
+
   console.log('Phase 5 complete.')
-  console.log(`  Master timeline: ${data.master_timeline?.length} total moments`)
+  console.log(`  Master timeline: ${timeline.length} total moments`)
   console.log(`    Main moments: ${mainMoments}`)
   console.log(`    Subplot moments: ${subplotMoments}`)
 
-  // Show first few moments
+  // Timeline preview
   console.log(`  Timeline preview:`)
-  data.master_timeline?.slice(0, 5).forEach(m => {
-    const presentCount = m.present?.length || 0
-    const layeredCount = m.layered_characters?.length || 0
-    console.log(`    ${m.order}. ${m.moment} (${m.type})`)
-    console.log(`       Present: ${presentCount} characters, Layered: ${layeredCount}`)
+  timeline.slice(0, 5).forEach(m => {
+    const charCount = m.characters_present?.length || 0
+    console.log(`    ${m.order}. ${m.moment} (${m.type}) - ${charCount} characters`)
   })
-  if (data.master_timeline?.length > 5) {
-    console.log(`    ... and ${data.master_timeline.length - 5} more moments`)
+  if (timeline.length > 5) {
+    console.log(`    ... and ${timeline.length - 5} more`)
   }
 
-  // Character arc tracking
-  console.log(`  Character arcs tracked: ${data.character_arcs_through_timeline?.length}`)
-  data.character_arcs_through_timeline?.forEach(ca => {
-    const appearances = ca.appearances?.length || 0
-    console.log(`    - ${ca.character}: ${appearances} appearances`)
-  })
+  // Character arc summary
+  console.log(`  Character arcs: ${characterArcs.length} tracked`)
+  const withAppearances = characterArcs.filter(a => a.appearances.length > 0).length
+  console.log(`    With appearances: ${withAppearances}`)
 
-  // Arc verification summary
-  const mainVerified = data.arc_verification?.main_characters?.length || 0
-  const supportingVerified = data.arc_verification?.supporting_characters?.length || 0
-  console.log(`  Arc verification:`)
-  console.log(`    Main characters verified: ${mainVerified}`)
-  console.log(`    Supporting characters verified: ${supportingVerified}`)
-
-  // Check for missing arc deliveries
-  const missingArcs = data.arc_verification?.supporting_characters?.filter(c => c.arc_delivered === 'No') || []
-  if (missingArcs.length > 0) {
-    console.warn(`  WARNING: ${missingArcs.length} supporting character(s) missing arc delivery:`)
-    missingArcs.forEach(c => console.warn(`    - ${c.character}`))
+  // Verification summary
+  if (verification.verification_passed) {
+    console.log(`  Verification: PASSED`)
+  } else {
+    console.log(`  Verification: ISSUES FOUND`)
+    verification.gaps_found?.forEach(g => {
+      console.log(`    - [${g.severity}] ${g.issue}`)
+    })
   }
 
-  return data
+  return result
 }
 
 // =============================================================================

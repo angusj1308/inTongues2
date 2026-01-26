@@ -1420,7 +1420,15 @@ Your job is to create arcs where:
     "what_they_sacrifice": "What they risk or give up",
     "rival_resolutions": "How each rival's arc completes",
     "final_state": "Where everyone ends up"
-  }
+  },
+
+  "timeline": [
+    {
+      "order": 1,
+      "moment": "The moment name from key_moments",
+      "arc": "Which arc this belongs to (e.g. 'Protagonist + Primary' or 'Rival 1 vs Rival 2')"
+    }
+  ]
 }
 
 ## Guidelines for Primary Romance (Protagonist + Primary Love Interest)
@@ -1498,6 +1506,19 @@ RESOLUTION:
 - Rivals can: accept and move on, grow from the experience, reveal they never really wanted this, find their own path
 - No rival exits without their arc completing
 
+## Timeline
+
+After creating all romantic arcs and rival dynamics, place ALL key moments into one chronological timeline.
+
+This includes:
+- All moments from the primary romance
+- All moments from each rival romance
+- All moments from rival dynamics
+
+The timeline shows when moments happen relative to each other across all arcs. A character's growth moments must precede their transformed behaviour in other arcs.
+
+Output every moment exactly once in chronological order.
+
 DO NOT INCLUDE:
 - Subplots (Phase 4/5)
 - Supporting characters (Phase 4)
@@ -1572,7 +1593,7 @@ async function executePhase3(concept, phase1, phase2) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['arc_shape', 'romantic_arcs', 'dark_moment', 'resolution']
+  const requiredFields = ['arc_shape', 'romantic_arcs', 'dark_moment', 'resolution', 'timeline']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
@@ -1588,6 +1609,22 @@ async function executePhase3(concept, phase1, phase2) {
     if (!arc.between || !arc.key_moments || !arc.wound_integration) {
       throw new Error(`Romantic arc missing required fields (between, key_moments, wound_integration)`)
     }
+  }
+
+  // Validate timeline
+  if (!data.timeline || !Array.isArray(data.timeline)) {
+    throw new Error('Phase 3 missing timeline array')
+  }
+
+  // Check all moments are accounted for in timeline
+  const allMoments = [
+    ...(data.romantic_arcs?.flatMap(arc => arc.key_moments?.map(m => m.moment)) || []),
+    ...(data.rival_dynamics?.flatMap(dyn => dyn.key_moments?.map(m => m.moment)) || [])
+  ]
+  const timelineMoments = data.timeline.map(t => t.moment)
+  const missingFromTimeline = allMoments.filter(m => !timelineMoments.includes(m))
+  if (missingFromTimeline.length > 0) {
+    console.warn(`Timeline missing moments: ${missingFromTimeline.join(', ')}`)
   }
 
   console.log('Phase 3 complete.')
@@ -1609,6 +1646,13 @@ async function executePhase3(concept, phase1, phase2) {
   })
   console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 60)}...`)
   console.log(`  Resolution: ${data.resolution?.final_state?.slice(0, 60)}...`)
+  console.log(`  Timeline: ${data.timeline?.length} moments in chronological order`)
+  data.timeline?.slice(0, 5).forEach(t => {
+    console.log(`    ${t.order}. ${t.moment} (${t.arc})`)
+  })
+  if (data.timeline?.length > 5) {
+    console.log(`    ... and ${data.timeline.length - 5} more`)
+  }
 
   return data
 }
@@ -1657,6 +1701,23 @@ You MUST output this exact JSON structure:
     },
     "love_interest_2": { ... },
     "love_interest_3": { ... }
+  },
+
+  "essential_characters": {
+    "protagonist_parents": {
+      "mother": { "status": "alive | dead | unknown", "name": "if known" },
+      "father": { "status": "alive | dead | unknown", "name": "if known" }
+    },
+    "love_interest_parents": [
+      {
+        "love_interest": "Name",
+        "mother": { "status": "alive | dead | unknown", "name": "if known" },
+        "father": { "status": "alive | dead | unknown", "name": "if known" }
+      }
+    ],
+    "others": [
+      { "name": "Character name", "relationship": "How connected", "status": "alive | dead" }
+    ]
   },
 
   "thematic_approaches": [
@@ -1717,15 +1778,60 @@ For the protagonist and EACH love interest from Phase 2:
 - Who REINFORCES their lie? (People who keep them stuck)
 - Who CHALLENGES their lie? (People who push them to grow - besides the romantic leads)
 
+**Pass 1.5: Essential Characters**
+
+Before thematic mapping, identify characters who MUST exist:
+
+- Protagonist's mother and father (living or dead)
+- Each love interest's mother and father (living or dead)
+- Siblings mentioned in any character's backstory
+- Anyone named in wound sources who isn't yet in the cast
+
+For each: Are they alive (minor/major weight) or dead (referenced weight)?
+
+Dead characters still matter. Their choices and fates illuminate the theme.
+
 **Pass 2: Thematic Approaches**
 
-List all approaches to the theme question from Phase 1:
-- Extremes of both sides of the binary
-- Variations between
-- Positions that transcend the binary (care about something else entirely)
-- Positions that reject the question
+List all approaches to the theme question from Phase 1.
 
-For each: who embodies it? Can be someone from Pass 1 or a new character. Multiple characters can embody the same position with different outcomes.
+WITHIN THE BINARY (positions that engage with the theme question directly):
+- Extreme of side A
+- Extreme of side B
+- Variations between the extremes
+- The balanced position (often what protagonists learn)
+- Cynical positions (both sides fail)
+
+TRANSCENDS THE BINARY (positions that reject the question entirely):
+
+These characters do not care about the theme question. They operate on DIFFERENT values:
+- Family loyalty - what serves the bloodline matters, not the question you're asking
+- Faith/religious duty - God's will matters, human concerns are secondary
+- Survival/pragmatism - grand questions are luxury, staying alive is what matters
+- Honor/legacy - what will history say? what would ancestors think?
+- Wealth/commerce - follow the money, everything else is sentiment
+
+A "transcends" character does NOT pick one side of the binary strongly. They dismiss the binary as the wrong question.
+
+REJECTS THE QUESTION:
+- Cynics who believe the question is naive
+- Hedonists who avoid choosing entirely
+
+FOR EACH POSITION:
+- Assign characters from Pass 1 and Pass 1.5 where they fit
+- Create new characters only if no existing character fits
+- Multiple characters CAN embody the same position with DIFFERENT OUTCOMES
+- Use all three weights: major (subplot), minor (present), referenced (dead/absent)
+
+MULTIPLE OUTCOMES PER POSITION:
+
+The same thematic stance can produce different results:
+- One character chose this path and found peace
+- Another chose it and found bitterness
+- Another is choosing it right now, outcome unknown
+- Another is dead, their outcome serves as warning or inspiration
+
+Do not create one-to-one mapping. Explore how the same belief leads to different fates.
 
 **Pass 3: Build Supporting Cast**
 
@@ -1740,6 +1846,7 @@ Create full character entries for everyone identified above.
 - Wound source characters get full treatment - they shaped the main characters
 - Same character can serve multiple functions (consolidate where natural)
 - Check Phase 2 for existing thematic positions in love interests' lies - don't duplicate as new characters
+- Include "transcends" characters who operate on entirely different values than the theme question
 
 ## DO NOT INCLUDE
 
@@ -1852,6 +1959,9 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     console.error('Phase 4 output (first 500 chars):', JSON.stringify(data, null, 2).slice(0, 500))
     throw new Error('Phase 4 missing wound_sources object. Received keys: ' + Object.keys(data).join(', '))
   }
+  if (!data.essential_characters) {
+    throw new Error('Phase 4 missing essential_characters object. Received keys: ' + Object.keys(data).join(', '))
+  }
   if (!data.thematic_approaches || !Array.isArray(data.thematic_approaches)) {
     throw new Error('Phase 4 missing thematic_approaches array. Received keys: ' + Object.keys(data).join(', '))
   }
@@ -1866,8 +1976,25 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     }
   }
 
+  // Check for transcends characters
+  const transcendsPositions = data.thematic_approaches?.filter(p => p.type === 'transcends') || []
+  if (transcendsPositions.length === 0) {
+    console.warn('Phase 4 warning: No transcends positions found - all characters are within the theme binary')
+  }
+
+  // Check for positions with multiple characters
+  const multipleOutcomes = data.thematic_approaches?.filter(p => p.embodied_by?.length > 1) || []
+
+  // Check for referenced characters
+  const referencedChars = data.supporting_cast?.filter(c => c.weight === 'referenced') || []
+
   // Console logging
   console.log('Phase 4 complete.')
+  console.log(`  Essential characters checked:`)
+  const ec = data.essential_characters
+  console.log(`    Protagonist parents: mother ${ec.protagonist_parents?.mother?.status || 'not specified'}, father ${ec.protagonist_parents?.father?.status || 'not specified'}`)
+  console.log(`    Love interest parents: ${ec.love_interest_parents?.length || 0} mapped`)
+
   console.log(`  Wound sources mapped for: ${Object.keys(data.wound_sources).length} characters`)
   Object.entries(data.wound_sources).forEach(([key, ws]) => {
     const createdBy = ws.created_by?.character || 'circumstance'
@@ -1878,12 +2005,21 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     console.log(`        Reinforced by: ${reinforcerCount} character(s)`)
     console.log(`        Challenged by: ${challengerCount} character(s)`)
   })
+
   console.log(`  Thematic approaches: ${data.thematic_approaches?.length}`)
+  const byType = {}
+  data.thematic_approaches?.forEach(pos => {
+    byType[pos.type] = (byType[pos.type] || 0) + 1
+  })
+  console.log(`    By type: ${Object.entries(byType).map(([k,v]) => `${k}=${v}`).join(', ')}`)
   data.thematic_approaches?.forEach(pos => {
     const characterCount = pos.embodied_by?.length || 0
     const weights = pos.embodied_by?.map(e => e.weight).join(', ') || 'none'
-    console.log(`    - "${pos.position}" (${pos.type}): ${characterCount} character(s) [${weights}]`)
+    console.log(`    - "${pos.position.slice(0, 50)}${pos.position.length > 50 ? '...' : ''}" (${pos.type}): ${characterCount} character(s) [${weights}]`)
   })
+  console.log(`  Positions with multiple characters: ${multipleOutcomes.length}`)
+  console.log(`  Referenced (dead/absent) characters: ${referencedChars.length}`)
+
   console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
   const majors = data.supporting_cast?.filter(c => c.weight === 'major').length || 0
   const minors = data.supporting_cast?.filter(c => c.weight === 'minor').length || 0

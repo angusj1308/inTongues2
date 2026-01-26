@@ -2033,215 +2033,238 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
 }
 
 // =============================================================================
-// PHASE 5: PLOT ARCHITECTURE
+// PHASE 5: MASTER TIMELINE
 // =============================================================================
 
-const PHASE_5_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to create the structural skeleton of the story — the beat sheet, subplot architecture, and foreshadowing map.
+const PHASE_5_SYSTEM_PROMPT = `You are a story timeline architect. Your task is to create a master timeline integrating main romance moments with supporting cast appearances and subplot moments.
+
+## INPUT
 
 You will receive:
-- The user's original concept
-- Phases 1-4 output
-- Length preset (novella or novel)
+- Phase 3 timeline: All main moments (romantic arcs + rival dynamics) in chronological order
+- Phase 4 supporting cast: Characters with arcs, functions, thematic stances
 
-Your job is to:
-1. Create a beat sheet mapping key story moments to chapter ranges
-2. Design subplots that pressure and illuminate the central romance
-3. Plan foreshadowing seeds and their payoffs
-4. Map the tension curve
+## YOUR TASK
 
-## Output Format
+Create ONE master timeline that:
+1. Includes every main moment from Phase 3
+2. Layers supporting characters into main moments where they belong
+3. Inserts subplot moments between main moments where needed
+4. Makes every character's arc traceable through their appearances
 
-Respond with a JSON object:
+## OUTPUT FORMAT
 
 {
-  "beat_sheet": {
-    "opening_image": {
-      "description": "The story's first impression — establishes tone and protagonist's starting state",
-      "chapter_range": "1",
-      "purpose": "What this beat accomplishes"
-    },
-    "setup": {
-      "description": "Establish protagonist's world, wound visible in behavior",
-      "chapter_range": "1-X",
-      "purpose": "What this beat accomplishes"
-    },
-    "catalyst": {
-      "description": "The event that disrupts the status quo (often: meeting the love interest)",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "debate": {
-      "description": "Protagonist resists the change/attraction",
-      "chapter_range": "X-X",
-      "purpose": "What this beat accomplishes"
-    },
-    "break_into_two": {
-      "description": "Protagonist commits to the new world/relationship",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "b_story": {
-      "description": "Introduction of subplot and supporting characters who will illuminate theme",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "fun_and_games": {
-      "description": "The promise of the premise — romance develops, tension builds",
-      "chapter_range": "X-X",
-      "purpose": "What this beat accomplishes"
-    },
-    "midpoint": {
-      "description": "False victory or false defeat — stakes raise, point of no return",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "bad_guys_close_in": {
-      "description": "External/internal pressures mount, relationship tested",
-      "chapter_range": "X-X",
-      "purpose": "What this beat accomplishes"
-    },
-    "all_is_lost": {
-      "description": "The dark moment — relationship seems doomed",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "dark_night": {
-      "description": "Protagonist confronts wound, realizes truth",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "break_into_three": {
-      "description": "Decision to fight for love despite risk",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
-    },
-    "finale": {
-      "description": "Grand gesture, confrontation, resolution",
-      "chapter_range": "X-X",
-      "purpose": "What this beat accomplishes"
-    },
-    "final_image": {
-      "description": "Mirror of opening showing transformation",
-      "chapter_range": "X",
-      "purpose": "What this beat accomplishes"
+  "master_timeline": [
+    {
+      "order": 1,
+      "moment": "Moment name",
+      "type": "main | subplot",
+      "source": "Which arc this comes from (e.g., 'Eleanor + Marcus' or 'Lady Ashworth subplot')",
+      "what_happens": "Full description of what occurs",
+      "present": [
+        {
+          "character": "Character name",
+          "role": "protagonist | love_interest | supporting",
+          "what_they_do": "Their specific action/reaction in this moment",
+          "arc_position": "Where they are in their arc (e.g., 'still believing lie', 'lie challenged', 'transformed')"
+        }
+      ],
+      "layered_characters": [
+        {
+          "character": "Supporting character name",
+          "function": "What function they serve here (wound_source, past_mirror, external_pressure, etc.)",
+          "what_they_do": "Their specific contribution to this moment",
+          "why_present": "Why they need to be here"
+        }
+      ],
+      "thematic_weight": "How this moment expresses the theme"
     }
-  },
-  "subplot_a": {
-    "name": "External subplot name",
-    "type": "External pressure subplot",
-    "connection_to_romance": "How it pressures the central relationship",
-    "arc": {
-      "setup": "How it's introduced (chapter X)",
-      "escalation": "How it intensifies (chapters X-X)",
-      "crisis": "How it collides with main plot (chapter X)",
-      "resolution": "How it resolves (chapter X)"
-    },
-    "characters_involved": ["Which supporting characters drive this subplot"],
-    "theme_connection": "How it explores/contrasts with main theme"
-  },
-  "subplot_b": {
-    "name": "Internal/relational subplot name",
-    "type": "Internal or relationship subplot",
-    "connection_to_romance": "How it illuminates the central relationship",
-    "arc": {
-      "setup": "How it's introduced (chapter X)",
-      "development": "How it develops (chapters X-X)",
-      "revelation": "Key revelation moment (chapter X)",
-      "resolution": "How it resolves (chapter X)"
-    },
-    "characters_involved": ["Which supporting characters drive this subplot"],
-    "theme_connection": "How it explores/contrasts with main theme"
-  },
-  "integration_map": {
-    "collision_points": [
+  ],
+
+  "subplot_insertions": [
+    {
+      "subplot_moment": "Subplot moment name",
+      "inserted_after": "Main moment name it follows",
+      "inserted_before": "Main moment name it precedes",
+      "why_here": "Why this is the right placement"
+    }
+  ],
+
+  "character_arcs_through_timeline": [
+    {
+      "character": "Character name",
+      "appearances": [
+        {
+          "moment_order": 1,
+          "moment": "Moment name",
+          "arc_state": "Where they are in their arc",
+          "what_happens_to_them": "Their experience in this moment"
+        }
+      ],
+      "arc_completion": "How their arc resolves across these appearances"
+    }
+  ],
+
+  "arc_verification": {
+    "main_characters": [
       {
-        "chapter": "X",
-        "what_collides": "Which plot/subplot elements intersect",
-        "effect_on_romance": "How this affects the central relationship"
+        "character": "Name",
+        "wound_triggered": "Moment # and name",
+        "lie_challenged": "Moment # and name",
+        "transformation": "Moment # and name"
+      }
+    ],
+    "supporting_characters": [
+      {
+        "character": "Name",
+        "function_served": "What function(s) they serve",
+        "key_appearances": ["Moment #: what they do", "Moment #: what they do"],
+        "arc_delivered": "Yes/No and how"
       }
     ]
-  },
-  "foreshadowing": {
-    "seeds": [
-      {
-        "seed": "What's planted",
-        "plant_chapter": "When planted",
-        "payoff_chapter": "When paid off",
-        "type": "object | dialogue | event | character trait | world detail"
-      }
-    ]
-  },
-  "tension_curve": {
-    "description": "How tension rises and falls across the story",
-    "peaks": ["Chapter X: description", "Chapter X: description"],
-    "valleys": ["Chapter X: description — purpose of breathing room"],
-    "climax_chapter": "X"
-  },
-  "coherence_check": {
-    "timespan_honored": "How plot fits within Phase 1 timespan",
-    "deadline_placed": "How Phase 2 time pressure is incorporated",
-    "supporting_cast_used": "How Phase 3 supporting characters drive subplots",
-    "pivotal_moments_placed": "How Phase 4 pivotal moments map to beats",
-    "conflict_pressured": "How external/internal conflicts from Phase 1 are pressured throughout",
-    "theme_expressed": "How theme is expressed through plot events",
-    "arcs_delivered": "How Phase 3 character arcs are delivered through plot"
   }
 }
 
-## Guidelines
+## GUIDELINES
 
-BEAT SHEET:
-- For novella (12 chapters): Compress beats, some may share chapters
-- For novel (35 chapters): Full expansion, each beat gets room to breathe
-- Chapter numbers should be specific ranges, not vague
+### Layering Supporting Characters into Main Moments
 
-SUBPLOTS:
-- Subplot A: External — creates pressure, raises stakes, provides action
-- Subplot B: Internal — illuminates theme, often involves supporting character with parallel/contrast arc
-- Both must connect to the romance, not just exist alongside it
+For each main moment, ask:
+- Which supporting characters would naturally be present?
+- Which supporting character functions should activate here?
+- Who can witness/react to this moment in ways that serve their function?
 
-FORESHADOWING:
-- Plant 5-8 seeds minimum
-- Each seed should feel natural when planted, resonant when paid off
-- Include variety: objects, phrases, character details, world elements
+WOUND SOURCE characters should be present when:
+- The main character's wound is being triggered
+- The main character is reliving patterns from their wound
+- Confrontation with the wound source is needed
 
-TENSION:
-- Tension should generally rise but include valleys for reader recovery
-- Major peaks at midpoint and dark moment
-- Climax is highest tension`
+PAST MIRROR characters should be present when:
+- The protagonist needs to see what their choice could lead to
+- A thematic parallel needs to be drawn
+- The consequences of a position need to be visible
+
+PRESENT MIRROR characters should be present when:
+- Parallel choices are being made
+- The protagonist needs to see another version of their struggle
+- Their arc intersects with the main plot
+
+EXTERNAL PRESSURE characters should be present when:
+- Pressure needs to be applied
+- Stakes need to be raised
+- Obstacles need to be created
+
+### Inserting Subplot Moments
+
+Subplot moments should be inserted when:
+- A supporting character's arc needs advancement
+- Thematic counterpoint is needed
+- Pacing requires a beat away from the main couple
+- Setup is needed for a later collision
+
+Subplot moments should NOT:
+- Interrupt crucial main moments
+- Cluster together without main plot beats between them
+- Exist without connecting to the main story
+
+### Tracking Character Arcs
+
+For each supporting character with an arc (major weight):
+- Their arc must be traceable through their appearances
+- They must start in one state and end in another
+- Their transformation (or failure to transform) must be visible
+
+For referenced characters:
+- They may never appear but their story must be told through others
+- Their fate illuminates the theme
+
+### Moment Counts
+
+Typical master timeline:
+- Simple romance: 8-12 moments total
+- Multiple suitors: 20-30 moments total
+- Complex with subplots: 30-40 moments total
+
+Main moments from Phase 3 should remain intact. Add:
+- 2-4 subplot moments per major supporting character
+- Layered presence for characters who don't need their own moments
+
+## VERIFICATION
+
+Before outputting, verify:
+1. Every Phase 3 timeline moment is included
+2. Every major supporting character has appearances that deliver their arc
+3. Every main character's wound/lie/transformation journey is traceable
+4. No supporting character appears without purpose
+5. Subplot moments are placed logically between main moments`
 
 function buildPhase5UserPrompt(concept, phase1, phase2, phase3, phase4, lengthPreset) {
+  // Extract timeline from Phase 3
+  const timelineSummary = phase3.timeline?.map(t =>
+    `${t.order}. ${t.moment} (${t.arc})`
+  ).join('\n') || 'No timeline available'
+
+  // Extract supporting cast summary
+  const majorCast = phase4.supporting_cast?.filter(c => c.weight === 'major') || []
+  const majorCastSummary = majorCast.map(c =>
+    `- ${c.name}: ${c.functions?.join(', ')} | Arc: ${c.arc?.starts} → ${c.arc?.ends}`
+  ).join('\n') || 'No major supporting cast'
+
+  const minorCast = phase4.supporting_cast?.filter(c => c.weight === 'minor') || []
+  const minorCastSummary = minorCast.map(c =>
+    `- ${c.name}: ${c.functions?.join(', ')}`
+  ).join('\n') || 'No minor supporting cast'
+
+  // Main characters for arc verification
+  const protagonistName = phase2.protagonist?.name
+  const loveInterestNames = phase2.love_interests?.map(li => li.name).join(', ')
+
   return `ORIGINAL CONCEPT: ${concept}
 
-LENGTH: ${lengthPreset} (${CONFIG.chapterCounts[lengthPreset]} chapters)
+## PHASE 3 TIMELINE (Main Moments in Order)
 
-PHASE 1 OUTPUT (Core Foundation):
-${JSON.stringify(phase1, null, 2)}
+${timelineSummary}
 
-PHASE 2 OUTPUT (World/Setting):
-${JSON.stringify(phase2, null, 2)}
+## PHASE 3 FULL DATA (for moment details)
 
-PHASE 3 OUTPUT (Characters):
 ${JSON.stringify(phase3, null, 2)}
 
-PHASE 4 OUTPUT (Chemistry):
+## PHASE 4 SUPPORTING CAST
+
+**Major Characters (need subplot moments):**
+${majorCastSummary}
+
+**Minor Characters (layer into main moments):**
+${minorCastSummary}
+
+## PHASE 4 FULL DATA (for character details)
+
 ${JSON.stringify(phase4, null, 2)}
 
-Create the plot architecture for this ${lengthPreset}. Map all beats to specific chapter ranges, design subplots that use the supporting cast, and plan foreshadowing that will pay off satisfyingly.`
+## PHASE 1 & 2 REFERENCE
+
+Theme: "${phase1.theme?.question}"
+Protagonist: ${protagonistName}
+Love Interests: ${loveInterestNames}
+
+## YOUR TASK
+
+Create the master timeline that:
+1. Includes ALL ${phase3.timeline?.length || 0} main moments from Phase 3 timeline
+2. Layers supporting characters into main moments where appropriate
+3. Inserts subplot moments for the ${majorCast.length} major supporting characters
+4. Makes every character's arc traceable through their appearances
+
+Main moments from Phase 3: ${phase3.timeline?.length || 0}
+Major supporting characters needing arcs: ${majorCast.length}
+Minor characters to layer: ${minorCast.length}
+
+Expected total moments: ${(phase3.timeline?.length || 0) + (majorCast.length * 3)} - ${(phase3.timeline?.length || 0) + (majorCast.length * 4)}`
 }
 
-const PHASE_5_COHERENCE_FIELDS = [
-  'timespan_honored',
-  'deadline_placed',
-  'supporting_cast_used',
-  'pivotal_moments_placed',
-  'conflict_pressured',
-  'theme_expressed',
-  'arcs_delivered'
-]
-
 async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPreset) {
-  console.log('Executing Phase 5: Plot Architecture...')
+  console.log('Executing Phase 5: Master Timeline...')
 
   const userPrompt = buildPhase5UserPrompt(concept, phase1, phase2, phase3, phase4, lengthPreset)
   const response = await callOpenAI(PHASE_5_SYSTEM_PROMPT, userPrompt)
@@ -2253,13 +2276,66 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 
   const data = parsed.data
 
-  // Validate coherence check
-  const coherenceResult = validateCoherence(data.coherence_check, PHASE_5_COHERENCE_FIELDS)
-  if (!coherenceResult.valid) {
-    console.warn(`Phase 5 coherence warning: ${coherenceResult.message}`)
+  // Validate required fields
+  if (!data.master_timeline || !Array.isArray(data.master_timeline)) {
+    throw new Error('Phase 5 missing master_timeline array')
+  }
+  if (!data.character_arcs_through_timeline || !Array.isArray(data.character_arcs_through_timeline)) {
+    throw new Error('Phase 5 missing character_arcs_through_timeline array')
+  }
+  if (!data.arc_verification) {
+    throw new Error('Phase 5 missing arc_verification object')
   }
 
+  // Count moment types
+  const mainMoments = data.master_timeline.filter(m => m.type === 'main').length
+  const subplotMoments = data.master_timeline.filter(m => m.type === 'subplot').length
+
+  // Check if Phase 3 moments are included
+  const phase3MomentCount = phase3.timeline?.length || 0
+  if (mainMoments < phase3MomentCount) {
+    console.warn(`Phase 5 warning: Only ${mainMoments} main moments but Phase 3 had ${phase3MomentCount}`)
+  }
+
+  // Console logging
   console.log('Phase 5 complete.')
+  console.log(`  Master timeline: ${data.master_timeline?.length} total moments`)
+  console.log(`    Main moments: ${mainMoments}`)
+  console.log(`    Subplot moments: ${subplotMoments}`)
+
+  // Show first few moments
+  console.log(`  Timeline preview:`)
+  data.master_timeline?.slice(0, 5).forEach(m => {
+    const presentCount = m.present?.length || 0
+    const layeredCount = m.layered_characters?.length || 0
+    console.log(`    ${m.order}. ${m.moment} (${m.type})`)
+    console.log(`       Present: ${presentCount} characters, Layered: ${layeredCount}`)
+  })
+  if (data.master_timeline?.length > 5) {
+    console.log(`    ... and ${data.master_timeline.length - 5} more moments`)
+  }
+
+  // Character arc tracking
+  console.log(`  Character arcs tracked: ${data.character_arcs_through_timeline?.length}`)
+  data.character_arcs_through_timeline?.forEach(ca => {
+    const appearances = ca.appearances?.length || 0
+    console.log(`    - ${ca.character}: ${appearances} appearances`)
+  })
+
+  // Arc verification summary
+  const mainVerified = data.arc_verification?.main_characters?.length || 0
+  const supportingVerified = data.arc_verification?.supporting_characters?.length || 0
+  console.log(`  Arc verification:`)
+  console.log(`    Main characters verified: ${mainVerified}`)
+  console.log(`    Supporting characters verified: ${supportingVerified}`)
+
+  // Check for missing arc deliveries
+  const missingArcs = data.arc_verification?.supporting_characters?.filter(c => c.arc_delivered === 'No') || []
+  if (missingArcs.length > 0) {
+    console.warn(`  WARNING: ${missingArcs.length} supporting character(s) missing arc delivery:`)
+    missingArcs.forEach(c => console.warn(`    - ${c.character}`))
+  }
+
   return data
 }
 

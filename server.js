@@ -7884,6 +7884,8 @@ function validateCoherenceCheck(coherenceCheck, requiredFields) {
 
 // POST /api/generate/bible - Generate complete story bible (Phases 1-8)
 app.post('/api/generate/bible', async (req, res) => {
+  console.log('=== /api/generate/bible endpoint hit ===')
+  console.log('Request body:', JSON.stringify(req.body, null, 2))
   try {
     const { uid, bookId: existingBookId, concept, level, lengthPreset, language, generateAudio = false } = req.body
 

@@ -2915,34 +2915,40 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'starting')
     bible.subplots = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
     reportProgress(4, 'complete', {
-      externalPressures: bible.subplots.external_pressures?.length,
-      thematicPositions: bible.subplots.thematic_positions?.length,
+      woundSources: Object.keys(bible.subplots.wound_sources || {}).length,
+      thematicApproaches: bible.subplots.thematic_approaches?.length,
       supportingCast: bible.subplots.supporting_cast?.length
     })
 
-    // TESTING: Stop after Phase 4 to validate Subplots & Supporting Cast output
+    // Phase 5: Master Timeline
+    reportProgress(5, 'starting')
+    bible.masterTimeline = await executePhase5(concept, bible.coreFoundation, bible.characters, bible.plot, bible.subplots, lengthPreset)
+    reportProgress(5, 'complete', {
+      totalMoments: bible.masterTimeline.master_timeline?.length,
+      mainMoments: bible.masterTimeline.master_timeline?.filter(m => m.type === 'main').length,
+      subplotMoments: bible.masterTimeline.master_timeline?.filter(m => m.type === 'subplot').length
+    })
+
+    // TESTING: Stop after Phase 5 to validate Master Timeline output
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 4')
+    console.log('TEST MODE - Stopping after Phase 5')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
     console.log('Phase 4 Output:', JSON.stringify(bible.subplots, null, 2))
+    console.log('Phase 5 Output:', JSON.stringify(bible.masterTimeline, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_4_TEST',
+      validationStatus: 'PHASE_5_TEST',
       validationAttempts: 0
     }
 
-    // Phase 5: World & Locations (TODO: rewrite)
-    reportProgress(5, 'starting')
-
-    // Phase 5: Plot Architecture
-    reportProgress(5, 'starting')
-    bible.plot = await executePhase5(concept, bible.coreFoundation, bible.world, bible.characters, bible.chemistry, lengthPreset)
-    reportProgress(5, 'complete', { actCount: bible.plot.acts?.length || 3 })
+    // Phase 6: Chapter Breakdown (TODO: update for new structure)
+    // reportProgress(6, 'starting')
+    // bible.chapters = await executePhase6(...)
 
     // Phase 6: Chapter Breakdown
     reportProgress(6, 'starting')

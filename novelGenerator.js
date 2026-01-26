@@ -1341,18 +1341,31 @@ async function executePhase2(concept, phase1) {
 // PHASE 3: CENTRAL PLOT
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design complete romantic arcs for ALL love interests, not just the primary one.
+const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design complete romantic arcs for ALL love interests, with BOTH psychological depth AND romantic/physical tension.
 
 You will receive:
 - The original concept
-- Phase 1 output (tropes, conflict, theme, ending, tone, timespan)
+- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black)
 - Phase 2 output (protagonist, love_interests array, dynamics)
 
 Your job is to create arcs where:
 1. Every love interest gets a full arc with key moments
-2. Rivals are not speedbumps - they complete their character arc even though the romance ends
-3. The primary romance gets the most moments, but rivals get real stories
-4. Rival dynamics between love interests also get key moments
+2. Each moment carries BOTH psychological meaning AND romantic charge
+3. Physical/romantic tension progresses through the story
+4. Rivals are not speedbumps - they have genuine attraction AND complete character arcs
+
+## CRITICAL: Every Key Moment Has Two Dimensions
+
+**Psychological** (character growth):
+- How the moment connects to wounds and lies
+- What shifts in understanding or belief
+
+**Romantic** (attraction and tension):
+- The physical/sensual element - touch, proximity, denial, longing
+- Where this falls on the intimacy progression
+- What creates wanting and tension
+
+A moment without romantic charge is just drama. A moment without psychological depth is just chemistry. Romance needs BOTH.
 
 ## Output Format
 
@@ -1371,8 +1384,13 @@ Your job is to create arcs where:
         {
           "moment": "Name/label for this beat",
           "what_happens": "What occurs",
+          "romantic_beat": {
+            "tension": "What creates wanting/not-having - the ache, the pull, what they desire but can't have yet",
+            "physical": "The sensual element - touch, proximity, gaze, breath, denial of touch, charged silence",
+            "intimacy_stage": "awareness | attraction | tension | touch | kiss | escalation | consummation"
+          },
           "why_it_matters": "How it connects to wounds/theme",
-          "what_shifts": "What changes between them after this"
+          "what_shifts": "What changes between them after this - both emotionally AND in terms of romantic possibility"
         }
       ],
       "wound_integration": {
@@ -1431,43 +1449,69 @@ Your job is to create arcs where:
   ]
 }
 
+## Intimacy Stage Definitions
+
+Track where each moment falls on this progression:
+- **awareness**: First noticing - physical description, unexpected attraction, can't stop looking
+- **attraction**: Acknowledged pull - lingering looks, heightened awareness of their body, thinking about them
+- **tension**: Active wanting - proximity that charges the air, almost-touches, denial, interruptions
+- **touch**: First physical contact - accidental brush, deliberate hand-hold, dancing together
+- **kiss**: First kiss - the moment the barrier breaks
+- **escalation**: Deepening physical intimacy - making out, hands exploring, stopping before more
+- **consummation**: Sexual intimacy - the full physical union (only if sensuality setting warrants)
+
 ## Guidelines for Primary Romance (Protagonist + Primary Love Interest)
 
 KEY MOMENTS: 5-6 moments typical
 - Full wound integration for both characters
+- Full romantic progression from awareness to resolution
 - Ends in HEA/HFN or tragic resolution per Phase 1
-- Gets the most page time and emotional weight
 
-TROPES SHAPE STRUCTURE:
-- Enemies to Lovers: Starts with antagonism. Include what makes them enemies, what forces respect, what cracks hostility.
-- Strangers to Lovers: Starts neutral. Include the meeting, what makes them notice each other, what draws them closer.
-- Friends to Lovers: Starts with comfort. Include what disrupts the friendship, the moment one realizes it's more.
-- Second Chance: Starts with history. Include what ended it before, the forced reunion, what's different now.
-- Childhood Sweethearts: Starts with innocence. Include the separation, the reunion, how they've changed.
+REQUIRED INTIMACY BEATS FOR PRIMARY (calibrate to sensuality setting):
+1. First awareness/attraction (physical, not just strategic)
+2. Building tension (proximity, glances, accidental or charged touch)
+3. Near-miss or interrupted moment (they almost kiss/touch but can't)
+4. First kiss (when and why the barrier finally breaks)
+5. Deepening intimacy (calibrated to sensuality 1-10)
+6. Consummation (if sensuality >= 5 and fade_to_black is false, show it; otherwise skip or imply)
+
+SENSUALITY CALIBRATION (from Phase 1 tone.sensuality):
+- 1-3: Focus on emotional intimacy, minimal physical description, kisses are the peak
+- 4-6: Moderate physical awareness, some sensual description, may include more but tastefully
+- 7-10: High physical tension throughout, explicit attraction, detailed sensual moments
+
+FADE_TO_BLACK SETTING:
+- true: Consummation happens but scenes end at the bedroom door or with a tasteful transition
+- false: Consummation can be shown on page (detail level calibrated to sensuality)
 
 BURN RATE AFFECTS PACING:
-- Slow Burn: More key moments before intimacy. Tension through near-misses, interrupted moments, denial.
-- Fast Burn: Fewer barriers to attraction. Conflict is about staying together, not getting together.
+- Slow Burn: More moments before first kiss. Tension builds through denial, near-misses, interrupted moments. The anticipation IS the pleasure.
+- Fast Burn: Quick to physical intimacy. Conflict is about staying together, not getting together. Attraction is immediate and acted upon.
+
+TROPES SHAPE ROMANTIC STRUCTURE:
+- Enemies to Lovers: Early attraction is unwanted, fought against. Physical awareness precedes emotional trust. The kiss often comes from anger or desperation.
+- Strangers to Lovers: Clean slate allows pure attraction. Physical awareness grows with emotional connection.
+- Friends to Lovers: Sudden awareness of familiar body in new way. The transition moment when they see each other differently.
+- Second Chance: Old physical memory + new tension. The question of whether the chemistry is still there.
+- Forbidden: Every touch is transgressive. The wrongness adds to the charge.
 
 ## Guidelines for Rival Romances (Protagonist + Each Rival)
 
 KEY MOMENTS: 3-4 moments each
 - Full wound integration - rivals have real psychology
+- GENUINE ROMANTIC CHARGE - not just thematic function
 - Ends in elimination BUT the rival completes their character arc
-- Their Phase 2 arc (wound, lie, transformation) must resolve
 
-RIVALS ARE NOT SPEEDBUMPS:
-- They are full characters whose stories happen to not end in romance with the protagonist
-- They have their wound triggered
-- They have their lie challenged
-- They transform (or fail to transform)
-- They exit with a complete arc
+RIVALS MUST HAVE REAL ATTRACTION:
+- At least one moment of genuine physical/romantic tension
+- A moment where the reader can see why this COULD have been the choice
+- The protagonist must be genuinely tempted, not just strategically considering
 
 WHY THEY LOSE:
-- Not because they're bad people
+- Not because they lack chemistry
 - Because what they represent doesn't match what the protagonist needs
 - Or because their own wound prevents true connection
-- The protagonist choosing someone else IS part of the rival's growth
+- The chemistry can be real even if the relationship isn't right
 
 ## Guidelines for Rival Dynamics (Love Interests With Each Other)
 
@@ -1476,22 +1520,11 @@ KEY MOMENTS: 2-3 moments per pairing
 - How they pressure and undermine each other
 - Only create if there are 2+ love interests
 
-TYPES OF DYNAMICS:
-- Direct competition (both actively pursuing)
-- One-sided awareness (one doesn't know they're competing)
-- Reluctant alliance (against a common obstacle)
-- Mutual respect despite rivalry
-
 ## Key Moment Counts (Typical)
 
 Primary romance: 5-6 moments
 Each rival romance: 3-4 moments
 Each rival dynamic: 2-3 moments
-
-This scales with complexity:
-- Simple romance (one love interest): 5-6 moments total
-- Two suitors: 5-6 + 3-4 = 8-10 moments
-- Three suitors: 5-6 + 3-4 + 3-4 + 2-3 + 2-3 = 18-23 moments
 
 ## Dark Moment and Resolution
 
@@ -1502,20 +1535,14 @@ DARK MOMENT:
 
 RESOLUTION:
 - Resolve the primary romance according to Phase 1 ending type
-- But ALSO resolve each rival's arc
-- Rivals can: accept and move on, grow from the experience, reveal they never really wanted this, find their own path
-- No rival exits without their arc completing
+- Include final romantic/physical beat (reunion kiss, falling into bed, or bittersweet goodbye)
+- Also resolve each rival's arc - rivals exit with complete character arcs
 
 ## Timeline
 
 After creating all romantic arcs and rival dynamics, place ALL key moments into one chronological timeline.
 
-This includes:
-- All moments from the primary romance
-- All moments from each rival romance
-- All moments from rival dynamics
-
-The timeline shows when moments happen relative to each other across all arcs. A character's growth moments must precede their transformed behaviour in other arcs.
+The timeline shows when moments happen relative to each other across all arcs. Intimacy stages should generally progress (no kiss before first touch, etc., unless intentionally subverted).
 
 Output every moment exactly once in chronological order.
 
@@ -1541,6 +1568,12 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
   const rivalMoments = rivals.length > 0 ? `${rivals.length} x 3-4 = ${rivals.length * 3}-${rivals.length * 4}` : '0'
   const rivalDynamics = rivals.length > 0 ? `${rivals.length} x 2-3 = ${rivals.length * 2}-${rivals.length * 3}` : '0'
 
+  // Extract tone settings for explicit reference
+  const sensuality = phase1.tone?.sensuality ?? 5
+  const fadeToBlack = phase1.tone?.fade_to_black ?? true
+  const mood = phase1.tone?.mood || 'romantic'
+  const burnRate = phase1.dynamic || 'slow_burn'
+
   return `ORIGINAL CONCEPT: ${concept}
 
 PHASE 1 OUTPUT (Story DNA):
@@ -1551,7 +1584,19 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Design complete romantic arcs for ALL love interests.
+Design complete romantic arcs for ALL love interests with BOTH psychological depth AND romantic/physical tension.
+
+## TONE SETTINGS (from Phase 1) - CRITICAL FOR CALIBRATION
+
+**Sensuality: ${sensuality}/10** ${sensuality <= 3 ? '(Low - focus on emotional intimacy, kisses are the peak)' : sensuality <= 6 ? '(Moderate - include physical tension and some sensual moments)' : '(High - explicit attraction, detailed physical tension throughout)'}
+
+**Fade to Black: ${fadeToBlack}** ${fadeToBlack ? '(Consummation implied but not shown on page)' : '(Consummation can be shown on page if sensuality warrants)'}
+
+**Burn Rate: ${burnRate}** ${burnRate === 'slow_burn' ? '(Many moments before first kiss - tension through denial and near-misses)' : '(Quick to physical intimacy - conflict is staying together, not getting together)'}
+
+**Mood: ${mood}**
+
+## Characters
 
 **Protagonist:** ${phase2.protagonist?.name}
   Wound: "${phase2.protagonist?.wound?.event}"
@@ -1560,13 +1605,16 @@ Design complete romantic arcs for ALL love interests.
 **Love Interests:**
 ${liSummary}
 
+## Required Output
+
 **Primary romance (${phase2.protagonist?.name} + ${primaryLI?.name}):**
-- ${primaryMoments} key moments
-- Full wound integration for both
+- ${primaryMoments} key moments with BOTH romantic_beat AND psychological depth
+- REQUIRED INTIMACY PROGRESSION: awareness → attraction → tension → touch → kiss → ${sensuality >= 5 && !fadeToBlack ? 'escalation → consummation' : 'resolution'}
+- Full wound integration for both characters
 - Ends per Phase 1 ending type: ${phase1.ending?.type}
 
 ${rivals.length > 0 ? `**Rival romances:**
-${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 key moments, full wound integration, ends in elimination BUT ${r.name} completes their arc`).join('\n')}
+${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 key moments with GENUINE romantic charge (at least one moment of real attraction/tension), full wound integration, ends in elimination BUT ${r.name} completes their arc`).join('\n')}
 
 **Rival dynamics:**
 ${rivals.length >= 1 ? `- Between love interests: 2-3 moments per pairing showing competition, scheming, confrontation` : ''}
@@ -1576,7 +1624,22 @@ ${rivals.length >= 1 ? `- Between love interests: 2-3 moments per pairing showin
 - Rivals: ${rivalMoments}
 - Rival dynamics: ${rivalDynamics}` : '**Single love interest** - no rival arcs or dynamics needed.'}
 
-CRITICAL: Rivals are NOT speedbumps. ${rivals.map(r => r.name).join(' and ')}${rivals.length > 0 ? ' must have their wounds triggered, lies challenged, and exit with complete character arcs even though they don\'t end up with the protagonist.' : ''}`
+## CRITICAL REMINDERS
+
+1. **Every key_moment MUST include a romantic_beat object** with tension, physical, and intimacy_stage
+
+2. **This is ROMANCE, not just psychological drama.** Include:
+   - Stolen glances and physical awareness
+   - Charged silences and proximity
+   - Almost-touches and actual touches
+   - Near-miss/interrupted intimate moments
+   - First kiss (and why the barrier finally breaks)
+   ${sensuality >= 5 ? '- Physical escalation calibrated to sensuality ' + sensuality : ''}
+   ${sensuality >= 5 && !fadeToBlack ? '- Consummation scene (shown, not just implied)' : ''}
+
+3. **Rivals must have genuine romantic charge**, not just thematic function. At least one moment where the reader can see why the protagonist might choose them.
+
+4. **Sensuality ${sensuality} means:** ${sensuality <= 3 ? 'Focus on longing looks, breath catching, innocent touches. Kisses are significant events.' : sensuality <= 6 ? 'Include physical awareness, some sensual description, hands on skin, kisses that deepen.' : 'High physical tension throughout. Bodies, desire, heat. Explicit attraction and sensual detail.'}`
 }
 
 async function executePhase3(concept, phase1, phase2) {

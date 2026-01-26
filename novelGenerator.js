@@ -4637,6 +4637,8 @@ export {
   getSceneWordCountTarget,
   getLevelDefinition,
   formatLevelDefinitionForPrompt,
+  executePhase4,
+  executePhase5,
   WORD_COUNT_BY_TENSION,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

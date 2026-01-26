@@ -19,6 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
+import { regeneratePhases } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -216,6 +217,7 @@ const BookGrid = ({
   onEmptyActionLabel,
   onBookClick,
   getStoryTitle,
+  onRegenerate,
 }) => (
   <section className="read-section read-slab">
     <div className="read-section-header">
@@ -238,10 +240,13 @@ const BookGrid = ({
           const progress = Math.max(0, Math.min(100, book.progress || 0))
           const titleText = getStoryTitle ? getStoryTitle(book) : book.title
           const isGenerating = book.status === 'generating' || book.status === 'planning'
+          const isRegenerating = book.status === 'regenerating'
           const isFailed = book.status === 'failed' || book.status === 'error'
-          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating
+          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating || isRegenerating
           // Clickable if not processing and not failed
           const canClick = !isProcessing && !isFailed && onBookClick
+          // Can regenerate if it's a generated book with bible data and not currently processing
+          const canRegenerate = book.isGeneratedBook && book.bible && !isProcessing && onRegenerate
 
           return (
             <div
@@ -281,10 +286,23 @@ const BookGrid = ({
                     <div className="book-tile-spinner" />
                     <span className="book-tile-processing-text">
                       {book.status === 'adapting' ? 'Adapting...'
+                        : isRegenerating ? 'Regenerating...'
                         : (book.status === 'generating' || book.status === 'planning') ? 'Generating...'
                         : 'Processing...'}
                     </span>
                   </div>
+                )}
+                {canRegenerate && (
+                  <button
+                    className="book-tile-regenerate-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRegenerate(book)
+                    }}
+                    title="Regenerate Phases 4-5"
+                  >
+                    ↻
+                  </button>
                 )}
                 <div className="book-tile-hover-overlay">
                   <div className="book-tile-hover-title">{titleText}</div>
@@ -899,6 +917,36 @@ const Dashboard = () => {
     }
   }
 
+  const handleRegeneratePhases = async (e, book) => {
+    e.stopPropagation() // Prevent opening the book
+    if (!book?.id || !user?.uid) return
+
+    // Only works for generated books with bible data
+    if (!book.isGeneratedBook || !book.bible) {
+      alert('This book cannot be regenerated - it needs bible data from phases 1-3.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Regenerate Phases 4-5 for this book?\n\n' +
+      'This will re-run the subplot generation and master timeline using the existing character and plot data.\n\n' +
+      'The book will be temporarily unavailable while regenerating.'
+    )
+    if (!confirmed) return
+
+    try {
+      await regeneratePhases({
+        uid: user.uid,
+        bookId: book.id,
+        phases: [4, 5]
+      })
+      // The real-time listener will automatically update the UI when status changes
+    } catch (err) {
+      console.error('Error regenerating phases:', err)
+      alert('Failed to regenerate phases. Please try again.')
+    }
+  }
+
   const getStoryTitle = (item) => {
     // Show placeholder for generating books
     if (item.status === 'generating' || item.status === 'planning') {
@@ -1165,11 +1213,15 @@ const Dashboard = () => {
                         {yourRecentBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           const isGenerating = book.status === 'generating' || book.status === 'planning'
+                          const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
-                          // Clickable if not generating and not failed (allow bible_complete, bible_needs_review, ready, or no status)
-                          const isClickable = !isGenerating && !isFailed
+                          const isProcessing = isGenerating || isRegenerating
+                          // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
+                          const isClickable = !isProcessing && !isFailed
+                          // Can regenerate if it's a generated book with bible data and not currently processing
+                          const canRegenerate = book.isGeneratedBook && book.bible && !isProcessing
                           return (
-                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
+                            <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
                               <button
                                 className="book-delete-btn"
                                 onClick={(e) => handleDeleteBook(e, book)}
@@ -1177,6 +1229,16 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
+                              {canRegenerate && (
+                                <button
+                                  className="book-regenerate-btn"
+                                  onClick={(e) => handleRegeneratePhases(e, book)}
+                                  aria-label="Regenerate Phases 4-5"
+                                  title="Regenerate Phases 4-5"
+                                >
+                                  ↻
+                                </button>
+                              )}
                               <button
                                 className="reading-shelf-item-content"
                                 onClick={isClickable ? () => handleOpenBook(book) : undefined}
@@ -1198,13 +1260,15 @@ const Dashboard = () => {
                                       <span>{getStoryTitle(book)}</span>
                                     </div>
                                   )}
-                                  {isGenerating && (
+                                  {isProcessing && (
                                     <div className="reading-shelf-generating-overlay">
                                       <div className="reading-shelf-spinner" />
-                                      <span className="reading-shelf-generating-text">Generating...</span>
+                                      <span className="reading-shelf-generating-text">
+                                        {isRegenerating ? 'Regenerating...' : 'Generating...'}
+                                      </span>
                                     </div>
                                   )}
-                                  {!isGenerating && (
+                                  {!isProcessing && (
                                     <div className="reading-shelf-hover-overlay">
                                       <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
                                       <div className="reading-shelf-hover-meta">
@@ -1243,11 +1307,15 @@ const Dashboard = () => {
                         {allBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
                           const isGenerating = book.status === 'generating' || book.status === 'planning'
+                          const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
-                          // Clickable if not generating and not failed (allow bible_complete, bible_needs_review, ready, or no status)
-                          const isClickable = !isGenerating && !isFailed
+                          const isProcessing = isGenerating || isRegenerating
+                          // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
+                          const isClickable = !isProcessing && !isFailed
+                          // Can regenerate if it's a generated book with bible data and not currently processing
+                          const canRegenerate = book.isGeneratedBook && book.bible && !isProcessing
                           return (
-                            <div key={book.id || book.title} className={`reading-shelf-item${isGenerating ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
+                            <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
                               <button
                                 className="book-delete-btn"
                                 onClick={(e) => handleDeleteBook(e, book)}
@@ -1255,6 +1323,16 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
+                              {canRegenerate && (
+                                <button
+                                  className="book-regenerate-btn"
+                                  onClick={(e) => handleRegeneratePhases(e, book)}
+                                  aria-label="Regenerate Phases 4-5"
+                                  title="Regenerate Phases 4-5"
+                                >
+                                  ↻
+                                </button>
+                              )}
                               <button
                                 className="reading-shelf-item-content"
                                 onClick={isClickable ? () => handleOpenBook(book) : undefined}
@@ -1276,13 +1354,15 @@ const Dashboard = () => {
                                       <span>{getStoryTitle(book)}</span>
                                     </div>
                                   )}
-                                  {isGenerating && (
+                                  {isProcessing && (
                                     <div className="reading-shelf-generating-overlay">
                                       <div className="reading-shelf-spinner" />
-                                      <span className="reading-shelf-generating-text">Generating...</span>
+                                      <span className="reading-shelf-generating-text">
+                                        {isRegenerating ? 'Regenerating...' : 'Generating...'}
+                                      </span>
                                     </div>
                                   )}
-                                  {!isGenerating && (
+                                  {!isProcessing && (
                                     <div className="reading-shelf-hover-overlay">
                                       <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
                                       <div className="reading-shelf-hover-meta">

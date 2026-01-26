@@ -152,6 +152,32 @@ export async function expandPrompt(concept) {
 }
 
 /**
+ * Regenerate specific phases (4-5) for an existing book
+ * Uses existing Phase 1-3 data and regenerates later phases
+ * @param {Object} params
+ * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Book ID to regenerate
+ * @param {number[]} params.phases - Which phases to regenerate (default [4, 5])
+ * @returns {Promise<Object>} Updated bible with regenerated phases
+ */
+export async function regeneratePhases(params) {
+  const { uid, bookId, phases = [4, 5] } = params
+
+  const response = await fetch(`${API_BASE}/api/generate/regenerate-phases`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, bookId, phases }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to regenerate phases')
+  }
+
+  return response.json()
+}
+
+/**
  * Generate a completely different story concept from an existing one
  * @param {string} existingConcept - The concept to avoid/differ from
  * @returns {Promise<string>} A new, different story concept

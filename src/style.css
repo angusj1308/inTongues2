@@ -23310,6 +23310,37 @@ body.active-pass-locked {
   background: #dc2626;
 }
 
+/* Regenerate button - small blue refresh icon */
+.book-regenerate-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reading-shelf-item:hover .book-regenerate-btn {
+  opacity: 1;
+}
+
+.book-regenerate-btn:hover {
+  background: #2563eb;
+}
+
 /* Content wrapper inside book card */
 .reading-shelf-item-content {
   display: block;
@@ -23622,6 +23653,17 @@ body.active-pass-locked {
 
 [data-theme='dark'] .book-delete-btn:hover {
   background: #44403c;
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .book-regenerate-btn {
+  background: #292524;
+  color: #a8a29e;
+  border-color: #44403c;
+}
+
+[data-theme='dark'] .book-regenerate-btn:hover {
+  background: #3b82f6;
   color: #fafaf9;
 }
 

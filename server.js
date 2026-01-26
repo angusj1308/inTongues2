@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5 } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8030,6 +8030,102 @@ app.post('/api/generate/bible', async (req, res) => {
   } catch (error) {
     console.error('Generate bible error:', error)
     return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
+  }
+})
+
+// POST /api/generate/regenerate-phases - Regenerate specific phases (4-5) for an existing book
+app.post('/api/generate/regenerate-phases', async (req, res) => {
+  try {
+    const { uid, bookId, phases = [4, 5] } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    // Get the existing book
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const bible = bookData.bible || {}
+
+    // Validate we have the required phases (1-3) to regenerate 4-5
+    if (!bible.coreFoundation) {
+      return res.status(400).json({ error: 'Book is missing Phase 1 (coreFoundation) data' })
+    }
+    if (!bible.characters) {
+      return res.status(400).json({ error: 'Book is missing Phase 2 (characters) data' })
+    }
+    if (!bible.plot) {
+      return res.status(400).json({ error: 'Book is missing Phase 3 (plot) data' })
+    }
+
+    // Update status to regenerating
+    await bookRef.update({ status: 'regenerating' })
+
+    console.log(`Starting phase regeneration for book ${bookId}...`)
+    console.log(`  Regenerating phases: ${phases.join(', ')}`)
+
+    const concept = bookData.concept
+    const lengthPreset = bookData.lengthPreset || 'novella'
+    const updatedBible = { ...bible }
+
+    // Regenerate Phase 4 if requested
+    if (phases.includes(4)) {
+      console.log('  Regenerating Phase 4: Subplots & Supporting Cast...')
+      updatedBible.subplots = await executePhase4(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        bible.plot,
+        lengthPreset
+      )
+      console.log('  Phase 4 complete')
+    }
+
+    // Regenerate Phase 5 if requested (requires Phase 4)
+    if (phases.includes(5)) {
+      console.log('  Regenerating Phase 5: Master Timeline...')
+      const phase4Data = updatedBible.subplots || bible.subplots
+      if (!phase4Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 5 requires Phase 4 data' })
+      }
+      updatedBible.masterTimeline = await executePhase5(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        bible.plot,
+        phase4Data,
+        lengthPreset
+      )
+      console.log('  Phase 5 complete')
+    }
+
+    // Update book with regenerated phases
+    await bookRef.update({
+      bible: updatedBible,
+      status: 'bible_complete',
+      regeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+      regeneratedPhases: phases
+    })
+
+    console.log(`Phase regeneration complete for book ${bookId}`)
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      regeneratedPhases: phases,
+      bible: updatedBible
+    })
+
+  } catch (error) {
+    console.error('Regenerate phases error:', error)
+    return res.status(500).json({ error: 'Failed to regenerate phases', details: error.message })
   }
 })
 

@@ -683,7 +683,7 @@ Third Person:
 - Multiple: Three or more perspectives
 - Omniscient: Narrator sees all
 
-Select the most appropriate for the story.
+DEFAULT: Use Multiple POV (Third Person, Multiple perspectives) unless the user concept explicitly requests a single POV or first person. Romance benefits from seeing both sides of the relationship. Only deviate if the concept specifically asks for single POV or first person narration.
 
 ENDING
 - HEA: Together permanently
@@ -708,6 +708,33 @@ THEME
 - Question: The thematic question the story asks
 - Explored through: How the romance embodies this theme
 The theme should emerge from what's already in the concept, not be imposed.
+
+EXTERNAL PLOT
+Every romance rides on an external wave - something happening in the world independent of the characters falling in love. This creates pressure, deadlines, and structure.
+
+Step 1: Identify the external container. Ask: What is happening in this world that creates the conditions for this romance?
+
+Container types:
+- historical_event: War, revolution, invasion, coronation, political upheaval
+- professional_situation: Case, deal, project, campaign, harvest, production
+- social_structure: Season, wedding, reunion, inheritance dispute, family obligation
+- time_bounded: Holiday visit, summer, voyage, festival, countdown
+- competition: Tournament, contest, election, audition, race
+- journey: Pilgrimage, migration, escape, expedition, road trip
+- crisis: Epidemic, siege, scandal, investigation, natural disaster
+
+Step 2: Define 5-8 beats for this container. These are WORLD events, not character events.
+- What is the inciting event?
+- What are the escalating stages?
+- What is the climax of the external situation?
+- What is the resolution?
+
+Step 3: Identify pressure points.
+- Which beats create deadlines for the characters?
+- Which beats force characters together?
+- Which beats force characters apart?
+- Which beats create danger or stakes?
+- The romantic dark moment should align with the external climax.
 
 ## Output
 
@@ -750,6 +777,21 @@ The theme should emerge from what's already in the concept, not be imposed.
     "core": "What the story is really about (one word or short phrase)",
     "question": "The thematic question the story asks",
     "explored_through": "How the romance embodies this theme"
+  },
+  "external_plot": {
+    "container_type": "historical_event | professional_situation | social_structure | time_bounded | competition | journey | crisis",
+    "container_summary": "One sentence describing the external situation",
+    "beats": [
+      {
+        "order": 1,
+        "beat": "Name of this beat",
+        "what_happens": "What occurs in the world",
+        "world_state": "Pressure, danger, or opportunity at this point",
+        "timing": "When in the story timespan this occurs"
+      }
+    ],
+    "climax_beat": number,
+    "alignment_note": "How the romantic dark moment should align with the external plot climax"
   },
   "premise": string
 }`
@@ -1041,11 +1083,25 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'theme', 'premise']
+  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'theme', 'premise', 'external_plot']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
     throw new Error(`Phase 1 missing required fields: ${missing.join(', ')}`)
+  }
+
+  // Validate external plot structure
+  const ep = data.external_plot
+  if (!ep.container_type || !ep.container_summary || !ep.beats || !Array.isArray(ep.beats)) {
+    throw new Error('Phase 1 external_plot missing required fields (container_type, container_summary, beats)')
+  }
+  if (ep.beats.length < 3) {
+    console.warn(`Phase 1 WARNING: external_plot has only ${ep.beats.length} beats (expected 5-8)`)
+  }
+  for (const beat of ep.beats) {
+    if (!beat.order || !beat.beat || !beat.what_happens) {
+      throw new Error('External plot beat missing required fields (order, beat, what_happens)')
+    }
   }
 
   console.log('Phase 1 complete.')
@@ -1063,6 +1119,13 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   console.log(`  Ending: ${data.ending.type}`)
   console.log(`  Theme: ${data.theme.core} — "${data.theme.question}"`)
   console.log(`    Explored through: ${data.theme.explored_through}`)
+  console.log(`  External Plot: ${ep.container_type} — "${ep.container_summary}"`)
+  console.log(`    Beats: ${ep.beats.length}`)
+  ep.beats.forEach(b => {
+    console.log(`      ${b.order}. ${b.beat}: ${b.what_happens.slice(0, 60)}...`)
+  })
+  console.log(`    Climax beat: ${ep.climax_beat}`)
+  console.log(`    Alignment: ${ep.alignment_note}`)
 
   return data
 }
@@ -1071,16 +1134,19 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
 // PHASE 2: CHARACTERS (Romantic Leads)
 // =============================================================================
 
-const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create psychologically complex, compelling romantic leads whose internal conflicts drive the romance.
+const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create psychologically complex, compelling characters whose internal conflicts drive the romance.
 
 You will receive:
 - The user's original concept
 - Phase 1 output (subgenre, tropes, conflict, theme, ending, tone, timespan, POV, premise)
 
+Phase 1 defines a POV structure (Single, Dual-Alternating, Multiple). Every character who will be a POV character MUST receive full psychology here. In a Multiple POV story, that means the protagonist AND each love interest all need complete builds.
+
 Your job is to create characters where:
-1. Wounds connect to the theme from Phase 1
-2. Arcs match the ending type (HEA = overcome flaws; Bittersweet/Tragic = flaws or circumstances win)
-3. The dynamics explain why THESE people crack each other open
+1. Every POV character gets full psychology: wound, lie, coping_mechanism, want, need, arc, voice
+2. Wounds connect to the theme from Phase 1
+3. Arcs match the ending type (HEA = overcome flaws; Bittersweet/Tragic = flaws or circumstances win)
+4. The dynamics explain why THESE people crack each other open
 
 ## Output Format
 
@@ -1264,12 +1330,20 @@ DISTINCT CHARACTERS:
 - Don't collapse similar characters — find what makes each unique`
 
 function buildPhase2UserPrompt(concept, phase1) {
+  const povStructure = phase1.pov?.structure || 'Multiple'
+  const povPerson = phase1.pov?.person || 'Third'
+
   return `ORIGINAL CONCEPT: ${concept}
 
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-Create the romantic leads for this story.
+Create the characters for this story.
+
+**POV Structure: ${povPerson} Person, ${povStructure}**
+${povStructure === 'Multiple' || povStructure === 'Dual-Alternating'
+    ? 'This is a multi-POV story. The protagonist AND each love interest will be POV characters. Every POV character needs full psychology (wound, lie, coping_mechanism, want, need, arc, voice) because we will write chapters from their perspective.'
+    : 'This is a single POV story. The protagonist is the POV character and needs full psychology. Love interests still need full psychology for internal consistency.'}
 
 IMPORTANT: Count the number of love interests implied by the concept. If it mentions "3 suitors" create 3. If "love triangle" create 2. If standard romance create 1.
 
@@ -1278,7 +1352,8 @@ Ensure:
 - Arcs match the ${phase1.ending?.type || 'established'} ending
 - Each love interest is distinct with different wounds and approaches
 - One love interest is marked Primary (unless tragic/open ending)
-- If multiple love interests, include rival dynamics between them`
+- If multiple love interests, include rival dynamics between them
+- Every character who will be a POV character has complete voice definition (register, patterns, tells) - these drive chapter voice`
 }
 
 async function executePhase2(concept, phase1) {
@@ -1341,31 +1416,21 @@ async function executePhase2(concept, phase1) {
 // PHASE 3: CENTRAL PLOT
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design complete romantic arcs for ALL love interests, with BOTH psychological depth AND romantic/physical tension.
+const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to produce an integrated story timeline where every moment carries POV assignment, and weaves romance beats with psychological beats.
 
 You will receive:
 - The original concept
-- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black)
-- Phase 2 output (protagonist, love_interests array, dynamics)
+- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black, POV structure, external_plot with world beats)
+- Phase 2 output (protagonist, love_interests array with full psychology, dynamics)
 
-Your job is to create arcs where:
-1. Every love interest gets a full arc with key moments
-2. Each moment carries BOTH psychological meaning AND romantic charge
-3. Physical/romantic tension progresses through the story
-4. Rivals are not speedbumps - they have genuine attraction AND complete character arcs
+## CRITICAL PRINCIPLES
 
-## CRITICAL: Every Key Moment Has Two Dimensions
-
-**Psychological** (character growth):
-- How the moment connects to wounds and lies
-- What shifts in understanding or belief
-
-**Romantic** (attraction and tension):
-- The physical/sensual element - touch, proximity, denial, longing
-- Where this falls on the intimacy progression
-- What creates wanting and tension
-
-A moment without romantic charge is just drama. A moment without psychological depth is just chemistry. Romance needs BOTH.
+1. This is ROMANCE. Every moment must serve the romantic arc, the psychological arc, or both.
+2. Romance beats and psychological beats are woven together, not separate tracks.
+3. Every moment has a POV character assigned - whose head are we in?
+4. Physical/romantic tension progresses through the story alongside character growth.
+5. Rivals are not speedbumps - they have genuine attraction AND complete arcs.
+6. The external plot from Phase 1 provides the SPINE. Character moments happen relative to external beats - the world creates pressure, deadlines, and forced proximity/separation.
 
 ## Output Format
 
@@ -1376,203 +1441,178 @@ A moment without romantic charge is just drama. A moment without psychological d
     "ending_type": "How Phase 1 ending shapes the third act"
   },
 
-  "romantic_arcs": [
+  "timeline": [
     {
-      "between": ["Protagonist name", "Love interest name"],
-      "arc_type": "Primary romance - ends together | Rival romance - ends in elimination but character completes arc",
-      "key_moments": [
-        {
-          "moment": "Name/label for this beat",
-          "what_happens": "What occurs",
-          "romantic_beat": {
-            "tension": "What creates wanting/not-having - the ache, the pull, what they desire but can't have yet",
-            "physical": "The sensual element - touch, proximity, gaze, breath, denial of touch, charged silence",
-            "intimacy_stage": "awareness | attraction | tension | touch | kiss | escalation | consummation"
-          },
-          "why_it_matters": "How it connects to wounds/theme",
-          "what_shifts": "What changes between them after this - both emotionally AND in terms of romantic possibility"
-        }
-      ],
-      "wound_integration": {
-        "protagonist": {
-          "wound_triggered_by": "What event/action activates their wound in THIS arc",
-          "lie_reinforced_by": "What makes them double down",
-          "lie_challenged_by": "What/who forces them to question it",
-          "transformation_moment": "The specific moment they choose differently"
-        },
-        "love_interest": {
-          "wound_triggered_by": "What event/action activates their wound",
-          "lie_reinforced_by": "What makes them double down",
-          "lie_challenged_by": "What/who forces them to question it",
-          "transformation_moment": "The specific moment they choose differently (even if they don't win)"
-        }
-      }
+      "order": 1,
+      "pov": "Character name - whose perspective we experience this through",
+      "moment": "Name/label for this beat",
+      "what_happens": "What occurs in this moment",
+      "arcs_in_play": ["Character A", "Character B"],
+      "romance_beat": "What romantic element is present - attraction, tension, touch, kiss, etc. Null if purely psychological." | null,
+      "intimacy_stage": "awareness | attraction | tension | touch | kiss | escalation | consummation" | null,
+      "psychological_beat": "What psychological shift occurs - wound triggered, lie reinforced, lie challenged, transformation. Null if purely romantic." | null,
+      "external_beat": "Which Phase 1 external_plot beat this moment occurs during or responds to. Null if not directly tied to an external beat." | null
     }
   ],
 
-  "rival_dynamics": [
-    {
-      "between": ["Love interest A name", "Love interest B name"],
-      "nature": "What their rivalry is about",
-      "key_moments": [
-        {
-          "moment": "Name/label",
-          "what_happens": "What occurs between them",
-          "why_it_matters": "How it affects the central romance",
-          "what_shifts": "What changes in their dynamic"
-        }
-      ]
+  "character_arcs": {
+    "Character Name": {
+      "wound_triggered": "Moment name where their wound is activated",
+      "lie_reinforced": "Moment name where their lie seems confirmed",
+      "lie_challenged": "Moment name where their lie is questioned",
+      "transformation": "Moment name where they choose differently"
     }
-  ],
+  },
 
   "dark_moment": {
     "what_happens": "The apparent end of the primary relationship",
     "why_it_feels_fatal": "Why this specifically feels insurmountable given their wounds",
-    "what_each_believes": "Protagonist's belief, primary love interest's belief",
-    "rival_positions": "Where rivals stand at this moment"
+    "what_each_believes": "Protagonist's belief, primary love interest's belief"
   },
 
   "resolution": {
     "what_changes": "What allows resolution to happen",
     "who_acts": "Who makes the move to repair/claim",
     "what_they_sacrifice": "What they risk or give up",
-    "rival_resolutions": "How each rival's arc completes",
+    "rival_resolutions": "How each rival's arc completes (if applicable)",
     "final_state": "Where everyone ends up"
-  },
-
-  "timeline": [
-    {
-      "order": 1,
-      "moment": "The moment name from key_moments",
-      "arc": "Which arc this belongs to (e.g. 'Protagonist + Primary' or 'Rival 1 vs Rival 2')"
-    }
-  ]
+  }
 }
 
-## Intimacy Stage Definitions
+## Timeline Construction
 
-Track where each moment falls on this progression:
-- **awareness**: First noticing - physical description, unexpected attraction, can't stop looking
-- **attraction**: Acknowledged pull - lingering looks, heightened awareness of their body, thinking about them
-- **tension**: Active wanting - proximity that charges the air, almost-touches, denial, interruptions
-- **touch**: First physical contact - accidental brush, deliberate hand-hold, dancing together
-- **kiss**: First kiss - the moment the barrier breaks
-- **escalation**: Deepening physical intimacy - making out, hands exploring, stopping before more
-- **consummation**: Sexual intimacy - the full physical union (only if sensuality setting warrants)
+Build ONE chronological timeline containing ALL moments from ALL arcs:
+- Primary romance moments
+- Rival romance moments (if multiple love interests)
+- Rival-vs-rival dynamics (if multiple love interests)
+- Dark moment
+- Resolution
 
-## Guidelines for Primary Romance (Protagonist + Primary Love Interest)
+Each moment gets a POV character. In a multi-POV story, distribute POV across characters so we experience key moments from different perspectives. Critical romantic moments should alternate between protagonist and love interest POV so we feel both sides.
 
-KEY MOMENTS: 5-6 moments typical
-- Full wound integration for both characters
-- Full romantic progression from awareness to resolution
-- Ends in HEA/HFN or tragic resolution per Phase 1
+## External Plot Integration
 
-REQUIRED INTIMACY BEATS FOR PRIMARY (calibrate to sensuality setting):
-1. First awareness/attraction (physical, not just strategic)
-2. Building tension (proximity, glances, accidental or charged touch)
-3. Near-miss or interrupted moment (they almost kiss/touch but can't)
-4. First kiss (when and why the barrier finally breaks)
-5. Deepening intimacy (calibrated to sensuality 1-10)
-6. Consummation (if sensuality >= 5 and fade_to_black is false, show it; otherwise skip or imply)
+Phase 1 provides an external_plot with world beats. Use these as the SPINE of the timeline:
 
-SENSUALITY CALIBRATION (from Phase 1 tone.sensuality):
-- 1-3: Focus on emotional intimacy, minimal physical description, kisses are the peak
-- 4-6: Moderate physical awareness, some sensual description, may include more but tastefully
-- 7-10: High physical tension throughout, explicit attraction, detailed sensual moments
+1. **Place character moments relative to external beats.** Each timeline moment should reference which external beat it occurs during (via external_beat field).
+2. **External beats create pressure.** Use them to force characters together, apart, or into decisions.
+3. **External escalation drives romantic escalation.** As the world heats up, so does the romance.
+4. **Align the romantic dark moment with the external climax.** The world crisis and the relationship crisis should peak together (see Phase 1 alignment_note).
+5. **External resolution enables or complicates romantic resolution.** The world settling creates space for the romance to resolve.
 
-FADE_TO_BLACK SETTING:
-- true: Consummation happens but scenes end at the bedroom door or with a tasteful transition
-- false: Consummation can be shown on page (detail level calibrated to sensuality)
+Not every moment needs an external_beat reference, but most should. The external plot is the wave the romance rides on.
 
-BURN RATE AFFECTS PACING:
-- Slow Burn: More moments before first kiss. Tension builds through denial, near-misses, interrupted moments. The anticipation IS the pleasure.
-- Fast Burn: Quick to physical intimacy. Conflict is about staying together, not getting together. Attraction is immediate and acted upon.
+## Mandatory Romance Beats (must appear in timeline)
 
-TROPES SHAPE ROMANTIC STRUCTURE:
-- Enemies to Lovers: Early attraction is unwanted, fought against. Physical awareness precedes emotional trust. The kiss often comes from anger or desperation.
-- Strangers to Lovers: Clean slate allows pure attraction. Physical awareness grows with emotional connection.
-- Friends to Lovers: Sudden awareness of familiar body in new way. The transition moment when they see each other differently.
-- Second Chance: Old physical memory + new tension. The question of whether the chemistry is still there.
-- Forbidden: Every touch is transgressive. The wrongness adds to the charge.
+These MUST appear as moments in the timeline for the primary romance:
 
-## Guidelines for Rival Romances (Protagonist + Each Rival)
+1. **First Awareness** - They notice each other. Something physical sparks. Not strategic or political - visceral.
+2. **Attraction Builds** - Glances, proximity, wanting without acting. Heightened awareness of their body.
+3. **Tension/Denial** - They want but can't or won't. Barriers present. The air charges between them.
+4. **First Kiss** - The barrier breaks. Point of no return.
+5. **Dark Moment** - Something tears them apart. All seems lost.
+6. **Resolution** - HEA, HFN, Bittersweet, or Tragic per Phase 1 ending.
 
-KEY MOMENTS: 3-4 moments each
-- Full wound integration - rivals have real psychology
-- GENUINE ROMANTIC CHARGE - not just thematic function
-- Ends in elimination BUT the rival completes their character arc
+## Conditional Romance Beats
 
-RIVALS MUST HAVE REAL ATTRACTION:
-- At least one moment of genuine physical/romantic tension
-- A moment where the reader can see why this COULD have been the choice
-- The protagonist must be genuinely tempted, not just strategically considering
+**Burn Rate: Slow Burn**
+- **The Almost** (REQUIRED): Near kiss or confession, interrupted. Must appear BEFORE first kiss.
+- Extended tension: Multiple tension/denial beats before first kiss.
+- Attraction builds over more moments. The anticipation IS the pleasure.
 
-WHY THEY LOSE:
-- Not because they lack chemistry
-- Because what they represent doesn't match what the protagonist needs
-- Or because their own wound prevents true connection
-- The chemistry can be real even if the relationship isn't right
+**Burn Rate: Fast Burn**
+- The Almost: Optional, may skip straight to kiss.
+- Fewer barriers between attraction and action.
+- Tension comes from staying together, not getting together.
 
-## Guidelines for Rival Dynamics (Love Interests With Each Other)
+**Sensuality 1-3:**
+- First Touch: Subtle, may be implied.
+- Consummation: Off-page or absent.
+- Physical progression minimal. Kisses are significant events.
 
-KEY MOMENTS: 2-3 moments per pairing
-- Scheming, alliances, confrontations
-- How they pressure and undermine each other
-- Only create if there are 2+ love interests
+**Sensuality 4-6:**
+- **First Touch**: Deliberate, meaningful moment in timeline.
+- **Deepening Intimacy**: Emotional and physical vulnerability.
+- Consummation: On page if fade_to_black is false. Implied if true.
 
-## Key Moment Counts (Typical)
+**Sensuality 7-10:**
+- **First Touch**: Charged, detailed.
+- Physical progression explicit throughout multiple moments.
+- **Consummation**: Explicit. Possibly multiple intimate scenes.
 
-Primary romance: 5-6 moments
-Each rival romance: 3-4 moments
-Each rival dynamic: 2-3 moments
+**Ending: HEA** - Resolution is unambiguous. Together, future clear.
+**Ending: HFN** - Resolution is hopeful but open.
+**Ending: Bittersweet** - Together but at cost, or apart but transformed.
+**Ending: Tragic** - Loss or permanent separation.
 
-## Dark Moment and Resolution
+## Psychological Arc Requirements
 
-DARK MOMENT:
-- Specifically triggers the protagonist's wound OR the primary love interest's wound
-- Must feel inevitable given who they are
-- Include where rivals stand at this moment
+For EVERY POV character, the timeline must include moments that serve:
+- **Wound triggered**: Something activates their core wound
+- **Lie reinforced**: A moment where their lie seems true, they double down
+- **Lie challenged**: A moment where their lie is questioned
+- **Transformation**: A moment where they choose differently
 
-RESOLUTION:
-- Resolve the primary romance according to Phase 1 ending type
-- Include final romantic/physical beat (reunion kiss, falling into bed, or bittersweet goodbye)
-- Also resolve each rival's arc - rivals exit with complete character arcs
+These OVERLAP with romance beats. "The Almost" might be where her lie screams to pull back. Same moment serves both arcs. Mark both in the output.
 
-## Timeline
+## Tropes Shape Romantic Structure
 
-After creating all romantic arcs and rival dynamics, place ALL key moments into one chronological timeline.
+- **Enemies to Lovers**: Early attraction is unwanted, fought against. The kiss often comes from anger or desperation.
+- **Strangers to Lovers**: Clean slate. Physical awareness grows with emotional connection.
+- **Friends to Lovers**: Sudden awareness of familiar body in new way.
+- **Second Chance**: Old physical memory + new tension.
+- **Forbidden**: Every touch is transgressive. The wrongness adds to the charge.
 
-The timeline shows when moments happen relative to each other across all arcs. Intimacy stages should generally progress (no kiss before first touch, etc., unless intentionally subverted).
+## Rival Guidelines (if multiple love interests)
 
-Output every moment exactly once in chronological order.
+- Each rival gets 3-4 moments in the timeline with genuine romantic charge
+- At least one moment of real physical/romantic tension with each rival
+- The reader must see why the protagonist might choose them
+- Rivals complete their psychological arc (wound triggered → transformation) even though they lose
+- Rivals lose because of fit, not because they lack chemistry
 
-DO NOT INCLUDE:
-- Subplots (Phase 4/5)
+## Character Arc Tracking
+
+After building the timeline, fill in character_arcs mapping for EVERY POV character. Each field references a moment name from the timeline. This is the verification that every character has a complete arc.
+
+## Moment Count Guidelines
+
+- Primary romance: 5-8 moments
+- Each rival romance: 3-4 moments
+- Rival dynamics: 2-3 moments per pairing
+- Total timeline: typically 10-25 moments depending on complexity
+
+## DO NOT INCLUDE
 - Supporting characters (Phase 4)
+- Subplots (Phase 4/5)
 - Specific locations (later phase)
 - Chapter assignments (later phase)
-- Scene-level detail (later phase)`
+- Scene-level prose (later phase)`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
   const primaryLI = phase2.love_interests?.find(li => li.role_in_story === 'Primary') || phase2.love_interests?.[0]
   const rivals = phase2.love_interests?.filter(li => li.role_in_story !== 'Primary') || []
-  const liCount = phase2.love_interests?.length || 1
 
-  // Build love interest summary
-  const liSummary = phase2.love_interests?.map(li =>
-    `- ${li.name} (${li.role_in_story}): wound="${li.wound?.event}", lie="${li.lie}"`
-  ).join('\n') || ''
-
-  // Calculate expected moments
-  const primaryMoments = '5-6'
-  const rivalMoments = rivals.length > 0 ? `${rivals.length} x 3-4 = ${rivals.length * 3}-${rivals.length * 4}` : '0'
-  const rivalDynamics = rivals.length > 0 ? `${rivals.length} x 2-3 = ${rivals.length * 2}-${rivals.length * 3}` : '0'
-
-  // Extract tone settings for explicit reference
+  // Extract tone settings
   const sensuality = phase1.tone?.sensuality ?? 5
   const fadeToBlack = phase1.tone?.fade_to_black ?? true
   const mood = phase1.tone?.mood || 'romantic'
   const burnRate = phase1.dynamic || 'slow_burn'
+
+  // Build POV characters list
+  const povCharacters = [phase2.protagonist?.name]
+  phase2.love_interests?.forEach(li => povCharacters.push(li.name))
+
+  // Build character summaries
+  const characterSummaries = [
+    `**Protagonist:** ${phase2.protagonist?.name}`,
+    `  Wound: "${phase2.protagonist?.wound?.event}"`,
+    `  Lie: "${phase2.protagonist?.lie}"`,
+    '',
+    ...phase2.love_interests?.map(li =>
+      `**${li.role_in_story} Love Interest:** ${li.name}\n  Wound: "${li.wound?.event}"\n  Lie: "${li.lie}"`
+    ) || []
+  ].join('\n')
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -1584,62 +1624,64 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Design complete romantic arcs for ALL love interests with BOTH psychological depth AND romantic/physical tension.
+Build ONE integrated timeline that weaves romance and psychology together for every POV character. Each moment gets a POV assignment.
+
+## POV Characters (from Phase 1/2)
+
+${povCharacters.map(name => `- ${name}`).join('\n')}
+
+Distribute POV across these characters. Critical romantic moments should alternate between protagonist and love interest POV so we feel both sides.
 
 ## TONE SETTINGS (from Phase 1) - CRITICAL FOR CALIBRATION
 
 **Sensuality: ${sensuality}/10** ${sensuality <= 3 ? '(Low - focus on emotional intimacy, kisses are the peak)' : sensuality <= 6 ? '(Moderate - include physical tension and some sensual moments)' : '(High - explicit attraction, detailed physical tension throughout)'}
-
 **Fade to Black: ${fadeToBlack}** ${fadeToBlack ? '(Consummation implied but not shown on page)' : '(Consummation can be shown on page if sensuality warrants)'}
-
 **Burn Rate: ${burnRate}** ${burnRate === 'slow_burn' ? '(Many moments before first kiss - tension through denial and near-misses)' : '(Quick to physical intimacy - conflict is staying together, not getting together)'}
-
 **Mood: ${mood}**
+
+## External Plot Beats (from Phase 1) - THE SPINE
+
+${phase1.external_plot ? `**Container:** ${phase1.external_plot.container_type} — ${phase1.external_plot.container_summary}
+
+${phase1.external_plot.beats?.map(b => `${b.order}. **${b.beat}**: ${b.what_happens} [${b.world_state}]`).join('\n')}
+
+**External climax:** Beat ${phase1.external_plot.climax_beat}
+**Alignment:** ${phase1.external_plot.alignment_note}
+
+Place character moments RELATIVE to these external beats. Each timeline moment should reference which external beat it occurs during (via external_beat field). The world creates pressure, deadlines, and forced proximity/separation. The romantic dark moment should align with the external climax.` : 'No external plot defined.'}
 
 ## Characters
 
-**Protagonist:** ${phase2.protagonist?.name}
-  Wound: "${phase2.protagonist?.wound?.event}"
-  Lie: "${phase2.protagonist?.lie}"
+${characterSummaries}
 
-**Love Interests:**
-${liSummary}
-
-## Required Output
+## Timeline Requirements
 
 **Primary romance (${phase2.protagonist?.name} + ${primaryLI?.name}):**
-- ${primaryMoments} key moments with BOTH romantic_beat AND psychological depth
-- REQUIRED INTIMACY PROGRESSION: awareness → attraction → tension → touch → kiss → ${sensuality >= 5 && !fadeToBlack ? 'escalation → consummation' : 'resolution'}
-- Full wound integration for both characters
+- 5-8 moments with BOTH romance_beat AND psychological_beat woven together
+- Intimacy progression: awareness → attraction → tension → touch → kiss → ${sensuality >= 5 && !fadeToBlack ? 'escalation → consummation' : 'resolution'}
 - Ends per Phase 1 ending type: ${phase1.ending?.type}
 
 ${rivals.length > 0 ? `**Rival romances:**
-${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 key moments with GENUINE romantic charge (at least one moment of real attraction/tension), full wound integration, ends in elimination BUT ${r.name} completes their arc`).join('\n')}
+${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 moments with genuine romantic charge. At least one moment of real physical/romantic tension. ${r.name} completes their psychological arc even though they lose.`).join('\n')}
 
 **Rival dynamics:**
-${rivals.length >= 1 ? `- Between love interests: 2-3 moments per pairing showing competition, scheming, confrontation` : ''}
+- 2-3 moments per pairing showing competition, confrontation, jealousy between love interests` : '**Single love interest** - no rival arcs or dynamics needed.'}
 
-**Expected moment counts:**
-- Primary: ${primaryMoments}
-- Rivals: ${rivalMoments}
-- Rival dynamics: ${rivalDynamics}` : '**Single love interest** - no rival arcs or dynamics needed.'}
+## Character Arc Tracking
+
+After building the timeline, fill in the character_arcs object mapping EVERY POV character to the timeline moments that serve their psychological arc:
+- wound_triggered → lie_reinforced → lie_challenged → transformation
+
+These moments OVERLAP with romance beats. Same moment can serve both arcs.
 
 ## CRITICAL REMINDERS
 
-1. **Every key_moment MUST include a romantic_beat object** with tension, physical, and intimacy_stage
-
-2. **This is ROMANCE, not just psychological drama.** Include:
-   - Stolen glances and physical awareness
-   - Charged silences and proximity
-   - Almost-touches and actual touches
-   - Near-miss/interrupted intimate moments
-   - First kiss (and why the barrier finally breaks)
-   ${sensuality >= 5 ? '- Physical escalation calibrated to sensuality ' + sensuality : ''}
-   ${sensuality >= 5 && !fadeToBlack ? '- Consummation scene (shown, not just implied)' : ''}
-
-3. **Rivals must have genuine romantic charge**, not just thematic function. At least one moment where the reader can see why the protagonist might choose them.
-
-4. **Sensuality ${sensuality} means:** ${sensuality <= 3 ? 'Focus on longing looks, breath catching, innocent touches. Kisses are significant events.' : sensuality <= 6 ? 'Include physical awareness, some sensual description, hands on skin, kisses that deepen.' : 'High physical tension throughout. Bodies, desire, heat. Explicit attraction and sensual detail.'}`
+1. **Every moment must have a POV character** - whose head are we in?
+2. **romance_beat and psychological_beat are woven together** - a moment can have both, or just one
+3. **This is ROMANCE** - include physical awareness, charged silences, almost-touches, the first kiss and why the barrier breaks
+${sensuality >= 5 ? `4. **Sensuality ${sensuality}** - include physical escalation calibrated to this level` : ''}
+${sensuality >= 5 && !fadeToBlack ? '5. **Consummation on page** - fade_to_black is false, show it' : ''}
+${rivals.length > 0 ? `${sensuality >= 5 && !fadeToBlack ? '6' : sensuality >= 5 ? '5' : '4'}. **Rivals have genuine charge** - reader must see why protagonist might choose them` : ''}`
 }
 
 async function executePhase3(concept, phase1, phase2) {
@@ -1656,66 +1698,55 @@ async function executePhase3(concept, phase1, phase2) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['arc_shape', 'romantic_arcs', 'dark_moment', 'resolution', 'timeline']
+  const requiredFields = ['arc_shape', 'timeline', 'character_arcs', 'dark_moment', 'resolution']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
     throw new Error(`Phase 3 missing required fields: ${missing.join(', ')}`)
   }
 
-  // Validate romantic_arcs structure
-  if (!Array.isArray(data.romantic_arcs) || data.romantic_arcs.length === 0) {
-    throw new Error('Phase 3 must include at least one romantic arc')
+  // Validate timeline structure
+  if (!Array.isArray(data.timeline) || data.timeline.length === 0) {
+    throw new Error('Phase 3 must include a non-empty timeline array')
   }
 
-  for (const arc of data.romantic_arcs) {
-    if (!arc.between || !arc.key_moments || !arc.wound_integration) {
-      throw new Error(`Romantic arc missing required fields (between, key_moments, wound_integration)`)
+  // Validate each timeline entry has required fields
+  for (const entry of data.timeline) {
+    if (!entry.order || !entry.pov || !entry.moment || !entry.what_happens) {
+      throw new Error(`Timeline entry missing required fields (order, pov, moment, what_happens)`)
     }
   }
 
-  // Validate timeline
-  if (!data.timeline || !Array.isArray(data.timeline)) {
-    throw new Error('Phase 3 missing timeline array')
+  // Validate character_arcs has at least protagonist
+  const arcCharacters = Object.keys(data.character_arcs || {})
+  if (arcCharacters.length === 0) {
+    throw new Error('Phase 3 character_arcs must include at least one character')
   }
 
-  // Check all moments are accounted for in timeline
-  const allMoments = [
-    ...(data.romantic_arcs?.flatMap(arc => arc.key_moments?.map(m => m.moment)) || []),
-    ...(data.rival_dynamics?.flatMap(dyn => dyn.key_moments?.map(m => m.moment)) || [])
-  ]
-  const timelineMoments = data.timeline.map(t => t.moment)
-  const missingFromTimeline = allMoments.filter(m => !timelineMoments.includes(m))
-  if (missingFromTimeline.length > 0) {
-    console.warn(`Timeline missing moments: ${missingFromTimeline.join(', ')}`)
+  // Check romance beats exist in timeline
+  const romanceBeats = data.timeline.filter(t => t.romance_beat)
+  const psychBeats = data.timeline.filter(t => t.psychological_beat)
+  if (romanceBeats.length === 0) {
+    console.warn('WARNING: No romance beats found in timeline')
+  }
+  if (psychBeats.length === 0) {
+    console.warn('WARNING: No psychological beats found in timeline')
   }
 
+  // Log summary
   console.log('Phase 3 complete.')
-  console.log(`  Romantic arcs: ${data.romantic_arcs?.length}`)
-  data.romantic_arcs?.forEach(arc => {
-    console.log(`    - ${arc.between.join(' + ')} (${arc.arc_type}):`)
-    arc.key_moments?.forEach((m, i) => {
-      console.log(`        ${i + 1}. ${m.moment}`)
-    })
-    const hasWoundIntegration = arc.wound_integration?.love_interest?.transformation_moment
-    console.log(`        Wound integration: ${hasWoundIntegration ? 'Yes' : 'MISSING'}`)
-  })
-  console.log(`  Rival dynamics: ${data.rival_dynamics?.length || 0}`)
-  data.rival_dynamics?.forEach(dyn => {
-    console.log(`    - ${dyn.between.join(' vs ')}:`)
-    dyn.key_moments?.forEach((m, i) => {
-      console.log(`        ${i + 1}. ${m.moment}`)
-    })
+  console.log(`  Timeline: ${data.timeline.length} moments`)
+  console.log(`  Romance beats: ${romanceBeats.length}`)
+  console.log(`  Psychological beats: ${psychBeats.length}`)
+  console.log(`  Character arcs tracked: ${arcCharacters.join(', ')}`)
+  data.timeline.forEach(t => {
+    const tags = []
+    if (t.romance_beat) tags.push(`R:${t.intimacy_stage || '?'}`)
+    if (t.psychological_beat) tags.push('P')
+    console.log(`    ${t.order}. [${t.pov}] ${t.moment} ${tags.length > 0 ? `(${tags.join(', ')})` : ''}`)
   })
   console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 60)}...`)
   console.log(`  Resolution: ${data.resolution?.final_state?.slice(0, 60)}...`)
-  console.log(`  Timeline: ${data.timeline?.length} moments in chronological order`)
-  data.timeline?.slice(0, 5).forEach(t => {
-    console.log(`    ${t.order}. ${t.moment} (${t.arc})`)
-  })
-  if (data.timeline?.length > 5) {
-    console.log(`    ... and ${data.timeline.length - 5} more`)
-  }
 
   return data
 }
@@ -1724,100 +1755,124 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a character architect creating the supporting cast for a romance novel.
+const PHASE_4_SYSTEM_PROMPT = `You are a story architect who creates supporting characters from story needs, not in a vacuum.
 
-## OUTPUT FORMAT (REQUIRED - FOLLOW EXACTLY)
+You will receive Phase 1 (concept/theme/setting), Phase 2 (POV character psychology), and Phase 3 (integrated POV timeline with all decisive moments).
 
-You MUST output this exact JSON structure:
+Your job: Look at the story situation and ask "Who else needs to exist?" Then create characters to fill those functions, with appropriate psychology based on their importance.
+
+## PROCESS (Follow this order)
+
+### Step 1: List the Interests
+
+Look at the situation from Phase 1 and the timeline from Phase 3. Ask:
+- Who benefits from the status quo?
+- Who is threatened by the protagonists' choices?
+- Who has history with the POV characters?
+- Who represents institutions or groups relevant to the setting?
+- Who has power over the POV characters?
+- Who is affected by the events of the story?
+
+List each interest as a force/pressure/stake - NOT as a character yet.
+
+### Step 2: Which Interests Need Faces?
+
+Some interests stay faceless (collective pressure, unnamed groups, societal norms).
+
+An interest needs a face if:
+- It makes decisions that affect the plot
+- It interacts directly with POV characters
+- It represents a thematic position that needs embodiment
+- Phase 3 timeline already implied someone exists (e.g. "family pressure" implies a family member)
+
+For each interest: Face or faceless?
+
+### Step 3: For Each Face - Personal Angle
+
+The interest gives them their stake. But what do they personally want beyond their function?
+
+Ask:
+- What do they want for themselves?
+- What history do they have with POV characters?
+- What makes their pursuit personal, not just functional?
+
+### Step 4: Assign Archetype
+
+What kind of person serves this interest with this personal angle? The archetype shapes how they pursue their want.
+
+### Step 5: Determine Psychology Level
+
+**Full psychology** (wound, lie, want, need, coping, arc, voice):
+- Characters who get POV scenes
+- Characters who transform
+- Characters whose arc carries thematic weight
+
+**Partial psychology** (want, stake, method, outcome):
+- Multiple appearances
+- Make plot-affecting choices
+- Represent an interest with a personal angle
+- No transformation required
+
+**Minimal** (name, role, function, appearance_context):
+- Single appearance
+- Pure function (messenger, obstacle, mirror)
+- No personal want beyond the scene
+
+### Step 6: Key Moments for Each Face
+
+Every character with full or partial psychology gets their own decisive moments.
+
+Ask:
+- What actions do they take to get what they want?
+- Where do they collide with POV characters?
+- What happens off-screen that affects the plot?
+- What is the outcome of their arc?
+
+These moments should:
+- Connect to the Phase 3 timeline (reference specific Phase 3 moments where possible)
+- Include on-screen moments (in POV character presence)
+- Include off-screen moments where relevant (with mechanism for how reader learns about them)
+- Have a clear outcome
+
+### Step 7: Merge Into Master Timeline
+
+Take Phase 3 timeline and weave in secondary character moments:
+- Add new moments where secondary arcs need them
+- Assign POV to each moment
+- Mark which arcs are in play
+- Maintain chronological order
+- Include ALL Phase 3 moments plus new secondary moments
+
+## OUTPUT FORMAT (JSON)
 
 {
-  "wound_sources": {
-    "protagonist": {
-      "name": "Protagonist name from Phase 2",
-      "wound": "Copy wound.event from Phase 2",
-      "created_by": {
-        "character": "Name of person who caused wound, or null",
-        "relationship": "Their relationship to protagonist",
-        "what_they_did": "How they caused the wound"
-      },
-      "reinforced_by": [
-        {
-          "character": "Name",
-          "relationship": "Their relationship",
-          "how_they_reinforce": "What they do that keeps the lie alive"
-        }
-      ],
-      "challenged_by": [
-        {
-          "character": "Name",
-          "relationship": "Their relationship",
-          "how_they_challenge": "What they do that questions the lie"
-        }
-      ]
-    },
-    "love_interest_1": {
-      "name": "First love interest name from Phase 2",
-      "wound": "Copy their wound.event from Phase 2",
-      "created_by": { ... },
-      "reinforced_by": [ ... ],
-      "challenged_by": [ ... ]
-    },
-    "love_interest_2": { ... },
-    "love_interest_3": { ... }
-  },
-
-  "essential_characters": {
-    "protagonist_parents": {
-      "mother": { "status": "alive | dead | unknown", "name": "if known" },
-      "father": { "status": "alive | dead | unknown", "name": "if known" }
-    },
-    "love_interest_parents": [
-      {
-        "love_interest": "Name",
-        "mother": { "status": "alive | dead | unknown", "name": "if known" },
-        "father": { "status": "alive | dead | unknown", "name": "if known" }
-      }
-    ],
-    "others": [
-      { "name": "Character name", "relationship": "How connected", "status": "alive | dead" }
-    ]
-  },
-
-  "thematic_approaches": [
+  "interests": [
     {
-      "position": "An answer to the theme question",
-      "type": "past_mirror | present_mirror | transcends | rejects",
-      "the_good": "Genuine benefit of this position",
-      "the_bad": "Genuine cost of this position",
-      "embodied_by": [
-        {
-          "character": "Name",
-          "relationship_to_protagonist": "How connected",
-          "how_they_embody_it": "Their specific version",
-          "outcome": "What happened to them",
-          "weight": "major | minor | referenced"
-        }
-      ]
+      "interest": "Description of the force/pressure/stake",
+      "has_face": true,
+      "why_face": "Why this needs a character (or null if faceless)"
     }
   ],
 
-  "supporting_cast": [
+  "stakeholder_characters": [
     {
       "name": "Full name",
-      "age": 0,
-      "role": "Their position in this world",
-      "connected_to": "Which main character(s)",
-      "functions": ["wound_source:protagonist", "past_mirror:position_name"],
-      "wound": "Their formative hurt",
-      "lie": "Their false belief",
-      "want": "What they pursue",
-      "need": "What they actually need",
+      "interest": "Which interest they represent",
+      "personal_want": "What they want for themselves",
+      "archetype": "Their archetype",
+      "psychology_level": "full | partial | minimal",
+      "connected_to": "Which POV character(s)",
+
+      // Full psychology only:
+      "wound": "Their formative hurt (full only)",
+      "lie": "Their false belief (full only)",
+      "want": "What they pursue (full only)",
+      "need": "What they actually need (full only)",
       "coping_mechanism": {
         "behaviour": "How they cope",
         "as_flaw": "How it hurts them",
         "as_virtue": "How it helps them"
       },
-      "thematic_stance": "Their answer to theme",
       "arc": {
         "starts": "Who they are at start",
         "ends": "Who they become"
@@ -1827,182 +1882,172 @@ You MUST output this exact JSON structure:
         "patterns": "Speech habits",
         "tells": "Emotional reveals"
       },
-      "weight": "major | minor | referenced"
+
+      // Partial psychology only:
+      "stake": "What they stand to gain/lose (partial only)",
+      "method": "How they pursue their want (partial only)",
+
+      // All levels:
+      "outcome": "How their arc resolves",
+
+      // Minimal only:
+      "function": "Their single story function (minimal only)",
+      "appearance_context": "When/where they appear (minimal only)"
+    }
+  ],
+
+  "character_moments": [
+    {
+      "character": "Character name",
+      "order": 1,
+      "moment": "Moment name",
+      "what_happens": "What occurs",
+      "on_screen": true,
+      "if_offscreen_how_surfaced": "How reader learns about it (null if on-screen)",
+      "connects_to_phase3_moment": "Name of Phase 3 moment this relates to (or null)"
+    }
+  ],
+
+  "master_timeline": [
+    {
+      "order": 1,
+      "pov": "Character name",
+      "moment": "Moment name",
+      "what_happens": "What occurs",
+      "arcs_in_play": ["Character A", "Character B"],
+      "romance_beat": "Romance element or null",
+      "intimacy_stage": "Stage or null",
+      "psychological_beat": "Psychological element or null",
+      "source": "phase3 | secondary"
+    }
+  ],
+
+  "arc_outcomes": [
+    {
+      "character": "Character name",
+      "outcome": "How their story resolves"
+    }
+  ],
+
+  "faceless_pressures": [
+    {
+      "interest": "The faceless force",
+      "how_manifests": "How it shows up in the story without a character"
     }
   ]
 }
 
-## YOUR TASK
+## CRITICAL RULES
 
-**Pass 1: Wound Sources**
-
-For the protagonist and EACH love interest from Phase 2:
-- Who CREATED their wound? (Name the person if applicable)
-- Who REINFORCES their lie? (People who keep them stuck)
-- Who CHALLENGES their lie? (People who push them to grow - besides the romantic leads)
-
-**Pass 1.5: Essential Characters**
-
-Before thematic mapping, identify characters who MUST exist:
-
-- Protagonist's mother and father (living or dead)
-- Each love interest's mother and father (living or dead)
-- Siblings mentioned in any character's backstory
-- Anyone named in wound sources who isn't yet in the cast
-
-For each: Are they alive (minor/major weight) or dead (referenced weight)?
-
-Dead characters still matter. Their choices and fates illuminate the theme.
-
-**Pass 2: Thematic Approaches**
-
-List all approaches to the theme question from Phase 1.
-
-WITHIN THE BINARY (positions that engage with the theme question directly):
-- Extreme of side A
-- Extreme of side B
-- Variations between the extremes
-- The balanced position (often what protagonists learn)
-- Cynical positions (both sides fail)
-
-TRANSCENDS THE BINARY (positions that reject the question entirely):
-
-These characters do not care about the theme question. They operate on DIFFERENT values:
-- Family loyalty - what serves the bloodline matters, not the question you're asking
-- Faith/religious duty - God's will matters, human concerns are secondary
-- Survival/pragmatism - grand questions are luxury, staying alive is what matters
-- Honor/legacy - what will history say? what would ancestors think?
-- Wealth/commerce - follow the money, everything else is sentiment
-
-A "transcends" character does NOT pick one side of the binary strongly. They dismiss the binary as the wrong question.
-
-REJECTS THE QUESTION:
-- Cynics who believe the question is naive
-- Hedonists who avoid choosing entirely
-
-FOR EACH POSITION:
-- Assign characters from Pass 1 and Pass 1.5 where they fit
-- Create new characters only if no existing character fits
-- Multiple characters CAN embody the same position with DIFFERENT OUTCOMES
-- Use all three weights: major (subplot), minor (present), referenced (dead/absent)
-
-MULTIPLE OUTCOMES PER POSITION:
-
-The same thematic stance can produce different results:
-- One character chose this path and found peace
-- Another chose it and found bitterness
-- Another is choosing it right now, outcome unknown
-- Another is dead, their outcome serves as warning or inspiration
-
-Do not create one-to-one mapping. Explore how the same belief leads to different fates.
-
-**Pass 3: Build Supporting Cast**
-
-Create full character entries for everyone identified above.
-- Major weight: Full detail, will have subplot
-- Minor weight: Lighter detail, appears in scenes
-- Referenced weight: Mentioned only, not present
-
-## GUIDELINES
-
-- Characters from love interests' worlds are essential (their families, retainers, rivals)
-- Wound source characters get full treatment - they shaped the main characters
-- Same character can serve multiple functions (consolidate where natural)
-- Check Phase 2 for existing thematic positions in love interests' lies - don't duplicate as new characters
-- Include "transcends" characters who operate on entirely different values than the theme question
+1. Every character must appear in the master_timeline. No orphans.
+2. Characters emerge from story needs (interests), not from abstract psychology.
+3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
+4. The master_timeline must contain ALL Phase 3 moments plus any new secondary moments.
+5. Every moment in master_timeline must have a POV assigned.
+6. Off-screen moments must have a clear mechanism for surfacing to the reader.
+7. Consolidate where natural - one character can serve multiple interests.
 
 ## DO NOT INCLUDE
 
-- Key moments (Phase 5)
-- Collision points (Phase 5)
-- Subplot architecture (Phase 5)
-- Timeline (Phase 5)
-
-Just people. Who they are. Why they exist. How they connect.`
+- "Wound challenger/reinforcer" labels
+- "Major/minor/referenced" weight categories (use psychology_level instead)
+- Full psychology for single-appearance characters
+- Characters without clear story function
+- Characters who never appear in timeline`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
-  // Build main character summary for wound mapping
-  const protagonistSummary = `**Protagonist: ${phase2.protagonist?.name}**
-  Wound event: "${phase2.protagonist?.wound?.event}"
-  Wound caused by: ${phase2.protagonist?.wound?.who_caused_it || 'circumstance'}
-  Lie: "${phase2.protagonist?.lie}"`
+  // Build POV character summaries
+  const povCharacters = [
+    `**${phase2.protagonist?.name} (Protagonist):** wound="${phase2.protagonist?.wound?.event}", lie="${phase2.protagonist?.lie}"`,
+    ...(phase2.love_interests?.map(li =>
+      `**${li.name} (${li.role_in_story} Love Interest):** wound="${li.wound?.event}", lie="${li.lie}"`
+    ) || [])
+  ].join('\n')
 
-  const loveInterestSummaries = phase2.love_interests?.map((li, i) =>
-    `**Love Interest ${i + 1}: ${li.name} (${li.role_in_story})**
-  Wound event: "${li.wound?.event}"
-  Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}
-  Lie: "${li.lie}"`
-  ).join('\n\n') || ''
+  // Build timeline summary for context
+  const timelineSummary = phase3.timeline?.map(t =>
+    `${t.order}. [${t.pov}] ${t.moment}: ${t.what_happens?.slice(0, 80)}...`
+  ).join('\n') || 'No timeline available'
 
-  // Build thematic positions from love interests (to avoid duplication)
-  const existingPositions = phase2.love_interests?.map(li =>
-    `- ${li.name}'s lie "${li.lie}" is already a thematic position`
-  ).join('\n') || ''
+  // Complexity guide
+  const fullCount = lengthPreset === 'novella' ? '1-3' : '2-4'
+  const partialCount = lengthPreset === 'novella' ? '2-4' : '3-6'
+  const minimalCount = lengthPreset === 'novella' ? '1-3' : '2-4'
 
   return `ORIGINAL CONCEPT: ${concept}
 
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (Characters):
+PHASE 2 OUTPUT (POV Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Romantic Arcs):
+PHASE 3 OUTPUT (Integrated Timeline):
 ${JSON.stringify(phase3, null, 2)}
 
 LENGTH PRESET: ${lengthPreset}
 
-## Your Task: Create the Supporting Cast
+## Your Task: Create Stakeholder Characters From Story Needs
 
+### POV Characters (already created - do NOT recreate)
+
+${povCharacters}
+
+### Phase 3 Timeline (the story so far)
+
+${timelineSummary}
+
+### Setting & Theme Context
+
+**Setting:** ${phase1.setting?.world || 'Not specified'}
 **Theme Question:** "${phase1.theme?.question}"
 **Theme Core:** ${phase1.theme?.core}
 
-### Pass 1: Wound-Driven Characters
+### Step 1: What Interests Exist?
 
-For each main character, identify who created, reinforces, and challenges their wound:
+Look at the setting, concept, and timeline. What forces, groups, and pressures exist in this story world? List them all - not characters, just stakes.
 
-${protagonistSummary}
-- Who created this wound?
-- Who reinforces this lie?
-- Who challenges this lie? (besides the love interests)
+### Step 2: Face or Faceless?
 
-${loveInterestSummaries}
-- For each: Who created their wound? Who reinforces? Who challenges?
+For each interest: does it need a character to embody it, or does it work as unnamed/collective pressure?
 
-### Pass 2: Theme-Driven Characters
+### Step 3-5: Build Characters
 
-**Existing thematic positions (from Phase 2 - DO NOT duplicate as new characters):**
-${existingPositions}
+For each face, determine:
+- Personal want (beyond their function)
+- Archetype
+- Psychology level (full/partial/minimal)
+- Full psychology details if warranted
 
-**Identify remaining thematic approaches:**
-- Extreme of side A of the theme question
-- Extreme of side B
-- Variations between
-- Transcends the binary (different values entirely)
-- Rejects the question
+### Step 6: Key Moments
 
-For each: Is it embodied by someone from Pass 1? Or need a new character?
+Every character with full or partial psychology needs decisive moments. Reference Phase 3 moments where they connect.
 
-### Complexity Guide for ${lengthPreset}:
-- Major characters (full subplot in Phase 5): ${lengthPreset === 'novella' ? '2-4' : '4-6'}
-- Minor characters (supporting): ${lengthPreset === 'novella' ? '2-3' : '3-5'}
-- Referenced characters (mentioned only): ${lengthPreset === 'novella' ? '1-2' : '2-4'}
+### Step 7: Master Timeline
 
-Remember: Love interests are NOT supporting cast - they're already created in Phase 2.
-Focus on characters from each love interest's world, not just the protagonist's.
+Merge Phase 3 timeline with new secondary moments. ALL ${phase3.timeline?.length || 0} Phase 3 moments must appear, plus any new moments for secondary arcs.
+
+### Complexity Guide for ${lengthPreset}
+
+- Full psychology characters: ${fullCount}
+- Partial psychology characters: ${partialCount}
+- Minimal characters: ${minimalCount}
+
+Remember: Love interests are NOT secondary characters - they're already in Phase 2.
 
 ## CRITICAL: OUTPUT STRUCTURE
 
-You MUST output JSON with these three top-level keys:
-1. "wound_sources" - mapping for protagonist and each love interest
-2. "thematic_approaches" - array of positions on the theme
-3. "supporting_cast" - array of character objects
-
-Do NOT use any other structure. Do NOT use "external_pressures", "subplots", or "forces".`
+Your output MUST be JSON with these top-level keys:
+1. "interests" - array of interests identified
+2. "stakeholder_characters" - array of character objects
+3. "character_moments" - array of key moments for each character
+4. "master_timeline" - complete integrated timeline (Phase 3 + new moments)
+5. "arc_outcomes" - array of character outcomes
+6. "faceless_pressures" - array of unnamed forces`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
-  console.log('Executing Phase 4: Supporting Cast...')
+  console.log('Executing Phase 4: Stakeholder Characters...')
 
   const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
   const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt)
@@ -2017,80 +2062,86 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   // Debug: show what we received
   console.log('Phase 4 received keys:', Object.keys(data))
 
-  // Validate required fields with helpful errors
-  if (!data.wound_sources) {
+  // Validate required fields
+  if (!data.interests || !Array.isArray(data.interests)) {
     console.error('Phase 4 output (first 500 chars):', JSON.stringify(data, null, 2).slice(0, 500))
-    throw new Error('Phase 4 missing wound_sources object. Received keys: ' + Object.keys(data).join(', '))
+    throw new Error('Phase 4 missing interests array. Received keys: ' + Object.keys(data).join(', '))
   }
-  if (!data.essential_characters) {
-    throw new Error('Phase 4 missing essential_characters object. Received keys: ' + Object.keys(data).join(', '))
+  if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters)) {
+    throw new Error('Phase 4 missing stakeholder_characters array. Received keys: ' + Object.keys(data).join(', '))
   }
-  if (!data.thematic_approaches || !Array.isArray(data.thematic_approaches)) {
-    throw new Error('Phase 4 missing thematic_approaches array. Received keys: ' + Object.keys(data).join(', '))
-  }
-  if (!data.supporting_cast || !Array.isArray(data.supporting_cast)) {
-    throw new Error('Phase 4 missing supporting_cast array. Received keys: ' + Object.keys(data).join(', '))
+  if (!data.master_timeline || !Array.isArray(data.master_timeline)) {
+    throw new Error('Phase 4 missing master_timeline array. Received keys: ' + Object.keys(data).join(', '))
   }
 
-  // Validate supporting cast has required fields
-  for (const char of data.supporting_cast) {
-    if (!char.name || !char.functions || !char.weight) {
-      throw new Error(`Supporting cast member missing required fields (name, functions, weight)`)
+  // Validate stakeholder characters have required fields
+  for (const char of data.stakeholder_characters) {
+    if (!char.name || !char.psychology_level) {
+      throw new Error(`Stakeholder character missing required fields (name, psychology_level): ${JSON.stringify(char).slice(0, 100)}`)
     }
   }
 
-  // Check for transcends characters
-  const transcendsPositions = data.thematic_approaches?.filter(p => p.type === 'transcends') || []
-  if (transcendsPositions.length === 0) {
-    console.warn('Phase 4 warning: No transcends positions found - all characters are within the theme binary')
+  // Validate master timeline entries
+  for (const entry of data.master_timeline) {
+    if (!entry.order || !entry.pov || !entry.moment) {
+      throw new Error(`Master timeline entry missing required fields (order, pov, moment)`)
+    }
   }
 
-  // Check for positions with multiple characters
-  const multipleOutcomes = data.thematic_approaches?.filter(p => p.embodied_by?.length > 1) || []
+  // Check no orphan characters
+  const timelineCharacters = new Set()
+  data.master_timeline.forEach(m => {
+    if (m.arcs_in_play) m.arcs_in_play.forEach(c => timelineCharacters.add(c))
+  })
+  const orphans = data.stakeholder_characters.filter(c =>
+    c.psychology_level !== 'minimal' && !timelineCharacters.has(c.name)
+  )
+  if (orphans.length > 0) {
+    console.warn(`Phase 4 WARNING: Orphan characters (not in timeline arcs_in_play): ${orphans.map(c => c.name).join(', ')}`)
+  }
 
-  // Check for referenced characters
-  const referencedChars = data.supporting_cast?.filter(c => c.weight === 'referenced') || []
+  // Count by psychology level
+  const fullChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
+  const partialChars = data.stakeholder_characters.filter(c => c.psychology_level === 'partial')
+  const minimalChars = data.stakeholder_characters.filter(c => c.psychology_level === 'minimal')
 
   // Console logging
   console.log('Phase 4 complete.')
-  console.log(`  Essential characters checked:`)
-  const ec = data.essential_characters
-  console.log(`    Protagonist parents: mother ${ec.protagonist_parents?.mother?.status || 'not specified'}, father ${ec.protagonist_parents?.father?.status || 'not specified'}`)
-  console.log(`    Love interest parents: ${ec.love_interest_parents?.length || 0} mapped`)
+  console.log(`  Interests identified: ${data.interests.length}`)
+  const faced = data.interests.filter(i => i.has_face).length
+  const faceless = data.interests.filter(i => !i.has_face).length
+  console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
 
-  console.log(`  Wound sources mapped for: ${Object.keys(data.wound_sources).length} characters`)
-  Object.entries(data.wound_sources).forEach(([key, ws]) => {
-    const createdBy = ws.created_by?.character || 'circumstance'
-    const reinforcerCount = ws.reinforced_by?.length || 0
-    const challengerCount = ws.challenged_by?.length || 0
-    console.log(`    - ${ws.name || key}:`)
-    console.log(`        Created by: ${createdBy}`)
-    console.log(`        Reinforced by: ${reinforcerCount} character(s)`)
-    console.log(`        Challenged by: ${challengerCount} character(s)`)
+  console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
+  console.log(`    Full psychology: ${fullChars.length}`)
+  fullChars.forEach(c => {
+    console.log(`      - ${c.name}: interest="${c.interest}", want="${c.personal_want}"`)
+  })
+  console.log(`    Partial psychology: ${partialChars.length}`)
+  partialChars.forEach(c => {
+    console.log(`      - ${c.name}: interest="${c.interest}"`)
+  })
+  console.log(`    Minimal: ${minimalChars.length}`)
+  minimalChars.forEach(c => {
+    console.log(`      - ${c.name}: ${c.function || c.interest}`)
   })
 
-  console.log(`  Thematic approaches: ${data.thematic_approaches?.length}`)
-  const byType = {}
-  data.thematic_approaches?.forEach(pos => {
-    byType[pos.type] = (byType[pos.type] || 0) + 1
-  })
-  console.log(`    By type: ${Object.entries(byType).map(([k,v]) => `${k}=${v}`).join(', ')}`)
-  data.thematic_approaches?.forEach(pos => {
-    const characterCount = pos.embodied_by?.length || 0
-    const weights = pos.embodied_by?.map(e => e.weight).join(', ') || 'none'
-    console.log(`    - "${pos.position.slice(0, 50)}${pos.position.length > 50 ? '...' : ''}" (${pos.type}): ${characterCount} character(s) [${weights}]`)
-  })
-  console.log(`  Positions with multiple characters: ${multipleOutcomes.length}`)
-  console.log(`  Referenced (dead/absent) characters: ${referencedChars.length}`)
+  console.log(`  Character moments: ${data.character_moments?.length || 0}`)
+  const onScreen = data.character_moments?.filter(m => m.on_screen).length || 0
+  const offScreen = data.character_moments?.filter(m => !m.on_screen).length || 0
+  console.log(`    On-screen: ${onScreen}, Off-screen: ${offScreen}`)
 
-  console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
-  const majors = data.supporting_cast?.filter(c => c.weight === 'major').length || 0
-  const minors = data.supporting_cast?.filter(c => c.weight === 'minor').length || 0
-  const refs = data.supporting_cast?.filter(c => c.weight === 'referenced').length || 0
-  console.log(`    Major: ${majors}, Minor: ${minors}, Referenced: ${refs}`)
-  data.supporting_cast?.filter(c => c.weight === 'major').forEach(c => {
-    console.log(`      - ${c.name} (${c.role}): ${c.functions?.join(', ')}`)
-  })
+  console.log(`  Master timeline: ${data.master_timeline.length} moments`)
+  const phase3Moments = data.master_timeline.filter(m => m.source === 'phase3').length
+  const secondaryMoments = data.master_timeline.filter(m => m.source === 'secondary').length
+  console.log(`    Phase 3 moments: ${phase3Moments}, Secondary moments: ${secondaryMoments}`)
+
+  console.log(`  Arc outcomes: ${data.arc_outcomes?.length || 0}`)
+  console.log(`  Faceless pressures: ${data.faceless_pressures?.length || 0}`)
+
+  if (orphans.length > 0) {
+    console.log(`  WARNING: ${orphans.length} orphan characters detected`)
+  }
 
   return data
 }
@@ -2121,13 +2172,13 @@ Given the current timeline and a character's details, determine which existing m
 ## GUIDELINES
 
 Consider the character's:
-- Functions (wound_source, past_mirror, external_pressure, etc.)
-- Relationships to main characters
+- Interest they represent and personal want
+- Relationships to POV characters
 - Physical proximity in the story world
 - Thematic relevance to each moment
 
 A character should be present when:
-- Their function would naturally activate
+- Their interest or personal want connects to the moment
 - They would logically be in that location
 - Their presence adds meaning to the moment
 - They need to witness something for their own arc
@@ -2204,7 +2255,7 @@ Given the complete timeline and full cast, identify any gaps or issues.
   "character_arc_status": [
     {
       "character": "Name",
-      "role": "protagonist | love_interest | supporting_major | supporting_minor",
+      "role": "protagonist | love_interest | stakeholder_full | stakeholder_partial",
       "appearances": number,
       "arc_complete": true | false,
       "arc_notes": "How their arc resolves, or what's missing"
@@ -2253,12 +2304,12 @@ function buildCastList(phase2, phase4) {
     })
   })
 
-  // Supporting cast
-  phase4.supporting_cast?.forEach(c => {
+  // Stakeholder characters
+  phase4.stakeholder_characters?.forEach(c => {
     cast.push({
       name: c.name,
-      role: `supporting_${c.weight}`,
-      brief: c.role
+      role: `stakeholder_${c.psychology_level}`,
+      brief: c.interest || c.personal_want || c.function
     })
   })
 
@@ -2269,35 +2320,19 @@ function buildCastList(phase2, phase4) {
 function initializeTimeline(phase3) {
   const timeline = []
 
-  // Add all moments from Phase 3 timeline
+  // New integrated structure: Phase 3 timeline entries already have full details
   phase3.timeline?.forEach((t, i) => {
-    // Find the full moment details from romantic_arcs or rival_dynamics
-    let momentDetails = null
-
-    for (const arc of (phase3.romantic_arcs || [])) {
-      const found = arc.key_moments?.find(m => m.moment === t.moment)
-      if (found) {
-        momentDetails = found
-        break
-      }
-    }
-
-    if (!momentDetails) {
-      for (const dyn of (phase3.rival_dynamics || [])) {
-        const found = dyn.key_moments?.find(m => m.moment === t.moment)
-        if (found) {
-          momentDetails = found
-          break
-        }
-      }
-    }
-
     timeline.push({
       order: i + 1,
       moment: t.moment,
-      source: t.arc,
+      pov: t.pov || null,
+      source: t.arcs_in_play?.join(' + ') || t.pov || 'main',
       type: 'main',
-      what_happens: momentDetails?.what_happens || '',
+      what_happens: t.what_happens || '',
+      romance_beat: t.romance_beat || null,
+      intimacy_stage: t.intimacy_stage || null,
+      psychological_beat: t.psychological_beat || null,
+      external_beat: t.external_beat || null,
       characters_present: [] // Will be filled as we process
     })
   })
@@ -2312,13 +2347,15 @@ async function processCharacterPresence(character, timeline, castList) {
   const userPrompt = `## CHARACTER TO PROCESS
 
 Name: ${character.name}
-Role: ${character.role}
-Functions: ${character.functions?.join(', ') || 'none specified'}
+Interest: ${character.interest || 'none specified'}
+Personal want: ${character.personal_want || 'none specified'}
+Archetype: ${character.archetype || 'none specified'}
 Connected to: ${character.connected_to || 'unspecified'}
-Wound: ${character.wound || 'none'}
+Psychology level: ${character.psychology_level}
+${character.psychology_level === 'full' ? `Wound: ${character.wound || 'none'}
 Lie: ${character.lie || 'none'}
-Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
-Thematic stance: ${character.thematic_stance || 'none'}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}` : `Stake: ${character.stake || 'none'}
+Method: ${character.method || 'none'}`}
 
 ## CURRENT TIMELINE
 
@@ -2350,14 +2387,16 @@ async function processCharacterSubplot(character, timeline, castList, presenceDa
   const userPrompt = `## CHARACTER TO PROCESS
 
 Name: ${character.name}
-Role: ${character.role}
-Functions: ${character.functions?.join(', ') || 'none specified'}
+Interest: ${character.interest || 'none specified'}
+Personal want: ${character.personal_want || 'none specified'}
+Archetype: ${character.archetype || 'none specified'}
 Connected to: ${character.connected_to || 'unspecified'}
-Wound: ${character.wound || 'none'}
+Psychology level: ${character.psychology_level}
+${character.psychology_level === 'full' ? `Wound: ${character.wound || 'none'}
 Lie: ${character.lie || 'none'}
-Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
-Thematic stance: ${character.thematic_stance || 'none'}
-Weight: ${character.weight}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}` : `Stake: ${character.stake || 'none'}
+Method: ${character.method || 'none'}`}
+Outcome: ${character.outcome || 'unspecified'}
 
 ## CURRENT APPEARANCES
 
@@ -2375,8 +2414,8 @@ ${timelineSummary}
 ${castList.map(c => `- ${c.name} (${c.role}): ${c.brief}`).join('\n')}
 
 Analyze if ${character.name} needs additional subplot moments for their arc to complete.
-If they have weight "minor", they likely don't need their own moments - just presence.
-If they have weight "major", they likely need 2-4 moments of their own.`
+If they have psychology_level "partial", they likely don't need their own moments - just presence.
+If they have psychology_level "full", they likely need 2-4 moments of their own.`
 
   const response = await callOpenAI(PHASE_5_SUBPLOT_PROMPT, userPrompt)
   const parsed = parseJSON(response)
@@ -2466,8 +2505,8 @@ Total expected: ${phase3.timeline?.length || 0}
 Protagonist: ${phase2.protagonist?.name}
 Love Interests: ${phase2.love_interests?.map(li => li.name).join(', ')}
 
-Supporting Cast:
-${phase4.supporting_cast?.map(c => `- ${c.name} (${c.weight}): ${c.functions?.join(', ')}`).join('\n')}
+Stakeholder Characters:
+${phase4.stakeholder_characters?.map(c => `- ${c.name} (${c.psychology_level}): ${c.interest}`).join('\n')}
 
 ## CHARACTER APPEARANCES IN TIMELINE
 
@@ -2499,7 +2538,7 @@ function buildCharacterArcs(timeline, phase2, phase4) {
   const allCharacters = [
     { name: phase2.protagonist?.name, role: 'protagonist' },
     ...(phase2.love_interests?.map(li => ({ name: li.name, role: 'love_interest' })) || []),
-    ...(phase4.supporting_cast?.map(c => ({ name: c.name, role: `supporting_${c.weight}` })) || [])
+    ...(phase4.stakeholder_characters?.map(c => ({ name: c.name, role: `stakeholder_${c.psychology_level}` })) || [])
   ]
 
   for (const char of allCharacters) {
@@ -2541,18 +2580,18 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   const castList = buildCastList(phase2, phase4)
   console.log(`  Full cast: ${castList.length} characters`)
 
-  // Get characters to process (major first, then minor)
-  const majorCast = phase4.supporting_cast?.filter(c => c.weight === 'major') || []
-  const minorCast = phase4.supporting_cast?.filter(c => c.weight === 'minor') || []
+  // Get characters to process (full psychology first, then partial)
+  const fullCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'full') || []
+  const partialCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'partial') || []
 
-  console.log(`  Processing ${majorCast.length} major + ${minorCast.length} minor characters...`)
+  console.log(`  Processing ${fullCast.length} full + ${partialCast.length} partial characters...`)
 
   // Store all presence data for arc tracking
   const allPresenceData = []
 
-  // Process major characters (need subplot moments)
-  for (const character of majorCast) {
-    console.log(`    Processing ${character.name} (major)...`)
+  // Process full psychology characters (need subplot moments)
+  for (const character of fullCast) {
+    console.log(`    Processing ${character.name} (full)...`)
 
     // Step A: Presence mapping
     const presenceData = await processCharacterPresence(character, timeline, castList)
@@ -2573,9 +2612,9 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
     }
   }
 
-  // Process minor characters (presence only, no new moments)
-  for (const character of minorCast) {
-    console.log(`    Processing ${character.name} (minor)...`)
+  // Process partial psychology characters (presence only, no new moments)
+  for (const character of partialCast) {
+    console.log(`    Processing ${character.name} (partial)...`)
 
     // Step A only: Presence mapping
     const presenceData = await processCharacterPresence(character, timeline, castList)
@@ -3192,7 +3231,9 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(1, 'complete', {
       subgenre: bible.coreFoundation.subgenre,
       origin: bible.coreFoundation.tropes?.origin,
-      theme: bible.coreFoundation.theme
+      theme: bible.coreFoundation.theme,
+      externalPlot: bible.coreFoundation.external_plot?.container_type,
+      externalBeats: bible.coreFoundation.external_plot?.beats?.length
     })
 
     // Phase 2: Characters
@@ -3215,9 +3256,9 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'starting')
     bible.subplots = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
     reportProgress(4, 'complete', {
-      woundSources: Object.keys(bible.subplots.wound_sources || {}).length,
-      thematicApproaches: bible.subplots.thematic_approaches?.length,
-      supportingCast: bible.subplots.supporting_cast?.length
+      interests: bible.subplots.interests?.length,
+      stakeholderCharacters: bible.subplots.stakeholder_characters?.length,
+      masterTimelineMoments: bible.subplots.master_timeline?.length
     })
 
     // Phase 5: Master Timeline

@@ -683,7 +683,7 @@ Third Person:
 - Multiple: Three or more perspectives
 - Omniscient: Narrator sees all
 
-Select the most appropriate for the story.
+DEFAULT: Use Multiple POV (Third Person, Multiple perspectives) unless the user concept explicitly requests a single POV or first person. Romance benefits from seeing both sides of the relationship. Only deviate if the concept specifically asks for single POV or first person narration.
 
 ENDING
 - HEA: Together permanently

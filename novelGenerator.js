@@ -1353,31 +1353,20 @@ async function executePhase2(concept, phase1) {
 // PHASE 3: CENTRAL PLOT
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to design complete romantic arcs for ALL love interests, with BOTH psychological depth AND romantic/physical tension.
+const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to produce an integrated story timeline where every moment carries POV assignment, and weaves romance beats with psychological beats.
 
 You will receive:
 - The original concept
-- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black)
-- Phase 2 output (protagonist, love_interests array, dynamics)
+- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black, POV structure)
+- Phase 2 output (protagonist, love_interests array with full psychology, dynamics)
 
-Your job is to create arcs where:
-1. Every love interest gets a full arc with key moments
-2. Each moment carries BOTH psychological meaning AND romantic charge
-3. Physical/romantic tension progresses through the story
-4. Rivals are not speedbumps - they have genuine attraction AND complete character arcs
+## CRITICAL PRINCIPLES
 
-## CRITICAL: Every Key Moment Has Two Dimensions
-
-**Psychological** (character growth):
-- How the moment connects to wounds and lies
-- What shifts in understanding or belief
-
-**Romantic** (attraction and tension):
-- The physical/sensual element - touch, proximity, denial, longing
-- Where this falls on the intimacy progression
-- What creates wanting and tension
-
-A moment without romantic charge is just drama. A moment without psychological depth is just chemistry. Romance needs BOTH.
+1. This is ROMANCE. Every moment must serve the romantic arc, the psychological arc, or both.
+2. Romance beats and psychological beats are woven together, not separate tracks.
+3. Every moment has a POV character assigned - whose head are we in?
+4. Physical/romantic tension progresses through the story alongside character growth.
+5. Rivals are not speedbumps - they have genuine attraction AND complete arcs.
 
 ## Output Format
 
@@ -1388,203 +1377,165 @@ A moment without romantic charge is just drama. A moment without psychological d
     "ending_type": "How Phase 1 ending shapes the third act"
   },
 
-  "romantic_arcs": [
+  "timeline": [
     {
-      "between": ["Protagonist name", "Love interest name"],
-      "arc_type": "Primary romance - ends together | Rival romance - ends in elimination but character completes arc",
-      "key_moments": [
-        {
-          "moment": "Name/label for this beat",
-          "what_happens": "What occurs",
-          "romantic_beat": {
-            "tension": "What creates wanting/not-having - the ache, the pull, what they desire but can't have yet",
-            "physical": "The sensual element - touch, proximity, gaze, breath, denial of touch, charged silence",
-            "intimacy_stage": "awareness | attraction | tension | touch | kiss | escalation | consummation"
-          },
-          "why_it_matters": "How it connects to wounds/theme",
-          "what_shifts": "What changes between them after this - both emotionally AND in terms of romantic possibility"
-        }
-      ],
-      "wound_integration": {
-        "protagonist": {
-          "wound_triggered_by": "What event/action activates their wound in THIS arc",
-          "lie_reinforced_by": "What makes them double down",
-          "lie_challenged_by": "What/who forces them to question it",
-          "transformation_moment": "The specific moment they choose differently"
-        },
-        "love_interest": {
-          "wound_triggered_by": "What event/action activates their wound",
-          "lie_reinforced_by": "What makes them double down",
-          "lie_challenged_by": "What/who forces them to question it",
-          "transformation_moment": "The specific moment they choose differently (even if they don't win)"
-        }
-      }
+      "order": 1,
+      "pov": "Character name - whose perspective we experience this through",
+      "moment": "Name/label for this beat",
+      "what_happens": "What occurs in this moment",
+      "arcs_in_play": ["Character A", "Character B"],
+      "romance_beat": "What romantic element is present - attraction, tension, touch, kiss, etc. Null if purely psychological." | null,
+      "intimacy_stage": "awareness | attraction | tension | touch | kiss | escalation | consummation" | null,
+      "psychological_beat": "What psychological shift occurs - wound triggered, lie reinforced, lie challenged, transformation. Null if purely romantic." | null
     }
   ],
 
-  "rival_dynamics": [
-    {
-      "between": ["Love interest A name", "Love interest B name"],
-      "nature": "What their rivalry is about",
-      "key_moments": [
-        {
-          "moment": "Name/label",
-          "what_happens": "What occurs between them",
-          "why_it_matters": "How it affects the central romance",
-          "what_shifts": "What changes in their dynamic"
-        }
-      ]
+  "character_arcs": {
+    "Character Name": {
+      "wound_triggered": "Moment name where their wound is activated",
+      "lie_reinforced": "Moment name where their lie seems confirmed",
+      "lie_challenged": "Moment name where their lie is questioned",
+      "transformation": "Moment name where they choose differently"
     }
-  ],
+  },
 
   "dark_moment": {
     "what_happens": "The apparent end of the primary relationship",
     "why_it_feels_fatal": "Why this specifically feels insurmountable given their wounds",
-    "what_each_believes": "Protagonist's belief, primary love interest's belief",
-    "rival_positions": "Where rivals stand at this moment"
+    "what_each_believes": "Protagonist's belief, primary love interest's belief"
   },
 
   "resolution": {
     "what_changes": "What allows resolution to happen",
     "who_acts": "Who makes the move to repair/claim",
     "what_they_sacrifice": "What they risk or give up",
-    "rival_resolutions": "How each rival's arc completes",
+    "rival_resolutions": "How each rival's arc completes (if applicable)",
     "final_state": "Where everyone ends up"
-  },
-
-  "timeline": [
-    {
-      "order": 1,
-      "moment": "The moment name from key_moments",
-      "arc": "Which arc this belongs to (e.g. 'Protagonist + Primary' or 'Rival 1 vs Rival 2')"
-    }
-  ]
+  }
 }
 
-## Intimacy Stage Definitions
+## Timeline Construction
 
-Track where each moment falls on this progression:
-- **awareness**: First noticing - physical description, unexpected attraction, can't stop looking
-- **attraction**: Acknowledged pull - lingering looks, heightened awareness of their body, thinking about them
-- **tension**: Active wanting - proximity that charges the air, almost-touches, denial, interruptions
-- **touch**: First physical contact - accidental brush, deliberate hand-hold, dancing together
-- **kiss**: First kiss - the moment the barrier breaks
-- **escalation**: Deepening physical intimacy - making out, hands exploring, stopping before more
-- **consummation**: Sexual intimacy - the full physical union (only if sensuality setting warrants)
+Build ONE chronological timeline containing ALL moments from ALL arcs:
+- Primary romance moments
+- Rival romance moments (if multiple love interests)
+- Rival-vs-rival dynamics (if multiple love interests)
+- Dark moment
+- Resolution
 
-## Guidelines for Primary Romance (Protagonist + Primary Love Interest)
+Each moment gets a POV character. In a multi-POV story, distribute POV across characters so we experience key moments from different perspectives. Critical romantic moments should alternate between protagonist and love interest POV so we feel both sides.
 
-KEY MOMENTS: 5-6 moments typical
-- Full wound integration for both characters
-- Full romantic progression from awareness to resolution
-- Ends in HEA/HFN or tragic resolution per Phase 1
+## Mandatory Romance Beats (must appear in timeline)
 
-REQUIRED INTIMACY BEATS FOR PRIMARY (calibrate to sensuality setting):
-1. First awareness/attraction (physical, not just strategic)
-2. Building tension (proximity, glances, accidental or charged touch)
-3. Near-miss or interrupted moment (they almost kiss/touch but can't)
-4. First kiss (when and why the barrier finally breaks)
-5. Deepening intimacy (calibrated to sensuality 1-10)
-6. Consummation (if sensuality >= 5 and fade_to_black is false, show it; otherwise skip or imply)
+These MUST appear as moments in the timeline for the primary romance:
 
-SENSUALITY CALIBRATION (from Phase 1 tone.sensuality):
-- 1-3: Focus on emotional intimacy, minimal physical description, kisses are the peak
-- 4-6: Moderate physical awareness, some sensual description, may include more but tastefully
-- 7-10: High physical tension throughout, explicit attraction, detailed sensual moments
+1. **First Awareness** - They notice each other. Something physical sparks. Not strategic or political - visceral.
+2. **Attraction Builds** - Glances, proximity, wanting without acting. Heightened awareness of their body.
+3. **Tension/Denial** - They want but can't or won't. Barriers present. The air charges between them.
+4. **First Kiss** - The barrier breaks. Point of no return.
+5. **Dark Moment** - Something tears them apart. All seems lost.
+6. **Resolution** - HEA, HFN, Bittersweet, or Tragic per Phase 1 ending.
 
-FADE_TO_BLACK SETTING:
-- true: Consummation happens but scenes end at the bedroom door or with a tasteful transition
-- false: Consummation can be shown on page (detail level calibrated to sensuality)
+## Conditional Romance Beats
 
-BURN RATE AFFECTS PACING:
-- Slow Burn: More moments before first kiss. Tension builds through denial, near-misses, interrupted moments. The anticipation IS the pleasure.
-- Fast Burn: Quick to physical intimacy. Conflict is about staying together, not getting together. Attraction is immediate and acted upon.
+**Burn Rate: Slow Burn**
+- **The Almost** (REQUIRED): Near kiss or confession, interrupted. Must appear BEFORE first kiss.
+- Extended tension: Multiple tension/denial beats before first kiss.
+- Attraction builds over more moments. The anticipation IS the pleasure.
 
-TROPES SHAPE ROMANTIC STRUCTURE:
-- Enemies to Lovers: Early attraction is unwanted, fought against. Physical awareness precedes emotional trust. The kiss often comes from anger or desperation.
-- Strangers to Lovers: Clean slate allows pure attraction. Physical awareness grows with emotional connection.
-- Friends to Lovers: Sudden awareness of familiar body in new way. The transition moment when they see each other differently.
-- Second Chance: Old physical memory + new tension. The question of whether the chemistry is still there.
-- Forbidden: Every touch is transgressive. The wrongness adds to the charge.
+**Burn Rate: Fast Burn**
+- The Almost: Optional, may skip straight to kiss.
+- Fewer barriers between attraction and action.
+- Tension comes from staying together, not getting together.
 
-## Guidelines for Rival Romances (Protagonist + Each Rival)
+**Sensuality 1-3:**
+- First Touch: Subtle, may be implied.
+- Consummation: Off-page or absent.
+- Physical progression minimal. Kisses are significant events.
 
-KEY MOMENTS: 3-4 moments each
-- Full wound integration - rivals have real psychology
-- GENUINE ROMANTIC CHARGE - not just thematic function
-- Ends in elimination BUT the rival completes their character arc
+**Sensuality 4-6:**
+- **First Touch**: Deliberate, meaningful moment in timeline.
+- **Deepening Intimacy**: Emotional and physical vulnerability.
+- Consummation: On page if fade_to_black is false. Implied if true.
 
-RIVALS MUST HAVE REAL ATTRACTION:
-- At least one moment of genuine physical/romantic tension
-- A moment where the reader can see why this COULD have been the choice
-- The protagonist must be genuinely tempted, not just strategically considering
+**Sensuality 7-10:**
+- **First Touch**: Charged, detailed.
+- Physical progression explicit throughout multiple moments.
+- **Consummation**: Explicit. Possibly multiple intimate scenes.
 
-WHY THEY LOSE:
-- Not because they lack chemistry
-- Because what they represent doesn't match what the protagonist needs
-- Or because their own wound prevents true connection
-- The chemistry can be real even if the relationship isn't right
+**Ending: HEA** - Resolution is unambiguous. Together, future clear.
+**Ending: HFN** - Resolution is hopeful but open.
+**Ending: Bittersweet** - Together but at cost, or apart but transformed.
+**Ending: Tragic** - Loss or permanent separation.
 
-## Guidelines for Rival Dynamics (Love Interests With Each Other)
+## Psychological Arc Requirements
 
-KEY MOMENTS: 2-3 moments per pairing
-- Scheming, alliances, confrontations
-- How they pressure and undermine each other
-- Only create if there are 2+ love interests
+For EVERY POV character, the timeline must include moments that serve:
+- **Wound triggered**: Something activates their core wound
+- **Lie reinforced**: A moment where their lie seems true, they double down
+- **Lie challenged**: A moment where their lie is questioned
+- **Transformation**: A moment where they choose differently
 
-## Key Moment Counts (Typical)
+These OVERLAP with romance beats. "The Almost" might be where her lie screams to pull back. Same moment serves both arcs. Mark both in the output.
 
-Primary romance: 5-6 moments
-Each rival romance: 3-4 moments
-Each rival dynamic: 2-3 moments
+## Tropes Shape Romantic Structure
 
-## Dark Moment and Resolution
+- **Enemies to Lovers**: Early attraction is unwanted, fought against. The kiss often comes from anger or desperation.
+- **Strangers to Lovers**: Clean slate. Physical awareness grows with emotional connection.
+- **Friends to Lovers**: Sudden awareness of familiar body in new way.
+- **Second Chance**: Old physical memory + new tension.
+- **Forbidden**: Every touch is transgressive. The wrongness adds to the charge.
 
-DARK MOMENT:
-- Specifically triggers the protagonist's wound OR the primary love interest's wound
-- Must feel inevitable given who they are
-- Include where rivals stand at this moment
+## Rival Guidelines (if multiple love interests)
 
-RESOLUTION:
-- Resolve the primary romance according to Phase 1 ending type
-- Include final romantic/physical beat (reunion kiss, falling into bed, or bittersweet goodbye)
-- Also resolve each rival's arc - rivals exit with complete character arcs
+- Each rival gets 3-4 moments in the timeline with genuine romantic charge
+- At least one moment of real physical/romantic tension with each rival
+- The reader must see why the protagonist might choose them
+- Rivals complete their psychological arc (wound triggered → transformation) even though they lose
+- Rivals lose because of fit, not because they lack chemistry
 
-## Timeline
+## Character Arc Tracking
 
-After creating all romantic arcs and rival dynamics, place ALL key moments into one chronological timeline.
+After building the timeline, fill in character_arcs mapping for EVERY POV character. Each field references a moment name from the timeline. This is the verification that every character has a complete arc.
 
-The timeline shows when moments happen relative to each other across all arcs. Intimacy stages should generally progress (no kiss before first touch, etc., unless intentionally subverted).
+## Moment Count Guidelines
 
-Output every moment exactly once in chronological order.
+- Primary romance: 5-8 moments
+- Each rival romance: 3-4 moments
+- Rival dynamics: 2-3 moments per pairing
+- Total timeline: typically 10-25 moments depending on complexity
 
-DO NOT INCLUDE:
-- Subplots (Phase 4/5)
+## DO NOT INCLUDE
 - Supporting characters (Phase 4)
+- Subplots (Phase 4/5)
 - Specific locations (later phase)
 - Chapter assignments (later phase)
-- Scene-level detail (later phase)`
+- Scene-level prose (later phase)`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
   const primaryLI = phase2.love_interests?.find(li => li.role_in_story === 'Primary') || phase2.love_interests?.[0]
   const rivals = phase2.love_interests?.filter(li => li.role_in_story !== 'Primary') || []
-  const liCount = phase2.love_interests?.length || 1
 
-  // Build love interest summary
-  const liSummary = phase2.love_interests?.map(li =>
-    `- ${li.name} (${li.role_in_story}): wound="${li.wound?.event}", lie="${li.lie}"`
-  ).join('\n') || ''
-
-  // Calculate expected moments
-  const primaryMoments = '5-6'
-  const rivalMoments = rivals.length > 0 ? `${rivals.length} x 3-4 = ${rivals.length * 3}-${rivals.length * 4}` : '0'
-  const rivalDynamics = rivals.length > 0 ? `${rivals.length} x 2-3 = ${rivals.length * 2}-${rivals.length * 3}` : '0'
-
-  // Extract tone settings for explicit reference
+  // Extract tone settings
   const sensuality = phase1.tone?.sensuality ?? 5
   const fadeToBlack = phase1.tone?.fade_to_black ?? true
   const mood = phase1.tone?.mood || 'romantic'
   const burnRate = phase1.dynamic || 'slow_burn'
+
+  // Build POV characters list
+  const povCharacters = [phase2.protagonist?.name]
+  phase2.love_interests?.forEach(li => povCharacters.push(li.name))
+
+  // Build character summaries
+  const characterSummaries = [
+    `**Protagonist:** ${phase2.protagonist?.name}`,
+    `  Wound: "${phase2.protagonist?.wound?.event}"`,
+    `  Lie: "${phase2.protagonist?.lie}"`,
+    '',
+    ...phase2.love_interests?.map(li =>
+      `**${li.role_in_story} Love Interest:** ${li.name}\n  Wound: "${li.wound?.event}"\n  Lie: "${li.lie}"`
+    ) || []
+  ].join('\n')
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -1596,62 +1547,53 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Design complete romantic arcs for ALL love interests with BOTH psychological depth AND romantic/physical tension.
+Build ONE integrated timeline that weaves romance and psychology together for every POV character. Each moment gets a POV assignment.
+
+## POV Characters (from Phase 1/2)
+
+${povCharacters.map(name => `- ${name}`).join('\n')}
+
+Distribute POV across these characters. Critical romantic moments should alternate between protagonist and love interest POV so we feel both sides.
 
 ## TONE SETTINGS (from Phase 1) - CRITICAL FOR CALIBRATION
 
 **Sensuality: ${sensuality}/10** ${sensuality <= 3 ? '(Low - focus on emotional intimacy, kisses are the peak)' : sensuality <= 6 ? '(Moderate - include physical tension and some sensual moments)' : '(High - explicit attraction, detailed physical tension throughout)'}
-
 **Fade to Black: ${fadeToBlack}** ${fadeToBlack ? '(Consummation implied but not shown on page)' : '(Consummation can be shown on page if sensuality warrants)'}
-
 **Burn Rate: ${burnRate}** ${burnRate === 'slow_burn' ? '(Many moments before first kiss - tension through denial and near-misses)' : '(Quick to physical intimacy - conflict is staying together, not getting together)'}
-
 **Mood: ${mood}**
 
 ## Characters
 
-**Protagonist:** ${phase2.protagonist?.name}
-  Wound: "${phase2.protagonist?.wound?.event}"
-  Lie: "${phase2.protagonist?.lie}"
+${characterSummaries}
 
-**Love Interests:**
-${liSummary}
-
-## Required Output
+## Timeline Requirements
 
 **Primary romance (${phase2.protagonist?.name} + ${primaryLI?.name}):**
-- ${primaryMoments} key moments with BOTH romantic_beat AND psychological depth
-- REQUIRED INTIMACY PROGRESSION: awareness → attraction → tension → touch → kiss → ${sensuality >= 5 && !fadeToBlack ? 'escalation → consummation' : 'resolution'}
-- Full wound integration for both characters
+- 5-8 moments with BOTH romance_beat AND psychological_beat woven together
+- Intimacy progression: awareness → attraction → tension → touch → kiss → ${sensuality >= 5 && !fadeToBlack ? 'escalation → consummation' : 'resolution'}
 - Ends per Phase 1 ending type: ${phase1.ending?.type}
 
 ${rivals.length > 0 ? `**Rival romances:**
-${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 key moments with GENUINE romantic charge (at least one moment of real attraction/tension), full wound integration, ends in elimination BUT ${r.name} completes their arc`).join('\n')}
+${rivals.map(r => `- ${phase2.protagonist?.name} + ${r.name}: 3-4 moments with genuine romantic charge. At least one moment of real physical/romantic tension. ${r.name} completes their psychological arc even though they lose.`).join('\n')}
 
 **Rival dynamics:**
-${rivals.length >= 1 ? `- Between love interests: 2-3 moments per pairing showing competition, scheming, confrontation` : ''}
+- 2-3 moments per pairing showing competition, confrontation, jealousy between love interests` : '**Single love interest** - no rival arcs or dynamics needed.'}
 
-**Expected moment counts:**
-- Primary: ${primaryMoments}
-- Rivals: ${rivalMoments}
-- Rival dynamics: ${rivalDynamics}` : '**Single love interest** - no rival arcs or dynamics needed.'}
+## Character Arc Tracking
+
+After building the timeline, fill in the character_arcs object mapping EVERY POV character to the timeline moments that serve their psychological arc:
+- wound_triggered → lie_reinforced → lie_challenged → transformation
+
+These moments OVERLAP with romance beats. Same moment can serve both arcs.
 
 ## CRITICAL REMINDERS
 
-1. **Every key_moment MUST include a romantic_beat object** with tension, physical, and intimacy_stage
-
-2. **This is ROMANCE, not just psychological drama.** Include:
-   - Stolen glances and physical awareness
-   - Charged silences and proximity
-   - Almost-touches and actual touches
-   - Near-miss/interrupted intimate moments
-   - First kiss (and why the barrier finally breaks)
-   ${sensuality >= 5 ? '- Physical escalation calibrated to sensuality ' + sensuality : ''}
-   ${sensuality >= 5 && !fadeToBlack ? '- Consummation scene (shown, not just implied)' : ''}
-
-3. **Rivals must have genuine romantic charge**, not just thematic function. At least one moment where the reader can see why the protagonist might choose them.
-
-4. **Sensuality ${sensuality} means:** ${sensuality <= 3 ? 'Focus on longing looks, breath catching, innocent touches. Kisses are significant events.' : sensuality <= 6 ? 'Include physical awareness, some sensual description, hands on skin, kisses that deepen.' : 'High physical tension throughout. Bodies, desire, heat. Explicit attraction and sensual detail.'}`
+1. **Every moment must have a POV character** - whose head are we in?
+2. **romance_beat and psychological_beat are woven together** - a moment can have both, or just one
+3. **This is ROMANCE** - include physical awareness, charged silences, almost-touches, the first kiss and why the barrier breaks
+${sensuality >= 5 ? `4. **Sensuality ${sensuality}** - include physical escalation calibrated to this level` : ''}
+${sensuality >= 5 && !fadeToBlack ? '5. **Consummation on page** - fade_to_black is false, show it' : ''}
+${rivals.length > 0 ? `${sensuality >= 5 && !fadeToBlack ? '6' : sensuality >= 5 ? '5' : '4'}. **Rivals have genuine charge** - reader must see why protagonist might choose them` : ''}`
 }
 
 async function executePhase3(concept, phase1, phase2) {
@@ -1668,66 +1610,55 @@ async function executePhase3(concept, phase1, phase2) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['arc_shape', 'romantic_arcs', 'dark_moment', 'resolution', 'timeline']
+  const requiredFields = ['arc_shape', 'timeline', 'character_arcs', 'dark_moment', 'resolution']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
     throw new Error(`Phase 3 missing required fields: ${missing.join(', ')}`)
   }
 
-  // Validate romantic_arcs structure
-  if (!Array.isArray(data.romantic_arcs) || data.romantic_arcs.length === 0) {
-    throw new Error('Phase 3 must include at least one romantic arc')
+  // Validate timeline structure
+  if (!Array.isArray(data.timeline) || data.timeline.length === 0) {
+    throw new Error('Phase 3 must include a non-empty timeline array')
   }
 
-  for (const arc of data.romantic_arcs) {
-    if (!arc.between || !arc.key_moments || !arc.wound_integration) {
-      throw new Error(`Romantic arc missing required fields (between, key_moments, wound_integration)`)
+  // Validate each timeline entry has required fields
+  for (const entry of data.timeline) {
+    if (!entry.order || !entry.pov || !entry.moment || !entry.what_happens) {
+      throw new Error(`Timeline entry missing required fields (order, pov, moment, what_happens)`)
     }
   }
 
-  // Validate timeline
-  if (!data.timeline || !Array.isArray(data.timeline)) {
-    throw new Error('Phase 3 missing timeline array')
+  // Validate character_arcs has at least protagonist
+  const arcCharacters = Object.keys(data.character_arcs || {})
+  if (arcCharacters.length === 0) {
+    throw new Error('Phase 3 character_arcs must include at least one character')
   }
 
-  // Check all moments are accounted for in timeline
-  const allMoments = [
-    ...(data.romantic_arcs?.flatMap(arc => arc.key_moments?.map(m => m.moment)) || []),
-    ...(data.rival_dynamics?.flatMap(dyn => dyn.key_moments?.map(m => m.moment)) || [])
-  ]
-  const timelineMoments = data.timeline.map(t => t.moment)
-  const missingFromTimeline = allMoments.filter(m => !timelineMoments.includes(m))
-  if (missingFromTimeline.length > 0) {
-    console.warn(`Timeline missing moments: ${missingFromTimeline.join(', ')}`)
+  // Check romance beats exist in timeline
+  const romanceBeats = data.timeline.filter(t => t.romance_beat)
+  const psychBeats = data.timeline.filter(t => t.psychological_beat)
+  if (romanceBeats.length === 0) {
+    console.warn('WARNING: No romance beats found in timeline')
+  }
+  if (psychBeats.length === 0) {
+    console.warn('WARNING: No psychological beats found in timeline')
   }
 
+  // Log summary
   console.log('Phase 3 complete.')
-  console.log(`  Romantic arcs: ${data.romantic_arcs?.length}`)
-  data.romantic_arcs?.forEach(arc => {
-    console.log(`    - ${arc.between.join(' + ')} (${arc.arc_type}):`)
-    arc.key_moments?.forEach((m, i) => {
-      console.log(`        ${i + 1}. ${m.moment}`)
-    })
-    const hasWoundIntegration = arc.wound_integration?.love_interest?.transformation_moment
-    console.log(`        Wound integration: ${hasWoundIntegration ? 'Yes' : 'MISSING'}`)
-  })
-  console.log(`  Rival dynamics: ${data.rival_dynamics?.length || 0}`)
-  data.rival_dynamics?.forEach(dyn => {
-    console.log(`    - ${dyn.between.join(' vs ')}:`)
-    dyn.key_moments?.forEach((m, i) => {
-      console.log(`        ${i + 1}. ${m.moment}`)
-    })
+  console.log(`  Timeline: ${data.timeline.length} moments`)
+  console.log(`  Romance beats: ${romanceBeats.length}`)
+  console.log(`  Psychological beats: ${psychBeats.length}`)
+  console.log(`  Character arcs tracked: ${arcCharacters.join(', ')}`)
+  data.timeline.forEach(t => {
+    const tags = []
+    if (t.romance_beat) tags.push(`R:${t.intimacy_stage || '?'}`)
+    if (t.psychological_beat) tags.push('P')
+    console.log(`    ${t.order}. [${t.pov}] ${t.moment} ${tags.length > 0 ? `(${tags.join(', ')})` : ''}`)
   })
   console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 60)}...`)
   console.log(`  Resolution: ${data.resolution?.final_state?.slice(0, 60)}...`)
-  console.log(`  Timeline: ${data.timeline?.length} moments in chronological order`)
-  data.timeline?.slice(0, 5).forEach(t => {
-    console.log(`    ${t.order}. ${t.moment} (${t.arc})`)
-  })
-  if (data.timeline?.length > 5) {
-    console.log(`    ... and ${data.timeline.length - 5} more`)
-  }
 
   return data
 }
@@ -2281,35 +2212,18 @@ function buildCastList(phase2, phase4) {
 function initializeTimeline(phase3) {
   const timeline = []
 
-  // Add all moments from Phase 3 timeline
+  // New integrated structure: Phase 3 timeline entries already have full details
   phase3.timeline?.forEach((t, i) => {
-    // Find the full moment details from romantic_arcs or rival_dynamics
-    let momentDetails = null
-
-    for (const arc of (phase3.romantic_arcs || [])) {
-      const found = arc.key_moments?.find(m => m.moment === t.moment)
-      if (found) {
-        momentDetails = found
-        break
-      }
-    }
-
-    if (!momentDetails) {
-      for (const dyn of (phase3.rival_dynamics || [])) {
-        const found = dyn.key_moments?.find(m => m.moment === t.moment)
-        if (found) {
-          momentDetails = found
-          break
-        }
-      }
-    }
-
     timeline.push({
       order: i + 1,
       moment: t.moment,
-      source: t.arc,
+      pov: t.pov || null,
+      source: t.arcs_in_play?.join(' + ') || t.pov || 'main',
       type: 'main',
-      what_happens: momentDetails?.what_happens || '',
+      what_happens: t.what_happens || '',
+      romance_beat: t.romance_beat || null,
+      intimacy_stage: t.intimacy_stage || null,
+      psychological_beat: t.psychological_beat || null,
       characters_present: [] // Will be filled as we process
     })
   })

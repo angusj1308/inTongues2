@@ -1071,16 +1071,19 @@ async function executePhase1(concept, lengthPreset, level) {
 // PHASE 2: CHARACTERS (Romantic Leads)
 // =============================================================================
 
-const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create psychologically complex, compelling romantic leads whose internal conflicts drive the romance.
+const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create psychologically complex, compelling characters whose internal conflicts drive the romance.
 
 You will receive:
 - The user's original concept
 - Phase 1 output (subgenre, tropes, conflict, theme, ending, tone, timespan, POV, premise)
 
+Phase 1 defines a POV structure (Single, Dual-Alternating, Multiple). Every character who will be a POV character MUST receive full psychology here. In a Multiple POV story, that means the protagonist AND each love interest all need complete builds.
+
 Your job is to create characters where:
-1. Wounds connect to the theme from Phase 1
-2. Arcs match the ending type (HEA = overcome flaws; Bittersweet/Tragic = flaws or circumstances win)
-3. The dynamics explain why THESE people crack each other open
+1. Every POV character gets full psychology: wound, lie, coping_mechanism, want, need, arc, voice
+2. Wounds connect to the theme from Phase 1
+3. Arcs match the ending type (HEA = overcome flaws; Bittersweet/Tragic = flaws or circumstances win)
+4. The dynamics explain why THESE people crack each other open
 
 ## Output Format
 
@@ -1264,12 +1267,20 @@ DISTINCT CHARACTERS:
 - Don't collapse similar characters — find what makes each unique`
 
 function buildPhase2UserPrompt(concept, phase1) {
+  const povStructure = phase1.pov?.structure || 'Multiple'
+  const povPerson = phase1.pov?.person || 'Third'
+
   return `ORIGINAL CONCEPT: ${concept}
 
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-Create the romantic leads for this story.
+Create the characters for this story.
+
+**POV Structure: ${povPerson} Person, ${povStructure}**
+${povStructure === 'Multiple' || povStructure === 'Dual-Alternating'
+    ? 'This is a multi-POV story. The protagonist AND each love interest will be POV characters. Every POV character needs full psychology (wound, lie, coping_mechanism, want, need, arc, voice) because we will write chapters from their perspective.'
+    : 'This is a single POV story. The protagonist is the POV character and needs full psychology. Love interests still need full psychology for internal consistency.'}
 
 IMPORTANT: Count the number of love interests implied by the concept. If it mentions "3 suitors" create 3. If "love triangle" create 2. If standard romance create 1.
 
@@ -1278,7 +1289,8 @@ Ensure:
 - Arcs match the ${phase1.ending?.type || 'established'} ending
 - Each love interest is distinct with different wounds and approaches
 - One love interest is marked Primary (unless tragic/open ending)
-- If multiple love interests, include rival dynamics between them`
+- If multiple love interests, include rival dynamics between them
+- Every character who will be a POV character has complete voice definition (register, patterns, tells) - these drive chapter voice`
 }
 
 async function executePhase2(concept, phase1) {

@@ -1667,100 +1667,124 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SUPPORTING CAST
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a character architect creating the supporting cast for a romance novel.
+const PHASE_4_SYSTEM_PROMPT = `You are a story architect who creates supporting characters from story needs, not in a vacuum.
 
-## OUTPUT FORMAT (REQUIRED - FOLLOW EXACTLY)
+You will receive Phase 1 (concept/theme/setting), Phase 2 (POV character psychology), and Phase 3 (integrated POV timeline with all decisive moments).
 
-You MUST output this exact JSON structure:
+Your job: Look at the story situation and ask "Who else needs to exist?" Then create characters to fill those functions, with appropriate psychology based on their importance.
+
+## PROCESS (Follow this order)
+
+### Step 1: List the Interests
+
+Look at the situation from Phase 1 and the timeline from Phase 3. Ask:
+- Who benefits from the status quo?
+- Who is threatened by the protagonists' choices?
+- Who has history with the POV characters?
+- Who represents institutions or groups relevant to the setting?
+- Who has power over the POV characters?
+- Who is affected by the events of the story?
+
+List each interest as a force/pressure/stake - NOT as a character yet.
+
+### Step 2: Which Interests Need Faces?
+
+Some interests stay faceless (collective pressure, unnamed groups, societal norms).
+
+An interest needs a face if:
+- It makes decisions that affect the plot
+- It interacts directly with POV characters
+- It represents a thematic position that needs embodiment
+- Phase 3 timeline already implied someone exists (e.g. "family pressure" implies a family member)
+
+For each interest: Face or faceless?
+
+### Step 3: For Each Face - Personal Angle
+
+The interest gives them their stake. But what do they personally want beyond their function?
+
+Ask:
+- What do they want for themselves?
+- What history do they have with POV characters?
+- What makes their pursuit personal, not just functional?
+
+### Step 4: Assign Archetype
+
+What kind of person serves this interest with this personal angle? The archetype shapes how they pursue their want.
+
+### Step 5: Determine Psychology Level
+
+**Full psychology** (wound, lie, want, need, coping, arc, voice):
+- Characters who get POV scenes
+- Characters who transform
+- Characters whose arc carries thematic weight
+
+**Partial psychology** (want, stake, method, outcome):
+- Multiple appearances
+- Make plot-affecting choices
+- Represent an interest with a personal angle
+- No transformation required
+
+**Minimal** (name, role, function, appearance_context):
+- Single appearance
+- Pure function (messenger, obstacle, mirror)
+- No personal want beyond the scene
+
+### Step 6: Key Moments for Each Face
+
+Every character with full or partial psychology gets their own decisive moments.
+
+Ask:
+- What actions do they take to get what they want?
+- Where do they collide with POV characters?
+- What happens off-screen that affects the plot?
+- What is the outcome of their arc?
+
+These moments should:
+- Connect to the Phase 3 timeline (reference specific Phase 3 moments where possible)
+- Include on-screen moments (in POV character presence)
+- Include off-screen moments where relevant (with mechanism for how reader learns about them)
+- Have a clear outcome
+
+### Step 7: Merge Into Master Timeline
+
+Take Phase 3 timeline and weave in secondary character moments:
+- Add new moments where secondary arcs need them
+- Assign POV to each moment
+- Mark which arcs are in play
+- Maintain chronological order
+- Include ALL Phase 3 moments plus new secondary moments
+
+## OUTPUT FORMAT (JSON)
 
 {
-  "wound_sources": {
-    "protagonist": {
-      "name": "Protagonist name from Phase 2",
-      "wound": "Copy wound.event from Phase 2",
-      "created_by": {
-        "character": "Name of person who caused wound, or null",
-        "relationship": "Their relationship to protagonist",
-        "what_they_did": "How they caused the wound"
-      },
-      "reinforced_by": [
-        {
-          "character": "Name",
-          "relationship": "Their relationship",
-          "how_they_reinforce": "What they do that keeps the lie alive"
-        }
-      ],
-      "challenged_by": [
-        {
-          "character": "Name",
-          "relationship": "Their relationship",
-          "how_they_challenge": "What they do that questions the lie"
-        }
-      ]
-    },
-    "love_interest_1": {
-      "name": "First love interest name from Phase 2",
-      "wound": "Copy their wound.event from Phase 2",
-      "created_by": { ... },
-      "reinforced_by": [ ... ],
-      "challenged_by": [ ... ]
-    },
-    "love_interest_2": { ... },
-    "love_interest_3": { ... }
-  },
-
-  "essential_characters": {
-    "protagonist_parents": {
-      "mother": { "status": "alive | dead | unknown", "name": "if known" },
-      "father": { "status": "alive | dead | unknown", "name": "if known" }
-    },
-    "love_interest_parents": [
-      {
-        "love_interest": "Name",
-        "mother": { "status": "alive | dead | unknown", "name": "if known" },
-        "father": { "status": "alive | dead | unknown", "name": "if known" }
-      }
-    ],
-    "others": [
-      { "name": "Character name", "relationship": "How connected", "status": "alive | dead" }
-    ]
-  },
-
-  "thematic_approaches": [
+  "interests": [
     {
-      "position": "An answer to the theme question",
-      "type": "past_mirror | present_mirror | transcends | rejects",
-      "the_good": "Genuine benefit of this position",
-      "the_bad": "Genuine cost of this position",
-      "embodied_by": [
-        {
-          "character": "Name",
-          "relationship_to_protagonist": "How connected",
-          "how_they_embody_it": "Their specific version",
-          "outcome": "What happened to them",
-          "weight": "major | minor | referenced"
-        }
-      ]
+      "interest": "Description of the force/pressure/stake",
+      "has_face": true,
+      "why_face": "Why this needs a character (or null if faceless)"
     }
   ],
 
-  "supporting_cast": [
+  "stakeholder_characters": [
     {
       "name": "Full name",
-      "age": 0,
-      "role": "Their position in this world",
-      "connected_to": "Which main character(s)",
-      "functions": ["wound_source:protagonist", "past_mirror:position_name"],
-      "wound": "Their formative hurt",
-      "lie": "Their false belief",
-      "want": "What they pursue",
-      "need": "What they actually need",
+      "interest": "Which interest they represent",
+      "personal_want": "What they want for themselves",
+      "archetype": "Their archetype",
+      "psychology_level": "full | partial | minimal",
+      "connected_to": "Which POV character(s)",
+
+      // Full psychology only:
+      "wound": "Their formative hurt (full only)",
+      "lie": "Their false belief (full only)",
+      "want": "What they pursue (full only)",
+      "need": "What they actually need (full only)",
       "coping_mechanism": {
         "behaviour": "How they cope",
         "as_flaw": "How it hurts them",
         "as_virtue": "How it helps them"
       },
-      "thematic_stance": "Their answer to theme",
       "arc": {
         "starts": "Who they are at start",
         "ends": "Who they become"
@@ -1770,182 +1794,172 @@ You MUST output this exact JSON structure:
         "patterns": "Speech habits",
         "tells": "Emotional reveals"
       },
-      "weight": "major | minor | referenced"
+
+      // Partial psychology only:
+      "stake": "What they stand to gain/lose (partial only)",
+      "method": "How they pursue their want (partial only)",
+
+      // All levels:
+      "outcome": "How their arc resolves",
+
+      // Minimal only:
+      "function": "Their single story function (minimal only)",
+      "appearance_context": "When/where they appear (minimal only)"
+    }
+  ],
+
+  "character_moments": [
+    {
+      "character": "Character name",
+      "order": 1,
+      "moment": "Moment name",
+      "what_happens": "What occurs",
+      "on_screen": true,
+      "if_offscreen_how_surfaced": "How reader learns about it (null if on-screen)",
+      "connects_to_phase3_moment": "Name of Phase 3 moment this relates to (or null)"
+    }
+  ],
+
+  "master_timeline": [
+    {
+      "order": 1,
+      "pov": "Character name",
+      "moment": "Moment name",
+      "what_happens": "What occurs",
+      "arcs_in_play": ["Character A", "Character B"],
+      "romance_beat": "Romance element or null",
+      "intimacy_stage": "Stage or null",
+      "psychological_beat": "Psychological element or null",
+      "source": "phase3 | secondary"
+    }
+  ],
+
+  "arc_outcomes": [
+    {
+      "character": "Character name",
+      "outcome": "How their story resolves"
+    }
+  ],
+
+  "faceless_pressures": [
+    {
+      "interest": "The faceless force",
+      "how_manifests": "How it shows up in the story without a character"
     }
   ]
 }
 
-## YOUR TASK
+## CRITICAL RULES
 
-**Pass 1: Wound Sources**
-
-For the protagonist and EACH love interest from Phase 2:
-- Who CREATED their wound? (Name the person if applicable)
-- Who REINFORCES their lie? (People who keep them stuck)
-- Who CHALLENGES their lie? (People who push them to grow - besides the romantic leads)
-
-**Pass 1.5: Essential Characters**
-
-Before thematic mapping, identify characters who MUST exist:
-
-- Protagonist's mother and father (living or dead)
-- Each love interest's mother and father (living or dead)
-- Siblings mentioned in any character's backstory
-- Anyone named in wound sources who isn't yet in the cast
-
-For each: Are they alive (minor/major weight) or dead (referenced weight)?
-
-Dead characters still matter. Their choices and fates illuminate the theme.
-
-**Pass 2: Thematic Approaches**
-
-List all approaches to the theme question from Phase 1.
-
-WITHIN THE BINARY (positions that engage with the theme question directly):
-- Extreme of side A
-- Extreme of side B
-- Variations between the extremes
-- The balanced position (often what protagonists learn)
-- Cynical positions (both sides fail)
-
-TRANSCENDS THE BINARY (positions that reject the question entirely):
-
-These characters do not care about the theme question. They operate on DIFFERENT values:
-- Family loyalty - what serves the bloodline matters, not the question you're asking
-- Faith/religious duty - God's will matters, human concerns are secondary
-- Survival/pragmatism - grand questions are luxury, staying alive is what matters
-- Honor/legacy - what will history say? what would ancestors think?
-- Wealth/commerce - follow the money, everything else is sentiment
-
-A "transcends" character does NOT pick one side of the binary strongly. They dismiss the binary as the wrong question.
-
-REJECTS THE QUESTION:
-- Cynics who believe the question is naive
-- Hedonists who avoid choosing entirely
-
-FOR EACH POSITION:
-- Assign characters from Pass 1 and Pass 1.5 where they fit
-- Create new characters only if no existing character fits
-- Multiple characters CAN embody the same position with DIFFERENT OUTCOMES
-- Use all three weights: major (subplot), minor (present), referenced (dead/absent)
-
-MULTIPLE OUTCOMES PER POSITION:
-
-The same thematic stance can produce different results:
-- One character chose this path and found peace
-- Another chose it and found bitterness
-- Another is choosing it right now, outcome unknown
-- Another is dead, their outcome serves as warning or inspiration
-
-Do not create one-to-one mapping. Explore how the same belief leads to different fates.
-
-**Pass 3: Build Supporting Cast**
-
-Create full character entries for everyone identified above.
-- Major weight: Full detail, will have subplot
-- Minor weight: Lighter detail, appears in scenes
-- Referenced weight: Mentioned only, not present
-
-## GUIDELINES
-
-- Characters from love interests' worlds are essential (their families, retainers, rivals)
-- Wound source characters get full treatment - they shaped the main characters
-- Same character can serve multiple functions (consolidate where natural)
-- Check Phase 2 for existing thematic positions in love interests' lies - don't duplicate as new characters
-- Include "transcends" characters who operate on entirely different values than the theme question
+1. Every character must appear in the master_timeline. No orphans.
+2. Characters emerge from story needs (interests), not from abstract psychology.
+3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
+4. The master_timeline must contain ALL Phase 3 moments plus any new secondary moments.
+5. Every moment in master_timeline must have a POV assigned.
+6. Off-screen moments must have a clear mechanism for surfacing to the reader.
+7. Consolidate where natural - one character can serve multiple interests.
 
 ## DO NOT INCLUDE
 
-- Key moments (Phase 5)
-- Collision points (Phase 5)
-- Subplot architecture (Phase 5)
-- Timeline (Phase 5)
-
-Just people. Who they are. Why they exist. How they connect.`
+- "Wound challenger/reinforcer" labels
+- "Major/minor/referenced" weight categories (use psychology_level instead)
+- Full psychology for single-appearance characters
+- Characters without clear story function
+- Characters who never appear in timeline`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
-  // Build main character summary for wound mapping
-  const protagonistSummary = `**Protagonist: ${phase2.protagonist?.name}**
-  Wound event: "${phase2.protagonist?.wound?.event}"
-  Wound caused by: ${phase2.protagonist?.wound?.who_caused_it || 'circumstance'}
-  Lie: "${phase2.protagonist?.lie}"`
+  // Build POV character summaries
+  const povCharacters = [
+    `**${phase2.protagonist?.name} (Protagonist):** wound="${phase2.protagonist?.wound?.event}", lie="${phase2.protagonist?.lie}"`,
+    ...(phase2.love_interests?.map(li =>
+      `**${li.name} (${li.role_in_story} Love Interest):** wound="${li.wound?.event}", lie="${li.lie}"`
+    ) || [])
+  ].join('\n')
 
-  const loveInterestSummaries = phase2.love_interests?.map((li, i) =>
-    `**Love Interest ${i + 1}: ${li.name} (${li.role_in_story})**
-  Wound event: "${li.wound?.event}"
-  Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}
-  Lie: "${li.lie}"`
-  ).join('\n\n') || ''
+  // Build timeline summary for context
+  const timelineSummary = phase3.timeline?.map(t =>
+    `${t.order}. [${t.pov}] ${t.moment}: ${t.what_happens?.slice(0, 80)}...`
+  ).join('\n') || 'No timeline available'
 
-  // Build thematic positions from love interests (to avoid duplication)
-  const existingPositions = phase2.love_interests?.map(li =>
-    `- ${li.name}'s lie "${li.lie}" is already a thematic position`
-  ).join('\n') || ''
+  // Complexity guide
+  const fullCount = lengthPreset === 'novella' ? '1-3' : '2-4'
+  const partialCount = lengthPreset === 'novella' ? '2-4' : '3-6'
+  const minimalCount = lengthPreset === 'novella' ? '1-3' : '2-4'
 
   return `ORIGINAL CONCEPT: ${concept}
 
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (Characters):
+PHASE 2 OUTPUT (POV Characters):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Romantic Arcs):
+PHASE 3 OUTPUT (Integrated Timeline):
 ${JSON.stringify(phase3, null, 2)}
 
 LENGTH PRESET: ${lengthPreset}
 
-## Your Task: Create the Supporting Cast
+## Your Task: Create Stakeholder Characters From Story Needs
 
+### POV Characters (already created - do NOT recreate)
+
+${povCharacters}
+
+### Phase 3 Timeline (the story so far)
+
+${timelineSummary}
+
+### Setting & Theme Context
+
+**Setting:** ${phase1.setting?.world || 'Not specified'}
 **Theme Question:** "${phase1.theme?.question}"
 **Theme Core:** ${phase1.theme?.core}
 
-### Pass 1: Wound-Driven Characters
+### Step 1: What Interests Exist?
 
-For each main character, identify who created, reinforces, and challenges their wound:
+Look at the setting, concept, and timeline. What forces, groups, and pressures exist in this story world? List them all - not characters, just stakes.
 
-${protagonistSummary}
-- Who created this wound?
-- Who reinforces this lie?
-- Who challenges this lie? (besides the love interests)
+### Step 2: Face or Faceless?
 
-${loveInterestSummaries}
-- For each: Who created their wound? Who reinforces? Who challenges?
+For each interest: does it need a character to embody it, or does it work as unnamed/collective pressure?
 
-### Pass 2: Theme-Driven Characters
+### Step 3-5: Build Characters
 
-**Existing thematic positions (from Phase 2 - DO NOT duplicate as new characters):**
-${existingPositions}
+For each face, determine:
+- Personal want (beyond their function)
+- Archetype
+- Psychology level (full/partial/minimal)
+- Full psychology details if warranted
 
-**Identify remaining thematic approaches:**
-- Extreme of side A of the theme question
-- Extreme of side B
-- Variations between
-- Transcends the binary (different values entirely)
-- Rejects the question
+### Step 6: Key Moments
 
-For each: Is it embodied by someone from Pass 1? Or need a new character?
+Every character with full or partial psychology needs decisive moments. Reference Phase 3 moments where they connect.
 
-### Complexity Guide for ${lengthPreset}:
-- Major characters (full subplot in Phase 5): ${lengthPreset === 'novella' ? '2-4' : '4-6'}
-- Minor characters (supporting): ${lengthPreset === 'novella' ? '2-3' : '3-5'}
-- Referenced characters (mentioned only): ${lengthPreset === 'novella' ? '1-2' : '2-4'}
+### Step 7: Master Timeline
 
-Remember: Love interests are NOT supporting cast - they're already created in Phase 2.
-Focus on characters from each love interest's world, not just the protagonist's.
+Merge Phase 3 timeline with new secondary moments. ALL ${phase3.timeline?.length || 0} Phase 3 moments must appear, plus any new moments for secondary arcs.
+
+### Complexity Guide for ${lengthPreset}
+
+- Full psychology characters: ${fullCount}
+- Partial psychology characters: ${partialCount}
+- Minimal characters: ${minimalCount}
+
+Remember: Love interests are NOT secondary characters - they're already in Phase 2.
 
 ## CRITICAL: OUTPUT STRUCTURE
 
-You MUST output JSON with these three top-level keys:
-1. "wound_sources" - mapping for protagonist and each love interest
-2. "thematic_approaches" - array of positions on the theme
-3. "supporting_cast" - array of character objects
-
-Do NOT use any other structure. Do NOT use "external_pressures", "subplots", or "forces".`
+Your output MUST be JSON with these top-level keys:
+1. "interests" - array of interests identified
+2. "stakeholder_characters" - array of character objects
+3. "character_moments" - array of key moments for each character
+4. "master_timeline" - complete integrated timeline (Phase 3 + new moments)
+5. "arc_outcomes" - array of character outcomes
+6. "faceless_pressures" - array of unnamed forces`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
-  console.log('Executing Phase 4: Supporting Cast...')
+  console.log('Executing Phase 4: Stakeholder Characters...')
 
   const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
   const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt)
@@ -1960,80 +1974,86 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   // Debug: show what we received
   console.log('Phase 4 received keys:', Object.keys(data))
 
-  // Validate required fields with helpful errors
-  if (!data.wound_sources) {
+  // Validate required fields
+  if (!data.interests || !Array.isArray(data.interests)) {
     console.error('Phase 4 output (first 500 chars):', JSON.stringify(data, null, 2).slice(0, 500))
-    throw new Error('Phase 4 missing wound_sources object. Received keys: ' + Object.keys(data).join(', '))
+    throw new Error('Phase 4 missing interests array. Received keys: ' + Object.keys(data).join(', '))
   }
-  if (!data.essential_characters) {
-    throw new Error('Phase 4 missing essential_characters object. Received keys: ' + Object.keys(data).join(', '))
+  if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters)) {
+    throw new Error('Phase 4 missing stakeholder_characters array. Received keys: ' + Object.keys(data).join(', '))
   }
-  if (!data.thematic_approaches || !Array.isArray(data.thematic_approaches)) {
-    throw new Error('Phase 4 missing thematic_approaches array. Received keys: ' + Object.keys(data).join(', '))
-  }
-  if (!data.supporting_cast || !Array.isArray(data.supporting_cast)) {
-    throw new Error('Phase 4 missing supporting_cast array. Received keys: ' + Object.keys(data).join(', '))
+  if (!data.master_timeline || !Array.isArray(data.master_timeline)) {
+    throw new Error('Phase 4 missing master_timeline array. Received keys: ' + Object.keys(data).join(', '))
   }
 
-  // Validate supporting cast has required fields
-  for (const char of data.supporting_cast) {
-    if (!char.name || !char.functions || !char.weight) {
-      throw new Error(`Supporting cast member missing required fields (name, functions, weight)`)
+  // Validate stakeholder characters have required fields
+  for (const char of data.stakeholder_characters) {
+    if (!char.name || !char.psychology_level) {
+      throw new Error(`Stakeholder character missing required fields (name, psychology_level): ${JSON.stringify(char).slice(0, 100)}`)
     }
   }
 
-  // Check for transcends characters
-  const transcendsPositions = data.thematic_approaches?.filter(p => p.type === 'transcends') || []
-  if (transcendsPositions.length === 0) {
-    console.warn('Phase 4 warning: No transcends positions found - all characters are within the theme binary')
+  // Validate master timeline entries
+  for (const entry of data.master_timeline) {
+    if (!entry.order || !entry.pov || !entry.moment) {
+      throw new Error(`Master timeline entry missing required fields (order, pov, moment)`)
+    }
   }
 
-  // Check for positions with multiple characters
-  const multipleOutcomes = data.thematic_approaches?.filter(p => p.embodied_by?.length > 1) || []
+  // Check no orphan characters
+  const timelineCharacters = new Set()
+  data.master_timeline.forEach(m => {
+    if (m.arcs_in_play) m.arcs_in_play.forEach(c => timelineCharacters.add(c))
+  })
+  const orphans = data.stakeholder_characters.filter(c =>
+    c.psychology_level !== 'minimal' && !timelineCharacters.has(c.name)
+  )
+  if (orphans.length > 0) {
+    console.warn(`Phase 4 WARNING: Orphan characters (not in timeline arcs_in_play): ${orphans.map(c => c.name).join(', ')}`)
+  }
 
-  // Check for referenced characters
-  const referencedChars = data.supporting_cast?.filter(c => c.weight === 'referenced') || []
+  // Count by psychology level
+  const fullChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
+  const partialChars = data.stakeholder_characters.filter(c => c.psychology_level === 'partial')
+  const minimalChars = data.stakeholder_characters.filter(c => c.psychology_level === 'minimal')
 
   // Console logging
   console.log('Phase 4 complete.')
-  console.log(`  Essential characters checked:`)
-  const ec = data.essential_characters
-  console.log(`    Protagonist parents: mother ${ec.protagonist_parents?.mother?.status || 'not specified'}, father ${ec.protagonist_parents?.father?.status || 'not specified'}`)
-  console.log(`    Love interest parents: ${ec.love_interest_parents?.length || 0} mapped`)
+  console.log(`  Interests identified: ${data.interests.length}`)
+  const faced = data.interests.filter(i => i.has_face).length
+  const faceless = data.interests.filter(i => !i.has_face).length
+  console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
 
-  console.log(`  Wound sources mapped for: ${Object.keys(data.wound_sources).length} characters`)
-  Object.entries(data.wound_sources).forEach(([key, ws]) => {
-    const createdBy = ws.created_by?.character || 'circumstance'
-    const reinforcerCount = ws.reinforced_by?.length || 0
-    const challengerCount = ws.challenged_by?.length || 0
-    console.log(`    - ${ws.name || key}:`)
-    console.log(`        Created by: ${createdBy}`)
-    console.log(`        Reinforced by: ${reinforcerCount} character(s)`)
-    console.log(`        Challenged by: ${challengerCount} character(s)`)
+  console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
+  console.log(`    Full psychology: ${fullChars.length}`)
+  fullChars.forEach(c => {
+    console.log(`      - ${c.name}: interest="${c.interest}", want="${c.personal_want}"`)
+  })
+  console.log(`    Partial psychology: ${partialChars.length}`)
+  partialChars.forEach(c => {
+    console.log(`      - ${c.name}: interest="${c.interest}"`)
+  })
+  console.log(`    Minimal: ${minimalChars.length}`)
+  minimalChars.forEach(c => {
+    console.log(`      - ${c.name}: ${c.function || c.interest}`)
   })
 
-  console.log(`  Thematic approaches: ${data.thematic_approaches?.length}`)
-  const byType = {}
-  data.thematic_approaches?.forEach(pos => {
-    byType[pos.type] = (byType[pos.type] || 0) + 1
-  })
-  console.log(`    By type: ${Object.entries(byType).map(([k,v]) => `${k}=${v}`).join(', ')}`)
-  data.thematic_approaches?.forEach(pos => {
-    const characterCount = pos.embodied_by?.length || 0
-    const weights = pos.embodied_by?.map(e => e.weight).join(', ') || 'none'
-    console.log(`    - "${pos.position.slice(0, 50)}${pos.position.length > 50 ? '...' : ''}" (${pos.type}): ${characterCount} character(s) [${weights}]`)
-  })
-  console.log(`  Positions with multiple characters: ${multipleOutcomes.length}`)
-  console.log(`  Referenced (dead/absent) characters: ${referencedChars.length}`)
+  console.log(`  Character moments: ${data.character_moments?.length || 0}`)
+  const onScreen = data.character_moments?.filter(m => m.on_screen).length || 0
+  const offScreen = data.character_moments?.filter(m => !m.on_screen).length || 0
+  console.log(`    On-screen: ${onScreen}, Off-screen: ${offScreen}`)
 
-  console.log(`  Supporting cast: ${data.supporting_cast?.length}`)
-  const majors = data.supporting_cast?.filter(c => c.weight === 'major').length || 0
-  const minors = data.supporting_cast?.filter(c => c.weight === 'minor').length || 0
-  const refs = data.supporting_cast?.filter(c => c.weight === 'referenced').length || 0
-  console.log(`    Major: ${majors}, Minor: ${minors}, Referenced: ${refs}`)
-  data.supporting_cast?.filter(c => c.weight === 'major').forEach(c => {
-    console.log(`      - ${c.name} (${c.role}): ${c.functions?.join(', ')}`)
-  })
+  console.log(`  Master timeline: ${data.master_timeline.length} moments`)
+  const phase3Moments = data.master_timeline.filter(m => m.source === 'phase3').length
+  const secondaryMoments = data.master_timeline.filter(m => m.source === 'secondary').length
+  console.log(`    Phase 3 moments: ${phase3Moments}, Secondary moments: ${secondaryMoments}`)
+
+  console.log(`  Arc outcomes: ${data.arc_outcomes?.length || 0}`)
+  console.log(`  Faceless pressures: ${data.faceless_pressures?.length || 0}`)
+
+  if (orphans.length > 0) {
+    console.log(`  WARNING: ${orphans.length} orphan characters detected`)
+  }
 
   return data
 }
@@ -2064,13 +2084,13 @@ Given the current timeline and a character's details, determine which existing m
 ## GUIDELINES
 
 Consider the character's:
-- Functions (wound_source, past_mirror, external_pressure, etc.)
-- Relationships to main characters
+- Interest they represent and personal want
+- Relationships to POV characters
 - Physical proximity in the story world
 - Thematic relevance to each moment
 
 A character should be present when:
-- Their function would naturally activate
+- Their interest or personal want connects to the moment
 - They would logically be in that location
 - Their presence adds meaning to the moment
 - They need to witness something for their own arc
@@ -2147,7 +2167,7 @@ Given the complete timeline and full cast, identify any gaps or issues.
   "character_arc_status": [
     {
       "character": "Name",
-      "role": "protagonist | love_interest | supporting_major | supporting_minor",
+      "role": "protagonist | love_interest | stakeholder_full | stakeholder_partial",
       "appearances": number,
       "arc_complete": true | false,
       "arc_notes": "How their arc resolves, or what's missing"
@@ -2196,12 +2216,12 @@ function buildCastList(phase2, phase4) {
     })
   })
 
-  // Supporting cast
-  phase4.supporting_cast?.forEach(c => {
+  // Stakeholder characters
+  phase4.stakeholder_characters?.forEach(c => {
     cast.push({
       name: c.name,
-      role: `supporting_${c.weight}`,
-      brief: c.role
+      role: `stakeholder_${c.psychology_level}`,
+      brief: c.interest || c.personal_want || c.function
     })
   })
 
@@ -2238,13 +2258,15 @@ async function processCharacterPresence(character, timeline, castList) {
   const userPrompt = `## CHARACTER TO PROCESS
 
 Name: ${character.name}
-Role: ${character.role}
-Functions: ${character.functions?.join(', ') || 'none specified'}
+Interest: ${character.interest || 'none specified'}
+Personal want: ${character.personal_want || 'none specified'}
+Archetype: ${character.archetype || 'none specified'}
 Connected to: ${character.connected_to || 'unspecified'}
-Wound: ${character.wound || 'none'}
+Psychology level: ${character.psychology_level}
+${character.psychology_level === 'full' ? `Wound: ${character.wound || 'none'}
 Lie: ${character.lie || 'none'}
-Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
-Thematic stance: ${character.thematic_stance || 'none'}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}` : `Stake: ${character.stake || 'none'}
+Method: ${character.method || 'none'}`}
 
 ## CURRENT TIMELINE
 
@@ -2276,14 +2298,16 @@ async function processCharacterSubplot(character, timeline, castList, presenceDa
   const userPrompt = `## CHARACTER TO PROCESS
 
 Name: ${character.name}
-Role: ${character.role}
-Functions: ${character.functions?.join(', ') || 'none specified'}
+Interest: ${character.interest || 'none specified'}
+Personal want: ${character.personal_want || 'none specified'}
+Archetype: ${character.archetype || 'none specified'}
 Connected to: ${character.connected_to || 'unspecified'}
-Wound: ${character.wound || 'none'}
+Psychology level: ${character.psychology_level}
+${character.psychology_level === 'full' ? `Wound: ${character.wound || 'none'}
 Lie: ${character.lie || 'none'}
-Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
-Thematic stance: ${character.thematic_stance || 'none'}
-Weight: ${character.weight}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}` : `Stake: ${character.stake || 'none'}
+Method: ${character.method || 'none'}`}
+Outcome: ${character.outcome || 'unspecified'}
 
 ## CURRENT APPEARANCES
 
@@ -2301,8 +2325,8 @@ ${timelineSummary}
 ${castList.map(c => `- ${c.name} (${c.role}): ${c.brief}`).join('\n')}
 
 Analyze if ${character.name} needs additional subplot moments for their arc to complete.
-If they have weight "minor", they likely don't need their own moments - just presence.
-If they have weight "major", they likely need 2-4 moments of their own.`
+If they have psychology_level "partial", they likely don't need their own moments - just presence.
+If they have psychology_level "full", they likely need 2-4 moments of their own.`
 
   const response = await callOpenAI(PHASE_5_SUBPLOT_PROMPT, userPrompt)
   const parsed = parseJSON(response)
@@ -2392,8 +2416,8 @@ Total expected: ${phase3.timeline?.length || 0}
 Protagonist: ${phase2.protagonist?.name}
 Love Interests: ${phase2.love_interests?.map(li => li.name).join(', ')}
 
-Supporting Cast:
-${phase4.supporting_cast?.map(c => `- ${c.name} (${c.weight}): ${c.functions?.join(', ')}`).join('\n')}
+Stakeholder Characters:
+${phase4.stakeholder_characters?.map(c => `- ${c.name} (${c.psychology_level}): ${c.interest}`).join('\n')}
 
 ## CHARACTER APPEARANCES IN TIMELINE
 
@@ -2425,7 +2449,7 @@ function buildCharacterArcs(timeline, phase2, phase4) {
   const allCharacters = [
     { name: phase2.protagonist?.name, role: 'protagonist' },
     ...(phase2.love_interests?.map(li => ({ name: li.name, role: 'love_interest' })) || []),
-    ...(phase4.supporting_cast?.map(c => ({ name: c.name, role: `supporting_${c.weight}` })) || [])
+    ...(phase4.stakeholder_characters?.map(c => ({ name: c.name, role: `stakeholder_${c.psychology_level}` })) || [])
   ]
 
   for (const char of allCharacters) {
@@ -2467,18 +2491,18 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   const castList = buildCastList(phase2, phase4)
   console.log(`  Full cast: ${castList.length} characters`)
 
-  // Get characters to process (major first, then minor)
-  const majorCast = phase4.supporting_cast?.filter(c => c.weight === 'major') || []
-  const minorCast = phase4.supporting_cast?.filter(c => c.weight === 'minor') || []
+  // Get characters to process (full psychology first, then partial)
+  const fullCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'full') || []
+  const partialCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'partial') || []
 
-  console.log(`  Processing ${majorCast.length} major + ${minorCast.length} minor characters...`)
+  console.log(`  Processing ${fullCast.length} full + ${partialCast.length} partial characters...`)
 
   // Store all presence data for arc tracking
   const allPresenceData = []
 
-  // Process major characters (need subplot moments)
-  for (const character of majorCast) {
-    console.log(`    Processing ${character.name} (major)...`)
+  // Process full psychology characters (need subplot moments)
+  for (const character of fullCast) {
+    console.log(`    Processing ${character.name} (full)...`)
 
     // Step A: Presence mapping
     const presenceData = await processCharacterPresence(character, timeline, castList)
@@ -2499,9 +2523,9 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
     }
   }
 
-  // Process minor characters (presence only, no new moments)
-  for (const character of minorCast) {
-    console.log(`    Processing ${character.name} (minor)...`)
+  // Process partial psychology characters (presence only, no new moments)
+  for (const character of partialCast) {
+    console.log(`    Processing ${character.name} (partial)...`)
 
     // Step A only: Presence mapping
     const presenceData = await processCharacterPresence(character, timeline, castList)
@@ -3139,9 +3163,9 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'starting')
     bible.subplots = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
     reportProgress(4, 'complete', {
-      woundSources: Object.keys(bible.subplots.wound_sources || {}).length,
-      thematicApproaches: bible.subplots.thematic_approaches?.length,
-      supportingCast: bible.subplots.supporting_cast?.length
+      interests: bible.subplots.interests?.length,
+      stakeholderCharacters: bible.subplots.stakeholder_characters?.length,
+      masterTimelineMoments: bible.subplots.master_timeline?.length
     })
 
     // Phase 5: Master Timeline

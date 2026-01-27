@@ -8037,10 +8037,10 @@ app.post('/api/generate/bible', async (req, res) => {
   }
 })
 
-// POST /api/generate/regenerate-phases - Regenerate specific phases (4-5) for an existing book
+// POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {
-    const { uid, bookId, phases = [4, 5] } = req.body
+    const { uid, bookId, phases = [5] } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
@@ -8057,7 +8057,7 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
     const bookData = bookDoc.data()
     const bible = bookData.bible || {}
 
-    // Validate we have the required phases (1-3) to regenerate 4-5
+    // Validate we have the required earlier phases
     if (!bible.coreFoundation) {
       return res.status(400).json({ error: 'Book is missing Phase 1 (coreFoundation) data' })
     }
@@ -8066,6 +8066,9 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
     }
     if (!bible.plot) {
       return res.status(400).json({ error: 'Book is missing Phase 3 (plot) data' })
+    }
+    if (phases.includes(5) && !phases.includes(4) && !bible.subplots) {
+      return res.status(400).json({ error: 'Phase 5 regeneration requires Phase 4 (subplots) data' })
     }
 
     // Update status to regenerating

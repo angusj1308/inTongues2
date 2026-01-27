@@ -299,7 +299,7 @@ const BookGrid = ({
                       e.stopPropagation()
                       onRegenerate(book)
                     }}
-                    title="Regenerate Phases 4-5"
+                    title="Regenerate Phase 5"
                   >
                     ↻
                   </button>
@@ -923,13 +923,13 @@ const Dashboard = () => {
 
     // Only works for generated books with bible data
     if (!book.isGeneratedBook || !book.bible) {
-      alert('This book cannot be regenerated - it needs bible data from phases 1-3.')
+      alert('This book cannot be regenerated - it needs bible data from phases 1-4.')
       return
     }
 
     const confirmed = window.confirm(
-      'Regenerate Phases 4-5 for this book?\n\n' +
-      'This will re-run the subplot generation and master timeline using the existing character and plot data.\n\n' +
+      'Regenerate Phase 5 for this book?\n\n' +
+      'This will re-run the master timeline using existing character and subplot data.\n\n' +
       'The book will be temporarily unavailable while regenerating.'
     )
     if (!confirmed) return
@@ -938,12 +938,12 @@ const Dashboard = () => {
       await regeneratePhases({
         uid: user.uid,
         bookId: book.id,
-        phases: [4, 5]
+        phases: [5]
       })
       // The real-time listener will automatically update the UI when status changes
     } catch (err) {
-      console.error('Error regenerating phases:', err)
-      alert('Failed to regenerate phases. Please try again.')
+      console.error('Error regenerating phase 5:', err)
+      alert('Failed to regenerate Phase 5. Please try again.')
     }
   }
 
@@ -1233,8 +1233,8 @@ const Dashboard = () => {
                                 <button
                                   className="book-regenerate-btn"
                                   onClick={(e) => handleRegeneratePhases(e, book)}
-                                  aria-label="Regenerate Phases 4-5"
-                                  title="Regenerate Phases 4-5"
+                                  aria-label="Regenerate Phase 5"
+                                  title="Regenerate Phase 5"
                                 >
                                   ↻
                                 </button>
@@ -1327,8 +1327,8 @@ const Dashboard = () => {
                                 <button
                                   className="book-regenerate-btn"
                                   onClick={(e) => handleRegeneratePhases(e, book)}
-                                  aria-label="Regenerate Phases 4-5"
-                                  title="Regenerate Phases 4-5"
+                                  aria-label="Regenerate Phase 5"
+                                  title="Regenerate Phase 5"
                                 >
                                   ↻
                                 </button>

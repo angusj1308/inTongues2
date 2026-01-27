@@ -2718,6 +2718,33 @@ Use the appearance counts above as ground truth - do NOT recount.`
   return parsed.data
 }
 
+// Check if a character is present in a moment via ANY source:
+// 1. pov field (whoever has POV is present)
+// 2. source field (characters listed e.g. "Itziar Etxeberria + Mikel Garaikoetxea")
+// 3. characters_present array (supporting characters)
+function isCharacterInMoment(charName, moment) {
+  if (!charName) return false
+
+  // Check characters_present array
+  const inPresent = moment.characters_present?.find(p => p.name === charName)
+  if (inPresent) return { source: 'characters_present', arc_state: inPresent.arc_state || 'present' }
+
+  // Check pov field
+  if (moment.pov && moment.pov === charName) {
+    return { source: 'pov', arc_state: 'pov' }
+  }
+
+  // Check source field (may contain multiple names joined with " + ")
+  if (moment.source && typeof moment.source === 'string') {
+    const sourceNames = moment.source.split('+').map(s => s.trim())
+    if (sourceNames.some(s => s === charName)) {
+      return { source: 'source_field', arc_state: 'present' }
+    }
+  }
+
+  return null
+}
+
 // Build character_arcs summary from timeline
 function buildCharacterArcs(timeline, phase2, phase4) {
   const arcs = []
@@ -2733,12 +2760,14 @@ function buildCharacterArcs(timeline, phase2, phase4) {
     const appearances = []
 
     for (const moment of timeline) {
-      const presence = moment.characters_present?.find(p => p.name === char.name)
-      if (presence) {
+      // Check all three sources: pov, source field, characters_present
+      const found = isCharacterInMoment(char.name, moment)
+      if (found) {
         appearances.push({
           moment_order: moment.order,
           moment: moment.moment,
-          arc_state: presence.arc_state || 'present'
+          arc_state: found.arc_state,
+          presence_source: found.source
         })
       }
     }
@@ -2837,6 +2866,29 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   // Run verification using character arcs data as ground truth
   console.log(`  Running verification...`)
   const verification = await runVerification(timeline, phase2, phase3, phase4, characterArcs)
+
+  // Check for critical gaps - do NOT deliver broken output
+  const criticalGaps = verification.gaps_found?.filter(g => g.severity === 'critical') || []
+  if (criticalGaps.length > 0) {
+    console.error(`  CRITICAL GAPS FOUND (${criticalGaps.length}):`)
+    criticalGaps.forEach(g => console.error(`    - ${g.issue}`))
+
+    // Recount character arcs as a fallback in case verification was based on stale data
+    const recountedArcs = buildCharacterArcs(timeline, phase2, phase4)
+    const zeroAppearanceChars = recountedArcs.filter(a => a.appearances.length === 0)
+
+    if (zeroAppearanceChars.length > 0) {
+      const missing = zeroAppearanceChars.map(a => `${a.character} (${a.role})`).join(', ')
+      throw new Error(
+        `Phase 5 failed: ${zeroAppearanceChars.length} characters have 0 appearances after timeline construction: ${missing}. ` +
+        `Critical gaps: ${criticalGaps.map(g => g.issue).join('; ')}`
+      )
+    }
+
+    // If recount shows everyone has appearances, the critical gaps were about something else.
+    // Log but allow output - the verification LLM may have over-reported.
+    console.warn(`  Critical gaps reported by verification but all characters have appearances. Proceeding with output.`)
+  }
 
   // Final output
   const result = {

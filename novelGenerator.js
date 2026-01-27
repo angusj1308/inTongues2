@@ -709,6 +709,33 @@ THEME
 - Explored through: How the romance embodies this theme
 The theme should emerge from what's already in the concept, not be imposed.
 
+EXTERNAL PLOT
+Every romance rides on an external wave - something happening in the world independent of the characters falling in love. This creates pressure, deadlines, and structure.
+
+Step 1: Identify the external container. Ask: What is happening in this world that creates the conditions for this romance?
+
+Container types:
+- historical_event: War, revolution, invasion, coronation, political upheaval
+- professional_situation: Case, deal, project, campaign, harvest, production
+- social_structure: Season, wedding, reunion, inheritance dispute, family obligation
+- time_bounded: Holiday visit, summer, voyage, festival, countdown
+- competition: Tournament, contest, election, audition, race
+- journey: Pilgrimage, migration, escape, expedition, road trip
+- crisis: Epidemic, siege, scandal, investigation, natural disaster
+
+Step 2: Define 5-8 beats for this container. These are WORLD events, not character events.
+- What is the inciting event?
+- What are the escalating stages?
+- What is the climax of the external situation?
+- What is the resolution?
+
+Step 3: Identify pressure points.
+- Which beats create deadlines for the characters?
+- Which beats force characters together?
+- Which beats force characters apart?
+- Which beats create danger or stakes?
+- The romantic dark moment should align with the external climax.
+
 ## Output
 
 {
@@ -750,6 +777,21 @@ The theme should emerge from what's already in the concept, not be imposed.
     "core": "What the story is really about (one word or short phrase)",
     "question": "The thematic question the story asks",
     "explored_through": "How the romance embodies this theme"
+  },
+  "external_plot": {
+    "container_type": "historical_event | professional_situation | social_structure | time_bounded | competition | journey | crisis",
+    "container_summary": "One sentence describing the external situation",
+    "beats": [
+      {
+        "order": 1,
+        "beat": "Name of this beat",
+        "what_happens": "What occurs in the world",
+        "world_state": "Pressure, danger, or opportunity at this point",
+        "timing": "When in the story timespan this occurs"
+      }
+    ],
+    "climax_beat": number,
+    "alignment_note": "How the romantic dark moment should align with the external plot climax"
   },
   "premise": string
 }`
@@ -1041,11 +1083,25 @@ async function executePhase1(concept, lengthPreset, level) {
   const data = parsed.data
 
   // Validate required fields
-  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'theme', 'premise']
+  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'theme', 'premise', 'external_plot']
   const missing = requiredFields.filter(f => !data[f])
 
   if (missing.length > 0) {
     throw new Error(`Phase 1 missing required fields: ${missing.join(', ')}`)
+  }
+
+  // Validate external plot structure
+  const ep = data.external_plot
+  if (!ep.container_type || !ep.container_summary || !ep.beats || !Array.isArray(ep.beats)) {
+    throw new Error('Phase 1 external_plot missing required fields (container_type, container_summary, beats)')
+  }
+  if (ep.beats.length < 3) {
+    console.warn(`Phase 1 WARNING: external_plot has only ${ep.beats.length} beats (expected 5-8)`)
+  }
+  for (const beat of ep.beats) {
+    if (!beat.order || !beat.beat || !beat.what_happens) {
+      throw new Error('External plot beat missing required fields (order, beat, what_happens)')
+    }
   }
 
   console.log('Phase 1 complete.')
@@ -1063,6 +1119,13 @@ async function executePhase1(concept, lengthPreset, level) {
   console.log(`  Ending: ${data.ending.type}`)
   console.log(`  Theme: ${data.theme.core} — "${data.theme.question}"`)
   console.log(`    Explored through: ${data.theme.explored_through}`)
+  console.log(`  External Plot: ${ep.container_type} — "${ep.container_summary}"`)
+  console.log(`    Beats: ${ep.beats.length}`)
+  ep.beats.forEach(b => {
+    console.log(`      ${b.order}. ${b.beat}: ${b.what_happens.slice(0, 60)}...`)
+  })
+  console.log(`    Climax beat: ${ep.climax_beat}`)
+  console.log(`    Alignment: ${ep.alignment_note}`)
 
   return data
 }
@@ -1357,7 +1420,7 @@ const PHASE_3_SYSTEM_PROMPT = `You are a romance plot architect. Your task is to
 
 You will receive:
 - The original concept
-- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black, POV structure)
+- Phase 1 output (tropes, conflict, theme, ending, tone settings including sensuality and fade_to_black, POV structure, external_plot with world beats)
 - Phase 2 output (protagonist, love_interests array with full psychology, dynamics)
 
 ## CRITICAL PRINCIPLES
@@ -1367,6 +1430,7 @@ You will receive:
 3. Every moment has a POV character assigned - whose head are we in?
 4. Physical/romantic tension progresses through the story alongside character growth.
 5. Rivals are not speedbumps - they have genuine attraction AND complete arcs.
+6. The external plot from Phase 1 provides the SPINE. Character moments happen relative to external beats - the world creates pressure, deadlines, and forced proximity/separation.
 
 ## Output Format
 
@@ -1386,7 +1450,8 @@ You will receive:
       "arcs_in_play": ["Character A", "Character B"],
       "romance_beat": "What romantic element is present - attraction, tension, touch, kiss, etc. Null if purely psychological." | null,
       "intimacy_stage": "awareness | attraction | tension | touch | kiss | escalation | consummation" | null,
-      "psychological_beat": "What psychological shift occurs - wound triggered, lie reinforced, lie challenged, transformation. Null if purely romantic." | null
+      "psychological_beat": "What psychological shift occurs - wound triggered, lie reinforced, lie challenged, transformation. Null if purely romantic." | null,
+      "external_beat": "Which Phase 1 external_plot beat this moment occurs during or responds to. Null if not directly tied to an external beat." | null
     }
   ],
 
@@ -1424,6 +1489,18 @@ Build ONE chronological timeline containing ALL moments from ALL arcs:
 - Resolution
 
 Each moment gets a POV character. In a multi-POV story, distribute POV across characters so we experience key moments from different perspectives. Critical romantic moments should alternate between protagonist and love interest POV so we feel both sides.
+
+## External Plot Integration
+
+Phase 1 provides an external_plot with world beats. Use these as the SPINE of the timeline:
+
+1. **Place character moments relative to external beats.** Each timeline moment should reference which external beat it occurs during (via external_beat field).
+2. **External beats create pressure.** Use them to force characters together, apart, or into decisions.
+3. **External escalation drives romantic escalation.** As the world heats up, so does the romance.
+4. **Align the romantic dark moment with the external climax.** The world crisis and the relationship crisis should peak together (see Phase 1 alignment_note).
+5. **External resolution enables or complicates romantic resolution.** The world settling creates space for the romance to resolve.
+
+Not every moment needs an external_beat reference, but most should. The external plot is the wave the romance rides on.
 
 ## Mandatory Romance Beats (must appear in timeline)
 
@@ -1561,6 +1638,17 @@ Distribute POV across these characters. Critical romantic moments should alterna
 **Fade to Black: ${fadeToBlack}** ${fadeToBlack ? '(Consummation implied but not shown on page)' : '(Consummation can be shown on page if sensuality warrants)'}
 **Burn Rate: ${burnRate}** ${burnRate === 'slow_burn' ? '(Many moments before first kiss - tension through denial and near-misses)' : '(Quick to physical intimacy - conflict is staying together, not getting together)'}
 **Mood: ${mood}**
+
+## External Plot Beats (from Phase 1) - THE SPINE
+
+${phase1.external_plot ? `**Container:** ${phase1.external_plot.container_type} — ${phase1.external_plot.container_summary}
+
+${phase1.external_plot.beats?.map(b => `${b.order}. **${b.beat}**: ${b.what_happens} [${b.world_state}]`).join('\n')}
+
+**External climax:** Beat ${phase1.external_plot.climax_beat}
+**Alignment:** ${phase1.external_plot.alignment_note}
+
+Place character moments RELATIVE to these external beats. Each timeline moment should reference which external beat it occurs during (via external_beat field). The world creates pressure, deadlines, and forced proximity/separation. The romantic dark moment should align with the external climax.` : 'No external plot defined.'}
 
 ## Characters
 
@@ -2244,6 +2332,7 @@ function initializeTimeline(phase3) {
       romance_beat: t.romance_beat || null,
       intimacy_stage: t.intimacy_stage || null,
       psychological_beat: t.psychological_beat || null,
+      external_beat: t.external_beat || null,
       characters_present: [] // Will be filled as we process
     })
   })
@@ -3140,7 +3229,9 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(1, 'complete', {
       subgenre: bible.coreFoundation.subgenre,
       origin: bible.coreFoundation.tropes?.origin,
-      theme: bible.coreFoundation.theme
+      theme: bible.coreFoundation.theme,
+      externalPlot: bible.coreFoundation.external_plot?.container_type,
+      externalBeats: bible.coreFoundation.external_plot?.beats?.length
     })
 
     // Phase 2: Characters

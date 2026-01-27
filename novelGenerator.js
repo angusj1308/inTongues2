@@ -1834,14 +1834,7 @@ These moments should:
 - Include off-screen moments where relevant (with mechanism for how reader learns about them)
 - Have a clear outcome
 
-### Step 7: Merge Into Master Timeline
-
-Take Phase 3 timeline and weave in secondary character moments:
-- Add new moments where secondary arcs need them
-- Assign POV to each moment
-- Mark which arcs are in play
-- Maintain chronological order
-- Include ALL Phase 3 moments plus new secondary moments
+Phase 5 will weave these moments into the master timeline. You just define WHAT happens and WHERE it connects.
 
 ## OUTPUT FORMAT (JSON)
 
@@ -1908,20 +1901,6 @@ Take Phase 3 timeline and weave in secondary character moments:
     }
   ],
 
-  "master_timeline": [
-    {
-      "order": 1,
-      "pov": "Character name",
-      "moment": "Moment name",
-      "what_happens": "What occurs",
-      "arcs_in_play": ["Character A", "Character B"],
-      "romance_beat": "Romance element or null",
-      "intimacy_stage": "Stage or null",
-      "psychological_beat": "Psychological element or null",
-      "source": "phase3 | secondary"
-    }
-  ],
-
   "arc_outcomes": [
     {
       "character": "Character name",
@@ -1939,13 +1918,12 @@ Take Phase 3 timeline and weave in secondary character moments:
 
 ## CRITICAL RULES
 
-1. Every character must appear in the master_timeline. No orphans.
-2. Characters emerge from story needs (interests), not from abstract psychology.
-3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
-4. The master_timeline must contain ALL Phase 3 moments plus any new secondary moments.
-5. Every moment in master_timeline must have a POV assigned.
-6. Off-screen moments must have a clear mechanism for surfacing to the reader.
-7. Consolidate where natural - one character can serve multiple interests.
+1. Characters emerge from story needs (interests), not from abstract psychology.
+2. Psychology level matches function: don't give full wound/lie/arc to a messenger.
+3. Every character with full/partial psychology must have character_moments.
+4. Off-screen moments must have a clear mechanism for surfacing to the reader.
+5. Consolidate where natural - one character can serve multiple interests.
+6. Phase 5 builds the master timeline - you define characters and their moments only.
 
 ## DO NOT INCLUDE
 
@@ -1953,7 +1931,7 @@ Take Phase 3 timeline and weave in secondary character moments:
 - "Major/minor/referenced" weight categories (use psychology_level instead)
 - Full psychology for single-appearance characters
 - Characters without clear story function
-- Characters who never appear in timeline`
+- A master timeline (Phase 5 handles this)`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   // Build POV character summaries
@@ -2021,11 +1999,7 @@ For each face, determine:
 
 ### Step 6: Key Moments
 
-Every character with full or partial psychology needs decisive moments. Reference Phase 3 moments where they connect.
-
-### Step 7: Master Timeline
-
-Merge Phase 3 timeline with new secondary moments. ALL ${phase3.timeline?.length || 0} Phase 3 moments must appear, plus any new moments for secondary arcs.
+Every character with full or partial psychology needs decisive moments. Reference Phase 3 moments where they connect. Phase 5 will weave these into the master timeline.
 
 ### Complexity Guide for ${lengthPreset}
 
@@ -2034,23 +2008,25 @@ Merge Phase 3 timeline with new secondary moments. ALL ${phase3.timeline?.length
 - Minimal characters: ${minimalCount}
 
 Remember: Love interests are NOT secondary characters - they're already in Phase 2.
+Do NOT produce a master timeline - Phase 5 handles timeline assembly.
 
 ## CRITICAL: OUTPUT STRUCTURE
 
-Your output MUST be JSON with these top-level keys:
+Your output MUST be valid JSON with these top-level keys:
 1. "interests" - array of interests identified
 2. "stakeholder_characters" - array of character objects
 3. "character_moments" - array of key moments for each character
-4. "master_timeline" - complete integrated timeline (Phase 3 + new moments)
-5. "arc_outcomes" - array of character outcomes
-6. "faceless_pressures" - array of unnamed forces`
+4. "arc_outcomes" - array of character outcomes
+5. "faceless_pressures" - array of unnamed forces
+
+Do NOT include a "master_timeline" - that is Phase 5's job.`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   console.log('Executing Phase 4: Stakeholder Characters...')
 
   const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
-  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt)
+  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
@@ -2070,9 +2046,6 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters)) {
     throw new Error('Phase 4 missing stakeholder_characters array. Received keys: ' + Object.keys(data).join(', '))
   }
-  if (!data.master_timeline || !Array.isArray(data.master_timeline)) {
-    throw new Error('Phase 4 missing master_timeline array. Received keys: ' + Object.keys(data).join(', '))
-  }
 
   // Validate stakeholder characters have required fields
   for (const char of data.stakeholder_characters) {
@@ -2081,23 +2054,12 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     }
   }
 
-  // Validate master timeline entries
-  for (const entry of data.master_timeline) {
-    if (!entry.order || !entry.pov || !entry.moment) {
-      throw new Error(`Master timeline entry missing required fields (order, pov, moment)`)
-    }
-  }
-
-  // Check no orphan characters
-  const timelineCharacters = new Set()
-  data.master_timeline.forEach(m => {
-    if (m.arcs_in_play) m.arcs_in_play.forEach(c => timelineCharacters.add(c))
-  })
-  const orphans = data.stakeholder_characters.filter(c =>
-    c.psychology_level !== 'minimal' && !timelineCharacters.has(c.name)
-  )
-  if (orphans.length > 0) {
-    console.warn(`Phase 4 WARNING: Orphan characters (not in timeline arcs_in_play): ${orphans.map(c => c.name).join(', ')}`)
+  // Check that characters with full/partial psychology have moments
+  const charsNeedingMoments = data.stakeholder_characters.filter(c => c.psychology_level !== 'minimal')
+  const momentCharacters = new Set((data.character_moments || []).map(m => m.character))
+  const missingMoments = charsNeedingMoments.filter(c => !momentCharacters.has(c.name))
+  if (missingMoments.length > 0) {
+    console.warn(`Phase 4 WARNING: Characters without moments: ${missingMoments.map(c => c.name).join(', ')}`)
   }
 
   // Count by psychology level
@@ -2131,16 +2093,11 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   const offScreen = data.character_moments?.filter(m => !m.on_screen).length || 0
   console.log(`    On-screen: ${onScreen}, Off-screen: ${offScreen}`)
 
-  console.log(`  Master timeline: ${data.master_timeline.length} moments`)
-  const phase3Moments = data.master_timeline.filter(m => m.source === 'phase3').length
-  const secondaryMoments = data.master_timeline.filter(m => m.source === 'secondary').length
-  console.log(`    Phase 3 moments: ${phase3Moments}, Secondary moments: ${secondaryMoments}`)
-
   console.log(`  Arc outcomes: ${data.arc_outcomes?.length || 0}`)
   console.log(`  Faceless pressures: ${data.faceless_pressures?.length || 0}`)
 
-  if (orphans.length > 0) {
-    console.log(`  WARNING: ${orphans.length} orphan characters detected`)
+  if (missingMoments.length > 0) {
+    console.log(`  WARNING: ${missingMoments.length} characters without moments`)
   }
 
   return data
@@ -3256,7 +3213,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'complete', {
       interests: bible.subplots.interests?.length,
       stakeholderCharacters: bible.subplots.stakeholder_characters?.length,
-      masterTimelineMoments: bible.subplots.master_timeline?.length
+      characterMoments: bible.subplots.character_moments?.length
     })
 
     // Phase 5: Master Timeline

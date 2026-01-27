@@ -2343,6 +2343,8 @@ Each new moment should:
 - Connect to the main plot or theme
 - Have a clear purpose
 
+CRITICAL: Every new moment MUST be a separate, standalone timeline entry. Do NOT merge new moments into existing main plot moments. Place them at the correct point in the timeline using insert_after, but keep them as distinct entries. A later phase will decide if any grouping is creatively appropriate.
+
 Major characters typically need 2-4 subplot moments.
 If arc can complete through existing presence, return empty new_moments array.`
 
@@ -2593,9 +2595,89 @@ function addPresenceToTimeline(timeline, presenceData) {
   return timeline
 }
 
+// Place Phase 4 stakeholder moments that are missing from the timeline as separate entries
+// This runs BEFORE verification to ensure all decisive moments are represented (Fix 3+4)
+function placeStakeholderMoments(timeline, phase4) {
+  const characterMoments = phase4.character_moments || []
+  if (characterMoments.length === 0) return timeline
+
+  let updatedTimeline = [...timeline]
+  let placed = 0
+  let alreadyPresent = 0
+
+  for (const cm of characterMoments) {
+    // Check if this moment already exists in the timeline (exact name match, case-insensitive)
+    const exists = updatedTimeline.some(m =>
+      m.moment.toLowerCase() === cm.moment.toLowerCase()
+    )
+
+    if (exists) {
+      alreadyPresent++
+      // Ensure the character is listed in characters_present for their own moment
+      const existingMoment = updatedTimeline.find(m =>
+        m.moment.toLowerCase() === cm.moment.toLowerCase()
+      )
+      if (existingMoment && !existingMoment.characters_present?.some(p => p.name === cm.character)) {
+        if (!existingMoment.characters_present) existingMoment.characters_present = []
+        existingMoment.characters_present.push({
+          name: cm.character,
+          role: 'supporting',
+          action: cm.what_happens,
+          arc_state: 'active'
+        })
+      }
+      continue
+    }
+
+    // Find insertion point using connects_to_phase3_moment
+    let insertAfterIndex = -1
+    if (cm.connects_to_phase3_moment) {
+      insertAfterIndex = updatedTimeline.findIndex(m =>
+        m.moment.toLowerCase() === cm.connects_to_phase3_moment.toLowerCase()
+      )
+    }
+
+    // Build the new moment entry - always a separate entry, never merged
+    const momentToInsert = {
+      order: 0, // Will be recalculated
+      moment: cm.moment,
+      source: `${cm.character} stakeholder moment`,
+      type: 'subplot',
+      what_happens: cm.what_happens,
+      on_screen: cm.on_screen !== false,
+      if_offscreen_how_surfaced: cm.if_offscreen_how_surfaced || null,
+      characters_present: [
+        {
+          name: cm.character,
+          role: 'supporting',
+          action: cm.what_happens,
+          arc_state: 'active'
+        }
+      ]
+    }
+
+    if (insertAfterIndex >= 0) {
+      updatedTimeline.splice(insertAfterIndex + 1, 0, momentToInsert)
+    } else {
+      // If no connection point found, add to end
+      updatedTimeline.push(momentToInsert)
+    }
+
+    placed++
+  }
+
+  // Recalculate order numbers
+  updatedTimeline.forEach((m, i) => {
+    m.order = i + 1
+  })
+
+  console.log(`    ${placed} new moments placed, ${alreadyPresent} already present (${characterMoments.length} total from Phase 4)`)
+
+  return updatedTimeline
+}
+
 // Run final verification
-async function runVerification(timeline, phase2, phase3, phase4) {
-  const castList = buildCastList(phase2, phase4)
+async function runVerification(timeline, phase2, phase3, phase4, characterArcs) {
   const timelineSummary = buildTimelineSummary(timeline)
 
   const userPrompt = `## COMPLETE TIMELINE
@@ -2616,16 +2698,14 @@ Love Interests: ${phase2.love_interests?.map(li => li.name).join(', ')}
 Stakeholder Characters:
 ${phase4.stakeholder_characters?.map(c => `- ${c.name} (${c.psychology_level}): ${c.interest}`).join('\n')}
 
-## CHARACTER APPEARANCES IN TIMELINE
+## CHARACTER APPEARANCES IN TIMELINE (counted from timeline data - single source of truth)
 
-${castList.map(c => {
-  const appearances = timeline.filter(m =>
-    m.characters_present?.some(p => p.name === c.name)
-  ).length
-  return `- ${c.name}: ${appearances} appearances`
-}).join('\n')}
+${characterArcs.map(a =>
+  `- ${a.character} (${a.role}): ${a.appearances.length} appearances${a.appearances.length === 0 ? ' [NO APPEARANCES]' : ''}`
+).join('\n')}
 
-Verify this timeline is complete and all arcs are deliverable.`
+Verify this timeline is complete and all arcs are deliverable.
+Use the appearance counts above as ground truth - do NOT recount.`
 
   const response = await callOpenAI(PHASE_5_VERIFICATION_PROMPT, userPrompt)
   const parsed = parseJSON(response)
@@ -2688,11 +2768,12 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   const castList = buildCastList(phase2, phase4)
   console.log(`  Full cast: ${castList.length} characters`)
 
-  // Get characters to process (full psychology first, then partial)
+  // Get characters to process (full psychology first, then partial, then minimal)
   const fullCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'full') || []
   const partialCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'partial') || []
+  const minimalCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'minimal') || []
 
-  console.log(`  Processing ${fullCast.length} full + ${partialCast.length} partial characters...`)
+  console.log(`  Processing ${fullCast.length} full + ${partialCast.length} partial + ${minimalCast.length} minimal characters...`)
 
   // Store all presence data for arc tracking
   const allPresenceData = []
@@ -2733,12 +2814,29 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
     timeline = addPresenceToTimeline(timeline, presenceData)
   }
 
-  // Run verification
-  console.log(`  Running verification...`)
-  const verification = await runVerification(timeline, phase2, phase3, phase4)
+  // Process minimal psychology characters (presence only - they still have decisive moments)
+  for (const character of minimalCast) {
+    console.log(`    Processing ${character.name} (minimal)...`)
 
-  // Build character arcs summary
+    // Presence mapping - minimal characters may appear at moments relevant to their function
+    const presenceData = await processCharacterPresence(character, timeline, castList)
+    allPresenceData.push(presenceData)
+    console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
+
+    // Add presence to timeline
+    timeline = addPresenceToTimeline(timeline, presenceData)
+  }
+
+  // Place any Phase 4 stakeholder moments not yet on the timeline as separate entries
+  console.log(`  Placing missing stakeholder moments from Phase 4...`)
+  timeline = placeStakeholderMoments(timeline, phase4)
+
+  // Build character arcs summary FIRST (single source of truth for appearance counts)
   const characterArcs = buildCharacterArcs(timeline, phase2, phase4)
+
+  // Run verification using character arcs data as ground truth
+  console.log(`  Running verification...`)
+  const verification = await runVerification(timeline, phase2, phase3, phase4, characterArcs)
 
   // Final output
   const result = {

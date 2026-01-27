@@ -665,6 +665,26 @@ TROPES
 - Dynamic (pick one or two): Slow Burn, Fast Burn, Opposites Attract, Grumpy/Sunshine
 - Complication (optional): Love Triangle
 
+LOVE TRIANGLE (only if complication is Love Triangle or concept implies multiple love interests)
+
+If there are multiple love interests, identify the triangle type:
+
+Types (can combine):
+- starts_with_rival: Protagonist is attached to rival when primary appears (engaged, married, dating)
+- better_option: Rival appears when primary seems impossible (primary unavailable, rival offers solution)
+- simultaneous: Both court protagonist at same time (unattached, two suitors pursue)
+- represents_lie: Rival embodies what protagonist's lie says she needs (false belief makes rival seem right)
+
+For each love interest, define:
+- Their genuine appeal (what draws protagonist to them - must be real, not just convenience)
+- Their limitation (why they're ultimately not the choice - must be about fit, not character defect)
+- What they represent thematically
+
+Define the tension source: Why is this choice difficult? What makes the rival a genuine option?
+Define "almost chooses rival because": What nearly makes the rival win?
+
+For three or more love interests, each rival gets their own type.
+
 SUBGENRE
 Historical, Contemporary, Paranormal, Fantasy, Sci-Fi, Romantic Suspense, etc.
 
@@ -793,8 +813,25 @@ Step 3: Identify pressure points.
     "climax_beat": number,
     "alignment_note": "How the romantic dark moment should align with the external plot climax"
   },
+  "love_triangle": {
+    "type": "starts_with_rival | better_option | simultaneous | represents_lie (or combination)",
+    "why_this_type": "How the concept maps to this triangle type",
+    "love_interests": [
+      {
+        "name": "Character name",
+        "role": "primary | rival",
+        "appeal": "What genuinely draws protagonist to them",
+        "limitation": "Why they're ultimately not the easy/right choice",
+        "represents": "What they mean thematically"
+      }
+    ],
+    "tension_source": "Why the choice between them is genuinely difficult",
+    "almost_chooses_rival_because": "What nearly makes the rival win"
+  },
   "premise": string
-}`
+}
+
+NOTE: "love_triangle" should be null if there is no love triangle (single love interest). Only include it when complication is Love Triangle or the concept implies multiple love interests.`
 
 function buildPhase1UserPrompt(concept, lengthPreset, level) {
   return `CONCEPT: ${concept}
@@ -1126,6 +1163,23 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   })
   console.log(`    Climax beat: ${ep.climax_beat}`)
   console.log(`    Alignment: ${ep.alignment_note}`)
+
+  // Validate love triangle if present
+  const lt = data.love_triangle
+  if (lt && lt !== null) {
+    if (!lt.type || !lt.love_interests || !Array.isArray(lt.love_interests)) {
+      console.warn('Phase 1 WARNING: love_triangle present but missing type or love_interests')
+    } else {
+      console.log(`  Love Triangle: ${lt.type}`)
+      console.log(`    Tension: ${lt.tension_source}`)
+      lt.love_interests.forEach(li => {
+        console.log(`    - ${li.name} (${li.role}): appeal="${li.appeal?.slice(0, 50)}"`)
+      })
+      console.log(`    Almost chooses rival because: ${lt.almost_chooses_rival_because}`)
+    }
+  } else {
+    console.log(`  Love Triangle: None`)
+  }
 
   return data
 }
@@ -1464,6 +1518,25 @@ You will receive:
     }
   },
 
+  "rival_arcs": [
+    {
+      "rival": "Rival name",
+      "type": "Triangle type from Phase 1 (starts_with_rival | better_option | simultaneous | represents_lie)",
+      "beats": [
+        {
+          "order": "Timeline position (matches timeline order)",
+          "beat": "Beat name from the type-specific list",
+          "moment": "Moment name in the timeline",
+          "what_happens": "Description",
+          "romantic_element": "Physical/emotional charge if present (or null)"
+        }
+      ],
+      "almost_chooses_moment": "Which moment name is the 'almost chooses rival' beat",
+      "resolution": "How the rival arc ends",
+      "cost_to_protagonist": "What she loses or gives up by not choosing rival"
+    }
+  ],
+
   "dark_moment": {
     "what_happens": "The apparent end of the primary relationship",
     "why_it_feels_fatal": "Why this specifically feels insurmountable given their wounds",
@@ -1563,13 +1636,58 @@ These OVERLAP with romance beats. "The Almost" might be where her lie screams to
 - **Second Chance**: Old physical memory + new tension.
 - **Forbidden**: Every touch is transgressive. The wrongness adds to the charge.
 
-## Rival Guidelines (if multiple love interests)
+## Rival Arc Beats (if Phase 1 includes love_triangle)
 
-- Each rival gets 3-4 moments in the timeline with genuine romantic charge
-- At least one moment of real physical/romantic tension with each rival
-- The reader must see why the protagonist might choose them
-- Rivals complete their psychological arc (wound triggered → transformation) even though they lose
+If Phase 1 defines a love_triangle, each rival gets TYPE-SPECIFIC beats in the timeline. The type determines which beats are required.
+
+**Type: starts_with_rival**
+Required beats in timeline:
+1. Established attachment - Show existing relationship with rival, what works
+2. Cracks appear - Something feels missing or wrong
+3. Primary disrupts - New person makes her question everything
+4. Comparison deepens - She notices what rival lacks vs primary
+5. Rival's flaw exposed - Truth about rival or relationship revealed
+6. Attachment breaks - Emotional or formal end to rival relationship
+7. Cost acknowledged - She recognizes what she's losing/leaving
+
+**Type: better_option**
+Required beats in timeline:
+1. Primary impossible - Barriers make primary unavailable/wrong
+2. Rival appears - Offers solution without complications
+3. Genuine attraction - Real pull toward rival, not just settling
+4. Rival courtship - Connection deepens, feels real
+5. Almost commits - She nearly chooses rival
+6. Primary shift - Something changes, primary becomes possible
+7. Difficult release - Letting go of easier path costs something
+
+**Type: simultaneous**
+Required beats in timeline:
+1. Both pursue - Two suitors actively court her
+2. Different appeals - Each offers something genuine and different
+3. Attraction to both - She feels real desire for each
+4. Tests reveal character - Moments show who each truly is
+5. Almost chooses rival - She nearly commits to rival
+6. Clarity moment - Something shows why primary is right
+7. Costly choice - She chooses knowing rival was real option
+
+**Type: represents_lie**
+Required beats in timeline:
+1. Lie active - She believes something false about what she needs
+2. Rival embodies lie - Rival offers exactly what lie says she wants
+3. Primary challenges - Primary offers what she actually needs (uncomfortable)
+4. Lie reinforced - Events seem to prove rival is right
+5. Almost chooses rival - Her lie nearly wins
+6. Lie cracked - Truth breaks through
+7. Transformation choice - Choosing primary means breaking lie
+
+**Integration rules:**
+- Rival romance beats INTERWEAVE with primary romance beats chronologically
+- Each rival must have at least one genuine romantic moment (touch, charged conversation, near kiss)
+- "Almost chooses rival" must be a REAL moment in the timeline, not implied
+- Rival's arc ending costs the protagonist something emotionally
 - Rivals lose because of fit, not because they lack chemistry
+
+Track each rival's arc in the output's rival_arcs array.
 
 ## Character Arc Tracking
 
@@ -1649,6 +1767,17 @@ ${phase1.external_plot.beats?.map(b => `${b.order}. **${b.beat}**: ${b.what_happ
 **Alignment:** ${phase1.external_plot.alignment_note}
 
 Place character moments RELATIVE to these external beats. Each timeline moment should reference which external beat it occurs during (via external_beat field). The world creates pressure, deadlines, and forced proximity/separation. The romantic dark moment should align with the external climax.` : 'No external plot defined.'}
+
+${phase1.love_triangle ? `## Love Triangle (from Phase 1) - RIVAL ARC REQUIRED
+
+**Triangle type:** ${phase1.love_triangle.type}
+**Why:** ${phase1.love_triangle.why_this_type}
+**Tension source:** ${phase1.love_triangle.tension_source}
+**Almost chooses rival because:** ${phase1.love_triangle.almost_chooses_rival_because}
+
+${phase1.love_triangle.love_interests?.map(li => `**${li.name} (${li.role}):** appeal="${li.appeal}", limitation="${li.limitation}", represents="${li.represents}"`).join('\n')}
+
+You MUST include rival_arcs in your output. Each rival needs type-specific beats from the system prompt. The "almost chooses rival" moment must be a REAL timeline moment, not implied. Rival romance beats must interweave chronologically with primary romance beats.` : ''}
 
 ## Characters
 
@@ -1748,6 +1877,28 @@ async function executePhase3(concept, phase1, phase2) {
   console.log(`  Dark moment: ${data.dark_moment?.what_happens?.slice(0, 60)}...`)
   console.log(`  Resolution: ${data.resolution?.final_state?.slice(0, 60)}...`)
 
+  // Validate rival arcs if love triangle exists
+  if (phase1.love_triangle && phase1.love_triangle !== null) {
+    const rivals = phase1.love_triangle.love_interests?.filter(li => li.role === 'rival') || []
+    if (rivals.length > 0) {
+      if (!data.rival_arcs || !Array.isArray(data.rival_arcs) || data.rival_arcs.length === 0) {
+        console.warn('Phase 3 WARNING: Love triangle defined but no rival_arcs in output')
+      } else {
+        console.log(`  Rival arcs: ${data.rival_arcs.length}`)
+        data.rival_arcs.forEach(ra => {
+          console.log(`    - ${ra.rival} (${ra.type}): ${ra.beats?.length || 0} beats`)
+          console.log(`      Almost chooses moment: ${ra.almost_chooses_moment}`)
+          console.log(`      Resolution: ${ra.resolution}`)
+          console.log(`      Cost: ${ra.cost_to_protagonist}`)
+          const romanticBeats = ra.beats?.filter(b => b.romantic_element) || []
+          if (romanticBeats.length === 0) {
+            console.warn(`      WARNING: No romantic elements in ${ra.rival}'s beats`)
+          }
+        })
+      }
+    }
+  }
+
   return data
 }
 
@@ -1834,14 +1985,7 @@ These moments should:
 - Include off-screen moments where relevant (with mechanism for how reader learns about them)
 - Have a clear outcome
 
-### Step 7: Merge Into Master Timeline
-
-Take Phase 3 timeline and weave in secondary character moments:
-- Add new moments where secondary arcs need them
-- Assign POV to each moment
-- Mark which arcs are in play
-- Maintain chronological order
-- Include ALL Phase 3 moments plus new secondary moments
+Phase 5 will weave these moments into the master timeline. You just define WHAT happens and WHERE it connects.
 
 ## OUTPUT FORMAT (JSON)
 
@@ -1908,20 +2052,6 @@ Take Phase 3 timeline and weave in secondary character moments:
     }
   ],
 
-  "master_timeline": [
-    {
-      "order": 1,
-      "pov": "Character name",
-      "moment": "Moment name",
-      "what_happens": "What occurs",
-      "arcs_in_play": ["Character A", "Character B"],
-      "romance_beat": "Romance element or null",
-      "intimacy_stage": "Stage or null",
-      "psychological_beat": "Psychological element or null",
-      "source": "phase3 | secondary"
-    }
-  ],
-
   "arc_outcomes": [
     {
       "character": "Character name",
@@ -1939,13 +2069,12 @@ Take Phase 3 timeline and weave in secondary character moments:
 
 ## CRITICAL RULES
 
-1. Every character must appear in the master_timeline. No orphans.
-2. Characters emerge from story needs (interests), not from abstract psychology.
-3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
-4. The master_timeline must contain ALL Phase 3 moments plus any new secondary moments.
-5. Every moment in master_timeline must have a POV assigned.
-6. Off-screen moments must have a clear mechanism for surfacing to the reader.
-7. Consolidate where natural - one character can serve multiple interests.
+1. Characters emerge from story needs (interests), not from abstract psychology.
+2. Psychology level matches function: don't give full wound/lie/arc to a messenger.
+3. Every character with full/partial psychology must have character_moments.
+4. Off-screen moments must have a clear mechanism for surfacing to the reader.
+5. Consolidate where natural - one character can serve multiple interests.
+6. Phase 5 builds the master timeline - you define characters and their moments only.
 
 ## DO NOT INCLUDE
 
@@ -1953,7 +2082,7 @@ Take Phase 3 timeline and weave in secondary character moments:
 - "Major/minor/referenced" weight categories (use psychology_level instead)
 - Full psychology for single-appearance characters
 - Characters without clear story function
-- Characters who never appear in timeline`
+- A master timeline (Phase 5 handles this)`
 
 function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   // Build POV character summaries
@@ -2021,11 +2150,7 @@ For each face, determine:
 
 ### Step 6: Key Moments
 
-Every character with full or partial psychology needs decisive moments. Reference Phase 3 moments where they connect.
-
-### Step 7: Master Timeline
-
-Merge Phase 3 timeline with new secondary moments. ALL ${phase3.timeline?.length || 0} Phase 3 moments must appear, plus any new moments for secondary arcs.
+Every character with full or partial psychology needs decisive moments. Reference Phase 3 moments where they connect. Phase 5 will weave these into the master timeline.
 
 ### Complexity Guide for ${lengthPreset}
 
@@ -2034,23 +2159,25 @@ Merge Phase 3 timeline with new secondary moments. ALL ${phase3.timeline?.length
 - Minimal characters: ${minimalCount}
 
 Remember: Love interests are NOT secondary characters - they're already in Phase 2.
+Do NOT produce a master timeline - Phase 5 handles timeline assembly.
 
 ## CRITICAL: OUTPUT STRUCTURE
 
-Your output MUST be JSON with these top-level keys:
+Your output MUST be valid JSON with these top-level keys:
 1. "interests" - array of interests identified
 2. "stakeholder_characters" - array of character objects
 3. "character_moments" - array of key moments for each character
-4. "master_timeline" - complete integrated timeline (Phase 3 + new moments)
-5. "arc_outcomes" - array of character outcomes
-6. "faceless_pressures" - array of unnamed forces`
+4. "arc_outcomes" - array of character outcomes
+5. "faceless_pressures" - array of unnamed forces
+
+Do NOT include a "master_timeline" - that is Phase 5's job.`
 }
 
 async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   console.log('Executing Phase 4: Stakeholder Characters...')
 
   const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
-  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt)
+  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
@@ -2070,9 +2197,6 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters)) {
     throw new Error('Phase 4 missing stakeholder_characters array. Received keys: ' + Object.keys(data).join(', '))
   }
-  if (!data.master_timeline || !Array.isArray(data.master_timeline)) {
-    throw new Error('Phase 4 missing master_timeline array. Received keys: ' + Object.keys(data).join(', '))
-  }
 
   // Validate stakeholder characters have required fields
   for (const char of data.stakeholder_characters) {
@@ -2081,23 +2205,12 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     }
   }
 
-  // Validate master timeline entries
-  for (const entry of data.master_timeline) {
-    if (!entry.order || !entry.pov || !entry.moment) {
-      throw new Error(`Master timeline entry missing required fields (order, pov, moment)`)
-    }
-  }
-
-  // Check no orphan characters
-  const timelineCharacters = new Set()
-  data.master_timeline.forEach(m => {
-    if (m.arcs_in_play) m.arcs_in_play.forEach(c => timelineCharacters.add(c))
-  })
-  const orphans = data.stakeholder_characters.filter(c =>
-    c.psychology_level !== 'minimal' && !timelineCharacters.has(c.name)
-  )
-  if (orphans.length > 0) {
-    console.warn(`Phase 4 WARNING: Orphan characters (not in timeline arcs_in_play): ${orphans.map(c => c.name).join(', ')}`)
+  // Check that characters with full/partial psychology have moments
+  const charsNeedingMoments = data.stakeholder_characters.filter(c => c.psychology_level !== 'minimal')
+  const momentCharacters = new Set((data.character_moments || []).map(m => m.character))
+  const missingMoments = charsNeedingMoments.filter(c => !momentCharacters.has(c.name))
+  if (missingMoments.length > 0) {
+    console.warn(`Phase 4 WARNING: Characters without moments: ${missingMoments.map(c => c.name).join(', ')}`)
   }
 
   // Count by psychology level
@@ -2131,16 +2244,11 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   const offScreen = data.character_moments?.filter(m => !m.on_screen).length || 0
   console.log(`    On-screen: ${onScreen}, Off-screen: ${offScreen}`)
 
-  console.log(`  Master timeline: ${data.master_timeline.length} moments`)
-  const phase3Moments = data.master_timeline.filter(m => m.source === 'phase3').length
-  const secondaryMoments = data.master_timeline.filter(m => m.source === 'secondary').length
-  console.log(`    Phase 3 moments: ${phase3Moments}, Secondary moments: ${secondaryMoments}`)
-
   console.log(`  Arc outcomes: ${data.arc_outcomes?.length || 0}`)
   console.log(`  Faceless pressures: ${data.faceless_pressures?.length || 0}`)
 
-  if (orphans.length > 0) {
-    console.log(`  WARNING: ${orphans.length} orphan characters detected`)
+  if (missingMoments.length > 0) {
+    console.log(`  WARNING: ${missingMoments.length} characters without moments`)
   }
 
   return data
@@ -3258,7 +3366,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'complete', {
       interests: bible.subplots.interests?.length,
       stakeholderCharacters: bible.subplots.stakeholder_characters?.length,
-      masterTimelineMoments: bible.subplots.master_timeline?.length
+      characterMoments: bible.subplots.character_moments?.length
     })
 
     // Phase 5: Master Timeline

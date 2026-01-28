@@ -2868,33 +2868,38 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   const verification = await runVerification(timeline, phase2, phase3, phase4, characterArcs)
 
   // Check for critical gaps - do NOT deliver broken output
+  let finalVerification = verification
+  let finalCharacterArcs = characterArcs
   const criticalGaps = verification.gaps_found?.filter(g => g.severity === 'critical') || []
   if (criticalGaps.length > 0) {
     console.error(`  CRITICAL GAPS FOUND (${criticalGaps.length}):`)
     criticalGaps.forEach(g => console.error(`    - ${g.issue}`))
 
-    // Recount character arcs as a fallback in case verification was based on stale data
-    const recountedArcs = buildCharacterArcs(timeline, phase2, phase4)
-    const zeroAppearanceChars = recountedArcs.filter(a => a.appearances.length === 0)
+    // Attempt one recount/reprocess pass
+    console.log(`  Attempting recount/reprocess pass...`)
+    finalCharacterArcs = buildCharacterArcs(timeline, phase2, phase4)
 
-    if (zeroAppearanceChars.length > 0) {
-      const missing = zeroAppearanceChars.map(a => `${a.character} (${a.role})`).join(', ')
+    // Re-run verification with recounted data
+    console.log(`  Re-running verification after reprocess...`)
+    finalVerification = await runVerification(timeline, phase2, phase3, phase4, finalCharacterArcs)
+
+    const retriedCriticalGaps = finalVerification.gaps_found?.filter(g => g.severity === 'critical') || []
+    if (retriedCriticalGaps.length > 0) {
+      const issues = retriedCriticalGaps.map(g => g.issue).join('; ')
       throw new Error(
-        `Phase 5 failed: ${zeroAppearanceChars.length} characters have 0 appearances after timeline construction: ${missing}. ` +
-        `Critical gaps: ${criticalGaps.map(g => g.issue).join('; ')}`
+        `Phase 5 failed: ${retriedCriticalGaps.length} critical gap(s) remain after reprocess. ` +
+        `Issues: ${issues}`
       )
     }
 
-    // If recount shows everyone has appearances, the critical gaps were about something else.
-    // Log but allow output - the verification LLM may have over-reported.
-    console.warn(`  Critical gaps reported by verification but all characters have appearances. Proceeding with output.`)
+    console.log(`  Reprocess resolved critical gaps. Proceeding with output.`)
   }
 
   // Final output
   const result = {
     master_timeline: timeline,
-    character_arcs: characterArcs,
-    verification
+    character_arcs: finalCharacterArcs,
+    verification: finalVerification
   }
 
   // Console summary
@@ -2927,16 +2932,16 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   }
 
   // Character arc summary
-  console.log(`  Character arcs: ${characterArcs.length} tracked`)
-  const withAppearances = characterArcs.filter(a => a.appearances.length > 0).length
+  console.log(`  Character arcs: ${finalCharacterArcs.length} tracked`)
+  const withAppearances = finalCharacterArcs.filter(a => a.appearances.length > 0).length
   console.log(`    With appearances: ${withAppearances}`)
 
   // Verification summary
-  if (verification.verification_passed) {
+  if (finalVerification.verification_passed) {
     console.log(`  Verification: PASSED`)
   } else {
     console.log(`  Verification: ISSUES FOUND`)
-    verification.gaps_found?.forEach(g => {
+    finalVerification.gaps_found?.forEach(g => {
       console.log(`    - [${g.severity}] ${g.issue}`)
     })
   }

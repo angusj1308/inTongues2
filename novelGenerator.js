@@ -2909,8 +2909,18 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   // Timeline preview
   console.log(`  Timeline preview:`)
   timeline.slice(0, 5).forEach(m => {
-    const charCount = m.characters_present?.length || 0
-    console.log(`    ${m.order}. ${m.moment} (${m.type}) - ${charCount} characters`)
+    // Count characters from all three sources: characters_present, pov, and source field
+    const povNames = m.pov ? [m.pov] : []
+    const sourceNames = (m.source && typeof m.source === 'string')
+      ? m.source.split('+').map(s => s.trim()).filter(s => s && s !== 'main')
+      : []
+    // Deduplicate: pov/source characters may also be in characters_present
+    const allNames = new Set([
+      ...povNames,
+      ...sourceNames,
+      ...(m.characters_present?.map(p => p.name) || [])
+    ])
+    console.log(`    ${m.order}. ${m.moment} (${m.type}) - ${allNames.size} characters`)
   })
   if (timeline.length > 5) {
     console.log(`    ... and ${timeline.length - 5} more`)

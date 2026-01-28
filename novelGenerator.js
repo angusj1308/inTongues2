@@ -3451,6 +3451,12 @@ async function executePhase7(concept, phase1, phase2, phase4, phase5, phase6) {
 
     if (!parsed.success) {
       console.warn(`      ⚠ Parse failed for "${eventName}": ${parsed.error}`)
+      // Log the raw response to help debug JSON issues
+      console.warn(`      Raw response (first 3000 chars):`)
+      console.warn(response.slice(0, 3000))
+      if (response.length > 3000) {
+        console.warn(`      ... (${response.length - 3000} more chars)`)
+      }
       // Create a minimal fallback entry
       developedEvents.push({
         event_name: eventName,

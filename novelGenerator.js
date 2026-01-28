@@ -2950,271 +2950,184 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
 }
 
 // =============================================================================
-// PHASE 6: CHAPTER & SCENE BREAKDOWN
+// PHASE 6: MAJOR EVENTS & LOCATIONS
 // =============================================================================
 
-const PHASE_6_SYSTEM_PROMPT = `Distribute plot across chapters.
+const PHASE_6_SYSTEM_PROMPT = `You organize a story's decisive moments into the spatial and social reality of the story world.
 
-Phase 5 defined broad story arc. You define what happens in each chapter, WHEN and WHERE they happen.
+You receive a master timeline of decisive moments and the story's external plot structure. Your job:
 
-Output events for generation to dramatize. Do not write prose.
+1. IDENTIFY CLUSTERS: Group moments that would naturally occur at the same occasion (a festival, a church service, a family dinner, a battle, a ceremony). Base this on:
+   - External plot beat (moments tied to the same world event)
+   - Timing (moments occurring at the same point in the story)
+   - Logic (characters who would be in the same physical space)
+   Moments that are private, intimate, or require isolation remain separate as lone moments.
+
+2. ASSIGN LOCATIONS: For each cluster (Major Event) and each standalone moment (Lone Moment), assign a specific location appropriate to the setting and era. Define the atmosphere and timing.
+
+3. DETERMINE WHO IS PRESENT: For each Major Event and Lone Moment:
+   - List which existing named characters are present
+   - Identify minimal unnamed characters the location demands (servants, workers, congregants, onlookers). These have no psychology and no arc. They exist because the setting requires their presence.
+
+IMPORTANT GUIDELINES:
+- Not every moment needs to cluster. Private scenes between two characters often stand alone.
+- Major events typically contain 2-6 moments. More than that suggests over-clustering.
+- Locations must be specific to the story's setting and era, not generic.
+- Every moment from the master timeline must appear exactly once: either inside a major_event's moments_contained or as a lone_moment.
+- Minimal characters are functional roles (the person who opens the door, the crowd that watches), not developed characters.
+
+Return ONLY valid JSON in this exact format:
 
 {
-  "chapters": [
+  "major_events": [
     {
-      "number": number,
-      "title": string,
-      "pov": string,
-      "purpose": string,
-      "scenes": [
-        {
-          "location": string,
-          "characters": [],
-          "events": [],
-          "function": string
-        }
-      ],
-      "phase_4_moment": string or null,
-      "phase_5_beats": [],
-      "reader_learns": [],
-      "ends_with": string
+      "name": "string - name for this occasion",
+      "external_beat": "string - which Phase 1 beat this relates to, or null",
+      "moments_contained": [array of moment order numbers from the master timeline],
+      "location": "string - specific location",
+      "atmosphere": "string - sensory and emotional tone",
+      "timing": "string - when in the story this occurs",
+      "characters_present": [array of existing character names],
+      "minimal_characters": [array of unnamed roles that the location requires]
     }
   ],
-  "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
+  "lone_moments": [
+    {
+      "moment_order": number,
+      "moment_name": "string - from master timeline",
+      "location": "string - specific location",
+      "atmosphere": "string - sensory and emotional tone",
+      "timing": "string - when in the story this occurs",
+      "characters_present": [array of existing character names],
+      "minimal_characters": [array of unnamed roles if any]
+    }
+  ],
+  "location_inventory": [
+    {
+      "location": "string - location name",
+      "description": "string - what this place is",
+      "appears_in": [array of major event names and/or lone moment names]
+    }
+  ]
 }`
 
-function buildPhase6UserPrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
-  const chapterCount = CONFIG.chapterCounts[lengthPreset]
-  const scenesPerChapter = lengthPreset === 'novella' ? '2-3' : '2-4'
+function buildPhase6UserPrompt(concept, phase1, phase2, phase4, phase5) {
+  // Build cast list from Phase 2 + Phase 4
+  const castNames = []
+  if (phase2.protagonist?.name) {
+    castNames.push(`${phase2.protagonist.name} (protagonist)`)
+  }
+  if (phase2.love_interests) {
+    phase2.love_interests.forEach(li => castNames.push(`${li.name} (love interest)`))
+  }
+  if (phase4.stakeholder_characters) {
+    phase4.stakeholder_characters.forEach(c => castNames.push(`${c.name} (${c.psychology_level})`))
+  }
+
+  // Build timeline summary from Phase 5
+  const timeline = phase5.master_timeline || []
+  const timelineSummary = timeline.map(m => {
+    const chars = m.characters_present?.map(c => c.name).join(', ') || 'unspecified'
+    return `  ${m.order}. [${m.type}] "${m.moment}" - Characters: ${chars}`
+  }).join('\n')
+
+  // Extract external plot beats from Phase 1
+  const externalBeats = phase1.external_plot?.beats?.map(b =>
+    `  ${b.order}. ${b.beat}: ${b.what_happens}`
+  ).join('\n') || '  (none specified)'
 
   return `CONCEPT: ${concept}
 
-LENGTH: ${lengthPreset} (${chapterCount} chapters)
-Each chapter needs ${scenesPerChapter} scenes.
+## SETTING & TIMESPAN
 
-PHASE 1 (Core Foundation):
-${JSON.stringify(phase1, null, 2)}
+Setting: ${phase1.subgenre || 'not specified'}
+Timespan: ${phase1.timespan?.duration || 'not specified'}
+External plot type: ${phase1.external_plot?.container_type || 'not specified'}
+External plot summary: ${phase1.external_plot?.container_summary || 'not specified'}
 
-PHASE 2 (World/Setting - use these locations):
-${JSON.stringify(phase2, null, 2)}
+## EXTERNAL PLOT BEATS (from Phase 1)
 
-PHASE 3 (Characters):
-${JSON.stringify(phase3, null, 2)}
+${externalBeats}
 
-PHASE 4 (Chemistry - these moments must appear):
-${JSON.stringify(phase4, null, 2)}
+## FULL CAST (from Phase 2 + Phase 4)
 
-PHASE 5 (Plot Architecture - these beats must be placed):
-${JSON.stringify(phase5, null, 2)}
+${castNames.join('\n')}
+
+## MASTER TIMELINE (from Phase 5) - ${timeline.length} moments
+
+${timelineSummary}
 
 ## YOUR TASK
 
-Create a chapter-by-chapter, scene-by-scene breakdown for all ${chapterCount} chapters.
+Organize these ${timeline.length} moments into the spatial and social reality of the story world.
 
-REQUIREMENTS:
-1. Every chapter has ${scenesPerChapter} scenes
-2. Every scene has 3-6 events (WHAT happens, not HOW it's written)
-3. Every Phase 4 pivotal moment appears in a specific chapter
-4. Every Phase 5 plot beat is placed in a specific chapter
-5. Locations come from Phase 2
+1. Group moments that would naturally occur at the same occasion into Major Events
+2. Keep private/intimate moments as Lone Moments
+3. Assign specific locations appropriate to the setting
+4. For each event/moment, list which named characters are present and what minimal unnamed characters the location demands
 
-Events are plain factual statements. No imagery, sensory detail, or prose style.`
+Every moment order number must appear exactly once across major_events and lone_moments.`
 }
 
-// Phase 6 now generates scenes per-chapter for reliability
-const PHASE_6_MAX_RETRIES = 2
+async function executePhase6(concept, phase1, phase2, phase4, phase5) {
+  console.log('Executing Phase 6: Major Events & Locations...')
 
-// System prompt for generating chapter outlines (structure only)
-const PHASE_6_OUTLINE_SYSTEM_PROMPT = `Assign Phase 5 beats and Phase 4 moments to chapters.
+  const timeline = phase5.master_timeline || []
+  const totalMoments = timeline.length
+  console.log(`  Organizing ${totalMoments} moments into events and locations...`)
 
-{
-  "chapters": [
-    {
-      "number": number,
-      "title": string,
-      "pov": string,
-      "purpose": string,
-      "phase_4_moment": string or null,
-      "phase_5_beats": [],
-      "ends_with": string
-    }
-  ],
-  "pov_distribution": { "protagonist_chapters": [], "love_interest_chapters": [] }
-}`
+  // Single LLM call to cluster, locate, and populate
+  const userPrompt = buildPhase6UserPrompt(concept, phase1, phase2, phase4, phase5)
+  const response = await callOpenAI(PHASE_6_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
+  const parsed = parseJSON(response)
 
-// System prompt for generating scene breakdown for a single chapter
-const PHASE_6_CHAPTER_SYSTEM_PROMPT = `List what happens in this chapter. Do not write prose.
-
-{
-  "scenes": [
-    {
-      "location": string,
-      "characters": [],
-      "events": [],
-      "function": string
-    }
-  ],
-  "reader_learns": [],
-  "ends_with": string
-}`
-
-function buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
-  const chapterCount = CONFIG.chapterCounts[lengthPreset]
-
-  return `CONCEPT: ${concept}
-
-LENGTH: ${lengthPreset} (${chapterCount} chapters)
-
-PHASE 1 (Core Foundation):
-${JSON.stringify(phase1, null, 2)}
-
-PHASE 4 (Chemistry Moments - must be placed):
-${JSON.stringify(phase4, null, 2)}
-
-PHASE 5 (Plot Architecture - beats must be distributed):
-${JSON.stringify(phase5, null, 2)}
-
-Create an outline for all ${chapterCount} chapters. For each chapter:
-- POV character
-- Purpose (what it accomplishes)
-- Which Phase 4 moment it contains (if any)
-- Which Phase 5 beats appear in it
-- Emotional arc (starts/ends)
-- What it ends with (hook for next chapter)
-
-Structure only - scene details come later.`
-}
-
-function buildPhase6ChapterPrompt(concept, phase2, phase3, chapterOutline, chapterNumber) {
-  return `CONCEPT: ${concept}
-
-LOCATIONS (use these):
-${JSON.stringify(phase2.locations, null, 2)}
-
-CHARACTERS:
-Protagonist: ${phase3.protagonist?.name}
-Love Interest: ${phase3.love_interest?.name}
-
-CHAPTER ${chapterNumber} OUTLINE:
-${JSON.stringify(chapterOutline, null, 2)}
-
-Create 2-4 scenes for this chapter. Each scene needs:
-- Location (from the list above)
-- Characters present
-- 3-6 events (WHAT happens, not HOW it's written)
-- Function (what the scene accomplishes)
-
-Events are plain factual statements. No imagery, sensory detail, or prose style.`
-}
-
-async function executePhase6(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset) {
-  console.log('Executing Phase 6: Chapter & Scene Breakdown (per-chapter)...')
-
-  const chapterCount = CONFIG.chapterCounts[lengthPreset]
-
-  // Step 1: Generate chapter outline (structure without beats)
-  console.log('  Phase 6a: Generating chapter outline...')
-  const outlinePrompt = buildPhase6OutlinePrompt(concept, phase1, phase2, phase3, phase4, phase5, lengthPreset)
-  const outlineResponse = await callClaude(PHASE_6_OUTLINE_SYSTEM_PROMPT, outlinePrompt, { maxTokens: 16384 })
-  const outlineParsed = parseJSON(outlineResponse)
-
-  if (!outlineParsed.success) {
-    throw new Error(`Phase 6 outline parse failed: ${outlineParsed.error}`)
+  if (!parsed.success) {
+    throw new Error(`Phase 6 parse failed: ${parsed.error}`)
   }
 
-  const outline = outlineParsed.data
-  console.log(`  Phase 6a complete: ${outline.chapters?.length || 0} chapter outlines`)
+  const result = parsed.data
 
-  // Step 2: Generate detailed scenes/beats per chapter
-  const allChapters = []
-  let successCount = 0
-  let failCount = 0
+  // Validate: every moment must appear exactly once
+  const majorEventMoments = (result.major_events || []).flatMap(e => e.moments_contained || [])
+  const loneMoments = (result.lone_moments || []).map(m => m.moment_order)
+  const allPlacedMoments = [...majorEventMoments, ...loneMoments].sort((a, b) => a - b)
+  const expectedMoments = timeline.map(m => m.order).sort((a, b) => a - b)
 
-  for (let i = 0; i < chapterCount; i++) {
-    const chapterNumber = i + 1
-    const outlineChapter = outline.chapters[i]
+  const missingMoments = expectedMoments.filter(o => !allPlacedMoments.includes(o))
+  const duplicateMoments = allPlacedMoments.filter((o, i) => allPlacedMoments.indexOf(o) !== i)
 
-    if (!outlineChapter) {
-      console.error(`  Chapter ${chapterNumber}: No outline found, skipping`)
-      failCount++
-      continue
+  if (missingMoments.length > 0 || duplicateMoments.length > 0) {
+    console.warn(`  Phase 6 moment coverage issues:`)
+    if (missingMoments.length > 0) {
+      console.warn(`    Missing moments: ${missingMoments.join(', ')}`)
     }
-
-    console.log(`  Phase 6b: Chapter ${chapterNumber}/${chapterCount} - "${outlineChapter.title || 'Untitled'}"...`)
-
-    let chapterData = null
-    let attempts = 0
-
-    // Retry loop for this chapter
-    while (attempts < PHASE_6_MAX_RETRIES && !chapterData) {
-      attempts++
-
-      try {
-        const chapterPrompt = buildPhase6ChapterPrompt(concept, phase2, phase3, outlineChapter, chapterNumber)
-        const chapterResponse = await callClaude(PHASE_6_CHAPTER_SYSTEM_PROMPT, chapterPrompt, { maxTokens: 8192 })
-        const chapterParsed = parseJSON(chapterResponse)
-
-        if (chapterParsed.success) {
-          // Handle both wrapped and unwrapped responses
-          const data = chapterParsed.data.chapters?.[0] || chapterParsed.data
-
-          if (data.scenes && data.scenes.length > 0) {
-            chapterData = data
-            console.log(`    ✓ ${data.scenes.length} scenes, ${data.scenes.reduce((sum, s) => sum + ((s.events || s.beats)?.length || 0), 0)} total events`)
-          } else {
-            console.warn(`    Attempt ${attempts}: No scenes in response, retrying...`)
-          }
-        } else {
-          console.warn(`    Attempt ${attempts}: Parse failed - ${chapterParsed.error?.slice(0, 100)}`)
-        }
-      } catch (err) {
-        console.error(`    Attempt ${attempts}: Error - ${err.message}`)
-      }
-    }
-
-    // Add chapter (with or without scenes)
-    if (chapterData) {
-      allChapters.push({
-        ...outlineChapter,
-        scenes: chapterData.scenes || [],
-        foreshadowing: chapterData.foreshadowing || { plants: [], payoffs: [] },
-        chapter_hook: chapterData.chapter_hook || { type: 'emotional', description: 'Chapter concludes' },
-        hook: chapterData.chapter_hook || { type: 'emotional', description: 'Chapter concludes' }
-      })
-      successCount++
-    } else {
-      // Fallback: outline-only chapter (will use single-pass generation)
-      console.warn(`    ✗ Chapter ${chapterNumber} failed after ${attempts} attempts, using outline only`)
-      allChapters.push({
-        ...outlineChapter,
-        scenes: [],
-        foreshadowing: { plants: [], payoffs: [] },
-        chapter_hook: { type: 'emotional', description: 'Chapter concludes' }
-      })
-      failCount++
+    if (duplicateMoments.length > 0) {
+      console.warn(`    Duplicate moments: ${duplicateMoments.join(', ')}`)
     }
   }
 
-  // Sort chapters by number (should already be in order, but ensure)
-  allChapters.sort((a, b) => a.number - b.number)
+  // Console summary
+  const majorEventCount = result.major_events?.length || 0
+  const loneMomentCount = result.lone_moments?.length || 0
+  const locationCount = result.location_inventory?.length || 0
+  const clusteredMomentCount = majorEventMoments.length
 
-  const result = {
-    chapters: allChapters,
-    pov_distribution: outline.pov_distribution,
-    timeline: outline.timeline || { total_story_time: 'Several months', time_jumps: [] },
-    coherence_check: {
-      pov_structure_honored: 'Verified during generation',
-      all_phase5_beats_placed: 'Distributed across chapters',
-      all_phase4_moments_placed: 'Placed in designated chapters',
-      all_foreshadowing_tracked: 'Tracked per-chapter',
-      locations_from_phase2: 'Using Phase 2 locations',
-      tension_curve_matches_phase5: 'Following plot architecture',
-      chapter_count_correct: allChapters.length === chapterCount ? 'Yes' : `Expected ${chapterCount}, got ${allChapters.length}`,
-      scenes_generated: `${successCount}/${chapterCount} chapters have scenes`
+  console.log('Phase 6 complete.')
+  console.log(`  Major events: ${majorEventCount} (containing ${clusteredMomentCount} moments)`)
+  console.log(`  Lone moments: ${loneMomentCount}`)
+  console.log(`  Locations: ${locationCount}`)
+  console.log(`  Moment coverage: ${allPlacedMoments.length}/${totalMoments}`)
+
+  if (majorEventCount > 0) {
+    console.log(`  Major events preview:`)
+    result.major_events.slice(0, 3).forEach(e => {
+      console.log(`    - "${e.name}" at ${e.location} (${e.moments_contained?.length || 0} moments, ${e.characters_present?.length || 0} characters)`)
+    })
+    if (majorEventCount > 3) {
+      console.log(`    ... and ${majorEventCount - 3} more`)
     }
   }
 
-  console.log(`Phase 6 complete: ${allChapters.length} chapters (${successCount} with scenes, ${failCount} outline-only)`)
   return result
 }
 
@@ -3431,7 +3344,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       }
     case 6:
       if (phaseNumber <= 6) {
-        updatedBible.chapters = await executePhase6(concept, updatedBible.coreFoundation, updatedBible.world, updatedBible.characters, updatedBible.chemistry, updatedBible.plot, lengthPreset)
+        updatedBible.eventsAndLocations = await executePhase6(concept, updatedBible.coreFoundation, updatedBible.characters, updatedBible.subplots, updatedBible.masterTimeline)
       }
       break
   }
@@ -3450,7 +3363,7 @@ const PHASE_DESCRIPTIONS = {
   3: { name: 'Characters', description: 'Developing protagonist and love interest psychology and voice' },
   4: { name: 'Chemistry', description: 'Designing the romance arc and pivotal moments' },
   5: { name: 'Plot Architecture', description: 'Creating the beat sheet and tension curve' },
-  6: { name: 'Chapter Breakdown', description: 'Outlining each chapter with beats and hooks' },
+  6: { name: 'Major Events & Locations', description: 'Organizing moments into events, assigning locations and presence' },
   7: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
 }
 
@@ -3543,31 +3456,14 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       subplotMoments: bible.masterTimeline.master_timeline?.filter(m => m.type === 'subplot').length
     })
 
-    // TESTING: Stop after Phase 5 to validate Master Timeline output
-    console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 5')
-    console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
-    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
-    console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
-    console.log('Phase 4 Output:', JSON.stringify(bible.subplots, null, 2))
-    console.log('Phase 5 Output:', JSON.stringify(bible.masterTimeline, null, 2))
-    console.log('='.repeat(60))
-
-    return {
-      success: true,
-      bible,
-      validationStatus: 'PHASE_5_TEST',
-      validationAttempts: 0
-    }
-
-    // Phase 6: Chapter Breakdown (TODO: update for new structure)
-    // reportProgress(6, 'starting')
-    // bible.chapters = await executePhase6(...)
-
-    // Phase 6: Chapter Breakdown
+    // Phase 6: Major Events & Locations
     reportProgress(6, 'starting')
-    bible.chapters = await executePhase6(concept, bible.coreFoundation, bible.world, bible.characters, bible.chemistry, bible.plot, lengthPreset)
-    reportProgress(6, 'complete', { chapterCount: bible.chapters.chapters?.length || 0 })
+    bible.eventsAndLocations = await executePhase6(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline)
+    reportProgress(6, 'complete', {
+      majorEvents: bible.eventsAndLocations.major_events?.length || 0,
+      loneMoments: bible.eventsAndLocations.lone_moments?.length || 0,
+      locations: bible.eventsAndLocations.location_inventory?.length || 0
+    })
 
     // Store level and language on bible for chapter generation
     bible.level = level

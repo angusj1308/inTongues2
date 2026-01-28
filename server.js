@@ -8040,6 +8040,30 @@ app.post('/api/generate/bible', async (req, res) => {
   }
 })
 
+// POST /api/generate/reset-status - Reset a stuck book status back to bible_complete
+app.post('/api/generate/reset-status', async (req, res) => {
+  try {
+    const { uid, bookId } = req.body
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    await bookRef.update({ status: 'bible_complete' })
+    console.log(`Reset status to bible_complete for book ${bookId}`)
+
+    res.json({ success: true, message: 'Status reset to bible_complete' })
+  } catch (error) {
+    console.error('Reset status error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {

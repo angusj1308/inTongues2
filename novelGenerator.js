@@ -3255,9 +3255,11 @@ Return ONLY valid JSON in this exact format:
   "setup_requirements": [
     {
       "requirement": "What must be established earlier in the story",
-      "why_needed": "Why this event needs it to land",
-      "function": "seed | setup | escalation | context",
-      "latest_placement": "early | mid | just_before"
+      "who_must_know": ["Character name(s) who need to learn/feel this"],
+      "who_has_info": ["Character name(s) or sources that hold this information - can be empty for internal memories"],
+      "delivery_options": ["Array of valid methods: told_by | discovers | overhears | observes | internal_memory | reads_document"],
+      "emotional_function": "What this does to the receiving character - pressure, guilt, hope, fear, etc.",
+      "function": "seed | setup | escalation | context"
     }
   ]
 }
@@ -3285,13 +3287,19 @@ Psychological beats:
 - Transformations are rare - usually one per character per story
 - Most events either reinforce or challenge, not transform
 
-Setup requirements:
-- Be specific about what earlier scenes must establish
-- seed = plant information/object that pays off later
-- setup = establish relationship/situation directly
-- escalation = build tension that this scene releases
-- context = reader understanding needed
-- latest_placement indicates how early this needs to appear`
+Setup requirements - CRITICAL STRUCTURE:
+- requirement: Be specific about what must be established
+- who_must_know: Character(s) who need this in their awareness. For internal memories, the remembering character. For pressure/stakes, the character being pressured.
+- who_has_info: Character(s) who already know this, OR non-character sources (documents, letters, physical evidence, location itself). Empty array for internal memories.
+- delivery_options: How this can enter the story. Use these exact values:
+  * "told_by" - another character tells them
+  * "discovers" - character finds out through investigation/action
+  * "overhears" - character hears something not meant for them
+  * "observes" - character witnesses something
+  * "internal_memory" - character remembers (requires POV)
+  * "reads_document" - character reads a letter, newspaper, etc.
+- emotional_function: The emotional impact on the receiving character (pressure, guilt, hope, fear, longing, etc.)
+- function: seed/setup/escalation/context as before`
 
 function buildPhase7EventPrompt(event, eventType, phase1, phase2, phase4, phase5, accumulatedSetupRequirements, previouslyDevelopedEvents) {
   // Build character psychology summary
@@ -3591,16 +3599,32 @@ async function executePhase7(concept, phase1, phase2, phase4, phase5, phase6) {
 
 const PHASE_8_SYSTEM_PROMPT = `You are a story architect processing setup requirements.
 
-Phase 7 generated setup requirements - things that must be established before their respective events. Your job is to:
+Phase 7 generated STRUCTURED setup requirements with constraints. Each requirement includes:
+- requirement: What must be established
+- who_must_know: Character(s) who need to learn/feel this
+- who_has_info: Character(s) or sources that hold this information
+- delivery_options: Valid methods (told_by, discovers, overhears, observes, internal_memory, reads_document)
+- emotional_function: What this does to the receiving character
+- function: seed/setup/escalation/context
+- serves_event: Which event needs this
+
+Your job is to:
 1. Deduplicate identical or near-identical requirements
-2. Attach requirements to existing events where natural
+2. Attach requirements to existing events where constraints are satisfied
 3. Create new supporting scenes for requirements that need their own scene
+
+CRITICAL PLACEMENT RULES:
+- who_must_know characters MUST be present in any scene where requirement is placed
+- If delivery_option is "internal_memory", the who_must_know character must have POV
+- If delivery_option is "told_by", both who_must_know and at least one who_has_info must be present
+- If delivery_option is "reads_document", who_must_know can be alone with document
+- pov_suggestion MUST be from the provided POV_CHARACTERS list AND in who_must_know
 
 CRITICAL RULES:
 - Attachment is preferred - fewer scenes = tighter story
 - Supporting scenes are LIGHT - they establish things, they don't have character arcs or transformations
-- Max 3-4 requirements per supporting scene
-- Respect POV - only use POV characters from the story
+- Max 3-4 requirements per supporting scene, but ONLY if they share who_must_know characters
+- Requirements with different who_must_know characters CANNOT combine into one scene
 - Every requirement must have a home - no orphans
 
 Return valid JSON matching this exact structure:
@@ -3613,6 +3637,10 @@ Return valid JSON matching this exact structure:
       {
         "requirement_id": "req_001",
         "requirement": "<exact requirement text>",
+        "who_must_know": ["<character names>"],
+        "who_has_info": ["<character names or sources>"],
+        "delivery_options": ["<valid delivery methods>"],
+        "emotional_function": "<emotional impact>",
         "events_needing_this": ["<event names>"],
         "earliest_event": "<first event that needs this>",
         "function": "seed|setup|escalation|context"
@@ -3628,7 +3656,9 @@ Return valid JSON matching this exact structure:
         {
           "requirement_id": "req_001",
           "requirement": "<requirement text>",
-          "how_established": "<dialogue, action, observation, internal thought>",
+          "who_receives": "<character from who_must_know>",
+          "delivery_method": "<one of the valid delivery_options>",
+          "how_established": "<specific description of how this gets delivered>",
           "serves_events": ["<event names this serves>"]
         }
       ]
@@ -3639,19 +3669,21 @@ Return valid JSON matching this exact structure:
     {
       "scene_id": "supporting_001",
       "name": "<short descriptive name>",
-      "characters_present": ["<character names>"],
+      "characters_present": ["<character names - MUST include all who_must_know for requirements>"],
       "location": "<where it happens>",
       "what_happens": "<1-2 sentences describing action/conversation>",
       "requirements_established": [
         {
           "requirement_id": "req_001",
-          "requirement": "<requirement text>"
+          "requirement": "<requirement text>",
+          "who_receives": "<character from who_must_know>",
+          "delivery_method": "<one of the valid delivery_options>"
         }
       ],
       "function": "seed|setup|escalation|context",
       "placement_zone": "early|mid|late",
       "must_be_before": "<earliest event needing these requirements>",
-      "pov_suggestion": "<POV character for this scene>"
+      "pov_character": "<MUST be from POV_CHARACTERS list AND in who_must_know for at least one requirement>"
     }
   ],
 
@@ -3661,7 +3693,8 @@ Return valid JSON matching this exact structure:
     "in_new_scenes": <number>,
     "requirements_per_new_scene_avg": <number>,
     "all_requirements_placed": true|false,
-    "gaps": ["<any unplaced requirement texts>"]
+    "gaps": ["<any unplaced requirement texts>"],
+    "constraint_violations": ["<any placements that violate who_must_know or delivery constraints>"]
   }
 }`
 
@@ -3705,24 +3738,40 @@ function buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7) {
   // Sort by timeline position
   eventSummary.sort((a, b) => parseFloat(a.timeline_position) - parseFloat(b.timeline_position))
 
+  // Build structured requirement list for prompt
+  const formattedRequirements = allRequirements.map((req, i) => {
+    const whoMustKnow = req.who_must_know?.join(', ') || 'unspecified'
+    const whoHasInfo = req.who_has_info?.length > 0 ? req.who_has_info.join(', ') : 'none/internal'
+    const deliveryOpts = req.delivery_options?.join(', ') || 'unspecified'
+    return `${i + 1}. [${req.function}] "${req.requirement}"
+   who_must_know: ${whoMustKnow}
+   who_has_info: ${whoHasInfo}
+   delivery_options: ${deliveryOpts}
+   emotional_function: ${req.emotional_function || 'unspecified'}
+   serves_event: ${req.serves_event}`
+  }).join('\n\n')
+
   // Build the prompt
   return `STORY: ${concept}
 
-POV CHARACTERS (only use these for supporting scene POV):
+POV_CHARACTERS (ONLY these can be POV for supporting scenes):
 ${povCharacters.join(', ')}
 
-EXISTING EVENTS (candidates for attachment):
+EXISTING EVENTS (candidates for attachment - note characters present):
 ${eventSummary.map(e => `- "${e.name}" (${e.type}) at "${e.location}" - Characters: ${e.characters_present.join(', ') || 'none listed'} - Timeline: ${e.timeline_position}`).join('\n')}
 
-SETUP REQUIREMENTS FROM PHASE 7 (${allRequirements.length} total):
-${allRequirements.map((req, i) => `${i + 1}. [${req.function}] "${req.requirement}" (for event: ${req.for_event})`).join('\n')}
+STRUCTURED SETUP REQUIREMENTS FROM PHASE 7 (${allRequirements.length} total):
+${formattedRequirements}
 
 TASK:
-1. Deduplicate the ${allRequirements.length} requirements - many are duplicates or near-duplicates
-2. For each unique requirement, determine if it can attach naturally to an existing event (same characters, compatible location, makes narrative sense)
-3. Group remaining requirements into supporting scenes (max 3-4 requirements per scene, group by same characters/location)
+1. Deduplicate the ${allRequirements.length} requirements - many are duplicates or near-duplicates. Preserve who_must_know, who_has_info, delivery_options from original requirements.
+2. For each unique requirement, check if it can attach to an existing event WHERE:
+   - At least one who_must_know character is present in that event
+   - The delivery_option is possible in that event context
+3. Group remaining requirements into supporting scenes. ONLY combine requirements that share who_must_know characters. Max 3-4 per scene.
 4. Assign placement zones based on function (seed=early, setup=close before event, escalation=mid, context=flexible)
-5. Verify every requirement is placed
+5. pov_character for each supporting scene MUST be from POV_CHARACTERS list AND in who_must_know for at least one requirement in that scene
+6. Verify every requirement is placed and all constraint_violations are empty
 
 Return valid JSON.`
 }

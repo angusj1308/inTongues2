@@ -3586,6 +3586,291 @@ async function executePhase7(concept, phase1, phase2, phase4, phase5, phase6) {
 }
 
 // =============================================================================
+// PHASE 8: SUPPORTING SCENES
+// =============================================================================
+
+const PHASE_8_SYSTEM_PROMPT = `You are a story architect processing setup requirements.
+
+Phase 7 generated setup requirements - things that must be established before their respective events. Your job is to:
+1. Deduplicate identical or near-identical requirements
+2. Attach requirements to existing events where natural
+3. Create new supporting scenes for requirements that need their own scene
+
+CRITICAL RULES:
+- Attachment is preferred - fewer scenes = tighter story
+- Supporting scenes are LIGHT - they establish things, they don't have character arcs or transformations
+- Max 3-4 requirements per supporting scene
+- Respect POV - only use POV characters from the story
+- Every requirement must have a home - no orphans
+
+Return valid JSON matching this exact structure:
+{
+  "deduplicated_requirements": {
+    "total_from_phase_7": <number>,
+    "unique_requirements": <number>,
+    "duplicates_consolidated": <number>,
+    "requirements": [
+      {
+        "requirement_id": "req_001",
+        "requirement": "<exact requirement text>",
+        "events_needing_this": ["<event names>"],
+        "earliest_event": "<first event that needs this>",
+        "function": "seed|setup|escalation|context"
+      }
+    ]
+  },
+
+  "attached_to_existing": [
+    {
+      "event_name": "<existing event name>",
+      "event_type": "major_event|lone_moment",
+      "requirements_attached": [
+        {
+          "requirement_id": "req_001",
+          "requirement": "<requirement text>",
+          "how_established": "<dialogue, action, observation, internal thought>",
+          "serves_events": ["<event names this serves>"]
+        }
+      ]
+    }
+  ],
+
+  "supporting_scenes": [
+    {
+      "scene_id": "supporting_001",
+      "name": "<short descriptive name>",
+      "characters_present": ["<character names>"],
+      "location": "<where it happens>",
+      "what_happens": "<1-2 sentences describing action/conversation>",
+      "requirements_established": [
+        {
+          "requirement_id": "req_001",
+          "requirement": "<requirement text>"
+        }
+      ],
+      "function": "seed|setup|escalation|context",
+      "placement_zone": "early|mid|late",
+      "must_be_before": "<earliest event needing these requirements>",
+      "pov_suggestion": "<POV character for this scene>"
+    }
+  ],
+
+  "coverage_verification": {
+    "total_unique_requirements": <number>,
+    "attached_to_existing": <number>,
+    "in_new_scenes": <number>,
+    "requirements_per_new_scene_avg": <number>,
+    "all_requirements_placed": true|false,
+    "gaps": ["<any unplaced requirement texts>"]
+  }
+}`
+
+function buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7) {
+  // Get POV characters
+  const protag = phase2.protagonist?.name || 'Protagonist'
+  const loveInterest = phase2.love_interests?.[0]?.name || 'Love Interest'
+  const povCharacters = [protag, loveInterest]
+
+  // Get all events from Phase 6 for attachment candidates
+  const majorEvents = phase6.major_events || []
+  const loneMoments = phase6.lone_moments || []
+
+  // Get all setup requirements from Phase 7
+  const allRequirements = phase7.all_setup_requirements || []
+  const developedEvents = phase7.developed_events || []
+
+  // Build event summary with characters present (for attachment matching)
+  const eventSummary = []
+
+  for (const event of majorEvents) {
+    eventSummary.push({
+      name: event.name,
+      type: 'major_event',
+      location: event.location,
+      characters_present: event.characters_present || [],
+      timeline_position: event.timeline_position
+    })
+  }
+
+  for (const moment of loneMoments) {
+    eventSummary.push({
+      name: moment.moment_name,
+      type: 'lone_moment',
+      location: moment.location,
+      characters_present: moment.characters_present || [],
+      timeline_position: moment.timeline_position
+    })
+  }
+
+  // Sort by timeline position
+  eventSummary.sort((a, b) => parseFloat(a.timeline_position) - parseFloat(b.timeline_position))
+
+  // Build the prompt
+  return `STORY: ${concept}
+
+POV CHARACTERS (only use these for supporting scene POV):
+${povCharacters.join(', ')}
+
+EXISTING EVENTS (candidates for attachment):
+${eventSummary.map(e => `- "${e.name}" (${e.type}) at "${e.location}" - Characters: ${e.characters_present.join(', ') || 'none listed'} - Timeline: ${e.timeline_position}`).join('\n')}
+
+SETUP REQUIREMENTS FROM PHASE 7 (${allRequirements.length} total):
+${allRequirements.map((req, i) => `${i + 1}. [${req.function}] "${req.requirement}" (for event: ${req.for_event})`).join('\n')}
+
+TASK:
+1. Deduplicate the ${allRequirements.length} requirements - many are duplicates or near-duplicates
+2. For each unique requirement, determine if it can attach naturally to an existing event (same characters, compatible location, makes narrative sense)
+3. Group remaining requirements into supporting scenes (max 3-4 requirements per scene, group by same characters/location)
+4. Assign placement zones based on function (seed=early, setup=close before event, escalation=mid, context=flexible)
+5. Verify every requirement is placed
+
+Return valid JSON.`
+}
+
+async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
+  console.log('')
+  console.log('='.repeat(60))
+  console.log('Phase 8: Supporting Scenes')
+  console.log('='.repeat(60))
+
+  const allRequirements = phase7.all_setup_requirements || []
+  console.log(`  Total requirements from Phase 7: ${allRequirements.length}`)
+
+  // Step 1: Call LLM to process requirements
+  console.log('')
+  console.log('  Step 1: Processing requirements...')
+  console.log('    - Deduplicating requirements')
+  console.log('    - Identifying attachment opportunities')
+  console.log('    - Creating supporting scenes')
+
+  const prompt = buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7)
+  const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, 0.7)
+
+  // Parse response
+  const parsed = safeJsonParse(response)
+  if (!parsed.success) {
+    console.warn(`  ⚠ Parse failed: ${parsed.error}`)
+    console.warn(`  Raw response (first 3000 chars):`)
+    console.warn(response.slice(0, 3000))
+
+    // Return minimal structure on parse failure
+    return {
+      deduplicated_requirements: {
+        total_from_phase_7: allRequirements.length,
+        unique_requirements: 0,
+        duplicates_consolidated: 0,
+        requirements: []
+      },
+      attached_to_existing: [],
+      supporting_scenes: [],
+      coverage_verification: {
+        total_unique_requirements: 0,
+        attached_to_existing: 0,
+        in_new_scenes: 0,
+        requirements_per_new_scene_avg: 0,
+        all_requirements_placed: false,
+        gaps: ['Parse failed - all requirements unplaced']
+      },
+      _parse_error: parsed.error
+    }
+  }
+
+  const result = parsed.data
+
+  // Step 2: Log deduplication results
+  console.log('')
+  console.log('  Step 2: Deduplication complete')
+  const dedup = result.deduplicated_requirements || {}
+  console.log(`    Total from Phase 7: ${dedup.total_from_phase_7 || allRequirements.length}`)
+  console.log(`    Unique requirements: ${dedup.unique_requirements || 0}`)
+  console.log(`    Duplicates consolidated: ${dedup.duplicates_consolidated || 0}`)
+
+  // Step 3: Log attachments
+  console.log('')
+  console.log('  Step 3: Attachments to existing events')
+  const attachments = result.attached_to_existing || []
+  let totalAttached = 0
+  for (const attachment of attachments) {
+    const reqCount = attachment.requirements_attached?.length || 0
+    totalAttached += reqCount
+    console.log(`    "${attachment.event_name}" (${attachment.event_type}): ${reqCount} requirements attached`)
+    for (const req of (attachment.requirements_attached || [])) {
+      console.log(`      - "${req.requirement?.slice(0, 50)}..." via ${req.how_established}`)
+    }
+  }
+  console.log(`    Total attached: ${totalAttached}`)
+
+  // Step 4: Log supporting scenes
+  console.log('')
+  console.log('  Step 4: New supporting scenes')
+  const scenes = result.supporting_scenes || []
+  console.log(`    Created ${scenes.length} supporting scenes`)
+  for (const scene of scenes) {
+    const reqCount = scene.requirements_established?.length || 0
+    console.log(`    "${scene.name}" (${scene.function}, ${scene.placement_zone}):`)
+    console.log(`      Location: ${scene.location}`)
+    console.log(`      Characters: ${scene.characters_present?.join(', ') || 'none'}`)
+    console.log(`      POV: ${scene.pov_suggestion}`)
+    console.log(`      Must be before: ${scene.must_be_before}`)
+    console.log(`      Requirements (${reqCount}):`)
+    for (const req of (scene.requirements_established || [])) {
+      const reqText = typeof req === 'string' ? req : req.requirement
+      console.log(`        - "${reqText?.slice(0, 60)}..."`)
+    }
+  }
+
+  // Step 5: Log coverage verification
+  console.log('')
+  console.log('  Step 5: Coverage verification')
+  const coverage = result.coverage_verification || {}
+  console.log(`    Total unique requirements: ${coverage.total_unique_requirements || 0}`)
+  console.log(`    Attached to existing: ${coverage.attached_to_existing || 0}`)
+  console.log(`    In new scenes: ${coverage.in_new_scenes || 0}`)
+  console.log(`    Avg requirements per new scene: ${coverage.requirements_per_new_scene_avg?.toFixed(1) || 0}`)
+  console.log(`    All requirements placed: ${coverage.all_requirements_placed ? 'YES' : 'NO'}`)
+
+  if (coverage.gaps?.length > 0) {
+    console.warn(`    ⚠ GAPS (unplaced requirements):`)
+    for (const gap of coverage.gaps) {
+      console.warn(`      - ${gap}`)
+    }
+  }
+
+  // Final summary
+  console.log('')
+  console.log('Phase 8 complete.')
+  console.log(`  Unique requirements: ${dedup.unique_requirements || 0}`)
+  console.log(`  Attached to existing events: ${totalAttached}`)
+  console.log(`  New supporting scenes: ${scenes.length}`)
+
+  // Breakdown by function for supporting scenes
+  const byFunction = {}
+  for (const scene of scenes) {
+    byFunction[scene.function] = (byFunction[scene.function] || 0) + 1
+  }
+  if (Object.keys(byFunction).length > 0) {
+    console.log(`  Supporting scenes by function:`)
+    for (const [fn, count] of Object.entries(byFunction)) {
+      console.log(`    - ${fn}: ${count}`)
+    }
+  }
+
+  // Breakdown by placement zone
+  const byZone = {}
+  for (const scene of scenes) {
+    byZone[scene.placement_zone] = (byZone[scene.placement_zone] || 0) + 1
+  }
+  if (Object.keys(byZone).length > 0) {
+    console.log(`  Supporting scenes by placement:`)
+    for (const [zone, count] of Object.entries(byZone)) {
+      console.log(`    - ${zone}: ${count}`)
+    }
+  }
+
+  return result
+}
+
+// =============================================================================
 // REGENERATION
 // =============================================================================
 
@@ -3632,6 +3917,17 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
           updatedBible.eventsAndLocations
         )
       }
+    case 8:
+      if (phaseNumber <= 8) {
+        updatedBible.supportingScenes = await executePhase8(
+          concept,
+          updatedBible.coreFoundation,
+          updatedBible.characters,
+          updatedBible.subplots,
+          updatedBible.eventsAndLocations,
+          updatedBible.eventDevelopment
+        )
+      }
       break
   }
 
@@ -3651,6 +3947,7 @@ const PHASE_DESCRIPTIONS = {
   5: { name: 'Plot Architecture', description: 'Creating the beat sheet and tension curve' },
   6: { name: 'Major Events & Locations', description: 'Organizing moments into events, assigning locations and presence' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with character objectives and setup requirements' },
+  8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
 }
 
 /**
@@ -3673,7 +3970,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   let bible = {}
   let validationAttempts = 0
-  const totalPhases = 7
+  const totalPhases = 8
 
   // Helper to report progress
   const reportProgress = (phase, status = 'in_progress', details = null) => {
@@ -3759,9 +4056,18 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       setupRequirements: bible.eventDevelopment.all_setup_requirements?.length || 0
     })
 
-    // TESTING: Stop after Phase 7 to validate Event Development output
+    // Phase 8: Supporting Scenes
+    reportProgress(8, 'starting')
+    bible.supportingScenes = await executePhase8(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.eventsAndLocations, bible.eventDevelopment)
+    reportProgress(8, 'complete', {
+      uniqueRequirements: bible.supportingScenes.deduplicated_requirements?.unique_requirements || 0,
+      attachedToExisting: bible.supportingScenes.attached_to_existing?.length || 0,
+      newSupportingScenes: bible.supportingScenes.supporting_scenes?.length || 0
+    })
+
+    // TESTING: Stop after Phase 8 to validate Supporting Scenes output
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 7')
+    console.log('TEST MODE - Stopping after Phase 8')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
@@ -3769,12 +4075,13 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     console.log('Phase 5 Output:', JSON.stringify(bible.masterTimeline, null, 2))
     console.log('Phase 6 Output:', JSON.stringify(bible.eventsAndLocations, null, 2))
     console.log('Phase 7 Output:', JSON.stringify(bible.eventDevelopment, null, 2))
+    console.log('Phase 8 Output:', JSON.stringify(bible.supportingScenes, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_7_TEST',
+      validationStatus: 'PHASE_8_TEST',
       validationAttempts: 0
     }
 
@@ -5229,6 +5536,7 @@ export {
   executePhase5,
   executePhase6,
   executePhase7,
+  executePhase8,
   WORD_COUNT_BY_TENSION,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,
@@ -5250,6 +5558,7 @@ export default {
   executePhase5,
   executePhase6,
   executePhase7,
+  executePhase8,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

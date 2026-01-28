@@ -153,15 +153,15 @@ export async function expandPrompt(concept) {
 
 /**
  * Regenerate specific phases for an existing book
- * Uses existing Phase 1-5 data and regenerates Phase 6 by default
+ * Uses existing Phase 1-6 data and regenerates Phase 7 by default
  * @param {Object} params
  * @param {string} params.uid - User ID
  * @param {string} params.bookId - Book ID to regenerate
- * @param {number[]} params.phases - Which phases to regenerate (default [6])
+ * @param {number[]} params.phases - Which phases to regenerate (default [7])
  * @returns {Promise<Object>} Updated bible with regenerated phases
  */
 export async function regeneratePhases(params) {
-  const { uid, bookId, phases = [6] } = params
+  const { uid, bookId, phases = [7] } = params
 
   const response = await fetch(`${API_BASE}/api/generate/regenerate-phases`, {
     method: 'POST',

@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5, executePhase6 } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5, executePhase6, executePhase7 } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8043,7 +8043,7 @@ app.post('/api/generate/bible', async (req, res) => {
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {
-    const { uid, bookId, phases = [6] } = req.body
+    const { uid, bookId, phases = [7] } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
@@ -8075,6 +8075,9 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
     }
     if (phases.includes(6) && !bible.masterTimeline) {
       return res.status(400).json({ error: 'Phase 6 regeneration requires Phase 5 (masterTimeline) data' })
+    }
+    if (phases.includes(7) && !bible.eventsAndLocations) {
+      return res.status(400).json({ error: 'Phase 7 regeneration requires Phase 6 (eventsAndLocations) data' })
     }
 
     // Update status to regenerating
@@ -8135,6 +8138,25 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
         phase5Data
       )
       console.log('  Phase 6 complete')
+    }
+
+    // Regenerate Phase 7 if requested (requires Phase 6)
+    if (phases.includes(7)) {
+      console.log('  Regenerating Phase 7: Event Development...')
+      const phase6Data = updatedBible.eventsAndLocations || bible.eventsAndLocations
+      if (!phase6Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 7 requires Phase 6 (eventsAndLocations) data' })
+      }
+      updatedBible.eventDevelopment = await executePhase7(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        updatedBible.subplots || bible.subplots,
+        updatedBible.masterTimeline || bible.masterTimeline,
+        phase6Data
+      )
+      console.log('  Phase 7 complete')
     }
 
     // Update book with regenerated phases

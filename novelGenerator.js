@@ -3176,182 +3176,407 @@ async function executePhase6(concept, phase1, phase2, phase4, phase5) {
 }
 
 // =============================================================================
-// PHASE 7: VALIDATION
+// PHASE 7: EVENT DEVELOPMENT (BACK TO FRONT)
 // =============================================================================
 
-const PHASE_7_SYSTEM_PROMPT = `You are a story validation specialist. Your task is to perform a comprehensive audit of a complete story bible, checking for coherence, completeness, and internal consistency.
+const PHASE_7_EVENT_SYSTEM_PROMPT = `You develop a single story event into a complete scene specification.
 
-You will receive:
-- The complete bible (Phases 1-6 output)
+You receive:
+- Event details (name, location, atmosphere, characters present, decisive moments)
+- Character psychology (wounds, lies, wants, needs)
+- Theme and external plot context
+- Setup requirements accumulated from events that come LATER in the story (which you developed first)
 
-Your job is to:
-1. Validate every element against every other element
-2. Identify any gaps, contradictions, or missing pieces
-3. Flag issues with specific locations and severity
-4. Recommend recovery paths for any failures
-5. Approve for generation OR specify what needs fixing
+Your job is to develop this event fully, then identify what earlier events must establish for this one to land.
 
-This is the final gate. Be thorough. A problem caught here saves many chapters of broken story.
+IMPORTANT: You are working BACKWARDS through the story. The events you develop later in this session happen EARLIER in the narrative. So "setup requirements" means things that need to happen BEFORE this event.
 
-## Validation Categories
-
-You must check ALL of the following:
-
-1. CHARACTER ARCS - Every arc has setup, transformation, payoff
-2. SUBPLOT RESOLUTION - Both subplots have complete arcs
-3. CAUSE AND EFFECT - Events chain logically
-4. FORESHADOWING INTEGRITY - All seeds planted and paid off
-5. TENSION CURVE - Rises appropriately with valleys for breathing
-6. CHAPTER HOOKS - Every chapter ends with a hook
-7. VOICE DISTINCTION - Characters sound different
-8. CHEMISTRY ARCHITECTURE - All pivotal moments placed correctly
-9. TIMELINE CONSISTENCY - Time flows logically
-10. POV BALANCE - POV distribution matches structure
-11. THEME EXPRESSION - Theme expressed through character choices
-12. LOCATION USAGE - All key locations used
-13. CONSTRAINT ENFORCEMENT - Phase 2 constraints create real obstacles
-
-## Output Format
-
-Respond with a JSON object:
+Return ONLY valid JSON in this exact format:
 
 {
-  "validation_status": "PASS | FAIL | CONDITIONAL_PASS",
-  "summary": "One paragraph overall assessment",
-  "checks": {
-    "character_arcs": {
-      "status": "pass | fail | warning",
-      "details": "Specific findings",
-      "issues": []
-    },
-    "subplot_resolution": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "cause_and_effect": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "foreshadowing_integrity": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "tension_curve": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "chapter_hooks": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "voice_distinction": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "chemistry_architecture": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "timeline_consistency": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "pov_balance": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "theme_expression": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "location_usage": { "status": "pass | fail | warning", "details": "", "issues": [] },
-    "constraint_enforcement": { "status": "pass | fail | warning", "details": "", "issues": [] }
-  },
-  "critical_issues": [
+  "event_name": "Name of this event",
+  "type": "major_event | lone_moment",
+  "timeline_position": "opening | early | mid | late | climax | resolution",
+
+  "character_objectives": [
     {
-      "issue": "Description of critical issue",
-      "location": "Which phase/chapter",
-      "impact": "What breaks if not fixed",
-      "fix": "Recommended fix",
-      "regenerate_from": "Phase X"
+      "character": "Name",
+      "want_in_scene": "What they want here",
+      "action": "What they do to get it",
+      "arc_state_entering": "believing_lie | lie_challenged | transforming | transformed",
+      "arc_state_exiting": "believing_lie | lie_challenged | transforming | transformed",
+      "key_moment": "Their most important action or line"
     }
   ],
-  "warnings": [
+
+  "moment_breakdown": [
     {
-      "issue": "Description of warning",
-      "location": "Which phase/chapter",
-      "recommendation": "Suggested improvement"
+      "moment_number": 1,
+      "moment_name": "Name from timeline",
+      "what_happens": "Specific action that occurs",
+      "who_initiates": "Character name",
+      "who_reacts": "Character name(s)",
+      "what_changes": "What is different after"
     }
   ],
-  "recovery_plan": {
-    "required_regenerations": [],
-    "regeneration_order": "Which phase to regenerate first",
-    "specific_instructions": "What to fix in regeneration"
+
+  "romance_beat": {
+    "stage": "awareness | attraction | tension | touch | kiss | consummation | null",
+    "physical": "What happens physically (or null)",
+    "emotional": "What happens emotionally",
+    "barrier": "What prevents progress or what barrier breaks"
   },
-  "generation_ready": true,
-  "approval_notes": "Final notes for chapter generation if approved"
+
+  "psychological_beats": {
+    "lies_reinforced": [
+      { "character": "Name", "how": "What reinforces their lie" }
+    ],
+    "lies_challenged": [
+      { "character": "Name", "how": "What challenges their lie" }
+    ],
+    "transformations": [
+      { "character": "Name", "trigger": "What causes it", "from": "Old state", "to": "New state" }
+    ]
+  },
+
+  "external_pressure": {
+    "beat": "Phase 1 external beat name or null",
+    "how_it_manifests": "How the world/situation creates pressure",
+    "deadline_or_constraint": "What's forcing action"
+  },
+
+  "outcome": {
+    "relationship_change": "What's different between characters",
+    "situation_change": "What's different in the world",
+    "knowledge_change": "What characters now know",
+    "stakes_change": "How stakes have shifted"
+  },
+
+  "setup_requirements": [
+    {
+      "requirement": "What must be established earlier in the story",
+      "why_needed": "Why this event needs it to land",
+      "function": "seed | setup | escalation | context",
+      "latest_placement": "early | mid | just_before"
+    }
+  ]
 }
 
-## Severity Levels
+GUIDELINES:
 
-PASS: Check fully satisfied. No issues.
-WARNING: Minor issue that won't break the story. Generation can proceed.
-FAIL: Issue that will cause problems. Must be fixed before generation.
+Character objectives:
+- Every character present must have a want and action, even minimal characters
+- Wants can conflict - that creates drama
+- Arc states can only progress forward (believing_lie → lie_challenged → transforming → transformed)
+- A character can stay in the same state, but cannot go backwards
 
-## Validation Status
+Moment breakdown:
+- Each decisive moment from Phase 5 that occurs in this event gets a breakdown
+- Be specific about who does what
+- Show cause and effect
 
-PASS: All checks pass. Ready for generation.
-CONDITIONAL_PASS: Some warnings but no failures. Can proceed with noted cautions.
-FAIL: One or more critical failures. Must regenerate specified phases.`
+Romance beat:
+- Track the physical and emotional intimacy progression
+- Stages are: awareness → attraction → tension → touch → kiss → consummation
+- Not every event has a romance beat (use null for stage if not applicable)
 
-// Compress chapters for Phase 7 validation (keeps structure, removes beat details)
-function compressChaptersForValidation(chapters) {
-  if (!chapters?.chapters) return chapters
+Psychological beats:
+- Track how character lies are reinforced or challenged
+- Transformations are rare - usually one per character per story
+- Most events either reinforce or challenge, not transform
 
-  return {
-    ...chapters,
-    chapters: chapters.chapters.map(ch => ({
-      number: ch.number,
-      title: ch.title,
-      pov: ch.pov,
-      story_time: ch.story_time,
-      chapter_purpose: ch.chapter_purpose,
-      emotional_arc: ch.emotional_arc,
-      location_primary: ch.location_primary,
-      phase_4_moment: ch.phase_4_moment,
-      phase_5_beats: ch.phase_5_beats,
-      tension_rating: ch.tension_rating,
-      hook_type: ch.hook_type,
-      // Compressed scene info (counts only, not full events)
-      scene_count: ch.scenes?.length || 0,
-      total_events: ch.scenes?.reduce((sum, s) => sum + ((s.events || s.beats)?.length || 0), 0) || 0,
-      scene_summaries: ch.scenes?.map(s => ({
-        location: s.location,
-        function: s.function || s.scene_purpose,
-        event_count: (s.events || s.beats)?.length || 0
-      })) || [],
-      ends_with: ch.ends_with || ch.chapter_hook?.description
-    }))
+Setup requirements:
+- Be specific about what earlier scenes must establish
+- seed = plant information/object that pays off later
+- setup = establish relationship/situation directly
+- escalation = build tension that this scene releases
+- context = reader understanding needed
+- latest_placement indicates how early this needs to appear`
+
+function buildPhase7EventPrompt(event, eventType, phase1, phase2, phase4, phase5, accumulatedSetupRequirements, previouslyDevelopedEvents) {
+  // Build character psychology summary
+  const characterPsychology = []
+
+  if (phase2.protagonist) {
+    characterPsychology.push(`PROTAGONIST: ${phase2.protagonist.name}
+  Wound: ${phase2.protagonist.wound || 'not specified'}
+  Lie: ${phase2.protagonist.lie || 'not specified'}
+  Want: ${phase2.protagonist.want || 'not specified'}
+  Need: ${phase2.protagonist.need || 'not specified'}`)
   }
+
+  if (phase2.love_interests) {
+    phase2.love_interests.forEach(li => {
+      characterPsychology.push(`LOVE INTEREST: ${li.name}
+  Wound: ${li.wound || 'not specified'}
+  Lie: ${li.lie || 'not specified'}
+  Want: ${li.want || 'not specified'}
+  Need: ${li.need || 'not specified'}`)
+    })
+  }
+
+  if (phase4.stakeholder_characters) {
+    phase4.stakeholder_characters.filter(c => c.psychology_level === 'full').forEach(c => {
+      characterPsychology.push(`STAKEHOLDER (${c.name}):
+  Interest: ${c.interest || 'not specified'}
+  Psychology: ${c.psychology || 'not specified'}`)
+    })
+  }
+
+  // Get moment details from Phase 5 timeline
+  const timeline = phase5.master_timeline || []
+  const momentDetails = []
+  const momentNumbers = eventType === 'major_event' ? (event.moments_contained || []) : [event.moment_order]
+
+  for (const num of momentNumbers) {
+    const moment = timeline.find(m => m.order === num)
+    if (moment) {
+      momentDetails.push(`  ${moment.order}. "${moment.moment}" [${moment.type}]
+    What happens: ${moment.what_happens || 'not specified'}
+    POV: ${moment.pov || 'not specified'}
+    Source: ${moment.source || 'not specified'}`)
+    }
+  }
+
+  // Build setup requirements context from later events
+  let setupContext = ''
+  if (accumulatedSetupRequirements.length > 0) {
+    setupContext = `
+## SETUP REQUIREMENTS FROM LATER EVENTS
+
+These are things that LATER events need. Since you're developing EARLIER events, consider whether this event should provide any of these:
+
+${accumulatedSetupRequirements.map(r => `- ${r.requirement} (needed by: ${r.serves_event}, function: ${r.function})`).join('\n')}
+`
+  }
+
+  // Build context from previously developed events
+  let previousContext = ''
+  if (previouslyDevelopedEvents.length > 0) {
+    previousContext = `
+## PREVIOUSLY DEVELOPED EVENTS (happen LATER in story)
+
+${previouslyDevelopedEvents.slice(0, 3).map(e => `"${e.event_name}" (${e.timeline_position}):
+  - Key outcome: ${e.outcome?.relationship_change || 'not specified'}
+  - Characters transformed: ${e.psychological_beats?.transformations?.map(t => t.character).join(', ') || 'none'}`).join('\n\n')}
+${previouslyDevelopedEvents.length > 3 ? `\n... and ${previouslyDevelopedEvents.length - 3} more developed events` : ''}
+`
+  }
+
+  return `## EVENT TO DEVELOP
+
+Name: ${event.name || event.moment_name || 'Unnamed'}
+Type: ${eventType}
+Location: ${event.location}
+Atmosphere: ${event.atmosphere}
+Timing: ${event.timing}
+Characters Present: ${event.characters_present?.join(', ') || 'not specified'}
+Minimal Characters: ${event.minimal_characters?.join(', ') || 'none'}
+
+## DECISIVE MOMENTS IN THIS EVENT
+
+${momentDetails.join('\n\n')}
+
+## CHARACTER PSYCHOLOGY
+
+${characterPsychology.join('\n\n')}
+
+## THEME & EXTERNAL PLOT
+
+Theme: ${phase1.theme?.core || 'not specified'} - ${phase1.theme?.question || ''}
+External Plot: ${phase1.external_plot?.container_type || 'not specified'}
+External Beats:
+${phase1.external_plot?.beats?.map(b => `  ${b.order}. ${b.beat}: ${b.what_happens}`).join('\n') || '  (none)'}
+${setupContext}
+${previousContext}
+
+## YOUR TASK
+
+Develop this event fully. For each character present, specify their objective and arc state. Break down each decisive moment. Identify romance and psychological beats. Specify what must be established earlier in the story for this event to land.`
 }
 
-function buildPhase7UserPrompt(completeBible) {
-  // Compress Phase 6 chapters to avoid token limit issues
-  const compressedChapters = compressChaptersForValidation(completeBible.chapters)
+async function executePhase7(concept, phase1, phase2, phase4, phase5, phase6) {
+  console.log('Executing Phase 7: Event Development (Back to Front)...')
 
-  return `COMPLETE BIBLE:
+  // Step 1: Gather all events and sort by timeline position
+  const majorEvents = (phase6.major_events || []).map(e => ({ ...e, eventType: 'major_event' }))
+  const loneEvents = (phase6.lone_moments || []).map(e => ({ ...e, eventType: 'lone_moment', name: e.moment_name }))
+  const allEvents = [...majorEvents, ...loneEvents]
 
-PHASE 1 - CORE FOUNDATION:
-${JSON.stringify(completeBible.coreFoundation, null, 2)}
+  // Sort by moment numbers (use first moment for major events, moment_order for lone)
+  allEvents.sort((a, b) => {
+    const aOrder = a.eventType === 'major_event' ? Math.min(...(a.moments_contained || [999])) : a.moment_order
+    const bOrder = b.eventType === 'major_event' ? Math.min(...(b.moments_contained || [999])) : b.moment_order
+    return aOrder - bOrder
+  })
 
-PHASE 2 - WORLD/SETTING:
-${JSON.stringify(completeBible.world, null, 2)}
+  // Reverse for back-to-front processing
+  const developmentOrder = [...allEvents].reverse()
 
-PHASE 3 - CHARACTERS:
-${JSON.stringify(completeBible.characters, null, 2)}
+  console.log(`  Input: ${allEvents.length} events (${majorEvents.length} major, ${loneEvents.length} lone)`)
+  console.log('')
+  console.log('  Step 1: Development order (back to front)...')
+  developmentOrder.forEach((e, i) => {
+    const moments = e.eventType === 'major_event' ? `moments [${e.moments_contained?.join(', ')}]` : `moment ${e.moment_order}`
+    console.log(`    ${i + 1}. "${e.name}" (${e.eventType}) - ${moments}`)
+  })
 
-PHASE 4 - CHEMISTRY:
-${JSON.stringify(completeBible.chemistry, null, 2)}
+  // Step 2: Process each event back-to-front
+  console.log('')
+  console.log('  Step 2: Developing events...')
 
-PHASE 5 - PLOT ARCHITECTURE:
-${JSON.stringify(completeBible.plot, null, 2)}
+  const developedEvents = []
+  const allSetupRequirements = []
 
-PHASE 6 - CHAPTER BREAKDOWN (compressed - full beats available for generation):
-${JSON.stringify(compressedChapters, null, 2)}
+  for (let i = 0; i < developmentOrder.length; i++) {
+    const event = developmentOrder[i]
+    const eventName = event.name || `Event ${i + 1}`
+    const position = i === 0 ? 'resolution/climax' : i < developmentOrder.length / 3 ? 'late' : i < 2 * developmentOrder.length / 3 ? 'mid' : 'early/opening'
 
-Perform comprehensive validation of this bible. Check all 13 categories. Identify any issues and specify recovery paths. Approve for generation only if the bible is complete and internally consistent.`
-}
+    console.log(`    [${i + 1}/${developmentOrder.length}] Developing "${eventName}" (${position})...`)
 
-async function executePhase7(completeBible) {
-  console.log('Executing Phase 7: Validation...')
+    const userPrompt = buildPhase7EventPrompt(
+      event,
+      event.eventType,
+      phase1,
+      phase2,
+      phase4,
+      phase5,
+      allSetupRequirements,
+      developedEvents
+    )
 
-  const userPrompt = buildPhase7UserPrompt(completeBible)
-  const response = await callOpenAI(PHASE_7_SYSTEM_PROMPT, userPrompt)
-  const parsed = parseJSON(response)
+    const response = await callOpenAI(PHASE_7_EVENT_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
+    const parsed = parseJSON(response)
 
-  if (!parsed.success) {
-    throw new Error(`Phase 7 JSON parse failed: ${parsed.error}`)
+    if (!parsed.success) {
+      console.warn(`      ⚠ Parse failed for "${eventName}": ${parsed.error}`)
+      // Create a minimal fallback entry
+      developedEvents.push({
+        event_name: eventName,
+        type: event.eventType,
+        timeline_position: position,
+        location: event.location,
+        atmosphere: event.atmosphere,
+        moments_contained: event.eventType === 'major_event' ? event.moments_contained : [event.moment_order],
+        character_objectives: [],
+        moment_breakdown: [],
+        romance_beat: { stage: null },
+        psychological_beats: { lies_reinforced: [], lies_challenged: [], transformations: [] },
+        external_pressure: { beat: null },
+        outcome: {},
+        setup_requirements: [],
+        _parse_error: true
+      })
+      continue
+    }
+
+    const developed = parsed.data
+
+    // Add metadata
+    developed.location = event.location
+    developed.atmosphere = event.atmosphere
+    developed.moments_contained = event.eventType === 'major_event' ? event.moments_contained : [event.moment_order]
+    developed.characters_present = event.characters_present
+    developed.minimal_characters = event.minimal_characters
+
+    developedEvents.push(developed)
+
+    // Accumulate setup requirements
+    if (developed.setup_requirements?.length > 0) {
+      for (const req of developed.setup_requirements) {
+        allSetupRequirements.push({
+          ...req,
+          serves_event: eventName
+        })
+      }
+    }
+
+    // Log summary
+    const charCount = developed.character_objectives?.length || 0
+    const momentCount = developed.moment_breakdown?.length || 0
+    const setupCount = developed.setup_requirements?.length || 0
+    const romanceStage = developed.romance_beat?.stage || 'none'
+    console.log(`      ✓ ${charCount} character objectives, ${momentCount} moment breakdowns, romance: ${romanceStage}, ${setupCount} setup requirements`)
   }
 
-  const data = parsed.data
+  // Step 3: Log detailed breakdown
+  console.log('')
+  console.log('  Step 3: Development summary...')
 
-  console.log(`Phase 7 complete. Status: ${data.validation_status}`)
+  for (const dev of developedEvents) {
+    console.log(`    "${dev.event_name}" (${dev.type}, ${dev.timeline_position}):`)
 
-  if (data.validation_status === 'FAIL') {
-    console.warn('Validation failed. Critical issues:', data.critical_issues)
+    // Character objectives
+    if (dev.character_objectives?.length > 0) {
+      console.log(`      Characters:`)
+      for (const obj of dev.character_objectives) {
+        console.log(`        - ${obj.character}: wants "${obj.want_in_scene?.slice(0, 50)}..." (${obj.arc_state_entering} → ${obj.arc_state_exiting})`)
+      }
+    }
+
+    // Moment breakdown
+    if (dev.moment_breakdown?.length > 0) {
+      console.log(`      Moments:`)
+      for (const m of dev.moment_breakdown) {
+        console.log(`        - ${m.moment_number}. ${m.moment_name}: ${m.who_initiates} initiates → ${m.what_changes?.slice(0, 40)}...`)
+      }
+    }
+
+    // Romance beat
+    if (dev.romance_beat?.stage && dev.romance_beat.stage !== 'null') {
+      console.log(`      Romance: ${dev.romance_beat.stage} - ${dev.romance_beat.emotional?.slice(0, 50)}...`)
+    }
+
+    // Psychological beats
+    const transformations = dev.psychological_beats?.transformations || []
+    if (transformations.length > 0) {
+      console.log(`      Transformations:`)
+      for (const t of transformations) {
+        console.log(`        - ${t.character}: ${t.from} → ${t.to}`)
+      }
+    }
+
+    // Setup requirements
+    if (dev.setup_requirements?.length > 0) {
+      console.log(`      Setup needed:`)
+      for (const s of dev.setup_requirements) {
+        console.log(`        - [${s.function}] ${s.requirement?.slice(0, 60)}...`)
+      }
+    }
   }
 
-  return data
+  // Build final result
+  const result = {
+    development_order: developmentOrder.map(e => e.name),
+    developed_events: developedEvents,
+    all_setup_requirements: allSetupRequirements
+  }
+
+  // Final summary
+  console.log('')
+  console.log('Phase 7 complete.')
+  console.log(`  Events developed: ${developedEvents.length}`)
+  console.log(`  Total setup requirements: ${allSetupRequirements.length}`)
+
+  const parseErrors = developedEvents.filter(e => e._parse_error).length
+  if (parseErrors > 0) {
+    console.warn(`  ⚠ Parse errors: ${parseErrors} events had fallback data`)
+  }
+
+  // Breakdown by function
+  const byFunction = {}
+  for (const req of allSetupRequirements) {
+    byFunction[req.function] = (byFunction[req.function] || 0) + 1
+  }
+  if (Object.keys(byFunction).length > 0) {
+    console.log(`  Setup requirements by function:`)
+    for (const [fn, count] of Object.entries(byFunction)) {
+      console.log(`    - ${fn}: ${count}`)
+    }
+  }
+
+  return result
 }
 
 // =============================================================================
@@ -3390,6 +3615,17 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       if (phaseNumber <= 6) {
         updatedBible.eventsAndLocations = await executePhase6(concept, updatedBible.coreFoundation, updatedBible.characters, updatedBible.subplots, updatedBible.masterTimeline)
       }
+    case 7:
+      if (phaseNumber <= 7) {
+        updatedBible.eventDevelopment = await executePhase7(
+          concept,
+          updatedBible.coreFoundation,
+          updatedBible.characters,
+          updatedBible.subplots,
+          updatedBible.masterTimeline,
+          updatedBible.eventsAndLocations
+        )
+      }
       break
   }
 
@@ -3408,7 +3644,7 @@ const PHASE_DESCRIPTIONS = {
   4: { name: 'Chemistry', description: 'Designing the romance arc and pivotal moments' },
   5: { name: 'Plot Architecture', description: 'Creating the beat sheet and tension curve' },
   6: { name: 'Major Events & Locations', description: 'Organizing moments into events, assigning locations and presence' },
-  7: { name: 'Validation', description: 'Comprehensive coherence and quality audit' },
+  7: { name: 'Event Development', description: 'Developing events back-to-front with character objectives and setup requirements' },
 }
 
 /**
@@ -3509,21 +3745,30 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       locations: bible.eventsAndLocations.location_inventory?.length || 0
     })
 
-    // TESTING: Stop after Phase 6 to validate Events & Locations output
+    // Phase 7: Event Development (Back to Front)
+    reportProgress(7, 'starting')
+    bible.eventDevelopment = await executePhase7(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline, bible.eventsAndLocations)
+    reportProgress(7, 'complete', {
+      eventsDeveloped: bible.eventDevelopment.developed_events?.length || 0,
+      setupRequirements: bible.eventDevelopment.all_setup_requirements?.length || 0
+    })
+
+    // TESTING: Stop after Phase 7 to validate Event Development output
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 6')
+    console.log('TEST MODE - Stopping after Phase 7')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
     console.log('Phase 4 Output:', JSON.stringify(bible.subplots, null, 2))
     console.log('Phase 5 Output:', JSON.stringify(bible.masterTimeline, null, 2))
     console.log('Phase 6 Output:', JSON.stringify(bible.eventsAndLocations, null, 2))
+    console.log('Phase 7 Output:', JSON.stringify(bible.eventDevelopment, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_6_TEST',
+      validationStatus: 'PHASE_7_TEST',
       validationAttempts: 0
     }
 
@@ -4977,6 +5222,7 @@ export {
   executePhase4,
   executePhase5,
   executePhase6,
+  executePhase7,
   WORD_COUNT_BY_TENSION,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

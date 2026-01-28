@@ -3747,7 +3747,7 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, 0.7)
 
   // Parse response
-  const parsed = safeJsonParse(response)
+  const parsed = parseJSON(response)
   if (!parsed.success) {
     console.warn(`  ⚠ Parse failed: ${parsed.error}`)
     console.warn(`  Raw response (first 3000 chars):`)

@@ -8067,7 +8067,7 @@ app.post('/api/generate/reset-status', async (req, res) => {
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {
-    const { uid, bookId, phases = [8] } = req.body
+    const { uid, bookId, phases = [7, 8] } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })

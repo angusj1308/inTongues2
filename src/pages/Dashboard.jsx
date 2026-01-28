@@ -299,7 +299,7 @@ const BookGrid = ({
                       e.stopPropagation()
                       onRegenerate(book)
                     }}
-                    title="Regenerate Phase 7"
+                    title="Regenerate Phase 7 & 8"
                   >
                     ↻
                   </button>
@@ -928,8 +928,8 @@ const Dashboard = () => {
     }
 
     const confirmed = window.confirm(
-      'Regenerate Phase 8 for this book?\n\n' +
-      'This will re-run Supporting Scenes using existing event development.\n\n' +
+      'Regenerate Phase 7 & 8 for this book?\n\n' +
+      'This will re-run Event Development and Supporting Scenes.\n\n' +
       'The book will be temporarily unavailable while regenerating.'
     )
     if (!confirmed) return
@@ -938,12 +938,12 @@ const Dashboard = () => {
       await regeneratePhases({
         uid: user.uid,
         bookId: book.id,
-        phases: [8]
+        phases: [7, 8]
       })
       // The real-time listener will automatically update the UI when status changes
     } catch (err) {
-      console.error('Error regenerating phase 8:', err)
-      alert('Failed to regenerate Phase 8. Please try again.')
+      console.error('Error regenerating phases 7 & 8:', err)
+      alert('Failed to regenerate Phases 7 & 8. Please try again.')
     }
   }
 
@@ -1233,8 +1233,8 @@ const Dashboard = () => {
                                 <button
                                   className="book-regenerate-btn"
                                   onClick={(e) => handleRegeneratePhases(e, book)}
-                                  aria-label="Regenerate Phase 7"
-                                  title="Regenerate Phase 7"
+                                  aria-label="Regenerate Phase 7 & 8"
+                                  title="Regenerate Phase 7 & 8"
                                 >
                                   ↻
                                 </button>
@@ -1327,8 +1327,8 @@ const Dashboard = () => {
                                 <button
                                   className="book-regenerate-btn"
                                   onClick={(e) => handleRegeneratePhases(e, book)}
-                                  aria-label="Regenerate Phase 7"
-                                  title="Regenerate Phase 7"
+                                  aria-label="Regenerate Phase 7 & 8"
+                                  title="Regenerate Phase 7 & 8"
                                 >
                                   ↻
                                 </button>

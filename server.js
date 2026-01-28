@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5 } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5, executePhase6 } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8043,7 +8043,7 @@ app.post('/api/generate/bible', async (req, res) => {
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {
-    const { uid, bookId, phases = [5] } = req.body
+    const { uid, bookId, phases = [6] } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
@@ -8072,6 +8072,9 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
     }
     if (phases.includes(5) && !phases.includes(4) && !bible.subplots) {
       return res.status(400).json({ error: 'Phase 5 regeneration requires Phase 4 (subplots) data' })
+    }
+    if (phases.includes(6) && !bible.masterTimeline) {
+      return res.status(400).json({ error: 'Phase 6 regeneration requires Phase 5 (masterTimeline) data' })
     }
 
     // Update status to regenerating
@@ -8114,6 +8117,24 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
         lengthPreset
       )
       console.log('  Phase 5 complete')
+    }
+
+    // Regenerate Phase 6 if requested (requires Phase 5)
+    if (phases.includes(6)) {
+      console.log('  Regenerating Phase 6: Major Events & Locations...')
+      const phase5Data = updatedBible.masterTimeline || bible.masterTimeline
+      if (!phase5Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 6 requires Phase 5 (masterTimeline) data' })
+      }
+      updatedBible.eventsAndLocations = await executePhase6(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        updatedBible.subplots || bible.subplots,
+        phase5Data
+      )
+      console.log('  Phase 6 complete')
     }
 
     // Update book with regenerated phases

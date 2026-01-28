@@ -3025,9 +3025,16 @@ function buildPhase6UserPrompt(concept, phase1, phase2, phase4, phase5) {
   }
 
   // Build timeline summary from Phase 5
+  // Extract characters from all three sources: pov, source, and characters_present
   const timeline = phase5.master_timeline || []
   const timelineSummary = timeline.map(m => {
-    const chars = m.characters_present?.map(c => c.name).join(', ') || 'unspecified'
+    const povNames = m.pov ? [m.pov] : []
+    const sourceNames = (m.source && typeof m.source === 'string')
+      ? m.source.split('+').map(s => s.trim()).filter(s => s && s !== 'main')
+      : []
+    const presentNames = m.characters_present?.map(c => c.name) || []
+    const allNames = [...new Set([...povNames, ...sourceNames, ...presentNames])]
+    const chars = allNames.length > 0 ? allNames.join(', ') : 'unspecified'
     return `  ${m.order}. [${m.type}] "${m.moment}" - Characters: ${chars}`
   }).join('\n')
 

@@ -3465,6 +3465,24 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       locations: bible.eventsAndLocations.location_inventory?.length || 0
     })
 
+    // TESTING: Stop after Phase 6 to validate Events & Locations output
+    console.log('='.repeat(60))
+    console.log('TEST MODE - Stopping after Phase 6')
+    console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
+    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
+    console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
+    console.log('Phase 4 Output:', JSON.stringify(bible.subplots, null, 2))
+    console.log('Phase 5 Output:', JSON.stringify(bible.masterTimeline, null, 2))
+    console.log('Phase 6 Output:', JSON.stringify(bible.eventsAndLocations, null, 2))
+    console.log('='.repeat(60))
+
+    return {
+      success: true,
+      bible,
+      validationStatus: 'PHASE_6_TEST',
+      validationAttempts: 0
+    }
+
     // Store level and language on bible for chapter generation
     bible.level = level
     bible.language = language
@@ -4914,6 +4932,7 @@ export {
   formatLevelDefinitionForPrompt,
   executePhase4,
   executePhase5,
+  executePhase6,
   WORD_COUNT_BY_TENSION,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

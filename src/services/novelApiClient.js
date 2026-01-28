@@ -161,7 +161,7 @@ export async function expandPrompt(concept) {
  * @returns {Promise<Object>} Updated bible with regenerated phases
  */
 export async function regeneratePhases(params) {
-  const { uid, bookId, phases = [7] } = params
+  const { uid, bookId, phases = [8] } = params
 
   const response = await fetch(`${API_BASE}/api/generate/regenerate-phases`, {
     method: 'POST',

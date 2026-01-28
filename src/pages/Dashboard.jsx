@@ -928,8 +928,8 @@ const Dashboard = () => {
     }
 
     const confirmed = window.confirm(
-      'Regenerate Phase 7 for this book?\n\n' +
-      'This will re-run Event Development using existing events and locations.\n\n' +
+      'Regenerate Phase 8 for this book?\n\n' +
+      'This will re-run Supporting Scenes using existing event development.\n\n' +
       'The book will be temporarily unavailable while regenerating.'
     )
     if (!confirmed) return
@@ -938,12 +938,12 @@ const Dashboard = () => {
       await regeneratePhases({
         uid: user.uid,
         bookId: book.id,
-        phases: [7]
+        phases: [8]
       })
       // The real-time listener will automatically update the UI when status changes
     } catch (err) {
-      console.error('Error regenerating phase 7:', err)
-      alert('Failed to regenerate Phase 7. Please try again.')
+      console.error('Error regenerating phase 8:', err)
+      alert('Failed to regenerate Phase 8. Please try again.')
     }
   }
 

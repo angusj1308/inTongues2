@@ -3074,7 +3074,13 @@ async function executePhase6(concept, phase1, phase2, phase4, phase5) {
 
   const timeline = phase5.master_timeline || []
   const totalMoments = timeline.length
-  console.log(`  Organizing ${totalMoments} moments into events and locations...`)
+  console.log(`  Input: ${totalMoments} moments from Phase 5`)
+
+  // Build a lookup from moment order to moment name
+  const momentNameByOrder = {}
+  for (const m of timeline) {
+    momentNameByOrder[m.order] = m.moment
+  }
 
   // Single LLM call to cluster, locate, and populate
   const userPrompt = buildPhase6UserPrompt(concept, phase1, phase2, phase4, phase5)
@@ -3087,9 +3093,54 @@ async function executePhase6(concept, phase1, phase2, phase4, phase5) {
 
   const result = parsed.data
 
+  // --- Step 1 logging: Grouping moments ---
+  console.log('')
+  console.log(`  Step 1: Grouping moments...`)
+  const majorEvents = result.major_events || []
+  const loneResults = result.lone_moments || []
+
+  for (const event of majorEvents) {
+    const orders = event.moments_contained || []
+    console.log(`    Cluster found: moments [${orders.join(', ')}] → "${event.name}"`)
+  }
+  for (const lone of loneResults) {
+    const name = lone.moment_name || momentNameByOrder[lone.moment_order] || '?'
+    console.log(`    Standalone: moment ${lone.moment_order} "${name}"`)
+  }
+
+  // --- Step 2 logging: Assigning locations ---
+  console.log('')
+  console.log(`  Step 2: Assigning locations...`)
+  for (const event of majorEvents) {
+    console.log(`    "${event.name}" → ${event.location}`)
+  }
+  for (const lone of loneResults) {
+    const name = lone.moment_name || momentNameByOrder[lone.moment_order] || `Moment ${lone.moment_order}`
+    console.log(`    "${name}" → ${lone.location}`)
+  }
+
+  // --- Step 3 logging: Determining presence ---
+  console.log('')
+  console.log(`  Step 3: Determining presence...`)
+  for (const event of majorEvents) {
+    const existing = event.characters_present?.join(', ') || 'none'
+    const minimal = event.minimal_characters?.join(', ') || 'none'
+    console.log(`    "${event.name}":`)
+    console.log(`      Existing: ${existing}`)
+    console.log(`      Minimal: ${minimal}`)
+  }
+  for (const lone of loneResults) {
+    const name = lone.moment_name || momentNameByOrder[lone.moment_order] || `Moment ${lone.moment_order}`
+    const existing = lone.characters_present?.join(', ') || 'none'
+    const minimal = lone.minimal_characters?.join(', ') || 'none'
+    console.log(`    "${name}":`)
+    console.log(`      Existing: ${existing}`)
+    console.log(`      Minimal: ${minimal}`)
+  }
+
   // Validate: every moment must appear exactly once
-  const majorEventMoments = (result.major_events || []).flatMap(e => e.moments_contained || [])
-  const loneMoments = (result.lone_moments || []).map(m => m.moment_order)
+  const majorEventMoments = majorEvents.flatMap(e => e.moments_contained || [])
+  const loneMoments = loneResults.map(m => m.moment_order)
   const allPlacedMoments = [...majorEventMoments, ...loneMoments].sort((a, b) => a - b)
   const expectedMoments = timeline.map(m => m.order).sort((a, b) => a - b)
 
@@ -3106,27 +3157,13 @@ async function executePhase6(concept, phase1, phase2, phase4, phase5) {
     }
   }
 
-  // Console summary
-  const majorEventCount = result.major_events?.length || 0
-  const loneMomentCount = result.lone_moments?.length || 0
-  const locationCount = result.location_inventory?.length || 0
-  const clusteredMomentCount = majorEventMoments.length
-
+  // Final summary
+  console.log('')
   console.log('Phase 6 complete.')
-  console.log(`  Major events: ${majorEventCount} (containing ${clusteredMomentCount} moments)`)
-  console.log(`  Lone moments: ${loneMomentCount}`)
-  console.log(`  Locations: ${locationCount}`)
+  console.log(`  Major events: ${majorEvents.length} (containing ${majorEventMoments.length} moments)`)
+  console.log(`  Lone moments: ${loneResults.length}`)
+  console.log(`  Locations: ${result.location_inventory?.length || 0}`)
   console.log(`  Moment coverage: ${allPlacedMoments.length}/${totalMoments}`)
-
-  if (majorEventCount > 0) {
-    console.log(`  Major events preview:`)
-    result.major_events.slice(0, 3).forEach(e => {
-      console.log(`    - "${e.name}" at ${e.location} (${e.moments_contained?.length || 0} moments, ${e.characters_present?.length || 0} characters)`)
-    })
-    if (majorEventCount > 3) {
-      console.log(`    ... and ${majorEventCount - 3} more`)
-    }
-  }
 
   return result
 }

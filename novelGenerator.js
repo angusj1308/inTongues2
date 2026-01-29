@@ -3604,7 +3604,7 @@ Phase 7 generated STRUCTURED setup requirements with constraints. Each requireme
 - who_must_know: Character(s) who need to learn/feel this
 - who_has_info: Character(s) or sources that hold this information
 - delivery_options: Valid methods (told_by, discovers, overhears, observes, internal_memory, reads_document)
-- emotional_function: What this does to the receiving character
+- emotional_function: What this does to the receiving character (pressure, guilt, hope, fear, etc.)
 - function: seed/setup/escalation/context
 - serves_event: Which event needs this
 
@@ -3613,12 +3613,21 @@ Your job is to:
 2. Attach requirements to existing events where constraints are satisfied
 3. Create new supporting scenes for requirements that need their own scene
 
+CRITICAL POV RULES:
+- Every supporting scene MUST have a valid POV character - NEVER undefined or null
+- POV must be from the POV_CHARACTERS list provided
+- The POV character should be the one experiencing the emotional_function (pressure, guilt, fear, etc.)
+- If the pressured character (from who_must_know) is NOT a valid POV character:
+  * Restructure the scene so a POV character can receive the information
+  * Use delivery methods like: overhears, discovers evidence, observes, gets told
+  * The POV character becomes the one who learns this information
+  * Update characters_present to include the POV character
+
 CRITICAL PLACEMENT RULES:
 - who_must_know characters MUST be present in any scene where requirement is placed
-- If delivery_option is "internal_memory", the who_must_know character must have POV
-- If delivery_option is "told_by", both who_must_know and at least one who_has_info must be present
-- If delivery_option is "reads_document", who_must_know can be alone with document
-- pov_suggestion MUST be from the provided POV_CHARACTERS list AND in who_must_know
+- If delivery_option is "internal_memory", that character must have POV
+- If delivery_option is "told_by", both receiver and teller must be present
+- If delivery_option is "reads_document", character can be alone with document
 
 CRITICAL RULES:
 - Attachment is preferred - fewer scenes = tighter story
@@ -3669,21 +3678,22 @@ Return valid JSON matching this exact structure:
     {
       "scene_id": "supporting_001",
       "name": "<short descriptive name>",
-      "characters_present": ["<character names - MUST include all who_must_know for requirements>"],
+      "characters_present": ["<character names - MUST include POV character>"],
       "location": "<where it happens>",
       "what_happens": "<1-2 sentences describing action/conversation>",
       "requirements_established": [
         {
           "requirement_id": "req_001",
           "requirement": "<requirement text>",
-          "who_receives": "<character from who_must_know>",
+          "who_receives": "<character receiving this information>",
           "delivery_method": "<one of the valid delivery_options>"
         }
       ],
       "function": "seed|setup|escalation|context",
       "placement_zone": "early|mid|late",
       "must_be_before": "<earliest event needing these requirements>",
-      "pov_character": "<MUST be from POV_CHARACTERS list AND in who_must_know for at least one requirement>"
+      "pov": "<REQUIRED - must be from POV_CHARACTERS list>",
+      "pov_reason": "<why this character has POV - who is pressured or how they receive the information>"
     }
   ],
 
@@ -3694,7 +3704,7 @@ Return valid JSON matching this exact structure:
     "requirements_per_new_scene_avg": <number>,
     "all_requirements_placed": true|false,
     "gaps": ["<any unplaced requirement texts>"],
-    "constraint_violations": ["<any placements that violate who_must_know or delivery constraints>"]
+    "pov_issues": ["<any scenes where POV could not be assigned from POV_CHARACTERS>"]
   }
 }`
 
@@ -3854,18 +3864,24 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log('  Step 4: New supporting scenes')
   const scenes = result.supporting_scenes || []
   console.log(`    Created ${scenes.length} supporting scenes`)
+  let povIssues = 0
   for (const scene of scenes) {
     const reqCount = scene.requirements_established?.length || 0
+    const pov = scene.pov || scene.pov_character || 'UNDEFINED'
+    if (pov === 'UNDEFINED' || !pov) povIssues++
     console.log(`    "${scene.name}" (${scene.function}, ${scene.placement_zone}):`)
     console.log(`      Location: ${scene.location}`)
     console.log(`      Characters: ${scene.characters_present?.join(', ') || 'none'}`)
-    console.log(`      POV: ${scene.pov_suggestion}`)
+    console.log(`      POV: ${pov}${scene.pov_reason ? ` - ${scene.pov_reason}` : ''}`)
     console.log(`      Must be before: ${scene.must_be_before}`)
     console.log(`      Requirements (${reqCount}):`)
     for (const req of (scene.requirements_established || [])) {
       const reqText = typeof req === 'string' ? req : req.requirement
       console.log(`        - "${reqText?.slice(0, 60)}..."`)
     }
+  }
+  if (povIssues > 0) {
+    console.warn(`    ⚠ ${povIssues} scenes have undefined POV!`)
   }
 
   // Step 5: Log coverage verification
@@ -3882,6 +3898,13 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
     console.warn(`    ⚠ GAPS (unplaced requirements):`)
     for (const gap of coverage.gaps) {
       console.warn(`      - ${gap}`)
+    }
+  }
+
+  if (coverage.pov_issues?.length > 0) {
+    console.warn(`    ⚠ POV ISSUES:`)
+    for (const issue of coverage.pov_issues) {
+      console.warn(`      - ${issue}`)
     }
   }
 

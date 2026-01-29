@@ -3455,17 +3455,37 @@ async function executePhase7(concept, phase1, phase2, phase4, phase5, phase6) {
     )
 
     const response = await callOpenAI(PHASE_7_EVENT_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
-    const parsed = parseJSON(response)
+    let parsed = parseJSON(response)
+
+    // Retry once on parse failure with JSON reminder
+    if (!parsed.success) {
+      console.warn(`      ⚠ Parse failed for "${eventName}", retrying with JSON reminder...`)
+
+      const retryPrompt = userPrompt + `
+
+CRITICAL: Your previous response had invalid JSON. Ensure:
+- No unescaped newlines inside string values (use \\n instead)
+- All strings properly closed with quotes
+- No trailing commas
+- Valid JSON structure
+
+Return ONLY valid JSON.`
+
+      const retryResponse = await callOpenAI(PHASE_7_EVENT_SYSTEM_PROMPT, retryPrompt, { maxTokens: 8192 })
+      const retryParsed = parseJSON(retryResponse)
+
+      if (retryParsed.success) {
+        console.log(`      ✓ Retry succeeded for "${eventName}"`)
+        parsed = retryParsed
+      } else {
+        console.warn(`      ⚠ Retry also failed for "${eventName}": ${retryParsed.error}`)
+        console.warn(`      Raw retry response (first 2000 chars):`)
+        console.warn(retryResponse.slice(0, 2000))
+      }
+    }
 
     if (!parsed.success) {
-      console.warn(`      ⚠ Parse failed for "${eventName}": ${parsed.error}`)
-      // Log the raw response to help debug JSON issues
-      console.warn(`      Raw response (first 3000 chars):`)
-      console.warn(response.slice(0, 3000))
-      if (response.length > 3000) {
-        console.warn(`      ... (${response.length - 3000} more chars)`)
-      }
-      // Create a minimal fallback entry
+      // Create a minimal fallback entry after retry failed
       developedEvents.push({
         event_name: eventName,
         type: event.eventType,

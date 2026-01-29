@@ -3613,27 +3613,36 @@ Your job is to:
 2. Attach requirements to existing events where constraints are satisfied
 3. Create new supporting scenes for requirements that need their own scene
 
-CRITICAL POV RULES - EVERY SUPPORTING SCENE MUST HAVE A VALID POV CHARACTER:
-- characters_present MUST include at least one character from POV_CHARACTERS - NO EXCEPTIONS
-- The pov field MUST be set to a character from POV_CHARACTERS who is in characters_present
-- If the natural participants (from who_must_know) are all non-POV characters, you MUST restructure:
-  * Add a POV character to the scene
-  * Have them receive the information via: overhears, discovers, observes, gets told
-  * The POV character witnesses or learns what the non-POV characters are doing/saying
-- Never create a scene with only non-POV characters
-- pov_reason must explain why this POV character is present and how they receive the information
+SCENE CREATION - START WITH POV CHARACTER:
+When creating a supporting scene, DO NOT start with "who has this information" - start with "which POV character learns this?"
+
+Step 1: Look at the requirement and ask "Which POV character needs to learn/witness/feel this?"
+Step 2: Determine HOW they learn it: told_by, overhears, observes, discovers, reads_document, internal_memory
+Step 3: Build the scene around the POV character receiving the information
+Step 4: The non-POV characters who hold the information become supporting cast
+
+Example:
+- Requirement: "The community has experience working together during crises"
+- WRONG: Scene with Gareth and workers → No POV character → Invalid
+- RIGHT: Catrin needs to see community resilience → Scene where Catrin observes Gareth rallying workers → Valid
+
+POV REQUIREMENTS - NO EXCEPTIONS:
+- Every supporting scene MUST have a POV character from POV_CHARACTERS
+- The scene is built around how the POV character receives the information
+- Non-POV characters provide the information but don't own the scene
+- pov_reason explains what the POV character learns and why they're present
 
 CRITICAL PLACEMENT RULES:
-- who_must_know characters MUST be present in any scene where requirement is placed
-- If delivery_option is "internal_memory", that character must have POV
-- If delivery_option is "told_by", both receiver and teller must be present
-- If delivery_option is "reads_document", character can be alone with document
+- If delivery_option is "internal_memory", that character must have POV and be a POV_CHARACTER
+- If delivery_option is "told_by", the POV character is told by someone with the info
+- If delivery_option is "overhears", the POV character overhears non-POV characters
+- If delivery_option is "observes", the POV character witnesses an action or situation
+- If delivery_option is "discovers" or "reads_document", the POV character finds evidence
 
 CRITICAL RULES:
 - Attachment is preferred - fewer scenes = tighter story
 - Supporting scenes are LIGHT - they establish things, they don't have character arcs or transformations
-- Max 3-4 requirements per supporting scene, but ONLY if they share who_must_know characters
-- Requirements with different who_must_know characters CANNOT combine into one scene
+- Max 3-4 requirements per supporting scene, but ONLY if a single POV character can receive all of them
 - Every requirement must have a home - no orphans
 
 Return valid JSON matching this exact structure:
@@ -3678,22 +3687,21 @@ Return valid JSON matching this exact structure:
     {
       "scene_id": "supporting_001",
       "name": "<short descriptive name>",
-      "characters_present": ["<MUST include at least one POV_CHARACTERS member - add POV character if natural participants are all non-POV>"],
-      "location": "<where it happens>",
-      "what_happens": "<1-2 sentences - if POV character added, describe how they witness/learn the information>",
+      "pov": "<START HERE - which POV_CHARACTERS member learns this information?>",
+      "pov_reason": "<what does the POV character learn and how do they learn it?>",
+      "characters_present": ["<POV character + any non-POV characters who provide the information>"],
+      "location": "<where the POV character receives this information>",
+      "what_happens": "<1-2 sentences from POV character's perspective - what they witness/learn/discover>",
       "requirements_established": [
         {
           "requirement_id": "req_001",
           "requirement": "<requirement text>",
-          "who_receives": "<character receiving this information>",
-          "delivery_method": "<one of the valid delivery_options>"
+          "delivery_method": "<how POV character receives this: told_by, overhears, observes, discovers, reads_document, internal_memory>"
         }
       ],
       "function": "seed|setup|escalation|context",
       "placement_zone": "early|mid|late",
-      "must_be_before": "<earliest event needing these requirements>",
-      "pov": "<REQUIRED - must be a POV_CHARACTERS member who is in characters_present>",
-      "pov_reason": "<REQUIRED - why this POV character is present and how they receive/witness the information>"
+      "must_be_before": "<earliest event needing these requirements>"
     }
   ],
 

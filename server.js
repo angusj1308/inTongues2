@@ -7961,6 +7961,20 @@ app.post('/api/generate/bible', async (req, res) => {
       ? 'bible_complete'
       : 'bible_needs_review'
 
+    // Debug: Log what we're about to save
+    console.log('=== BIBLE SAVE DEBUG ===')
+    console.log('result.bible keys:', Object.keys(result.bible || {}))
+    console.log('Has coreFoundation:', !!result.bible?.coreFoundation)
+    console.log('Has characters:', !!result.bible?.characters)
+    console.log('Has plot:', !!result.bible?.plot)
+    console.log('Has subplots:', !!result.bible?.subplots)
+    console.log('Has masterTimeline:', !!result.bible?.masterTimeline)
+    console.log('Has eventsAndLocations:', !!result.bible?.eventsAndLocations)
+    console.log('Has eventDevelopment:', !!result.bible?.eventDevelopment)
+    console.log('Has supportingScenes:', !!result.bible?.supportingScenes)
+    console.log('Has chapterAssembly:', !!result.bible?.chapterAssembly)
+    console.log('validationStatus:', result.validationStatus)
+
     // Validate master_timeline - ensure all characters_present have arc_state
     if (result.bible?.masterTimeline?.master_timeline) {
       result.bible.masterTimeline.master_timeline.forEach(moment => {
@@ -7974,12 +7988,41 @@ app.post('/api/generate/bible', async (req, res) => {
       })
     }
 
-    await bookRef.update({
-      bible: result.bible,
-      status: bibleStatus,
-      validationStatus: result.validationStatus,
-      validationAttempts: result.validationAttempts
-    })
+    // Recursively remove undefined values (Firestore can't handle them)
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeForFirestore(item))
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = sanitizeForFirestore(value)
+          }
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    const sanitizedBible = sanitizeForFirestore(result.bible)
+    console.log('Bible sanitized for Firestore')
+
+    try {
+      await bookRef.update({
+        bible: sanitizedBible,
+        status: bibleStatus,
+        validationStatus: result.validationStatus,
+        validationAttempts: result.validationAttempts
+      })
+      console.log('=== BIBLE SAVED SUCCESSFULLY ===')
+    } catch (saveError) {
+      console.error('=== BIBLE SAVE FAILED ===')
+      console.error('Save error:', saveError.message)
+      console.error('Full error:', saveError)
+      throw saveError
+    }
 
     // Auto-generate Chapter 1 so user can start reading immediately
     console.log(`Auto-generating Chapter 1 for book ${bookId}...`)
@@ -8260,13 +8303,39 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
       })
     }
 
+    // Recursively remove undefined values (Firestore can't handle them)
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeForFirestore(item))
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = sanitizeForFirestore(value)
+          }
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    const sanitizedBible = sanitizeForFirestore(updatedBible)
+
     // Update book with regenerated phases
-    await bookRef.update({
-      bible: updatedBible,
-      status: 'bible_complete',
-      regeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
-      regeneratedPhases: phases
-    })
+    try {
+      await bookRef.update({
+        bible: sanitizedBible,
+        status: 'bible_complete',
+        regeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+        regeneratedPhases: phases
+      })
+      console.log('Bible saved successfully after regeneration')
+    } catch (saveError) {
+      console.error('Bible save failed after regeneration:', saveError.message)
+      throw saveError
+    }
 
     console.log(`Phase regeneration complete for book ${bookId}`)
 

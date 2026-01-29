@@ -3793,7 +3793,7 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log('    - Creating supporting scenes')
 
   const prompt = buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7)
-  const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, 0.7)
+  const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, { temperature: 0.7, maxTokens: 32768 })
 
   // Parse response
   const parsed = parseJSON(response)

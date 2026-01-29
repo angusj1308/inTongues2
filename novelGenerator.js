@@ -3613,37 +3613,29 @@ Your job is to:
 2. Attach requirements to existing events where constraints are satisfied
 3. Create new supporting scenes for requirements that need their own scene
 
-SCENE CREATION - START WITH POV CHARACTER:
-When creating a supporting scene, DO NOT start with "who has this information" - start with "which POV character learns this?"
-
-Step 1: Look at the requirement and ask "Which POV character needs to learn/witness/feel this?"
-Step 2: Determine HOW they learn it: told_by, overhears, observes, discovers, reads_document, internal_memory
-Step 3: Build the scene around the POV character receiving the information
-Step 4: The non-POV characters who hold the information become supporting cast
-
-Example:
-- Requirement: "The community has experience working together during crises"
-- WRONG: Scene with Gareth and workers → No POV character → Invalid
-- RIGHT: Catrin needs to see community resilience → Scene where Catrin observes Gareth rallying workers → Valid
-
-POV REQUIREMENTS - NO EXCEPTIONS:
-- Every supporting scene MUST have a POV character from POV_CHARACTERS
-- The scene is built around how the POV character receives the information
-- Non-POV characters provide the information but don't own the scene
-- pov_reason explains what the POV character learns and why they're present
-
-CRITICAL PLACEMENT RULES:
-- If delivery_option is "internal_memory", that character must have POV and be a POV_CHARACTER
-- If delivery_option is "told_by", the POV character is told by someone with the info
-- If delivery_option is "overhears", the POV character overhears non-POV characters
-- If delivery_option is "observes", the POV character witnesses an action or situation
-- If delivery_option is "discovers" or "reads_document", the POV character finds evidence
-
 CRITICAL RULES:
 - Attachment is preferred - fewer scenes = tighter story
 - Supporting scenes are LIGHT - they establish things, they don't have character arcs or transformations
 - Max 3-4 requirements per supporting scene, but ONLY if a single POV character can receive all of them
 - Every requirement must have a home - no orphans
+
+═══════════════════════════════════════════════════════════════════════════════
+MANDATORY: EVERY SUPPORTING SCENE MUST START WITH A VALID POV CHARACTER
+═══════════════════════════════════════════════════════════════════════════════
+
+When creating a supporting scene:
+1. FIRST: Pick a POV character from POV_CHARACTERS (protagonist or love interest)
+2. THEN: Decide how they receive the information (told_by, overhears, observes, discovers)
+3. THEN: Add any non-POV characters needed to provide the information
+4. FINALLY: Build the scene description
+
+Example:
+- Requirement: "The community has experience working together during crises"
+- WRONG: Scene with Gareth and workers (no POV character)
+- RIGHT: Catrin (POV) observes Gareth rallying workers
+
+The "pov" field comes FIRST in the JSON. Fill it FIRST. It must be from POV_CHARACTERS.
+═══════════════════════════════════════════════════════════════════════════════
 
 Return valid JSON matching this exact structure:
 {
@@ -3686,19 +3678,13 @@ Return valid JSON matching this exact structure:
   "supporting_scenes": [
     {
       "scene_id": "supporting_001",
-      "name": "<short descriptive name>",
-      "pov": "<START HERE - which POV_CHARACTERS member learns this information?>",
-      "pov_reason": "<what does the POV character learn and how do they learn it?>",
-      "characters_present": ["<POV character + any non-POV characters who provide the information>"],
+      "pov": "<FILL FIRST - must be exactly one of the POV_CHARACTERS names>",
+      "pov_receives_via": "<told_by | overhears | observes | discovers | reads_document | internal_memory>",
+      "pov_learns": "<what the POV character learns in this scene>",
+      "other_characters": ["<non-POV characters who provide the information - can be empty>"],
       "location": "<where the POV character receives this information>",
-      "what_happens": "<1-2 sentences from POV character's perspective - what they witness/learn/discover>",
-      "requirements_established": [
-        {
-          "requirement_id": "req_001",
-          "requirement": "<requirement text>",
-          "delivery_method": "<how POV character receives this: told_by, overhears, observes, discovers, reads_document, internal_memory>"
-        }
-      ],
+      "what_pov_experiences": "<1-2 sentences from POV character's perspective>",
+      "requirements_established": ["req_001", "req_002"],
       "function": "seed|setup|escalation|context",
       "placement_zone": "early|mid|late",
       "must_be_before": "<earliest event needing these requirements>"
@@ -3709,10 +3695,8 @@ Return valid JSON matching this exact structure:
     "total_unique_requirements": <number>,
     "attached_to_existing": <number>,
     "in_new_scenes": <number>,
-    "requirements_per_new_scene_avg": <number>,
     "all_requirements_placed": true|false,
-    "gaps": ["<any unplaced requirement texts>"],
-    "pov_issues": ["<any scenes where POV could not be assigned from POV_CHARACTERS>"]
+    "gaps": ["<any unplaced requirement IDs>"]
   }
 }`
 
@@ -3876,36 +3860,41 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   // Get POV characters for validation
   const protag = phase2.protagonist?.name || ''
   const loveInterest = phase2.love_interests?.[0]?.name || ''
-  const povCharacters = [protag, loveInterest].filter(Boolean).map(n => n.toLowerCase())
+  const povCharacterNames = [protag, loveInterest].filter(Boolean)
+  const povCharactersLower = povCharacterNames.map(n => n.toLowerCase())
 
-  let povIssues = 0
-  let noPovInSceneIssues = 0
+  console.log(`    Valid POV characters: ${povCharacterNames.join(', ')}`)
+
+  let invalidPovCount = 0
   for (const scene of scenes) {
     const reqCount = scene.requirements_established?.length || 0
-    const pov = scene.pov || scene.pov_character || 'UNDEFINED'
-    if (pov === 'UNDEFINED' || !pov) povIssues++
+    const pov = scene.pov || 'UNDEFINED'
+    const povLower = pov.toLowerCase()
 
-    // Check if at least one POV character is in characters_present
-    const charsPresent = (scene.characters_present || []).map(c => c.toLowerCase())
-    const hasPovCharacter = povCharacters.some(pov => charsPresent.some(c => c.includes(pov) || pov.includes(c)))
-    if (!hasPovCharacter) noPovInSceneIssues++
-
-    console.log(`    "${scene.name}" (${scene.function}, ${scene.placement_zone}):`)
-    console.log(`      Location: ${scene.location}`)
-    console.log(`      Characters: ${scene.characters_present?.join(', ') || 'none'}${!hasPovCharacter ? ' ⚠ NO POV CHARACTER' : ''}`)
-    console.log(`      POV: ${pov}${scene.pov_reason ? ` - ${scene.pov_reason}` : ''}`)
-    console.log(`      Must be before: ${scene.must_be_before}`)
-    console.log(`      Requirements (${reqCount}):`)
-    for (const req of (scene.requirements_established || [])) {
-      const reqText = typeof req === 'string' ? req : req.requirement
-      console.log(`        - "${reqText?.slice(0, 60)}..."`)
+    // Validate POV is from POV_CHARACTERS
+    const isValidPov = povCharactersLower.some(p => povLower.includes(p) || p.includes(povLower))
+    if (!isValidPov) {
+      scene._pov_invalid = true
+      invalidPovCount++
     }
+
+    // Build characters list from new structure
+    const otherChars = scene.other_characters || []
+    const allChars = isValidPov ? [pov, ...otherChars] : otherChars
+
+    console.log(`    "${scene.scene_id}" (${scene.function}, ${scene.placement_zone}):`)
+    console.log(`      POV: ${pov}${!isValidPov ? ' ⚠ INVALID - not a POV character!' : ''}`)
+    console.log(`      Receives via: ${scene.pov_receives_via || 'unspecified'}`)
+    console.log(`      Learns: ${scene.pov_learns?.slice(0, 60) || 'unspecified'}...`)
+    console.log(`      Other characters: ${otherChars.join(', ') || 'none'}`)
+    console.log(`      Location: ${scene.location}`)
+    console.log(`      What happens: ${scene.what_pov_experiences?.slice(0, 60) || 'unspecified'}...`)
+    console.log(`      Must be before: ${scene.must_be_before}`)
+    console.log(`      Requirements: ${Array.isArray(scene.requirements_established) ? scene.requirements_established.join(', ') : reqCount}`)
   }
-  if (povIssues > 0) {
-    console.warn(`    ⚠ ${povIssues} scenes have undefined POV field!`)
-  }
-  if (noPovInSceneIssues > 0) {
-    console.warn(`    ⚠ ${noPovInSceneIssues} scenes have NO POV CHARACTER in characters_present!`)
+
+  if (invalidPovCount > 0) {
+    console.warn(`    ⚠ ${invalidPovCount} scenes have INVALID POV (not ${povCharacterNames.join(' or ')})!`)
   }
 
   // Step 5: Log coverage verification
@@ -3915,7 +3904,6 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log(`    Total unique requirements: ${coverage.total_unique_requirements || 0}`)
   console.log(`    Attached to existing: ${coverage.attached_to_existing || 0}`)
   console.log(`    In new scenes: ${coverage.in_new_scenes || 0}`)
-  console.log(`    Avg requirements per new scene: ${coverage.requirements_per_new_scene_avg?.toFixed(1) || 0}`)
   console.log(`    All requirements placed: ${coverage.all_requirements_placed ? 'YES' : 'NO'}`)
 
   if (coverage.gaps?.length > 0) {
@@ -3925,19 +3913,15 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
     }
   }
 
-  if (coverage.pov_issues?.length > 0) {
-    console.warn(`    ⚠ POV ISSUES:`)
-    for (const issue of coverage.pov_issues) {
-      console.warn(`      - ${issue}`)
-    }
-  }
-
   // Final summary
   console.log('')
   console.log('Phase 8 complete.')
   console.log(`  Unique requirements: ${dedup.unique_requirements || 0}`)
   console.log(`  Attached to existing events: ${totalAttached}`)
   console.log(`  New supporting scenes: ${scenes.length}`)
+  if (invalidPovCount > 0) {
+    console.warn(`  ⚠ INVALID POV SCENES: ${invalidPovCount}`)
+  }
 
   // Breakdown by function for supporting scenes
   const byFunction = {}

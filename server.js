@@ -7940,6 +7940,18 @@ app.post('/api/generate/bible', async (req, res) => {
     console.log(`Starting bible generation for book ${bookId}...`)
     const result = await generateBible(concept, level, lengthPreset, language, 2, null, librarySummaries)
 
+    console.log('=== GENERATE BIBLE RETURNED ===')
+    console.log('result:', result ? 'EXISTS' : 'NULL/UNDEFINED')
+    console.log('result.success:', result?.success)
+    console.log('result.bible type:', typeof result?.bible)
+    console.log('result.bible is null:', result?.bible === null)
+    console.log('result.bible is undefined:', result?.bible === undefined)
+    if (result?.bible) {
+      const bibleStr = JSON.stringify(result.bible)
+      console.log('Bible JSON size:', bibleStr.length, 'characters')
+      console.log('Bible approx MB:', (bibleStr.length / 1024 / 1024).toFixed(2), 'MB')
+    }
+
     if (!result.success) {
       // Update book status to failed
       await bookRef.update({
@@ -8007,7 +8019,18 @@ app.post('/api/generate/bible', async (req, res) => {
     }
 
     const sanitizedBible = sanitizeForFirestore(result.bible)
+    const sanitizedStr = JSON.stringify(sanitizedBible)
     console.log('Bible sanitized for Firestore')
+    console.log('Sanitized Bible JSON size:', sanitizedStr.length, 'characters')
+    console.log('Sanitized Bible approx MB:', (sanitizedStr.length / 1024 / 1024).toFixed(2), 'MB')
+
+    if (sanitizedStr.length > 1000000) {
+      console.error('WARNING: Bible size exceeds 1MB - Firestore has a 1MB document limit!')
+    }
+
+    console.log('=== ABOUT TO SAVE TO FIRESTORE ===')
+    console.log('bookRef path:', bookRef.path)
+    console.log('bibleStatus:', bibleStatus)
 
     try {
       await bookRef.update({
@@ -8017,6 +8040,14 @@ app.post('/api/generate/bible', async (req, res) => {
         validationAttempts: result.validationAttempts
       })
       console.log('=== BIBLE SAVED SUCCESSFULLY ===')
+
+      // Verify the save by reading back
+      const verifyDoc = await bookRef.get()
+      const verifyData = verifyDoc.data()
+      console.log('=== VERIFY SAVE ===')
+      console.log('Document exists:', verifyDoc.exists)
+      console.log('Bible keys after save:', Object.keys(verifyData?.bible || {}))
+      console.log('Has coreFoundation after save:', !!verifyData?.bible?.coreFoundation)
     } catch (saveError) {
       console.error('=== BIBLE SAVE FAILED ===')
       console.error('Save error:', saveError.message)

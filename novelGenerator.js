@@ -3613,15 +3613,15 @@ Your job is to:
 2. Attach requirements to existing events where constraints are satisfied
 3. Create new supporting scenes for requirements that need their own scene
 
-CRITICAL POV RULES:
-- Every supporting scene MUST have a valid POV character - NEVER undefined or null
-- POV must be from the POV_CHARACTERS list provided
-- The POV character should be the one experiencing the emotional_function (pressure, guilt, fear, etc.)
-- If the pressured character (from who_must_know) is NOT a valid POV character:
-  * Restructure the scene so a POV character can receive the information
-  * Use delivery methods like: overhears, discovers evidence, observes, gets told
-  * The POV character becomes the one who learns this information
-  * Update characters_present to include the POV character
+CRITICAL POV RULES - EVERY SUPPORTING SCENE MUST HAVE A VALID POV CHARACTER:
+- characters_present MUST include at least one character from POV_CHARACTERS - NO EXCEPTIONS
+- The pov field MUST be set to a character from POV_CHARACTERS who is in characters_present
+- If the natural participants (from who_must_know) are all non-POV characters, you MUST restructure:
+  * Add a POV character to the scene
+  * Have them receive the information via: overhears, discovers, observes, gets told
+  * The POV character witnesses or learns what the non-POV characters are doing/saying
+- Never create a scene with only non-POV characters
+- pov_reason must explain why this POV character is present and how they receive the information
 
 CRITICAL PLACEMENT RULES:
 - who_must_know characters MUST be present in any scene where requirement is placed
@@ -3678,9 +3678,9 @@ Return valid JSON matching this exact structure:
     {
       "scene_id": "supporting_001",
       "name": "<short descriptive name>",
-      "characters_present": ["<character names - MUST include POV character>"],
+      "characters_present": ["<MUST include at least one POV_CHARACTERS member - add POV character if natural participants are all non-POV>"],
       "location": "<where it happens>",
-      "what_happens": "<1-2 sentences describing action/conversation>",
+      "what_happens": "<1-2 sentences - if POV character added, describe how they witness/learn the information>",
       "requirements_established": [
         {
           "requirement_id": "req_001",
@@ -3692,8 +3692,8 @@ Return valid JSON matching this exact structure:
       "function": "seed|setup|escalation|context",
       "placement_zone": "early|mid|late",
       "must_be_before": "<earliest event needing these requirements>",
-      "pov": "<REQUIRED - must be from POV_CHARACTERS list>",
-      "pov_reason": "<why this character has POV - who is pressured or how they receive the information>"
+      "pov": "<REQUIRED - must be a POV_CHARACTERS member who is in characters_present>",
+      "pov_reason": "<REQUIRED - why this POV character is present and how they receive/witness the information>"
     }
   ],
 
@@ -3864,14 +3864,27 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log('  Step 4: New supporting scenes')
   const scenes = result.supporting_scenes || []
   console.log(`    Created ${scenes.length} supporting scenes`)
+
+  // Get POV characters for validation
+  const protag = phase2.protagonist?.name || ''
+  const loveInterest = phase2.love_interests?.[0]?.name || ''
+  const povCharacters = [protag, loveInterest].filter(Boolean).map(n => n.toLowerCase())
+
   let povIssues = 0
+  let noPovInSceneIssues = 0
   for (const scene of scenes) {
     const reqCount = scene.requirements_established?.length || 0
     const pov = scene.pov || scene.pov_character || 'UNDEFINED'
     if (pov === 'UNDEFINED' || !pov) povIssues++
+
+    // Check if at least one POV character is in characters_present
+    const charsPresent = (scene.characters_present || []).map(c => c.toLowerCase())
+    const hasPovCharacter = povCharacters.some(pov => charsPresent.some(c => c.includes(pov) || pov.includes(c)))
+    if (!hasPovCharacter) noPovInSceneIssues++
+
     console.log(`    "${scene.name}" (${scene.function}, ${scene.placement_zone}):`)
     console.log(`      Location: ${scene.location}`)
-    console.log(`      Characters: ${scene.characters_present?.join(', ') || 'none'}`)
+    console.log(`      Characters: ${scene.characters_present?.join(', ') || 'none'}${!hasPovCharacter ? ' ⚠ NO POV CHARACTER' : ''}`)
     console.log(`      POV: ${pov}${scene.pov_reason ? ` - ${scene.pov_reason}` : ''}`)
     console.log(`      Must be before: ${scene.must_be_before}`)
     console.log(`      Requirements (${reqCount}):`)
@@ -3881,7 +3894,10 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
     }
   }
   if (povIssues > 0) {
-    console.warn(`    ⚠ ${povIssues} scenes have undefined POV!`)
+    console.warn(`    ⚠ ${povIssues} scenes have undefined POV field!`)
+  }
+  if (noPovInSceneIssues > 0) {
+    console.warn(`    ⚠ ${noPovInSceneIssues} scenes have NO POV CHARACTER in characters_present!`)
   }
 
   // Step 5: Log coverage verification

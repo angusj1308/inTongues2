@@ -8097,9 +8097,15 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
     const bookData = bookDoc.data()
     const bible = bookData.bible || {}
 
+    // Debug: log what's in the bible
+    console.log(`Regenerate request for book ${bookId}`)
+    console.log(`  Bible keys: ${Object.keys(bible).join(', ') || 'EMPTY'}`)
+    console.log(`  Has coreFoundation: ${!!bible.coreFoundation}`)
+    console.log(`  Has supportingScenes: ${!!bible.supportingScenes}`)
+
     // Validate we have the required earlier phases
     if (!bible.coreFoundation) {
-      return res.status(400).json({ error: 'Book is missing Phase 1 (coreFoundation) data' })
+      return res.status(400).json({ error: 'Book is missing Phase 1 (coreFoundation) data', bibleKeys: Object.keys(bible) })
     }
     if (!bible.characters) {
       return res.status(400).json({ error: 'Book is missing Phase 2 (characters) data' })

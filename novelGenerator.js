@@ -2005,14 +2005,14 @@ Every character with full or partial psychology gets their own decisive moments.
 
 Ask:
 - What actions do they take to get what they want?
-- Where do they collide with POV characters?
-- What happens off-screen that affects the plot?
+- Where do they collide with the main characters?
 - What is the outcome of their arc?
+
+Every character moment is a scene. Assign POV to the character whose moment it is - this may be a supporting character, not just the protagonist or love interest. Supporting character POV scenes create dramatic irony by showing the reader threats, schemes, or context the main characters don't know about.
 
 These moments should:
 - Connect to the Phase 3 timeline (reference specific Phase 3 moments where possible)
-- Include on-screen moments (in POV character presence)
-- Include off-screen moments where relevant (with mechanism for how reader learns about them)
+- Have a clear POV (the character experiencing the moment)
 - Have a clear outcome
 
 Phase 5 will weave these moments into the master timeline. You just define WHAT happens and WHERE it connects.
@@ -2076,8 +2076,7 @@ Phase 5 will weave these moments into the master timeline. You just define WHAT 
       "order": 1,
       "moment": "Moment name",
       "what_happens": "What occurs",
-      "on_screen": true,
-      "if_offscreen_how_surfaced": "How reader learns about it (null if on-screen)",
+      "pov": "Character name (who experiences this moment)",
       "connects_to_phase3_moment": "Name of Phase 3 moment this relates to (or null)"
     }
   ],
@@ -2102,7 +2101,7 @@ Phase 5 will weave these moments into the master timeline. You just define WHAT 
 1. Characters emerge from story needs (interests), not from abstract psychology.
 2. Psychology level matches function: don't give full wound/lie/arc to a messenger.
 3. Every character with full/partial psychology must have character_moments.
-4. Off-screen moments must have a clear mechanism for surfacing to the reader.
+4. Every character_moment must have a POV - supporting characters get POV for their own key moments.
 5. Consolidate where natural - one character can serve multiple interests.
 6. Phase 5 builds the master timeline - you define characters and their moments only.
 
@@ -2270,9 +2269,6 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   })
 
   console.log(`  Character moments: ${data.character_moments?.length || 0}`)
-  const onScreen = data.character_moments?.filter(m => m.on_screen).length || 0
-  const offScreen = data.character_moments?.filter(m => !m.on_screen).length || 0
-  console.log(`    On-screen: ${onScreen}, Off-screen: ${offScreen}`)
 
   console.log(`  Arc outcomes: ${data.arc_outcomes?.length || 0}`)
   console.log(`  Faceless pressures: ${data.faceless_pressures?.length || 0}`)
@@ -2674,8 +2670,7 @@ function placeStakeholderMoments(timeline, phase4) {
       source: `${cm.character} stakeholder moment`,
       type: 'subplot',
       what_happens: cm.what_happens,
-      on_screen: cm.on_screen !== false,
-      if_offscreen_how_surfaced: cm.if_offscreen_how_surfaced || null,
+      pov: cm.pov || cm.character,
       characters_present: [
         {
           name: cm.character,

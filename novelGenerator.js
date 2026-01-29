@@ -4128,7 +4128,7 @@ function buildPhase9Prompt(concept, phase2, phase5, phase6, phase7, phase8, leng
     const timelineMoment = timeline.find(m => m.order === moment.moment_order)
     eventList.push({
       type: 'lone_moment',
-      id: moment.moment_name || \`Moment \${moment.moment_order}\`,
+      id: moment.moment_name || `Moment ${moment.moment_order}`,
       timeline_position: moment.moment_order,
       pov: timelineMoment?.pov || protag,
       location: moment.location || 'unspecified',
@@ -4153,39 +4153,51 @@ function buildPhase9Prompt(concept, phase2, phase5, phase6, phase7, phase8, leng
     placement_zone: scene.placement_zone
   }))
 
+  // Build formatted event list
+  const eventListStr = eventList.map((e, i) => {
+    const chars = e.characters_present.join(', ') || 'see Phase 6'
+    return `${i + 1}. [${e.type}] "${e.id}"
+   Timeline position: ${e.timeline_position}
+   POV: ${e.pov}
+   Location: ${e.location}
+   Characters: ${chars}`
+  }).join('\n\n')
+
+  // Build formatted supporting scenes list
+  let supportingStr = 'No supporting scenes from Phase 8'
+  if (supportingList.length > 0) {
+    supportingStr = supportingList.map(s => `- "${s.id}" [POV: ${s.pov}]
+   must_be_before: "${s.must_be_before}"
+   placement_zone: ${s.placement_zone}
+   what_happens: ${s.what_happens}`).join('\n\n')
+  }
+
   // Build the prompt
-  return \`STORY: \${concept}
+  return `STORY: ${concept}
 
 POV CHARACTERS:
-- Protagonist (heroine): \${protag}
-- Love Interest (hero): \${loveInterest}
+- Protagonist (heroine): ${protag}
+- Love Interest (hero): ${loveInterest}
 
-TARGET CHAPTER COUNT: \${targetChapters} (±2 acceptable)
+TARGET CHAPTER COUNT: ${targetChapters} (±2 acceptable)
 
 MAJOR EVENTS AND LONE MOMENTS (in timeline order):
-\${eventList.map((e, i) => \`\${i + 1}. [\${e.type}] "\${e.id}"
-   Timeline position: \${e.timeline_position}
-   POV: \${e.pov}
-   Location: \${e.location}
-   Characters: \${e.characters_present.join(', ') || 'see Phase 6'}\`).join('\\n\\n')}
+${eventListStr}
 
 SUPPORTING SCENES (must be placed before their target):
-\${supportingList.length > 0 ? supportingList.map(s => \`- "\${s.id}" [POV: \${s.pov}]
-   must_be_before: "\${s.must_be_before}"
-   placement_zone: \${s.placement_zone}
-   what_happens: \${s.what_happens}\`).join('\\n\\n') : 'No supporting scenes from Phase 8'}
+${supportingStr}
 
 TASK:
 1. Create scene_sequence:
    - Start with major events and lone moments in timeline order
    - Insert each supporting scene BEFORE its must_be_before target
    - Assign order numbers 1, 2, 3...
-   - Each scene gets POV from the data above (default to \${protag} if unclear)
+   - Each scene gets POV from the data above (default to ${protag} if unclear)
 
 2. Group into chapters:
    - Same POV = same chapter (continue grouping)
    - POV change = new chapter starts
-   - Aim for ~\${targetChapters} chapters total
+   - Aim for ~${targetChapters} chapters total
 
 3. Assign chapter metadata:
    - title: Evocative, based on key imagery or moment
@@ -4202,7 +4214,7 @@ TASK:
    - No mid-chapter POV changes
    - Chapter count within ±2 of target
 
-Return valid JSON.\`
+Return valid JSON.`
 }
 
 async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, lengthPreset) {
@@ -4212,14 +4224,14 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   console.log('='.repeat(60))
 
   const targetChapters = lengthPreset === 'novella' ? 12 : 35
-  console.log(\`  Target chapters: \${targetChapters} (±2)\`)
+  console.log(`  Target chapters: ${targetChapters} (±2)`)
 
   // Count input scenes
   const majorEvents = phase6.major_events || []
   const loneMoments = phase6.lone_moments || []
   const supportingScenes = phase8.supporting_scenes || []
 
-  console.log(\`  Input: \${majorEvents.length} major events, \${loneMoments.length} lone moments, \${supportingScenes.length} supporting scenes\`)
+  console.log(`  Input: ${majorEvents.length} major events, ${loneMoments.length} lone moments, ${supportingScenes.length} supporting scenes`)
 
   // Step 1: Call LLM
   console.log('')
@@ -4231,8 +4243,8 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   // Parse response
   const parsed = parseJSON(response)
   if (!parsed.success) {
-    console.warn(\`  ⚠ Parse failed: \${parsed.error}\`)
-    console.warn(\`  Raw response (first 3000 chars):\`)
+    console.warn(`  ⚠ Parse failed: ${parsed.error}`)
+    console.warn(`  Raw response (first 3000 chars):`)
     console.warn(response.slice(0, 3000))
 
     // Return minimal structure on parse failure
@@ -4265,22 +4277,22 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   console.log('')
   console.log('  Step 2: Scene sequence')
   const sequence = result.scene_sequence || []
-  console.log(\`    Total scenes in sequence: \${sequence.length}\`)
+  console.log(`    Total scenes in sequence: ${sequence.length}`)
 
   // Show first few and last few scenes
   const previewCount = 5
   if (sequence.length > 0) {
     console.log('    First scenes:')
     for (const scene of sequence.slice(0, previewCount)) {
-      console.log(\`      \${scene.order}. [\${scene.type}] "\${scene.id}" - POV: \${scene.pov}\`)
+      console.log(`      ${scene.order}. [${scene.type}] "${scene.id}" - POV: ${scene.pov}`)
     }
     if (sequence.length > previewCount * 2) {
-      console.log(\`      ... (\${sequence.length - previewCount * 2} more scenes) ...\`)
+      console.log(`      ... (${sequence.length - previewCount * 2} more scenes) ...`)
     }
     if (sequence.length > previewCount) {
       console.log('    Last scenes:')
       for (const scene of sequence.slice(-previewCount)) {
-        console.log(\`      \${scene.order}. [\${scene.type}] "\${scene.id}" - POV: \${scene.pov}\`)
+        console.log(`      ${scene.order}. [${scene.type}] "${scene.id}" - POV: ${scene.pov}`)
       }
     }
   }
@@ -4289,12 +4301,12 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   console.log('')
   console.log('  Step 3: Chapters')
   const chapters = result.chapters || []
-  console.log(\`    Total chapters: \${chapters.length} (target: \${targetChapters})\`)
+  console.log(`    Total chapters: ${chapters.length} (target: ${targetChapters})`)
 
   for (const chapter of chapters) {
     const sceneCount = chapter.scenes?.length || 0
-    console.log(\`    Ch \${chapter.number}: "\${chapter.title}" - POV: \${chapter.pov}, \${sceneCount} scenes, tension: \${chapter.tension_rating}/10\`)
-    console.log(\`      Hook: \${chapter.hook_type} - \${chapter.hook_description?.slice(0, 50)}...\`)
+    console.log(`    Ch ${chapter.number}: "${chapter.title}" - POV: ${chapter.pov}, ${sceneCount} scenes, tension: ${chapter.tension_rating}/10`)
+    console.log(`      Hook: ${chapter.hook_type} - ${chapter.hook_description?.slice(0, 50)}...`)
   }
 
   // Step 4: Log POV distribution
@@ -4305,8 +4317,8 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   const protagPercent = totalChapters > 0 ? Math.round((povDist.protagonist_chapters / totalChapters) * 100) : 0
   const liPercent = totalChapters > 0 ? Math.round((povDist.love_interest_chapters / totalChapters) * 100) : 0
 
-  console.log(\`    \${povDist.protagonist_name}: \${povDist.protagonist_chapters} chapters (\${protagPercent}%)\`)
-  console.log(\`    \${povDist.love_interest_name}: \${povDist.love_interest_chapters} chapters (\${liPercent}%)\`)
+  console.log(`    ${povDist.protagonist_name}: ${povDist.protagonist_chapters} chapters (${protagPercent}%)`)
+  console.log(`    ${povDist.love_interest_name}: ${povDist.love_interest_chapters} chapters (${liPercent}%)`)
 
   // Step 5: Validation
   console.log('')
@@ -4316,7 +4328,7 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   // Check scene coverage
   const expectedScenes = majorEvents.length + loneMoments.length + supportingScenes.length
   const actualScenes = sequence.length
-  console.log(\`    Scenes: \${actualScenes}/\${expectedScenes} (expected)\`)
+  console.log(`    Scenes: ${actualScenes}/${expectedScenes} (expected)`)
 
   if (validation.all_scenes_placed) {
     console.log('    ✓ All scenes placed')
@@ -4329,9 +4341,9 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   if (beforeViolations.length === 0) {
     console.log('    ✓ No must_be_before violations')
   } else {
-    console.warn(\`    ⚠ must_be_before violations: \${beforeViolations.length}\`)
+    console.warn(`    ⚠ must_be_before violations: ${beforeViolations.length}`)
     for (const v of beforeViolations) {
-      console.warn(\`      - \${v}\`)
+      console.warn(`      - ${v}`)
     }
   }
 
@@ -4340,9 +4352,9 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   if (povViolations.length === 0) {
     console.log('    ✓ No POV violations within chapters')
   } else {
-    console.warn(\`    ⚠ POV violations: \${povViolations.length}\`)
+    console.warn(`    ⚠ POV violations: ${povViolations.length}`)
     for (const v of povViolations) {
-      console.warn(\`      - \${v}\`)
+      console.warn(`      - ${v}`)
     }
   }
 
@@ -4350,17 +4362,17 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   const chapterCount = chapters.length
   const withinRange = Math.abs(chapterCount - targetChapters) <= 2
   if (withinRange) {
-    console.log(\`    ✓ Chapter count \${chapterCount} within target range (\${targetChapters}±2)\`)
+    console.log(`    ✓ Chapter count ${chapterCount} within target range (${targetChapters}±2)`)
   } else {
-    console.warn(\`    ⚠ Chapter count \${chapterCount} outside target range (\${targetChapters}±2)\`)
+    console.warn(`    ⚠ Chapter count ${chapterCount} outside target range (${targetChapters}±2)`)
   }
 
   // Final summary
   console.log('')
   console.log('Phase 9 complete.')
-  console.log(\`  Scene sequence: \${sequence.length} scenes\`)
-  console.log(\`  Chapters: \${chapters.length}\`)
-  console.log(\`  POV split: \${povDist.protagonist_name} \${protagPercent}% / \${povDist.love_interest_name} \${liPercent}%\`)
+  console.log(`  Scene sequence: ${sequence.length} scenes`)
+  console.log(`  Chapters: ${chapters.length}`)
+  console.log(`  POV split: ${povDist.protagonist_name} ${protagPercent}% / ${povDist.love_interest_name} ${liPercent}%`)
 
   return result
 }

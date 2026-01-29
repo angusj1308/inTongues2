@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8 } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9 } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8067,7 +8067,7 @@ app.post('/api/generate/reset-status', async (req, res) => {
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {
-    const { uid, bookId, phases = [7, 8] } = req.body
+    const { uid, bookId, phases = [9] } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
@@ -8105,6 +8105,9 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
     }
     if (phases.includes(8) && !bible.eventDevelopment) {
       return res.status(400).json({ error: 'Phase 8 regeneration requires Phase 7 (eventDevelopment) data' })
+    }
+    if (phases.includes(9) && !bible.supportingScenes) {
+      return res.status(400).json({ error: 'Phase 9 regeneration requires Phase 8 (supportingScenes) data' })
     }
 
     // Update status to regenerating
@@ -8203,6 +8206,26 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
         phase7Data
       )
       console.log('  Phase 8 complete')
+    }
+
+    // Regenerate Phase 9 if requested (requires Phase 8)
+    if (phases.includes(9)) {
+      console.log('  Regenerating Phase 9: Scene Sequencing & Chapter Assembly...')
+      const phase8Data = updatedBible.supportingScenes || bible.supportingScenes
+      if (!phase8Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 9 requires Phase 8 (supportingScenes) data' })
+      }
+      updatedBible.chapterAssembly = await executePhase9(
+        concept,
+        bible.characters,
+        updatedBible.masterTimeline || bible.masterTimeline,
+        updatedBible.eventsAndLocations || bible.eventsAndLocations,
+        updatedBible.eventDevelopment || bible.eventDevelopment,
+        phase8Data,
+        lengthPreset
+      )
+      console.log('  Phase 9 complete')
     }
 
     // Update book with regenerated phases

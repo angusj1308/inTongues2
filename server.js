@@ -7961,6 +7961,19 @@ app.post('/api/generate/bible', async (req, res) => {
       ? 'bible_complete'
       : 'bible_needs_review'
 
+    // Validate master_timeline - ensure all characters_present have arc_state
+    if (result.bible?.masterTimeline?.master_timeline) {
+      result.bible.masterTimeline.master_timeline.forEach(moment => {
+        if (moment.characters_present) {
+          moment.characters_present.forEach(char => {
+            if (char.arc_state === undefined) {
+              char.arc_state = 'present'
+            }
+          })
+        }
+      })
+    }
+
     await bookRef.update({
       bible: result.bible,
       status: bibleStatus,
@@ -8226,6 +8239,19 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
         lengthPreset
       )
       console.log('  Phase 9 complete')
+    }
+
+    // Validate master_timeline - ensure all characters_present have arc_state
+    if (updatedBible.masterTimeline?.master_timeline) {
+      updatedBible.masterTimeline.master_timeline.forEach(moment => {
+        if (moment.characters_present) {
+          moment.characters_present.forEach(char => {
+            if (char.arc_state === undefined) {
+              char.arc_state = 'present'
+            }
+          })
+        }
+      })
     }
 
     // Update book with regenerated phases

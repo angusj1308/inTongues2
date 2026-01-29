@@ -4580,9 +4580,19 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       newSupportingScenes: bible.supportingScenes.supporting_scenes?.length || 0
     })
 
-    // TESTING: Stop after Phase 8 to validate Supporting Scenes output
+    // Phase 9: Scene Sequencing & Chapter Assembly
+    reportProgress(9, 'starting')
+    bible.chapterAssembly = await executePhase9(concept, bible.characters, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment, bible.supportingScenes, lengthPreset)
+    reportProgress(9, 'complete', {
+      sceneSequence: bible.chapterAssembly.scene_sequence?.length || 0,
+      chapters: bible.chapterAssembly.chapters?.length || 0,
+      protagonistChapters: bible.chapterAssembly.pov_distribution?.protagonist_chapters || 0,
+      loveInterestChapters: bible.chapterAssembly.pov_distribution?.love_interest_chapters || 0
+    })
+
+    // TESTING: Stop after Phase 9 to validate Chapter Assembly output
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 8')
+    console.log('TEST MODE - Stopping after Phase 9')
     console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
@@ -4591,12 +4601,13 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     console.log('Phase 6 Output:', JSON.stringify(bible.eventsAndLocations, null, 2))
     console.log('Phase 7 Output:', JSON.stringify(bible.eventDevelopment, null, 2))
     console.log('Phase 8 Output:', JSON.stringify(bible.supportingScenes, null, 2))
+    console.log('Phase 9 Output:', JSON.stringify(bible.chapterAssembly, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_8_TEST',
+      validationStatus: 'PHASE_9_TEST',
       validationAttempts: 0
     }
 

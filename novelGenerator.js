@@ -4001,6 +4001,371 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
 }
 
 // =============================================================================
+// PHASE 9: SCENE SEQUENCING & CHAPTER ASSEMBLY
+// =============================================================================
+
+const PHASE_9_SYSTEM_PROMPT = `You are a story architect assembling scenes into a chaptered structure.
+
+You have:
+1. Major events and lone moments (from Phase 6) with locations and characters
+2. Supporting scenes (from Phase 8) with POV, must_be_before constraints
+3. Timeline order from Phase 5
+
+Your job is to:
+1. Create a linear scene sequence respecting all constraints
+2. Group scenes into chapters based on POV
+3. Assign chapter metadata (hooks, tension, titles)
+
+CRITICAL RULES:
+
+SCENE SEQUENCING:
+- Major events and lone moments are ordered by their lowest moment number
+- Supporting scenes MUST appear BEFORE their must_be_before target
+- If must_be_before is "Event X", the supporting scene goes before Event X
+
+CHAPTER GROUPING:
+- Single POV per chapter (NO mid-chapter POV switches)
+- POV change triggers a new chapter
+- Aim for target chapter count but prioritize POV consistency
+
+POV DISTRIBUTION:
+- Target 60-70% protagonist (heroine) chapters
+- Target 30-40% love interest (hero) chapters
+- When a scene's POV is ambiguous, default to protagonist
+
+CHAPTER HOOKS:
+Each chapter ends with a hook to pull readers forward:
+- cliffhanger: Action or danger unresolved
+- question: Mystery or uncertainty raised
+- revelation: New information that changes everything
+- emotional: Intense feeling that demands resolution
+- decision: Character facing a choice
+
+Return valid JSON matching this exact structure:
+{
+  "scene_sequence": [
+    {
+      "order": 1,
+      "type": "supporting_scene | major_event | lone_moment",
+      "id": "supporting_001 | Event Name",
+      "pov": "Character name",
+      "location": "Where this takes place",
+      "brief": "One sentence summary"
+    }
+  ],
+  "chapters": [
+    {
+      "number": 1,
+      "title": "Evocative chapter title",
+      "pov": "Character name",
+      "scenes": [1, 2, 3],
+      "tension_rating": 5,
+      "hook_type": "cliffhanger | question | revelation | emotional | decision",
+      "hook_description": "What pulls reader forward",
+      "emotional_arc": "start_emotion → end_emotion"
+    }
+  ],
+  "pov_distribution": {
+    "protagonist_name": "Name",
+    "protagonist_chapters": 8,
+    "love_interest_name": "Name",
+    "love_interest_chapters": 4
+  },
+  "validation": {
+    "total_scenes": 25,
+    "scenes_in_chapters": 25,
+    "all_scenes_placed": true,
+    "must_be_before_violations": [],
+    "pov_violations": [],
+    "chapter_count": 12,
+    "target_chapter_count": 12,
+    "within_target_range": true
+  }
+}`
+
+function buildPhase9Prompt(concept, phase2, phase5, phase6, phase7, phase8, lengthPreset) {
+  // Get POV characters
+  const protag = phase2.protagonist?.name || 'Protagonist'
+  const loveInterest = phase2.love_interests?.[0]?.name || 'Love Interest'
+
+  // Target chapter count based on length preset
+  const targetChapters = lengthPreset === 'novella' ? 12 : 35
+
+  // Get timeline for ordering
+  const timeline = phase5.master_timeline || []
+
+  // Build scene list from Phase 6 (major events and lone moments)
+  const majorEvents = phase6.major_events || []
+  const loneMoments = phase6.lone_moments || []
+
+  // Build event list with timeline position (lowest moment number)
+  const eventList = []
+
+  for (const event of majorEvents) {
+    const moments = event.moments_contained || []
+    const lowestMoment = Math.min(...moments.filter(m => m > 0))
+    // Find POV from timeline for any contained moment
+    let pov = null
+    for (const momentNum of moments) {
+      const timelineMoment = timeline.find(m => m.order === momentNum)
+      if (timelineMoment?.pov) {
+        pov = timelineMoment.pov
+        break
+      }
+    }
+    eventList.push({
+      type: 'major_event',
+      id: event.name,
+      timeline_position: lowestMoment,
+      pov: pov || protag,
+      location: event.location || 'unspecified',
+      moments: moments,
+      characters_present: event.characters_present || []
+    })
+  }
+
+  for (const moment of loneMoments) {
+    const timelineMoment = timeline.find(m => m.order === moment.moment_order)
+    eventList.push({
+      type: 'lone_moment',
+      id: moment.moment_name || \`Moment \${moment.moment_order}\`,
+      timeline_position: moment.moment_order,
+      pov: timelineMoment?.pov || protag,
+      location: moment.location || 'unspecified',
+      characters_present: moment.characters_present || []
+    })
+  }
+
+  // Sort by timeline position
+  eventList.sort((a, b) => a.timeline_position - b.timeline_position)
+
+  // Get supporting scenes from Phase 8
+  const supportingScenes = phase8.supporting_scenes || []
+
+  // Build supporting scene list
+  const supportingList = supportingScenes.map(scene => ({
+    type: 'supporting_scene',
+    id: scene.scene_id,
+    pov: scene.pov || protag,
+    location: scene.location || 'unspecified',
+    must_be_before: scene.must_be_before,
+    what_happens: scene.what_pov_experiences || scene.pov_learns || 'Setup scene',
+    placement_zone: scene.placement_zone
+  }))
+
+  // Build the prompt
+  return \`STORY: \${concept}
+
+POV CHARACTERS:
+- Protagonist (heroine): \${protag}
+- Love Interest (hero): \${loveInterest}
+
+TARGET CHAPTER COUNT: \${targetChapters} (±2 acceptable)
+
+MAJOR EVENTS AND LONE MOMENTS (in timeline order):
+\${eventList.map((e, i) => \`\${i + 1}. [\${e.type}] "\${e.id}"
+   Timeline position: \${e.timeline_position}
+   POV: \${e.pov}
+   Location: \${e.location}
+   Characters: \${e.characters_present.join(', ') || 'see Phase 6'}\`).join('\\n\\n')}
+
+SUPPORTING SCENES (must be placed before their target):
+\${supportingList.length > 0 ? supportingList.map(s => \`- "\${s.id}" [POV: \${s.pov}]
+   must_be_before: "\${s.must_be_before}"
+   placement_zone: \${s.placement_zone}
+   what_happens: \${s.what_happens}\`).join('\\n\\n') : 'No supporting scenes from Phase 8'}
+
+TASK:
+1. Create scene_sequence:
+   - Start with major events and lone moments in timeline order
+   - Insert each supporting scene BEFORE its must_be_before target
+   - Assign order numbers 1, 2, 3...
+   - Each scene gets POV from the data above (default to \${protag} if unclear)
+
+2. Group into chapters:
+   - Same POV = same chapter (continue grouping)
+   - POV change = new chapter starts
+   - Aim for ~\${targetChapters} chapters total
+
+3. Assign chapter metadata:
+   - title: Evocative, based on key imagery or moment
+   - tension_rating: 1-10 based on stakes and conflict
+   - hook_type: How chapter ends (cliffhanger/question/revelation/emotional/decision)
+   - hook_description: Specific hook that pulls reader to next chapter
+   - emotional_arc: "curiosity → dread" or "hope → devastation" etc.
+
+4. Calculate pov_distribution
+
+5. Validate:
+   - Every scene appears exactly once
+   - No must_be_before violations
+   - No mid-chapter POV changes
+   - Chapter count within ±2 of target
+
+Return valid JSON.\`
+}
+
+async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, lengthPreset) {
+  console.log('')
+  console.log('='.repeat(60))
+  console.log('Phase 9: Scene Sequencing & Chapter Assembly')
+  console.log('='.repeat(60))
+
+  const targetChapters = lengthPreset === 'novella' ? 12 : 35
+  console.log(\`  Target chapters: \${targetChapters} (±2)\`)
+
+  // Count input scenes
+  const majorEvents = phase6.major_events || []
+  const loneMoments = phase6.lone_moments || []
+  const supportingScenes = phase8.supporting_scenes || []
+
+  console.log(\`  Input: \${majorEvents.length} major events, \${loneMoments.length} lone moments, \${supportingScenes.length} supporting scenes\`)
+
+  // Step 1: Call LLM
+  console.log('')
+  console.log('  Step 1: Sequencing scenes and assembling chapters...')
+
+  const prompt = buildPhase9Prompt(concept, phase2, phase5, phase6, phase7, phase8, lengthPreset)
+  const response = await callClaude(PHASE_9_SYSTEM_PROMPT, prompt, { temperature: 0.7, maxTokens: 16384 })
+
+  // Parse response
+  const parsed = parseJSON(response)
+  if (!parsed.success) {
+    console.warn(\`  ⚠ Parse failed: \${parsed.error}\`)
+    console.warn(\`  Raw response (first 3000 chars):\`)
+    console.warn(response.slice(0, 3000))
+
+    // Return minimal structure on parse failure
+    return {
+      scene_sequence: [],
+      chapters: [],
+      pov_distribution: {
+        protagonist_name: phase2.protagonist?.name || 'Unknown',
+        protagonist_chapters: 0,
+        love_interest_name: phase2.love_interests?.[0]?.name || 'Unknown',
+        love_interest_chapters: 0
+      },
+      validation: {
+        total_scenes: 0,
+        scenes_in_chapters: 0,
+        all_scenes_placed: false,
+        must_be_before_violations: ['Parse failed'],
+        pov_violations: [],
+        chapter_count: 0,
+        target_chapter_count: targetChapters,
+        within_target_range: false
+      },
+      _parse_error: parsed.error
+    }
+  }
+
+  const result = parsed.data
+
+  // Step 2: Log scene sequence
+  console.log('')
+  console.log('  Step 2: Scene sequence')
+  const sequence = result.scene_sequence || []
+  console.log(\`    Total scenes in sequence: \${sequence.length}\`)
+
+  // Show first few and last few scenes
+  const previewCount = 5
+  if (sequence.length > 0) {
+    console.log('    First scenes:')
+    for (const scene of sequence.slice(0, previewCount)) {
+      console.log(\`      \${scene.order}. [\${scene.type}] "\${scene.id}" - POV: \${scene.pov}\`)
+    }
+    if (sequence.length > previewCount * 2) {
+      console.log(\`      ... (\${sequence.length - previewCount * 2} more scenes) ...\`)
+    }
+    if (sequence.length > previewCount) {
+      console.log('    Last scenes:')
+      for (const scene of sequence.slice(-previewCount)) {
+        console.log(\`      \${scene.order}. [\${scene.type}] "\${scene.id}" - POV: \${scene.pov}\`)
+      }
+    }
+  }
+
+  // Step 3: Log chapters
+  console.log('')
+  console.log('  Step 3: Chapters')
+  const chapters = result.chapters || []
+  console.log(\`    Total chapters: \${chapters.length} (target: \${targetChapters})\`)
+
+  for (const chapter of chapters) {
+    const sceneCount = chapter.scenes?.length || 0
+    console.log(\`    Ch \${chapter.number}: "\${chapter.title}" - POV: \${chapter.pov}, \${sceneCount} scenes, tension: \${chapter.tension_rating}/10\`)
+    console.log(\`      Hook: \${chapter.hook_type} - \${chapter.hook_description?.slice(0, 50)}...\`)
+  }
+
+  // Step 4: Log POV distribution
+  console.log('')
+  console.log('  Step 4: POV Distribution')
+  const povDist = result.pov_distribution || {}
+  const totalChapters = (povDist.protagonist_chapters || 0) + (povDist.love_interest_chapters || 0)
+  const protagPercent = totalChapters > 0 ? Math.round((povDist.protagonist_chapters / totalChapters) * 100) : 0
+  const liPercent = totalChapters > 0 ? Math.round((povDist.love_interest_chapters / totalChapters) * 100) : 0
+
+  console.log(\`    \${povDist.protagonist_name}: \${povDist.protagonist_chapters} chapters (\${protagPercent}%)\`)
+  console.log(\`    \${povDist.love_interest_name}: \${povDist.love_interest_chapters} chapters (\${liPercent}%)\`)
+
+  // Step 5: Validation
+  console.log('')
+  console.log('  Step 5: Validation')
+  const validation = result.validation || {}
+
+  // Check scene coverage
+  const expectedScenes = majorEvents.length + loneMoments.length + supportingScenes.length
+  const actualScenes = sequence.length
+  console.log(\`    Scenes: \${actualScenes}/\${expectedScenes} (expected)\`)
+
+  if (validation.all_scenes_placed) {
+    console.log('    ✓ All scenes placed')
+  } else {
+    console.warn('    ⚠ Not all scenes placed!')
+  }
+
+  // Check must_be_before violations
+  const beforeViolations = validation.must_be_before_violations || []
+  if (beforeViolations.length === 0) {
+    console.log('    ✓ No must_be_before violations')
+  } else {
+    console.warn(\`    ⚠ must_be_before violations: \${beforeViolations.length}\`)
+    for (const v of beforeViolations) {
+      console.warn(\`      - \${v}\`)
+    }
+  }
+
+  // Check POV violations
+  const povViolations = validation.pov_violations || []
+  if (povViolations.length === 0) {
+    console.log('    ✓ No POV violations within chapters')
+  } else {
+    console.warn(\`    ⚠ POV violations: \${povViolations.length}\`)
+    for (const v of povViolations) {
+      console.warn(\`      - \${v}\`)
+    }
+  }
+
+  // Check chapter count
+  const chapterCount = chapters.length
+  const withinRange = Math.abs(chapterCount - targetChapters) <= 2
+  if (withinRange) {
+    console.log(\`    ✓ Chapter count \${chapterCount} within target range (\${targetChapters}±2)\`)
+  } else {
+    console.warn(\`    ⚠ Chapter count \${chapterCount} outside target range (\${targetChapters}±2)\`)
+  }
+
+  // Final summary
+  console.log('')
+  console.log('Phase 9 complete.')
+  console.log(\`  Scene sequence: \${sequence.length} scenes\`)
+  console.log(\`  Chapters: \${chapters.length}\`)
+  console.log(\`  POV split: \${povDist.protagonist_name} \${protagPercent}% / \${povDist.love_interest_name} \${liPercent}%\`)
+
+  return result
+}
+
+// =============================================================================
 // REGENERATION
 // =============================================================================
 
@@ -4058,6 +4423,18 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
           updatedBible.eventDevelopment
         )
       }
+    case 9:
+      if (phaseNumber <= 9) {
+        updatedBible.chapterAssembly = await executePhase9(
+          concept,
+          updatedBible.characters,
+          updatedBible.masterTimeline,
+          updatedBible.eventsAndLocations,
+          updatedBible.eventDevelopment,
+          updatedBible.supportingScenes,
+          lengthPreset
+        )
+      }
       break
   }
 
@@ -4078,6 +4455,7 @@ const PHASE_DESCRIPTIONS = {
   6: { name: 'Major Events & Locations', description: 'Organizing moments into events, assigning locations and presence' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with character objectives and setup requirements' },
   8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
+  9: { name: 'Scene Sequencing', description: 'Assembling scenes into chaptered structure with POV and hooks' },
 }
 
 /**
@@ -5667,6 +6045,7 @@ export {
   executePhase6,
   executePhase7,
   executePhase8,
+  executePhase9,
   WORD_COUNT_BY_TENSION,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,
@@ -5689,6 +6068,7 @@ export default {
   executePhase6,
   executePhase7,
   executePhase8,
+  executePhase9,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

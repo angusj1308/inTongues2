@@ -7920,18 +7920,34 @@ app.post('/api/generate/bible', async (req, res) => {
     const bookId = bookRef.id
 
     // Update or create the book document with planning status
-    await bookRef.set({
-      concept,
-      language,
-      level,
-      genre: 'Romance', // Pilot genre
-      lengthPreset,
-      chapterCount: lengthPreset === 'novella' ? 12 : 35,
-      generateAudio,
-      status: 'planning',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      bible: {} // Will be populated by phases
-    }, { merge: true })
+    console.log('=== INITIAL BOOK CREATION ===')
+    console.log('bookRef path:', bookRef.path)
+    console.log('existingBookId:', existingBookId || 'NEW')
+
+    try {
+      await bookRef.set({
+        concept,
+        language,
+        level,
+        genre: 'Romance', // Pilot genre
+        lengthPreset,
+        chapterCount: lengthPreset === 'novella' ? 12 : 35,
+        generateAudio,
+        status: 'planning',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        bible: {} // Will be populated by phases
+      }, { merge: true })
+      console.log('=== INITIAL BOOK CREATED SUCCESSFULLY ===')
+
+      // Verify it was created
+      const verifyInitial = await bookRef.get()
+      console.log('Initial doc exists:', verifyInitial.exists)
+      console.log('Initial doc bible keys:', Object.keys(verifyInitial.data()?.bible || {}))
+    } catch (createError) {
+      console.error('=== INITIAL BOOK CREATION FAILED ===')
+      console.error('Error:', createError.message)
+      throw createError
+    }
 
     // Fetch library summaries for diversity in concept expansion
     const librarySummaries = await getLibrarySummaries()

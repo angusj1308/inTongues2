@@ -55,27 +55,57 @@ const CONFIG = {
 // =============================================================================
 
 async function callClaude(systemPrompt, userPrompt, options = {}) {
-  const { maxRetries = CONFIG.maxRetries, timeoutMs = CONFIG.timeoutMs, model = CONFIG.model } = options
+  const { maxRetries = CONFIG.maxRetries, model = CONFIG.model } = options
+  const maxTokens = options.maxTokens ?? CONFIG.maxTokens
+
+  // Use streaming for large token requests (over 16384)
+  const useStreaming = maxTokens > 16384
+
   let lastError = null
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await getAnthropicClient().messages.create({
-        model: model,
-        max_tokens: options.maxTokens ?? CONFIG.maxTokens,
-        system: systemPrompt,
-        messages: [
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: options.temperature ?? CONFIG.temperature
-      })
+      if (useStreaming) {
+        // Streaming request for large token counts
+        let fullText = ''
+        const stream = getAnthropicClient().messages.stream({
+          model: model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+          temperature: options.temperature ?? CONFIG.temperature
+        })
 
-      // Extract text content from response
-      const textContent = response.content.find(block => block.type === 'text')
-      if (!textContent) {
-        throw new Error('No text content in Claude response')
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta' && event.delta?.text) {
+            fullText += event.delta.text
+          }
+        }
+
+        if (!fullText) {
+          throw new Error('No text content in streaming response')
+        }
+        return fullText
+
+      } else {
+        // Non-streaming request (existing code)
+        const response = await getAnthropicClient().messages.create({
+          model: model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: options.temperature ?? CONFIG.temperature
+        })
+
+        // Extract text content from response
+        const textContent = response.content.find(block => block.type === 'text')
+        if (!textContent) {
+          throw new Error('No text content in Claude response')
+        }
+        return textContent.text
       }
-      return textContent.text
     } catch (error) {
       lastError = error
       console.error(`Claude call attempt ${attempt + 1} failed:`, error.message)
@@ -3815,7 +3845,7 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log('    - Creating supporting scenes')
 
   const prompt = buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7)
-  const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, { temperature: 0.7, maxTokens: 16384 })
+  const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, { temperature: 0.7, maxTokens: 32768 })
 
   // Parse response
   const parsed = parseJSON(response)

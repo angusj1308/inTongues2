@@ -8413,6 +8413,19 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
 
   } catch (error) {
     console.error('Regenerate phases error:', error)
+
+    // Reset status so book doesn't stay stuck on 'regenerating'
+    try {
+      const { uid, bookId } = req.body
+      if (uid && bookId) {
+        const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+        await bookRef.update({ status: 'bible_complete' })
+        console.log('Reset book status to bible_complete after regeneration error')
+      }
+    } catch (resetError) {
+      console.error('Failed to reset book status:', resetError.message)
+    }
+
     return res.status(500).json({ error: 'Failed to regenerate phases', details: error.message })
   }
 })

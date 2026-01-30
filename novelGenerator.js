@@ -3197,6 +3197,10 @@ async function executePhase6(concept, phase1, phase2, phase4, phase5) {
   console.log(`  Locations: ${result.location_inventory?.length || 0}`)
   console.log(`  Moment coverage: ${allPlacedMoments.length}/${totalMoments}`)
 
+  console.log('')
+  console.log('Phase 6 complete output:')
+  console.log(JSON.stringify(result, null, 2))
+
   return result
 }
 
@@ -4538,6 +4542,19 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       locations: bible.eventsAndLocations.location_inventory?.length || 0
     })
     await savePhase(6)
+
+    // TESTING: Stop after Phase 6 to validate event clustering
+    console.log('='.repeat(60))
+    console.log('TEST MODE - Stopping after Phase 6')
+    console.log('Phase 6 Output:', JSON.stringify(bible.eventsAndLocations, null, 2))
+    console.log('='.repeat(60))
+
+    return {
+      success: true,
+      bible,
+      validationStatus: 'PHASE_6_TEST',
+      validationAttempts: 0
+    }
 
     // Phase 7: Event Development (Back to Front)
     reportProgress(7, 'starting')

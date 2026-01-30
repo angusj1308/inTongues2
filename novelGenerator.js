@@ -3635,6 +3635,10 @@ Return ONLY valid JSON.`
     }
   }
 
+  console.log('')
+  console.log('Phase 7 complete output:')
+  console.log(JSON.stringify(result, null, 2))
+
   return result
 }
 

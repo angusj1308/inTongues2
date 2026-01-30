@@ -1211,6 +1211,10 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
     console.log(`  Love Triangle: None`)
   }
 
+  console.log('')
+  console.log('Phase 1 complete output:')
+  console.log(JSON.stringify(data, null, 2))
+
   return data
 }
 
@@ -1492,6 +1496,10 @@ async function executePhase2(concept, phase1) {
     console.log(`       Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}`)
   })
   console.log(`  Rival dynamics: ${data.dynamics?.rivals?.length || 0}`)
+
+  console.log('')
+  console.log('Phase 2 complete output:')
+  console.log(JSON.stringify(data, null, 2))
 
   return data
 }
@@ -1929,6 +1937,10 @@ async function executePhase3(concept, phase1, phase2) {
     }
   }
 
+  console.log('')
+  console.log('Phase 3 complete output:')
+  console.log(JSON.stringify(data, null, 2))
+
   return data
 }
 
@@ -2276,6 +2288,10 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   if (missingMoments.length > 0) {
     console.log(`  WARNING: ${missingMoments.length} characters without moments`)
   }
+
+  console.log('')
+  console.log('Phase 4 complete output:')
+  console.log(JSON.stringify(data, null, 2))
 
   return data
 }
@@ -2970,6 +2986,10 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
       console.log(`    - [${g.severity}] ${g.issue}`)
     })
   }
+
+  console.log('')
+  console.log('Phase 5 complete output:')
+  console.log(JSON.stringify(result, null, 2))
 
   return result
 }
@@ -4326,6 +4346,10 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   console.log(`  Scene sequence: ${sequence.length} scenes`)
   console.log(`  Chapters: ${chapters.length}`)
   console.log(`  POV split: ${povDist.protagonist_name} ${protagPercent}% / ${povDist.love_interest_name} ${liPercent}%`)
+
+  console.log('')
+  console.log('Phase 9 complete output:')
+  console.log(JSON.stringify(result, null, 2))
 
   return result
 }

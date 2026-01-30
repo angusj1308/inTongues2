@@ -3655,6 +3655,9 @@ Phase 7 generated STRUCTURED setup requirements with constraints. Each requireme
 
 Your job is to:
 1. Deduplicate identical or near-identical requirements
+   - CRITICAL: When consolidating duplicates, merge their serves_event values into events_needing_this array
+   - Set earliest_event to whichever event comes FIRST in the master timeline
+   - This requirement must be placed before earliest_event to serve ALL events that need it
 2. Check which requirements are ALREADY COVERED by the master timeline (these are the plot, not setup FOR the plot)
 3. Attach remaining requirements to existing events where constraints are satisfied
 4. Create new supporting scenes for requirements that need their own scene
@@ -3815,7 +3818,7 @@ STRUCTURED SETUP REQUIREMENTS FROM PHASE 7 (${allRequirements.length} total):
 ${formattedRequirements}
 
 TASK:
-1. Deduplicate the ${allRequirements.length} requirements - many are duplicates or near-duplicates. Preserve who_must_know, who_has_info, delivery_options from original requirements.
+1. Deduplicate the ${allRequirements.length} requirements - many are duplicates or near-duplicates. Preserve who_must_know, who_has_info, delivery_options from original requirements. CRITICAL: When merging duplicates, combine their serves_event values into events_needing_this and set earliest_event to the event that comes first in the timeline.
 2. CRITICAL: After deduplication, check which requirements are ALREADY FULFILLED by the master timeline moments. If a requirement says "X must happen" and the timeline already shows X happening, mark it as covered_by_timeline. These do NOT need attachment or new scenes.
 3. For remaining unique requirements, check if they can attach to an existing event WHERE:
    - At least one who_must_know character is present in that event

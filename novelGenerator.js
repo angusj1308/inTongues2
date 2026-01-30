@@ -3988,6 +3988,10 @@ async function executePhase8(concept, phase1, phase2, phase4, phase5, phase6, ph
     }
   }
 
+  console.log('')
+  console.log('Phase 8 complete output:')
+  console.log(JSON.stringify(result, null, 2))
+
   return result
 }
 

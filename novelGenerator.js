@@ -3667,27 +3667,11 @@ CRITICAL RULES:
 - Max 3-4 requirements per supporting scene, but ONLY if a single POV character can receive all of them
 - Every requirement must have a home - no orphans
 
-═══════════════════════════════════════════════════════════════════════════════
-MANDATORY: EVERY SUPPORTING SCENE MUST HAVE A VALID POV CHARACTER
-═══════════════════════════════════════════════════════════════════════════════
-
-Valid POV characters include:
-- Protagonist and love interest(s) (preferred for most scenes)
-- Stakeholder characters with full psychology (when they hold unique information)
-
 When creating a supporting scene:
-1. FIRST: Pick a POV character from POV_CHARACTERS
-2. THEN: Decide how they receive the information (told_by, overhears, observes, discovers)
-3. THEN: Add any non-POV characters needed to provide the information
-4. FINALLY: Build the scene description
-
-Use stakeholder POV when:
-- The requirement involves backstory only they know
-- The information cannot naturally reach the protagonist or love interest
-- Their perspective creates valuable dramatic irony
-
-The "pov" field comes FIRST in the JSON. Fill it FIRST. It must be from POV_CHARACTERS.
-═══════════════════════════════════════════════════════════════════════════════
+1. Pick a POV character - any character who naturally receives the information
+2. Decide how they receive it (told_by, overhears, observes, discovers)
+3. Add any other characters needed to provide the information
+4. Build the scene description
 
 Return valid JSON matching this exact structure:
 {
@@ -3739,7 +3723,7 @@ Return valid JSON matching this exact structure:
   "supporting_scenes": [
     {
       "scene_id": "supporting_001",
-      "pov": "<FILL FIRST - must be exactly one of the POV_CHARACTERS names>",
+      "pov": "<character who experiences this scene>",
       "pov_receives_via": "<told_by | overhears | observes | discovers | reads_document | internal_memory>",
       "pov_learns": "<what the POV character learns in this scene>",
       "other_characters": ["<non-POV characters who provide the information - can be empty>"],
@@ -3763,15 +3747,6 @@ Return valid JSON matching this exact structure:
 }`
 
 function buildPhase8Prompt(concept, phase1, phase2, phase4, phase5, phase6, phase7) {
-  // Get POV characters - protagonist, love interests, and full-psychology stakeholders
-  const protag = phase2.protagonist?.name || 'Protagonist'
-  const loveInterests = phase2.love_interests?.map(li => li.name) || ['Love Interest']
-  const fullPsychologyStakeholders = (phase4.stakeholder_characters || [])
-    .filter(c => c.psychology_level === 'full')
-    .map(c => c.name)
-
-  const povCharacters = [protag, ...loveInterests, ...fullPsychologyStakeholders]
-
   // Get master timeline from Phase 5 for coverage checking
   const masterTimeline = phase5.master_timeline || []
 
@@ -3830,9 +3805,6 @@ function buildPhase8Prompt(concept, phase1, phase2, phase4, phase5, phase6, phas
   // Build the prompt
   return `STORY: ${concept}
 
-POV_CHARACTERS (ONLY these can be POV for supporting scenes):
-${povCharacters.join(', ')}
-
 MASTER TIMELINE FROM PHASE 5 (${masterTimeline.length} moments):
 ${timelineSummary}
 
@@ -3850,7 +3822,7 @@ TASK:
    - The delivery_option is possible in that event context
 4. Group remaining requirements into supporting scenes. ONLY combine requirements that share who_must_know characters. Max 3-4 per scene.
 5. Assign placement zones based on function (seed=early, setup=close before event, escalation=mid, context=flexible)
-6. pov_character for each supporting scene MUST be from POV_CHARACTERS list AND in who_must_know for at least one requirement in that scene
+6. POV for each supporting scene should be from who_must_know - the character who naturally receives the information
 7. Verify every requirement is either covered_by_timeline, attached, or in a new scene
 
 Return valid JSON.`
@@ -3949,36 +3921,13 @@ async function executePhase8(concept, phase1, phase2, phase4, phase5, phase6, ph
   const scenes = result.supporting_scenes || []
   console.log(`    Created ${scenes.length} supporting scenes`)
 
-  // Get POV characters for validation (protagonist, love interests, and full-psychology stakeholders)
-  const protag = phase2.protagonist?.name || ''
-  const loveInterests = phase2.love_interests?.map(li => li.name) || []
-  const fullPsychologyStakeholders = (phase4.stakeholder_characters || [])
-    .filter(c => c.psychology_level === 'full')
-    .map(c => c.name)
-  const povCharacterNames = [protag, ...loveInterests, ...fullPsychologyStakeholders].filter(Boolean)
-  const povCharactersLower = povCharacterNames.map(n => n.toLowerCase())
-
-  console.log(`    Valid POV characters: ${povCharacterNames.join(', ')}`)
-
-  let invalidPovCount = 0
   for (const scene of scenes) {
     const reqCount = scene.requirements_established?.length || 0
     const pov = scene.pov || 'UNDEFINED'
-    const povLower = pov.toLowerCase()
-
-    // Validate POV is from POV_CHARACTERS
-    const isValidPov = povCharactersLower.some(p => povLower.includes(p) || p.includes(povLower))
-    if (!isValidPov) {
-      scene._pov_invalid = true
-      invalidPovCount++
-    }
-
-    // Build characters list from new structure
     const otherChars = scene.other_characters || []
-    const allChars = isValidPov ? [pov, ...otherChars] : otherChars
 
     console.log(`    "${scene.scene_id}" (${scene.function}, ${scene.placement_zone}):`)
-    console.log(`      POV: ${pov}${!isValidPov ? ' ⚠ INVALID - not a POV character!' : ''}`)
+    console.log(`      POV: ${pov}`)
     console.log(`      Receives via: ${scene.pov_receives_via || 'unspecified'}`)
     console.log(`      Learns: ${scene.pov_learns?.slice(0, 60) || 'unspecified'}...`)
     console.log(`      Other characters: ${otherChars.join(', ') || 'none'}`)
@@ -3986,10 +3935,6 @@ async function executePhase8(concept, phase1, phase2, phase4, phase5, phase6, ph
     console.log(`      What happens: ${scene.what_pov_experiences?.slice(0, 60) || 'unspecified'}...`)
     console.log(`      Must be before: ${scene.must_be_before}`)
     console.log(`      Requirements: ${Array.isArray(scene.requirements_established) ? scene.requirements_established.join(', ') : reqCount}`)
-  }
-
-  if (invalidPovCount > 0) {
-    console.warn(`    ⚠ ${invalidPovCount} scenes have INVALID POV (not ${povCharacterNames.join(' or ')})!`)
   }
 
   // Step 5: Log coverage verification
@@ -4015,9 +3960,6 @@ async function executePhase8(concept, phase1, phase2, phase4, phase5, phase6, ph
   console.log(`  Unique requirements: ${dedup.unique_requirements || 0}`)
   console.log(`  Attached to existing events: ${totalAttached}`)
   console.log(`  New supporting scenes: ${scenes.length}`)
-  if (invalidPovCount > 0) {
-    console.warn(`  ⚠ INVALID POV SCENES: ${invalidPovCount}`)
-  }
 
   // Breakdown by function for supporting scenes
   const byFunction = {}
@@ -4074,11 +4016,6 @@ CHAPTER GROUPING:
 - POV change triggers a new chapter
 - Let chapter count emerge naturally from scene groupings - do not force a target
 
-POV DISTRIBUTION:
-- Target 60-70% protagonist (heroine) chapters
-- Target 30-40% love interest (hero) chapters
-- When a scene's POV is ambiguous, default to protagonist
-
 CHAPTER HOOKS:
 Each chapter ends with a hook to pull readers forward:
 - cliffhanger: Action or danger unresolved
@@ -4111,12 +4048,6 @@ Return valid JSON matching this exact structure:
       "emotional_arc": "start_emotion → end_emotion"
     }
   ],
-  "pov_distribution": {
-    "protagonist_name": "Name",
-    "protagonist_chapters": 8,
-    "love_interest_name": "Name",
-    "love_interest_chapters": 4
-  },
   "validation": {
     "total_scenes": 25,
     "scenes_in_chapters": 25,
@@ -4245,9 +4176,7 @@ TASK:
    - hook_description: Specific hook that pulls reader to next chapter
    - emotional_arc: "curiosity → dread" or "hope → devastation" etc.
 
-4. Calculate pov_distribution
-
-5. Validate:
+4. Validate:
    - Every scene appears exactly once
    - No must_be_before violations
    - No mid-chapter POV changes
@@ -4286,12 +4215,6 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
     return {
       scene_sequence: [],
       chapters: [],
-      pov_distribution: {
-        protagonist_name: phase2.protagonist?.name || 'Unknown',
-        protagonist_chapters: 0,
-        love_interest_name: phase2.love_interests?.[0]?.name || 'Unknown',
-        love_interest_chapters: 0
-      },
       validation: {
         total_scenes: 0,
         scenes_in_chapters: 0,
@@ -4342,20 +4265,9 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
     console.log(`      Hook: ${chapter.hook_type} - ${chapter.hook_description?.slice(0, 50)}...`)
   }
 
-  // Step 4: Log POV distribution
+  // Step 4: Validation
   console.log('')
-  console.log('  Step 4: POV Distribution')
-  const povDist = result.pov_distribution || {}
-  const totalChapters = (povDist.protagonist_chapters || 0) + (povDist.love_interest_chapters || 0)
-  const protagPercent = totalChapters > 0 ? Math.round((povDist.protagonist_chapters / totalChapters) * 100) : 0
-  const liPercent = totalChapters > 0 ? Math.round((povDist.love_interest_chapters / totalChapters) * 100) : 0
-
-  console.log(`    ${povDist.protagonist_name}: ${povDist.protagonist_chapters} chapters (${protagPercent}%)`)
-  console.log(`    ${povDist.love_interest_name}: ${povDist.love_interest_chapters} chapters (${liPercent}%)`)
-
-  // Step 5: Validation
-  console.log('')
-  console.log('  Step 5: Validation')
+  console.log('  Step 4: Validation')
   const validation = result.validation || {}
 
   // Check scene coverage
@@ -4640,9 +4552,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     bible.chapterAssembly = await executePhase9(concept, bible.characters, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment, bible.supportingScenes, lengthPreset)
     reportProgress(9, 'complete', {
       sceneSequence: bible.chapterAssembly.scene_sequence?.length || 0,
-      chapters: bible.chapterAssembly.chapters?.length || 0,
-      protagonistChapters: bible.chapterAssembly.pov_distribution?.protagonist_chapters || 0,
-      loveInterestChapters: bible.chapterAssembly.pov_distribution?.love_interest_chapters || 0
+      chapters: bible.chapterAssembly.chapters?.length || 0
     })
     await savePhase(9)
 

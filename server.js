@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9 } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase1, executePhase2, executePhase3, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9 } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8181,6 +8181,207 @@ app.post('/api/generate/reset-status', async (req, res) => {
   } catch (error) {
     console.error('Reset status error:', error)
     res.status(500).json({ error: error.message })
+  }
+})
+
+// POST /api/generate/execute-phase - Execute a single phase for a book
+app.post('/api/generate/execute-phase', async (req, res) => {
+  try {
+    const { uid, bookId, phase } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+    if (phase === undefined) return res.status(400).json({ error: 'phase is required' })
+    if (phase < 1 || phase > 9) return res.status(400).json({ error: 'phase must be between 1 and 9' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const bible = bookData.bible || {}
+    const concept = bookData.concept
+    const lengthPreset = bookData.lengthPreset || 'novella'
+    const level = bookData.level || 'Intermediate'
+
+    console.log(`Executing Phase ${phase} for book ${bookId}`)
+    console.log(`  Concept: ${concept?.slice(0, 50)}...`)
+
+    // Validate prerequisites for each phase
+    if (phase >= 2 && !bible.coreFoundation) {
+      return res.status(400).json({ error: 'Phase 2 requires Phase 1 (coreFoundation) data' })
+    }
+    if (phase >= 3 && !bible.characters) {
+      return res.status(400).json({ error: 'Phase 3 requires Phase 2 (characters) data' })
+    }
+    if (phase >= 4 && !bible.plot) {
+      return res.status(400).json({ error: 'Phase 4 requires Phase 3 (plot) data' })
+    }
+    if (phase >= 5 && !bible.subplots) {
+      return res.status(400).json({ error: 'Phase 5 requires Phase 4 (subplots) data' })
+    }
+    if (phase >= 6 && !bible.masterTimeline) {
+      return res.status(400).json({ error: 'Phase 6 requires Phase 5 (masterTimeline) data' })
+    }
+    if (phase >= 7 && !bible.eventsAndLocations) {
+      return res.status(400).json({ error: 'Phase 7 requires Phase 6 (eventsAndLocations) data' })
+    }
+    if (phase >= 8 && !bible.eventDevelopment) {
+      return res.status(400).json({ error: 'Phase 8 requires Phase 7 (eventDevelopment) data' })
+    }
+    if (phase >= 9 && !bible.supportingScenes) {
+      return res.status(400).json({ error: 'Phase 9 requires Phase 8 (supportingScenes) data' })
+    }
+
+    // Update status to show phase in progress
+    await bookRef.update({
+      status: 'generating',
+      currentPhase: phase
+    })
+
+    // Recursively remove undefined values (Firestore can't handle them)
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeForFirestore(item))
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = sanitizeForFirestore(value)
+          }
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    let result
+    const updatedBible = { ...bible }
+
+    // Execute the requested phase
+    switch (phase) {
+      case 1:
+        result = await executePhase1(concept, lengthPreset, level, [])
+        updatedBible.coreFoundation = result
+        break
+      case 2:
+        result = await executePhase2(concept, bible.coreFoundation)
+        updatedBible.characters = result
+        break
+      case 3:
+        result = await executePhase3(concept, bible.coreFoundation, bible.characters)
+        updatedBible.plot = result
+        break
+      case 4:
+        result = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
+        updatedBible.subplots = result
+        break
+      case 5:
+        result = await executePhase5(concept, bible.coreFoundation, bible.characters, bible.plot, bible.subplots, lengthPreset)
+        updatedBible.masterTimeline = result
+        break
+      case 6:
+        result = await executePhase6(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline)
+        updatedBible.eventsAndLocations = result
+        break
+      case 7:
+        result = await executePhase7(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline, bible.eventsAndLocations)
+        updatedBible.eventDevelopment = result
+        break
+      case 8:
+        result = await executePhase8(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment)
+        updatedBible.supportingScenes = result
+        break
+      case 9:
+        result = await executePhase9(concept, bible.characters, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment, bible.supportingScenes, lengthPreset)
+        updatedBible.chapterAssembly = result
+        break
+    }
+
+    // Sanitize and save to Firestore
+    const sanitizedBible = sanitizeForFirestore(updatedBible)
+
+    await bookRef.update({
+      bible: sanitizedBible,
+      currentPhase: phase,
+      status: phase === 9 ? 'bible_complete' : 'phase_complete',
+      lastPhaseCompleted: phase,
+      lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+
+    console.log(`Phase ${phase} complete for book ${bookId}`)
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      phase,
+      phaseComplete: true,
+      isLastPhase: phase === 9
+    })
+
+  } catch (error) {
+    console.error('Execute phase error:', error)
+
+    // Reset status so book doesn't stay stuck
+    try {
+      const { uid, bookId, phase } = req.body
+      if (uid && bookId) {
+        const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+        await bookRef.update({
+          status: 'phase_complete',
+          lastError: error.message
+        })
+      }
+    } catch (resetError) {
+      console.error('Failed to reset book status:', resetError.message)
+    }
+
+    return res.status(500).json({ error: 'Failed to execute phase', details: error.message })
+  }
+})
+
+// POST /api/generate/reset-generation - Reset a book to start fresh from Phase 1
+app.post('/api/generate/reset-generation', async (req, res) => {
+  try {
+    const { uid, bookId } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    // Keep the concept and settings, clear all phase outputs
+    await bookRef.update({
+      bible: {},
+      currentPhase: 0,
+      status: 'ready',
+      lastPhaseCompleted: null,
+      lastPhaseCompletedAt: null,
+      lastError: null
+    })
+
+    console.log(`Reset generation for book ${bookId} - ready to start from Phase 1`)
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      message: 'Generation reset - ready to start from Phase 1'
+    })
+
+  } catch (error) {
+    console.error('Reset generation error:', error)
+    return res.status(500).json({ error: 'Failed to reset generation', details: error.message })
   }
 })
 

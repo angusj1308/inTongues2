@@ -178,6 +178,55 @@ export async function regeneratePhases(params) {
 }
 
 /**
+ * Execute a single phase for a book
+ * @param {Object} params
+ * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Book ID
+ * @param {number} params.phase - Phase number to execute (1-9)
+ * @returns {Promise<Object>} Phase execution result
+ */
+export async function executePhase(params) {
+  const { uid, bookId, phase } = params
+
+  const response = await fetch(`${API_BASE}/api/generate/execute-phase`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, bookId, phase }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || `Failed to execute phase ${phase}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Reset generation to start fresh from Phase 1
+ * @param {Object} params
+ * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Book ID
+ * @returns {Promise<Object>} Reset result
+ */
+export async function resetGeneration(params) {
+  const { uid, bookId } = params
+
+  const response = await fetch(`${API_BASE}/api/generate/reset-generation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, bookId }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to reset generation')
+  }
+
+  return response.json()
+}
+
+/**
  * Generate a completely different story concept from an existing one
  * @param {string} existingConcept - The concept to avoid/differ from
  * @returns {Promise<string>} A new, different story concept

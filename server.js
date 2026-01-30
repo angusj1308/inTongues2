@@ -8328,6 +8328,7 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
         bible.coreFoundation,
         bible.characters,
         updatedBible.subplots || bible.subplots,
+        updatedBible.masterTimeline || bible.masterTimeline,
         updatedBible.eventsAndLocations || bible.eventsAndLocations,
         phase7Data
       )

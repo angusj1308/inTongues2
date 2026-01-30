@@ -7952,9 +7952,43 @@ app.post('/api/generate/bible', async (req, res) => {
     // Fetch library summaries for diversity in concept expansion
     const librarySummaries = await getLibrarySummaries()
 
-    // Generate the complete bible using the 8-phase pipeline
+    // Recursively remove undefined values (Firestore can't handle them)
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeForFirestore(item))
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = sanitizeForFirestore(value)
+          }
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    // Create callback to save bible after each phase
+    const onPhaseSave = async (bible, phase) => {
+      try {
+        const sanitizedBible = sanitizeForFirestore(bible)
+        await bookRef.update({
+          bible: sanitizedBible,
+          lastPhaseCompleted: phase,
+          status: 'generating'
+        })
+        console.log(`[Server] Phase ${phase} saved to Firestore`)
+      } catch (saveError) {
+        console.error(`[Server] Phase ${phase} save failed:`, saveError.message)
+        throw saveError
+      }
+    }
+
+    // Generate the complete bible using the 9-phase pipeline
     console.log(`Starting bible generation for book ${bookId}...`)
-    const result = await generateBible(concept, level, lengthPreset, language, 2, null, librarySummaries)
+    const result = await generateBible(concept, level, lengthPreset, language, 2, null, librarySummaries, onPhaseSave)
 
     console.log('=== GENERATE BIBLE RETURNED ===')
     console.log('result:', result ? 'EXISTS' : 'NULL/UNDEFINED')
@@ -8016,24 +8050,7 @@ app.post('/api/generate/bible', async (req, res) => {
       })
     }
 
-    // Recursively remove undefined values (Firestore can't handle them)
-    function sanitizeForFirestore(obj) {
-      if (obj === null || obj === undefined) return null
-      if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeForFirestore(item))
-      }
-      if (typeof obj === 'object') {
-        const cleaned = {}
-        for (const [key, value] of Object.entries(obj)) {
-          if (value !== undefined) {
-            cleaned[key] = sanitizeForFirestore(value)
-          }
-        }
-        return cleaned
-      }
-      return obj
-    }
-
+    // Use the sanitizeForFirestore function defined earlier
     const sanitizedBible = sanitizeForFirestore(result.bible)
     const sanitizedStr = JSON.stringify(sanitizedBible)
     console.log('Bible sanitized for Firestore')
@@ -8170,7 +8187,7 @@ app.post('/api/generate/reset-status', async (req, res) => {
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
   try {
-    const { uid, bookId, phases = [9] } = req.body
+    const { uid, bookId, phases = [8, 9] } = req.body
 
     // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })

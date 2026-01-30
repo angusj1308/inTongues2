@@ -3655,29 +3655,36 @@ Phase 7 generated STRUCTURED setup requirements with constraints. Each requireme
 
 Your job is to:
 1. Deduplicate identical or near-identical requirements
-2. Attach requirements to existing events where constraints are satisfied
-3. Create new supporting scenes for requirements that need their own scene
+2. Check which requirements are ALREADY COVERED by the master timeline (these are the plot, not setup FOR the plot)
+3. Attach remaining requirements to existing events where constraints are satisfied
+4. Create new supporting scenes for requirements that need their own scene
 
 CRITICAL RULES:
+- Check timeline coverage FIRST - many "requirements" are actually describing things that happen in the main plot
+- If a timeline moment already shows the requirement happening, it doesn't need a scene - it IS a scene
 - Attachment is preferred - fewer scenes = tighter story
 - Supporting scenes are LIGHT - they establish things, they don't have character arcs or transformations
 - Max 3-4 requirements per supporting scene, but ONLY if a single POV character can receive all of them
 - Every requirement must have a home - no orphans
 
 ═══════════════════════════════════════════════════════════════════════════════
-MANDATORY: EVERY SUPPORTING SCENE MUST START WITH A VALID POV CHARACTER
+MANDATORY: EVERY SUPPORTING SCENE MUST HAVE A VALID POV CHARACTER
 ═══════════════════════════════════════════════════════════════════════════════
 
+Valid POV characters include:
+- Protagonist and love interest(s) (preferred for most scenes)
+- Stakeholder characters with full psychology (when they hold unique information)
+
 When creating a supporting scene:
-1. FIRST: Pick a POV character from POV_CHARACTERS (protagonist or love interest)
+1. FIRST: Pick a POV character from POV_CHARACTERS
 2. THEN: Decide how they receive the information (told_by, overhears, observes, discovers)
 3. THEN: Add any non-POV characters needed to provide the information
 4. FINALLY: Build the scene description
 
-Example:
-- Requirement: "The community has experience working together during crises"
-- WRONG: Scene with Gareth and workers (no POV character)
-- RIGHT: Catrin (POV) observes Gareth rallying workers
+Use stakeholder POV when:
+- The requirement involves backstory only they know
+- The information cannot naturally reach the protagonist or love interest
+- Their perspective creates valuable dramatic irony
 
 The "pov" field comes FIRST in the JSON. Fill it FIRST. It must be from POV_CHARACTERS.
 ═══════════════════════════════════════════════════════════════════════════════
@@ -3702,6 +3709,15 @@ Return valid JSON matching this exact structure:
       }
     ]
   },
+
+  "covered_by_timeline": [
+    {
+      "requirement_id": "req_001",
+      "requirement": "<requirement text>",
+      "covered_by_moment": "<timeline moment name that fulfills this>",
+      "reason": "<why this moment already covers the requirement>"
+    }
+  ],
 
   "attached_to_existing": [
     {
@@ -3738,6 +3754,7 @@ Return valid JSON matching this exact structure:
 
   "coverage_verification": {
     "total_unique_requirements": <number>,
+    "covered_by_timeline": <number>,
     "attached_to_existing": <number>,
     "in_new_scenes": <number>,
     "all_requirements_placed": true|false,
@@ -3745,11 +3762,18 @@ Return valid JSON matching this exact structure:
   }
 }`
 
-function buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7) {
-  // Get POV characters
+function buildPhase8Prompt(concept, phase1, phase2, phase4, phase5, phase6, phase7) {
+  // Get POV characters - protagonist, love interests, and full-psychology stakeholders
   const protag = phase2.protagonist?.name || 'Protagonist'
-  const loveInterest = phase2.love_interests?.[0]?.name || 'Love Interest'
-  const povCharacters = [protag, loveInterest]
+  const loveInterests = phase2.love_interests?.map(li => li.name) || ['Love Interest']
+  const fullPsychologyStakeholders = (phase4.stakeholder_characters || [])
+    .filter(c => c.psychology_level === 'full')
+    .map(c => c.name)
+
+  const povCharacters = [protag, ...loveInterests, ...fullPsychologyStakeholders]
+
+  // Get master timeline from Phase 5 for coverage checking
+  const masterTimeline = phase5.master_timeline || []
 
   // Get all events from Phase 6 for attachment candidates
   const majorEvents = phase6.major_events || []
@@ -3798,11 +3822,19 @@ function buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7) {
    serves_event: ${req.serves_event}`
   }).join('\n\n')
 
+  // Build timeline summary for coverage checking
+  const timelineSummary = masterTimeline.map(m => {
+    return `- Moment ${m.order}: "${m.name}" - ${m.what_happens?.slice(0, 100) || 'no description'}...`
+  }).join('\n')
+
   // Build the prompt
   return `STORY: ${concept}
 
 POV_CHARACTERS (ONLY these can be POV for supporting scenes):
 ${povCharacters.join(', ')}
+
+MASTER TIMELINE FROM PHASE 5 (${masterTimeline.length} moments):
+${timelineSummary}
 
 EXISTING EVENTS (candidates for attachment - note characters present):
 ${eventSummary.map(e => `- "${e.name}" (${e.type}) at "${e.location}" - Characters: ${e.characters_present.join(', ') || 'none listed'} - Timeline: ${e.timeline_position}`).join('\n')}
@@ -3812,18 +3844,20 @@ ${formattedRequirements}
 
 TASK:
 1. Deduplicate the ${allRequirements.length} requirements - many are duplicates or near-duplicates. Preserve who_must_know, who_has_info, delivery_options from original requirements.
-2. For each unique requirement, check if it can attach to an existing event WHERE:
+2. CRITICAL: After deduplication, check which requirements are ALREADY FULFILLED by the master timeline moments. If a requirement says "X must happen" and the timeline already shows X happening, mark it as covered_by_timeline. These do NOT need attachment or new scenes.
+3. For remaining unique requirements, check if they can attach to an existing event WHERE:
    - At least one who_must_know character is present in that event
    - The delivery_option is possible in that event context
-3. Group remaining requirements into supporting scenes. ONLY combine requirements that share who_must_know characters. Max 3-4 per scene.
-4. Assign placement zones based on function (seed=early, setup=close before event, escalation=mid, context=flexible)
-5. pov_character for each supporting scene MUST be from POV_CHARACTERS list AND in who_must_know for at least one requirement in that scene
-6. Verify every requirement is placed and all constraint_violations are empty
+4. Group remaining requirements into supporting scenes. ONLY combine requirements that share who_must_know characters. Max 3-4 per scene.
+5. Assign placement zones based on function (seed=early, setup=close before event, escalation=mid, context=flexible)
+6. pov_character for each supporting scene MUST be from POV_CHARACTERS list AND in who_must_know for at least one requirement in that scene
+7. Verify every requirement is either covered_by_timeline, attached, or in a new scene
 
 Return valid JSON.`
 }
 
-async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
+
+async function executePhase8(concept, phase1, phase2, phase4, phase5, phase6, phase7) {
   console.log('')
   console.log('='.repeat(60))
   console.log('Phase 8: Supporting Scenes')
@@ -3836,10 +3870,11 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log('')
   console.log('  Step 1: Processing requirements...')
   console.log('    - Deduplicating requirements')
+  console.log('    - Checking which are already covered by timeline')
   console.log('    - Identifying attachment opportunities')
   console.log('    - Creating supporting scenes')
 
-  const prompt = buildPhase8Prompt(concept, phase1, phase2, phase4, phase6, phase7)
+  const prompt = buildPhase8Prompt(concept, phase1, phase2, phase4, phase5, phase6, phase7)
   const response = await callClaude(PHASE_8_SYSTEM_PROMPT, prompt, { temperature: 0.7, maxTokens: 32768 })
 
   // Parse response
@@ -3857,10 +3892,12 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
         duplicates_consolidated: 0,
         requirements: []
       },
+      covered_by_timeline: [],
       attached_to_existing: [],
       supporting_scenes: [],
       coverage_verification: {
         total_unique_requirements: 0,
+        covered_by_timeline: 0,
         attached_to_existing: 0,
         in_new_scenes: 0,
         requirements_per_new_scene_avg: 0,
@@ -3880,6 +3917,16 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log(`    Total from Phase 7: ${dedup.total_from_phase_7 || allRequirements.length}`)
   console.log(`    Unique requirements: ${dedup.unique_requirements || 0}`)
   console.log(`    Duplicates consolidated: ${dedup.duplicates_consolidated || 0}`)
+
+  // Step 2.5: Log requirements covered by timeline
+  console.log('')
+  console.log('  Step 2.5: Requirements already covered by timeline')
+  const coveredByTimeline = result.covered_by_timeline || []
+  console.log(`    Covered by timeline: ${coveredByTimeline.length}`)
+  for (const covered of coveredByTimeline) {
+    console.log(`    - "${covered.requirement?.slice(0, 50)}..." covered by "${covered.covered_by_moment}"`)
+    console.log(`      Reason: ${covered.reason?.slice(0, 80)}...`)
+  }
 
   // Step 3: Log attachments
   console.log('')
@@ -3902,10 +3949,13 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   const scenes = result.supporting_scenes || []
   console.log(`    Created ${scenes.length} supporting scenes`)
 
-  // Get POV characters for validation
+  // Get POV characters for validation (protagonist, love interests, and full-psychology stakeholders)
   const protag = phase2.protagonist?.name || ''
-  const loveInterest = phase2.love_interests?.[0]?.name || ''
-  const povCharacterNames = [protag, loveInterest].filter(Boolean)
+  const loveInterests = phase2.love_interests?.map(li => li.name) || []
+  const fullPsychologyStakeholders = (phase4.stakeholder_characters || [])
+    .filter(c => c.psychology_level === 'full')
+    .map(c => c.name)
+  const povCharacterNames = [protag, ...loveInterests, ...fullPsychologyStakeholders].filter(Boolean)
   const povCharactersLower = povCharacterNames.map(n => n.toLowerCase())
 
   console.log(`    Valid POV characters: ${povCharacterNames.join(', ')}`)
@@ -3947,6 +3997,7 @@ async function executePhase8(concept, phase1, phase2, phase4, phase6, phase7) {
   console.log('  Step 5: Coverage verification')
   const coverage = result.coverage_verification || {}
   console.log(`    Total unique requirements: ${coverage.total_unique_requirements || 0}`)
+  console.log(`    Covered by timeline: ${coverage.covered_by_timeline || 0}`)
   console.log(`    Attached to existing: ${coverage.attached_to_existing || 0}`)
   console.log(`    In new scenes: ${coverage.in_new_scenes || 0}`)
   console.log(`    All requirements placed: ${coverage.all_requirements_placed ? 'YES' : 'NO'}`)
@@ -4021,7 +4072,7 @@ SCENE SEQUENCING:
 CHAPTER GROUPING:
 - Single POV per chapter (NO mid-chapter POV switches)
 - POV change triggers a new chapter
-- Aim for target chapter count but prioritize POV consistency
+- Let chapter count emerge naturally from scene groupings - do not force a target
 
 POV DISTRIBUTION:
 - Target 60-70% protagonist (heroine) chapters
@@ -4072,9 +4123,7 @@ Return valid JSON matching this exact structure:
     "all_scenes_placed": true,
     "must_be_before_violations": [],
     "pov_violations": [],
-    "chapter_count": 12,
-    "target_chapter_count": 12,
-    "within_target_range": true
+    "chapter_count": 12
   }
 }`
 
@@ -4082,9 +4131,6 @@ function buildPhase9Prompt(concept, phase2, phase5, phase6, phase7, phase8, leng
   // Get POV characters
   const protag = phase2.protagonist?.name || 'Protagonist'
   const loveInterest = phase2.love_interests?.[0]?.name || 'Love Interest'
-
-  // Target chapter count based on length preset
-  const targetChapters = lengthPreset === 'novella' ? 12 : 35
 
   // Get timeline for ordering
   const timeline = phase5.master_timeline || []
@@ -4174,8 +4220,6 @@ POV CHARACTERS:
 - Protagonist (heroine): ${protag}
 - Love Interest (hero): ${loveInterest}
 
-TARGET CHAPTER COUNT: ${targetChapters} (±2 acceptable)
-
 MAJOR EVENTS AND LONE MOMENTS (in timeline order):
 ${eventListStr}
 
@@ -4192,7 +4236,7 @@ TASK:
 2. Group into chapters:
    - Same POV = same chapter (continue grouping)
    - POV change = new chapter starts
-   - Aim for ~${targetChapters} chapters total
+   - Let chapter count emerge naturally from POV groupings
 
 3. Assign chapter metadata:
    - title: Evocative, based on key imagery or moment
@@ -4207,7 +4251,6 @@ TASK:
    - Every scene appears exactly once
    - No must_be_before violations
    - No mid-chapter POV changes
-   - Chapter count within ±2 of target
 
 Return valid JSON.`
 }
@@ -4217,9 +4260,6 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   console.log('='.repeat(60))
   console.log('Phase 9: Scene Sequencing & Chapter Assembly')
   console.log('='.repeat(60))
-
-  const targetChapters = lengthPreset === 'novella' ? 12 : 35
-  console.log(`  Target chapters: ${targetChapters} (±2)`)
 
   // Count input scenes
   const majorEvents = phase6.major_events || []
@@ -4258,9 +4298,7 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
         all_scenes_placed: false,
         must_be_before_violations: ['Parse failed'],
         pov_violations: [],
-        chapter_count: 0,
-        target_chapter_count: targetChapters,
-        within_target_range: false
+        chapter_count: 0
       },
       _parse_error: parsed.error
     }
@@ -4296,7 +4334,7 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
   console.log('')
   console.log('  Step 3: Chapters')
   const chapters = result.chapters || []
-  console.log(`    Total chapters: ${chapters.length} (target: ${targetChapters})`)
+  console.log(`    Total chapters: ${chapters.length}`)
 
   for (const chapter of chapters) {
     const sceneCount = chapter.scenes?.length || 0
@@ -4353,14 +4391,7 @@ async function executePhase9(concept, phase2, phase5, phase6, phase7, phase8, le
     }
   }
 
-  // Check chapter count
-  const chapterCount = chapters.length
-  const withinRange = Math.abs(chapterCount - targetChapters) <= 2
-  if (withinRange) {
-    console.log(`    ✓ Chapter count ${chapterCount} within target range (${targetChapters}±2)`)
-  } else {
-    console.warn(`    ⚠ Chapter count ${chapterCount} outside target range (${targetChapters}±2)`)
-  }
+  console.log(`    Chapter count: ${chapters.length}`)
 
   // Final summary
   console.log('')
@@ -4426,6 +4457,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
           updatedBible.coreFoundation,
           updatedBible.characters,
           updatedBible.subplots,
+          updatedBible.masterTimeline,
           updatedBible.eventsAndLocations,
           updatedBible.eventDevelopment
         )
@@ -4466,17 +4498,18 @@ const PHASE_DESCRIPTIONS = {
 }
 
 /**
- * Generate a complete story bible through the 7-phase pipeline
+ * Generate a complete story bible through the 9-phase pipeline
  * @param {string} concept - Story concept/description
  * @param {string} level - Reading level (Beginner, Intermediate, Native)
- * @param {string} lengthPreset - 'novella' (12 chapters) or 'novel' (35 chapters)
+ * @param {string} lengthPreset - 'novella' or 'novel'
  * @param {string} language - Target language
  * @param {number} maxValidationAttempts - Max validation retry attempts (default 2)
- * @param {Function} onProgress - Optional callback for progress updates: (phase, totalPhases, phaseName, description, status) => void
+ * @param {Function} onProgress - Optional callback for progress updates
  * @param {Array} librarySummaries - Existing book summaries for diversity (default [])
+ * @param {Function} onPhaseSave - Optional callback to save bible after each phase: (bible, phase) => Promise<void>
  * @returns {Promise<Object>} Generated bible result
  */
-export async function generateBible(concept, level, lengthPreset, language, maxValidationAttempts = 2, onProgress = null, librarySummaries = []) {
+export async function generateBible(concept, level, lengthPreset, language, maxValidationAttempts = 2, onProgress = null, librarySummaries = [], onPhaseSave = null) {
   console.log('='.repeat(60))
   console.log('STARTING BIBLE GENERATION PIPELINE')
   console.log(`Concept: ${concept}`)
@@ -4508,6 +4541,20 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     }
   }
 
+  // Helper to save bible after each phase
+  const savePhase = async (phase) => {
+    if (onPhaseSave) {
+      try {
+        console.log(`[Phase ${phase}] Saving bible to Firestore...`)
+        await onPhaseSave(bible, phase)
+        console.log(`[Phase ${phase}] Bible saved successfully`)
+      } catch (e) {
+        console.error(`[Phase ${phase}] Failed to save bible:`, e.message)
+        // Don't throw - allow generation to continue even if save fails
+      }
+    }
+  }
+
   try {
     // Phase 1: Story DNA
     reportProgress(1, 'starting')
@@ -4519,6 +4566,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       externalPlot: bible.coreFoundation.external_plot?.container_type,
       externalBeats: bible.coreFoundation.external_plot?.beats?.length
     })
+    await savePhase(1)
 
     // Phase 2: Characters
     reportProgress(2, 'starting')
@@ -4527,6 +4575,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       protagonist: bible.characters.protagonist?.name,
       loveInterests: bible.characters.love_interests?.length
     })
+    await savePhase(2)
 
     // Phase 3: Central Plot
     reportProgress(3, 'starting')
@@ -4535,6 +4584,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       keyMoments: bible.plot.key_moments?.length,
       darkMoment: bible.plot.dark_moment?.what_happens?.slice(0, 30)
     })
+    await savePhase(3)
 
     // Phase 4: Subplots & Supporting Cast
     reportProgress(4, 'starting')
@@ -4544,6 +4594,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       stakeholderCharacters: bible.subplots.stakeholder_characters?.length,
       characterMoments: bible.subplots.character_moments?.length
     })
+    await savePhase(4)
 
     // Phase 5: Master Timeline
     reportProgress(5, 'starting')
@@ -4553,6 +4604,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       mainMoments: bible.masterTimeline.master_timeline?.filter(m => m.type === 'main').length,
       subplotMoments: bible.masterTimeline.master_timeline?.filter(m => m.type === 'subplot').length
     })
+    await savePhase(5)
 
     // Phase 6: Major Events & Locations
     reportProgress(6, 'starting')
@@ -4562,6 +4614,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       loneMoments: bible.eventsAndLocations.lone_moments?.length || 0,
       locations: bible.eventsAndLocations.location_inventory?.length || 0
     })
+    await savePhase(6)
 
     // Phase 7: Event Development (Back to Front)
     reportProgress(7, 'starting')
@@ -4570,15 +4623,17 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       eventsDeveloped: bible.eventDevelopment.developed_events?.length || 0,
       setupRequirements: bible.eventDevelopment.all_setup_requirements?.length || 0
     })
+    await savePhase(7)
 
     // Phase 8: Supporting Scenes
     reportProgress(8, 'starting')
-    bible.supportingScenes = await executePhase8(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.eventsAndLocations, bible.eventDevelopment)
+    bible.supportingScenes = await executePhase8(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment)
     reportProgress(8, 'complete', {
       uniqueRequirements: bible.supportingScenes.deduplicated_requirements?.unique_requirements || 0,
       attachedToExisting: bible.supportingScenes.attached_to_existing?.length || 0,
       newSupportingScenes: bible.supportingScenes.supporting_scenes?.length || 0
     })
+    await savePhase(8)
 
     // Phase 9: Scene Sequencing & Chapter Assembly
     reportProgress(9, 'starting')
@@ -4589,6 +4644,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       protagonistChapters: bible.chapterAssembly.pov_distribution?.protagonist_chapters || 0,
       loveInterestChapters: bible.chapterAssembly.pov_distribution?.love_interest_chapters || 0
     })
+    await savePhase(9)
 
     // TESTING: Stop after Phase 9 to validate Chapter Assembly output
     console.log('='.repeat(60))

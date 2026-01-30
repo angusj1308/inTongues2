@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
-import { generateBible, generatePrompt, expandPrompt, generateDifferentPrompt } from '../../services/novelApiClient'
+import { generatePrompt, expandPrompt, generateDifferentPrompt } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -180,14 +180,18 @@ const GenerateStoryPanel = ({
       const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
 
       try {
+        // Create book document ready for phase-by-phase generation
         const placeholderRef = await addDoc(generatedBooksRef, {
-          status: 'generating',
+          status: 'ready',
+          currentPhase: 0,
+          lastPhaseCompleted: null,
           concept: placeholderConcept,
           level: LEVELS[levelIndex],
           lengthPreset: lengthPreset,
           language: activeLanguage,
           generateAudio,
           createdAt: serverTimestamp(),
+          bible: {},
         })
 
         // Close panel immediately and navigate to dashboard
@@ -197,23 +201,8 @@ const GenerateStoryPanel = ({
         setIsSubmitting(false)
         navigate('/dashboard', { state: { initialTab: 'read' } })
 
-        // Fire off generation in background (don't await)
-        generateBible({
-          uid: user.uid,
-          bookId: placeholderRef.id, // Pass the placeholder ID so backend updates it
-          concept: placeholderConcept,
-          level: LEVELS[levelIndex],
-          lengthPreset: lengthPreset,
-          language: activeLanguage,
-          generateAudio,
-        }).catch((err) => {
-          console.error('Background novel generation failed:', err)
-          // Update placeholder to show error status
-          setDoc(doc(db, 'users', user.uid, 'generatedBooks', placeholderRef.id),
-            { status: 'error', error: err.message },
-            { merge: true }
-          ).catch(console.error)
-        })
+        // User will use phase controls to run phases manually
+        console.log(`Book ${placeholderRef.id} created - ready for phase-by-phase generation`)
 
       } catch (placeholderError) {
         setError(placeholderError?.message || 'Unable to start novel generation.')

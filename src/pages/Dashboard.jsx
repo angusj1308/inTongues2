@@ -19,7 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
-import { regeneratePhases } from '../services/novelApiClient'
+import { regeneratePhases, executePhase, resetGeneration } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -217,7 +217,9 @@ const BookGrid = ({
   onEmptyActionLabel,
   onBookClick,
   getStoryTitle,
-  onRegenerate,
+  onNextPhase,
+  onRegeneratePhase,
+  onResetGeneration,
 }) => (
   <section className="read-section read-slab">
     <div className="read-section-header">
@@ -245,8 +247,8 @@ const BookGrid = ({
           const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating || isRegenerating
           // Clickable if not processing and not failed
           const canClick = !isProcessing && !isFailed && onBookClick
-          // Can regenerate if it's a generated book with bible data and not currently processing
-          const canRegenerate = book.isGeneratedBook && book.bible && !isProcessing && onRegenerate
+          // Show phase controls for generated books
+          const showPhaseControls = book.isGeneratedBook && !isProcessing
 
           return (
             <div
@@ -292,17 +294,49 @@ const BookGrid = ({
                     </span>
                   </div>
                 )}
-                {canRegenerate && (
-                  <button
-                    className="book-tile-regenerate-btn"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRegenerate(book)
-                    }}
-                    title="Regenerate Phase 7 & 8"
-                  >
-                    ↻
-                  </button>
+                {/* Phase controls for generated books */}
+                {showPhaseControls && (
+                  <div className="book-phase-controls">
+                    <span className="book-phase-indicator">
+                      Phase {book.currentPhase || book.lastPhaseCompleted || 0}/9
+                    </span>
+                    {(book.currentPhase || book.lastPhaseCompleted || 0) < 9 && onNextPhase && (
+                      <button
+                        className="book-phase-btn book-phase-next"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onNextPhase(e, book)
+                        }}
+                        title={`Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                      >
+                        ▶
+                      </button>
+                    )}
+                    {(book.currentPhase || book.lastPhaseCompleted || 0) > 0 && onRegeneratePhase && (
+                      <button
+                        className="book-phase-btn book-phase-redo"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRegeneratePhase(e, book)
+                        }}
+                        title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                      >
+                        ↻
+                      </button>
+                    )}
+                    {onResetGeneration && (
+                      <button
+                        className="book-phase-btn book-phase-reset"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onResetGeneration(e, book)
+                        }}
+                        title="Reset to Phase 1"
+                      >
+                        ⟲
+                      </button>
+                    )}
+                  </div>
                 )}
                 <div className="book-tile-hover-overlay">
                   <div className="book-tile-hover-title">{titleText}</div>
@@ -917,33 +951,78 @@ const Dashboard = () => {
     }
   }
 
-  const handleRegeneratePhases = async (e, book) => {
-    e.stopPropagation() // Prevent opening the book
+  // Execute next phase for a book
+  const handleNextPhase = async (e, book) => {
+    e.stopPropagation()
     if (!book?.id || !user?.uid) return
 
-    // Only works for generated books with bible data
-    if (!book.isGeneratedBook || !book.bible) {
-      alert('This book cannot be regenerated - it needs bible data from phases 1-6.')
+    const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+    const nextPhase = currentPhase + 1
+
+    if (nextPhase > 9) {
+      alert('All phases complete!')
+      return
+    }
+
+    try {
+      await executePhase({
+        uid: user.uid,
+        bookId: book.id,
+        phase: nextPhase
+      })
+      // Real-time listener will update UI
+    } catch (err) {
+      console.error(`Error executing phase ${nextPhase}:`, err)
+      alert(`Failed to execute Phase ${nextPhase}: ${err.message}`)
+    }
+  }
+
+  // Re-run current phase
+  const handleRegenerateCurrentPhase = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+    if (currentPhase < 1) {
+      alert('No phase to regenerate. Click "Next Phase" to start.')
       return
     }
 
     const confirmed = window.confirm(
-      'Regenerate Phase 7 & 8 for this book?\n\n' +
-      'This will re-run Event Development and Supporting Scenes.\n\n' +
-      'The book will be temporarily unavailable while regenerating.'
+      `Regenerate Phase ${currentPhase}?\n\nThis will re-run the phase with fresh generation.`
     )
     if (!confirmed) return
 
     try {
-      await regeneratePhases({
+      await executePhase({
         uid: user.uid,
         bookId: book.id,
-        phases: [6]
+        phase: currentPhase
       })
-      // The real-time listener will automatically update the UI when status changes
     } catch (err) {
-      console.error('Error regenerating phases 7 & 8:', err)
-      alert('Failed to regenerate Phases 7 & 8. Please try again.')
+      console.error(`Error regenerating phase ${currentPhase}:`, err)
+      alert(`Failed to regenerate Phase ${currentPhase}: ${err.message}`)
+    }
+  }
+
+  // Reset to start fresh from Phase 1
+  const handleResetGeneration = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const confirmed = window.confirm(
+      'Reset generation?\n\nThis will clear all phase outputs and start fresh from Phase 1.'
+    )
+    if (!confirmed) return
+
+    try {
+      await resetGeneration({
+        uid: user.uid,
+        bookId: book.id
+      })
+    } catch (err) {
+      console.error('Error resetting generation:', err)
+      alert(`Failed to reset generation: ${err.message}`)
     }
   }
 
@@ -1219,7 +1298,6 @@ const Dashboard = () => {
                           // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
                           const isClickable = !isProcessing && !isFailed
                           // Can regenerate if it's a generated book with bible data and not currently processing
-                          const canRegenerate = book.isGeneratedBook && book.bible && !isProcessing
                           return (
                             <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
                               <button
@@ -1229,15 +1307,38 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
-                              {canRegenerate && (
-                                <button
-                                  className="book-regenerate-btn"
-                                  onClick={(e) => handleRegeneratePhases(e, book)}
-                                  aria-label="Regenerate Phase 7 & 8"
-                                  title="Regenerate Phase 7 & 8"
-                                >
-                                  ↻
-                                </button>
+                              {/* Phase controls for generated books */}
+                              {book.isGeneratedBook && !isProcessing && (
+                                <div className="book-phase-controls">
+                                  <span className="book-phase-indicator">
+                                    Phase {book.currentPhase || book.lastPhaseCompleted || 0}/9
+                                  </span>
+                                  {(book.currentPhase || book.lastPhaseCompleted || 0) < 9 && (
+                                    <button
+                                      className="book-phase-btn book-phase-next"
+                                      onClick={(e) => handleNextPhase(e, book)}
+                                      title={`Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                                    >
+                                      ▶
+                                    </button>
+                                  )}
+                                  {(book.currentPhase || book.lastPhaseCompleted || 0) > 0 && (
+                                    <button
+                                      className="book-phase-btn book-phase-redo"
+                                      onClick={(e) => handleRegenerateCurrentPhase(e, book)}
+                                      title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                                    >
+                                      ↻
+                                    </button>
+                                  )}
+                                  <button
+                                    className="book-phase-btn book-phase-reset"
+                                    onClick={(e) => handleResetGeneration(e, book)}
+                                    title="Reset to Phase 1"
+                                  >
+                                    ⟲
+                                  </button>
+                                </div>
                               )}
                               <button
                                 className="reading-shelf-item-content"
@@ -1313,7 +1414,6 @@ const Dashboard = () => {
                           // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
                           const isClickable = !isProcessing && !isFailed
                           // Can regenerate if it's a generated book with bible data and not currently processing
-                          const canRegenerate = book.isGeneratedBook && book.bible && !isProcessing
                           return (
                             <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
                               <button
@@ -1323,15 +1423,38 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
-                              {canRegenerate && (
-                                <button
-                                  className="book-regenerate-btn"
-                                  onClick={(e) => handleRegeneratePhases(e, book)}
-                                  aria-label="Regenerate Phase 7 & 8"
-                                  title="Regenerate Phase 7 & 8"
-                                >
-                                  ↻
-                                </button>
+                              {/* Phase controls for generated books */}
+                              {book.isGeneratedBook && !isProcessing && (
+                                <div className="book-phase-controls">
+                                  <span className="book-phase-indicator">
+                                    Phase {book.currentPhase || book.lastPhaseCompleted || 0}/9
+                                  </span>
+                                  {(book.currentPhase || book.lastPhaseCompleted || 0) < 9 && (
+                                    <button
+                                      className="book-phase-btn book-phase-next"
+                                      onClick={(e) => handleNextPhase(e, book)}
+                                      title={`Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                                    >
+                                      ▶
+                                    </button>
+                                  )}
+                                  {(book.currentPhase || book.lastPhaseCompleted || 0) > 0 && (
+                                    <button
+                                      className="book-phase-btn book-phase-redo"
+                                      onClick={(e) => handleRegenerateCurrentPhase(e, book)}
+                                      title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                                    >
+                                      ↻
+                                    </button>
+                                  )}
+                                  <button
+                                    className="book-phase-btn book-phase-reset"
+                                    onClick={(e) => handleResetGeneration(e, book)}
+                                    title="Reset to Phase 1"
+                                  >
+                                    ⟲
+                                  </button>
+                                </div>
                               )}
                               <button
                                 className="reading-shelf-item-content"

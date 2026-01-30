@@ -938,7 +938,7 @@ const Dashboard = () => {
       await regeneratePhases({
         uid: user.uid,
         bookId: book.id,
-        phases: [7, 8]
+        phases: [6]
       })
       // The real-time listener will automatically update the UI when status changes
     } catch (err) {

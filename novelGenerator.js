@@ -2094,7 +2094,8 @@ Phase 5 will weave these moments into the master timeline. You just define WHAT 
       "moment": "Moment name",
       "what_happens": "What occurs",
       "pov": "Character name (who experiences this moment)",
-      "connects_to_phase3_moment": "Name of Phase 3 moment this relates to (or null)"
+      "connects_to_phase3_moment": "Name of Phase 3 moment this relates to (or null)",
+      "relationship": "during | causes | follows"
     }
   ],
 
@@ -2113,14 +2114,29 @@ Phase 5 will weave these moments into the master timeline. You just define WHAT 
   ]
 }
 
+## CHARACTER MOMENT RELATIONSHIPS
+
+When a character_moment connects to a Phase 3 moment, specify the relationship:
+
+- **"during"** — This moment happens DURING the connected moment (same scene, different POV or added action). Phase 5 will merge it into the existing moment.
+- **"causes"** — This moment CAUSES or leads to the connected moment. Phase 5 will place it BEFORE the connected moment.
+- **"follows"** — This moment is a CONSEQUENCE of the connected moment. Phase 5 will place it AFTER the connected moment.
+
+Examples:
+- "The Wedding" connects to "The Return" with relationship "causes" → Wedding happens before she returns
+- "Father's Ultimatum" connects to "The Betrothal" with relationship "causes" → Ultimatum causes the betrothal
+- "The Aftermath" connects to "The Confrontation" with relationship "follows" → Aftermath comes after
+- "Servant's Observation" connects to "The Kiss" with relationship "during" → Same scene, servant's POV
+
 ## CRITICAL RULES
 
 1. Characters emerge from story needs (interests), not from abstract psychology.
 2. Psychology level matches function: don't give full wound/lie/arc to a messenger.
 3. Every character with full/partial psychology must have character_moments.
 4. Every character_moment must have a POV - supporting characters get POV for their own key moments.
-5. Consolidate where natural - one character can serve multiple interests.
-6. Phase 5 builds the master timeline - you define characters and their moments only.
+5. Every character_moment with connects_to_phase3_moment MUST have a relationship field.
+6. Consolidate where natural - one character can serve multiple interests.
+7. Phase 5 builds the master timeline - you define characters and their moments only.
 
 ## DO NOT INCLUDE
 
@@ -2642,14 +2658,15 @@ function addPresenceToTimeline(timeline, presenceData) {
   return timeline
 }
 
-// Place Phase 4 stakeholder moments that are missing from the timeline as separate entries
-// This runs BEFORE verification to ensure all decisive moments are represented (Fix 3+4)
+// Place Phase 4 stakeholder moments based on their relationship to Phase 3 moments
+// This runs BEFORE verification to ensure all decisive moments are represented
 function placeStakeholderMoments(timeline, phase4) {
   const characterMoments = phase4.character_moments || []
   if (characterMoments.length === 0) return timeline
 
   let updatedTimeline = [...timeline]
   let placed = 0
+  let merged = 0
   let alreadyPresent = 0
 
   for (const cm of characterMoments) {
@@ -2676,15 +2693,37 @@ function placeStakeholderMoments(timeline, phase4) {
       continue
     }
 
-    // Find insertion point using connects_to_phase3_moment
-    let insertAfterIndex = -1
+    // Find connected moment index
+    let connectedIndex = -1
     if (cm.connects_to_phase3_moment) {
-      insertAfterIndex = updatedTimeline.findIndex(m =>
+      connectedIndex = updatedTimeline.findIndex(m =>
         m.moment.toLowerCase() === cm.connects_to_phase3_moment.toLowerCase()
       )
     }
 
-    // Build the new moment entry - always a separate entry, never merged
+    // Handle based on relationship type
+    const relationship = cm.relationship || 'follows' // Default to follows for backwards compatibility
+
+    if (relationship === 'during' && connectedIndex >= 0) {
+      // Merge into existing moment's characters_present
+      const existingMoment = updatedTimeline[connectedIndex]
+      if (!existingMoment.characters_present) existingMoment.characters_present = []
+
+      // Check if character already present
+      if (!existingMoment.characters_present.some(p => p.name === cm.character)) {
+        existingMoment.characters_present.push({
+          name: cm.character,
+          role: 'supporting',
+          action: cm.what_happens,
+          arc_state: 'active'
+        })
+      }
+      merged++
+      console.log(`      Merged "${cm.moment}" into "${existingMoment.moment}" (during)`)
+      continue
+    }
+
+    // Build the new moment entry for causes/follows
     const momentToInsert = {
       order: 0, // Will be recalculated
       moment: cm.moment,
@@ -2702,11 +2741,20 @@ function placeStakeholderMoments(timeline, phase4) {
       ]
     }
 
-    if (insertAfterIndex >= 0) {
-      updatedTimeline.splice(insertAfterIndex + 1, 0, momentToInsert)
+    if (connectedIndex >= 0) {
+      if (relationship === 'causes') {
+        // Insert BEFORE the connected moment
+        updatedTimeline.splice(connectedIndex, 0, momentToInsert)
+        console.log(`      Placed "${cm.moment}" BEFORE "${cm.connects_to_phase3_moment}" (causes)`)
+      } else {
+        // 'follows' or default - Insert AFTER the connected moment
+        updatedTimeline.splice(connectedIndex + 1, 0, momentToInsert)
+        console.log(`      Placed "${cm.moment}" AFTER "${cm.connects_to_phase3_moment}" (follows)`)
+      }
     } else {
       // If no connection point found, add to end
       updatedTimeline.push(momentToInsert)
+      console.log(`      Placed "${cm.moment}" at end (no connection found)`)
     }
 
     placed++
@@ -2717,7 +2765,7 @@ function placeStakeholderMoments(timeline, phase4) {
     m.order = i + 1
   })
 
-  console.log(`    ${placed} new moments placed, ${alreadyPresent} already present (${characterMoments.length} total from Phase 4)`)
+  console.log(`    Summary: ${placed} placed, ${merged} merged, ${alreadyPresent} already present (${characterMoments.length} total from Phase 4)`)
 
   return updatedTimeline
 }

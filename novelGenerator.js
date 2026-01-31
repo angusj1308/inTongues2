@@ -2704,22 +2704,28 @@ function placeStakeholderMoments(timeline, phase4) {
     // Handle based on relationship type
     const relationship = cm.relationship || 'follows' // Default to follows for backwards compatibility
 
-    if (relationship === 'during' && connectedIndex >= 0) {
-      // Merge into existing moment's characters_present
-      const existingMoment = updatedTimeline[connectedIndex]
-      if (!existingMoment.characters_present) existingMoment.characters_present = []
+    if (relationship === 'during') {
+      // "during" moments should ALWAYS merge into existing moments, never create separate entries
+      if (connectedIndex >= 0) {
+        // Merge into existing moment's characters_present - preserve all main moment properties
+        const existingMoment = updatedTimeline[connectedIndex]
+        if (!existingMoment.characters_present) existingMoment.characters_present = []
 
-      // Check if character already present
-      if (!existingMoment.characters_present.some(p => p.name === cm.character)) {
-        existingMoment.characters_present.push({
-          name: cm.character,
-          role: 'supporting',
-          action: cm.what_happens,
-          arc_state: 'active'
-        })
+        // Check if character already present
+        if (!existingMoment.characters_present.some(p => p.name === cm.character)) {
+          existingMoment.characters_present.push({
+            name: cm.character,
+            role: 'supporting',
+            action: cm.what_happens,
+            arc_state: 'active'
+          })
+        }
+        merged++
+        console.log(`      Merged "${cm.moment}" into "${existingMoment.moment}" (during - enriched characters_present)`)
+      } else {
+        // Connected moment not found - warn but don't create separate entry for "during" moments
+        console.warn(`      WARNING: Could not find connected moment "${cm.connects_to_phase3_moment}" for "during" merge of "${cm.moment}". Skipping.`)
       }
-      merged++
-      console.log(`      Merged "${cm.moment}" into "${existingMoment.moment}" (during)`)
       continue
     }
 
@@ -2901,27 +2907,18 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   // Store all presence data for arc tracking
   const allPresenceData = []
 
-  // Process full psychology characters (need subplot moments)
+  // Process full psychology characters (presence mapping only - arc moments come from Phase 4)
   for (const character of fullCast) {
     console.log(`    Processing ${character.name} (full)...`)
 
-    // Step A: Presence mapping
+    // Presence mapping only - full psychology characters get their arc moments from Phase 4,
+    // not from Phase 5 subplot generation (which would create duplicates)
     const presenceData = await processCharacterPresence(character, timeline, castList)
     allPresenceData.push(presenceData)
     console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
 
     // Add presence to timeline
     timeline = addPresenceToTimeline(timeline, presenceData)
-
-    // Step B: Subplot generation
-    const subplotData = await processCharacterSubplot(character, timeline, castList, presenceData)
-
-    if (subplotData.new_moments?.length > 0) {
-      console.log(`      - Generated ${subplotData.new_moments.length} new subplot moments`)
-      timeline = insertMomentsIntoTimeline(timeline, subplotData.new_moments, character.name)
-    } else {
-      console.log(`      - No new moments needed`)
-    }
   }
 
   // Process partial psychology characters (presence only, no new moments)

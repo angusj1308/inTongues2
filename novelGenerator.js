@@ -1600,6 +1600,8 @@ Build ONE chronological timeline containing ALL moments from ALL arcs:
 - Dark moment
 - Resolution
 
+IMPORTANT: Every moment name must be unique. Do not reuse generic names like "The Discovery" or "The Confrontation" - make each name specific to what happens (e.g., "The Letter Discovery", "The Ballroom Confrontation").
+
 Each moment gets a POV character. In a multi-POV story, distribute POV across characters so we experience key moments from different perspectives. Critical romantic moments should alternate between protagonist and love interest POV so we feel both sides.
 
 ## External Plot Integration
@@ -2027,6 +2029,8 @@ These moments should:
 - Connect to the Phase 3 timeline (reference specific Phase 3 moments where possible)
 - Have a clear POV (the character experiencing the moment)
 - Have a clear outcome
+
+IMPORTANT: Moment names must be unique across the entire story. Do not reuse moment names from Phase 3. If Phase 3 has "The Discovery", use a different name like "The Household Discovery" or "Catalina's Discovery".
 
 Phase 5 will weave these moments into the master timeline. You just define WHAT happens and WHERE it connects.
 

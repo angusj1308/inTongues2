@@ -220,6 +220,7 @@ const BookGrid = ({
   onNextPhase,
   onRegeneratePhase,
   onResetGeneration,
+  onRunSpecificPhase,
 }) => (
   <section className="read-section read-slab">
     <div className="read-section-header">
@@ -334,6 +335,18 @@ const BookGrid = ({
                         title="Reset to Phase 1"
                       >
                         ⟲
+                      </button>
+                    )}
+                    {onRunSpecificPhase && (
+                      <button
+                        className="book-phase-btn book-phase-goto"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRunSpecificPhase(e, book)
+                        }}
+                        title="Go to specific phase"
+                      >
+                        #
                       </button>
                     )}
                   </div>
@@ -1026,6 +1039,37 @@ const Dashboard = () => {
     }
   }
 
+  // Run a specific phase (allows going back to earlier phases)
+  const handleRunSpecificPhase = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+    const phaseInput = window.prompt(
+      `Enter phase number to run (1-9):\n\nCurrent phase: ${currentPhase}\n\nNote: Running an earlier phase will regenerate from that point.`,
+      String(currentPhase || 1)
+    )
+
+    if (!phaseInput) return
+
+    const phase = parseInt(phaseInput, 10)
+    if (isNaN(phase) || phase < 1 || phase > 9) {
+      alert('Please enter a valid phase number (1-9)')
+      return
+    }
+
+    try {
+      await executePhase({
+        uid: user.uid,
+        bookId: book.id,
+        phase
+      })
+    } catch (err) {
+      console.error(`Error executing phase ${phase}:`, err)
+      alert(`Failed to execute Phase ${phase}: ${err.message}`)
+    }
+  }
+
   const getStoryTitle = (item) => {
     // Show placeholder for generating books
     if (item.status === 'generating' || item.status === 'planning') {
@@ -1338,6 +1382,13 @@ const Dashboard = () => {
                                   >
                                     ⟲
                                   </button>
+                                  <button
+                                    className="book-phase-btn book-phase-goto"
+                                    onClick={(e) => handleRunSpecificPhase(e, book)}
+                                    title="Go to specific phase"
+                                  >
+                                    #
+                                  </button>
                                 </div>
                               )}
                               <button
@@ -1453,6 +1504,13 @@ const Dashboard = () => {
                                     title="Reset to Phase 1"
                                   >
                                     ⟲
+                                  </button>
+                                  <button
+                                    className="book-phase-btn book-phase-goto"
+                                    onClick={(e) => handleRunSpecificPhase(e, book)}
+                                    title="Go to specific phase"
+                                  >
+                                    #
                                   </button>
                                 </div>
                               )}

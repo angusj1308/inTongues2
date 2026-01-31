@@ -1337,6 +1337,7 @@ ROLE IN STORY:
 NAMES:
 - If the concept names characters, use those exact names
 - Otherwise, choose names appropriate to the setting, era, and social class
+- Ensure unrelated characters have distinct surnames to avoid confusion in dialogue and narration
 
 ## The Causal Wound Chain
 

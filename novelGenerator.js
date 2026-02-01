@@ -1557,7 +1557,12 @@ Ensure:
 - One love interest is marked Primary (unless tragic/open ending)
 - If multiple love interests, include rival dynamics between them
 
-## PART 2: Create Secondary Cast
+## PART 2: Create Secondary Cast (REQUIRED - DO NOT SKIP)
+
+You MUST create the secondary cast. This is not optional. Your output MUST include:
+- world_interests array (at least 3-5 interests identified)
+- secondary_characters array (characters who embody faced interests)
+- faceless_pressures array (interests that remain atmospheric)
 
 ### THE THEME (characters must engage with this)
 
@@ -1570,7 +1575,7 @@ Every faced character needs a POSITION on this question.
 
 ${externalBeatsSummary}
 
-Map characters to these beats - they shouldn't float in a vacuum.
+These beats represent world forces that need either faces (characters) or faceless pressure. Map interests to these beats.
 
 ### Complexity Guide for ${lengthPreset}
 
@@ -1578,13 +1583,40 @@ Map characters to these beats - they shouldn't float in a vacuum.
 - Partial psychology secondary characters: ${partialCount}
 - Minimal characters: ${minimalCount}
 
-### PROCESS
+### PROCESS (Follow this exactly)
 
-1. Identify world interests from concept + external_plot
-2. Check pressure mechanisms - can each interest REACH protagonists?
-3. Decide face or faceless for each interest
-4. For faced characters: assign psychology level, thematic position, archetype, arc
-5. Build psychology appropriate to each level`
+**Step 1: Identify World Interests**
+Look at the concept and external_plot. List 3-5 forces/pressures/stakes as interests (NOT characters yet).
+Example interests: "Political authority that could expose them", "Economic pressure from family debt", "Social expectation of the community"
+
+**Step 2: Pressure Mechanism Check**
+For EACH interest: How could it pressure the protagonists? Can it PLAUSIBLY REACH them?
+
+**Step 3: Face or Faceless**
+- Give a FACE to interests that need a character to make decisions and interact
+- Keep FACELESS interests that work as atmospheric/systemic pressure
+- Add faced interests to secondary_characters
+- Add faceless interests to faceless_pressures
+
+**Step 4: Build Characters**
+For each faced interest, create a secondary_character with:
+- psychology_level (full/partial/minimal based on their role)
+- thematic_position (what they believe about the theme)
+- archetype (what pressure role they play)
+- arc_type and arc_outcome
+- Appropriate psychology fields for their level
+
+## CRITICAL OUTPUT REQUIREMENTS
+
+Your JSON output MUST include ALL of these top-level keys:
+1. protagonist (object)
+2. love_interests (array)
+3. dynamics (object with romantic and rivals arrays)
+4. world_interests (array - REQUIRED, minimum 3 entries)
+5. secondary_characters (array - REQUIRED, create characters for faced interests)
+6. faceless_pressures (array - REQUIRED, even if empty)
+
+DO NOT return output with empty world_interests or secondary_characters arrays. If you're unsure what interests exist, look at the external_plot beats - each beat implies forces at work that need representation.`
 }
 
 async function executePhase2(concept, phase1, lengthPreset) {
@@ -1629,17 +1661,15 @@ async function executePhase2(concept, phase1, lengthPreset) {
     }
   }
 
-  // Validate secondary cast structure (may be empty but should exist)
-  if (!data.world_interests) {
-    console.warn('Phase 2 WARNING: No world_interests array - adding empty array')
-    data.world_interests = []
+  // Validate secondary cast structure - these are REQUIRED
+  if (!data.world_interests || !Array.isArray(data.world_interests) || data.world_interests.length === 0) {
+    throw new Error('Phase 2 FAILED: world_interests array is missing or empty. The model must identify world interests from the concept and external_plot.')
   }
-  if (!data.secondary_characters) {
-    console.warn('Phase 2 WARNING: No secondary_characters array - adding empty array')
-    data.secondary_characters = []
+  if (!data.secondary_characters || !Array.isArray(data.secondary_characters) || data.secondary_characters.length === 0) {
+    throw new Error('Phase 2 FAILED: secondary_characters array is missing or empty. The model must create characters for faced interests.')
   }
   if (!data.faceless_pressures) {
-    data.faceless_pressures = []
+    data.faceless_pressures = [] // This one can be empty if all interests are faced
   }
 
   // Validate secondary characters have required fields

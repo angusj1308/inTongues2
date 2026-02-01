@@ -1235,7 +1235,7 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
 // PHASE 2: CHARACTERS (Full Cast)
 // =============================================================================
 
-const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create the COMPLETE cast for this story: protagonist, love interests, AND secondary characters.
+const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create the COMPLETE cast for this story: protagonist, love interests, AND stakeholder characters.
 
 You will receive:
 - The user's original concept
@@ -1313,78 +1313,79 @@ Phase 1 defines a POV structure (Single, Dual-Alternating, Multiple). Every POV 
   }
 }
 
-## PART 2: SECONDARY CAST (World Interests)
+## PART 2: STAKEHOLDER CHARACTERS (from World Interests)
 
-After creating romantic leads, identify WORLD INTERESTS from the concept and external wave, then create secondary characters.
+Create supporting characters as THEMATIC PARTICIPANTS, not just plot functionaries.
 
-### Step 1: Identify Interests
+### THE THEMATIC IMPERATIVE
 
-Look at the external_plot beats and setting. Ask:
+Every faced character must have:
+1. A POSITION on the story's central thematic question (from Phase 1)
+2. An ARC TYPE (transformation or hardening)
+3. Moments that TEST their belief against the theme
+4. Mapping to EXTERNAL BEATS they embody or drive
+5. A plausible MECHANISM to pressure the protagonists
+6. An OUTCOME that follows from their thematic choice
+
+Characters who just perform plot functions without thematic engagement are hollow.
+
+### PROCESS (Follow this order)
+
+**Step 1: List the Interests**
+
+Look at the situation from Phase 1 (concept, external_plot). Ask:
 - Who benefits from the status quo?
 - Who is threatened by the protagonists' choices?
 - Who has history with the POV characters?
 - Who represents institutions or groups relevant to the setting?
 - Who has power over the POV characters?
-- Who is affected by the story events?
+- Who is affected by the events of the story?
 
-List each interest as a force/pressure/stake — NOT as a character yet.
+List each interest as a force/pressure/stake - NOT as a character yet.
 
-### Step 2: Pressure Mechanism Check
+**Step 2: Pressure Mechanism Check (BEFORE face/faceless decision)**
 
-For each interest, ask: How would this interest pressure the protagonists? Can it PLAUSIBLY REACH them?
+For each interest, ask:
+- How would this interest pressure the protagonists?
+- Can it PLAUSIBLY REACH them given story circumstances?
+- What is the mechanism of contact?
 
 **LOGISTICS MATTER.** A military commander can't pressure a soldier in hiding unless:
 - They have spies/informants with access
 - They can threaten people the soldier loves
-- The soldier must eventually surface
-- They have prior relationship creating emotional leverage
+- The soldier must eventually surface for some reason
+- They have prior relationship that creates emotional leverage
 
 If an interest cannot plausibly reach the protagonists, it should:
 - Remain FACELESS (pressure through systems, reputation, fear), OR
-- The face needs an ESTABLISHED CONNECTION
+- The face needs an ESTABLISHED CONNECTION (prior relationship, physical proximity, shared space, they come to the protagonists)
 
-### Step 3: Face or Faceless Decision
+**Step 3: Face or Faceless Decision**
 
 An interest needs a face if:
 - It makes decisions that affect the plot
-- It CAN PLAUSIBLY REACH the POV characters
-- It represents a thematic position needing embodiment
+- It CAN PLAUSIBLY REACH AND INTERACT with POV characters
+- It represents a thematic position that needs embodiment
 
 An interest stays faceless if:
 - It works as collective/systemic pressure
 - No plausible mechanism exists for personal contact
 - The threat is atmospheric rather than interpersonal
 
-### Step 4: Thematic Position
+**Step 4: Thematic Position**
 
 For each FACED character, determine their position on the Phase 1 theme question.
 
-Example (if theme is "Is love worth the risk of loss?"):
+Examples (if theme is "Is love worth the risk of loss?"):
 - Believes love IS worth it (will be tested by witnessing loss)
 - Believes love is NOT worth it (will be tested by experiencing love)
 - Believes love is controllable (will be tested by chaos)
 
-### Step 5: Psychology Level
+Their position creates their LENS on events and their arc trajectory.
 
-**Full psychology** (wound, lie, want, need, coping, arc, voice):
-- Characters who get POV scenes
-- Characters who undergo transformation (arc_type: transformation)
-- Characters whose arc carries significant thematic weight
+**Step 5: Archetype (Pressure Role)**
 
-**Partial psychology** (want, stake, method, thematic_position):
-- Multiple appearances
-- Make plot-affecting choices
-- Clear thematic position but no transformation
-- Arc type is usually "hardening"
-
-**Minimal** (name, role, function, appearance_context):
-- Single appearance
-- Pure function (messenger, obstacle, mirror)
-- No personal arc
-
-### Step 6: Archetype (Pressure Role)
-
-What kind of PRESSURE do they apply?
+What kind of PRESSURE do they apply? The archetype is their FUNCTION in pressuring the protagonists:
 
 - **The Hunter** — Actively pursues, hunts, tracks
 - **The Rival** — Competes for same goal/person/position
@@ -1397,18 +1398,67 @@ What kind of PRESSURE do they apply?
 - **The Guardian** — Protects something protagonist needs to change/destroy
 - **The Witness** — Observes and threatens to expose
 
-### Step 7: Arc Type and Outcome
+**Step 6: Arc Type and Outcome**
 
-**Arc Type:**
-- **Transformation**: Their position on the theme CHANGES
-- **Hardening**: They DOUBLE DOWN despite challenges
+**Arc Type** — How does their belief evolve?
+- **Transformation**: Their position on the theme CHANGES through the story
+- **Hardening**: They DOUBLE DOWN on their position despite challenges
 
-**Arc Outcome:**
+**Arc Outcome** — What happens as a consequence of their thematic choice?
 - **Redemption**: They change and find something better
 - **Tragic death**: Their belief kills them (literally or metaphorically)
 - **Hollow victory**: They get what they wanted but it's empty
 - **Damnation**: They fully embrace their darkness
 - **Survival unchanged**: They persist, neither redeemed nor destroyed
+
+The outcome must FOLLOW FROM their thematic position and arc type.
+
+**Step 7: Psychology Level**
+
+**Full psychology** (wound, lie, want, need, coping, arc, voice):
+- Characters who get POV scenes
+- Characters who undergo transformation (arc_type: transformation)
+- Characters whose arc carries significant thematic weight
+- MINIMUM 3 moments required to show arc progression
+
+**Partial psychology** (want, stake, method, thematic_position, pressure_mechanism):
+- Multiple appearances
+- Make plot-affecting choices
+- Clear thematic position but no transformation
+- Arc type is usually "hardening"
+
+**Minimal** (name, role, function, appearance_context):
+- Single appearance
+- Pure function (messenger, obstacle, mirror)
+- No personal arc
+
+**Step 8: External Beat Mapping**
+
+Which Phase 1 external plot beats does each character EMBODY or DRIVE?
+
+A character might:
+- BE the inciting incident
+- CREATE the escalation
+- FORCE the crisis point
+- RESOLVE or COMPLICATE the climax
+
+Map characters to external beats to ensure they're integrated with the world's events, not floating in a character vacuum.
+
+**Step 9: Thematic Test Moments**
+
+Every character with full or partial psychology gets moments that TEST THEIR BELIEF.
+
+A thematic test moment:
+- Challenges what they believe about the theme
+- Forces them to ACT on their belief (or contradict it)
+- Shows arc progression: position established → belief tested → outcome reached
+
+NOT just plot beats ("she delivers the message") but THEMATIC beats ("she discovers her loyalty was misplaced and must choose").
+
+Full psychology characters need AT LEAST 3 moments:
+1. Position ESTABLISHED (we see what they believe)
+2. Position TESTED (their belief is challenged)
+3. Outcome REACHED (transformation or hardening completed)
 
 ## OUTPUT FORMAT
 
@@ -1417,46 +1467,85 @@ What kind of PRESSURE do they apply?
   "love_interests": [ ... full psychology each ... ],
   "dynamics": { "romantic": [...], "rivals": [...] },
 
-  "world_interests": [
+  "interests": [
     {
       "interest": "Description of the force/pressure/stake",
       "pressure_mechanism": "How this interest could pressure protagonists",
-      "can_reach_protagonists": true | false,
+      "can_reach_protagonists": true,
       "reach_explanation": "How/why they can or cannot make contact",
-      "has_face": true | false,
+      "has_face": true,
       "why_face": "Why this needs a character (or null if faceless)"
     }
   ],
 
-  "secondary_characters": [
+  "stakeholder_characters": [
     {
       "name": "Full name",
-      "interest": "Which world interest they represent",
+      "interest": "Which interest they represent",
       "personal_want": "What they want for themselves",
       "psychology_level": "full | partial | minimal",
       "connected_to": "Which POV character(s)",
-      "thematic_position": "What they believe about the theme question",
-      "archetype": "The Hunter | The Rival | etc.",
+
+      // ALL faced characters (full and partial):
+      "thematic_position": "What they believe about the Phase 1 theme question",
+      "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
       "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-      "pressure_mechanism": "How they reach and pressure protagonists",
+      "external_beats": ["Array of Phase 1 external beat names they embody or drive"],
+      "pressure_mechanism": "How they reach and pressure protagonists (must be plausible)",
+      "thematic_test": "What challenges their belief",
 
       // Full psychology only:
-      "wound": { "event": "...", "who_caused_it": "...", "age": "..." },
-      "lie": "...",
-      "want": "...",
-      "need": "...",
-      "coping_mechanism": { "behaviour": "...", "as_flaw": "...", "as_virtue": "..." },
-      "arc": { "starts": "...", "ends": "..." },
-      "voice": { "register": "...", "patterns": "...", "tells": "..." },
+      "wound": "Their formative hurt (full only)",
+      "lie": "Their false belief (full only)",
+      "want": "What they pursue (full only)",
+      "need": "What they actually need (full only)",
+      "coping_mechanism": {
+        "behaviour": "How they cope",
+        "as_flaw": "How it hurts them",
+        "as_virtue": "How it helps them"
+      },
+      "arc": {
+        "starts": "Who they are at start",
+        "ends": "Who they become"
+      },
+      "voice": {
+        "register": "How they speak",
+        "patterns": "Speech habits",
+        "tells": "Emotional reveals"
+      },
 
       // Partial psychology only:
-      "stake": "What they stand to gain/lose",
-      "method": "How they pursue their want",
+      "stake": "What they stand to gain/lose (partial only)",
+      "method": "How they pursue their want (partial only)",
+
+      // All levels:
+      "outcome": "How their arc resolves - must follow from thematic choice",
 
       // Minimal only:
-      "function": "Their single story function",
-      "appearance_context": "When/where they appear"
+      "function": "Their single story function (minimal only)",
+      "appearance_context": "When/where they appear (minimal only)"
+    }
+  ],
+
+  "character_moments": [
+    {
+      "character": "Character name",
+      "order": 1,
+      "moment": "Moment name",
+      "what_happens": "What occurs",
+      "thematic_function": "position_established | belief_tested | belief_challenged | transformation_moment | hardening_moment | outcome_reached",
+      "external_beat": "Which Phase 1 external beat this embodies/drives (or null)"
+    }
+  ],
+
+  "arc_outcomes": [
+    {
+      "character": "Character name",
+      "thematic_position": "What they believed",
+      "arc_type": "transformation | hardening",
+      "outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
+      "outcome_description": "How their story resolves as consequence of thematic choice"
     }
   ],
 
@@ -1468,6 +1557,28 @@ What kind of PRESSURE do they apply?
     }
   ]
 }
+
+## THEMATIC FUNCTION CODES
+
+Each character_moment must have a thematic_function:
+
+- **position_established**: We learn what this character believes about the theme
+- **belief_tested**: Their belief is put under pressure but they haven't changed yet
+- **belief_challenged**: Something directly contradicts their position
+- **transformation_moment**: The moment they actually change (transformation arcs only)
+- **hardening_moment**: The moment they double down (hardening arcs only)
+- **outcome_reached**: The consequence of their choice is made manifest
+
+## CRITICAL RULES
+
+1. Characters must have THEMATIC POSITIONS, not just plot functions.
+2. Characters must be able to PLAUSIBLY REACH protagonists - check logistics!
+3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
+4. Full psychology characters need MINIMUM 3 moments (established → tested → outcome).
+5. Every character_moment must have thematic_function AND (if applicable) external_beat.
+6. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
+7. Consolidate where natural - one character can serve multiple interests.
+8. Moment names must be UNIQUE across the story.
 
 ## ROMANTIC LEADS GUIDELINES
 
@@ -1557,11 +1668,13 @@ Ensure:
 - One love interest is marked Primary (unless tragic/open ending)
 - If multiple love interests, include rival dynamics between them
 
-## PART 2: Create Secondary Cast (REQUIRED - DO NOT SKIP)
+## PART 2: Create Stakeholder Characters (REQUIRED - DO NOT SKIP)
 
-You MUST create the secondary cast. This is not optional. Your output MUST include:
-- world_interests array (at least 3-5 interests identified)
-- secondary_characters array (characters who embody faced interests)
+You MUST create the stakeholder characters. This is not optional. Your output MUST include:
+- interests array (at least 3-5 interests identified)
+- stakeholder_characters array (characters who embody faced interests)
+- character_moments array (thematic test moments for full/partial psychology characters)
+- arc_outcomes array (how each character's arc resolves)
 - faceless_pressures array (interests that remain atmospheric)
 
 ### THE THEME (characters must engage with this)
@@ -1569,42 +1682,31 @@ You MUST create the secondary cast. This is not optional. Your output MUST inclu
 **Theme Question:** "${phase1.theme?.question}"
 **Theme Core:** ${phase1.theme?.core}
 
-Every faced character needs a POSITION on this question.
+Every faced character needs a POSITION on this question. Their arc tests that position.
 
 ### EXTERNAL PLOT BEATS (characters can embody/drive these)
 
 ${externalBeatsSummary}
 
-These beats represent world forces that need either faces (characters) or faceless pressure. Map interests to these beats.
+Map characters to these beats - they shouldn't float in a vacuum. Each character should embody or drive at least one external beat.
 
 ### Complexity Guide for ${lengthPreset}
 
-- Full psychology secondary characters: ${fullCount}
-- Partial psychology secondary characters: ${partialCount}
+- Full psychology stakeholder characters: ${fullCount} (EACH needs 3+ character_moments)
+- Partial psychology stakeholder characters: ${partialCount}
 - Minimal characters: ${minimalCount}
 
-### PROCESS (Follow this exactly)
+### PROCESS (Follow the 9 steps from the system prompt)
 
-**Step 1: Identify World Interests**
-Look at the concept and external_plot. List 3-5 forces/pressures/stakes as interests (NOT characters yet).
-Example interests: "Political authority that could expose them", "Economic pressure from family debt", "Social expectation of the community"
-
-**Step 2: Pressure Mechanism Check**
-For EACH interest: How could it pressure the protagonists? Can it PLAUSIBLY REACH them?
-
-**Step 3: Face or Faceless**
-- Give a FACE to interests that need a character to make decisions and interact
-- Keep FACELESS interests that work as atmospheric/systemic pressure
-- Add faced interests to secondary_characters
-- Add faceless interests to faceless_pressures
-
-**Step 4: Build Characters**
-For each faced interest, create a secondary_character with:
-- psychology_level (full/partial/minimal based on their role)
-- thematic_position (what they believe about the theme)
-- archetype (what pressure role they play)
-- arc_type and arc_outcome
-- Appropriate psychology fields for their level
+1. List interests (forces/pressures/stakes - NOT characters yet)
+2. Pressure mechanism check - can each interest REACH protagonists?
+3. Face or faceless decision
+4. Thematic position for each faced character
+5. Archetype (pressure role)
+6. Arc type and outcome
+7. Psychology level
+8. External beat mapping
+9. Thematic test moments (3+ per full psychology character)
 
 ## CRITICAL OUTPUT REQUIREMENTS
 
@@ -1612,11 +1714,13 @@ Your JSON output MUST include ALL of these top-level keys:
 1. protagonist (object)
 2. love_interests (array)
 3. dynamics (object with romantic and rivals arrays)
-4. world_interests (array - REQUIRED, minimum 3 entries)
-5. secondary_characters (array - REQUIRED, create characters for faced interests)
-6. faceless_pressures (array - REQUIRED, even if empty)
+4. interests (array - REQUIRED, minimum 3 entries with pressure_mechanism and can_reach_protagonists)
+5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_beats, pressure_mechanism)
+6. character_moments (array - REQUIRED, with thematic_function and external_beat for each moment)
+7. arc_outcomes (array - REQUIRED, with outcome_description for each character)
+8. faceless_pressures (array - REQUIRED, even if empty)
 
-DO NOT return output with empty world_interests or secondary_characters arrays. If you're unsure what interests exist, look at the external_plot beats - each beat implies forces at work that need representation.`
+DO NOT return output with empty interests or stakeholder_characters arrays.`
 }
 
 async function executePhase2(concept, phase1, lengthPreset) {
@@ -1661,28 +1765,63 @@ async function executePhase2(concept, phase1, lengthPreset) {
     }
   }
 
-  // Validate secondary cast structure - these are REQUIRED
-  if (!data.world_interests || !Array.isArray(data.world_interests) || data.world_interests.length === 0) {
-    throw new Error('Phase 2 FAILED: world_interests array is missing or empty. The model must identify world interests from the concept and external_plot.')
+  // Validate stakeholder cast structure - these are REQUIRED
+  if (!data.interests || !Array.isArray(data.interests) || data.interests.length === 0) {
+    throw new Error('Phase 2 FAILED: interests array is missing or empty. The model must identify interests from the concept and external_plot.')
   }
-  if (!data.secondary_characters || !Array.isArray(data.secondary_characters) || data.secondary_characters.length === 0) {
-    throw new Error('Phase 2 FAILED: secondary_characters array is missing or empty. The model must create characters for faced interests.')
+  if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters) || data.stakeholder_characters.length === 0) {
+    throw new Error('Phase 2 FAILED: stakeholder_characters array is missing or empty. The model must create characters for faced interests.')
+  }
+  if (!data.character_moments || !Array.isArray(data.character_moments)) {
+    throw new Error('Phase 2 FAILED: character_moments array is missing. Full/partial psychology characters need thematic test moments.')
+  }
+  if (!data.arc_outcomes || !Array.isArray(data.arc_outcomes)) {
+    throw new Error('Phase 2 FAILED: arc_outcomes array is missing.')
   }
   if (!data.faceless_pressures) {
     data.faceless_pressures = [] // This one can be empty if all interests are faced
   }
 
-  // Validate secondary characters have required fields
-  for (const char of data.secondary_characters) {
+  // Validate stakeholder characters have required fields
+  for (const char of data.stakeholder_characters) {
     if (!char.name || !char.psychology_level) {
-      throw new Error(`Secondary character missing required fields (name, psychology_level): ${JSON.stringify(char).slice(0, 100)}`)
+      throw new Error(`Stakeholder character missing required fields (name, psychology_level): ${JSON.stringify(char).slice(0, 100)}`)
     }
   }
 
+  // Validate thematic fields for faced characters (full and partial)
+  const facedChars = data.stakeholder_characters.filter(c => c.psychology_level !== 'minimal')
+  const missingThematic = facedChars.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
+  if (missingThematic.length > 0) {
+    console.warn('Phase 2 WARNING: Faced characters missing thematic fields:')
+    missingThematic.forEach(c => {
+      const missing = []
+      if (!c.thematic_position) missing.push('thematic_position')
+      if (!c.archetype) missing.push('archetype')
+      if (!c.arc_type) missing.push('arc_type')
+      if (!c.arc_outcome) missing.push('arc_outcome')
+      console.warn(`  - ${c.name}: missing ${missing.join(', ')}`)
+    })
+  }
+
+  // Validate full psychology characters have minimum 3 moments
+  const fullPsychChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
+  const momentCounts = {}
+  for (const moment of data.character_moments) {
+    momentCounts[moment.character] = (momentCounts[moment.character] || 0) + 1
+  }
+  const insufficientMoments = fullPsychChars.filter(c => (momentCounts[c.name] || 0) < 3)
+  if (insufficientMoments.length > 0) {
+    console.warn('Phase 2 WARNING: Full psychology characters with fewer than 3 moments:')
+    insufficientMoments.forEach(c => {
+      console.warn(`  - ${c.name}: ${momentCounts[c.name] || 0} moments (needs 3+)`)
+    })
+  }
+
   // Count by psychology level
-  const fullChars = data.secondary_characters.filter(c => c.psychology_level === 'full')
-  const partialChars = data.secondary_characters.filter(c => c.psychology_level === 'partial')
-  const minimalChars = data.secondary_characters.filter(c => c.psychology_level === 'minimal')
+  const fullChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
+  const partialChars = data.stakeholder_characters.filter(c => c.psychology_level === 'partial')
+  const minimalChars = data.stakeholder_characters.filter(c => c.psychology_level === 'minimal')
 
   // Console logging
   console.log('Phase 2 complete.')
@@ -1696,15 +1835,16 @@ async function executePhase2(concept, phase1, lengthPreset) {
   })
   console.log(`  Rival dynamics: ${data.dynamics?.rivals?.length || 0}`)
 
-  console.log(`  World interests: ${data.world_interests.length}`)
-  const faced = data.world_interests.filter(i => i.has_face).length
-  const faceless = data.world_interests.filter(i => !i.has_face).length
+  console.log(`  Interests: ${data.interests.length}`)
+  const faced = data.interests.filter(i => i.has_face).length
+  const faceless = data.interests.filter(i => !i.has_face).length
   console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
 
-  console.log(`  Secondary characters: ${data.secondary_characters.length}`)
+  console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
   console.log(`    Full psychology: ${fullChars.length}`)
   fullChars.forEach(c => {
-    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
+    const moments = momentCounts[c.name] || 0
+    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}", moments=${moments}`)
   })
   console.log(`    Partial psychology: ${partialChars.length}`)
   partialChars.forEach(c => {
@@ -1715,6 +1855,8 @@ async function executePhase2(concept, phase1, lengthPreset) {
     console.log(`      - ${c.name}: ${c.function || c.interest}`)
   })
 
+  console.log(`  Character moments: ${data.character_moments.length}`)
+  console.log(`  Arc outcomes: ${data.arc_outcomes.length}`)
   console.log(`  Faceless pressures: ${data.faceless_pressures.length}`)
 
   console.log('')
@@ -1733,7 +1875,7 @@ const PHASE_3_SYSTEM_PROMPT = `You are a story architect. Your task is to create
 You will receive:
 - The original concept
 - Phase 1 output (external_plot with beats, romance_arc_stages as constraint list, theme, tone)
-- Phase 2 output (protagonist, love_interests, secondary_characters - the full cast with psychology)
+- Phase 2 output (protagonist, love_interests, stakeholder_characters - the full cast with psychology)
 
 ## THE CHARACTER ACTION GRID
 
@@ -1754,7 +1896,7 @@ Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not ps
       "character_actions": [
         {
           "character": "Character name",
-          "character_type": "protagonist | love_interest | secondary",
+          "character_type": "protagonist | love_interest | stakeholder",
           "start": "What they do/experience at the start of this beat",
           "during": "What they do/experience during this beat",
           "end": "What they do/experience at the end of this beat",
@@ -1825,7 +1967,7 @@ Characters operating under their lie should act from that lie early in the story
 ## PROCESS
 
 1. Read the external_plot beats from Phase 1
-2. Read the full cast from Phase 2 (protagonist, love_interests, secondary_characters)
+2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
 3. For each beat, determine which characters would be present
 4. Generate start/during/end actions for each present character
 5. After generating all actions, identify which protagonist cells represent romance stage transitions
@@ -1846,7 +1988,7 @@ Mikel (love_interest):
   during: Collapses from blood loss near vineyard
   end: Wakes to stranger tending him, realizes behind enemy lines  [romance: awareness]
 
-Don Sebastián (secondary):
+Don Sebastián (stakeholder):
   start: Meeting with Nationalist officers in town
   during: Receives report of Republican soldiers sighted near Valdemadera
   end: Orders increased patrols, suspects someone is hiding enemies
@@ -1890,11 +2032,11 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
     })
   })
 
-  // Add secondary characters
-  phase2.secondary_characters?.forEach(sc => {
+  // Add stakeholder characters
+  phase2.stakeholder_characters?.forEach(sc => {
     allCharacters.push({
       name: sc.name,
-      type: 'secondary',
+      type: 'stakeholder',
       psychology_level: sc.psychology_level,
       archetype: sc.archetype,
       thematic_position: sc.thematic_position
@@ -2464,7 +2606,7 @@ Each moment needs thematic_function AND external_beat (if applicable).
 - Partial psychology characters: ${partialCount}
 - Minimal characters: ${minimalCount}
 
-Remember: Love interests are NOT secondary characters - they're already in Phase 2.
+Remember: Love interests are NOT stakeholder characters - they're already in Phase 2 as love_interests.
 Do NOT produce a master timeline - Phase 5 handles timeline assembly.
 
 ## CRITICAL: OUTPUT STRUCTURE
@@ -4771,9 +4913,9 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
   1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot beats, and romance arc stages' },
-  2: { name: 'Full Cast', description: 'Creating protagonist, love interests, AND secondary characters with psychology' },
+  2: { name: 'Full Cast', description: 'Creating protagonist, love interests, AND stakeholder characters with psychology' },
   3: { name: 'Character Action Grid', description: 'Beat-by-beat actions for all characters across all external beats' },
-  // OLD PHASES 4-5 ELIMINATED - secondary chars moved to Phase 2, grid IS the timeline
+  // OLD PHASES 4-5 ELIMINATED - stakeholder chars moved to Phase 2, grid IS the timeline
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with setup requirements' },
   8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
@@ -4914,8 +5056,10 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(2, 'complete', {
       protagonist: bible.characters.protagonist?.name,
       loveInterests: bible.characters.love_interests?.length,
-      secondaryCharacters: bible.characters.secondary_characters?.length,
-      worldInterests: bible.characters.world_interests?.length,
+      stakeholderCharacters: bible.characters.stakeholder_characters?.length,
+      interests: bible.characters.interests?.length,
+      characterMoments: bible.characters.character_moments?.length,
+      arcOutcomes: bible.characters.arc_outcomes?.length,
       facelessPressures: bible.characters.faceless_pressures?.length
     })
     await savePhase(2)
@@ -4950,7 +5094,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     }
 
     // OLD PHASES 4-5 ELIMINATED
-    // Phase 4 (secondary characters) is now part of Phase 2
+    // Phase 4 (stakeholder characters) is now part of Phase 2
     // Phase 5 (master timeline weaving) is eliminated - the grid IS the timeline
 
     // TODO: Downstream phases (6+) need to be updated to read from bible.actionGrid

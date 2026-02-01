@@ -4751,7 +4751,62 @@ const PHASE_DESCRIPTIONS = {
 }
 
 /**
- * Generate a complete story bible through the 9-phase pipeline
+ * Run a single phase of the bible generation pipeline
+ * @param {number} phase - Which phase to run (1, 2, or 3)
+ * @param {string} concept - Story concept/description
+ * @param {string} lengthPreset - 'novella' or 'novel'
+ * @param {string} level - Reading level (Beginner, Intermediate, Native)
+ * @param {Object} bible - Existing bible object (for phases 2+)
+ * @param {Array} librarySummaries - Existing book summaries for diversity (default [])
+ * @returns {Promise<Object>} Updated bible with new phase data
+ */
+export async function runPhase(phase, concept, lengthPreset, level, bible = {}, librarySummaries = []) {
+  console.log('='.repeat(60))
+  console.log(`RUNNING PHASE ${phase}`)
+  console.log(`Concept: ${concept}`)
+  console.log(`Length: ${lengthPreset}, Level: ${level}`)
+  console.log('='.repeat(60))
+
+  switch (phase) {
+    case 1:
+      console.log('Phase 1: Story DNA (includes romance_arc_stages)')
+      bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
+      console.log('')
+      console.log('Phase 1 complete output:')
+      console.log(JSON.stringify(bible.coreFoundation, null, 2))
+      break
+
+    case 2:
+      if (!bible.coreFoundation) {
+        throw new Error('Phase 2 requires Phase 1 (bible.coreFoundation) to be complete')
+      }
+      console.log('Phase 2: Full Cast (Protagonist, Love Interests, Secondary Characters)')
+      bible.characters = await executePhase2(concept, bible.coreFoundation, lengthPreset)
+      console.log('')
+      console.log('Phase 2 complete output:')
+      console.log(JSON.stringify(bible.characters, null, 2))
+      break
+
+    case 3:
+      if (!bible.coreFoundation || !bible.characters) {
+        throw new Error('Phase 3 requires Phases 1-2 (bible.coreFoundation, bible.characters) to be complete')
+      }
+      console.log('Phase 3: Character Action Grid')
+      bible.actionGrid = await executePhase3(concept, bible.coreFoundation, bible.characters)
+      console.log('')
+      console.log('Phase 3 complete output:')
+      console.log(JSON.stringify(bible.actionGrid, null, 2))
+      break
+
+    default:
+      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 2, 3`)
+  }
+
+  return bible
+}
+
+/**
+ * Generate a complete story bible through the full pipeline (runs all phases sequentially)
  * @param {string} concept - Story concept/description
  * @param {string} level - Reading level (Beginner, Intermediate, Native)
  * @param {string} lengthPreset - 'novella' or 'novel'
@@ -6390,6 +6445,7 @@ export {
   getSceneWordCountTarget,
   getLevelDefinition,
   formatLevelDefinitionForPrompt,
+  runPhase,
   executePhase1,
   executePhase2,
   executePhase3,

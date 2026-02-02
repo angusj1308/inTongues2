@@ -2204,16 +2204,18 @@ async function executePhase3(concept, phase1, phase2) {
     console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} beats but Phase 1 defined ${expectedBeatCount} beats`)
   }
 
-  // Count fragments
+  // Count fragments (handle both 'fragments' and 'character_actions' field names)
   let totalFragments = 0
   let protagonistFragments = 0
   let romanceTaggedFragments = 0
 
   for (const beat of data.grid) {
-    if (!beat.beat_number || !beat.beat_name || !beat.fragments) {
-      throw new Error(`Grid beat missing required fields (beat_number, beat_name, fragments)`)
+    // Use fragments or character_actions, whichever exists
+    const fragments = beat.fragments || beat.character_actions
+    if (!beat.beat_number || !beat.beat_name || !fragments) {
+      throw new Error(`Grid beat ${beat.beat_number || '?'} missing required fields. Has keys: ${Object.keys(beat).join(', ')}`)
     }
-    for (const fragment of beat.fragments) {
+    for (const fragment of fragments) {
       totalFragments++
       if (fragment.character_type === 'protagonist') {
         protagonistFragments++
@@ -2262,11 +2264,16 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('\n  Grid Summary:')
   data.grid.forEach(beat => {
     console.log(`    Beat ${beat.beat_number}: ${beat.beat_name}`)
-    beat.fragments.forEach(fragment => {
-      const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
-      const actionPreview = fragment.action ? fragment.action.slice(0, 40) : 'no action'
-      console.log(`      ${fragment.character} (${fragment.character_type}): ${actionPreview}...${tag}`)
-    })
+    const fragments = beat.fragments || beat.character_actions || []
+    if (!Array.isArray(fragments) || fragments.length === 0) {
+      console.log(`      (no fragments - keys: ${Object.keys(beat).join(', ')})`)
+    } else {
+      fragments.forEach(fragment => {
+        const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
+        const actionPreview = fragment.action ? fragment.action.slice(0, 40) : 'no action'
+        console.log(`      ${fragment.character} (${fragment.character_type}): ${actionPreview}...${tag}`)
+      })
+    }
   })
 
   // Log romance progression

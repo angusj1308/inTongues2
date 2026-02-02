@@ -1809,7 +1809,7 @@ You will receive:
 
 ## THE CHARACTER ACTION GRID
 
-Romance arc stages (awareness, attraction, tension, touch, kiss, intimacy, dark_moment, etc.) are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one.
+Romance arc stages are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one. The exact stages come from Phase 1's `romance_arc_stages` array — these are the ONLY valid values for `romance_stage_tag`. No invented stages. No skipping. Every stage must appear exactly once.
 
 For EVERY external beat, for EVERY character with presence at that beat, generate what they are doing at the START, DURING, and END of the beat.
 
@@ -1997,9 +1997,11 @@ Create a beat-by-beat CHARACTER ACTION GRID. For every external beat, for every 
 
 ${externalBeatsSummary}
 
-## ROMANCE ARC STAGES (constraint - must all appear in order)
+## ROMANCE ARC STAGES (HARD CONSTRAINT)
 
 ${romanceStages}
+
+Every stage above MUST appear exactly once as a \`romance_stage_tag\` in the grid. No stage may be skipped. No stages may be invented. This is a hard constraint, not a guideline.
 
 These are STATES the relationship moves through. Tag protagonist cells when the relationship TIPS to a new stage. Most cells have NO tag - tags are sparse.
 

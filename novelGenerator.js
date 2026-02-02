@@ -1857,14 +1857,13 @@ Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not ps
 
 ## CRITICAL RULES
 
-### 1. Not Every Character Appears at Every Beat
+### 1. Every Character Appears at Every Beat
 
-Only include characters who would LOGICALLY be present at each beat. Consider:
-- Physical location - where are they in the story world?
-- Knowledge - do they know this is happening?
-- Motivation - why would they be here?
+Every named character from Phase 2 (protagonist, love interests, all stakeholder characters) MUST have a row at every beat. These characters live in this world — they are always doing something. Their actions may not intersect with the main plot at a given beat, but we need to know what they're doing in their own lives, pursuing their own interests, reacting to the world events.
 
-Minimal psychology characters may appear at only 1-2 beats. That's fine.
+This is about generating maximum content density for downstream phases to select from. The alcalde doesn't stop existing during quiet beats. The priest doesn't vanish between scenes. Every character is living their life, and we want to know what that looks like at each beat.
+
+The ONLY exception: characters who are dead or have physically left the story world.
 
 ### 2. Romance Stage Tags are SPARSE
 

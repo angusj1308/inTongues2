@@ -1809,7 +1809,7 @@ You will receive:
 
 ## THE CHARACTER ACTION GRID
 
-Romance arc stages are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one. The exact stages come from Phase 1's `romance_arc_stages` array — these are the ONLY valid values for `romance_stage_tag`. No invented stages. No skipping. Every stage must appear exactly once.
+Romance arc stages are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one. The exact stages come from Phase 1's \`romance_arc_stages\` array — these are the ONLY valid values for \`romance_stage_tag\`. No invented stages. No skipping. Every stage must appear exactly once.
 
 For EVERY external beat, for EVERY character (all characters appear at all beats), generate what they are doing at the START, DURING, and END of the beat.
 

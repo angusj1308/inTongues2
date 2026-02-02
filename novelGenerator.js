@@ -2171,6 +2171,17 @@ async function executePhase3(concept, phase1, phase2) {
 
   const data = parsed.data
 
+  // Normalize field names: model may output 'character_actions' instead of 'fragments'
+  if (data.grid && Array.isArray(data.grid)) {
+    for (const beat of data.grid) {
+      if (beat.character_actions && !beat.fragments) {
+        console.log(`Phase 3: Normalizing character_actions → fragments for beat ${beat.beat_number}`)
+        beat.fragments = beat.character_actions
+        delete beat.character_actions
+      }
+    }
+  }
+
   // Validate required fields
   if (!data.grid || !Array.isArray(data.grid)) {
     throw new Error('Phase 3 missing grid array')

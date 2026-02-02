@@ -2081,9 +2081,11 @@ Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY 
 
 Each field must carry distinct information. State ≠ situation ≠ action ≠ outcome. Each character's state at Beat N+1 must follow from their outcome at Beat N.
 
-## EXTERNAL BEATS (the grid rows)
+## EXTERNAL BEATS (HARD CONSTRAINT — the grid rows)
 
 ${externalBeatsSummary}
+
+**HARD CONSTRAINT:** Use EXACTLY these ${phase1.external_plot?.beats?.length || 6} beats. No more. No fewer. Do not invent additional beats. Do not split beats. Do not combine beats. The grid must have exactly ${phase1.external_plot?.beats?.length || 6} beat rows, matching the list above.
 
 ## ROMANCE ARC STAGES (HARD CONSTRAINT)
 
@@ -2185,6 +2187,12 @@ async function executePhase3(concept, phase1, phase2) {
     throw new Error('Phase 3 grid must have at least one beat')
   }
 
+  // Validate beat count matches Phase 1
+  const expectedBeatCount = phase1.external_plot?.beats?.length || 0
+  if (expectedBeatCount > 0 && data.grid.length !== expectedBeatCount) {
+    console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} beats but Phase 1 defined ${expectedBeatCount} beats`)
+  }
+
   // Count fragments
   let totalFragments = 0
   let protagonistFragments = 0
@@ -2243,16 +2251,18 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('\n  Grid Summary:')
   data.grid.forEach(beat => {
     console.log(`    Beat ${beat.beat_number}: ${beat.beat_name}`)
-    beat.character_actions.forEach(action => {
-      const tag = action.romance_stage_tag ? ` [${action.romance_stage_tag}]` : ''
-      console.log(`      ${action.character} (${action.character_type}): ${action.start.slice(0, 40)}...${tag}`)
+    beat.fragments.forEach(fragment => {
+      const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
+      const actionPreview = fragment.action ? fragment.action.slice(0, 40) : 'no action'
+      console.log(`      ${fragment.character} (${fragment.character_type}): ${actionPreview}...${tag}`)
     })
   })
 
   // Log romance progression
   console.log('\n  Romance Stage Progression:')
   data.romance_stage_progression.forEach(p => {
-    console.log(`    ${p.stage}: Beat ${p.beat_number}, ${p.cell} - ${p.description.slice(0, 50)}...`)
+    const desc = p.description ? p.description.slice(0, 50) : 'no description'
+    console.log(`    ${p.stage}: Beat ${p.beat_number}, ${p.character} - ${desc}...`)
   })
 
   console.log('')

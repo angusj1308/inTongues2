@@ -1865,9 +1865,11 @@ This is about generating maximum content density for downstream phases to select
 
 The ONLY exception: characters who are dead or have physically left the story world.
 
-### 2. Romance Stage Tags are SPARSE
+### 2. Romance Stage Tags: Sparse AND Only on Romantic Leads
 
 Most cells have NO romance tag. Tags only appear when the relationship TIPS from one state to the next.
+
+**HARD CONSTRAINT:** Romance stage tags may ONLY appear on protagonist or love_interest rows. Never on stakeholder characters. If a stage involves mutual transformation, place the tag on the protagonist's row.
 
 Example: Awareness might be tagged on Beat 1. The next 10, 20, 30 cells might have no tag at all while other things happen. Then eventually a cell tips to "attraction" - and the gap between those tags is where the story lives.
 
@@ -1883,13 +1885,46 @@ BAD: "Her wound is triggered"
 
 ### 4. Romance Stage Must Match Phase 1 romance_arc_stages
 
-The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list must appear somewhere in the protagonist's cells, tagged in order. You cannot skip stages. You cannot regress.
+The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list must appear somewhere in the protagonist's or love_interest's cells, tagged in order. You cannot skip stages. You cannot regress.
 
-### 5. Psychology Progression is Consistent
+### 5. Lies DOMINATE Early Beats, DISSOLVE Gradually
 
-Characters operating under their lie should act from that lie early in the story. Lie challenged mid-story. Transformation late (if they transform at all).
+For protagonist and love interests: the first HALF of the grid, their actions must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
 
-### 6. Density Creates Novel
+This creates earned transformation. If the lie isn't visible in early actions, the ending feels cheap. Show the lie operating as a concrete behavior in their start/during/end actions, not just as a psychology_note.
+
+Example (lie: "I must never depend on anyone"):
+- Beat 1: "Refuses help carrying supplies despite struggling"
+- Beat 2: "Deflects personal question with a joke, changes subject"
+- Beat 3: "Stays late to finish alone rather than ask for assistance"
+
+The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
+
+### 6. Thematic Tests Must Fire as Visible Actions
+
+Every stakeholder character has a \`thematic_test\` defined in Phase 2 — what challenges their belief. This test MUST appear as a concrete, visible action in at least one beat cell. The test doesn't have to be passed (hardening characters can fail it), but the moment must exist in the grid.
+
+If a character's thematic_test is "Witnessing sacrifice that doesn't lead to destruction," then somewhere in the grid that character must WITNESS such a sacrifice. Show the test happening, not just the character's position.
+
+### 7. Arc Outcomes Must Match Final Beat Actions
+
+Each stakeholder character's final beat action(s) must reflect their defined \`arc_outcome\` from Phase 2:
+
+- **redemption**: Character visibly changes — action shows new belief or reconciliation
+- **tragic_death**: Character's death (literal or metaphorical) visible in final actions
+- **hollow_victory**: Character achieves stated goal BUT action shows emptiness/cost
+- **damnation**: Character fully embraces darkness — action shows doubling down
+- **survival_unchanged**: Character demonstrably unchanged — same behavior as start
+
+The model must NOT default toward redemption. A character defined as hardening with hollow_victory does NOT get a soft ending. Show the hollowness.
+
+### 8. Central Theme Tests Every Beat
+
+Phase 1 defines \`theme.question\` — the central question the book explores. Every beat should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
+
+The grid is not just plot choreography. It is a thematic argument across multiple characters. Each beat should advance or complicate that argument.
+
+### 9. Density Creates Novel
 
 7 beats × full cast × 3 phases (start/during/end) = potentially 100+ story action cells. This IS the master timeline. Every cell is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
 
@@ -1939,36 +1974,41 @@ Mikel:
 [No romance tag - building tension within awareness, not yet tipped to attraction]`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
-  // Build full cast list
+  // Build full cast list with constraint data
   const allCharacters = []
 
-  // Add protagonist
+  // Add protagonist with lie/coping for early beat constraint
   allCharacters.push({
     name: phase2.protagonist?.name,
     type: 'protagonist',
     wound: phase2.protagonist?.wound?.event,
-    lie: phase2.protagonist?.lie
+    lie: phase2.protagonist?.lie,
+    coping_mechanism: phase2.protagonist?.coping_mechanism?.behaviour
   })
 
-  // Add love interests
+  // Add love interests with lie/coping
   phase2.love_interests?.forEach(li => {
     allCharacters.push({
       name: li.name,
       type: 'love_interest',
       role: li.role_in_story,
       wound: li.wound?.event,
-      lie: li.lie
+      lie: li.lie,
+      coping_mechanism: li.coping_mechanism?.behaviour
     })
   })
 
-  // Add stakeholder characters
+  // Add stakeholder characters with thematic_test and arc_outcome
   phase2.stakeholder_characters?.forEach(sc => {
     allCharacters.push({
       name: sc.name,
       type: 'stakeholder',
       psychology_level: sc.psychology_level,
       archetype: sc.archetype,
-      thematic_position: sc.thematic_position
+      thematic_position: sc.thematic_position,
+      thematic_test: sc.thematic_test,
+      arc_type: sc.arc_type,
+      arc_outcome: sc.arc_outcome
     })
   })
 
@@ -2004,15 +2044,39 @@ Every stage above MUST appear exactly once as a \`romance_stage_tag\` in the gri
 
 These are STATES the relationship moves through. Tag protagonist cells when the relationship TIPS to a new stage. Most cells have NO tag - tags are sparse.
 
-## FULL CAST (from Phase 2)
+## CENTRAL THEME (CONSTRAINT)
+
+**Theme Question:** ${phase1.theme?.question || 'Not defined'}
+
+Every beat should contain at least one action where a character's thematic position is tested, reinforced, or challenged.
+
+## ROMANTIC LEADS — LIES THAT MUST DOMINATE EARLY BEATS
+
+${allCharacters.filter(c => c.type === 'protagonist' || c.type === 'love_interest').map(c => {
+  return `**${c.name}** (${c.type})
+  - Lie: "${c.lie}"
+  - Coping: "${c.coping_mechanism}"
+  - CONSTRAINT: For beats 1-${Math.floor((phase1.external_plot?.beats?.length || 6) / 2)}, actions must VISIBLY ENACT this lie/coping`
+}).join('\n\n')}
+
+## STAKEHOLDER CHARACTERS — THEMATIC TESTS AND ARC OUTCOMES
+
+${allCharacters.filter(c => c.type === 'stakeholder').map(c => {
+  return `**${c.name}** (${c.psychology_level}, ${c.archetype})
+  - Position: "${c.thematic_position}"
+  - Test: "${c.thematic_test}" ← MUST appear as visible action in grid
+  - Arc: ${c.arc_type} → ${c.arc_outcome} ← Final beat actions must reflect this outcome`
+}).join('\n\n')}
+
+## FULL CAST SUMMARY
 
 ${allCharacters.map(c => {
   if (c.type === 'protagonist') {
-    return `**${c.name}** (PROTAGONIST): wound="${c.wound}", lie="${c.lie}"`
+    return `**${c.name}** (PROTAGONIST)`
   } else if (c.type === 'love_interest') {
-    return `**${c.name}** (${c.role} LOVE INTEREST): wound="${c.wound}", lie="${c.lie}"`
+    return `**${c.name}** (${c.role} LOVE INTEREST)`
   } else {
-    return `**${c.name}** (${c.psychology_level}): archetype="${c.archetype}", position="${c.thematic_position}"`
+    return `**${c.name}** (${c.psychology_level} STAKEHOLDER)`
   }
 }).join('\n')}
 
@@ -2021,9 +2085,13 @@ ${allCharacters.map(c => {
 1. For each external beat, include ALL characters — protagonist, love interests, and every stakeholder character
 2. Generate concrete START/DURING/END actions for EACH character at EACH beat (characters don't vanish)
 3. Actions are physical and specific, not thematic or psychological
-4. After generating all cells, identify which protagonist cells represent romance stage transitions
-5. Tag those cells with the romance_stage
-6. Validate all romance_arc_stages from Phase 1 appear in order
+4. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
+5. Protagonist/love_interest early beat actions must ENACT their lie (first half of beats)
+6. Each stakeholder's thematic_test must appear as visible action somewhere in grid
+7. Each stakeholder's final beat actions must reflect their arc_outcome
+8. After generating all cells, identify which protagonist/love_interest cells represent romance stage transitions
+9. Tag those cells with the romance_stage
+10. Validate all romance_arc_stages from Phase 1 appear in order
 
 ## EXPECTED CELL COUNT
 

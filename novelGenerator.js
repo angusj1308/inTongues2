@@ -1811,7 +1811,7 @@ You will receive:
 
 Romance arc stages are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one. The exact stages come from Phase 1's `romance_arc_stages` array — these are the ONLY valid values for `romance_stage_tag`. No invented stages. No skipping. Every stage must appear exactly once.
 
-For EVERY external beat, for EVERY character with presence at that beat, generate what they are doing at the START, DURING, and END of the beat.
+For EVERY external beat, for EVERY character (all characters appear at all beats), generate what they are doing at the START, DURING, and END of the beat.
 
 Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not psychology. What they physically do and what physically happens to them.
 
@@ -1897,8 +1897,8 @@ Characters operating under their lie should act from that lie early in the story
 
 1. Read the external_plot beats from Phase 1
 2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
-3. For each beat, determine which characters would be present
-4. Generate start/during/end actions for each present character
+3. For each beat, include ALL characters from the cast (everyone appears at every beat)
+4. Generate start/during/end actions for each character at that beat
 5. After generating all actions, identify which protagonist cells represent romance stage transitions
 6. Tag those cells with the appropriate romance_stage
 7. Validate that all romance_arc_stages appear in order
@@ -1990,7 +1990,7 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Create a beat-by-beat CHARACTER ACTION GRID. For every external beat, for every character with presence at that beat, generate what they do at START, DURING, and END of the beat.
+Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY character (no exceptions), generate what they do at START, DURING, and END of the beat. Every character appears at every beat — they don't vanish when not in scenes with the protagonist.
 
 ## EXTERNAL BEATS (the grid rows)
 
@@ -2018,12 +2018,16 @@ ${allCharacters.map(c => {
 
 ## REQUIREMENTS
 
-1. For each external beat, determine which characters would logically be present
-2. Generate concrete START/DURING/END actions for each present character
+1. For each external beat, include ALL characters — protagonist, love interests, and every stakeholder character
+2. Generate concrete START/DURING/END actions for EACH character at EACH beat (characters don't vanish)
 3. Actions are physical and specific, not thematic or psychological
 4. After generating all cells, identify which protagonist cells represent romance stage transitions
 5. Tag those cells with the romance_stage
 6. Validate all romance_arc_stages from Phase 1 appear in order
+
+## EXPECTED CELL COUNT
+
+You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.length || 6} beats. That means ${allCharacters.length} × ${phase1.external_plot?.beats?.length || 6} = ${allCharacters.length * (phase1.external_plot?.beats?.length || 6)} character-beat rows in the grid. Every character. Every beat. No exceptions.
 
 ## OUTPUT
 

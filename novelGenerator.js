@@ -5132,8 +5132,8 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     bible.actionGrid = await executePhase3(concept, bible.coreFoundation, bible.characters)
     reportProgress(3, 'complete', {
       externalBeats: bible.actionGrid.grid?.length,
-      totalActionCells: bible.actionGrid.validation?.total_action_cells,
-      protagonistCells: bible.actionGrid.validation?.protagonist_cells_count,
+      totalFragments: bible.actionGrid.validation?.total_fragments,
+      protagonistFragments: bible.actionGrid.validation?.protagonist_fragments_count,
       romanceStagesFound: bible.actionGrid.romance_stage_progression?.length,
       allStagesPresent: bible.actionGrid.validation?.all_stages_present,
       stagesInOrder: bible.actionGrid.validation?.stages_in_order

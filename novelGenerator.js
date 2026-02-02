@@ -1811,9 +1811,9 @@ You will receive:
 
 Romance arc stages are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one. The exact stages come from Phase 1's \`romance_arc_stages\` array — these are the ONLY valid values for \`romance_stage_tag\`. No invented stages. No skipping. Every stage must appear exactly once.
 
-For EVERY external beat, for EVERY character (all characters appear at all beats), generate what they are doing at the START, DURING, and END of the beat.
+For EVERY external beat, for EVERY character (all characters appear at all beats), generate a SCENE FRAGMENT — a structured cell containing everything needed to build a scene around that character at that beat.
 
-Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not psychology. What they physically do and what physically happens to them.
+Each fragment must carry distinct information in every field. State is not situation. Situation is not action. Action is not outcome. Tension is not psychology_note. Every field serves a different downstream purpose.
 
 ## OUTPUT FORMAT
 
@@ -1823,15 +1823,19 @@ Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not ps
       "beat_number": 1,
       "beat_name": "Name from Phase 1 external_plot",
       "beat_description": "What happens in the world during this beat",
-      "character_actions": [
+      "fragments": [
         {
           "character": "Character name",
           "character_type": "protagonist | love_interest | stakeholder",
-          "start": "What they do/experience at the start of this beat",
-          "during": "What they do/experience during this beat",
-          "end": "What they do/experience at the end of this beat",
-          "romance_stage_tag": "awareness | attraction | tension | touch | kiss | intimacy | dark_moment | reunion | etc." | null,
-          "psychology_note": "Brief note on where they are in their arc (believing lie | lie challenged | transforming)" | null
+          "location": "Short consistent string for where they are (reuse same strings across beats)",
+          "state": "Their personal condition coming into this beat — mindset, emotional state, what they're carrying from previous events",
+          "situation": "External context they're walking into — what's happening around them, independent of their personal state",
+          "action": "What they actively do in response",
+          "intent": "What they were trying to achieve with their action",
+          "tension": "What's pulling against them — discomfort, doubt, observation that nags, loyalty being tested",
+          "outcome": "The state change — what is different after this beat because of what they did or experienced",
+          "romance_stage_tag": "awareness | attraction | etc." | null,
+          "psychology_note": "How this fragment relates to their lie, arc, and thematic position" | null
         }
       ]
     }
@@ -1841,7 +1845,7 @@ Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not ps
     {
       "stage": "awareness",
       "beat_number": 1,
-      "cell": "Esperanza.end",
+      "character": "Esperanza",
       "description": "Brief description of what tips the relationship into this stage"
     }
   ],
@@ -1850,8 +1854,8 @@ Each cell is 1-2 sentences describing a CONCRETE STORY ACTION. Not theme. Not ps
     "all_stages_present": true | false,
     "stages_in_order": true | false,
     "missing_stages": ["any stages from Phase 1 romance_arc_stages not found"],
-    "protagonist_cells_count": number,
-    "total_action_cells": number
+    "protagonist_fragments_count": number,
+    "total_fragments": number
   }
 }
 
@@ -1873,15 +1877,25 @@ Most cells have NO romance tag. Tags only appear when the relationship TIPS from
 
 Example: Awareness might be tagged on Beat 1. The next 10, 20, 30 cells might have no tag at all while other things happen. Then eventually a cell tips to "attraction" - and the gap between those tags is where the story lives.
 
-### 3. Actions are CONCRETE
+### 3. Every Field is CONCRETE and DISTINCT
 
-GOOD: "Hears distant gunfire from vineyard"
-GOOD: "Goes to check frozen vines, finds wounded soldier"
-GOOD: "Has hidden him in tower, cleaned wounds"
+Each field in a fragment must carry distinct, substantive information:
 
-BAD: "Feels conflicted about her duty"
-BAD: "Experiences the theme of sacrifice"
-BAD: "Her wound is triggered"
+- **state**: Personal condition COMING INTO this beat (not what happens during it)
+- **situation**: External context (not the character's feelings about it)
+- **action**: What they DO (physical, observable)
+- **intent**: What they were TRYING to achieve (not what they did)
+- **tension**: What's pulling AGAINST them (not just difficulty — the specific discomfort)
+- **outcome**: What CHANGED (not what they did — the result/consequence)
+
+GOOD action: "Goes to check frozen vines, finds wounded soldier"
+BAD action: "Feels conflicted about her duty"
+
+GOOD tension: "Notices patrol schedule has changed — someone suspects something"
+BAD tension: "Is worried about getting caught"
+
+GOOD outcome: "Now hiding a wounded enemy soldier in the tower"
+BAD outcome: "Has hidden him in the tower" (this is action, not outcome)
 
 ### 4. Romance Stage Must Match Phase 1 romance_arc_stages
 
@@ -1889,14 +1903,15 @@ The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list mu
 
 ### 5. Lies DOMINATE Early Beats, DISSOLVE Gradually
 
-For protagonist and love interests: the first HALF of the grid, their actions must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
+For protagonist and love interests: the first HALF of the grid, their **action** and **intent** fields must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
 
-This creates earned transformation. If the lie isn't visible in early actions, the ending feels cheap. Show the lie operating as a concrete behavior in their start/during/end actions, not just as a psychology_note.
+This creates earned transformation. If the lie isn't visible in early actions, the ending feels cheap. Show the lie operating in the action/intent fields, not just in psychology_note.
 
 Example (lie: "I must never depend on anyone"):
-- Beat 1: "Refuses help carrying supplies despite struggling"
-- Beat 2: "Deflects personal question with a joke, changes subject"
-- Beat 3: "Stays late to finish alone rather than ask for assistance"
+- Beat 1 action: "Refuses help carrying supplies despite struggling"
+- Beat 1 intent: "To prove she doesn't need anyone"
+- Beat 2 action: "Deflects personal question with a joke, changes subject"
+- Beat 2 intent: "To keep emotional distance, maintain control"
 
 The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
 
@@ -1924,54 +1939,86 @@ Phase 1 defines \`theme.question\` — the central question the book explores. E
 
 The grid is not just plot choreography. It is a thematic argument across multiple characters. Each beat should advance or complicate that argument.
 
-### 9. Density Creates Novel
+### 9. Locations are CONSISTENT Strings
 
-7 beats × full cast × 3 phases (start/during/end) = potentially 100+ story action cells. This IS the master timeline. Every cell is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
+Use the same location string every time a place appears. "The vineyard tower" should always be "vineyard_tower" — not "tower room", "the tower", "Esperanza's hiding spot". This allows downstream phases to cluster fragments by beat + location mechanically.
+
+Create a mental vocabulary of 5-15 locations for this story and reuse them consistently.
+
+### 10. Outcome→State Continuity (CRITICAL)
+
+Each character's **state** at Beat N+1 must follow logically from their **outcome** at Beat N.
+
+If Beat 2 outcome is "Now hiding a wounded enemy soldier — terrified of discovery", then Beat 3 state must acknowledge this: "Carrying the weight of her secret, sleeping poorly, jumping at sounds".
+
+No resets. No contradictions. No skipping consequences. The outcome→state chain creates continuity per character through the entire grid.
+
+Beat 1 states come from Phase 2 character setup. Beat 2+ states come from the previous beat's outcome.
+
+### 11. Density Creates Novel
+
+7 beats × full cast = potentially 50+ scene fragments. This IS the master timeline. Every fragment is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
 
 ## PROCESS
 
 1. Read the external_plot beats from Phase 1
 2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
 3. For each beat, include ALL characters from the cast (everyone appears at every beat)
-4. Generate start/during/end actions for each character at that beat
-5. After generating all actions, identify which protagonist cells represent romance stage transitions
-6. Tag those cells with the appropriate romance_stage
-7. Validate that all romance_arc_stages appear in order
+4. For each character at each beat, generate a complete scene fragment (state, situation, action, intent, tension, outcome)
+5. Ensure each character's state at Beat N+1 follows from their outcome at Beat N
+6. After generating all fragments, identify which protagonist/love_interest cells represent romance stage transitions
+7. Tag those cells with the appropriate romance_stage
+8. Validate that all romance_arc_stages appear in order
 
 ## EXAMPLE
 
 Beat 1: Winter Offensive
 
 Esperanza (protagonist):
-  start: Hears distant gunfire from vineyard
-  during: Goes to check frozen vines, finds wounded soldier
-  end: Has hidden him in tower, cleaned wounds  [romance: awareness]
+  location: vineyard_fields
+  state: Restless, unfulfilled — running family vineyard alone since father's death, no life beyond duty
+  situation: Distant gunfire as Republican forces retreat through the valley
+  action: Goes to check frozen vines, discovers wounded soldier collapsed in the snow
+  intent: To protect the vineyard from damage
+  tension: The soldier is clearly Republican — helping him means treason
+  outcome: Now hiding a wounded enemy soldier in the tower, terrified of discovery
+  romance_stage_tag: awareness
+  psychology_note: Lie ("I must handle everything alone") already operating — she tells no one
 
 Mikel (love_interest):
-  start: Fleeing through snow, unit scattered
-  during: Collapses from blood loss near vineyard
-  end: Wakes to stranger tending him, realizes behind enemy lines  [romance: awareness]
+  location: vineyard_fields
+  state: Exhausted, bleeding — unit scattered in failed offensive, separated from command
+  situation: Nationalist patrols closing in, no safe route to Republican lines
+  action: Collapses from blood loss near vineyard stone wall
+  intent: To find shelter before losing consciousness
+  tension: Wakes to find a stranger tending him — could be enemy, could be trap
+  outcome: Alive but trapped behind enemy lines, dependent on a woman he doesn't know
+  romance_stage_tag: awareness
+  psychology_note: Lie ("Trust no one outside the cause") immediately challenged — he has no choice
 
 Don Sebastián (stakeholder):
-  start: Meeting with Nationalist officers in town
-  during: Receives report of Republican soldiers sighted near Valdemadera
-  end: Orders increased patrols, suspects someone is hiding enemies
+  location: town_hall
+  state: Confident, consolidating power — war going well, opportunity to eliminate rivals
+  situation: Reports of Republican soldiers fleeing through the valley
+  action: Orders increased patrols around Valdemadera, requests informant reports
+  intent: To capture fleeing soldiers and identify collaborators
+  tension: Some families in the valley have divided loyalties — hard to know who to trust
+  outcome: Suspects someone is hiding enemies, but doesn't know who yet
+  psychology_note: Thematic position ("Order requires ruthless enforcement") being tested by incomplete information
 
 Beat 2: Tightening Grip
 
 Esperanza:
-  start: Brings food to tower, tells no one
-  during: Watches patrols pass vineyard from window, heart pounding
-  end: Realizes Mikel's fever is getting worse, needs medicine
+  location: vineyard_tower
+  state: Carrying the weight of her secret — sleeping poorly, jumping at sounds, lying to neighbors
+  situation: Patrols passing the vineyard more frequently, questions being asked in town
+  action: Brings food to tower before dawn, watches patrols from window
+  intent: To keep Mikel hidden until he can travel
+  tension: His fever is getting worse — he needs medicine she can't get without raising suspicion
+  outcome: Realizes she must ask someone for help or watch him die
+  psychology_note: Lie cracking — the situation is forcing her to need someone
 
-[No romance tag - still in awareness stage, nothing has tipped yet]
-
-Mikel:
-  start: Drifts in and out of consciousness
-  during: Opens eyes to find Esperanza watching him, studies her face
-  end: Asks why she's helping him, she doesn't answer
-
-[No romance tag - building tension within awareness, not yet tipped to attraction]`
+[No romance tag — still in awareness stage, building but not yet tipped to attraction]`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
   // Build full cast list with constraint data
@@ -2030,7 +2077,9 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY character (no exceptions), generate what they do at START, DURING, and END of the beat. Every character appears at every beat — they don't vanish when not in scenes with the protagonist.
+Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY character (no exceptions), generate a SCENE FRAGMENT containing: location, state, situation, action, intent, tension, outcome. Every character appears at every beat — they don't vanish when not in scenes with the protagonist.
+
+Each field must carry distinct information. State ≠ situation ≠ action ≠ outcome. Each character's state at Beat N+1 must follow from their outcome at Beat N.
 
 ## EXTERNAL BEATS (the grid rows)
 
@@ -2083,24 +2132,26 @@ ${allCharacters.map(c => {
 ## REQUIREMENTS
 
 1. For each external beat, include ALL characters — protagonist, love interests, and every stakeholder character
-2. Generate concrete START/DURING/END actions for EACH character at EACH beat (characters don't vanish)
-3. Actions are physical and specific, not thematic or psychological
-4. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
-5. Protagonist/love_interest early beat actions must ENACT their lie (first half of beats)
-6. Each stakeholder's thematic_test must appear as visible action somewhere in grid
-7. Each stakeholder's final beat actions must reflect their arc_outcome
-8. After generating all cells, identify which protagonist/love_interest cells represent romance stage transitions
-9. Tag those cells with the romance_stage
-10. Validate all romance_arc_stages from Phase 1 appear in order
+2. Generate a complete scene fragment for EACH character at EACH beat (location, state, situation, action, intent, tension, outcome)
+3. Every field is substantive — no field restates another
+4. Locations are consistent strings — reuse the same string for the same place
+5. State at Beat N+1 follows from outcome at Beat N (outcome→state continuity)
+6. Actions are physical and concrete, not thematic or psychological
+7. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
+8. Protagonist/love_interest early beat action/intent fields must ENACT their lie (first half of beats)
+9. Each stakeholder's thematic_test must appear as visible action somewhere in grid
+10. Each stakeholder's final beat fragment must reflect their arc_outcome
+11. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
+12. Validate all romance_arc_stages from Phase 1 appear in order
 
-## EXPECTED CELL COUNT
+## EXPECTED FRAGMENT COUNT
 
-You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.length || 6} beats. That means ${allCharacters.length} × ${phase1.external_plot?.beats?.length || 6} = ${allCharacters.length * (phase1.external_plot?.beats?.length || 6)} character-beat rows in the grid. Every character. Every beat. No exceptions.
+You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.length || 6} beats. That means ${allCharacters.length} × ${phase1.external_plot?.beats?.length || 6} = ${allCharacters.length * (phase1.external_plot?.beats?.length || 6)} scene fragments in the grid. Every character. Every beat. No exceptions.
 
 ## OUTPUT
 
 Generate the grid JSON with:
-- grid: array of beats, each with character_actions
+- grid: array of beats, each with fragments array
 - romance_stage_progression: array tracking when each stage is reached
 - validation: counts and stage verification`
 }
@@ -2134,22 +2185,22 @@ async function executePhase3(concept, phase1, phase2) {
     throw new Error('Phase 3 grid must have at least one beat')
   }
 
-  // Count action cells
-  let totalCells = 0
-  let protagonistCells = 0
-  let romanceTaggedCells = 0
+  // Count fragments
+  let totalFragments = 0
+  let protagonistFragments = 0
+  let romanceTaggedFragments = 0
 
   for (const beat of data.grid) {
-    if (!beat.beat_number || !beat.beat_name || !beat.character_actions) {
-      throw new Error(`Grid beat missing required fields (beat_number, beat_name, character_actions)`)
+    if (!beat.beat_number || !beat.beat_name || !beat.fragments) {
+      throw new Error(`Grid beat missing required fields (beat_number, beat_name, fragments)`)
     }
-    for (const action of beat.character_actions) {
-      totalCells++
-      if (action.character_type === 'protagonist') {
-        protagonistCells++
+    for (const fragment of beat.fragments) {
+      totalFragments++
+      if (fragment.character_type === 'protagonist') {
+        protagonistFragments++
       }
-      if (action.romance_stage_tag) {
-        romanceTaggedCells++
+      if (fragment.romance_stage_tag) {
+        romanceTaggedFragments++
       }
     }
   }
@@ -2179,9 +2230,9 @@ async function executePhase3(concept, phase1, phase2) {
   // Console logging
   console.log('Phase 3 complete.')
   console.log(`  External beats: ${data.grid.length}`)
-  console.log(`  Total action cells: ${totalCells}`)
-  console.log(`  Protagonist cells: ${protagonistCells}`)
-  console.log(`  Romance-tagged cells: ${romanceTaggedCells}`)
+  console.log(`  Total fragments: ${totalFragments}`)
+  console.log(`  Protagonist fragments: ${protagonistFragments}`)
+  console.log(`  Romance-tagged fragments: ${romanceTaggedFragments}`)
   console.log(`  Romance stages found: ${foundStages.length}/${expectedStages.length}`)
   if (missingStages.length > 0) {
     console.log(`  Missing stages: ${missingStages.join(', ')}`)

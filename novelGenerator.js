@@ -1719,6 +1719,16 @@ async function executePhase2(concept, phase1, lengthPreset) {
     data.faceless_pressures = [] // This one can be empty if all interests are faced
   }
 
+  // Remove moment arrays if model included them (Phase 3 handles character actions)
+  if (data.character_moments) {
+    console.log('Phase 2: Removing character_moments array (handled by Phase 3)')
+    delete data.character_moments
+  }
+  if (data.arc_outcomes) {
+    console.log('Phase 2: Removing arc_outcomes array (handled by Phase 3)')
+    delete data.arc_outcomes
+  }
+
   // Validate stakeholder characters have required fields
   for (const char of data.stakeholder_characters) {
     if (!char.name || !char.psychology_level) {

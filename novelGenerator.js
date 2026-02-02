@@ -1663,9 +1663,7 @@ Your JSON output MUST include ALL of these top-level keys:
 5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_beats, pressure_mechanism)
 6. faceless_pressures (array - REQUIRED, even if empty)
 
-DO NOT return output with empty interests or stakeholder_characters arrays.
-
-DO NOT include character_moments or arc_outcomes arrays. Phase 3 handles character actions - you only create the cast with psychology here.`
+DO NOT return output with empty interests or stakeholder_characters arrays.`
 }
 
 async function executePhase2(concept, phase1, lengthPreset) {

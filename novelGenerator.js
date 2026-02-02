@@ -1419,7 +1419,6 @@ The outcome must FOLLOW FROM their thematic position and arc type.
 - Characters who get POV scenes
 - Characters who undergo transformation (arc_type: transformation)
 - Characters whose arc carries significant thematic weight
-- MINIMUM 3 moments required to show arc progression
 
 **Partial psychology** (want, stake, method, thematic_position, pressure_mechanism):
 - Multiple appearances
@@ -1443,22 +1442,6 @@ A character might:
 - RESOLVE or COMPLICATE the climax
 
 Map characters to external beats to ensure they're integrated with the world's events, not floating in a character vacuum.
-
-**Step 9: Thematic Test Moments**
-
-Every character with full or partial psychology gets moments that TEST THEIR BELIEF.
-
-A thematic test moment:
-- Challenges what they believe about the theme
-- Forces them to ACT on their belief (or contradict it)
-- Shows arc progression: position established → belief tested → outcome reached
-
-NOT just plot beats ("she delivers the message") but THEMATIC beats ("she discovers her loyalty was misplaced and must choose").
-
-Full psychology characters need AT LEAST 3 moments:
-1. Position ESTABLISHED (we see what they believe)
-2. Position TESTED (their belief is challenged)
-3. Outcome REACHED (transformation or hardening completed)
 
 ## OUTPUT FORMAT
 
@@ -1528,27 +1511,6 @@ Full psychology characters need AT LEAST 3 moments:
     }
   ],
 
-  "character_moments": [
-    {
-      "character": "Character name",
-      "order": 1,
-      "moment": "Moment name",
-      "what_happens": "What occurs",
-      "thematic_function": "position_established | belief_tested | belief_challenged | transformation_moment | hardening_moment | outcome_reached",
-      "external_beat": "Which Phase 1 external beat this embodies/drives (or null)"
-    }
-  ],
-
-  "arc_outcomes": [
-    {
-      "character": "Character name",
-      "thematic_position": "What they believed",
-      "arc_type": "transformation | hardening",
-      "outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-      "outcome_description": "How their story resolves as consequence of thematic choice"
-    }
-  ],
-
   "faceless_pressures": [
     {
       "interest": "The faceless force",
@@ -1558,27 +1520,13 @@ Full psychology characters need AT LEAST 3 moments:
   ]
 }
 
-## THEMATIC FUNCTION CODES
-
-Each character_moment must have a thematic_function:
-
-- **position_established**: We learn what this character believes about the theme
-- **belief_tested**: Their belief is put under pressure but they haven't changed yet
-- **belief_challenged**: Something directly contradicts their position
-- **transformation_moment**: The moment they actually change (transformation arcs only)
-- **hardening_moment**: The moment they double down (hardening arcs only)
-- **outcome_reached**: The consequence of their choice is made manifest
-
 ## CRITICAL RULES
 
 1. Characters must have THEMATIC POSITIONS, not just plot functions.
 2. Characters must be able to PLAUSIBLY REACH protagonists - check logistics!
 3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
-4. Full psychology characters need MINIMUM 3 moments (established → tested → outcome).
-5. Every character_moment must have thematic_function AND (if applicable) external_beat.
-6. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
-7. Consolidate where natural - one character can serve multiple interests.
-8. Moment names must be UNIQUE across the story.
+4. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
+5. Consolidate where natural - one character can serve multiple interests.
 
 ## ROMANTIC LEADS GUIDELINES
 
@@ -1673,8 +1621,6 @@ Ensure:
 You MUST create the stakeholder characters. This is not optional. Your output MUST include:
 - interests array (at least 3-5 interests identified)
 - stakeholder_characters array (characters who embody faced interests)
-- character_moments array (thematic test moments for full/partial psychology characters)
-- arc_outcomes array (how each character's arc resolves)
 - faceless_pressures array (interests that remain atmospheric)
 
 ### THE THEME (characters must engage with this)
@@ -1692,11 +1638,11 @@ Map characters to these beats - they shouldn't float in a vacuum. Each character
 
 ### Complexity Guide for ${lengthPreset}
 
-- Full psychology stakeholder characters: ${fullCount} (EACH needs 3+ character_moments)
+- Full psychology stakeholder characters: ${fullCount}
 - Partial psychology stakeholder characters: ${partialCount}
 - Minimal characters: ${minimalCount}
 
-### PROCESS (Follow the 9 steps from the system prompt)
+### PROCESS (Follow the 8 steps from the system prompt)
 
 1. List interests (forces/pressures/stakes - NOT characters yet)
 2. Pressure mechanism check - can each interest REACH protagonists?
@@ -1706,7 +1652,6 @@ Map characters to these beats - they shouldn't float in a vacuum. Each character
 6. Arc type and outcome
 7. Psychology level
 8. External beat mapping
-9. Thematic test moments (3+ per full psychology character)
 
 ## CRITICAL OUTPUT REQUIREMENTS
 
@@ -1716,9 +1661,7 @@ Your JSON output MUST include ALL of these top-level keys:
 3. dynamics (object with romantic and rivals arrays)
 4. interests (array - REQUIRED, minimum 3 entries with pressure_mechanism and can_reach_protagonists)
 5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_beats, pressure_mechanism)
-6. character_moments (array - REQUIRED, with thematic_function and external_beat for each moment)
-7. arc_outcomes (array - REQUIRED, with outcome_description for each character)
-8. faceless_pressures (array - REQUIRED, even if empty)
+6. faceless_pressures (array - REQUIRED, even if empty)
 
 DO NOT return output with empty interests or stakeholder_characters arrays.`
 }
@@ -1772,12 +1715,6 @@ async function executePhase2(concept, phase1, lengthPreset) {
   if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters) || data.stakeholder_characters.length === 0) {
     throw new Error('Phase 2 FAILED: stakeholder_characters array is missing or empty. The model must create characters for faced interests.')
   }
-  if (!data.character_moments || !Array.isArray(data.character_moments)) {
-    throw new Error('Phase 2 FAILED: character_moments array is missing. Full/partial psychology characters need thematic test moments.')
-  }
-  if (!data.arc_outcomes || !Array.isArray(data.arc_outcomes)) {
-    throw new Error('Phase 2 FAILED: arc_outcomes array is missing.')
-  }
   if (!data.faceless_pressures) {
     data.faceless_pressures = [] // This one can be empty if all interests are faced
   }
@@ -1801,20 +1738,6 @@ async function executePhase2(concept, phase1, lengthPreset) {
       if (!c.arc_type) missing.push('arc_type')
       if (!c.arc_outcome) missing.push('arc_outcome')
       console.warn(`  - ${c.name}: missing ${missing.join(', ')}`)
-    })
-  }
-
-  // Validate full psychology characters have minimum 3 moments
-  const fullPsychChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
-  const momentCounts = {}
-  for (const moment of data.character_moments) {
-    momentCounts[moment.character] = (momentCounts[moment.character] || 0) + 1
-  }
-  const insufficientMoments = fullPsychChars.filter(c => (momentCounts[c.name] || 0) < 3)
-  if (insufficientMoments.length > 0) {
-    console.warn('Phase 2 WARNING: Full psychology characters with fewer than 3 moments:')
-    insufficientMoments.forEach(c => {
-      console.warn(`  - ${c.name}: ${momentCounts[c.name] || 0} moments (needs 3+)`)
     })
   }
 
@@ -1843,8 +1766,7 @@ async function executePhase2(concept, phase1, lengthPreset) {
   console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
   console.log(`    Full psychology: ${fullChars.length}`)
   fullChars.forEach(c => {
-    const moments = momentCounts[c.name] || 0
-    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}", moments=${moments}`)
+    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
   })
   console.log(`    Partial psychology: ${partialChars.length}`)
   partialChars.forEach(c => {
@@ -1855,8 +1777,6 @@ async function executePhase2(concept, phase1, lengthPreset) {
     console.log(`      - ${c.name}: ${c.function || c.interest}`)
   })
 
-  console.log(`  Character moments: ${data.character_moments.length}`)
-  console.log(`  Arc outcomes: ${data.arc_outcomes.length}`)
   console.log(`  Faceless pressures: ${data.faceless_pressures.length}`)
 
   console.log('')
@@ -5058,8 +4978,6 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       loveInterests: bible.characters.love_interests?.length,
       stakeholderCharacters: bible.characters.stakeholder_characters?.length,
       interests: bible.characters.interests?.length,
-      characterMoments: bible.characters.character_moments?.length,
-      arcOutcomes: bible.characters.arc_outcomes?.length,
       facelessPressures: bible.characters.faceless_pressures?.length
     })
     await savePhase(2)

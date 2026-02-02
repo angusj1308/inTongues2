@@ -2171,13 +2171,20 @@ async function executePhase3(concept, phase1, phase2) {
 
   const data = parsed.data
 
-  // Normalize field names: model may output 'character_actions' instead of 'fragments'
+  // Normalize: find whatever array the model used for fragments and rename it to 'fragments'
   if (data.grid && Array.isArray(data.grid)) {
     for (const beat of data.grid) {
-      if (beat.character_actions && !beat.fragments) {
-        console.log(`Phase 3: Normalizing character_actions → fragments for beat ${beat.beat_number}`)
-        beat.fragments = beat.character_actions
-        delete beat.character_actions
+      if (!beat.fragments) {
+        // Find the array field (could be character_actions, actions, cells, etc.)
+        const arrayField = Object.entries(beat).find(([key, val]) =>
+          Array.isArray(val) && key !== 'fragments'
+        )
+        if (arrayField) {
+          const [fieldName, fieldValue] = arrayField
+          console.log(`Phase 3: Normalizing ${fieldName} → fragments for beat ${beat.beat_number}`)
+          beat.fragments = fieldValue
+          delete beat[fieldName]
+        }
       }
     }
   }
@@ -2204,18 +2211,16 @@ async function executePhase3(concept, phase1, phase2) {
     console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} beats but Phase 1 defined ${expectedBeatCount} beats`)
   }
 
-  // Count fragments (handle both 'fragments' and 'character_actions' field names)
+  // Count fragments (normalization guarantees beat.fragments exists)
   let totalFragments = 0
   let protagonistFragments = 0
   let romanceTaggedFragments = 0
 
   for (const beat of data.grid) {
-    // Use fragments or character_actions, whichever exists
-    const fragments = beat.fragments || beat.character_actions
-    if (!beat.beat_number || !beat.beat_name || !fragments) {
-      throw new Error(`Grid beat ${beat.beat_number || '?'} missing required fields. Has keys: ${Object.keys(beat).join(', ')}`)
+    if (!beat.beat_number || !beat.beat_name || !beat.fragments) {
+      throw new Error(`Grid beat ${beat.beat_number || '?'} missing required fields (beat_number, beat_name, fragments)`)
     }
-    for (const fragment of fragments) {
+    for (const fragment of beat.fragments) {
       totalFragments++
       if (fragment.character_type === 'protagonist') {
         protagonistFragments++
@@ -2260,20 +2265,15 @@ async function executePhase3(concept, phase1, phase2) {
   }
   console.log(`  Stages in order: ${stagesInOrder}`)
 
-  // Log grid summary
+  // Log grid summary (normalization guarantees beat.fragments exists)
   console.log('\n  Grid Summary:')
   data.grid.forEach(beat => {
     console.log(`    Beat ${beat.beat_number}: ${beat.beat_name}`)
-    const fragments = beat.fragments || beat.character_actions || []
-    if (!Array.isArray(fragments) || fragments.length === 0) {
-      console.log(`      (no fragments - keys: ${Object.keys(beat).join(', ')})`)
-    } else {
-      fragments.forEach(fragment => {
-        const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
-        const actionPreview = fragment.action ? fragment.action.slice(0, 40) : 'no action'
-        console.log(`      ${fragment.character} (${fragment.character_type}): ${actionPreview}...${tag}`)
-      })
-    }
+    beat.fragments.forEach(fragment => {
+      const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
+      const actionPreview = fragment.action ? fragment.action.slice(0, 40) : 'no action'
+      console.log(`      ${fragment.character} (${fragment.character_type}): ${actionPreview}...${tag}`)
+    })
   })
 
   // Log romance progression

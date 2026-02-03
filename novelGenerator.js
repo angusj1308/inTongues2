@@ -2198,27 +2198,24 @@ You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.l
 
 ## OUTPUT FORMAT (STRICT)
 
-Each fragment MUST use this exact schema with ARRAYS for actions, dialogues, and thoughts:
+Each fragment MUST use this exact schema. CRITICAL: actions, dialogues, and thoughts are ARRAYS, not strings.
 
-\`\`\`json
-{
-  "character": "Character name",
-  "character_type": "protagonist | love_interest | stakeholder",
-  "location": "Short consistent string",
-  "state": "Personal condition coming into this beat",
-  "situation": "External context",
-  "actions": ["First action", "Second action", "..."],
-  "dialogues": ["Summary of first exchange", "Summary of second exchange", "..."],
-  "thoughts": ["Internal thought 1", "..."],
-  "intent": "What they were trying to achieve",
-  "tension": "What's pulling against them",
-  "outcome": "The state change",
-  "romance_stage_tag": "awareness | attraction | etc." | null,
-  "psychology_note": "How this relates to lie, arc, thematic position" | null
-}
-\`\`\`
+FRAGMENT SCHEMA:
+- character: "Character name"
+- character_type: "protagonist" or "love_interest" or "stakeholder"
+- location: "Short consistent string"
+- state: "Personal condition coming into this beat"
+- situation: "External context"
+- actions: ["First action", "Second action", ...] ← ARRAY of action strings
+- dialogues: ["Summary of exchange 1", ...] ← ARRAY of dialogue summaries
+- thoughts: ["Internal thought 1", ...] ← ARRAY, POV characters only
+- intent: "What they were trying to achieve"
+- tension: "What's pulling against them"
+- outcome: "The state change"
+- romance_stage_tag: "awareness" or "attraction" or null (sparse, protagonist/love_interest only)
+- psychology_note: "How this relates to lie, arc, thematic position" or null
 
-**CRITICAL:** \`actions\`, \`dialogues\`, and \`thoughts\` are ARRAYS, not strings. Let story dictate volume — protagonist fragments are richer than stakeholder fragments.
+Let story dictate array volume — protagonist fragments are richer than stakeholder fragments.
 
 Generate the complete grid JSON with:
 - grid: array of beats, each with fragments array
@@ -2230,16 +2227,7 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('Executing Phase 3: Character Action Grid...')
 
   const userPrompt = buildPhase3UserPrompt(concept, phase1, phase2)
-
-  // Debug: log end of user prompt to verify template literal is intact
-  console.log('Phase 3 user prompt ends with:', userPrompt?.slice(-200))
-
   const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
-
-  // Debug: log first 500 chars of response to diagnose parse failures
-  console.log('Phase 3 raw response (first 500 chars):', response?.substring(0, 500))
-  console.log('Phase 3 response length:', response?.length)
-
   const parsed = parseJSON(response)
 
   if (!parsed.success) {

@@ -2230,7 +2230,16 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('Executing Phase 3: Character Action Grid...')
 
   const userPrompt = buildPhase3UserPrompt(concept, phase1, phase2)
+
+  // Debug: log end of user prompt to verify template literal is intact
+  console.log('Phase 3 user prompt ends with:', userPrompt?.slice(-200))
+
   const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
+
+  // Debug: log first 500 chars of response to diagnose parse failures
+  console.log('Phase 3 raw response (first 500 chars):', response?.substring(0, 500))
+  console.log('Phase 3 response length:', response?.length)
+
   const parsed = parseJSON(response)
 
   if (!parsed.success) {

@@ -1830,8 +1830,10 @@ Each fragment must carry distinct information in every field. State is not situa
           "location": "Short consistent string for where they are (reuse same strings across beats)",
           "state": "Their personal condition coming into this beat — mindset, emotional state, what they're carrying from previous events",
           "situation": "External context they're walking into — what's happening around them, independent of their personal state",
-          "action": "What they actively do in response",
-          "intent": "What they were trying to achieve with their action",
+          "actions": ["action 1", "action 2", "action 3", ...],
+          "dialogues": ["dialogue summary 1", "dialogue summary 2", ...],
+          "thoughts": ["thought 1", "thought 2", ...],
+          "intent": "What they were trying to achieve with their actions",
           "tension": "What's pulling against them — discomfort, doubt, observation that nags, loyalty being tested",
           "outcome": "The state change — what is different after this beat because of what they did or experienced",
           "romance_stage_tag": "awareness | attraction | etc." | null,
@@ -1855,7 +1857,10 @@ Each fragment must carry distinct information in every field. State is not situa
     "stages_in_order": true | false,
     "missing_stages": ["any stages from Phase 1 romance_arc_stages not found"],
     "protagonist_fragments_count": number,
-    "total_fragments": number
+    "total_fragments": number,
+    "total_actions": number,
+    "total_dialogues": number,
+    "total_thoughts": number
   }
 }
 
@@ -1883,10 +1888,22 @@ Each field in a fragment must carry distinct, substantive information:
 
 - **state**: Personal condition COMING INTO this beat (not what happens during it)
 - **situation**: External context (not the character's feelings about it)
-- **action**: What they DO (physical, observable)
+- **actions**: Array of physical, observable things they DO — chronologically ordered within the beat
+- **dialogues**: Array of dialogue SUMMARIES (what is said, not literal lines — prose phase writes actual dialogue)
+- **thoughts**: Array of internal monologue — what they're thinking/feeling as events unfold (protagonist and love_interest ONLY)
 - **intent**: What they were TRYING to achieve (not what they did)
 - **tension**: What's pulling AGAINST them (not just difficulty — the specific discomfort)
 - **outcome**: What CHANGED (not what they did — the result/consequence)
+
+**DIALOGUE IS NOT SCRIPT.** Each dialogue entry summarizes what is said:
+- GOOD: "Warns Andrés that patrols come through the vineyard at dawn"
+- BAD: "The patrols come at dawn — you need to be gone before first light."
+
+**ACTIONS ARE CHRONOLOGICAL.** List the sequence of what they physically do, in order.
+
+**THOUGHTS ARE FOR POV CHARACTERS ONLY.** Stakeholders get 0 thoughts — their interiority is revealed through actions and dialogue only.
+
+**LET THE STORY DICTATE VOLUME.** Each fragment should include as many actions, dialogues, and thoughts as the character's role in this beat warrants. Protagonist and love interest fragments will naturally be richer than stakeholder fragments. Do not pad — if a stakeholder only does one thing in this beat, that's one action. If the protagonist has a complex sequence of events, that could be six actions. Let the story dictate the volume.
 
 GOOD action: "Goes to check frozen vines, finds wounded soldier"
 BAD action: "Feels conflicted about her duty"
@@ -1903,15 +1920,15 @@ The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list mu
 
 ### 5. Lies DOMINATE Early Beats, DISSOLVE Gradually
 
-For protagonist and love interests: the first HALF of the grid, their **action** and **intent** fields must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
+For protagonist and love interests: the first HALF of the grid, their **actions**, **dialogues**, and **thoughts** must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
 
-This creates earned transformation. If the lie isn't visible in early actions, the ending feels cheap. Show the lie operating in the action/intent fields, not just in psychology_note.
+This creates earned transformation. If the lie isn't visible in early actions/dialogues/thoughts, the ending feels cheap.
 
 Example (lie: "I must never depend on anyone"):
-- Beat 1 action: "Refuses help carrying supplies despite struggling"
+- Beat 1 actions: ["Refuses help carrying supplies despite struggling", "Brushes off concern with dismissive gesture"]
+- Beat 1 dialogues: ["Insists she can manage alone"]
+- Beat 1 thoughts: ["Reminds herself that depending on others always leads to disappointment"]
 - Beat 1 intent: "To prove she doesn't need anyone"
-- Beat 2 action: "Deflects personal question with a joke, changes subject"
-- Beat 2 intent: "To keep emotional distance, maintain control"
 
 The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
 
@@ -1964,11 +1981,12 @@ Beat 1 states come from Phase 2 character setup. Beat 2+ states come from the pr
 1. Read the external_plot beats from Phase 1
 2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
 3. For each beat, include ALL characters from the cast (everyone appears at every beat)
-4. For each character at each beat, generate a complete scene fragment (state, situation, action, intent, tension, outcome)
-5. Ensure each character's state at Beat N+1 follows from their outcome at Beat N
-6. After generating all fragments, identify which protagonist/love_interest cells represent romance stage transitions
-7. Tag those cells with the appropriate romance_stage
-8. Validate that all romance_arc_stages appear in order
+4. For each character at each beat, generate a complete scene fragment with arrays for actions, dialogues, thoughts
+5. Let the story dictate volume — don't pad, don't skimp
+6. Ensure each character's state at Beat N+1 follows from their outcome at Beat N
+7. After generating all fragments, identify which protagonist/love_interest cells represent romance stage transitions
+8. Tag those cells with the appropriate romance_stage
+9. Validate that all romance_arc_stages appear in order
 
 ## EXAMPLE
 
@@ -1978,9 +1996,24 @@ Esperanza (protagonist):
   location: vineyard_fields
   state: Restless, unfulfilled — running family vineyard alone since father's death, no life beyond duty
   situation: Distant gunfire as Republican forces retreat through the valley
-  action: Goes to check frozen vines, discovers wounded soldier collapsed in the snow
-  intent: To protect the vineyard from damage
-  tension: The soldier is clearly Republican — helping him means treason
+  actions: [
+    "Hears distant gunfire from the east",
+    "Goes to check frozen vines for damage",
+    "Discovers wounded soldier collapsed in the snow",
+    "Drags him to the abandoned tower",
+    "Cleans and binds his wounds with torn bedsheets"
+  ]
+  dialogues: [
+    "Asks who he is and which side he fights for",
+    "Tells him to stay quiet or they'll both die"
+  ]
+  thoughts: [
+    "Realizes helping him is treason",
+    "Wonders why she didn't just leave him to die",
+    "Reminds herself she handles everything alone — this is no different"
+  ]
+  intent: To protect the vineyard from damage, then to save a life she stumbled into
+  tension: The soldier is clearly Republican — helping him means execution if discovered
   outcome: Now hiding a wounded enemy soldier in the tower, terrified of discovery
   romance_stage_tag: awareness
   psychology_note: Lie ("I must handle everything alone") already operating — she tells no one
@@ -1989,10 +2022,24 @@ Mikel (love_interest):
   location: vineyard_fields
   state: Exhausted, bleeding — unit scattered in failed offensive, separated from command
   situation: Nationalist patrols closing in, no safe route to Republican lines
-  action: Collapses from blood loss near vineyard stone wall
-  intent: To find shelter before losing consciousness
-  tension: Wakes to find a stranger tending him — could be enemy, could be trap
-  outcome: Alive but trapped behind enemy lines, dependent on a woman he doesn't know
+  actions: [
+    "Stumbles through frozen vineyard, leaving blood trail",
+    "Collapses against stone wall",
+    "Wakes to stranger binding his wounds",
+    "Tries to reach for weapon, finds it gone",
+    "Studies the woman's face, trying to read her intentions"
+  ]
+  dialogues: [
+    "Demands to know if she's turning him in",
+    "Refuses to give his unit or mission"
+  ]
+  thoughts: [
+    "Calculates how long before patrols find the blood trail",
+    "Wonders if this is a trap"
+  ]
+  intent: To survive, to assess the threat this woman poses
+  tension: Completely dependent on a stranger who could be enemy
+  outcome: Alive but trapped behind enemy lines, at the mercy of a woman he doesn't know
   romance_stage_tag: awareness
   psychology_note: Lie ("Trust no one outside the cause") immediately challenged — he has no choice
 
@@ -2000,25 +2047,22 @@ Don Sebastián (stakeholder):
   location: town_hall
   state: Confident, consolidating power — war going well, opportunity to eliminate rivals
   situation: Reports of Republican soldiers fleeing through the valley
-  action: Orders increased patrols around Valdemadera, requests informant reports
+  actions: [
+    "Reviews patrol reports at his desk",
+    "Orders increased patrols around Valdemadera",
+    "Summons the priest for information on suspicious families"
+  ]
+  dialogues: [
+    "Instructs patrol captain to check farms near the eastern road",
+    "Asks Father Ignacio which families have Republican sympathies"
+  ]
+  thoughts: []
   intent: To capture fleeing soldiers and identify collaborators
   tension: Some families in the valley have divided loyalties — hard to know who to trust
   outcome: Suspects someone is hiding enemies, but doesn't know who yet
   psychology_note: Thematic position ("Order requires ruthless enforcement") being tested by incomplete information
 
-Beat 2: Tightening Grip
-
-Esperanza:
-  location: vineyard_tower
-  state: Carrying the weight of her secret — sleeping poorly, jumping at sounds, lying to neighbors
-  situation: Patrols passing the vineyard more frequently, questions being asked in town
-  action: Brings food to tower before dawn, watches patrols from window
-  intent: To keep Mikel hidden until he can travel
-  tension: His fever is getting worse — he needs medicine she can't get without raising suspicion
-  outcome: Realizes she must ask someone for help or watch him die
-  psychology_note: Lie cracking — the situation is forcing her to need someone
-
-[No romance tag — still in awareness stage, building but not yet tipped to attraction]`
+[No romance tag on stakeholder — only protagonist and love_interest get romance tags]`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
   // Build full cast list with constraint data
@@ -2186,6 +2230,21 @@ async function executePhase3(concept, phase1, phase2) {
           delete beat[fieldName]
         }
       }
+
+      // Normalize fragment fields: ensure actions/dialogues/thoughts are arrays
+      if (beat.fragments && Array.isArray(beat.fragments)) {
+        for (const fragment of beat.fragments) {
+          // Convert old 'action' string to 'actions' array
+          if (fragment.action && !fragment.actions) {
+            fragment.actions = [fragment.action]
+            delete fragment.action
+          }
+          // Ensure arrays exist
+          if (!fragment.actions) fragment.actions = []
+          if (!fragment.dialogues) fragment.dialogues = []
+          if (!fragment.thoughts) fragment.thoughts = []
+        }
+      }
     }
   }
 
@@ -2211,10 +2270,13 @@ async function executePhase3(concept, phase1, phase2) {
     console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} beats but Phase 1 defined ${expectedBeatCount} beats`)
   }
 
-  // Count fragments (normalization guarantees beat.fragments exists)
+  // Count fragments, actions, dialogues, thoughts (normalization guarantees arrays exist)
   let totalFragments = 0
   let protagonistFragments = 0
   let romanceTaggedFragments = 0
+  let totalActions = 0
+  let totalDialogues = 0
+  let totalThoughts = 0
 
   for (const beat of data.grid) {
     if (!beat.beat_number || !beat.beat_name || !beat.fragments) {
@@ -2222,6 +2284,9 @@ async function executePhase3(concept, phase1, phase2) {
     }
     for (const fragment of beat.fragments) {
       totalFragments++
+      totalActions += fragment.actions?.length || 0
+      totalDialogues += fragment.dialogues?.length || 0
+      totalThoughts += fragment.thoughts?.length || 0
       if (fragment.character_type === 'protagonist') {
         protagonistFragments++
       }
@@ -2259,6 +2324,9 @@ async function executePhase3(concept, phase1, phase2) {
   console.log(`  Total fragments: ${totalFragments}`)
   console.log(`  Protagonist fragments: ${protagonistFragments}`)
   console.log(`  Romance-tagged fragments: ${romanceTaggedFragments}`)
+  console.log(`  Total actions: ${totalActions}`)
+  console.log(`  Total dialogues: ${totalDialogues}`)
+  console.log(`  Total thoughts: ${totalThoughts}`)
   console.log(`  Romance stages found: ${foundStages.length}/${expectedStages.length}`)
   if (missingStages.length > 0) {
     console.log(`  Missing stages: ${missingStages.join(', ')}`)
@@ -2271,8 +2339,10 @@ async function executePhase3(concept, phase1, phase2) {
     console.log(`    Beat ${beat.beat_number}: ${beat.beat_name}`)
     beat.fragments.forEach(fragment => {
       const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
-      const actionPreview = fragment.action ? fragment.action.slice(0, 40) : 'no action'
-      console.log(`      ${fragment.character} (${fragment.character_type}): ${actionPreview}...${tag}`)
+      const actCount = fragment.actions?.length || 0
+      const dlgCount = fragment.dialogues?.length || 0
+      const thtCount = fragment.thoughts?.length || 0
+      console.log(`      ${fragment.character} (${fragment.character_type}): ${actCount}a/${dlgCount}d/${thtCount}t${tag}`)
     })
   })
 

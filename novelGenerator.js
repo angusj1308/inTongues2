@@ -2121,9 +2121,9 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY character (no exceptions), generate a SCENE FRAGMENT containing: location, state, situation, action, intent, tension, outcome. Every character appears at every beat — they don't vanish when not in scenes with the protagonist.
+Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY character (no exceptions), generate a SCENE FRAGMENT. Every character appears at every beat — they don't vanish when not in scenes with the protagonist.
 
-Each field must carry distinct information. State ≠ situation ≠ action ≠ outcome. Each character's state at Beat N+1 must follow from their outcome at Beat N.
+Each field must carry distinct information. State ≠ situation ≠ outcome. Each character's state at Beat N+1 must follow from their outcome at Beat N.
 
 ## EXTERNAL BEATS (HARD CONSTRAINT — the grid rows)
 
@@ -2178,25 +2178,49 @@ ${allCharacters.map(c => {
 ## REQUIREMENTS
 
 1. For each external beat, include ALL characters — protagonist, love interests, and every stakeholder character
-2. Generate a complete scene fragment for EACH character at EACH beat (location, state, situation, action, intent, tension, outcome)
+2. Generate a complete scene fragment for EACH character at EACH beat using the array schema above
 3. Every field is substantive — no field restates another
 4. Locations are consistent strings — reuse the same string for the same place
 5. State at Beat N+1 follows from outcome at Beat N (outcome→state continuity)
-6. Actions are physical and concrete, not thematic or psychological
-7. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
-8. Protagonist/love_interest early beat action/intent fields must ENACT their lie (first half of beats)
-9. Each stakeholder's thematic_test must appear as visible action somewhere in grid
-10. Each stakeholder's final beat fragment must reflect their arc_outcome
-11. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
-12. Validate all romance_arc_stages from Phase 1 appear in order
+6. Actions[] entries are physical and concrete, not thematic or psychological
+7. Dialogues[] are summaries of exchanges, not literal script
+8. Thoughts[] only for POV characters (protagonist)
+9. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
+10. Protagonist/love_interest early beat actions must ENACT their lie (first half of beats)
+11. Each stakeholder's thematic_test must appear as visible action somewhere in grid
+12. Each stakeholder's final beat fragment must reflect their arc_outcome
+13. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
+14. Validate all romance_arc_stages from Phase 1 appear in order
 
 ## EXPECTED FRAGMENT COUNT
 
 You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.length || 6} beats. That means ${allCharacters.length} × ${phase1.external_plot?.beats?.length || 6} = ${allCharacters.length * (phase1.external_plot?.beats?.length || 6)} scene fragments in the grid. Every character. Every beat. No exceptions.
 
-## OUTPUT
+## OUTPUT FORMAT (STRICT)
 
-Generate the grid JSON with:
+Each fragment MUST use this exact schema with ARRAYS for actions, dialogues, and thoughts:
+
+\`\`\`json
+{
+  "character": "Character name",
+  "character_type": "protagonist | love_interest | stakeholder",
+  "location": "Short consistent string",
+  "state": "Personal condition coming into this beat",
+  "situation": "External context",
+  "actions": ["First action", "Second action", "..."],
+  "dialogues": ["Summary of first exchange", "Summary of second exchange", "..."],
+  "thoughts": ["Internal thought 1", "..."],
+  "intent": "What they were trying to achieve",
+  "tension": "What's pulling against them",
+  "outcome": "The state change",
+  "romance_stage_tag": "awareness | attraction | etc." | null,
+  "psychology_note": "How this relates to lie, arc, thematic position" | null
+}
+\`\`\`
+
+**CRITICAL:** \`actions\`, \`dialogues\`, and \`thoughts\` are ARRAYS, not strings. Let story dictate volume — protagonist fragments are richer than stakeholder fragments.
+
+Generate the complete grid JSON with:
 - grid: array of beats, each with fragments array
 - romance_stage_progression: array tracking when each stage is reached
 - validation: counts and stage verification`

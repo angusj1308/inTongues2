@@ -1903,13 +1903,7 @@ Each field in a fragment must carry distinct, substantive information:
 
 **THOUGHTS ARE FOR POV CHARACTERS ONLY.** Stakeholders get 0 thoughts — their interiority is revealed through actions and dialogue only.
 
-### 3a. Output Volume Rules (HARD CONSTRAINTS)
-
-- **Protagonist fragments**: 4-6 actions, 2-3 dialogues, 2-3 thoughts
-- **Love interest fragments**: 4-6 actions, 2-3 dialogues, 1-2 thoughts
-- **Stakeholder fragments**: 2-3 actions, 1-2 dialogues, 0 thoughts (empty array)
-
-These are minimum counts. The prose phase needs this density to work with.
+**LET THE STORY DICTATE VOLUME.** Each fragment should include as many actions, dialogues, and thoughts as the character's role in this beat warrants. Protagonist and love interest fragments will naturally be richer than stakeholder fragments. Do not pad — if a stakeholder only does one thing in this beat, that's one action. If the protagonist has a complex sequence of events, that could be six actions. Let the story dictate the volume.
 
 GOOD action: "Goes to check frozen vines, finds wounded soldier"
 BAD action: "Feels conflicted about her duty"
@@ -1988,7 +1982,7 @@ Beat 1 states come from Phase 2 character setup. Beat 2+ states come from the pr
 2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
 3. For each beat, include ALL characters from the cast (everyone appears at every beat)
 4. For each character at each beat, generate a complete scene fragment with arrays for actions, dialogues, thoughts
-5. Follow volume rules: protagonist 4-6 actions, 2-3 dialogues, 2-3 thoughts; love_interest 4-6 actions, 2-3 dialogues, 1-2 thoughts; stakeholder 2-3 actions, 1-2 dialogues, 0 thoughts
+5. Let the story dictate volume — don't pad, don't skimp
 6. Ensure each character's state at Beat N+1 follows from their outcome at Beat N
 7. After generating all fragments, identify which protagonist/love_interest cells represent romance stage transitions
 8. Tag those cells with the appropriate romance_stage

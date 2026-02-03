@@ -2178,7 +2178,7 @@ ${allCharacters.map(c => {
 ## REQUIREMENTS
 
 1. For each external beat, include ALL characters — protagonist, love interests, and every stakeholder character
-2. Generate a complete scene fragment for EACH character at EACH beat using the array schema above
+2. Generate a complete scene fragment for EACH character at EACH beat
 3. Every field is substantive — no field restates another
 4. Locations are consistent strings — reuse the same string for the same place
 5. State at Beat N+1 follows from outcome at Beat N (outcome→state continuity)
@@ -2196,31 +2196,9 @@ ${allCharacters.map(c => {
 
 You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.length || 6} beats. That means ${allCharacters.length} × ${phase1.external_plot?.beats?.length || 6} = ${allCharacters.length * (phase1.external_plot?.beats?.length || 6)} scene fragments in the grid. Every character. Every beat. No exceptions.
 
-## OUTPUT FORMAT (STRICT)
+## OUTPUT
 
-Each fragment MUST use this exact schema. CRITICAL: actions, dialogues, and thoughts are ARRAYS, not strings.
-
-FRAGMENT SCHEMA:
-- character: "Character name"
-- character_type: "protagonist" or "love_interest" or "stakeholder"
-- location: "Short consistent string"
-- state: "Personal condition coming into this beat"
-- situation: "External context"
-- actions: ["First action", "Second action", ...] ← ARRAY of action strings
-- dialogues: ["Summary of exchange 1", ...] ← ARRAY of dialogue summaries
-- thoughts: ["Internal thought 1", ...] ← ARRAY, POV characters only
-- intent: "What they were trying to achieve"
-- tension: "What's pulling against them"
-- outcome: "The state change"
-- romance_stage_tag: "awareness" or "attraction" or null (sparse, protagonist/love_interest only)
-- psychology_note: "How this relates to lie, arc, thematic position" or null
-
-Let story dictate array volume — protagonist fragments are richer than stakeholder fragments.
-
-Generate the complete grid JSON with:
-- grid: array of beats, each with fragments array
-- romance_stage_progression: array tracking when each stage is reached
-- validation: counts and stage verification`
+Return valid JSON matching the schema from the system prompt. Remember: actions, dialogues, and thoughts are ARRAYS.`
 }
 
 async function executePhase3(concept, phase1, phase2) {

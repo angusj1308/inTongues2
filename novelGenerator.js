@@ -1505,6 +1505,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
     {
       "name": "Full name",
       "interest": "Which interest they represent",
+      "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
       // Thematic engagement:
@@ -1707,7 +1708,7 @@ After decisions, check: Can any faced characters be CONSOLIDATED? One character 
 4. Thematic position for faced characters
 5. Archetype (pressure role)
 6. Arc type and outcome
-7. Psychology level
+7. Full psychology for ALL stakeholder characters (wound, lie, want, need, coping_mechanism, vice, arc, voice)
 8. External beat mapping
 
 **Step 9: Screen-time sanity check**
@@ -2442,6 +2443,17 @@ Every faced character must have:
 
 Characters who just perform plot functions without thematic engagement are hollow.
 
+## VICE
+
+Every stakeholder character must have a vice — the behavioral flaw that emerges from their lie and shapes how they act on their thematic position.
+
+Pick from this list:
+Pride, Vanity, Ambition, Greed, Envy, Jealousy, Possessiveness, Controlling, Domineering, Cowardice, Denial, Evasion, Self-Deception, Willful Ignorance, Escapism, Wrath, Bitterness, Resentment, Cruelty, Spite, Vindictiveness, Vengefulness, Gluttony, Lust, Sloth, Hedonism, Recklessness, Impulsiveness, Manipulation, Deception, Betrayal, Disloyalty, Coldness, Indifference, Callousness, Stubbornness, Obstinacy, Judgmentalism, Self-Righteousness, Fanaticism, Intolerance, Self-Pity, Martyrdom, Insecurity, Arrogance, Narcissism, Covetousness, Dishonesty, Hypocrisy, Corruption, Opportunism
+
+The vice must:
+- Flow from the character's lie (the lie justifies the vice)
+- Shape how they act on their thematic position (the vice is how the position becomes harmful)
+
 ## PROCESS (Follow this order)
 
 ### Step 1: List the Interests
@@ -2527,24 +2539,18 @@ What kind of PRESSURE do they apply? The archetype is their FUNCTION in pressuri
 
 The outcome must FOLLOW FROM their thematic position and arc type.
 
-### Step 7: Psychology Level
+### Step 7: Full Psychology for All Stakeholder Characters
 
-**Full psychology** (wound, lie, want, need, coping, arc, voice):
-- Characters who get POV scenes
-- Characters who undergo transformation (arc_type: transformation)
-- Characters whose arc carries significant thematic weight
+All stakeholder characters get full psychology (wound, lie, want, need, coping_mechanism, vice, arc, voice).
+
+This ensures every faced character has:
+- A wound that connects to the theme
+- A lie that justifies their thematic position
+- A vice that shapes how they act on that position
+- An arc that tests their belief
 - MINIMUM 3 moments required to show arc progression
 
-**Partial psychology** (want, stake, method, thematic_position, pressure_mechanism):
-- Multiple appearances
-- Make plot-affecting choices
-- Clear thematic position but no transformation
-- Arc type is usually "hardening"
-
-**Minimal** (name, role, function, appearance_context):
-- Single appearance
-- Pure function (messenger, obstacle, mirror)
-- No personal arc
+No partial or minimal characters. If a character doesn't warrant full psychology, they should be faceless or consolidated with another character.
 
 ### Step 8: External Beat Mapping
 
@@ -2560,7 +2566,7 @@ Map characters to external beats to ensure they're integrated with the world's e
 
 ### Step 9: Thematic Test Moments
 
-Every character with full or partial psychology gets moments that TEST THEIR BELIEF.
+Every stakeholder character gets moments that TEST THEIR BELIEF.
 
 A thematic test moment:
 - Challenges what they believe about the theme
@@ -2592,6 +2598,7 @@ Full psychology characters need AT LEAST 3 moments:
     {
       "name": "Full name",
       "interest": "Which interest they represent",
+      "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
       // Thematic engagement:

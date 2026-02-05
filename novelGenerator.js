@@ -2252,7 +2252,7 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('Executing Phase 3: Character Action Grid...')
 
   const userPrompt = buildPhase3UserPrompt(concept, phase1, phase2)
-  const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
+  const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt, { maxTokens: 32768 })
   const parsed = parseJSON(response)
 
   if (!parsed.success) {

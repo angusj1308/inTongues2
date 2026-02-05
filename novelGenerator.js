@@ -755,9 +755,7 @@ CONFLICT
 
 THEME
 - Tension: A tension between two moral values central and relevant to the story, in "X vs Y" format
-- Both priorities must be genuinely defensible — neither is simply wrong
-- NOT abstract concept nouns (blood, birthright, fate, choice) — these aren't priorities anyone lives by
-- YES actionable values (loyalty, safety, duty, truth, freedom, family, honor) — things a person chooses to prioritize
+- Both values must be genuinely defensible — neither is simply wrong
 - Simple enough to state in 2-4 words total (e.g., "duty vs truth", "safety vs freedom", "loyalty vs justice")
 - A tension that characters can take sides on and that every major decision in the story tests
 - Explored through: How the romance embodies this tension

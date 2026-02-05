@@ -754,13 +754,14 @@ CONFLICT
 - Internal: What psychological barrier keeps them apart?
 
 THEME
-- Tension: A tension between two moral values central and relevant to the story, in "X vs Y" format
-- Both values must be genuinely defensible — neither is simply wrong
-- Simple enough to state in 2-4 words total (e.g., "duty vs truth", "safety vs freedom", "loyalty vs justice")
-- A tension that characters can take sides on and that every major decision in the story tests
-- Explored through: How the romance embodies this tension
+Pick two values from this list that best represent the protagonist's central conflict — the two things they are torn between:
 
-The tension should emerge from what's already in the concept. Every character will have a position on this tension.
+Accountability, Acceptance, Adventure, Ambition, Authenticity, Charity, Chivalry, Commitment, Community, Compassion, Connection, Courage, Creativity, Curiosity, Devotion, Dignity, Discipline, Duty, Empathy, Equality, Faith, Fairness, Family, Forgiveness, Freedom, Generosity, Grace, Gratitude, Grit, Hard Work, Harmony, Honor, Honesty, Hope, Hospitality, Humility, Independence, Integrity, Justice, Kindness, Legacy, Liberty, Love, Loyalty, Mastery, Mercy, Moderation, Obedience, Passion, Patience, Peace, Perseverance, Power, Protection, Respect, Responsibility, Sacrifice, Safety, Security, Self-Reliance, Service, Simplicity, Stability, Stewardship, Strength, Tradition, Trust, Truth, Unity, Wisdom
+
+- Format: "X vs Y" (e.g., "duty vs love", "loyalty vs justice", "security vs freedom")
+- Both values must be genuinely defensible — neither is simply wrong
+- The protagonist is torn between these two values — this is the core dilemma they cannot resolve until the climax
+- Every major decision in the story tests this tension
 
 EXTERNAL PLOT
 Every romance rides on an external wave - something happening in the world independent of the characters falling in love. This creates pressure, deadlines, and structure.

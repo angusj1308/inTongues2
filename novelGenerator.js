@@ -1244,6 +1244,17 @@ You will receive:
 - The user's original concept
 - Phase 1 output (subgenre, tropes, conflict, theme, ending, tone, timespan, POV, premise, external_plot, romance_arc_stages)
 
+## VICE (REQUIRED FOR ALL CHARACTERS)
+
+Every character with psychology (protagonist, love interests, AND stakeholder characters) MUST have a vice — the behavioral flaw that emerges from their lie.
+
+Pick from this list:
+Pride, Vanity, Ambition, Greed, Envy, Jealousy, Possessiveness, Controlling, Domineering, Cowardice, Denial, Evasion, Self-Deception, Willful Ignorance, Escapism, Wrath, Bitterness, Resentment, Cruelty, Spite, Vindictiveness, Vengefulness, Gluttony, Lust, Sloth, Hedonism, Recklessness, Impulsiveness, Manipulation, Deception, Betrayal, Disloyalty, Coldness, Indifference, Callousness, Stubbornness, Obstinacy, Judgmentalism, Self-Righteousness, Fanaticism, Intolerance, Self-Pity, Martyrdom, Insecurity, Arrogance, Narcissism, Covetousness, Dishonesty, Hypocrisy, Corruption, Opportunism
+
+The vice must:
+- Flow from the character's lie (the lie justifies the vice)
+- Shape how they act on their thematic position
+
 ## PART 1: ROMANTIC LEADS
 
 Phase 1 defines a POV structure (Single, Dual-Alternating, Multiple). Every POV character needs full psychology.
@@ -1501,6 +1512,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
     }
   ],
 
+  // EVERY stakeholder character MUST have ALL fields below. No partial characters. No exceptions.
   "stakeholder_characters": [
     {
       "name": "Full name",
@@ -1508,7 +1520,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
       "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
-      // Thematic engagement:
+      // Thematic engagement (required):
       "thematic_position": "What they believe about the Phase 1 theme tension",
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
@@ -1585,16 +1597,6 @@ THE LIE CREATES THE COPING MECHANISM:
 
 THE COPING MECHANISM IS BOTH FLAW AND VIRTUE:
 - Same trait, two expressions
-
-VICE
-Every character with full psychology must have a vice — the behavioral flaw that emerges from their lie and shapes how they act on their thematic position.
-
-Pick from this list:
-Pride, Vanity, Ambition, Greed, Envy, Jealousy, Possessiveness, Controlling, Domineering, Cowardice, Denial, Evasion, Self-Deception, Willful Ignorance, Escapism, Wrath, Bitterness, Resentment, Cruelty, Spite, Vindictiveness, Vengefulness, Gluttony, Lust, Sloth, Hedonism, Recklessness, Impulsiveness, Manipulation, Deception, Betrayal, Disloyalty, Coldness, Indifference, Callousness, Stubbornness, Obstinacy, Judgmentalism, Self-Righteousness, Fanaticism, Intolerance, Self-Pity, Martyrdom, Insecurity, Arrogance, Narcissism, Covetousness, Dishonesty, Hypocrisy, Corruption, Opportunism
-
-The vice must:
-- Flow from the character's lie (the lie justifies the vice)
-- Shape how they act on their thematic position (the vice is how the position becomes harmful)
 
 WOUNDS CONNECT TO THEME:
 - All characters' wounds should relate to the Phase 1 theme
@@ -2594,6 +2596,7 @@ Full psychology characters need AT LEAST 3 moments:
     }
   ],
 
+  // EVERY stakeholder character MUST have ALL fields below. No partial characters. No exceptions.
   "stakeholder_characters": [
     {
       "name": "Full name",
@@ -2601,7 +2604,7 @@ Full psychology characters need AT LEAST 3 moments:
       "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
-      // Thematic engagement:
+      // Thematic engagement (required):
       "thematic_position": "What they believe about the Phase 1 theme tension",
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",

@@ -1517,7 +1517,6 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
     {
       "name": "Full name",
       "interest": "Which interest they represent",
-      "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
       // Thematic engagement (required):
@@ -1795,14 +1794,13 @@ async function executePhase2(concept, phase1, lengthPreset) {
 
   // Validate stakeholder characters have required fields
   for (const char of data.stakeholder_characters) {
-    if (!char.name || !char.psychology_level) {
-      throw new Error(`Stakeholder character missing required fields (name, psychology_level): ${JSON.stringify(char).slice(0, 100)}`)
+    if (!char.name) {
+      throw new Error(`Stakeholder character missing required field (name): ${JSON.stringify(char).slice(0, 100)}`)
     }
   }
 
-  // Validate thematic fields for faced characters (full and partial)
-  const facedChars = data.stakeholder_characters.filter(c => c.psychology_level !== 'minimal')
-  const missingThematic = facedChars.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
+  // Validate thematic fields for all stakeholder characters
+  const missingThematic = data.stakeholder_characters.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
   if (missingThematic.length > 0) {
     console.warn('Phase 2 WARNING: Faced characters missing thematic fields:')
     missingThematic.forEach(c => {
@@ -1814,11 +1812,6 @@ async function executePhase2(concept, phase1, lengthPreset) {
       console.warn(`  - ${c.name}: missing ${missing.join(', ')}`)
     })
   }
-
-  // Count by psychology level
-  const fullChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
-  const partialChars = data.stakeholder_characters.filter(c => c.psychology_level === 'partial')
-  const minimalChars = data.stakeholder_characters.filter(c => c.psychology_level === 'minimal')
 
   // Console logging
   console.log('Phase 2 complete.')
@@ -1838,17 +1831,8 @@ async function executePhase2(concept, phase1, lengthPreset) {
   console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
 
   console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
-  console.log(`    Full psychology: ${fullChars.length}`)
-  fullChars.forEach(c => {
-    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
-  })
-  console.log(`    Partial psychology: ${partialChars.length}`)
-  partialChars.forEach(c => {
-    console.log(`      - ${c.name}: archetype="${c.archetype}"`)
-  })
-  console.log(`    Minimal: ${minimalChars.length}`)
-  minimalChars.forEach(c => {
-    console.log(`      - ${c.name}: ${c.function || c.interest}`)
+  data.stakeholder_characters.forEach(c => {
+    console.log(`    - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
   })
 
   console.log(`  Faceless pressures: ${data.faceless_pressures.length}`)
@@ -2158,7 +2142,6 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
     allCharacters.push({
       name: sc.name,
       type: 'stakeholder',
-      psychology_level: sc.psychology_level,
       archetype: sc.archetype,
       thematic_position: sc.thematic_position,
       thematic_test: sc.thematic_test,
@@ -2221,7 +2204,7 @@ ${allCharacters.filter(c => c.type === 'protagonist' || c.type === 'love_interes
 ## STAKEHOLDER CHARACTERS — THEMATIC TESTS AND ARC OUTCOMES
 
 ${allCharacters.filter(c => c.type === 'stakeholder').map(c => {
-  return `**${c.name}** (${c.psychology_level}, ${c.archetype})
+  return `**${c.name}** (${c.archetype})
   - Position: "${c.thematic_position}"
   - Test: "${c.thematic_test}" ← MUST appear as visible action in grid
   - Arc: ${c.arc_type} → ${c.arc_outcome} ← Final beat actions must reflect this outcome`
@@ -2235,7 +2218,7 @@ ${allCharacters.map(c => {
   } else if (c.type === 'love_interest') {
     return `**${c.name}** (${c.role} LOVE INTEREST)`
   } else {
-    return `**${c.name}** (${c.psychology_level} STAKEHOLDER)`
+    return `**${c.name}** (STAKEHOLDER)`
   }
 }).join('\n')}
 
@@ -2601,7 +2584,6 @@ Full psychology characters need AT LEAST 3 moments:
     {
       "name": "Full name",
       "interest": "Which interest they represent",
-      "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
       // Thematic engagement (required):
@@ -2739,9 +2721,7 @@ function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
   ).join('\n') || 'No external beats defined'
 
   // Complexity guide
-  const fullCount = lengthPreset === 'novella' ? '1-3' : '2-4'
-  const partialCount = lengthPreset === 'novella' ? '2-4' : '3-6'
-  const minimalCount = lengthPreset === 'novella' ? '1-3' : '2-4'
+  const stakeholderCount = lengthPreset === 'novella' ? '3-5' : '4-8'
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -2815,9 +2795,8 @@ Each moment needs thematic_function AND external_beat (if applicable).
 
 ### Complexity Guide for ${lengthPreset}
 
-- Full psychology characters: ${fullCount} (EACH needs 3+ thematic test moments)
-- Partial psychology characters: ${partialCount}
-- Minimal characters: ${minimalCount}
+- Stakeholder characters (all with full psychology): ${stakeholderCount}
+- Each stakeholder character needs 3+ thematic test moments
 
 Remember: Love interests are NOT stakeholder characters - they're already in Phase 2 as love_interests.
 Do NOT produce a master timeline - Phase 5 handles timeline assembly.
@@ -2861,37 +2840,34 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
 
   // Validate stakeholder characters have required fields
   for (const char of data.stakeholder_characters) {
-    if (!char.name || !char.psychology_level) {
-      throw new Error(`Stakeholder character missing required fields (name, psychology_level): ${JSON.stringify(char).slice(0, 100)}`)
+    if (!char.name) {
+      throw new Error(`Stakeholder character missing required field (name): ${JSON.stringify(char).slice(0, 100)}`)
     }
   }
 
-  // Check that characters with full/partial psychology have moments
-  const charsNeedingMoments = data.stakeholder_characters.filter(c => c.psychology_level !== 'minimal')
+  // Check that all stakeholder characters have moments
   const momentCharacters = new Set((data.character_moments || []).map(m => m.character))
-  const missingMoments = charsNeedingMoments.filter(c => !momentCharacters.has(c.name))
+  const missingMoments = data.stakeholder_characters.filter(c => !momentCharacters.has(c.name))
   if (missingMoments.length > 0) {
     console.warn(`Phase 4 WARNING: Characters without moments: ${missingMoments.map(c => c.name).join(', ')}`)
   }
 
-  // Validate full psychology characters have minimum 3 moments for arc progression
-  const fullPsychChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
+  // Validate all stakeholder characters have minimum 3 moments for arc progression
   const momentCounts = {}
   for (const moment of (data.character_moments || [])) {
     momentCounts[moment.character] = (momentCounts[moment.character] || 0) + 1
   }
-  const insufficientMoments = fullPsychChars.filter(c => (momentCounts[c.name] || 0) < 3)
+  const insufficientMoments = data.stakeholder_characters.filter(c => (momentCounts[c.name] || 0) < 3)
   if (insufficientMoments.length > 0) {
-    console.warn(`Phase 4 WARNING: Full psychology characters with fewer than 3 moments (need established → tested → outcome):`)
+    console.warn(`Phase 4 WARNING: Stakeholder characters with fewer than 3 moments (need established → tested → outcome):`)
     insufficientMoments.forEach(c => {
       const count = momentCounts[c.name] || 0
       console.warn(`  - ${c.name}: ${count} moment(s) — needs at least 3 for arc progression`)
     })
   }
 
-  // Validate thematic fields for faced characters (full and partial)
-  const facedChars = data.stakeholder_characters.filter(c => c.psychology_level !== 'minimal')
-  const missingThematic = facedChars.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
+  // Validate thematic fields for all stakeholder characters
+  const missingThematic = data.stakeholder_characters.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
   if (missingThematic.length > 0) {
     console.warn(`Phase 4 WARNING: Faced characters missing thematic fields (thematic_position, archetype, arc_type, arc_outcome):`)
     missingThematic.forEach(c => {
@@ -2904,17 +2880,12 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
     })
   }
 
-  // Validate pressure_mechanism for faced characters
-  const missingPressure = facedChars.filter(c => !c.pressure_mechanism)
+  // Validate pressure_mechanism for all stakeholder characters
+  const missingPressure = data.stakeholder_characters.filter(c => !c.pressure_mechanism)
   if (missingPressure.length > 0) {
     console.warn(`Phase 4 WARNING: Faced characters missing pressure_mechanism:`)
     missingPressure.forEach(c => console.warn(`  - ${c.name}`))
   }
-
-  // Count by psychology level
-  const fullChars = data.stakeholder_characters.filter(c => c.psychology_level === 'full')
-  const partialChars = data.stakeholder_characters.filter(c => c.psychology_level === 'partial')
-  const minimalChars = data.stakeholder_characters.filter(c => c.psychology_level === 'minimal')
 
   // Console logging
   console.log('Phase 4 complete.')
@@ -2924,19 +2895,9 @@ async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
   console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
 
   console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
-  console.log(`    Full psychology: ${fullChars.length}`)
-  fullChars.forEach(c => {
+  data.stakeholder_characters.forEach(c => {
     const moments = momentCounts[c.name] || 0
-    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}", moments=${moments}`)
-    console.log(`        thematic_position: "${c.thematic_position}"`)
-  })
-  console.log(`    Partial psychology: ${partialChars.length}`)
-  partialChars.forEach(c => {
-    console.log(`      - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
-  })
-  console.log(`    Minimal: ${minimalChars.length}`)
-  minimalChars.forEach(c => {
-    console.log(`      - ${c.name}: ${c.function || c.interest}`)
+    console.log(`    - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}", moments=${moments}`)
   })
 
   console.log(`  Character moments: ${data.character_moments?.length || 0}`)
@@ -3119,7 +3080,7 @@ function buildCastList(phase2, phase4) {
   phase4.stakeholder_characters?.forEach(c => {
     cast.push({
       name: c.name,
-      role: `stakeholder_${c.psychology_level}`,
+      role: 'stakeholder',
       brief: c.interest || c.personal_want || c.function
     })
   })
@@ -3162,11 +3123,9 @@ Interest: ${character.interest || 'none specified'}
 Personal want: ${character.personal_want || 'none specified'}
 Archetype: ${character.archetype || 'none specified'}
 Connected to: ${character.connected_to || 'unspecified'}
-Psychology level: ${character.psychology_level}
-${character.psychology_level === 'full' ? `Wound: ${character.wound || 'none'}
+Wound: ${character.wound || 'none'}
 Lie: ${character.lie || 'none'}
-Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}` : `Stake: ${character.stake || 'none'}
-Method: ${character.method || 'none'}`}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
 
 ## CURRENT TIMELINE
 
@@ -3202,11 +3161,9 @@ Interest: ${character.interest || 'none specified'}
 Personal want: ${character.personal_want || 'none specified'}
 Archetype: ${character.archetype || 'none specified'}
 Connected to: ${character.connected_to || 'unspecified'}
-Psychology level: ${character.psychology_level}
-${character.psychology_level === 'full' ? `Wound: ${character.wound || 'none'}
+Wound: ${character.wound || 'none'}
 Lie: ${character.lie || 'none'}
-Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}` : `Stake: ${character.stake || 'none'}
-Method: ${character.method || 'none'}`}
+Arc: ${character.arc?.starts || '?'} → ${character.arc?.ends || '?'}
 Outcome: ${character.outcome || 'unspecified'}
 
 ## CURRENT APPEARANCES
@@ -3225,8 +3182,7 @@ ${timelineSummary}
 ${castList.map(c => `- ${c.name} (${c.role}): ${c.brief}`).join('\n')}
 
 Analyze if ${character.name} needs additional subplot moments for their arc to complete.
-If they have psychology_level "partial", they likely don't need their own moments - just presence.
-If they have psychology_level "full", they likely need 2-4 moments of their own.`
+Stakeholder characters typically need 2-4 moments of their own for arc progression.`
 
   const response = await callOpenAI(PHASE_5_SUBPLOT_PROMPT, userPrompt)
   const parsed = parseJSON(response)
@@ -3434,7 +3390,7 @@ Protagonist: ${phase2.protagonist?.name}
 Love Interests: ${phase2.love_interests?.map(li => li.name).join(', ')}
 
 Stakeholder Characters:
-${phase4.stakeholder_characters?.map(c => `- ${c.name} (${c.psychology_level}): ${c.interest}`).join('\n')}
+${phase4.stakeholder_characters?.map(c => `- ${c.name}: ${c.interest}`).join('\n')}
 
 ## CHARACTER APPEARANCES IN TIMELINE (counted from timeline data - single source of truth)
 
@@ -3491,7 +3447,7 @@ function buildCharacterArcs(timeline, phase2, phase4) {
   const allCharacters = [
     { name: phase2.protagonist?.name, role: 'protagonist' },
     ...(phase2.love_interests?.map(li => ({ name: li.name, role: 'love_interest' })) || []),
-    ...(phase4.stakeholder_characters?.map(c => ({ name: c.name, role: `stakeholder_${c.psychology_level}` })) || [])
+    ...(phase4.stakeholder_characters?.map(c => ({ name: c.name, role: 'stakeholder' })) || [])
   ]
 
   for (const char of allCharacters) {
@@ -3535,48 +3491,20 @@ async function executePhase5(concept, phase1, phase2, phase3, phase4, lengthPres
   const castList = buildCastList(phase2, phase4)
   console.log(`  Full cast: ${castList.length} characters`)
 
-  // Get characters to process (full psychology first, then partial, then minimal)
-  const fullCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'full') || []
-  const partialCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'partial') || []
-  const minimalCast = phase4.stakeholder_characters?.filter(c => c.psychology_level === 'minimal') || []
+  // Get all stakeholder characters to process
+  const stakeholderCast = phase4.stakeholder_characters || []
 
-  console.log(`  Processing ${fullCast.length} full + ${partialCast.length} partial + ${minimalCast.length} minimal characters...`)
+  console.log(`  Processing ${stakeholderCast.length} stakeholder characters...`)
 
   // Store all presence data for arc tracking
   const allPresenceData = []
 
-  // Process full psychology characters (presence mapping only - arc moments come from Phase 4)
-  for (const character of fullCast) {
-    console.log(`    Processing ${character.name} (full)...`)
+  // Process all stakeholder characters (presence mapping - arc moments come from Phase 4)
+  for (const character of stakeholderCast) {
+    console.log(`    Processing ${character.name}...`)
 
-    // Presence mapping only - full psychology characters get their arc moments from Phase 4,
+    // Presence mapping - stakeholder characters get their arc moments from Phase 4,
     // not from Phase 5 subplot generation (which would create duplicates)
-    const presenceData = await processCharacterPresence(character, timeline, castList)
-    allPresenceData.push(presenceData)
-    console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
-
-    // Add presence to timeline
-    timeline = addPresenceToTimeline(timeline, presenceData)
-  }
-
-  // Process partial psychology characters (presence only, no new moments)
-  for (const character of partialCast) {
-    console.log(`    Processing ${character.name} (partial)...`)
-
-    // Step A only: Presence mapping
-    const presenceData = await processCharacterPresence(character, timeline, castList)
-    allPresenceData.push(presenceData)
-    console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
-
-    // Add presence to timeline
-    timeline = addPresenceToTimeline(timeline, presenceData)
-  }
-
-  // Process minimal psychology characters (presence only - they still have decisive moments)
-  for (const character of minimalCast) {
-    console.log(`    Processing ${character.name} (minimal)...`)
-
-    // Presence mapping - minimal characters may appear at moments relevant to their function
     const presenceData = await processCharacterPresence(character, timeline, castList)
     allPresenceData.push(presenceData)
     console.log(`      - Found ${presenceData.presence?.length || 0} presence points`)
@@ -3754,7 +3682,7 @@ function buildPhase6UserPrompt(concept, phase1, phase2, phase4, phase5) {
     phase2.love_interests.forEach(li => castNames.push(`${li.name} (love interest)`))
   }
   if (phase4.stakeholder_characters) {
-    phase4.stakeholder_characters.forEach(c => castNames.push(`${c.name} (${c.psychology_level})`))
+    phase4.stakeholder_characters.forEach(c => castNames.push(`${c.name} (stakeholder)`))
   }
 
   // Build timeline summary from Phase 5
@@ -4061,7 +3989,7 @@ function buildPhase7EventPrompt(event, eventType, phase1, phase2, phase4, phase5
   }
 
   if (phase4.stakeholder_characters) {
-    phase4.stakeholder_characters.filter(c => c.psychology_level === 'full').forEach(c => {
+    phase4.stakeholder_characters.forEach(c => {
       characterPsychology.push(`STAKEHOLDER (${c.name}):
   Interest: ${c.interest || 'not specified'}
   Psychology: ${c.psychology || 'not specified'}`)

@@ -1505,6 +1505,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
     {
       "name": "Full name",
       "interest": "Which interest they represent",
+      "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
       // Thematic engagement:
@@ -2597,6 +2598,7 @@ Full psychology characters need AT LEAST 3 moments:
     {
       "name": "Full name",
       "interest": "Which interest they represent",
+      "psychology_level": "full",
       "connected_to": "Which POV character(s)",
 
       // Thematic engagement:

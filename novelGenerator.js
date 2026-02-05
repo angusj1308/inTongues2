@@ -754,8 +754,8 @@ CONFLICT
 - Internal: What psychological barrier keeps them apart?
 
 THEME
-- Tension: Two competing values in "X vs Y" format
-- Both values must be genuinely defensible — neither is simply wrong
+- Tension: Two competing priorities that a person could genuinely live by, in "X vs Y" format
+- Both priorities must be genuinely defensible — neither is simply wrong
 - Simple enough to state in 2-4 words total (e.g., "duty vs truth", "safety vs freedom", "loyalty vs justice")
 - A tension that characters can take sides on and that every major decision in the story tests
 - Explored through: How the romance embodies this tension

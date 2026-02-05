@@ -1268,6 +1268,7 @@ Phase 1 defines a POV structure (Single, Dual-Alternating, Multiple). Every POV 
       "as_flaw": "How this behaviour sabotages them",
       "as_virtue": "How this same behaviour serves them"
     },
+    "vice": "The behavioral flaw that emerges from their lie (from vice list)",
     "arc": {
       "starts": "Who they are at the beginning",
       "ends": "Who they become"
@@ -1290,6 +1291,7 @@ Phase 1 defines a POV structure (Single, Dual-Alternating, Multiple). Every POV 
       "want": "...",
       "need": "...",
       "coping_mechanism": { ... },
+      "vice": "...",
       "arc": { ... },
       "voice": { ... }
     }
@@ -1446,23 +1448,17 @@ What kind of PRESSURE do they apply? The archetype is their FUNCTION in pressuri
 
 The outcome must FOLLOW FROM their thematic position and arc type.
 
-**Step 7: Psychology Level**
+**Step 7: Full Psychology for All Stakeholder Characters**
 
-**Full psychology** (wound, lie, want, need, coping, arc, voice):
-- Characters who get POV scenes
-- Characters who undergo transformation (arc_type: transformation)
-- Characters whose arc carries significant thematic weight
+All stakeholder characters get full psychology (wound, lie, want, need, coping_mechanism, vice, arc, voice).
 
-**Partial psychology** (want, stake, method, thematic_position, pressure_mechanism):
-- Multiple appearances
-- Make plot-affecting choices
-- Clear thematic position but no transformation
-- Arc type is usually "hardening"
+This ensures every faced character has:
+- A wound that connects to the theme
+- A lie that justifies their thematic position
+- A vice that shapes how they act on that position
+- An arc that tests their belief
 
-**Minimal** (name, role, function, appearance_context):
-- Single appearance
-- Pure function (messenger, obstacle, mirror)
-- No personal arc
+No partial or minimal characters. If a character doesn't warrant full psychology, they should be faceless or consolidated with another character.
 
 **Step 8: External Beat Mapping**
 
@@ -1509,11 +1505,9 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
     {
       "name": "Full name",
       "interest": "Which interest they represent",
-      "personal_want": "What they want for themselves",
-      "psychology_level": "full | partial | minimal",
       "connected_to": "Which POV character(s)",
 
-      // ALL faced characters (full and partial):
+      // Thematic engagement:
       "thematic_position": "What they believe about the Phase 1 theme tension",
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
@@ -1522,16 +1516,21 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
       "pressure_mechanism": "How they reach and pressure protagonists (must be plausible)",
       "thematic_test": "What challenges their belief",
 
-      // Full psychology only:
-      "wound": "Their formative hurt (full only)",
-      "lie": "Their false belief (full only)",
-      "want": "What they pursue (full only)",
-      "need": "What they actually need (full only)",
+      // Full psychology (required for all stakeholder characters):
+      "wound": {
+        "event": "What specifically happened to them",
+        "who_caused_it": "Person responsible or null",
+        "age": "When it happened"
+      },
+      "lie": "The false belief formed because of the wound",
+      "want": "What they're consciously pursuing",
+      "need": "What they actually need",
       "coping_mechanism": {
         "behaviour": "How they cope",
         "as_flaw": "How it hurts them",
         "as_virtue": "How it helps them"
       },
+      "vice": "The behavioral flaw from the vice list that emerges from their lie",
       "arc": {
         "starts": "Who they are at start",
         "ends": "Who they become"
@@ -1540,18 +1539,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
         "register": "How they speak",
         "patterns": "Speech habits",
         "tells": "Emotional reveals"
-      },
-
-      // Partial psychology only:
-      "stake": "What they stand to gain/lose (partial only)",
-      "method": "How they pursue their want (partial only)",
-
-      // All levels:
-      "outcome": "How their arc resolves - must follow from thematic choice",
-
-      // Minimal only:
-      "function": "Their single story function (minimal only)",
-      "appearance_context": "When/where they appear (minimal only)"
+      }
     }
   ],
 
@@ -1568,7 +1556,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
 
 1. Characters must have THEMATIC POSITIONS, not just plot functions.
 2. Characters must PASS THE PROXIMITY TEST - will they share physical space with a POV character in 3+ beats? If not, make them faceless.
-3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
+3. All stakeholder characters get FULL PSYCHOLOGY including vice. No partial or minimal characters.
 4. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
 5. Consolidate aggressively - one character serving multiple interests is better than many thin characters.
 6. Thematic importance does NOT override proximity failure. Distant antagonists become faceless forces.
@@ -1597,6 +1585,16 @@ THE LIE CREATES THE COPING MECHANISM:
 THE COPING MECHANISM IS BOTH FLAW AND VIRTUE:
 - Same trait, two expressions
 
+VICE
+Every character with full psychology must have a vice — the behavioral flaw that emerges from their lie and shapes how they act on their thematic position.
+
+Pick from this list:
+Pride, Vanity, Ambition, Greed, Envy, Jealousy, Possessiveness, Controlling, Domineering, Cowardice, Denial, Evasion, Self-Deception, Willful Ignorance, Escapism, Wrath, Bitterness, Resentment, Cruelty, Spite, Vindictiveness, Vengefulness, Gluttony, Lust, Sloth, Hedonism, Recklessness, Impulsiveness, Manipulation, Deception, Betrayal, Disloyalty, Coldness, Indifference, Callousness, Stubbornness, Obstinacy, Judgmentalism, Self-Righteousness, Fanaticism, Intolerance, Self-Pity, Martyrdom, Insecurity, Arrogance, Narcissism, Covetousness, Dishonesty, Hypocrisy, Corruption, Opportunism
+
+The vice must:
+- Flow from the character's lie (the lie justifies the vice)
+- Shape how they act on their thematic position (the vice is how the position becomes harmful)
+
 WOUNDS CONNECT TO THEME:
 - All characters' wounds should relate to the Phase 1 theme
 
@@ -1613,9 +1611,9 @@ CONSOLIDATE AGGRESSIVELY:
 - Look for opportunities to combine characters who would occupy similar spaces
 - Fewer, richer characters beat more, thinner ones
 
-PSYCHOLOGY LEVEL MATCHES FUNCTION:
-- Don't give full wound/lie/arc to a messenger
-- Full psychology only for characters who transform
+ALL STAKEHOLDER CHARACTERS GET FULL PSYCHOLOGY:
+- Every faced character needs wound, lie, want, need, coping_mechanism, vice, arc, voice
+- If a character doesn't warrant full psychology, make them faceless or consolidate
 
 PROXIMITY IS PARAMOUNT:
 - Faced characters must share physical space with POV character in 3+ beats
@@ -1636,9 +1634,7 @@ function buildPhase2UserPrompt(concept, phase1, lengthPreset) {
   ).join('\n') || 'No external beats defined'
 
   // Complexity guide based on length
-  const fullCount = lengthPreset === 'novella' ? '1-2' : '2-4'
-  const partialCount = lengthPreset === 'novella' ? '2-3' : '3-6'
-  const minimalCount = lengthPreset === 'novella' ? '1-3' : '2-4'
+  const stakeholderCount = lengthPreset === 'novella' ? '2-4' : '4-8'
 
   return `ORIGINAL CONCEPT: ${concept}
 
@@ -1684,9 +1680,7 @@ Map characters to these beats - they shouldn't float in a vacuum. Each character
 
 ### Complexity Guide for ${lengthPreset}
 
-- Full psychology stakeholder characters: ${fullCount}
-- Partial psychology stakeholder characters: ${partialCount}
-- Minimal characters: ${minimalCount}
+- Stakeholder characters (all with full psychology): ${stakeholderCount}
 
 ### PROCESS (Follow the 9 steps from the system prompt)
 
@@ -2598,11 +2592,9 @@ Full psychology characters need AT LEAST 3 moments:
     {
       "name": "Full name",
       "interest": "Which interest they represent",
-      "personal_want": "What they want for themselves",
-      "psychology_level": "full | partial | minimal",
       "connected_to": "Which POV character(s)",
 
-      // ALL faced characters (full and partial):
+      // Thematic engagement:
       "thematic_position": "What they believe about the Phase 1 theme tension",
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
@@ -2611,16 +2603,21 @@ Full psychology characters need AT LEAST 3 moments:
       "pressure_mechanism": "How they reach and pressure protagonists (must be plausible)",
       "thematic_test": "What challenges their belief",
 
-      // Full psychology only:
-      "wound": "Their formative hurt (full only)",
-      "lie": "Their false belief (full only)",
-      "want": "What they pursue (full only)",
-      "need": "What they actually need (full only)",
+      // Full psychology (required for all stakeholder characters):
+      "wound": {
+        "event": "What specifically happened to them",
+        "who_caused_it": "Person responsible or null",
+        "age": "When it happened"
+      },
+      "lie": "The false belief formed because of the wound",
+      "want": "What they're consciously pursuing",
+      "need": "What they actually need",
       "coping_mechanism": {
         "behaviour": "How they cope",
         "as_flaw": "How it hurts them",
         "as_virtue": "How it helps them"
       },
+      "vice": "The behavioral flaw from the vice list that emerges from their lie",
       "arc": {
         "starts": "Who they are at start",
         "ends": "Who they become"
@@ -2629,18 +2626,7 @@ Full psychology characters need AT LEAST 3 moments:
         "register": "How they speak",
         "patterns": "Speech habits",
         "tells": "Emotional reveals"
-      },
-
-      // Partial psychology only:
-      "stake": "What they stand to gain/lose (partial only)",
-      "method": "How they pursue their want (partial only)",
-
-      // All levels:
-      "outcome": "How their arc resolves - must follow from thematic choice",
-
-      // Minimal only:
-      "function": "Their single story function (minimal only)",
-      "appearance_context": "When/where they appear (minimal only)"
+      }
     }
   ],
 

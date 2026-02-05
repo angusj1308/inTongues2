@@ -1331,46 +1331,76 @@ Characters who just perform plot functions without thematic engagement are hollo
 
 ### PROCESS (Follow this order)
 
-**Step 1: List the Interests**
+**Step 1: List the Interests (Protagonist-Facing)**
 
-Look at the situation from Phase 1 (concept, external_plot). Ask:
-- Who benefits from the status quo?
-- Who is threatened by the protagonists' choices?
-- Who has history with the POV characters?
-- Who represents institutions or groups relevant to the setting?
-- Who has power over the POV characters?
-- Who is affected by the events of the story?
+Start from the protagonists' daily life and work outward. Ask these questions IN ORDER:
 
-List each interest as a force/pressure/stake - NOT as a character yet.
+1. **Who is in the protagonists' daily physical world?**
+   - People they live with, work with, see regularly
+   - People in their neighborhood, workplace, social circle
+   - People who share their physical spaces
 
-**Step 2: Pressure Mechanism Check (BEFORE face/faceless decision)**
+2. **Who has a personal relationship with them?**
+   - Family members (by blood or chosen)
+   - Friends, rivals, ex-lovers
+   - Mentors, protégés, colleagues with personal history
 
-For each interest, ask:
-- How would this interest pressure the protagonists?
-- Can it PLAUSIBLY REACH them given story circumstances?
-- What is the mechanism of contact?
+3. **Who will the external plot force into direct contact with them?**
+   - People the plot brings to their doorstep
+   - People they must seek out to achieve their goals
+   - People whose paths will physically cross theirs repeatedly
 
-**LOGISTICS MATTER.** A military commander can't pressure a soldier in hiding unless:
-- They have spies/informants with access
-- They can threaten people the soldier loves
-- The soldier must eventually surface for some reason
-- They have prior relationship that creates emotional leverage
+4. **What larger forces or institutions create pressure but have no single person regularly in the protagonists' space?**
+   - Systems, laws, social expectations
+   - Organizations too large or distant to personify
+   - Threats that work through consequences rather than presence
 
-If an interest cannot plausibly reach the protagonists, it should:
-- Remain FACELESS (pressure through systems, reputation, fear), OR
-- The face needs an ESTABLISHED CONNECTION (prior relationship, physical proximity, shared space, they come to the protagonists)
+Questions 1-3 produce candidate FACED characters. Question 4 produces candidate FACELESS forces.
+
+List each interest as a force/pressure/stake - NOT as a character yet. Note which question category it came from.
+
+**Step 2: Proximity Test (BEFORE face/faceless decision)**
+
+For each interest, ask: **"Will this character share physical space with a POV character repeatedly across the story?"**
+
+A character PASSES the proximity test if ALL of these are true:
+- Present in the protagonists' physical world REGULARLY, not occasionally
+- Will be physically present with a POV character in at least 3 beats
+- Has a personal relationship or role that creates regular contact
+
+A character FAILS the proximity test if ANY of these are true:
+- Contact would be a single scene or rare occurrence
+- Connection is institutional rather than personal (e.g., "the government" vs "the officer who lives next door")
+- Pressure is felt through consequences rather than presence
+
+**PROXIMITY IS STRICTER THAN REACHABILITY.** Almost any interest can "reach" the protagonists somehow. The question is whether they will share physical space repeatedly.
+
+Fails proximity test → faceless force. No exceptions for thematic importance.
 
 **Step 3: Face or Faceless Decision**
 
-An interest needs a face if:
-- It makes decisions that affect the plot
-- It CAN PLAUSIBLY REACH AND INTERACT with POV characters
-- It represents a thematic position that needs embodiment
+An interest GETS A FACE only if ALL of these are true:
+1. Passes the proximity test (will share physical space with POV character in 3+ beats)
+2. Has a personal connection to a POV character (not institutional/professional distance)
+3. Has personal interests that create friction with the protagonists
 
-An interest stays faceless if:
-- It works as collective/systemic pressure
-- No plausible mechanism exists for personal contact
-- The threat is atmospheric rather than interpersonal
+An interest STAYS FACELESS if ANY ONE of these is true:
+1. Fails the proximity test (won't share physical space repeatedly)
+2. Represents an institution or system rather than a personal relationship
+3. Pressure is felt through consequences rather than personal interaction
+
+**IMPORTANT:** Thematic importance does NOT override proximity failure. A distant antagonist who embodies the theme perfectly but won't share space with protagonists must be faceless. The theme can be embodied by characters who ARE proximal.
+
+**Step 3b: Consolidation Check**
+
+After making face/faceless decisions, ask: Can any faced characters be CONSOLIDATED?
+
+One character serving multiple interests is better than two characters each serving one. Look for:
+- Two interests that could logically be held by one person
+- Characters who would occupy similar spaces in the protagonists' lives
+- Opportunities to deepen one character rather than spreading thin across many
+
+Consolidate aggressively. Fewer, richer characters beat more, thinner ones.
 
 **Step 4: Thematic Position**
 
@@ -1443,6 +1473,17 @@ A character might:
 
 Map characters to external beats to ensure they're integrated with the world's events, not floating in a character vacuum.
 
+**Step 9: Screen-Time Sanity Check**
+
+After all characters are generated, review each faced character and ask:
+
+"How many beats will this character share physical space with a POV character?"
+
+- If 3+ beats: Confirmed as faced character
+- If fewer than 3 beats: Reconsider. Should this character be faceless? Can their role be consolidated with another character who IS proximal?
+
+This is a FINAL CHECK. Characters who seemed important during ideation but fail the screen-time test should be converted to faceless forces or consolidated.
+
 ## OUTPUT FORMAT
 
 {
@@ -1455,9 +1496,9 @@ Map characters to external beats to ensure they're integrated with the world's e
       "interest": "Description of the force/pressure/stake",
       "pressure_mechanism": "How this interest could pressure protagonists",
       "can_reach_protagonists": true,
-      "reach_explanation": "How/why they can or cannot make contact",
+      "reach_explanation": "Proximity assessment: Will they share physical space with POV character in 3+ beats?",
       "has_face": true,
-      "why_face": "Why this needs a character (or null if faceless)"
+      "why_face": "Why this passes proximity test and gets a character (or null if faceless)"
     }
   ],
 
@@ -1514,7 +1555,7 @@ Map characters to external beats to ensure they're integrated with the world's e
   "faceless_pressures": [
     {
       "interest": "The faceless force",
-      "why_faceless": "Why no character can plausibly embody this",
+      "why_faceless": "Why this fails the proximity test (won't share physical space with POV character in 3+ beats)",
       "how_manifests": "How it shows up in the story without a character"
     }
   ]
@@ -1523,10 +1564,11 @@ Map characters to external beats to ensure they're integrated with the world's e
 ## CRITICAL RULES
 
 1. Characters must have THEMATIC POSITIONS, not just plot functions.
-2. Characters must be able to PLAUSIBLY REACH protagonists - check logistics!
+2. Characters must PASS THE PROXIMITY TEST - will they share physical space with a POV character in 3+ beats? If not, make them faceless.
 3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
 4. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
-5. Consolidate where natural - one character can serve multiple interests.
+5. Consolidate aggressively - one character serving multiple interests is better than many thin characters.
+6. Thematic importance does NOT override proximity failure. Distant antagonists become faceless forces.
 
 ## ROMANTIC LEADS GUIDELINES
 
@@ -1563,17 +1605,19 @@ ARCS AND ENDINGS:
 
 ## SECONDARY CAST GUIDELINES
 
-CONSOLIDATE WHERE NATURAL:
-- One character can serve multiple interests
-- Don't create redundant characters
+CONSOLIDATE AGGRESSIVELY:
+- One character serving multiple interests is better than many thin characters
+- Look for opportunities to combine characters who would occupy similar spaces
+- Fewer, richer characters beat more, thinner ones
 
 PSYCHOLOGY LEVEL MATCHES FUNCTION:
 - Don't give full wound/lie/arc to a messenger
 - Full psychology only for characters who transform
 
-PLAUSIBILITY IS PARAMOUNT:
-- Characters must be able to REACH protagonists
-- Check logistics before creating
+PROXIMITY IS PARAMOUNT:
+- Faced characters must share physical space with POV character in 3+ beats
+- If they won't be physically present repeatedly, make them faceless
+- Thematic importance does NOT override proximity failure
 
 THEMATIC ENGAGEMENT:
 - Every faced character needs a position on the theme
@@ -1642,16 +1686,37 @@ Map characters to these beats - they shouldn't float in a vacuum. Each character
 - Partial psychology stakeholder characters: ${partialCount}
 - Minimal characters: ${minimalCount}
 
-### PROCESS (Follow the 8 steps from the system prompt)
+### PROCESS (Follow the 9 steps from the system prompt)
 
-1. List interests (forces/pressures/stakes - NOT characters yet)
-2. Pressure mechanism check - can each interest REACH protagonists?
-3. Face or faceless decision
-4. Thematic position for each faced character
+**Step 1: List interests PROTAGONIST-FACING (not world-facing)**
+Start from the protagonists' daily life and work outward:
+- Q1: Who is in the protagonists' daily physical world?
+- Q2: Who has a personal relationship with them?
+- Q3: Who will the external plot force into direct contact?
+- Q4: What larger forces create pressure but have no single person regularly in their space?
+Q1-3 produce candidate faced characters. Q4 produces candidate faceless forces.
+
+**Step 2: Proximity test (not just reachability)**
+For each interest ask: "Will this character share physical space with a POV character in 3+ beats?"
+- Must be REGULARLY present, not occasional
+- Must have personal relationship or role creating regular contact
+- Fails proximity → faceless. No exceptions for thematic importance.
+
+**Step 3: Face or faceless decision with CONSOLIDATION CHECK**
+Face requires ALL: passes proximity test + personal connection + personal interests creating friction
+Faceless if ANY: fails proximity OR institutional/systemic OR pressure through consequences not presence
+After decisions, check: Can any faced characters be CONSOLIDATED? One character serving multiple interests beats two thin characters.
+
+**Steps 4-8: (per system prompt)**
+4. Thematic position for faced characters
 5. Archetype (pressure role)
 6. Arc type and outcome
 7. Psychology level
 8. External beat mapping
+
+**Step 9: Screen-time sanity check**
+Review each faced character: How many beats will they share physical space with a POV character?
+If fewer than 3 → reconsider: Should they be faceless? Can they be consolidated?
 
 ## CRITICAL OUTPUT REQUIREMENTS
 
@@ -1659,7 +1724,7 @@ Your JSON output MUST include ALL of these top-level keys:
 1. protagonist (object)
 2. love_interests (array)
 3. dynamics (object with romantic and rivals arrays)
-4. interests (array - REQUIRED, minimum 3 entries with pressure_mechanism and can_reach_protagonists)
+4. interests (array - REQUIRED, minimum 3 entries with pressure_mechanism and can_reach_protagonists for proximity assessment)
 5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_beats, pressure_mechanism)
 6. faceless_pressures (array - REQUIRED, even if empty)
 

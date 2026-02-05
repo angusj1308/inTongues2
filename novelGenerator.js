@@ -754,7 +754,7 @@ CONFLICT
 - Internal: What psychological barrier keeps them apart?
 
 THEME
-- Tension: Two competing priorities that a person could genuinely live by, in "X vs Y" format
+- Tension: A tension between two moral values central and relevant to the story, in "X vs Y" format
 - Both priorities must be genuinely defensible — neither is simply wrong
 - NOT abstract concept nouns (blood, birthright, fate, choice) — these aren't priorities anyone lives by
 - YES actionable values (loyalty, safety, duty, truth, freedom, family, honor) — things a person chooses to prioritize

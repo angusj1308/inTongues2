@@ -754,10 +754,13 @@ CONFLICT
 - Internal: What psychological barrier keeps them apart?
 
 THEME
-- Core: What the story is really about (one word or short phrase)
-- Question: The thematic question the story asks
-- Explored through: How the romance embodies this theme
-The theme should emerge from what's already in the concept, not be imposed.
+- Tension: Two competing values in "X vs Y" format
+- Both values must be genuinely defensible — neither is simply wrong
+- Simple enough to state in 2-4 words total (e.g., "duty vs truth", "safety vs freedom", "loyalty vs justice")
+- A tension that characters can take sides on and that every major decision in the story tests
+- Explored through: How the romance embodies this tension
+
+The tension should emerge from what's already in the concept. Every character will have a position on this tension.
 
 EXTERNAL PLOT
 Every romance rides on an external wave - something happening in the world independent of the characters falling in love. This creates pressure, deadlines, and structure.
@@ -824,9 +827,8 @@ Step 3: Identify pressure points.
     "internal": string
   },
   "theme": {
-    "core": "What the story is really about (one word or short phrase)",
-    "question": "The thematic question the story asks",
-    "explored_through": "How the romance embodies this theme"
+    "tension": "X vs Y — two competing values (2-4 words total)",
+    "explored_through": "How the romance embodies this tension"
   },
   "external_plot": {
     "container_type": "historical_event | professional_situation | social_structure | time_bounded | competition | journey | crisis",
@@ -1184,7 +1186,7 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   console.log(`  POV: ${data.pov.person} Person, ${data.pov.structure}`)
   console.log(`  Timespan: ${data.timespan.duration}`)
   console.log(`  Ending: ${data.ending.type}`)
-  console.log(`  Theme: ${data.theme.core} — "${data.theme.question}"`)
+  console.log(`  Theme: ${data.theme.tension}`)
   console.log(`    Explored through: ${data.theme.explored_through}`)
   console.log(`  External Plot: ${ep.container_type} — "${ep.container_summary}"`)
   console.log(`    Beats: ${ep.beats.length}`)
@@ -1320,7 +1322,7 @@ Create supporting characters as THEMATIC PARTICIPANTS, not just plot functionari
 ### THE THEMATIC IMPERATIVE
 
 Every faced character must have:
-1. A POSITION on the story's central thematic question (from Phase 1)
+1. A POSITION on the story's central thematic tension (from Phase 1)
 2. An ARC TYPE (transformation or hardening)
 3. Moments that TEST their belief against the theme
 4. Mapping to EXTERNAL BEATS they embody or drive
@@ -1404,12 +1406,12 @@ Consolidate aggressively. Fewer, richer characters beat more, thinner ones.
 
 **Step 4: Thematic Position**
 
-For each FACED character, determine their position on the Phase 1 theme question.
+For each FACED character, determine their position on the Phase 1 theme tension.
 
-Examples (if theme is "Is love worth the risk of loss?"):
-- Believes love IS worth it (will be tested by witnessing loss)
-- Believes love is NOT worth it (will be tested by experiencing love)
-- Believes love is controllable (will be tested by chaos)
+Examples (if theme tension is "love vs safety"):
+- Prioritizes love over safety (will be tested when love brings danger)
+- Prioritizes safety over love (will be tested when safety means losing love)
+- Believes you can have both (will be tested by forced choice)
 
 Their position creates their LENS on events and their arc trajectory.
 
@@ -1511,7 +1513,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
       "connected_to": "Which POV character(s)",
 
       // ALL faced characters (full and partial):
-      "thematic_position": "What they believe about the Phase 1 theme question",
+      "thematic_position": "What they believe about the Phase 1 theme tension",
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
       "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
@@ -1654,7 +1656,7 @@ ${povStructure === 'Multiple' || povStructure === 'Dual-Alternating'
 Count the number of love interests implied by the concept. If it mentions "3 suitors" create 3. If "love triangle" create 2. If standard romance create 1.
 
 Ensure:
-- All wounds connect to the theme "${phase1.theme?.core || 'from Phase 1'}"
+- All wounds connect to the theme tension "${phase1.theme?.tension || 'from Phase 1'}"
 - Arcs match the ${phase1.ending?.type || 'established'} ending
 - Each love interest is distinct with different wounds
 - One love interest is marked Primary (unless tragic/open ending)
@@ -1669,10 +1671,9 @@ You MUST create the stakeholder characters. This is not optional. Your output MU
 
 ### THE THEME (characters must engage with this)
 
-**Theme Question:** "${phase1.theme?.question}"
-**Theme Core:** ${phase1.theme?.core}
+**Theme Tension:** ${phase1.theme?.tension}
 
-Every faced character needs a POSITION on this question. Their arc tests that position.
+Every faced character needs a POSITION on this tension. Their arc tests that position.
 
 ### EXTERNAL PLOT BEATS (characters can embody/drive these)
 
@@ -2017,7 +2018,7 @@ The model must NOT default toward redemption. A character defined as hardening w
 
 ### 8. Central Theme Tests Every Beat
 
-Phase 1 defines \`theme.question\` — the central question the book explores. Every beat should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
+Phase 1 defines \`theme.tension\` — a tension between two competing values (e.g., "duty vs truth"). Every beat should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
 
 The grid is not just plot choreography. It is a thematic argument across multiple characters. Each beat should advance or complicate that argument.
 
@@ -2206,7 +2207,7 @@ These are STATES the relationship moves through. Tag protagonist cells when the 
 
 ## CENTRAL THEME (CONSTRAINT)
 
-**Theme Question:** ${phase1.theme?.question || 'Not defined'}
+**Theme Tension:** ${phase1.theme?.tension || 'Not defined'}
 
 Every beat should contain at least one action where a character's thematic position is tested, reinforced, or challenged.
 
@@ -2437,7 +2438,7 @@ Your job: Create characters who ENGAGE WITH THE THEME, have real arcs, and can P
 ## THE THEMATIC IMPERATIVE
 
 Every faced character must have:
-1. A POSITION on the story's central thematic question (from Phase 1)
+1. A POSITION on the story's central thematic tension (from Phase 1)
 2. An ARC TYPE (transformation or hardening)
 3. Moments that TEST their belief against the theme
 4. Mapping to EXTERNAL BEATS they embody or drive
@@ -2492,12 +2493,12 @@ An interest stays faceless if:
 
 ### Step 4: Thematic Position
 
-For each FACED character, determine their position on the Phase 1 theme question.
+For each FACED character, determine their position on the Phase 1 theme tension.
 
-Examples (if theme is "Is love worth the risk of loss?"):
-- Believes love IS worth it (will be tested by witnessing loss)
-- Believes love is NOT worth it (will be tested by experiencing love)
-- Believes love is controllable (will be tested by chaos)
+Examples (if theme tension is "love vs safety"):
+- Prioritizes love over safety (will be tested when love brings danger)
+- Prioritizes safety over love (will be tested when safety means losing love)
+- Believes you can have both (will be tested by forced choice)
 
 Their position creates their LENS on events and their arc trajectory.
 
@@ -2601,7 +2602,7 @@ Full psychology characters need AT LEAST 3 moments:
       "connected_to": "Which POV character(s)",
 
       // ALL faced characters (full and partial):
-      "thematic_position": "What they believe about the Phase 1 theme question",
+      "thematic_position": "What they believe about the Phase 1 theme tension",
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
       "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
@@ -2762,10 +2763,9 @@ LENGTH PRESET: ${lengthPreset}
 
 ### THE THEME (characters must engage with this)
 
-**Theme Question:** "${phase1.theme?.question}"
-**Theme Core:** ${phase1.theme?.core}
+**Theme Tension:** ${phase1.theme?.tension}
 
-Every faced character needs a POSITION on this question. Their arc tests that position.
+Every faced character needs a POSITION on this tension. Their arc tests that position.
 
 ### EXTERNAL PLOT BEATS (characters can embody/drive these)
 
@@ -4131,7 +4131,7 @@ ${characterPsychology.join('\n\n')}
 
 ## THEME & EXTERNAL PLOT
 
-Theme: ${phase1.theme?.core || 'not specified'} - ${phase1.theme?.question || ''}
+Theme Tension: ${phase1.theme?.tension || 'not specified'}
 External Plot: ${phase1.external_plot?.container_type || 'not specified'}
 External Beats:
 ${phase1.external_plot?.beats?.map(b => `  ${b.order}. ${b.beat}: ${b.what_happens}`).join('\n') || '  (none)'}

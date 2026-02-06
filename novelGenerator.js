@@ -210,7 +210,11 @@ function parseJSON(content) {
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (jsonMatch) {
       const extracted = jsonMatch[1].trim()
-      return { success: true, data: JSON.parse(extracted) }
+      try {
+        return { success: true, data: JSON.parse(extracted) }
+      } catch (e) {
+        // Markdown extraction failed, continue to Method 3
+      }
     }
 
     // Method 3: Find JSON object/array by looking for { or [ at start
@@ -221,19 +225,33 @@ function parseJSON(content) {
                       Math.min(jsonStartObj, jsonStartArr)
 
     if (jsonStart !== -1) {
-      // Find the matching closing bracket
+      // Find the matching closing bracket, accounting for strings
       const isArray = content[jsonStart] === '['
       const openBracket = isArray ? '[' : '{'
       const closeBracket = isArray ? ']' : '}'
 
       let depth = 0
+      let inString = false
       let jsonEnd = -1
+
       for (let i = jsonStart; i < content.length; i++) {
-        if (content[i] === openBracket) depth++
-        if (content[i] === closeBracket) depth--
-        if (depth === 0) {
-          jsonEnd = i + 1
-          break
+        const char = content[i]
+        const prevChar = i > 0 ? content[i - 1] : ''
+
+        // Handle string boundaries (but not escaped quotes)
+        if (char === '"' && prevChar !== '\\') {
+          inString = !inString
+          continue
+        }
+
+        // Only count brackets outside of strings
+        if (!inString) {
+          if (char === openBracket) depth++
+          if (char === closeBracket) depth--
+          if (depth === 0) {
+            jsonEnd = i + 1
+            break
+          }
         }
       }
 
@@ -2256,6 +2274,8 @@ async function executePhase3(concept, phase1, phase2) {
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
+    console.error('Phase 3 raw response (first 1000 chars):', response.slice(0, 1000))
+    console.error('Phase 3 raw response (last 500 chars):', response.slice(-500))
     throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
   }
 

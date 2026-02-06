@@ -2436,506 +2436,568 @@ async function executePhase3(concept, phase1, phase2) {
 }
 
 // =============================================================================
-// PHASE 4: SUPPORTING CAST
+// PHASE 4: SCENE ASSEMBLY
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a story architect who creates supporting characters as THEMATIC PARTICIPANTS, not just plot functionaries.
+const PHASE_4_SYSTEM_PROMPT = `You are a scene architect who transforms a Character Action Grid into scene-ready structures for prose generation.
 
-You will receive Phase 1 (concept/theme/setting/external plot), Phase 2 (POV character psychology), and Phase 3 (integrated POV timeline with all decisive moments).
+You receive:
+- Phase 1: Story DNA (external plot beats, theme, tone, romance arc stages)
+- Phase 2: Full cast (protagonist, love interests, stakeholder characters with psychology)
+- Phase 3: Character Action Grid (every character × every beat with actions, dialogues, thoughts, state, intent, tension, outcome)
 
-Your job: Create characters who ENGAGE WITH THE THEME, have real arcs, and can PLAUSIBLY PRESSURE the protagonists.
+Your job: Organize, order, and tag all character content into moments, assign locations, determine delivery modes, and assemble scenes — beat by beat.
 
-## THE THEMATIC IMPERATIVE
+## DEFINITIONS
 
-Every faced character must have:
-1. A POSITION on the story's central thematic tension (from Phase 1)
-2. An ARC TYPE (transformation or hardening)
-3. Moments that TEST their belief against the theme
-4. Mapping to EXTERNAL BEATS they embody or drive
-5. A plausible MECHANISM to pressure the protagonists
-6. An OUTCOME that follows from their thematic choice
+**Moment**: A discrete bundle of character content that happens together:
+- One or more actions from a single character
+- Associated dialogue (if any)
+- Associated thought (if any — protagonist and love interests only)
+- A specific location where this happens
 
-Characters who just perform plot functions without thematic engagement are hollow.
+**Delivery Mode**: How each moment reaches the reader through the POV character:
+- **DIRECT** — POV character witnesses it in real time. They are physically present at this location during this moment.
+- **INDIRECT** — POV character learns about it through evidence, observation, inference, or being told. The moment happened but POV wasn't there. Must be attached to a specific DIRECT moment where the information lands.
+- **NARRATION** — Sensory/atmospheric texture. No inference chain needed, just perception (bells, smells, distant sounds, weather, ambient details).
+- **DEFERRED** — Not delivered this beat. Setup for later revelation. Must specify the target_beat where it should land.
 
-## VICE
+**Scene**: A continuous stretch of prose in one location with one or more DIRECT moments, plus any INDIRECT moments that land within it.
 
-Every stakeholder character must have a vice — the behavioral flaw that emerges from their lie and shapes how they act on their thematic position.
+## PROCESS (5 steps per beat, applied to ALL beats)
 
-Pick from this list:
-Pride, Vanity, Ambition, Greed, Envy, Jealousy, Possessiveness, Controlling, Domineering, Cowardice, Denial, Evasion, Self-Deception, Willful Ignorance, Escapism, Wrath, Bitterness, Resentment, Cruelty, Spite, Vindictiveness, Vengefulness, Gluttony, Lust, Sloth, Hedonism, Recklessness, Impulsiveness, Manipulation, Deception, Betrayal, Disloyalty, Coldness, Indifference, Callousness, Stubbornness, Obstinacy, Judgmentalism, Self-Righteousness, Fanaticism, Intolerance, Self-Pity, Martyrdom, Insecurity, Arrogance, Narcissism, Covetousness, Dishonesty, Hypocrisy, Corruption, Opportunism
+### Step 1: Moment Creation
 
-The vice must:
-- Flow from the character's lie (the lie justifies the vice)
-- Shape how they act on their thematic position (the vice is how the position becomes harmful)
+For each character fragment in the beat, cluster their actions, dialogues, and thoughts into one or more discrete moments. A single fragment usually produces one moment, but complex fragments with multiple distinct actions at different points may produce several.
 
-## PROCESS (Follow this order)
+Each moment gets:
+- moment_id: format "b{beat_number}_m{sequence}" (e.g., b1_m01, b1_m02)
+- character: the character name
+- character_type: protagonist | love_interest | stakeholder
+- actions: array of action strings from this cluster
+- dialogues: array of dialogue strings from this cluster
+- thoughts: array of thought strings (only if protagonist or love_interest had them in Phase 3)
 
-### Step 1: List the Interests
+### Step 2: Chronological Ordering
 
-Look at the situation from Phase 1 and the timeline from Phase 3. Ask:
-- Who benefits from the status quo?
-- Who is threatened by the protagonists' choices?
-- Who has history with the POV characters?
-- Who represents institutions or groups relevant to the setting?
-- Who has power over the POV characters?
-- Who is affected by the events of the story?
+Order ALL moments across ALL characters within the beat into a single timeline. Assign order_position (1, 2, 3...) based on:
+- Narrative logic (what triggers what)
+- Physical causation (arrival before greeting, preparation before event)
+- Parallel moments happening simultaneously get consecutive positions
 
-List each interest as a force/pressure/stake - NOT as a character yet.
+Every moment in a beat must have a unique order_position.
 
-### Step 2: Pressure Mechanism Check (BEFORE face/faceless decision)
+### Step 3: Location Tagging
 
-For each interest, ask:
-- How would this interest pressure the protagonists?
-- Can it PLAUSIBLY REACH them given story circumstances?
-- What is the mechanism of contact?
+Assign a SPECIFIC location to each moment. Not broad areas (hacienda) but specific rooms/spaces (courtyard, main_hall, kitchen, east_wing, stables, church, etc.).
 
-**LOGISTICS MATTER.** A military commander can't pressure a soldier in hiding unless:
-- They have spies/informants with access
-- They can threaten people the soldier loves
-- The soldier must eventually surface for some reason
-- They have prior relationship that creates emotional leverage
+Locations are inferred from:
+- The fragment's location field in Phase 3 (use as primary source)
+- Narrative logic — where would this action naturally occur?
+- Character relationships — servants in service areas, guests in formal areas
+- Consistency — a character can't teleport between locations within a beat without travel moments
 
-If an interest cannot plausibly reach the protagonists, it should:
-- Remain FACELESS (pressure through systems, reputation, fear), OR
-- The face needs an ESTABLISHED CONNECTION (prior relationship, physical proximity, shared space, they come to the protagonists)
+### Step 4: Delivery Mode + Attachment
 
-### Step 3: Face or Faceless Decision
+Determine who the POV character is for each beat (the protagonist, unless Phase 1 specifies otherwise).
 
-An interest needs a face if:
-- It makes decisions that affect the plot
-- It CAN PLAUSIBLY REACH AND INTERACT with POV characters
-- It represents a thematic position that needs embodiment
-- Phase 3 timeline already implied someone exists
+For each moment, assign delivery_mode:
 
-An interest stays faceless if:
-- It works as collective/systemic pressure
-- No plausible mechanism exists for personal contact
-- The threat is atmospheric rather than interpersonal
+**DIRECT**: The POV character is physically present at this location during this moment. They see/hear/participate in it.
 
-### Step 4: Thematic Position
+**INDIRECT**: The POV character was NOT present but learns about it. EVERY indirect moment must specify:
+- attached_to: moment_id of a DIRECT moment where this information lands
+- attachment_mechanism: one of "observed" | "told" | "inferred" | "sensory"
+- attachment_description: HOW the POV character receives this information (e.g., "sees muddy boots in the hallway", "overheard servants gossiping", "notices the letter has been opened")
 
-For each FACED character, determine their position on the Phase 1 theme tension.
+**NARRATION**: Atmospheric/sensory texture that doesn't need an inference chain. Church bells, cooking smells, weather, ambient sounds. These enhance scenes but aren't character moments.
 
-Examples (if theme tension is "love vs safety"):
-- Prioritizes love over safety (will be tested when love brings danger)
-- Prioritizes safety over love (will be tested when safety means losing love)
-- Believes you can have both (will be tested by forced choice)
+**DEFERRED**: Not delivered in this beat. The reader won't learn about this until later. Must specify:
+- target_beat: which beat number this information lands in
+- deferral_note: why it's deferred and how it surfaces later
 
-Their position creates their LENS on events and their arc trajectory.
+### Step 5: Beat Summary
 
-### Step 5: Archetype (Pressure Role)
+For each beat, assemble scenes and generate summary:
 
-What kind of PRESSURE do they apply? The archetype is their FUNCTION in pressuring the protagonists:
+**Scenes**: Group consecutive DIRECT moments at the same location into scenes. Each scene has:
+- scene_number (within this beat)
+- scene_name (descriptive: "Courtyard Arrival", "Main Hall — Tea")
+- location
+- moment_range: array of moment_ids for DIRECT moments in this scene
+- characters_present: who is physically in this scene
+- indirect_moments_landing: INDIRECT moments whose attached_to points to a moment in this scene
+- narration_notes: atmospheric details for this location/time
 
-- **The Hunter** — Actively pursues, hunts, tracks
-- **The Rival** — Competes for same goal/person/position
-- **The Gatekeeper** — Controls access to what protagonist needs
-- **The Fanatic** — Represents extreme commitment to a belief
-- **The Tempter** — Offers easy path that would betray values
-- **The Mirror** — Reflects what protagonist could become
-- **The Judge** — Evaluates, condemns, or threatens consequences
-- **The Betrayer** — Trust weaponized into harm
-- **The Guardian** — Protects something protagonist needs to change/destroy
-- **The Witness** — Observes and threatens to expose
-
-### Step 6: Arc Type and Outcome
-
-**Arc Type** — How does their belief evolve?
-- **Transformation**: Their position on the theme CHANGES through the story
-- **Hardening**: They DOUBLE DOWN on their position despite challenges
-
-**Arc Outcome** — What happens as a consequence of their thematic choice?
-- **Redemption**: They change and find something better
-- **Tragic death**: Their belief kills them (literally or metaphorically)
-- **Hollow victory**: They get what they wanted but it's empty
-- **Damnation**: They fully embrace their darkness
-- **Survival unchanged**: They persist, neither redeemed nor destroyed
-
-The outcome must FOLLOW FROM their thematic position and arc type.
-
-### Step 7: Full Psychology for All Stakeholder Characters
-
-All stakeholder characters get full psychology (wound, lie, want, need, coping_mechanism, vice, arc, voice).
-
-This ensures every faced character has:
-- A wound that connects to the theme
-- A lie that justifies their thematic position
-- A vice that shapes how they act on that position
-- An arc that tests their belief
-- MINIMUM 3 moments required to show arc progression
-
-No partial or minimal characters. If a character doesn't warrant full psychology, they should be faceless or consolidated with another character.
-
-### Step 8: External Beat Mapping
-
-Which Phase 1 external plot beats does each character EMBODY or DRIVE?
-
-A character might:
-- BE the inciting incident
-- CREATE the escalation
-- FORCE the crisis point
-- RESOLVE or COMPLICATE the climax
-
-Map characters to external beats to ensure they're integrated with the world's events, not floating in a character vacuum.
-
-### Step 9: Thematic Test Moments
-
-Every stakeholder character gets moments that TEST THEIR BELIEF.
-
-A thematic test moment:
-- Challenges what they believe about the theme
-- Forces them to ACT on their belief (or contradict it)
-- Shows arc progression: position established → belief tested → outcome reached
-
-NOT just plot beats ("she delivers the message") but THEMATIC beats ("she discovers her loyalty was misplaced and must choose").
-
-Full psychology characters need AT LEAST 3 moments:
-1. Position ESTABLISHED (we see what they believe)
-2. Position TESTED (their belief is challenged)
-3. Outcome REACHED (transformation or hardening completed)
+**Beat Summary**:
+- established: array of what is now known/happened (narrative state after this beat)
+- deferred_from_this_beat: array of deferred moments with target_beat
+- foreshadowing_planted: what was set up for future beats
 
 ## OUTPUT FORMAT (JSON)
 
 {
-  "interests": [
-    {
-      "interest": "Description of the force/pressure/stake",
-      "pressure_mechanism": "How this interest could pressure protagonists",
-      "can_reach_protagonists": true,
-      "reach_explanation": "How/why they can or cannot make contact",
-      "has_face": true,
-      "why_face": "Why this needs a character (or null if faceless)"
-    }
-  ],
+  "phase4_output": {
+    "beats": [
+      {
+        "beat_number": 1,
+        "beat_name": "Name from Phase 1/3",
+        "beat_description": "What happens in this beat",
+        "pov_character": "Name of POV character for this beat",
 
-  // EVERY stakeholder character MUST have ALL fields below. No partial characters. No exceptions.
-  "stakeholder_characters": [
-    {
-      "name": "Full name",
-      "interest": "Which interest they represent",
-      "connected_to": "Which POV character(s)",
+        "moments": [
+          {
+            "moment_id": "b1_m01",
+            "order_position": 1,
+            "character": "Character Name",
+            "character_type": "protagonist | love_interest | stakeholder",
+            "location": "specific_location",
+            "actions": ["Action 1", "Action 2"],
+            "dialogues": ["Dialogue summary 1"],
+            "thoughts": ["Thought 1"],
+            "delivery_mode": "DIRECT | INDIRECT | NARRATION | DEFERRED",
+            "attached_to": null,
+            "attachment_mechanism": null,
+            "attachment_description": null,
+            "target_beat": null,
+            "deferral_note": null
+          }
+        ],
 
-      // Thematic engagement (required):
-      "thematic_position": "What they believe about the Phase 1 theme tension",
-      "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
-      "arc_type": "transformation | hardening",
-      "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-      "external_beats": ["Array of Phase 1 external beat names they embody or drive"],
-      "pressure_mechanism": "How they reach and pressure protagonists (must be plausible)",
-      "thematic_test": "What challenges their belief",
+        "scenes": [
+          {
+            "scene_number": 1,
+            "scene_name": "Descriptive Scene Name",
+            "location": "specific_location",
+            "moment_range": ["b1_m05", "b1_m06", "b1_m07"],
+            "characters_present": ["Character A", "Character B"],
+            "indirect_moments_landing": ["b1_m01", "b1_m02"],
+            "narration_notes": ["Ambient detail 1", "Sensory detail 2"]
+          }
+        ],
 
-      // Full psychology (required for all stakeholder characters):
-      "wound": {
-        "event": "What specifically happened to them",
-        "who_caused_it": "Person responsible or null",
-        "age": "When it happened"
-      },
-      "lie": "The false belief formed because of the wound",
-      "want": "What they're consciously pursuing",
-      "need": "What they actually need",
-      "coping_mechanism": {
-        "behaviour": "How they cope",
-        "as_flaw": "How it hurts them",
-        "as_virtue": "How it helps them"
-      },
-      "vice": "The behavioral flaw from the vice list that emerges from their lie",
-      "arc": {
-        "starts": "Who they are at start",
-        "ends": "Who they become"
-      },
-      "voice": {
-        "register": "How they speak",
-        "patterns": "Speech habits",
-        "tells": "Emotional reveals"
+        "beat_summary": {
+          "established": ["What is now known or happened"],
+          "deferred_from_this_beat": [
+            {
+              "moment_id": "b1_m11",
+              "description": "What was deferred",
+              "target_beat": 4
+            }
+          ],
+          "foreshadowing_planted": ["Setup for future beats"]
+        }
       }
-    }
-  ],
+    ],
 
-  "character_moments": [
-    {
-      "character": "Character name",
-      "order": 1,
-      "moment": "Moment name",
-      "what_happens": "What occurs",
-      "pov": "Character name (who experiences this moment)",
-      "connects_to_phase3_moment": "Name of Phase 3 moment this relates to (or null)",
-      "relationship": "during | causes | follows",
-      "thematic_function": "position_established | belief_tested | belief_challenged | transformation_moment | hardening_moment | outcome_reached",
-      "external_beat": "Which Phase 1 external beat this embodies/drives (or null)"
-    }
-  ],
+    "deferred_tracker": [
+      {
+        "moment_id": "b1_m11",
+        "source_beat": 1,
+        "target_beat": 4,
+        "character": "Character Name",
+        "description": "What is deferred",
+        "landing_note": "How/when it surfaces"
+      }
+    ],
 
-  "arc_outcomes": [
-    {
-      "character": "Character name",
-      "thematic_position": "What they believed",
-      "arc_type": "transformation | hardening",
-      "outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-      "outcome_description": "How their story resolves as consequence of thematic choice"
-    }
-  ],
-
-  "faceless_pressures": [
-    {
-      "interest": "The faceless force",
-      "why_faceless": "Why no character can plausibly embody this",
-      "how_manifests": "How it shows up in the story without a character"
-    }
-  ]
+    "location_registry": ["courtyard", "main_hall", "kitchen"]
+  }
 }
-
-## CHARACTER MOMENT RELATIONSHIPS
-
-When a character_moment connects to a Phase 3 moment, specify the relationship:
-
-- **"during"** — This moment happens DURING the connected moment (same scene, different POV or added action). Phase 5 will merge it into the existing moment.
-- **"causes"** — This moment CAUSES or leads to the connected moment. Phase 5 will place it BEFORE the connected moment.
-- **"follows"** — This moment is a CONSEQUENCE of the connected moment. Phase 5 will place it AFTER the connected moment.
-
-Examples:
-- "Father's Ultimatum" connects to "The Betrothal" with relationship "causes" → Ultimatum causes the betrothal
-- "The Aftermath" connects to "The Confrontation" with relationship "follows" → Aftermath comes after
-- "Servant's Observation" connects to "The Kiss" with relationship "during" → Same scene, servant's POV
-
-## THEMATIC FUNCTION CODES
-
-Each character_moment must have a thematic_function:
-
-- **position_established**: We learn what this character believes about the theme
-- **belief_tested**: Their belief is put under pressure but they haven't changed yet
-- **belief_challenged**: Something directly contradicts their position
-- **transformation_moment**: The moment they actually change (transformation arcs only)
-- **hardening_moment**: The moment they double down (hardening arcs only)
-- **outcome_reached**: The consequence of their choice is made manifest
 
 ## CRITICAL RULES
 
-1. Characters must have THEMATIC POSITIONS, not just plot functions.
-2. Characters must be able to PLAUSIBLY REACH protagonists - check logistics!
-3. Psychology level matches function: don't give full wound/lie/arc to a messenger.
-4. Full psychology characters need MINIMUM 3 moments (established → tested → outcome).
-5. Every character_moment must have thematic_function AND (if applicable) external_beat.
-6. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
-7. Consolidate where natural - one character can serve multiple interests.
-8. Phase 5 builds the master timeline - you define characters and their moments only.
-9. Moment names must be UNIQUE across the story - don't reuse Phase 3 moment names.
+1. **Every fragment from Phase 3 must appear** — no dropping content. Every character's actions, dialogues, and thoughts from every beat must appear as moments in the output.
+2. **Thoughts preserved** — If a character had thoughts in Phase 3 (protagonist or love_interest), those thoughts MUST appear in their Phase 4 moments. Never drop interior access.
+3. **Every INDIRECT moment must attach to a valid DIRECT moment** — the attached_to field must reference a moment_id that exists and has delivery_mode DIRECT.
+4. **Every DEFERRED moment must have target_beat** — and it must be a valid beat number greater than the current beat.
+5. **All DEFERRED moments tracked** — every deferred moment must appear in the deferred_tracker array.
+6. **Scene moment_range contains only DIRECT moments** — from that scene's location.
+7. **indirect_moments_landing contains only INDIRECT moments** — whose attached_to points to a DIRECT moment within that scene.
+8. **Unique order_position per beat** — no two moments in the same beat share an order_position.
+9. **Location consistency** — a character's location should make physical sense. They can't be in the courtyard and the kitchen simultaneously.
+10. **POV character presence determines DIRECT** — only moments where the POV character is physically present (same location) are DIRECT.
+
+## DELIVERY MODE DECISION TREE
+
+For each moment, ask:
+1. Is the POV character at this location right now? → DIRECT
+2. If not, does the POV character learn about this during this beat? → INDIRECT (attach to a DIRECT moment)
+3. Is this atmospheric/sensory with no character action? → NARRATION
+4. Does the reader NOT learn about this until a later beat? → DEFERRED (specify target_beat)
 
 ## DO NOT INCLUDE
 
-- Characters who can't plausibly reach the protagonists
-- Characters without thematic positions
-- Full psychology for characters who don't transform
-- Arc outcomes disconnected from thematic choices
-- A master timeline (Phase 5 handles this)
-- "Wound challenger/reinforcer" labels
-- "Major/minor/referenced" weight categories`
+- New character content not in Phase 3 (no inventing new actions/dialogues/thoughts)
+- Changes to character psychology or arc (Phase 2/3 data is fixed)
+- Prose or narrative text (Phase 5 handles prose)
+- Chapter divisions (later phase)
+- POV switches within a beat (one POV per beat unless Phase 1 specifies otherwise)`
 
-function buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset) {
-  // Build POV character summaries
-  const povCharacters = [
-    `**${phase2.protagonist?.name} (Protagonist):** wound="${phase2.protagonist?.wound?.event}", lie="${phase2.protagonist?.lie}"`,
-    ...(phase2.love_interests?.map(li =>
-      `**${li.name} (${li.role_in_story} Love Interest):** wound="${li.wound?.event}", lie="${li.lie}"`
-    ) || [])
-  ].join('\n')
+function buildPhase4UserPrompt(concept, phase1, phase2, phase3) {
+  // Identify all characters from Phase 2
+  const allCharacters = []
+  if (phase2.protagonist) {
+    allCharacters.push({ name: phase2.protagonist.name, type: 'protagonist' })
+  }
+  if (phase2.love_interests) {
+    phase2.love_interests.forEach(li => {
+      allCharacters.push({ name: li.name, type: 'love_interest' })
+    })
+  }
+  if (phase2.stakeholder_characters) {
+    phase2.stakeholder_characters.forEach(sc => {
+      allCharacters.push({ name: sc.name, type: 'stakeholder' })
+    })
+  }
 
-  // Build timeline summary for context
-  const timelineSummary = phase3.timeline?.map(t =>
-    `${t.order}. [${t.pov}] ${t.moment}: ${t.what_happens?.slice(0, 80)}...`
-  ).join('\n') || 'No timeline available'
+  // Build character list with types
+  const characterList = allCharacters.map(c =>
+    `- ${c.name} (${c.type})`
+  ).join('\n')
+
+  // Build POV character info
+  const povCharacter = phase2.protagonist?.name || 'Unknown'
+
+  // Build grid summary per beat
+  const gridSummary = phase3.grid?.map(beat => {
+    const fragmentSummaries = beat.fragments?.map(f => {
+      const actCount = f.actions?.length || 0
+      const dlgCount = f.dialogues?.length || 0
+      const thtCount = f.thoughts?.length || 0
+      const location = f.location ? ` @ ${f.location}` : ''
+      return `    ${f.character} (${f.character_type}): ${actCount} actions, ${dlgCount} dialogues, ${thtCount} thoughts${location}`
+    }).join('\n') || '    (no fragments)'
+
+    return `  Beat ${beat.beat_number}: ${beat.beat_name}
+    Description: ${beat.beat_description || 'N/A'}
+${fragmentSummaries}`
+  }).join('\n\n') || 'No grid available'
 
   // Build external beats summary
   const externalBeatsSummary = phase1.external_plot?.beats?.map(b =>
-    `${b.order}. **${b.beat}**: ${b.what_happens} [${b.world_state || 'unspecified'}]`
+    `${b.order}. **${b.beat}**: ${b.what_happens}`
   ).join('\n') || 'No external beats defined'
 
-  // Complexity guide
-  const stakeholderCount = lengthPreset === 'novella' ? '3-5' : '4-8'
+  const beatCount = phase3.grid?.length || 0
 
   return `ORIGINAL CONCEPT: ${concept}
+
+## FULL PHASE DATA (for reference)
 
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
 
-PHASE 2 OUTPUT (POV Characters):
+PHASE 2 OUTPUT (Full Cast):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Integrated Timeline):
+PHASE 3 OUTPUT (Character Action Grid):
 ${JSON.stringify(phase3, null, 2)}
 
-LENGTH PRESET: ${lengthPreset}
+## YOUR TASK: Scene Assembly for All ${beatCount} Beats
 
-## Your Task: Create Thematically-Engaged Stakeholder Characters
+### POV Character
+**${povCharacter}** is the protagonist and primary POV character. Moments where ${povCharacter} is physically present are DIRECT. All others must be classified as INDIRECT, NARRATION, or DEFERRED.
 
-### THE THEME (characters must engage with this)
+### Full Cast (${allCharacters.length} characters)
+${characterList}
 
-**Theme Tension:** ${phase1.theme?.tension}
-
-Every faced character needs a POSITION on this tension. Their arc tests that position.
-
-### EXTERNAL PLOT BEATS (characters can embody/drive these)
-
+### External Plot Beats
 ${externalBeatsSummary}
 
-Map characters to these beats - they shouldn't float in a vacuum.
+### Grid Overview
+${gridSummary}
 
-### POV Characters (already created - do NOT recreate)
+### PROCESS FOR EACH BEAT
 
-${povCharacters}
+For each of the ${beatCount} beats:
 
-### Phase 3 Timeline (the story so far)
+1. **Moment Creation**: Cluster each character's actions/dialogues/thoughts into discrete moments
+2. **Chronological Ordering**: Order all moments into a single timeline with unique order_positions
+3. **Location Tagging**: Assign specific locations (use Phase 3 fragment locations as primary source)
+4. **Delivery Mode**: Classify each as DIRECT/INDIRECT/NARRATION/DEFERRED based on ${povCharacter}'s presence
+5. **Beat Summary**: Assemble scenes, track what's established and deferred
 
-${timelineSummary}
+### CRITICAL REMINDERS
 
-### Setting Context
-
-**Setting:** ${phase1.setting?.world || 'Not specified'}
-
-### PROCESS TO FOLLOW
-
-**Step 1: Identify Interests**
-What forces, groups, and pressures exist? List as stakes, not characters.
-
-**Step 2: Pressure Mechanism Check (CRITICAL)**
-For each interest: HOW could it pressure the protagonists? Can it PLAUSIBLY REACH them?
-- If unreachable → stays faceless
-- If reachable only through connection → note what connection is needed
-
-**Step 3: Face or Faceless**
-Only give faces to interests that can plausibly interact with protagonists.
-
-**Step 4-6: Build Thematic Characters**
-For each face:
-- What do they believe about the theme? (thematic_position)
-- What pressure role do they play? (archetype)
-- Do they transform or harden? (arc_type)
-- What external beats do they embody? (external_beats)
-- How do they reach protagonists? (pressure_mechanism)
-- What tests their belief? (thematic_test)
-- What outcome follows from their choice? (arc_outcome)
-
-**Step 7: Thematic Test Moments**
-Full psychology characters need AT LEAST 3 moments:
-1. Position ESTABLISHED (show what they believe)
-2. Belief TESTED (challenge their position)
-3. Outcome REACHED (transformation or hardening complete)
-
-Each moment needs thematic_function AND external_beat (if applicable).
-
-### Complexity Guide for ${lengthPreset}
-
-- Stakeholder characters (all with full psychology): ${stakeholderCount}
-- Each stakeholder character needs 3+ thematic test moments
-
-Remember: Love interests are NOT stakeholder characters - they're already in Phase 2 as love_interests.
-Do NOT produce a master timeline - Phase 5 handles timeline assembly.
-
-## CRITICAL: OUTPUT STRUCTURE
-
-Your output MUST be valid JSON with these top-level keys:
-1. "interests" - array with pressure_mechanism and can_reach_protagonists for each
-2. "stakeholder_characters" - array with thematic fields (thematic_position, archetype, arc_type, arc_outcome, external_beats, pressure_mechanism, thematic_test)
-3. "character_moments" - array with thematic_function and external_beat for each
-4. "arc_outcomes" - array with thematic_position, arc_type, outcome, outcome_description
-5. "faceless_pressures" - array with why_faceless explanation
-
-Do NOT include a "master_timeline" - that is Phase 5's job.`
+- Every Phase 3 fragment must produce at least one moment
+- Thoughts from protagonist and love_interests must be preserved
+- INDIRECT moments MUST attach to a DIRECT moment with mechanism and description
+- DEFERRED moments MUST specify target_beat and appear in deferred_tracker
+- Scene moment_range = only DIRECT moments at that location
+- All order_positions within a beat must be unique
+- Output must be valid JSON matching the schema from the system prompt`
 }
 
-async function executePhase4(concept, phase1, phase2, phase3, lengthPreset) {
-  console.log('Executing Phase 4: Stakeholder Characters...')
+async function executePhase4(concept, phase1, phase2, phase3) {
+  console.log('Executing Phase 4: Scene Assembly...')
 
-  const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3, lengthPreset)
-  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
+  const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3)
+  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 32768 })
   const parsed = parseJSON(response)
 
   if (!parsed.success) {
+    console.error('Phase 4 raw response (first 1000 chars):', response.slice(0, 1000))
+    console.error('Phase 4 raw response (last 500 chars):', response.slice(-500))
     throw new Error(`Phase 4 JSON parse failed: ${parsed.error}`)
   }
 
-  const data = parsed.data
+  let data = parsed.data
 
-  // Debug: show what we received
-  console.log('Phase 4 received keys:', Object.keys(data))
-
-  // Validate required fields
-  if (!data.interests || !Array.isArray(data.interests)) {
-    console.error('Phase 4 output (first 500 chars):', JSON.stringify(data, null, 2).slice(0, 500))
-    throw new Error('Phase 4 missing interests array. Received keys: ' + Object.keys(data).join(', '))
-  }
-  if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters)) {
-    throw new Error('Phase 4 missing stakeholder_characters array. Received keys: ' + Object.keys(data).join(', '))
+  // Normalize: accept either { phase4_output: { beats: [...] } } or { beats: [...] } at top level
+  if (data.phase4_output) {
+    data = data.phase4_output
   }
 
-  // Validate stakeholder characters have required fields
-  for (const char of data.stakeholder_characters) {
-    if (!char.name) {
-      throw new Error(`Stakeholder character missing required field (name): ${JSON.stringify(char).slice(0, 100)}`)
+  // Validate required top-level structure
+  if (!data.beats || !Array.isArray(data.beats)) {
+    console.error('Phase 4 output keys:', Object.keys(data))
+    throw new Error('Phase 4 missing beats array. Received keys: ' + Object.keys(data).join(', '))
+  }
+
+  if (data.beats.length === 0) {
+    throw new Error('Phase 4 beats array is empty')
+  }
+
+  // Validate beat count matches Phase 3 grid
+  const expectedBeatCount = phase3.grid?.length || 0
+  if (expectedBeatCount > 0 && data.beats.length !== expectedBeatCount) {
+    console.warn(`Phase 4 WARNING: Output has ${data.beats.length} beats but Phase 3 grid has ${expectedBeatCount} beats`)
+  }
+
+  // Ensure deferred_tracker and location_registry exist
+  if (!data.deferred_tracker) data.deferred_tracker = []
+  if (!data.location_registry) data.location_registry = []
+
+  // Collect all moment IDs and their properties for cross-validation
+  const allMomentIds = new Map() // moment_id → moment object
+  const allDirectMomentIds = new Set()
+  const allDeferredMoments = []
+  let totalMoments = 0
+  let directCount = 0
+  let indirectCount = 0
+  let narrationCount = 0
+  let deferredCount = 0
+  const allLocations = new Set()
+
+  // Per-beat validation
+  for (const beat of data.beats) {
+    if (!beat.beat_number || !beat.moments || !Array.isArray(beat.moments)) {
+      throw new Error(`Beat ${beat.beat_number || '?'} missing required fields (beat_number, moments)`)
+    }
+
+    // Ensure scenes array exists
+    if (!beat.scenes) beat.scenes = []
+    if (!beat.beat_summary) beat.beat_summary = { established: [], deferred_from_this_beat: [], foreshadowing_planted: [] }
+
+    // Validate unique order_positions within beat
+    const orderPositions = new Set()
+    for (const moment of beat.moments) {
+      totalMoments++
+
+      if (!moment.moment_id) {
+        console.warn(`Phase 4 WARNING: Moment missing moment_id in beat ${beat.beat_number}`)
+        continue
+      }
+
+      // Track moment
+      allMomentIds.set(moment.moment_id, moment)
+
+      // Track location
+      if (moment.location) {
+        allLocations.add(moment.location)
+      }
+
+      // Validate unique order_position
+      if (moment.order_position != null) {
+        if (orderPositions.has(moment.order_position)) {
+          console.warn(`Phase 4 WARNING: Duplicate order_position ${moment.order_position} in beat ${beat.beat_number}`)
+        }
+        orderPositions.add(moment.order_position)
+      }
+
+      // Normalize arrays
+      if (!moment.actions) moment.actions = []
+      if (!moment.dialogues) moment.dialogues = []
+      if (!moment.thoughts) moment.thoughts = []
+      if (typeof moment.actions === 'string') moment.actions = [moment.actions]
+      if (typeof moment.dialogues === 'string') moment.dialogues = [moment.dialogues]
+      if (typeof moment.thoughts === 'string') moment.thoughts = [moment.thoughts]
+
+      // Count delivery modes
+      const mode = moment.delivery_mode?.toUpperCase()
+      if (mode === 'DIRECT') {
+        directCount++
+        allDirectMomentIds.add(moment.moment_id)
+      } else if (mode === 'INDIRECT') {
+        indirectCount++
+      } else if (mode === 'NARRATION') {
+        narrationCount++
+      } else if (mode === 'DEFERRED') {
+        deferredCount++
+        allDeferredMoments.push(moment)
+      } else if (mode) {
+        console.warn(`Phase 4 WARNING: Unknown delivery_mode "${moment.delivery_mode}" for moment ${moment.moment_id}`)
+      }
     }
   }
 
-  // Check that all stakeholder characters have moments
-  const momentCharacters = new Set((data.character_moments || []).map(m => m.character))
-  const missingMoments = data.stakeholder_characters.filter(c => !momentCharacters.has(c.name))
-  if (missingMoments.length > 0) {
-    console.warn(`Phase 4 WARNING: Characters without moments: ${missingMoments.map(c => c.name).join(', ')}`)
+  // Cross-beat validation: INDIRECT moments must attach to valid DIRECT moments
+  let invalidAttachments = 0
+  for (const beat of data.beats) {
+    for (const moment of beat.moments) {
+      if (moment.delivery_mode?.toUpperCase() === 'INDIRECT') {
+        if (!moment.attached_to) {
+          console.warn(`Phase 4 WARNING: INDIRECT moment ${moment.moment_id} has no attached_to`)
+          invalidAttachments++
+        } else if (!allDirectMomentIds.has(moment.attached_to)) {
+          console.warn(`Phase 4 WARNING: INDIRECT moment ${moment.moment_id} attached_to "${moment.attached_to}" which is not a DIRECT moment`)
+          invalidAttachments++
+        }
+      }
+    }
   }
 
-  // Validate all stakeholder characters have minimum 3 moments for arc progression
-  const momentCounts = {}
-  for (const moment of (data.character_moments || [])) {
-    momentCounts[moment.character] = (momentCounts[moment.character] || 0) + 1
-  }
-  const insufficientMoments = data.stakeholder_characters.filter(c => (momentCounts[c.name] || 0) < 3)
-  if (insufficientMoments.length > 0) {
-    console.warn(`Phase 4 WARNING: Stakeholder characters with fewer than 3 moments (need established → tested → outcome):`)
-    insufficientMoments.forEach(c => {
-      const count = momentCounts[c.name] || 0
-      console.warn(`  - ${c.name}: ${count} moment(s) — needs at least 3 for arc progression`)
-    })
-  }
-
-  // Validate thematic fields for all stakeholder characters
-  const missingThematic = data.stakeholder_characters.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
-  if (missingThematic.length > 0) {
-    console.warn(`Phase 4 WARNING: Faced characters missing thematic fields (thematic_position, archetype, arc_type, arc_outcome):`)
-    missingThematic.forEach(c => {
-      const missing = []
-      if (!c.thematic_position) missing.push('thematic_position')
-      if (!c.archetype) missing.push('archetype')
-      if (!c.arc_type) missing.push('arc_type')
-      if (!c.arc_outcome) missing.push('arc_outcome')
-      console.warn(`  - ${c.name}: missing ${missing.join(', ')}`)
-    })
+  // Cross-beat validation: DEFERRED moments must have valid target_beat
+  const beatNumbers = new Set(data.beats.map(b => b.beat_number))
+  let invalidDeferred = 0
+  for (const moment of allDeferredMoments) {
+    if (!moment.target_beat) {
+      console.warn(`Phase 4 WARNING: DEFERRED moment ${moment.moment_id} has no target_beat`)
+      invalidDeferred++
+    } else if (!beatNumbers.has(moment.target_beat) && moment.target_beat > Math.max(...beatNumbers)) {
+      // Allow target_beat beyond our range (might be a future beat)
+      console.warn(`Phase 4 WARNING: DEFERRED moment ${moment.moment_id} targets beat ${moment.target_beat} which is beyond the last beat`)
+    }
   }
 
-  // Validate pressure_mechanism for all stakeholder characters
-  const missingPressure = data.stakeholder_characters.filter(c => !c.pressure_mechanism)
-  if (missingPressure.length > 0) {
-    console.warn(`Phase 4 WARNING: Faced characters missing pressure_mechanism:`)
-    missingPressure.forEach(c => console.warn(`  - ${c.name}`))
+  // Validate deferred_tracker contains all deferred moments
+  const trackedDeferredIds = new Set((data.deferred_tracker || []).map(d => d.moment_id))
+  const untrackedDeferred = allDeferredMoments.filter(m => !trackedDeferredIds.has(m.moment_id))
+  if (untrackedDeferred.length > 0) {
+    console.warn(`Phase 4 WARNING: ${untrackedDeferred.length} DEFERRED moment(s) not in deferred_tracker:`)
+    untrackedDeferred.forEach(m => console.warn(`  - ${m.moment_id}`))
+  }
+
+  // Validate scene structure
+  let totalScenes = 0
+  for (const beat of data.beats) {
+    for (const scene of (beat.scenes || [])) {
+      totalScenes++
+      // Validate moment_range contains only DIRECT moments
+      if (scene.moment_range && Array.isArray(scene.moment_range)) {
+        for (const mid of scene.moment_range) {
+          const moment = allMomentIds.get(mid)
+          if (moment && moment.delivery_mode?.toUpperCase() !== 'DIRECT') {
+            console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" moment_range contains non-DIRECT moment ${mid} (is ${moment.delivery_mode})`)
+          }
+        }
+      }
+      // Validate indirect_moments_landing contains only INDIRECT moments
+      if (scene.indirect_moments_landing && Array.isArray(scene.indirect_moments_landing)) {
+        for (const mid of scene.indirect_moments_landing) {
+          const moment = allMomentIds.get(mid)
+          if (moment && moment.delivery_mode?.toUpperCase() !== 'INDIRECT') {
+            console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" indirect_moments_landing contains non-INDIRECT moment ${mid} (is ${moment.delivery_mode})`)
+          }
+        }
+      }
+    }
+  }
+
+  // Validate Phase 3 fragment coverage: every fragment should produce at least one moment
+  let phase3FragmentCount = 0
+  const phase3Characters = new Set()
+  for (const beat of (phase3.grid || [])) {
+    for (const fragment of (beat.fragments || [])) {
+      phase3FragmentCount++
+      phase3Characters.add(fragment.character)
+    }
+  }
+  // Check moment coverage per character per beat
+  const momentCharactersPerBeat = new Map()
+  for (const beat of data.beats) {
+    const charSet = new Set()
+    for (const moment of beat.moments) {
+      if (moment.character) charSet.add(moment.character)
+    }
+    momentCharactersPerBeat.set(beat.beat_number, charSet)
+  }
+
+  let missingCoverage = 0
+  for (const gridBeat of (phase3.grid || [])) {
+    const p4CharSet = momentCharactersPerBeat.get(gridBeat.beat_number) || new Set()
+    for (const fragment of (gridBeat.fragments || [])) {
+      if (!p4CharSet.has(fragment.character)) {
+        console.warn(`Phase 4 WARNING: Phase 3 fragment for "${fragment.character}" in beat ${gridBeat.beat_number} has no corresponding moment`)
+        missingCoverage++
+      }
+    }
+  }
+
+  // Validate thoughts preservation: characters with thoughts in Phase 3 should have them in Phase 4
+  let droppedThoughts = 0
+  for (const gridBeat of (phase3.grid || [])) {
+    for (const fragment of (gridBeat.fragments || [])) {
+      if (fragment.thoughts && fragment.thoughts.length > 0) {
+        // Find corresponding Phase 4 moments for this character in this beat
+        const p4Beat = data.beats.find(b => b.beat_number === gridBeat.beat_number)
+        if (p4Beat) {
+          const charMoments = p4Beat.moments.filter(m => m.character === fragment.character)
+          const hasThoughts = charMoments.some(m => m.thoughts && m.thoughts.length > 0)
+          if (!hasThoughts) {
+            console.warn(`Phase 4 WARNING: "${fragment.character}" had thoughts in Phase 3 beat ${gridBeat.beat_number} but none in Phase 4`)
+            droppedThoughts++
+          }
+        }
+      }
+    }
+  }
+
+  // Build location_registry from all locations found
+  if (data.location_registry.length === 0) {
+    data.location_registry = [...allLocations].sort()
   }
 
   // Console logging
   console.log('Phase 4 complete.')
-  console.log(`  Interests identified: ${data.interests.length}`)
-  const faced = data.interests.filter(i => i.has_face).length
-  const faceless = data.interests.filter(i => !i.has_face).length
-  console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
+  console.log(`  Beats processed: ${data.beats.length}`)
+  console.log(`  Total moments: ${totalMoments}`)
+  console.log(`    DIRECT: ${directCount}`)
+  console.log(`    INDIRECT: ${indirectCount}`)
+  console.log(`    NARRATION: ${narrationCount}`)
+  console.log(`    DEFERRED: ${deferredCount}`)
+  console.log(`  Total scenes: ${totalScenes}`)
+  console.log(`  Locations: ${allLocations.size} (${[...allLocations].join(', ')})`)
+  console.log(`  Deferred tracker entries: ${data.deferred_tracker.length}`)
 
-  console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
-  data.stakeholder_characters.forEach(c => {
-    const moments = momentCounts[c.name] || 0
-    console.log(`    - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}", moments=${moments}`)
-  })
+  if (invalidAttachments > 0) {
+    console.log(`  WARNING: ${invalidAttachments} invalid INDIRECT attachments`)
+  }
+  if (invalidDeferred > 0) {
+    console.log(`  WARNING: ${invalidDeferred} DEFERRED moments without valid target_beat`)
+  }
+  if (missingCoverage > 0) {
+    console.log(`  WARNING: ${missingCoverage} Phase 3 fragments without Phase 4 moments`)
+  }
+  if (droppedThoughts > 0) {
+    console.log(`  WARNING: ${droppedThoughts} characters lost thoughts between Phase 3 and Phase 4`)
+  }
 
-  console.log(`  Character moments: ${data.character_moments?.length || 0}`)
-
-  console.log(`  Arc outcomes: ${data.arc_outcomes?.length || 0}`)
-  console.log(`  Faceless pressures: ${data.faceless_pressures?.length || 0}`)
-
-  if (missingMoments.length > 0) {
-    console.log(`  WARNING: ${missingMoments.length} characters without moments`)
+  // Log beat-by-beat summary
+  console.log('\n  Beat Summary:')
+  for (const beat of data.beats) {
+    const momentCount = beat.moments?.length || 0
+    const sceneCount = beat.scenes?.length || 0
+    const directInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'DIRECT').length || 0
+    const indirectInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'INDIRECT').length || 0
+    const deferredInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'DEFERRED').length || 0
+    console.log(`    Beat ${beat.beat_number}: ${beat.beat_name} — ${momentCount} moments (${directInBeat}D/${indirectInBeat}I/${deferredInBeat}Def), ${sceneCount} scenes`)
+    for (const scene of (beat.scenes || [])) {
+      const directMoments = scene.moment_range?.length || 0
+      const indirectLanding = scene.indirect_moments_landing?.length || 0
+      console.log(`      Scene ${scene.scene_number}: "${scene.scene_name}" @ ${scene.location} — ${directMoments} direct, ${indirectLanding} indirect`)
+    }
   }
 
   console.log('')
@@ -5025,7 +5087,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       }
     case 4:
       if (phaseNumber <= 4) {
-        updatedBible.chemistry = await executePhase4(concept, updatedBible.coreFoundation, updatedBible.world, updatedBible.characters)
+        updatedBible.sceneAssembly = await executePhase4(concept, updatedBible.coreFoundation, updatedBible.characters, updatedBible.actionGrid)
       }
     case 5:
       if (phaseNumber <= 5) {
@@ -5085,7 +5147,7 @@ const PHASE_DESCRIPTIONS = {
   1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot beats, and romance arc stages' },
   2: { name: 'Full Cast', description: 'Creating protagonist, love interests, AND stakeholder characters with psychology' },
   3: { name: 'Character Action Grid', description: 'Beat-by-beat actions for all characters across all external beats' },
-  // OLD PHASES 4-5 ELIMINATED - stakeholder chars moved to Phase 2, grid IS the timeline
+  4: { name: 'Scene Assembly', description: 'Transforming action grid into scene-ready structures with moments, locations, delivery modes, and scene groupings' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with setup requirements' },
   8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
@@ -5140,8 +5202,19 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
       console.log(JSON.stringify(bible.actionGrid, null, 2))
       break
 
+    case 4:
+      if (!bible.coreFoundation || !bible.characters || !bible.actionGrid) {
+        throw new Error('Phase 4 requires Phases 1-3 (bible.coreFoundation, bible.characters, bible.actionGrid) to be complete')
+      }
+      console.log('Phase 4: Scene Assembly')
+      bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
+      console.log('')
+      console.log('Phase 4 complete output:')
+      console.log(JSON.stringify(bible.sceneAssembly, null, 2))
+      break
+
     default:
-      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 2, 3`)
+      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 2, 3, 4`)
   }
 
   return bible
@@ -5246,26 +5319,32 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(3)
 
-    // TESTING: Stop after Phase 3 to validate new grid structure
+    // Phase 4: Scene Assembly — transforms grid into scene-ready structures
+    reportProgress(4, 'starting')
+    bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
+    reportProgress(4, 'complete', {
+      beats: bible.sceneAssembly.beats?.length,
+      totalMoments: bible.sceneAssembly.beats?.reduce((sum, b) => sum + (b.moments?.length || 0), 0),
+      totalScenes: bible.sceneAssembly.beats?.reduce((sum, b) => sum + (b.scenes?.length || 0), 0),
+      deferredCount: bible.sceneAssembly.deferred_tracker?.length,
+      locations: bible.sceneAssembly.location_registry?.length
+    })
+    await savePhase(4)
+
+    // TESTING: Stop after Phase 4 to validate scene assembly
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 3 (New Character Action Grid)')
-    console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
-    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
-    console.log('Phase 3 Output:', JSON.stringify(bible.actionGrid, null, 2))
+    console.log('TEST MODE - Stopping after Phase 4 (Scene Assembly)')
+    console.log('Phase 4 Output:', JSON.stringify(bible.sceneAssembly, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_3_TEST',
+      validationStatus: 'PHASE_4_TEST',
       validationAttempts: 0
     }
 
-    // OLD PHASES 4-5 ELIMINATED
-    // Phase 4 (stakeholder characters) is now part of Phase 2
-    // Phase 5 (master timeline weaving) is eliminated - the grid IS the timeline
-
-    // TODO: Downstream phases (6+) need to be updated to read from bible.actionGrid
+    // TODO: Downstream phases (6+) need to be updated to read from bible.sceneAssembly
     // instead of bible.plot, bible.subplots, bible.masterTimeline
 
     // Phase 6: Major Events & Locations (needs update to read from actionGrid)

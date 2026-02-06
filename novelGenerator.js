@@ -68,6 +68,7 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
       if (useStreaming) {
         // Streaming request for large token counts
         let fullText = ''
+        let charCount = 0
         const stream = getAnthropicClient().messages.stream({
           model: model,
           max_tokens: maxTokens,
@@ -76,11 +77,19 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
           temperature: options.temperature ?? CONFIG.temperature
         })
 
+        process.stdout.write('  Streaming response: ')
         for await (const event of stream) {
           if (event.type === 'content_block_delta' && event.delta?.text) {
             fullText += event.delta.text
+            charCount += event.delta.text.length
+            // Print a dot every 2000 characters
+            if (charCount >= 2000) {
+              process.stdout.write('.')
+              charCount = 0
+            }
           }
         }
+        console.log(` done (${fullText.length} chars)`)
 
         if (!fullText) {
           throw new Error('No text content in streaming response')

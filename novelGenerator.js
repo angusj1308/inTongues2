@@ -2533,7 +2533,7 @@ Good: "Maria says 'He left an hour ago — didn't even finish his drink'"
 Bad: "POV notices evidence of the meeting"
 Bad: "POV observes that someone was there"
 
-**NARRATION**: The prose cuts away from POV to show this action directly to the reader. POV is not present and does not learn about it. The reader sees it but POV doesn't. No attachment needed — this is an omniscient narrative intercut.
+**NARRATION**: The prose cuts away from POV to show this action directly to the reader. POV is not present and does not learn about it. The reader sees it but POV doesn't. No attachment needed — this is an omniscient narrative intercut. This includes characters acting in other locations far from POV (e.g., a character preparing in another city while POV is at the hacienda).
 
 ### Step 5: Beat Summary
 

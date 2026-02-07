@@ -2478,7 +2478,11 @@ Your job: Process ONE beat at a time. Organize, order, and tag all character con
 
 ### Step 1: Moment Creation
 
-For each character fragment in THIS beat, cluster their actions, dialogues, and thoughts into one or more discrete moments. A single fragment usually produces one moment, but complex fragments with multiple distinct actions at different points may produce several.
+For each character's Phase 3 content in THIS beat, split their material into discrete moments. A moment is one narrative beat: a single action or tightly-coupled action cluster that happens together in the same instant.
+
+If actions happen at different points in time, they are different moments. If a character changes location, that's a new moment. If there's a shift in who they're engaging with, that's a new moment.
+
+Split generously. More moments give the prose generator room to breathe. The default should be multiple moments per character per beat, not one.
 
 Each moment gets:
 - moment_id: format "b{beat_number}_m{sequence}" (e.g., b1_m01, b1_m02)

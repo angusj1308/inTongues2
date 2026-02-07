@@ -2446,7 +2446,6 @@ You receive:
 - Phase 2: Full cast (protagonist, love interests, stakeholder characters with psychology)
 - Phase 3: Character Action Grid (every character × every beat with actions, dialogues, thoughts, state, intent, tension, outcome)
 - Prior beat outputs (if processing beat 2+)
-- Deferred moments arriving in this beat (if any)
 
 Your job: Process ONE beat at a time. Organize, order, and tag all character content for that beat into moments, assign locations, determine delivery modes, and assemble scenes.
 
@@ -2458,13 +2457,22 @@ Your job: Process ONE beat at a time. Organize, order, and tag all character con
 - Associated thought (if any — protagonist and love interests only)
 - A specific location where this happens
 
-**Delivery Mode**: How each moment reaches the reader through the POV character:
-- **DIRECT** — POV character witnesses it in real time. They are physically present at this location during this moment.
-- **INDIRECT** — POV character learns about it through evidence, observation, inference, or being told. The moment happened but POV wasn't there. Must be attached to a specific DIRECT moment where the information lands.
-- **NARRATION** — Sensory/atmospheric texture. No inference chain needed, just perception (bells, smells, distant sounds, weather, ambient details).
-- **DEFERRED** — Not delivered this beat. Setup for later revelation. Must specify the target_beat where it should land.
+**Delivery Mode**: How each moment reaches the reader. Three modes:
 
-**Scene**: A continuous stretch of prose in one location with one or more DIRECT moments, plus any INDIRECT moments that land within it.
+- **DIRECT** — POV character witnesses it in real time. They are physically present at this location during this moment. They see, hear, or participate in it.
+
+- **INDIRECT** — POV character was NOT present but learns about it through evidence, observation, inference, or being told. Must be attached to a specific DIRECT moment where the information lands.
+  - *Observed*: sees guest room prepared → infers Rafael is coming
+  - *Told*: Carmen mentions Rafael's letter
+  - *Inferred*: notices worn clothes → understands tenant hardship
+  - *Sensory*: hears murmurs from tenant quarters, smells bread from kitchen
+
+- **NARRATION** — Prose describes it happening without POV access. Cut away from POV, show the action, cut back. The reader sees what POV cannot. Used for:
+  - Off-screen character activity (a character acting in a distant location)
+  - Secrets the reader should know but POV shouldn't (hidden documents, private schemes)
+  - Parallel action happening simultaneously at a different location
+
+**Scene**: A continuous stretch of prose in one location with one or more DIRECT moments, plus any INDIRECT moments that land within it, plus any NARRATION moments that intercut.
 
 ## PROCESS (5 steps for this beat)
 
@@ -2512,11 +2520,7 @@ For each moment, assign delivery_mode:
 - attachment_mechanism: one of "observed" | "told" | "inferred" | "sensory"
 - attachment_description: HOW the POV character receives this information (e.g., "sees muddy boots in the hallway", "overheard servants gossiping", "notices the letter has been opened")
 
-**NARRATION**: Atmospheric/sensory texture that doesn't need an inference chain. Church bells, cooking smells, weather, ambient sounds. These enhance scenes but aren't character moments.
-
-**DEFERRED**: Not delivered in this beat. The reader won't learn about this until later. Must specify:
-- target_beat: which beat number this information lands in (must be greater than current beat)
-- deferral_note: why it's deferred and how it surfaces later
+**NARRATION**: The prose cuts away from POV to show this action directly to the reader. POV is not present and does not learn about it. The reader sees it but POV doesn't. No attachment needed — this is an omniscient narrative intercut.
 
 ### Step 5: Beat Summary
 
@@ -2529,11 +2533,11 @@ Assemble scenes and generate summary for this beat:
 - moment_range: array of moment_ids for DIRECT moments in this scene
 - characters_present: who is physically in this scene
 - indirect_moments_landing: INDIRECT moments whose attached_to points to a moment in this scene
+- narration_moments: NARRATION moments that intercut with this scene
 - narration_notes: atmospheric details for this location/time
 
 **Beat Summary**:
 - established: array of what is now known/happened (narrative state after this beat)
-- deferred_from_this_beat: array of deferred moments with target_beat
 - foreshadowing_planted: what was set up for future beats
 
 ## OUTPUT FORMAT (JSON)
@@ -2556,12 +2560,10 @@ Output a SINGLE beat object (not wrapped in an array):
       "actions": ["Action 1", "Action 2"],
       "dialogues": ["Dialogue summary 1"],
       "thoughts": ["Thought 1"],
-      "delivery_mode": "DIRECT | INDIRECT | NARRATION | DEFERRED",
+      "delivery_mode": "DIRECT | INDIRECT | NARRATION",
       "attached_to": null,
       "attachment_mechanism": null,
-      "attachment_description": null,
-      "target_beat": null,
-      "deferral_note": null
+      "attachment_description": null
     }
   ],
 
@@ -2573,19 +2575,13 @@ Output a SINGLE beat object (not wrapped in an array):
       "moment_range": ["b1_m05", "b1_m06", "b1_m07"],
       "characters_present": ["Character A", "Character B"],
       "indirect_moments_landing": ["b1_m01", "b1_m02"],
+      "narration_moments": ["b1_m03"],
       "narration_notes": ["Ambient detail 1", "Sensory detail 2"]
     }
   ],
 
   "beat_summary": {
     "established": ["What is now known or happened"],
-    "deferred_from_this_beat": [
-      {
-        "moment_id": "b1_m11",
-        "description": "What was deferred",
-        "target_beat": 4
-      }
-    ],
     "foreshadowing_planted": ["Setup for future beats"]
   }
 }
@@ -2595,21 +2591,22 @@ Output a SINGLE beat object (not wrapped in an array):
 1. **Every fragment from Phase 3 for this beat must appear** — no dropping content. Every character's actions, dialogues, and thoughts must appear as moments in the output.
 2. **Thoughts preserved** — If a character had thoughts in Phase 3 (protagonist or love_interest), those thoughts MUST appear in their Phase 4 moments. Never drop interior access.
 3. **Every INDIRECT moment must attach to a valid DIRECT moment in this beat** — the attached_to field must reference a moment_id that exists in this beat and has delivery_mode DIRECT.
-4. **Every DEFERRED moment must have target_beat** — and it must be a valid beat number greater than the current beat.
-5. **Scene moment_range contains only DIRECT moments** — from that scene's location.
-6. **indirect_moments_landing contains only INDIRECT moments** — whose attached_to points to a DIRECT moment within that scene.
+4. **Scene moment_range contains only DIRECT moments** — from that scene's location.
+5. **indirect_moments_landing contains only INDIRECT moments** — whose attached_to points to a DIRECT moment within that scene.
+6. **narration_moments contains only NARRATION moments** — that narratively intercut with that scene.
 7. **Unique order_position per beat** — no two moments in this beat share an order_position.
 8. **Location consistency** — a character's location should make physical sense. They can't be in the courtyard and the kitchen simultaneously.
 9. **POV character presence determines DIRECT** — only moments where the POV character is physically present (same location) are DIRECT.
-10. **Deferred incoming moments must land** — if deferred moments from prior beats target this beat, they must be received and attached to DIRECT moments here.
+10. **All content lands in its beat** — there is no deferral. Every Phase 3 fragment for this beat is delivered in this beat as DIRECT, INDIRECT, or NARRATION.
 
 ## DELIVERY MODE DECISION TREE
 
 For each moment, ask:
-1. Is the POV character at this location right now? → DIRECT
-2. If not, does the POV character learn about this during this beat? → INDIRECT (attach to a DIRECT moment)
-3. Is this atmospheric/sensory with no character action? → NARRATION
-4. Does the reader NOT learn about this until a later beat? → DEFERRED (specify target_beat)
+1. Is the POV character at this location right now? → **DIRECT**
+2. If not, can evidence/information plausibly reach POV this beat? → **INDIRECT** (attach to a DIRECT moment)
+3. Neither? → **NARRATION** (prose cuts away to show it to the reader)
+
+There is no fourth option. Everything lands in its beat.
 
 ## DO NOT INCLUDE
 
@@ -2617,9 +2614,10 @@ For each moment, ask:
 - Changes to character psychology or arc (Phase 2/3 data is fixed)
 - Prose or narrative text (Phase 5 handles prose)
 - Chapter divisions (later phase)
-- POV switches within a beat (one POV per beat unless Phase 1 specifies otherwise)`
+- POV switches within a beat (one POV per beat unless Phase 1 specifies otherwise)
+- Deferral of any kind — no target_beat, no deferral_note, no deferred_tracker`
 
-function buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNumber, priorBeatOutputs, deferredIncoming) {
+function buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNumber, priorBeatOutputs) {
   // Identify all characters from Phase 2
   const allCharacters = []
   if (phase2.protagonist) {
@@ -2655,17 +2653,6 @@ function buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNumber, 
     return `  Beat ${b.beat_number} (${b.beat_name}): ${established}`
   }).join('\n')
 
-  // Build deferred incoming section
-  let deferredSection = ''
-  if (deferredIncoming.length > 0) {
-    deferredSection = `\n### DEFERRED MOMENTS ARRIVING IN THIS BEAT
-
-The following moments were deferred from earlier beats and MUST be delivered in beat ${beatNumber}. Attach each to a DIRECT moment in this beat:
-
-${deferredIncoming.map(d => `- **${d.moment_id}** (from beat ${d.source_beat}, ${d.character}): ${d.description}
-  Landing note: ${d.landing_note || d.deferral_note || 'N/A'}`).join('\n')}\n`
-  }
-
   const totalBeats = phase3.grid?.length || 0
 
   return `ORIGINAL CONCEPT: ${concept}
@@ -2687,7 +2674,7 @@ You are processing **Beat ${beatNumber}: ${thisBeatGrid?.beat_name || 'Unknown'}
 ${thisBeatGrid?.beat_description ? `Description: ${thisBeatGrid.beat_description}` : ''}
 
 ### POV Character
-**${povCharacter}** is the protagonist and primary POV character. Moments where ${povCharacter} is physically present are DIRECT. All others must be classified as INDIRECT, NARRATION, or DEFERRED.
+**${povCharacter}** is the protagonist and primary POV character. Moments where ${povCharacter} is physically present are DIRECT. Others are INDIRECT (if POV can learn about them) or NARRATION (prose cuts away to show the reader).
 
 ### Full Cast (${allCharacters.length} characters)
 ${characterList}
@@ -2700,23 +2687,24 @@ ${JSON.stringify(thisBeatGrid, null, 2)}
 ${priorBeatOutputs.length > 0 ? `
 ### What Has Been Established (prior beats)
 ${priorEstablished}` : ''}
-${deferredSection}
+
 ### PROCESS
 
 1. **Moment Creation**: Cluster each character's actions/dialogues/thoughts into discrete moments
 2. **Chronological Ordering**: Order all moments into a single timeline with unique order_positions
 3. **Location Tagging**: Assign specific locations (use Phase 3 fragment locations as primary source)
-4. **Delivery Mode**: Classify each as DIRECT/INDIRECT/NARRATION/DEFERRED based on ${povCharacter}'s presence
-5. **Beat Summary**: Assemble scenes, track what's established and deferred
+4. **Delivery Mode**: Classify each as DIRECT/INDIRECT/NARRATION based on ${povCharacter}'s presence
+5. **Beat Summary**: Assemble scenes, track what's established
 
 ### CRITICAL REMINDERS
 
 - Every Phase 3 fragment for beat ${beatNumber} must produce at least one moment
 - Thoughts from protagonist and love_interests must be preserved
 - INDIRECT moments MUST attach to a DIRECT moment in THIS beat with mechanism and description
-- DEFERRED moments MUST specify target_beat > ${beatNumber}${deferredIncoming.length > 0 ? `\n- ${deferredIncoming.length} deferred moment(s) from prior beats MUST be delivered in this beat` : ''}
+- NARRATION moments need no attachment — they are omniscient intercuts shown directly to the reader
 - Scene moment_range = only DIRECT moments at that location
 - All order_positions within this beat must be unique
+- All content lands in this beat — no deferral
 - Output must be valid JSON — a single beat object (NOT wrapped in an array)`
 }
 
@@ -2725,29 +2713,15 @@ ${deferredSection}
  */
 function stitchPhase4Outputs(beatOutputs) {
   const allLocations = new Set()
-  const deferredTracker = []
 
   for (const beat of beatOutputs) {
-    // Collect locations
     for (const moment of (beat.moments || [])) {
       if (moment.location) allLocations.add(moment.location)
-    }
-    // Collect deferred moments into tracker
-    for (const deferred of (beat.beat_summary?.deferred_from_this_beat || [])) {
-      deferredTracker.push({
-        moment_id: deferred.moment_id,
-        source_beat: beat.beat_number,
-        target_beat: deferred.target_beat,
-        character: (beat.moments || []).find(m => m.moment_id === deferred.moment_id)?.character || 'Unknown',
-        description: deferred.description,
-        landing_note: deferred.landing_note || null
-      })
     }
   }
 
   return {
     beats: beatOutputs,
-    deferred_tracker: deferredTracker,
     location_registry: [...allLocations].sort()
   }
 }
@@ -2758,12 +2732,10 @@ function stitchPhase4Outputs(beatOutputs) {
 function validatePhase4Output(data, phase3) {
   const allMomentIds = new Map()
   const allDirectMomentIds = new Set()
-  const allDeferredMoments = []
   let totalMoments = 0
   let directCount = 0
   let indirectCount = 0
   let narrationCount = 0
-  let deferredCount = 0
   const allLocations = new Set()
 
   // Per-beat validation
@@ -2773,7 +2745,7 @@ function validatePhase4Output(data, phase3) {
     }
 
     if (!beat.scenes) beat.scenes = []
-    if (!beat.beat_summary) beat.beat_summary = { established: [], deferred_from_this_beat: [], foreshadowing_planted: [] }
+    if (!beat.beat_summary) beat.beat_summary = { established: [], foreshadowing_planted: [] }
 
     const orderPositions = new Set()
     for (const moment of beat.moments) {
@@ -2810,9 +2782,6 @@ function validatePhase4Output(data, phase3) {
         indirectCount++
       } else if (mode === 'NARRATION') {
         narrationCount++
-      } else if (mode === 'DEFERRED') {
-        deferredCount++
-        allDeferredMoments.push(moment)
       } else if (mode) {
         console.warn(`Phase 4 WARNING: Unknown delivery_mode "${moment.delivery_mode}" for moment ${moment.moment_id}`)
       }
@@ -2835,26 +2804,6 @@ function validatePhase4Output(data, phase3) {
     }
   }
 
-  // DEFERRED target_beat validation
-  const beatNumbers = new Set(data.beats.map(b => b.beat_number))
-  let invalidDeferred = 0
-  for (const moment of allDeferredMoments) {
-    if (!moment.target_beat) {
-      console.warn(`Phase 4 WARNING: DEFERRED moment ${moment.moment_id} has no target_beat`)
-      invalidDeferred++
-    } else if (!beatNumbers.has(moment.target_beat) && moment.target_beat > Math.max(...beatNumbers)) {
-      console.warn(`Phase 4 WARNING: DEFERRED moment ${moment.moment_id} targets beat ${moment.target_beat} which is beyond the last beat`)
-    }
-  }
-
-  // Deferred tracker completeness
-  const trackedDeferredIds = new Set((data.deferred_tracker || []).map(d => d.moment_id))
-  const untrackedDeferred = allDeferredMoments.filter(m => !trackedDeferredIds.has(m.moment_id))
-  if (untrackedDeferred.length > 0) {
-    console.warn(`Phase 4 WARNING: ${untrackedDeferred.length} DEFERRED moment(s) not in deferred_tracker:`)
-    untrackedDeferred.forEach(m => console.warn(`  - ${m.moment_id}`))
-  }
-
   // Scene structure validation
   let totalScenes = 0
   for (const beat of data.beats) {
@@ -2873,6 +2822,14 @@ function validatePhase4Output(data, phase3) {
           const moment = allMomentIds.get(mid)
           if (moment && moment.delivery_mode?.toUpperCase() !== 'INDIRECT') {
             console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" indirect_moments_landing contains non-INDIRECT moment ${mid} (is ${moment.delivery_mode})`)
+          }
+        }
+      }
+      if (scene.narration_moments && Array.isArray(scene.narration_moments)) {
+        for (const mid of scene.narration_moments) {
+          const moment = allMomentIds.get(mid)
+          if (moment && moment.delivery_mode?.toUpperCase() !== 'NARRATION') {
+            console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" narration_moments contains non-NARRATION moment ${mid} (is ${moment.delivery_mode})`)
           }
         }
       }
@@ -2923,7 +2880,7 @@ function validatePhase4Output(data, phase3) {
     data.location_registry = [...allLocations].sort()
   }
 
-  return { totalMoments, directCount, indirectCount, narrationCount, deferredCount, totalScenes, allLocations, invalidAttachments, invalidDeferred, missingCoverage, droppedThoughts }
+  return { totalMoments, directCount, indirectCount, narrationCount, totalScenes, allLocations, invalidAttachments, missingCoverage, droppedThoughts }
 }
 
 async function executePhase4(concept, phase1, phase2, phase3) {
@@ -2937,20 +2894,12 @@ async function executePhase4(concept, phase1, phase2, phase3) {
   console.log(`  Processing ${beats.length} beats sequentially...`)
 
   const beatOutputs = []
-  // Track all deferred moments across beats: { moment_id, source_beat, target_beat, character, description, landing_note }
-  const allDeferred = []
 
   for (const gridBeat of beats) {
     const beatNum = gridBeat.beat_number
     console.log(`\n  --- Beat ${beatNum}/${beats.length}: ${gridBeat.beat_name} ---`)
 
-    // Collect deferred moments targeting this beat
-    const deferredIncoming = allDeferred.filter(d => d.target_beat === beatNum)
-    if (deferredIncoming.length > 0) {
-      console.log(`    Deferred incoming: ${deferredIncoming.length} moment(s)`)
-    }
-
-    const userPrompt = buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNum, beatOutputs, deferredIncoming)
+    const userPrompt = buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNum, beatOutputs)
     const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
     const parsed = parseJSON(response)
 
@@ -2977,7 +2926,7 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     if (!beatData.beat_number) beatData.beat_number = beatNum
     if (!beatData.beat_name) beatData.beat_name = gridBeat.beat_name
     if (!beatData.scenes) beatData.scenes = []
-    if (!beatData.beat_summary) beatData.beat_summary = { established: [], deferred_from_this_beat: [], foreshadowing_planted: [] }
+    if (!beatData.beat_summary) beatData.beat_summary = { established: [], foreshadowing_planted: [] }
 
     // Normalize moment arrays
     for (const moment of beatData.moments) {
@@ -2989,25 +2938,11 @@ async function executePhase4(concept, phase1, phase2, phase3) {
       if (typeof moment.thoughts === 'string') moment.thoughts = [moment.thoughts]
     }
 
-    // Track deferred moments from this beat
-    for (const deferred of (beatData.beat_summary?.deferred_from_this_beat || [])) {
-      const moment = beatData.moments.find(m => m.moment_id === deferred.moment_id)
-      allDeferred.push({
-        moment_id: deferred.moment_id,
-        source_beat: beatNum,
-        target_beat: deferred.target_beat,
-        character: moment?.character || 'Unknown',
-        description: deferred.description,
-        deferral_note: moment?.deferral_note || null,
-        landing_note: deferred.landing_note || null
-      })
-    }
-
     // Log beat summary
     const directInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'DIRECT').length
     const indirectInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'INDIRECT').length
-    const deferredInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'DEFERRED').length
-    console.log(`    Moments: ${beatData.moments.length} (${directInBeat}D/${indirectInBeat}I/${deferredInBeat}Def), Scenes: ${beatData.scenes.length}`)
+    const narrationInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'NARRATION').length
+    console.log(`    Moments: ${beatData.moments.length} (${directInBeat}D/${indirectInBeat}I/${narrationInBeat}N), Scenes: ${beatData.scenes.length}`)
 
     beatOutputs.push(beatData)
   }
@@ -3027,16 +2962,11 @@ async function executePhase4(concept, phase1, phase2, phase3) {
   console.log(`    DIRECT: ${stats.directCount}`)
   console.log(`    INDIRECT: ${stats.indirectCount}`)
   console.log(`    NARRATION: ${stats.narrationCount}`)
-  console.log(`    DEFERRED: ${stats.deferredCount}`)
   console.log(`  Total scenes: ${stats.totalScenes}`)
   console.log(`  Locations: ${stats.allLocations.size} (${[...stats.allLocations].join(', ')})`)
-  console.log(`  Deferred tracker entries: ${data.deferred_tracker.length}`)
 
   if (stats.invalidAttachments > 0) {
     console.log(`  WARNING: ${stats.invalidAttachments} invalid INDIRECT attachments`)
-  }
-  if (stats.invalidDeferred > 0) {
-    console.log(`  WARNING: ${stats.invalidDeferred} DEFERRED moments without valid target_beat`)
   }
   if (stats.missingCoverage > 0) {
     console.log(`  WARNING: ${stats.missingCoverage} Phase 3 fragments without Phase 4 moments`)
@@ -3052,12 +2982,13 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     const sceneCount = beat.scenes?.length || 0
     const directInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'DIRECT').length || 0
     const indirectInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'INDIRECT').length || 0
-    const deferredInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'DEFERRED').length || 0
-    console.log(`    Beat ${beat.beat_number}: ${beat.beat_name} — ${momentCount} moments (${directInBeat}D/${indirectInBeat}I/${deferredInBeat}Def), ${sceneCount} scenes`)
+    const narrationInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'NARRATION').length || 0
+    console.log(`    Beat ${beat.beat_number}: ${beat.beat_name} — ${momentCount} moments (${directInBeat}D/${indirectInBeat}I/${narrationInBeat}N), ${sceneCount} scenes`)
     for (const scene of (beat.scenes || [])) {
       const directMoments = scene.moment_range?.length || 0
       const indirectLanding = scene.indirect_moments_landing?.length || 0
-      console.log(`      Scene ${scene.scene_number}: "${scene.scene_name}" @ ${scene.location} — ${directMoments} direct, ${indirectLanding} indirect`)
+      const narrationMoments = scene.narration_moments?.length || 0
+      console.log(`      Scene ${scene.scene_number}: "${scene.scene_name}" @ ${scene.location} — ${directMoments} direct, ${indirectLanding} indirect, ${narrationMoments} narration`)
     }
   }
 
@@ -5387,7 +5318,6 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       beats: bible.sceneAssembly.beats?.length,
       totalMoments: bible.sceneAssembly.beats?.reduce((sum, b) => sum + (b.moments?.length || 0), 0),
       totalScenes: bible.sceneAssembly.beats?.reduce((sum, b) => sum + (b.scenes?.length || 0), 0),
-      deferredCount: bible.sceneAssembly.deferred_tracker?.length,
       locations: bible.sceneAssembly.location_registry?.length
     })
     await savePhase(4)

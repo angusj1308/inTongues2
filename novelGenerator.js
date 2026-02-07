@@ -2445,8 +2445,10 @@ You receive:
 - Phase 1: Story DNA (external plot beats, theme, tone, romance arc stages)
 - Phase 2: Full cast (protagonist, love interests, stakeholder characters with psychology)
 - Phase 3: Character Action Grid (every character × every beat with actions, dialogues, thoughts, state, intent, tension, outcome)
+- Prior beat outputs (if processing beat 2+)
+- Deferred moments arriving in this beat (if any)
 
-Your job: Organize, order, and tag all character content into moments, assign locations, determine delivery modes, and assemble scenes — beat by beat.
+Your job: Process ONE beat at a time. Organize, order, and tag all character content for that beat into moments, assign locations, determine delivery modes, and assemble scenes.
 
 ## DEFINITIONS
 
@@ -2464,11 +2466,11 @@ Your job: Organize, order, and tag all character content into moments, assign lo
 
 **Scene**: A continuous stretch of prose in one location with one or more DIRECT moments, plus any INDIRECT moments that land within it.
 
-## PROCESS (5 steps per beat, applied to ALL beats)
+## PROCESS (5 steps for this beat)
 
 ### Step 1: Moment Creation
 
-For each character fragment in the beat, cluster their actions, dialogues, and thoughts into one or more discrete moments. A single fragment usually produces one moment, but complex fragments with multiple distinct actions at different points may produce several.
+For each character fragment in THIS beat, cluster their actions, dialogues, and thoughts into one or more discrete moments. A single fragment usually produces one moment, but complex fragments with multiple distinct actions at different points may produce several.
 
 Each moment gets:
 - moment_id: format "b{beat_number}_m{sequence}" (e.g., b1_m01, b1_m02)
@@ -2480,12 +2482,12 @@ Each moment gets:
 
 ### Step 2: Chronological Ordering
 
-Order ALL moments across ALL characters within the beat into a single timeline. Assign order_position (1, 2, 3...) based on:
+Order ALL moments across ALL characters within this beat into a single timeline. Assign order_position (1, 2, 3...) based on:
 - Narrative logic (what triggers what)
 - Physical causation (arrival before greeting, preparation before event)
 - Parallel moments happening simultaneously get consecutive positions
 
-Every moment in a beat must have a unique order_position.
+Every moment in the beat must have a unique order_position.
 
 ### Step 3: Location Tagging
 
@@ -2499,26 +2501,26 @@ Locations are inferred from:
 
 ### Step 4: Delivery Mode + Attachment
 
-Determine who the POV character is for each beat (the protagonist, unless Phase 1 specifies otherwise).
+Determine who the POV character is for this beat (the protagonist, unless Phase 1 specifies otherwise).
 
 For each moment, assign delivery_mode:
 
 **DIRECT**: The POV character is physically present at this location during this moment. They see/hear/participate in it.
 
 **INDIRECT**: The POV character was NOT present but learns about it. EVERY indirect moment must specify:
-- attached_to: moment_id of a DIRECT moment where this information lands
+- attached_to: moment_id of a DIRECT moment in THIS beat where this information lands
 - attachment_mechanism: one of "observed" | "told" | "inferred" | "sensory"
 - attachment_description: HOW the POV character receives this information (e.g., "sees muddy boots in the hallway", "overheard servants gossiping", "notices the letter has been opened")
 
 **NARRATION**: Atmospheric/sensory texture that doesn't need an inference chain. Church bells, cooking smells, weather, ambient sounds. These enhance scenes but aren't character moments.
 
 **DEFERRED**: Not delivered in this beat. The reader won't learn about this until later. Must specify:
-- target_beat: which beat number this information lands in
+- target_beat: which beat number this information lands in (must be greater than current beat)
 - deferral_note: why it's deferred and how it surfaces later
 
 ### Step 5: Beat Summary
 
-For each beat, assemble scenes and generate summary:
+Assemble scenes and generate summary for this beat:
 
 **Scenes**: Group consecutive DIRECT moments at the same location into scenes. Each scene has:
 - scene_number (within this beat)
@@ -2536,87 +2538,70 @@ For each beat, assemble scenes and generate summary:
 
 ## OUTPUT FORMAT (JSON)
 
+Output a SINGLE beat object (not wrapped in an array):
+
 {
-  "phase4_output": {
-    "beats": [
-      {
-        "beat_number": 1,
-        "beat_name": "Name from Phase 1/3",
-        "beat_description": "What happens in this beat",
-        "pov_character": "Name of POV character for this beat",
+  "beat_number": 1,
+  "beat_name": "Name from Phase 1/3",
+  "beat_description": "What happens in this beat",
+  "pov_character": "Name of POV character for this beat",
 
-        "moments": [
-          {
-            "moment_id": "b1_m01",
-            "order_position": 1,
-            "character": "Character Name",
-            "character_type": "protagonist | love_interest | stakeholder",
-            "location": "specific_location",
-            "actions": ["Action 1", "Action 2"],
-            "dialogues": ["Dialogue summary 1"],
-            "thoughts": ["Thought 1"],
-            "delivery_mode": "DIRECT | INDIRECT | NARRATION | DEFERRED",
-            "attached_to": null,
-            "attachment_mechanism": null,
-            "attachment_description": null,
-            "target_beat": null,
-            "deferral_note": null
-          }
-        ],
+  "moments": [
+    {
+      "moment_id": "b1_m01",
+      "order_position": 1,
+      "character": "Character Name",
+      "character_type": "protagonist | love_interest | stakeholder",
+      "location": "specific_location",
+      "actions": ["Action 1", "Action 2"],
+      "dialogues": ["Dialogue summary 1"],
+      "thoughts": ["Thought 1"],
+      "delivery_mode": "DIRECT | INDIRECT | NARRATION | DEFERRED",
+      "attached_to": null,
+      "attachment_mechanism": null,
+      "attachment_description": null,
+      "target_beat": null,
+      "deferral_note": null
+    }
+  ],
 
-        "scenes": [
-          {
-            "scene_number": 1,
-            "scene_name": "Descriptive Scene Name",
-            "location": "specific_location",
-            "moment_range": ["b1_m05", "b1_m06", "b1_m07"],
-            "characters_present": ["Character A", "Character B"],
-            "indirect_moments_landing": ["b1_m01", "b1_m02"],
-            "narration_notes": ["Ambient detail 1", "Sensory detail 2"]
-          }
-        ],
+  "scenes": [
+    {
+      "scene_number": 1,
+      "scene_name": "Descriptive Scene Name",
+      "location": "specific_location",
+      "moment_range": ["b1_m05", "b1_m06", "b1_m07"],
+      "characters_present": ["Character A", "Character B"],
+      "indirect_moments_landing": ["b1_m01", "b1_m02"],
+      "narration_notes": ["Ambient detail 1", "Sensory detail 2"]
+    }
+  ],
 
-        "beat_summary": {
-          "established": ["What is now known or happened"],
-          "deferred_from_this_beat": [
-            {
-              "moment_id": "b1_m11",
-              "description": "What was deferred",
-              "target_beat": 4
-            }
-          ],
-          "foreshadowing_planted": ["Setup for future beats"]
-        }
-      }
-    ],
-
-    "deferred_tracker": [
+  "beat_summary": {
+    "established": ["What is now known or happened"],
+    "deferred_from_this_beat": [
       {
         "moment_id": "b1_m11",
-        "source_beat": 1,
-        "target_beat": 4,
-        "character": "Character Name",
-        "description": "What is deferred",
-        "landing_note": "How/when it surfaces"
+        "description": "What was deferred",
+        "target_beat": 4
       }
     ],
-
-    "location_registry": ["courtyard", "main_hall", "kitchen"]
+    "foreshadowing_planted": ["Setup for future beats"]
   }
 }
 
 ## CRITICAL RULES
 
-1. **Every fragment from Phase 3 must appear** — no dropping content. Every character's actions, dialogues, and thoughts from every beat must appear as moments in the output.
+1. **Every fragment from Phase 3 for this beat must appear** — no dropping content. Every character's actions, dialogues, and thoughts must appear as moments in the output.
 2. **Thoughts preserved** — If a character had thoughts in Phase 3 (protagonist or love_interest), those thoughts MUST appear in their Phase 4 moments. Never drop interior access.
-3. **Every INDIRECT moment must attach to a valid DIRECT moment** — the attached_to field must reference a moment_id that exists and has delivery_mode DIRECT.
+3. **Every INDIRECT moment must attach to a valid DIRECT moment in this beat** — the attached_to field must reference a moment_id that exists in this beat and has delivery_mode DIRECT.
 4. **Every DEFERRED moment must have target_beat** — and it must be a valid beat number greater than the current beat.
-5. **All DEFERRED moments tracked** — every deferred moment must appear in the deferred_tracker array.
-6. **Scene moment_range contains only DIRECT moments** — from that scene's location.
-7. **indirect_moments_landing contains only INDIRECT moments** — whose attached_to points to a DIRECT moment within that scene.
-8. **Unique order_position per beat** — no two moments in the same beat share an order_position.
-9. **Location consistency** — a character's location should make physical sense. They can't be in the courtyard and the kitchen simultaneously.
-10. **POV character presence determines DIRECT** — only moments where the POV character is physically present (same location) are DIRECT.
+5. **Scene moment_range contains only DIRECT moments** — from that scene's location.
+6. **indirect_moments_landing contains only INDIRECT moments** — whose attached_to points to a DIRECT moment within that scene.
+7. **Unique order_position per beat** — no two moments in this beat share an order_position.
+8. **Location consistency** — a character's location should make physical sense. They can't be in the courtyard and the kitchen simultaneously.
+9. **POV character presence determines DIRECT** — only moments where the POV character is physically present (same location) are DIRECT.
+10. **Deferred incoming moments must land** — if deferred moments from prior beats target this beat, they must be received and attached to DIRECT moments here.
 
 ## DELIVERY MODE DECISION TREE
 
@@ -2634,7 +2619,7 @@ For each moment, ask:
 - Chapter divisions (later phase)
 - POV switches within a beat (one POV per beat unless Phase 1 specifies otherwise)`
 
-function buildPhase4UserPrompt(concept, phase1, phase2, phase3) {
+function buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNumber, priorBeatOutputs, deferredIncoming) {
   // Identify all characters from Phase 2
   const allCharacters = []
   if (phase2.protagonist) {
@@ -2651,39 +2636,41 @@ function buildPhase4UserPrompt(concept, phase1, phase2, phase3) {
     })
   }
 
-  // Build character list with types
-  const characterList = allCharacters.map(c =>
-    `- ${c.name} (${c.type})`
-  ).join('\n')
-
-  // Build POV character info
+  const characterList = allCharacters.map(c => `- ${c.name} (${c.type})`).join('\n')
   const povCharacter = phase2.protagonist?.name || 'Unknown'
 
-  // Build grid summary per beat
-  const gridSummary = phase3.grid?.map(beat => {
-    const fragmentSummaries = beat.fragments?.map(f => {
-      const actCount = f.actions?.length || 0
-      const dlgCount = f.dialogues?.length || 0
-      const thtCount = f.thoughts?.length || 0
-      const location = f.location ? ` @ ${f.location}` : ''
-      return `    ${f.character} (${f.character_type}): ${actCount} actions, ${dlgCount} dialogues, ${thtCount} thoughts${location}`
-    }).join('\n') || '    (no fragments)'
+  // Get this beat's grid data
+  const thisBeatGrid = phase3.grid?.find(b => b.beat_number === beatNumber)
+  const thisBeatFragments = thisBeatGrid?.fragments?.map(f => {
+    const actCount = f.actions?.length || 0
+    const dlgCount = f.dialogues?.length || 0
+    const thtCount = f.thoughts?.length || 0
+    const location = f.location ? ` @ ${f.location}` : ''
+    return `  ${f.character} (${f.character_type}): ${actCount} actions, ${dlgCount} dialogues, ${thtCount} thoughts${location}`
+  }).join('\n') || '  (no fragments)'
 
-    return `  Beat ${beat.beat_number}: ${beat.beat_name}
-    Description: ${beat.beat_description || 'N/A'}
-${fragmentSummaries}`
-  }).join('\n\n') || 'No grid available'
+  // Build prior beats established facts summary
+  const priorEstablished = priorBeatOutputs.map(b => {
+    const established = b.beat_summary?.established?.join('; ') || 'nothing noted'
+    return `  Beat ${b.beat_number} (${b.beat_name}): ${established}`
+  }).join('\n')
 
-  // Build external beats summary
-  const externalBeatsSummary = phase1.external_plot?.beats?.map(b =>
-    `${b.order}. **${b.beat}**: ${b.what_happens}`
-  ).join('\n') || 'No external beats defined'
+  // Build deferred incoming section
+  let deferredSection = ''
+  if (deferredIncoming.length > 0) {
+    deferredSection = `\n### DEFERRED MOMENTS ARRIVING IN THIS BEAT
 
-  const beatCount = phase3.grid?.length || 0
+The following moments were deferred from earlier beats and MUST be delivered in beat ${beatNumber}. Attach each to a DIRECT moment in this beat:
+
+${deferredIncoming.map(d => `- **${d.moment_id}** (from beat ${d.source_beat}, ${d.character}): ${d.description}
+  Landing note: ${d.landing_note || d.deferral_note || 'N/A'}`).join('\n')}\n`
+  }
+
+  const totalBeats = phase3.grid?.length || 0
 
   return `ORIGINAL CONCEPT: ${concept}
 
-## FULL PHASE DATA (for reference)
+## PHASE DATA (for reference)
 
 PHASE 1 OUTPUT (Story DNA):
 ${JSON.stringify(phase1, null, 2)}
@@ -2691,10 +2678,13 @@ ${JSON.stringify(phase1, null, 2)}
 PHASE 2 OUTPUT (Full Cast):
 ${JSON.stringify(phase2, null, 2)}
 
-PHASE 3 OUTPUT (Character Action Grid):
+PHASE 3 OUTPUT (Character Action Grid — ALL beats for context):
 ${JSON.stringify(phase3, null, 2)}
 
-## YOUR TASK: Scene Assembly for All ${beatCount} Beats
+## YOUR TASK: Scene Assembly for Beat ${beatNumber} of ${totalBeats}
+
+You are processing **Beat ${beatNumber}: ${thisBeatGrid?.beat_name || 'Unknown'}** only.
+${thisBeatGrid?.beat_description ? `Description: ${thisBeatGrid.beat_description}` : ''}
 
 ### POV Character
 **${povCharacter}** is the protagonist and primary POV character. Moments where ${povCharacter} is physically present are DIRECT. All others must be classified as INDIRECT, NARRATION, or DEFERRED.
@@ -2702,15 +2692,16 @@ ${JSON.stringify(phase3, null, 2)}
 ### Full Cast (${allCharacters.length} characters)
 ${characterList}
 
-### External Plot Beats
-${externalBeatsSummary}
+### This Beat's Phase 3 Fragments
+${thisBeatFragments}
 
-### Grid Overview
-${gridSummary}
-
-### PROCESS FOR EACH BEAT
-
-For each of the ${beatCount} beats:
+### This Beat's Full Phase 3 Data
+${JSON.stringify(thisBeatGrid, null, 2)}
+${priorBeatOutputs.length > 0 ? `
+### What Has Been Established (prior beats)
+${priorEstablished}` : ''}
+${deferredSection}
+### PROCESS
 
 1. **Moment Creation**: Cluster each character's actions/dialogues/thoughts into discrete moments
 2. **Chronological Ordering**: Order all moments into a single timeline with unique order_positions
@@ -2720,57 +2711,52 @@ For each of the ${beatCount} beats:
 
 ### CRITICAL REMINDERS
 
-- Every Phase 3 fragment must produce at least one moment
+- Every Phase 3 fragment for beat ${beatNumber} must produce at least one moment
 - Thoughts from protagonist and love_interests must be preserved
-- INDIRECT moments MUST attach to a DIRECT moment with mechanism and description
-- DEFERRED moments MUST specify target_beat and appear in deferred_tracker
+- INDIRECT moments MUST attach to a DIRECT moment in THIS beat with mechanism and description
+- DEFERRED moments MUST specify target_beat > ${beatNumber}${deferredIncoming.length > 0 ? `\n- ${deferredIncoming.length} deferred moment(s) from prior beats MUST be delivered in this beat` : ''}
 - Scene moment_range = only DIRECT moments at that location
-- All order_positions within a beat must be unique
-- Output must be valid JSON matching the schema from the system prompt`
+- All order_positions within this beat must be unique
+- Output must be valid JSON — a single beat object (NOT wrapped in an array)`
 }
 
-async function executePhase4(concept, phase1, phase2, phase3) {
-  console.log('Executing Phase 4: Scene Assembly...')
+/**
+ * Stitch individual beat outputs into the final Phase 4 structure
+ */
+function stitchPhase4Outputs(beatOutputs) {
+  const allLocations = new Set()
+  const deferredTracker = []
 
-  const userPrompt = buildPhase4UserPrompt(concept, phase1, phase2, phase3)
-  const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 32768 })
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    console.error('Phase 4 raw response (first 1000 chars):', response.slice(0, 1000))
-    console.error('Phase 4 raw response (last 500 chars):', response.slice(-500))
-    throw new Error(`Phase 4 JSON parse failed: ${parsed.error}`)
+  for (const beat of beatOutputs) {
+    // Collect locations
+    for (const moment of (beat.moments || [])) {
+      if (moment.location) allLocations.add(moment.location)
+    }
+    // Collect deferred moments into tracker
+    for (const deferred of (beat.beat_summary?.deferred_from_this_beat || [])) {
+      deferredTracker.push({
+        moment_id: deferred.moment_id,
+        source_beat: beat.beat_number,
+        target_beat: deferred.target_beat,
+        character: (beat.moments || []).find(m => m.moment_id === deferred.moment_id)?.character || 'Unknown',
+        description: deferred.description,
+        landing_note: deferred.landing_note || null
+      })
+    }
   }
 
-  let data = parsed.data
-
-  // Normalize: accept either { phase4_output: { beats: [...] } } or { beats: [...] } at top level
-  if (data.phase4_output) {
-    data = data.phase4_output
+  return {
+    beats: beatOutputs,
+    deferred_tracker: deferredTracker,
+    location_registry: [...allLocations].sort()
   }
+}
 
-  // Validate required top-level structure
-  if (!data.beats || !Array.isArray(data.beats)) {
-    console.error('Phase 4 output keys:', Object.keys(data))
-    throw new Error('Phase 4 missing beats array. Received keys: ' + Object.keys(data).join(', '))
-  }
-
-  if (data.beats.length === 0) {
-    throw new Error('Phase 4 beats array is empty')
-  }
-
-  // Validate beat count matches Phase 3 grid
-  const expectedBeatCount = phase3.grid?.length || 0
-  if (expectedBeatCount > 0 && data.beats.length !== expectedBeatCount) {
-    console.warn(`Phase 4 WARNING: Output has ${data.beats.length} beats but Phase 3 grid has ${expectedBeatCount} beats`)
-  }
-
-  // Ensure deferred_tracker and location_registry exist
-  if (!data.deferred_tracker) data.deferred_tracker = []
-  if (!data.location_registry) data.location_registry = []
-
-  // Collect all moment IDs and their properties for cross-validation
-  const allMomentIds = new Map() // moment_id → moment object
+/**
+ * Validate the complete stitched Phase 4 output
+ */
+function validatePhase4Output(data, phase3) {
+  const allMomentIds = new Map()
   const allDirectMomentIds = new Set()
   const allDeferredMoments = []
   let totalMoments = 0
@@ -2786,11 +2772,9 @@ async function executePhase4(concept, phase1, phase2, phase3) {
       throw new Error(`Beat ${beat.beat_number || '?'} missing required fields (beat_number, moments)`)
     }
 
-    // Ensure scenes array exists
     if (!beat.scenes) beat.scenes = []
     if (!beat.beat_summary) beat.beat_summary = { established: [], deferred_from_this_beat: [], foreshadowing_planted: [] }
 
-    // Validate unique order_positions within beat
     const orderPositions = new Set()
     for (const moment of beat.moments) {
       totalMoments++
@@ -2800,15 +2784,9 @@ async function executePhase4(concept, phase1, phase2, phase3) {
         continue
       }
 
-      // Track moment
       allMomentIds.set(moment.moment_id, moment)
+      if (moment.location) allLocations.add(moment.location)
 
-      // Track location
-      if (moment.location) {
-        allLocations.add(moment.location)
-      }
-
-      // Validate unique order_position
       if (moment.order_position != null) {
         if (orderPositions.has(moment.order_position)) {
           console.warn(`Phase 4 WARNING: Duplicate order_position ${moment.order_position} in beat ${beat.beat_number}`)
@@ -2824,7 +2802,6 @@ async function executePhase4(concept, phase1, phase2, phase3) {
       if (typeof moment.dialogues === 'string') moment.dialogues = [moment.dialogues]
       if (typeof moment.thoughts === 'string') moment.thoughts = [moment.thoughts]
 
-      // Count delivery modes
       const mode = moment.delivery_mode?.toUpperCase()
       if (mode === 'DIRECT') {
         directCount++
@@ -2842,7 +2819,7 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     }
   }
 
-  // Cross-beat validation: INDIRECT moments must attach to valid DIRECT moments
+  // INDIRECT attachment validation
   let invalidAttachments = 0
   for (const beat of data.beats) {
     for (const moment of beat.moments) {
@@ -2858,7 +2835,7 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     }
   }
 
-  // Cross-beat validation: DEFERRED moments must have valid target_beat
+  // DEFERRED target_beat validation
   const beatNumbers = new Set(data.beats.map(b => b.beat_number))
   let invalidDeferred = 0
   for (const moment of allDeferredMoments) {
@@ -2866,12 +2843,11 @@ async function executePhase4(concept, phase1, phase2, phase3) {
       console.warn(`Phase 4 WARNING: DEFERRED moment ${moment.moment_id} has no target_beat`)
       invalidDeferred++
     } else if (!beatNumbers.has(moment.target_beat) && moment.target_beat > Math.max(...beatNumbers)) {
-      // Allow target_beat beyond our range (might be a future beat)
       console.warn(`Phase 4 WARNING: DEFERRED moment ${moment.moment_id} targets beat ${moment.target_beat} which is beyond the last beat`)
     }
   }
 
-  // Validate deferred_tracker contains all deferred moments
+  // Deferred tracker completeness
   const trackedDeferredIds = new Set((data.deferred_tracker || []).map(d => d.moment_id))
   const untrackedDeferred = allDeferredMoments.filter(m => !trackedDeferredIds.has(m.moment_id))
   if (untrackedDeferred.length > 0) {
@@ -2879,12 +2855,11 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     untrackedDeferred.forEach(m => console.warn(`  - ${m.moment_id}`))
   }
 
-  // Validate scene structure
+  // Scene structure validation
   let totalScenes = 0
   for (const beat of data.beats) {
     for (const scene of (beat.scenes || [])) {
       totalScenes++
-      // Validate moment_range contains only DIRECT moments
       if (scene.moment_range && Array.isArray(scene.moment_range)) {
         for (const mid of scene.moment_range) {
           const moment = allMomentIds.get(mid)
@@ -2893,7 +2868,6 @@ async function executePhase4(concept, phase1, phase2, phase3) {
           }
         }
       }
-      // Validate indirect_moments_landing contains only INDIRECT moments
       if (scene.indirect_moments_landing && Array.isArray(scene.indirect_moments_landing)) {
         for (const mid of scene.indirect_moments_landing) {
           const moment = allMomentIds.get(mid)
@@ -2905,16 +2879,7 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     }
   }
 
-  // Validate Phase 3 fragment coverage: every fragment should produce at least one moment
-  let phase3FragmentCount = 0
-  const phase3Characters = new Set()
-  for (const beat of (phase3.grid || [])) {
-    for (const fragment of (beat.fragments || [])) {
-      phase3FragmentCount++
-      phase3Characters.add(fragment.character)
-    }
-  }
-  // Check moment coverage per character per beat
+  // Phase 3 fragment coverage
   const momentCharactersPerBeat = new Map()
   for (const beat of data.beats) {
     const charSet = new Set()
@@ -2935,12 +2900,11 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     }
   }
 
-  // Validate thoughts preservation: characters with thoughts in Phase 3 should have them in Phase 4
+  // Thoughts preservation
   let droppedThoughts = 0
   for (const gridBeat of (phase3.grid || [])) {
     for (const fragment of (gridBeat.fragments || [])) {
       if (fragment.thoughts && fragment.thoughts.length > 0) {
-        // Find corresponding Phase 4 moments for this character in this beat
         const p4Beat = data.beats.find(b => b.beat_number === gridBeat.beat_number)
         if (p4Beat) {
           const charMoments = p4Beat.moments.filter(m => m.character === fragment.character)
@@ -2954,34 +2918,131 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     }
   }
 
-  // Build location_registry from all locations found
-  if (data.location_registry.length === 0) {
+  // Build location_registry if empty
+  if (!data.location_registry || data.location_registry.length === 0) {
     data.location_registry = [...allLocations].sort()
   }
 
+  return { totalMoments, directCount, indirectCount, narrationCount, deferredCount, totalScenes, allLocations, invalidAttachments, invalidDeferred, missingCoverage, droppedThoughts }
+}
+
+async function executePhase4(concept, phase1, phase2, phase3) {
+  console.log('Executing Phase 4: Scene Assembly (per-beat processing)...')
+
+  const beats = phase3.grid || []
+  if (beats.length === 0) {
+    throw new Error('Phase 4: Phase 3 grid is empty — no beats to process')
+  }
+
+  console.log(`  Processing ${beats.length} beats sequentially...`)
+
+  const beatOutputs = []
+  // Track all deferred moments across beats: { moment_id, source_beat, target_beat, character, description, landing_note }
+  const allDeferred = []
+
+  for (const gridBeat of beats) {
+    const beatNum = gridBeat.beat_number
+    console.log(`\n  --- Beat ${beatNum}/${beats.length}: ${gridBeat.beat_name} ---`)
+
+    // Collect deferred moments targeting this beat
+    const deferredIncoming = allDeferred.filter(d => d.target_beat === beatNum)
+    if (deferredIncoming.length > 0) {
+      console.log(`    Deferred incoming: ${deferredIncoming.length} moment(s)`)
+    }
+
+    const userPrompt = buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNum, beatOutputs, deferredIncoming)
+    const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
+    const parsed = parseJSON(response)
+
+    if (!parsed.success) {
+      console.error(`Phase 4 Beat ${beatNum} raw response (first 1000 chars):`, response.slice(0, 1000))
+      console.error(`Phase 4 Beat ${beatNum} raw response (last 500 chars):`, response.slice(-500))
+      throw new Error(`Phase 4 Beat ${beatNum} JSON parse failed: ${parsed.error}`)
+    }
+
+    let beatData = parsed.data
+
+    // Normalize: model might wrap in various ways
+    if (beatData.phase4_output) beatData = beatData.phase4_output
+    if (beatData.beats && Array.isArray(beatData.beats)) beatData = beatData.beats[0]
+    if (beatData.beat) beatData = beatData.beat
+
+    // Validate beat has required structure
+    if (!beatData.moments || !Array.isArray(beatData.moments)) {
+      console.error(`Phase 4 Beat ${beatNum} output keys:`, Object.keys(beatData))
+      throw new Error(`Phase 4 Beat ${beatNum} missing moments array. Received keys: ${Object.keys(beatData).join(', ')}`)
+    }
+
+    // Ensure beat_number is set correctly
+    if (!beatData.beat_number) beatData.beat_number = beatNum
+    if (!beatData.beat_name) beatData.beat_name = gridBeat.beat_name
+    if (!beatData.scenes) beatData.scenes = []
+    if (!beatData.beat_summary) beatData.beat_summary = { established: [], deferred_from_this_beat: [], foreshadowing_planted: [] }
+
+    // Normalize moment arrays
+    for (const moment of beatData.moments) {
+      if (!moment.actions) moment.actions = []
+      if (!moment.dialogues) moment.dialogues = []
+      if (!moment.thoughts) moment.thoughts = []
+      if (typeof moment.actions === 'string') moment.actions = [moment.actions]
+      if (typeof moment.dialogues === 'string') moment.dialogues = [moment.dialogues]
+      if (typeof moment.thoughts === 'string') moment.thoughts = [moment.thoughts]
+    }
+
+    // Track deferred moments from this beat
+    for (const deferred of (beatData.beat_summary?.deferred_from_this_beat || [])) {
+      const moment = beatData.moments.find(m => m.moment_id === deferred.moment_id)
+      allDeferred.push({
+        moment_id: deferred.moment_id,
+        source_beat: beatNum,
+        target_beat: deferred.target_beat,
+        character: moment?.character || 'Unknown',
+        description: deferred.description,
+        deferral_note: moment?.deferral_note || null,
+        landing_note: deferred.landing_note || null
+      })
+    }
+
+    // Log beat summary
+    const directInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'DIRECT').length
+    const indirectInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'INDIRECT').length
+    const deferredInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'DEFERRED').length
+    console.log(`    Moments: ${beatData.moments.length} (${directInBeat}D/${indirectInBeat}I/${deferredInBeat}Def), Scenes: ${beatData.scenes.length}`)
+
+    beatOutputs.push(beatData)
+  }
+
+  // Stitch all beat outputs into final Phase 4 structure
+  console.log('\n  Stitching beat outputs...')
+  const data = stitchPhase4Outputs(beatOutputs)
+
+  // Run full validation on stitched output
+  console.log('  Running validation...')
+  const stats = validatePhase4Output(data, phase3)
+
   // Console logging
-  console.log('Phase 4 complete.')
+  console.log('\nPhase 4 complete.')
   console.log(`  Beats processed: ${data.beats.length}`)
-  console.log(`  Total moments: ${totalMoments}`)
-  console.log(`    DIRECT: ${directCount}`)
-  console.log(`    INDIRECT: ${indirectCount}`)
-  console.log(`    NARRATION: ${narrationCount}`)
-  console.log(`    DEFERRED: ${deferredCount}`)
-  console.log(`  Total scenes: ${totalScenes}`)
-  console.log(`  Locations: ${allLocations.size} (${[...allLocations].join(', ')})`)
+  console.log(`  Total moments: ${stats.totalMoments}`)
+  console.log(`    DIRECT: ${stats.directCount}`)
+  console.log(`    INDIRECT: ${stats.indirectCount}`)
+  console.log(`    NARRATION: ${stats.narrationCount}`)
+  console.log(`    DEFERRED: ${stats.deferredCount}`)
+  console.log(`  Total scenes: ${stats.totalScenes}`)
+  console.log(`  Locations: ${stats.allLocations.size} (${[...stats.allLocations].join(', ')})`)
   console.log(`  Deferred tracker entries: ${data.deferred_tracker.length}`)
 
-  if (invalidAttachments > 0) {
-    console.log(`  WARNING: ${invalidAttachments} invalid INDIRECT attachments`)
+  if (stats.invalidAttachments > 0) {
+    console.log(`  WARNING: ${stats.invalidAttachments} invalid INDIRECT attachments`)
   }
-  if (invalidDeferred > 0) {
-    console.log(`  WARNING: ${invalidDeferred} DEFERRED moments without valid target_beat`)
+  if (stats.invalidDeferred > 0) {
+    console.log(`  WARNING: ${stats.invalidDeferred} DEFERRED moments without valid target_beat`)
   }
-  if (missingCoverage > 0) {
-    console.log(`  WARNING: ${missingCoverage} Phase 3 fragments without Phase 4 moments`)
+  if (stats.missingCoverage > 0) {
+    console.log(`  WARNING: ${stats.missingCoverage} Phase 3 fragments without Phase 4 moments`)
   }
-  if (droppedThoughts > 0) {
-    console.log(`  WARNING: ${droppedThoughts} characters lost thoughts between Phase 3 and Phase 4`)
+  if (stats.droppedThoughts > 0) {
+    console.log(`  WARNING: ${stats.droppedThoughts} characters lost thoughts between Phase 3 and Phase 4`)
   }
 
   // Log beat-by-beat summary

@@ -2522,7 +2522,16 @@ For each moment, assign delivery_mode:
 **INDIRECT**: The POV character was NOT present but learns about it. EVERY indirect moment must specify:
 - attached_to: moment_id of a DIRECT moment in THIS beat where this information lands
 - attachment_mechanism: one of "observed" | "told" | "inferred" | "sensory"
-- attachment_description: HOW the POV character receives this information (e.g., "sees muddy boots in the hallway", "overheard servants gossiping", "notices the letter has been opened")
+- attachment_description: The specific evidence, sensory detail, or line of dialogue that delivers this information — prose-ready concrete detail, not a summary.
+
+Write what appears in the scene: the object, the sound, the visible sign, the spoken words. Not "POV notices X" but the X itself. The prose generator needs raw material, not interpretation.
+
+Ask: what would a camera see? What would a microphone pick up? What words are actually spoken? Write that.
+
+Good: "a half-empty whiskey glass and two chairs pulled close together on the balcony"
+Good: "Maria says 'He left an hour ago — didn't even finish his drink'"
+Bad: "POV notices evidence of the meeting"
+Bad: "POV observes that someone was there"
 
 **NARRATION**: The prose cuts away from POV to show this action directly to the reader. POV is not present and does not learn about it. The reader sees it but POV doesn't. No attachment needed — this is an omniscient narrative intercut.
 

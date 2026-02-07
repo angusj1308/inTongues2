@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import {
@@ -67,6 +67,9 @@ const GenerateStoryPanel = ({
   const [bibleProgress, setBibleProgress] = useState('') // Progress message for bible generation
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
   const [isGeneratedContent, setIsGeneratedContent] = useState(false) // Track if description was AI-generated
+  const [uploadedFileName, setUploadedFileName] = useState('')
+  const [uploadedContent, setUploadedContent] = useState('')
+  const fileInputRef = useRef(null)
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -161,6 +164,38 @@ const GenerateStoryPanel = ({
     }
   }
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setUploadedContent(e.target.result)
+      setUploadedFileName(file.name)
+    }
+    reader.onerror = () => {
+      setError('Failed to read file. Please try again.')
+    }
+    reader.readAsText(file)
+  }
+
+  const handleRemoveFile = () => {
+    setUploadedContent('')
+    setUploadedFileName('')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const buildConceptString = () => {
+    const typed = description.trim()
+    const uploaded = uploadedContent.trim()
+    if (typed && uploaded) {
+      return `${typed}\n\n---\n\nDETAILED STORY CONCEPT DOCUMENT:\n\n${uploaded}`
+    }
+    return uploaded || typed
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!activeLanguage || !user) {
@@ -176,7 +211,7 @@ const GenerateStoryPanel = ({
 
     if (useBiblePipeline) {
       // Create placeholder document immediately so user sees it in library
-      const placeholderConcept = description.trim() || 'A compelling romance story'
+      const placeholderConcept = buildConceptString() || 'A compelling romance story'
       const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
 
       try {
@@ -218,7 +253,7 @@ const GenerateStoryPanel = ({
       lengthPreset,
       minPages: currentPreset.minPages,
       maxPages: currentPreset.maxPages,
-      description: description.trim(),
+      description: buildConceptString() || description.trim(),
       language: activeLanguage,
       generateAudio,
       voiceGender: generateAudio ? voiceGender : null,
@@ -415,6 +450,41 @@ const GenerateStoryPanel = ({
             </p>
           </div>
         </label>
+
+        {/* Document Upload — for novella/novel length */}
+        {(lengthPreset === 'novella' || lengthPreset === 'novel') && (
+          <div className="ui-text">
+            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+              Upload a detailed story document
+              <span className="muted small" style={{ display: 'block', fontWeight: 'normal' }}>
+                .md or .txt — the more detail you provide, the more faithfully the AI will follow your vision
+              </span>
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".md,.txt"
+              onChange={handleFileUpload}
+              disabled={isSubmitting}
+              style={{ fontSize: '0.875rem' }}
+            />
+            {uploadedFileName && (
+              <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '0.875rem' }}>
+                  {uploadedFileName} — {uploadedContent.split(/\s+/).filter(Boolean).length} words
+                </span>
+                <button
+                  type="button"
+                  className="button ghost small"
+                  onClick={handleRemoveFile}
+                  disabled={isSubmitting}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <label className="checkbox ui-text">
           <span className="ui-text">Generate audio</span>

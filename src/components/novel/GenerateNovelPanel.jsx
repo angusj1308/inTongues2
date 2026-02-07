@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useRef, useMemo, useState } from 'react'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { generateBible, NOVEL_LEVELS, LENGTH_PRESETS } from '../../services/novelApiClient'
@@ -13,6 +13,9 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
+  const [uploadedFileName, setUploadedFileName] = useState('')
+  const [uploadedContent, setUploadedContent] = useState('')
+  const fileInputRef = useRef(null)
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -35,6 +38,38 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
     }
   }
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setUploadedContent(e.target.result)
+      setUploadedFileName(file.name)
+    }
+    reader.onerror = () => {
+      setError('Failed to read file. Please try again.')
+    }
+    reader.readAsText(file)
+  }
+
+  const handleRemoveFile = () => {
+    setUploadedContent('')
+    setUploadedFileName('')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const buildConceptString = () => {
+    const typed = concept.trim()
+    const uploaded = uploadedContent.trim()
+    if (typed && uploaded) {
+      return `${typed}\n\n---\n\nDETAILED STORY CONCEPT DOCUMENT:\n\n${uploaded}`
+    }
+    return uploaded || typed
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -43,8 +78,9 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
       return
     }
 
-    if (!concept.trim()) {
-      setError('Please enter a story concept.')
+    const finalConcept = buildConceptString()
+    if (!finalConcept) {
+      setError('Please enter a story concept or upload a document.')
       return
     }
 
@@ -55,7 +91,7 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
     try {
       const result = await generateBible({
         uid: user.uid,
-        concept: concept.trim(),
+        concept: finalConcept,
         level,
         lengthPreset,
         language: activeLanguage,
@@ -112,16 +148,47 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
         <label className="ui-text">
           Story Concept
           <textarea
-            placeholder="Describe your story idea, themes, setting, or characters you'd like to explore..."
+            placeholder="Describe your story idea briefly, or upload a detailed story bible document below. The more detail you provide, the more faithfully the AI will follow your vision."
             value={concept}
             onChange={(e) => setConcept(e.target.value)}
             disabled={isGenerating}
             rows={4}
           />
           <span className="hint">
-            Be specific about the type of story you want. The more detail, the better the result.
+            You can type a concept, upload a detailed document, or both. Uploaded content is appended to what you type.
           </span>
         </label>
+
+        {/* Document Upload */}
+        <div className="ui-text">
+          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+            Or upload a detailed story concept document
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,.txt"
+            onChange={handleFileUpload}
+            disabled={isGenerating}
+            style={{ fontSize: '0.875rem' }}
+          />
+          {uploadedFileName && (
+            <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.875rem' }}>
+                {uploadedFileName} — {uploadedContent.split(/\s+/).filter(Boolean).length} words
+              </span>
+              <button
+                type="button"
+                className="button ghost"
+                onClick={handleRemoveFile}
+                disabled={isGenerating}
+                style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem' }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Level Selection */}
         <label className="ui-text">
@@ -202,7 +269,7 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
           <button
             type="submit"
             className="button primary"
-            disabled={!activeLanguage || !concept.trim() || isGenerating}
+            disabled={!activeLanguage || (!concept.trim() && !uploadedContent.trim()) || isGenerating}
           >
             {isGenerating ? 'Generating Bible...' : 'Generate Story Bible'}
           </button>

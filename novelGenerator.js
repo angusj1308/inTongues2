@@ -2610,7 +2610,7 @@ Output a SINGLE beat object (not wrapped in an array):
 7. **Unique order_position per beat** — no two moments in this beat share an order_position.
 8. **Location consistency** — a character's location should make physical sense. They can't be in the courtyard and the kitchen simultaneously.
 9. **POV character presence determines DIRECT** — only moments where the POV character is physically present (same location) are DIRECT.
-10. **All content lands in its beat** — there is no deferral. Every Phase 3 fragment for this beat is delivered in this beat as DIRECT, INDIRECT, or NARRATION.
+10. **All content lands in its beat** — every Phase 3 fragment for this beat is delivered in this beat as DIRECT, INDIRECT, or NARRATION.
 
 ## DELIVERY MODE DECISION TREE
 
@@ -2628,7 +2628,7 @@ There is no fourth option. Everything lands in its beat.
 - Prose or narrative text (Phase 5 handles prose)
 - Chapter divisions (later phase)
 - POV switches within a beat (one POV per beat unless Phase 1 specifies otherwise)
-- Deferral of any kind — no target_beat, no deferral_note, no deferred_tracker`
+- Extra fields not in the schema above`
 
 function buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNumber, priorBeatOutputs) {
   // Identify all characters from Phase 2
@@ -2717,7 +2717,7 @@ ${priorEstablished}` : ''}
 - NARRATION moments need no attachment — they are omniscient intercuts shown directly to the reader
 - Scene moment_range = only DIRECT moments at that location
 - All order_positions within this beat must be unique
-- All content lands in this beat — no deferral
+- All content lands in this beat
 - Output must be valid JSON — a single beat object (NOT wrapped in an array)`
 }
 

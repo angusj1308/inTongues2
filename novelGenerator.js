@@ -2439,574 +2439,133 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SCENE ASSEMBLY
 // =============================================================================
 
-const PHASE_4_SYSTEM_PROMPT = `You are a scene architect who transforms a Character Action Grid into scene-ready structures for prose generation.
+// Step 1: POV Character Journey — extract the protagonist's location-sequenced path through a beat
+
+const PHASE_4_STEP1_SYSTEM_PROMPT = `You are extracting the POV character's journey through a single story beat.
 
 You receive:
-- Phase 1: Story DNA (external plot beats, theme, tone, romance arc stages)
-- Phase 2: Full cast (protagonist, love interests, stakeholder characters with psychology)
-- Phase 3: Character Action Grid (every character × every beat with actions, dialogues, thoughts, state, intent, tension, outcome)
-- Prior beat outputs (if processing beat 2+)
+- The POV character's name
+- Their Phase 3 fragment: location, actions, dialogues, thoughts
+- The beat context: beat name, beat description
 
-Your job: Process ONE beat at a time. Organize, order, and tag all character content for that beat into moments, assign locations, determine delivery modes, and assemble scenes.
+Your job: Read the POV character's actions and determine the sequence of locations they visit during this beat. Actions may all happen at one location, or they may imply movement between locations.
 
-## DEFINITIONS
+## RULES
 
-**Moment**: A discrete bundle of character content that happens together:
-- One or more actions from a single character
-- Associated dialogue (if any)
-- Associated thought (if any — protagonist and love interests only)
-- A specific location where this happens
+1. Use the fragment's location field as the starting location
+2. Read actions in order — if an action implies the character has moved to a new place, start a new journey stop
+3. Each journey stop has: the location and the actions that happen there
+4. Include dialogues and thoughts at the stop where they naturally occur
+5. If all actions happen at one location, there is one journey stop
+6. Location strings must be snake_case (e.g., hacienda_courtyard, village_church)
+7. Reuse the Phase 3 location string when applicable — don't rename it
 
-**Delivery Mode**: How each moment reaches the reader. Three modes:
+## SIGNALS THAT INDICATE MOVEMENT
 
-- **DIRECT** — POV character witnesses it in real time. They are physically present at this location during this moment. They see, hear, or participate in it.
-
-- **INDIRECT** — POV character was NOT present but learns about it through evidence, observation, inference, or being told. Must be attached to a specific DIRECT moment where the information lands.
-  - *Observed*: sees guest room prepared → infers Rafael is coming
-  - *Told*: Carmen mentions Rafael's letter
-  - *Inferred*: notices worn clothes → understands tenant hardship
-  - *Sensory*: hears murmurs from tenant quarters, smells bread from kitchen
-
-- **NARRATION** — Prose describes it happening without POV access. Cut away from POV, show the action, cut back. The reader sees what POV cannot. Used for:
-  - Off-screen character activity (a character acting in a distant location)
-  - Secrets the reader should know but POV shouldn't (hidden documents, private schemes)
-  - Parallel action happening simultaneously at a different location
-
-**Scene**: A continuous stretch of prose in one location with one or more DIRECT moments, plus any INDIRECT moments that land within it, plus any NARRATION moments that intercut.
-
-## PROCESS (5 steps for this beat)
-
-### Step 1: Moment Creation
-
-For each character's Phase 3 content in THIS beat, split their material into discrete moments. A moment is one narrative beat: a single action or tightly-coupled action cluster that happens together in the same instant.
-
-If actions happen at different points in time, they are different moments. If a character changes location, that's a new moment. If there's a shift in who they're engaging with, that's a new moment.
-
-Split generously. More moments give the prose generator room to breathe. The default should be multiple moments per character per beat, not one.
-
-Each moment gets:
-- moment_id: format "b{beat_number}_m{sequence}" (e.g., b1_m01, b1_m02)
-- character: the character name
-- character_type: protagonist | love_interest | stakeholder
-- actions: array of action strings from this cluster
-- dialogues: array of dialogue strings from this cluster
-- thoughts: array of thought strings (only if protagonist or love_interest had them in Phase 3)
-
-### Step 2: Chronological Ordering
-
-Order ALL moments across ALL characters within this beat into a single timeline. Assign order_position (1, 2, 3...) based on:
-- Narrative logic (what triggers what)
-- Physical causation (arrival before greeting, preparation before event)
-- Parallel moments happening simultaneously get consecutive positions
-
-Every moment in the beat must have a unique order_position.
-
-### Step 3: Location Tagging
-
-Assign a SPECIFIC location to each moment. Not broad areas (hacienda) but specific rooms/spaces (courtyard, main_hall, kitchen, east_wing, stables, church, etc.).
-
-Locations are inferred from:
-- The fragment's location field in Phase 3 (use as primary source)
-- Narrative logic — where would this action naturally occur?
-- Character relationships — servants in service areas, guests in formal areas
-- Consistency — a character can't teleport between locations within a beat without travel moments
-
-### Step 4: Delivery Mode + Attachment
-
-Determine who the POV character is for this beat (the protagonist, unless Phase 1 specifies otherwise).
-
-For each moment, assign delivery_mode:
-
-**DIRECT**: The POV character is physically present at this location during this moment. They see/hear/participate in it.
-
-**INDIRECT**: The POV character was NOT present but learns about it. EVERY indirect moment must specify:
-- attached_to: moment_id of a DIRECT moment in THIS beat where this information lands
-- attachment_mechanism: one of "observed" | "told" | "inferred" | "sensory"
-- attachment_description: The specific evidence, sensory detail, or line of dialogue that delivers this information — prose-ready concrete detail, not a summary.
-
-Write what appears in the scene: the object, the sound, the visible sign, the spoken words. Not "POV notices X" but the X itself. The prose generator needs raw material, not interpretation.
-
-Ask: what would a camera see? What would a microphone pick up? What words are actually spoken? Write that.
-
-Good: "a half-empty whiskey glass and two chairs pulled close together on the balcony"
-Good: "Maria says 'He left an hour ago — didn't even finish his drink'"
-Bad: "POV notices evidence of the meeting"
-Bad: "POV observes that someone was there"
-
-**NARRATION**: The prose cuts away from POV to show this action directly to the reader. POV is not present and does not learn about it. The reader sees it but POV doesn't. No attachment needed — this is an omniscient narrative intercut. This includes characters acting in other locations far from POV (e.g., a character preparing in another city while POV is at the hacienda).
-
-### Step 5: Beat Summary
-
-Assemble scenes and generate summary for this beat:
-
-**Scenes**: Group consecutive DIRECT moments at the same location into scenes. Each scene has:
-- scene_number (within this beat)
-- scene_name (descriptive: "Courtyard Arrival", "Main Hall — Tea")
-- location
-- moment_range: array of moment_ids for DIRECT moments in this scene
-- characters_present: who is physically in this scene
-- indirect_moments_landing: INDIRECT moments whose attached_to points to a moment in this scene
-- narration_moments: NARRATION moments that intercut with this scene
-- narration_notes: atmospheric details for this location/time
-
-**Beat Summary**:
-- established: array of what is now known/happened (narrative state after this beat)
-- foreshadowing_planted: what was set up for future beats
+- "goes to", "walks to", "rides to", "arrives at"
+- "in the [new place]", "at the [new place]"
+- Actions that cannot physically happen at the current location
+- Meeting someone who is established as being elsewhere
 
 ## OUTPUT FORMAT (JSON)
 
-Output a SINGLE beat object (not wrapped in an array):
-
 {
-  "beat_number": 1,
-  "beat_name": "Name from Phase 1/3",
-  "beat_description": "What happens in this beat",
-  "pov_character": "Name of POV character for this beat",
-
-  "moments": [
+  "pov_character": "Character Name",
+  "journey": [
     {
-      "moment_id": "b1_m01",
-      "order_position": 1,
-      "character": "Character Name",
-      "character_type": "protagonist | love_interest | stakeholder",
-      "location": "specific_location",
-      "actions": ["Action 1", "Action 2"],
-      "dialogues": ["Dialogue summary 1"],
-      "thoughts": ["Thought 1"],
-      "delivery_mode": "DIRECT | INDIRECT | NARRATION",
-      "attached_to": null,
-      "attachment_mechanism": null,
-      "attachment_description": null
+      "stop": 1,
+      "location": "location_string",
+      "actions": ["action 1", "action 2"],
+      "dialogues": ["dialogue 1"],
+      "thoughts": ["thought 1"]
     }
-  ],
-
-  "scenes": [
-    {
-      "scene_number": 1,
-      "scene_name": "Descriptive Scene Name",
-      "location": "specific_location",
-      "moment_range": ["b1_m05", "b1_m06", "b1_m07"],
-      "characters_present": ["Character A", "Character B"],
-      "indirect_moments_landing": ["b1_m01", "b1_m02"],
-      "narration_moments": ["b1_m03"],
-      "narration_notes": ["Ambient detail 1", "Sensory detail 2"]
-    }
-  ],
-
-  "beat_summary": {
-    "established": ["What is now known or happened"],
-    "foreshadowing_planted": ["Setup for future beats"]
-  }
+  ]
 }
 
-## CRITICAL RULES
-
-1. **Every fragment from Phase 3 for this beat must appear** — no dropping content. Every character's actions, dialogues, and thoughts must appear as moments in the output.
-2. **Thoughts preserved** — If a character had thoughts in Phase 3 (protagonist or love_interest), those thoughts MUST appear in their Phase 4 moments. Never drop interior access.
-3. **Every INDIRECT moment must attach to a valid DIRECT moment in this beat** — the attached_to field must reference a moment_id that exists in this beat and has delivery_mode DIRECT.
-4. **Scene moment_range contains only DIRECT moments** — from that scene's location.
-5. **indirect_moments_landing contains only INDIRECT moments** — whose attached_to points to a DIRECT moment within that scene.
-6. **narration_moments contains only NARRATION moments** — that narratively intercut with that scene.
-7. **Unique order_position per beat** — no two moments in this beat share an order_position.
-8. **Location consistency** — a character's location should make physical sense. They can't be in the courtyard and the kitchen simultaneously.
-9. **POV character presence determines DIRECT** — only moments where the POV character is physically present (same location) are DIRECT.
-10. **All content lands in its beat** — every Phase 3 fragment for this beat is delivered in this beat as DIRECT, INDIRECT, or NARRATION.
-
-## DELIVERY MODE DECISION TREE
-
-For each moment, ask:
-1. Is the POV character at this location right now? → **DIRECT**
-2. If not, can evidence/information plausibly reach POV this beat? → **INDIRECT** (attach to a DIRECT moment)
-3. Neither? → **NARRATION** (prose cuts away to show it to the reader)
-
-There is no fourth option. Everything lands in its beat.
-
-## DO NOT INCLUDE
-
-- New character content not in Phase 3 (no inventing new actions/dialogues/thoughts)
-- Changes to character psychology or arc (Phase 2/3 data is fixed)
-- Prose or narrative text (Phase 5 handles prose)
-- Chapter divisions (later phase)
-- POV switches within a beat (one POV per beat unless Phase 1 specifies otherwise)
-- Extra fields not in the schema above`
-
-function buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNumber, priorBeatOutputs) {
-  // Identify all characters from Phase 2
-  const allCharacters = []
-  if (phase2.protagonist) {
-    allCharacters.push({ name: phase2.protagonist.name, type: 'protagonist' })
-  }
-  if (phase2.love_interests) {
-    phase2.love_interests.forEach(li => {
-      allCharacters.push({ name: li.name, type: 'love_interest' })
-    })
-  }
-  if (phase2.stakeholder_characters) {
-    phase2.stakeholder_characters.forEach(sc => {
-      allCharacters.push({ name: sc.name, type: 'stakeholder' })
-    })
-  }
-
-  const characterList = allCharacters.map(c => `- ${c.name} (${c.type})`).join('\n')
-  const povCharacter = phase2.protagonist?.name || 'Unknown'
-
-  // Get this beat's grid data
-  const thisBeatGrid = phase3.grid?.find(b => b.beat_number === beatNumber)
-  const thisBeatFragments = thisBeatGrid?.fragments?.map(f => {
-    const actCount = f.actions?.length || 0
-    const dlgCount = f.dialogues?.length || 0
-    const thtCount = f.thoughts?.length || 0
-    const location = f.location ? ` @ ${f.location}` : ''
-    return `  ${f.character} (${f.character_type}): ${actCount} actions, ${dlgCount} dialogues, ${thtCount} thoughts${location}`
-  }).join('\n') || '  (no fragments)'
-
-  // Build prior beats established facts summary
-  const priorEstablished = priorBeatOutputs.map(b => {
-    const established = b.beat_summary?.established?.join('; ') || 'nothing noted'
-    return `  Beat ${b.beat_number} (${b.beat_name}): ${established}`
-  }).join('\n')
-
-  const totalBeats = phase3.grid?.length || 0
-
-  return `ORIGINAL CONCEPT: ${concept}
-
-## PHASE DATA (for reference)
-
-PHASE 1 OUTPUT (Story DNA):
-${JSON.stringify(phase1, null, 2)}
-
-PHASE 2 OUTPUT (Full Cast):
-${JSON.stringify(phase2, null, 2)}
-
-PHASE 3 OUTPUT (Character Action Grid — ALL beats for context):
-${JSON.stringify(phase3, null, 2)}
-
-## YOUR TASK: Scene Assembly for Beat ${beatNumber} of ${totalBeats}
-
-You are processing **Beat ${beatNumber}: ${thisBeatGrid?.beat_name || 'Unknown'}** only.
-${thisBeatGrid?.beat_description ? `Description: ${thisBeatGrid.beat_description}` : ''}
-
-### POV Character
-**${povCharacter}** is the protagonist and primary POV character. Moments where ${povCharacter} is physically present are DIRECT. Others are INDIRECT (if POV can learn about them) or NARRATION (prose cuts away to show the reader).
-
-### Full Cast (${allCharacters.length} characters)
-${characterList}
-
-### This Beat's Phase 3 Fragments
-${thisBeatFragments}
-
-### This Beat's Full Phase 3 Data
-${JSON.stringify(thisBeatGrid, null, 2)}
-${priorBeatOutputs.length > 0 ? `
-### What Has Been Established (prior beats)
-${priorEstablished}` : ''}
-
-### PROCESS
-
-1. **Moment Creation**: Cluster each character's actions/dialogues/thoughts into discrete moments
-2. **Chronological Ordering**: Order all moments into a single timeline with unique order_positions
-3. **Location Tagging**: Assign specific locations (use Phase 3 fragment locations as primary source)
-4. **Delivery Mode**: Classify each as DIRECT/INDIRECT/NARRATION based on ${povCharacter}'s presence
-5. **Beat Summary**: Assemble scenes, track what's established
-
-### CRITICAL REMINDERS
-
-- Every Phase 3 fragment for beat ${beatNumber} must produce at least one moment
-- Thoughts from protagonist and love_interests must be preserved
-- INDIRECT moments MUST attach to a DIRECT moment in THIS beat with mechanism and description
-- NARRATION moments need no attachment — they are omniscient intercuts shown directly to the reader
-- Scene moment_range = only DIRECT moments at that location
-- All order_positions within this beat must be unique
-- All content lands in this beat
-- Output must be valid JSON — a single beat object (NOT wrapped in an array)`
-}
-
-/**
- * Stitch individual beat outputs into the final Phase 4 structure
- */
-function stitchPhase4Outputs(beatOutputs) {
-  const allLocations = new Set()
-
-  for (const beat of beatOutputs) {
-    for (const moment of (beat.moments || [])) {
-      if (moment.location) allLocations.add(moment.location)
-    }
-  }
-
-  return {
-    beats: beatOutputs,
-    location_registry: [...allLocations].sort()
-  }
-}
-
-/**
- * Validate the complete stitched Phase 4 output
- */
-function validatePhase4Output(data, phase3) {
-  const allMomentIds = new Map()
-  const allDirectMomentIds = new Set()
-  let totalMoments = 0
-  let directCount = 0
-  let indirectCount = 0
-  let narrationCount = 0
-  const allLocations = new Set()
-
-  // Per-beat validation
-  for (const beat of data.beats) {
-    if (!beat.beat_number || !beat.moments || !Array.isArray(beat.moments)) {
-      throw new Error(`Beat ${beat.beat_number || '?'} missing required fields (beat_number, moments)`)
-    }
-
-    if (!beat.scenes) beat.scenes = []
-    if (!beat.beat_summary) beat.beat_summary = { established: [], foreshadowing_planted: [] }
-
-    const orderPositions = new Set()
-    for (const moment of beat.moments) {
-      totalMoments++
-
-      if (!moment.moment_id) {
-        console.warn(`Phase 4 WARNING: Moment missing moment_id in beat ${beat.beat_number}`)
-        continue
-      }
-
-      allMomentIds.set(moment.moment_id, moment)
-      if (moment.location) allLocations.add(moment.location)
-
-      if (moment.order_position != null) {
-        if (orderPositions.has(moment.order_position)) {
-          console.warn(`Phase 4 WARNING: Duplicate order_position ${moment.order_position} in beat ${beat.beat_number}`)
-        }
-        orderPositions.add(moment.order_position)
-      }
-
-      // Normalize arrays
-      if (!moment.actions) moment.actions = []
-      if (!moment.dialogues) moment.dialogues = []
-      if (!moment.thoughts) moment.thoughts = []
-      if (typeof moment.actions === 'string') moment.actions = [moment.actions]
-      if (typeof moment.dialogues === 'string') moment.dialogues = [moment.dialogues]
-      if (typeof moment.thoughts === 'string') moment.thoughts = [moment.thoughts]
-
-      const mode = moment.delivery_mode?.toUpperCase()
-      if (mode === 'DIRECT') {
-        directCount++
-        allDirectMomentIds.add(moment.moment_id)
-      } else if (mode === 'INDIRECT') {
-        indirectCount++
-      } else if (mode === 'NARRATION') {
-        narrationCount++
-      } else if (mode) {
-        console.warn(`Phase 4 WARNING: Unknown delivery_mode "${moment.delivery_mode}" for moment ${moment.moment_id}`)
-      }
-    }
-  }
-
-  // INDIRECT attachment validation
-  let invalidAttachments = 0
-  for (const beat of data.beats) {
-    for (const moment of beat.moments) {
-      if (moment.delivery_mode?.toUpperCase() === 'INDIRECT') {
-        if (!moment.attached_to) {
-          console.warn(`Phase 4 WARNING: INDIRECT moment ${moment.moment_id} has no attached_to`)
-          invalidAttachments++
-        } else if (!allDirectMomentIds.has(moment.attached_to)) {
-          console.warn(`Phase 4 WARNING: INDIRECT moment ${moment.moment_id} attached_to "${moment.attached_to}" which is not a DIRECT moment`)
-          invalidAttachments++
-        }
-      }
-    }
-  }
-
-  // Scene structure validation
-  let totalScenes = 0
-  for (const beat of data.beats) {
-    for (const scene of (beat.scenes || [])) {
-      totalScenes++
-      if (scene.moment_range && Array.isArray(scene.moment_range)) {
-        for (const mid of scene.moment_range) {
-          const moment = allMomentIds.get(mid)
-          if (moment && moment.delivery_mode?.toUpperCase() !== 'DIRECT') {
-            console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" moment_range contains non-DIRECT moment ${mid} (is ${moment.delivery_mode})`)
-          }
-        }
-      }
-      if (scene.indirect_moments_landing && Array.isArray(scene.indirect_moments_landing)) {
-        for (const mid of scene.indirect_moments_landing) {
-          const moment = allMomentIds.get(mid)
-          if (moment && moment.delivery_mode?.toUpperCase() !== 'INDIRECT') {
-            console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" indirect_moments_landing contains non-INDIRECT moment ${mid} (is ${moment.delivery_mode})`)
-          }
-        }
-      }
-      if (scene.narration_moments && Array.isArray(scene.narration_moments)) {
-        for (const mid of scene.narration_moments) {
-          const moment = allMomentIds.get(mid)
-          if (moment && moment.delivery_mode?.toUpperCase() !== 'NARRATION') {
-            console.warn(`Phase 4 WARNING: Scene "${scene.scene_name}" narration_moments contains non-NARRATION moment ${mid} (is ${moment.delivery_mode})`)
-          }
-        }
-      }
-    }
-  }
-
-  // Phase 3 fragment coverage
-  const momentCharactersPerBeat = new Map()
-  for (const beat of data.beats) {
-    const charSet = new Set()
-    for (const moment of beat.moments) {
-      if (moment.character) charSet.add(moment.character)
-    }
-    momentCharactersPerBeat.set(beat.beat_number, charSet)
-  }
-
-  let missingCoverage = 0
-  for (const gridBeat of (phase3.grid || [])) {
-    const p4CharSet = momentCharactersPerBeat.get(gridBeat.beat_number) || new Set()
-    for (const fragment of (gridBeat.fragments || [])) {
-      if (!p4CharSet.has(fragment.character)) {
-        console.warn(`Phase 4 WARNING: Phase 3 fragment for "${fragment.character}" in beat ${gridBeat.beat_number} has no corresponding moment`)
-        missingCoverage++
-      }
-    }
-  }
-
-  // Thoughts preservation
-  let droppedThoughts = 0
-  for (const gridBeat of (phase3.grid || [])) {
-    for (const fragment of (gridBeat.fragments || [])) {
-      if (fragment.thoughts && fragment.thoughts.length > 0) {
-        const p4Beat = data.beats.find(b => b.beat_number === gridBeat.beat_number)
-        if (p4Beat) {
-          const charMoments = p4Beat.moments.filter(m => m.character === fragment.character)
-          const hasThoughts = charMoments.some(m => m.thoughts && m.thoughts.length > 0)
-          if (!hasThoughts) {
-            console.warn(`Phase 4 WARNING: "${fragment.character}" had thoughts in Phase 3 beat ${gridBeat.beat_number} but none in Phase 4`)
-            droppedThoughts++
-          }
-        }
-      }
-    }
-  }
-
-  // Build location_registry if empty
-  if (!data.location_registry || data.location_registry.length === 0) {
-    data.location_registry = [...allLocations].sort()
-  }
-
-  return { totalMoments, directCount, indirectCount, narrationCount, totalScenes, allLocations, invalidAttachments, missingCoverage, droppedThoughts }
-}
+Only output JSON. No commentary.`
 
 async function executePhase4(concept, phase1, phase2, phase3) {
-  console.log('Executing Phase 4: Scene Assembly (per-beat processing)...')
+  console.log('Executing Phase 4: Scene Assembly (Step 1 — POV Journey)...')
 
   const beats = phase3.grid || []
   if (beats.length === 0) {
     throw new Error('Phase 4: Phase 3 grid is empty — no beats to process')
   }
 
-  console.log(`  Processing ${beats.length} beats sequentially...`)
+  // Identify POV character (protagonist from Phase 2)
+  const protagonist = phase2.protagonist?.name ||
+    phase2.characters?.find(c => c.character_type === 'protagonist')?.name
+  if (!protagonist) {
+    throw new Error('Phase 4: Cannot identify protagonist from Phase 2')
+  }
+  console.log(`  POV character: ${protagonist}`)
 
-  const beatOutputs = []
+  // Process Beat 1 only (for testing)
+  const beat1 = beats[0]
+  console.log(`  Processing Beat 1: ${beat1.beat_name}`)
 
-  for (const gridBeat of beats) {
-    const beatNum = gridBeat.beat_number
-    console.log(`\n  --- Beat ${beatNum}/${beats.length}: ${gridBeat.beat_name} ---`)
-
-    const userPrompt = buildPhase4BeatUserPrompt(concept, phase1, phase2, phase3, beatNum, beatOutputs)
-    const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
-    const parsed = parseJSON(response)
-
-    if (!parsed.success) {
-      console.error(`Phase 4 Beat ${beatNum} raw response (first 1000 chars):`, response.slice(0, 1000))
-      console.error(`Phase 4 Beat ${beatNum} raw response (last 500 chars):`, response.slice(-500))
-      throw new Error(`Phase 4 Beat ${beatNum} JSON parse failed: ${parsed.error}`)
-    }
-
-    let beatData = parsed.data
-
-    // Normalize: model might wrap in various ways
-    if (beatData.phase4_output) beatData = beatData.phase4_output
-    if (beatData.beats && Array.isArray(beatData.beats)) beatData = beatData.beats[0]
-    if (beatData.beat) beatData = beatData.beat
-
-    // Validate beat has required structure
-    if (!beatData.moments || !Array.isArray(beatData.moments)) {
-      console.error(`Phase 4 Beat ${beatNum} output keys:`, Object.keys(beatData))
-      throw new Error(`Phase 4 Beat ${beatNum} missing moments array. Received keys: ${Object.keys(beatData).join(', ')}`)
-    }
-
-    // Ensure beat_number is set correctly
-    if (!beatData.beat_number) beatData.beat_number = beatNum
-    if (!beatData.beat_name) beatData.beat_name = gridBeat.beat_name
-    if (!beatData.scenes) beatData.scenes = []
-    if (!beatData.beat_summary) beatData.beat_summary = { established: [], foreshadowing_planted: [] }
-
-    // Normalize moment arrays
-    for (const moment of beatData.moments) {
-      if (!moment.actions) moment.actions = []
-      if (!moment.dialogues) moment.dialogues = []
-      if (!moment.thoughts) moment.thoughts = []
-      if (typeof moment.actions === 'string') moment.actions = [moment.actions]
-      if (typeof moment.dialogues === 'string') moment.dialogues = [moment.dialogues]
-      if (typeof moment.thoughts === 'string') moment.thoughts = [moment.thoughts]
-    }
-
-    // Log beat summary
-    const directInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'DIRECT').length
-    const indirectInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'INDIRECT').length
-    const narrationInBeat = beatData.moments.filter(m => m.delivery_mode?.toUpperCase() === 'NARRATION').length
-    console.log(`    Moments: ${beatData.moments.length} (${directInBeat}D/${indirectInBeat}I/${narrationInBeat}N), Scenes: ${beatData.scenes.length}`)
-
-    beatOutputs.push(beatData)
+  // Find protagonist's fragment in Beat 1
+  const povFragment = beat1.fragments?.find(f =>
+    f.character === protagonist || f.character_type === 'protagonist'
+  )
+  if (!povFragment) {
+    throw new Error(`Phase 4: No fragment for protagonist "${protagonist}" in Beat 1`)
   }
 
-  // Stitch all beat outputs into final Phase 4 structure
-  console.log('\n  Stitching beat outputs...')
-  const data = stitchPhase4Outputs(beatOutputs)
+  console.log(`  Fragment: ${povFragment.actions?.length || 0} actions, ${povFragment.dialogues?.length || 0} dialogues, ${povFragment.thoughts?.length || 0} thoughts @ ${povFragment.location}`)
 
-  // Run full validation on stitched output
-  console.log('  Running validation...')
-  const stats = validatePhase4Output(data, phase3)
+  const userPrompt = `## POV Character
+${protagonist}
 
-  // Console logging
-  console.log('\nPhase 4 complete.')
-  console.log(`  Beats processed: ${data.beats.length}`)
-  console.log(`  Total moments: ${stats.totalMoments}`)
-  console.log(`    DIRECT: ${stats.directCount}`)
-  console.log(`    INDIRECT: ${stats.indirectCount}`)
-  console.log(`    NARRATION: ${stats.narrationCount}`)
-  console.log(`  Total scenes: ${stats.totalScenes}`)
-  console.log(`  Locations: ${stats.allLocations.size} (${[...stats.allLocations].join(', ')})`)
+## Beat Context
+Beat 1: ${beat1.beat_name}
+${beat1.beat_description}
 
-  if (stats.invalidAttachments > 0) {
-    console.log(`  WARNING: ${stats.invalidAttachments} invalid INDIRECT attachments`)
+## POV Character's Phase 3 Fragment
+Location: ${povFragment.location}
+Actions: ${JSON.stringify(povFragment.actions || [])}
+Dialogues: ${JSON.stringify(povFragment.dialogues || [])}
+Thoughts: ${JSON.stringify(povFragment.thoughts || [])}
+State: ${povFragment.state || 'not specified'}
+Intent: ${povFragment.intent || 'not specified'}
+
+Extract the journey — the sequence of locations this character visits during this beat, with their actions/dialogues/thoughts at each stop.`
+
+  const response = await callOpenAI(PHASE_4_STEP1_SYSTEM_PROMPT, userPrompt, { maxTokens: 4096 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    console.error('Phase 4 Step 1 raw response (first 1000 chars):', response.slice(0, 1000))
+    throw new Error(`Phase 4 Step 1 JSON parse failed: ${parsed.error}`)
   }
-  if (stats.missingCoverage > 0) {
-    console.log(`  WARNING: ${stats.missingCoverage} Phase 3 fragments without Phase 4 moments`)
-  }
-  if (stats.droppedThoughts > 0) {
-    console.log(`  WARNING: ${stats.droppedThoughts} characters lost thoughts between Phase 3 and Phase 4`)
+
+  let journeyData = parsed.data
+  // Normalize: model might wrap
+  if (journeyData.phase4_output) journeyData = journeyData.phase4_output
+  if (journeyData.beat) journeyData = journeyData.beat
+
+  // Validate journey structure
+  if (!journeyData.journey || !Array.isArray(journeyData.journey)) {
+    throw new Error(`Phase 4 Step 1: Missing journey array. Keys: ${Object.keys(journeyData).join(', ')}`)
   }
 
-  // Log beat-by-beat summary
-  console.log('\n  Beat Summary:')
-  for (const beat of data.beats) {
-    const momentCount = beat.moments?.length || 0
-    const sceneCount = beat.scenes?.length || 0
-    const directInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'DIRECT').length || 0
-    const indirectInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'INDIRECT').length || 0
-    const narrationInBeat = beat.moments?.filter(m => m.delivery_mode?.toUpperCase() === 'NARRATION').length || 0
-    console.log(`    Beat ${beat.beat_number}: ${beat.beat_name} — ${momentCount} moments (${directInBeat}D/${indirectInBeat}I/${narrationInBeat}N), ${sceneCount} scenes`)
-    for (const scene of (beat.scenes || [])) {
-      const directMoments = scene.moment_range?.length || 0
-      const indirectLanding = scene.indirect_moments_landing?.length || 0
-      const narrationMoments = scene.narration_moments?.length || 0
-      console.log(`      Scene ${scene.scene_number}: "${scene.scene_name}" @ ${scene.location} — ${directMoments} direct, ${indirectLanding} indirect, ${narrationMoments} narration`)
-    }
+  // Assemble output
+  const data = {
+    act: 1,
+    part: 1,
+    beat_name: beat1.beat_name,
+    pov_character: protagonist,
+    journey: journeyData.journey
+  }
+
+  // Log result
+  console.log(`\n  POV Journey for Beat 1:`)
+  for (const stop of data.journey) {
+    console.log(`    Stop ${stop.stop}: ${stop.location} — ${stop.actions?.length || 0} actions, ${stop.dialogues?.length || 0} dialogues, ${stop.thoughts?.length || 0} thoughts`)
   }
 
   console.log('')
-  console.log('Phase 4 complete output:')
+  console.log('Phase 4 Step 1 complete output:')
   console.log(JSON.stringify(data, null, 2))
 
   return data
@@ -5211,11 +4770,8 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
       if (!bible.coreFoundation || !bible.characters || !bible.actionGrid) {
         throw new Error('Phase 4 requires Phases 1-3 (bible.coreFoundation, bible.characters, bible.actionGrid) to be complete')
       }
-      console.log('Phase 4: Scene Assembly')
+      console.log('Phase 4: Scene Assembly (Step 1 — POV Journey)')
       bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
-      console.log('')
-      console.log('Phase 4 complete output:')
-      console.log(JSON.stringify(bible.sceneAssembly, null, 2))
       break
 
     default:
@@ -5324,20 +4880,19 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(3)
 
-    // Phase 4: Scene Assembly — transforms grid into scene-ready structures
+    // Phase 4: Scene Assembly — Step 1: POV Journey
     reportProgress(4, 'starting')
     bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
     reportProgress(4, 'complete', {
-      beats: bible.sceneAssembly.beats?.length,
-      totalMoments: bible.sceneAssembly.beats?.reduce((sum, b) => sum + (b.moments?.length || 0), 0),
-      totalScenes: bible.sceneAssembly.beats?.reduce((sum, b) => sum + (b.scenes?.length || 0), 0),
-      locations: bible.sceneAssembly.location_registry?.length
+      beat: bible.sceneAssembly.beat_name,
+      povCharacter: bible.sceneAssembly.pov_character,
+      journeyStops: bible.sceneAssembly.journey?.length
     })
     await savePhase(4)
 
-    // TESTING: Stop after Phase 4 to validate scene assembly
+    // TESTING: Stop after Phase 4 Step 1 to validate POV journey
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 4 (Scene Assembly)')
+    console.log('TEST MODE - Stopping after Phase 4 Step 1 (POV Journey)')
     console.log('Phase 4 Output:', JSON.stringify(bible.sceneAssembly, null, 2))
     console.log('='.repeat(60))
 

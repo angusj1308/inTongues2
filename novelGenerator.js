@@ -1914,7 +1914,7 @@ Each fragment must carry distinct information in every field. State is not situa
       "stage": "awareness",
       "act": 1,
       "part": 1,
-      "character": "Esperanza",
+      "character": "Protagonist name",
       "description": "Brief description of what tips the relationship into this stage"
     }
   ],
@@ -1963,7 +1963,7 @@ Not every pressure manifests in every part. Place them where they create maximum
 
 Every named character from Phase 2 (protagonist, love interests, all stakeholder characters) MUST have a row at every part. These characters live in this world — they are always doing something. Their actions may not intersect with the main plot at a given part, but we need to know what they're doing in their own lives, pursuing their own interests, reacting to the world events.
 
-This is about generating maximum content density for downstream phases to select from. The alcalde doesn't stop existing during quiet parts. The priest doesn't vanish between scenes. Every character is living their life, and we want to know what that looks like during each part.
+This is about generating maximum content density for downstream phases to select from. Stakeholder characters don't stop existing during quiet parts. They don't vanish between scenes. Every character is living their life, and we want to know what that looks like during each part.
 
 The ONLY exception: characters who are dead or have physically left the story world.
 
@@ -1989,8 +1989,8 @@ Each field in a fragment must carry distinct, substantive information:
 - **outcome**: What CHANGED (not what they did — the result/consequence)
 
 **DIALOGUE IS NOT SCRIPT.** Each dialogue entry summarizes what is said:
-- GOOD: "Warns Andrés that patrols come through the vineyard at dawn"
-- BAD: "The patrols come at dawn — you need to be gone before first light."
+- GOOD: "Warns him that danger is approaching and he needs to leave"
+- BAD: "You need to be gone before first light." (this is script, not summary)
 
 **ACTIONS ARE CHRONOLOGICAL.** List the sequence of what they physically do, in order.
 
@@ -1998,14 +1998,14 @@ Each field in a fragment must carry distinct, substantive information:
 
 **LET THE STORY DICTATE VOLUME — NO LIMITS.** There is NO upper or lower bound on the number of actions, dialogues, or thoughts in a fragment. Include as many as the character's role in this part demands. A part covers a TIME PERIOD, not a single event — a protagonist moving through a busy period might have 15 actions, 10 dialogues, and 8 thoughts. A stakeholder doing one thing gets one action. Do not pad, do not truncate, do not cap. The arrays are unbounded. Let the story dictate the volume.
 
-GOOD action: "Goes to check frozen vines, finds wounded soldier"
+GOOD action: "Searches the property, discovers someone hiding"
 BAD action: "Feels conflicted about her duty"
 
-GOOD tension: "Notices patrol schedule has changed — someone suspects something"
+GOOD tension: "Realizes someone has noticed and may already suspect"
 BAD tension: "Is worried about getting caught"
 
-GOOD outcome: "Now hiding a wounded enemy soldier in the tower"
-BAD outcome: "Has hidden him in the tower" (this is action, not outcome)
+GOOD outcome: "Now carrying a dangerous secret that could destroy her if exposed"
+BAD outcome: "Has done the thing" (this is action, not outcome)
 
 ### 4. Romance Stage Must Match Phase 1 romance_arc_stages
 
@@ -2017,13 +2017,7 @@ For protagonist and love interests: the first HALF of the grid, their **actions*
 
 This creates earned transformation. If the lie isn't visible in early actions/dialogues/thoughts, the ending feels cheap.
 
-Example (lie: "I must never depend on anyone"):
-- Act 1 Part 1 actions: ["Refuses help carrying supplies despite struggling", "Brushes off concern with dismissive gesture"]
-- Act 1 Part 1 dialogues: ["Insists she can manage alone"]
-- Act 1 Part 1 thoughts: ["Reminds herself that depending on others always leads to disappointment"]
-- Act 1 Part 1 intent: "To prove she doesn't need anyone"
-
-The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
+The character's lie and coping mechanism should be visible in their early actions, dialogues, and thoughts. The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
 
 ### 6. Arc Outcomes Must Match Final Part Actions
 
@@ -2047,9 +2041,7 @@ The grid is not just plot choreography. It is a thematic argument across multipl
 
 Each character's **state** at Part N+1 must follow logically from their **outcome** at Part N.
 
-If Act 1 Part 2 outcome is "Now hiding a wounded enemy soldier — terrified of discovery", then Act 1 Part 3 state must acknowledge this: "Carrying the weight of her secret, sleeping poorly, jumping at sounds".
-
-No resets. No contradictions. No skipping consequences. The outcome→state chain creates continuity per character through the entire grid.
+If a character's outcome at the end of one part changes their circumstances, their state at the next part must reflect that change. No resets. No contradictions. No skipping consequences. The outcome→state chain creates continuity per character through the entire grid.
 
 The first part's states come from Phase 2 character setup. Later part states come from the previous part's outcome.
 
@@ -2069,78 +2061,13 @@ Multiple parts × full cast = potentially 50+ scene fragments. This IS the maste
 8. Tag those cells with the appropriate romance_stage
 9. Validate that all romance_arc_stages appear in order
 
-## EXAMPLE
+## NOTES ON FRAGMENT STRUCTURE
 
-Act 1 Part 1: The Winter Offensive Period
-
-Esperanza (protagonist):
-  state: Restless, unfulfilled — running family vineyard alone since father's death, no life beyond duty
-  situation: Distant gunfire as Republican forces retreat through the valley
-  actions: [
-    "Hears distant gunfire from the east",
-    "Goes to check frozen vines for damage",
-    "Discovers wounded soldier collapsed in the snow",
-    "Drags him to the abandoned tower",
-    "Cleans and binds his wounds with torn bedsheets"
-  ]
-  dialogues: [
-    "Asks who he is and which side he fights for",
-    "Tells him to stay quiet or they'll both die"
-  ]
-  thoughts: [
-    "Realizes helping him is treason",
-    "Wonders why she didn't just leave him to die",
-    "Reminds herself she handles everything alone — this is no different"
-  ]
-  intent: To protect the vineyard from damage, then to save a life she stumbled into
-  tension: The soldier is clearly Republican — helping him means execution if discovered
-  outcome: Now hiding a wounded enemy soldier in the tower, terrified of discovery
-  romance_stage_tag: awareness
-  psychology_note: Lie ("I must handle everything alone") already operating — she tells no one
-
-Mikel (love_interest):
-  state: Exhausted, bleeding — unit scattered in failed offensive, separated from command
-  situation: Nationalist patrols closing in, no safe route to Republican lines
-  actions: [
-    "Stumbles through frozen vineyard, leaving blood trail",
-    "Collapses against stone wall",
-    "Wakes to stranger binding his wounds",
-    "Tries to reach for weapon, finds it gone",
-    "Studies the woman's face, trying to read her intentions"
-  ]
-  dialogues: [
-    "Demands to know if she's turning him in",
-    "Refuses to give his unit or mission"
-  ]
-  thoughts: [
-    "Calculates how long before patrols find the blood trail",
-    "Wonders if this is a trap"
-  ]
-  intent: To survive, to assess the threat this woman poses
-  tension: Completely dependent on a stranger who could be enemy
-  outcome: Alive but trapped behind enemy lines, at the mercy of a woman he doesn't know
-  romance_stage_tag: awareness
-  psychology_note: Lie ("Trust no one outside the cause") immediately challenged — he has no choice
-
-Don Sebastián (stakeholder):
-  state: Confident, consolidating power — war going well, opportunity to eliminate rivals
-  situation: Reports of Republican soldiers fleeing through the valley
-  actions: [
-    "Reviews patrol reports at his desk",
-    "Orders increased patrols around Valdemadera",
-    "Summons the priest for information on suspicious families"
-  ]
-  dialogues: [
-    "Instructs patrol captain to check farms near the eastern road",
-    "Asks Father Ignacio which families have Republican sympathies"
-  ]
-  thoughts: []
-  intent: To capture fleeing soldiers and identify collaborators
-  tension: Some families in the valley have divided loyalties — hard to know who to trust
-  outcome: Suspects someone is hiding enemies, but doesn't know who yet
-  psychology_note: Thematic position ("Order requires ruthless enforcement") being tested by incomplete information
-
-[No romance tag on stakeholder — only protagonist and love_interest get romance tags]`
+- Protagonist and love_interest fragments will naturally be richer than stakeholder fragments
+- Stakeholders get NO thoughts array entries — their interiority is revealed through actions and dialogue only
+- Romance stage tags ONLY appear on protagonist or love_interest rows — never on stakeholders
+- Every field must carry distinct information — state is not situation, action is not outcome
+- Do NOT reference any specific story, setting, or character names in your schema understanding — generate everything from the provided concept and Phase 1/2 data`
 
 function buildPhase3UserPrompt(concept, phase1, phase2) {
   // Build full cast list with constraint data
@@ -3071,7 +2998,7 @@ Use the appearance counts above as ground truth - do NOT recount.`
 
 // Check if a character is present in a moment via ANY source:
 // 1. pov field (whoever has POV is present)
-// 2. source field (characters listed e.g. "Itziar Etxeberria + Mikel Garaikoetxea")
+// 2. source field (characters listed e.g. "Character A + Character B")
 // 3. characters_present array (supporting characters)
 function isCharacterInMoment(charName, moment) {
   if (!charName) return false

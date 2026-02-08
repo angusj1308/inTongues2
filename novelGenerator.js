@@ -2497,6 +2497,203 @@ Extract the journey — the sequence of locations this character visits during t
   console.log('Phase 4 Step 1 complete output:')
   console.log(JSON.stringify(data, null, 2))
 
+  // Step 2: Non-POV Location Tagging & Timeline Assembly
+  const step2Data = await executePhase4Step2(firstPart, data, protagonist)
+
+  return step2Data
+}
+
+// Step 2: Non-POV Location Tagging & Timeline Assembly
+
+const PHASE_4_STEP2_SYSTEM_PROMPT = `You are assembling a complete timeline for a single story part by placing all characters' actions in time and space.
+
+You receive:
+- The POV character's journey (from Step 1): a sequence of stops, each with a location and the POV character's actions/dialogues/thoughts at that stop
+- All non-POV characters' Phase 3 fragments for this part: their actions and dialogues arrays
+- The part context: act, part name, part description
+
+The POV journey is the TEMPORAL BACKBONE. Stop 1 happens before Stop 2. Your job is to figure out where each non-POV character's actions take place and whether they overlap with the POV character's stops.
+
+## PROCESS
+
+For each non-POV character:
+
+1. Read their actions array in order
+2. For each action, infer the location where it happens based on what the action describes
+3. Check if that location matches any POV journey stop location
+4. If YES → the character is co-located with the POV at that stop (same time, same place)
+5. If NO → the action is offscreen (happening elsewhere, time relative to POV is unknown)
+
+## RULES
+
+1. Location strings must be snake_case and CONSISTENT — if the POV journey uses "market_square", use that exact string when a non-POV character is also at the market square
+2. A single non-POV character may have actions split across multiple locations — some co-located with POV stops, some offscreen
+3. Dialogues between two characters require BOTH to be at the same location. If a non-POV character's dialogue involves the POV character, that dialogue must be placed at a matching POV stop
+4. Non-POV characters do NOT get thoughts in the timeline — thoughts are POV-only
+5. If a non-POV character's actions all happen away from the POV, they are entirely offscreen for this part
+6. Offscreen actions retain their chronological order relative to each other but have no fixed temporal position relative to POV stops
+7. When inferring locations, use context from the action itself, the character's role, and the part description — do not guess randomly
+
+## OUTPUT FORMAT (JSON)
+
+{
+  "timeline": [
+    {
+      "stop": 1,
+      "location": "location_string",
+      "pov_content": {
+        "actions": ["POV actions at this stop"],
+        "dialogues": ["POV dialogues at this stop"],
+        "thoughts": ["POV thoughts at this stop"]
+      },
+      "other_characters": [
+        {
+          "character": "Character name",
+          "actions": ["Their actions at this same location"],
+          "dialogues": ["Their dialogues at this same location"],
+          "co_located": true
+        }
+      ]
+    }
+  ],
+
+  "offscreen": [
+    {
+      "character": "Character name",
+      "location": "location_string",
+      "actions": ["Actions happening at this offscreen location"],
+      "dialogues": ["Dialogues happening at this offscreen location"]
+    }
+  ],
+
+  "location_summary": {
+    "pov_locations": ["locations the POV visits in order"],
+    "all_locations": ["every unique location mentioned"],
+    "offscreen_locations": ["locations that only appear offscreen"]
+  }
+}
+
+Only output JSON. No commentary.`
+
+async function executePhase4Step2(phase3Part, step1Data, protagonist) {
+  console.log(`  Phase 4 Step 2: Non-POV Location Tagging & Timeline Assembly...`)
+
+  // Collect non-POV fragments
+  const nonPovFragments = (phase3Part.fragments || []).filter(f =>
+    f.character !== protagonist && f.character_type !== 'protagonist'
+  )
+
+  if (nonPovFragments.length === 0) {
+    console.log('    No non-POV characters in this part — skipping Step 2')
+    // Return timeline with just POV content
+    return {
+      act: step1Data.act,
+      part: step1Data.part,
+      part_name: step1Data.part_name,
+      pov_character: protagonist,
+      timeline: step1Data.journey.map(stop => ({
+        stop: stop.stop,
+        location: stop.location,
+        pov_content: {
+          actions: stop.actions || [],
+          dialogues: stop.dialogues || [],
+          thoughts: stop.thoughts || []
+        },
+        other_characters: []
+      })),
+      offscreen: [],
+      location_summary: {
+        pov_locations: step1Data.journey.map(s => s.location),
+        all_locations: step1Data.journey.map(s => s.location),
+        offscreen_locations: []
+      }
+    }
+  }
+
+  console.log(`    Non-POV characters: ${nonPovFragments.map(f => f.character).join(', ')}`)
+
+  // Build non-POV fragment summaries for the prompt
+  const nonPovSummaries = nonPovFragments.map(f => {
+    return `**${f.character}** (${f.character_type})
+Actions: ${JSON.stringify(f.actions || [])}
+Dialogues: ${JSON.stringify(f.dialogues || [])}
+State: ${f.state || 'not specified'}
+Intent: ${f.intent || 'not specified'}`
+  }).join('\n\n')
+
+  const userPrompt = `## Part Context
+Act ${step1Data.act} Part ${step1Data.part}: ${step1Data.part_name}
+
+## POV Character Journey (from Step 1)
+POV Character: ${protagonist}
+
+${step1Data.journey.map(stop => `### Stop ${stop.stop}: ${stop.location}
+Actions: ${JSON.stringify(stop.actions || [])}
+Dialogues: ${JSON.stringify(stop.dialogues || [])}
+Thoughts: ${JSON.stringify(stop.thoughts || [])}`).join('\n\n')}
+
+## Non-POV Character Fragments
+
+${nonPovSummaries}
+
+Place each non-POV character's actions in the timeline. For each action, infer the location. If the location matches a POV stop, the character is co-located at that stop. If not, the action is offscreen.`
+
+  const response = await callOpenAI(PHASE_4_STEP2_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    console.error('Phase 4 Step 2 raw response (first 1000 chars):', response.slice(0, 1000))
+    throw new Error(`Phase 4 Step 2 JSON parse failed: ${parsed.error}`)
+  }
+
+  let timelineData = parsed.data
+  // Normalize: model might wrap
+  if (timelineData.phase4_step2) timelineData = timelineData.phase4_step2
+
+  // Validate timeline structure
+  if (!timelineData.timeline || !Array.isArray(timelineData.timeline)) {
+    throw new Error(`Phase 4 Step 2: Missing timeline array. Keys: ${Object.keys(timelineData).join(', ')}`)
+  }
+
+  // Assemble output
+  const data = {
+    act: step1Data.act,
+    part: step1Data.part,
+    part_name: step1Data.part_name,
+    pov_character: protagonist,
+    timeline: timelineData.timeline,
+    offscreen: timelineData.offscreen || [],
+    location_summary: timelineData.location_summary || {
+      pov_locations: step1Data.journey.map(s => s.location),
+      all_locations: [],
+      offscreen_locations: []
+    }
+  }
+
+  // Log result
+  console.log(`\n  Timeline for Act ${data.act} Part ${data.part}:`)
+  for (const stop of data.timeline) {
+    const coLocated = (stop.other_characters || []).filter(c => c.co_located)
+    console.log(`    Stop ${stop.stop}: ${stop.location}`)
+    console.log(`      POV: ${stop.pov_content?.actions?.length || 0}a/${stop.pov_content?.dialogues?.length || 0}d/${stop.pov_content?.thoughts?.length || 0}t`)
+    for (const other of coLocated) {
+      console.log(`      ${other.character}: ${other.actions?.length || 0}a/${other.dialogues?.length || 0}d (co-located)`)
+    }
+  }
+
+  if (data.offscreen.length > 0) {
+    console.log(`    Offscreen:`)
+    for (const off of data.offscreen) {
+      console.log(`      ${off.character} @ ${off.location}: ${off.actions?.length || 0}a/${off.dialogues?.length || 0}d`)
+    }
+  }
+
+  console.log(`    Locations — POV: ${data.location_summary.pov_locations?.length || 0}, All: ${data.location_summary.all_locations?.length || 0}, Offscreen: ${data.location_summary.offscreen_locations?.length || 0}`)
+
+  console.log('')
+  console.log('Phase 4 Step 2 complete output:')
+  console.log(JSON.stringify(data, null, 2))
+
   return data
 }
 

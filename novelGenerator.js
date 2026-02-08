@@ -875,8 +875,7 @@ Step 3: Identify pressure points.
             "part": 1,
             "name": "Time period name (NOT an event name)",
             "time_period": "What span of time this covers",
-            "world_state": "What conditions exist during this period",
-            "events_possible": ["Event that could happen", "Another event"]
+            "world_state": "What conditions exist during this period"
           }
         ]
       }

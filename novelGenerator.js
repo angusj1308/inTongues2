@@ -1897,9 +1897,9 @@ Each fragment must carry distinct information in every field. State is not situa
           "location": "Short consistent string for where they are (reuse same strings across parts)",
           "state": "Their personal condition coming into this part — mindset, emotional state, what they're carrying from previous events",
           "situation": "External context they're walking into — what's happening around them, independent of their personal state",
-          "actions": ["action 1", "action 2", "action 3", ...],
-          "dialogues": ["dialogue summary 1", "dialogue summary 2", ...],
-          "thoughts": ["thought 1", "thought 2", ...],
+          "actions": ["..."],
+          "dialogues": ["..."],
+          "thoughts": ["..."],
           "intent": "What they were trying to achieve with their actions",
           "tension": "What's pulling against them — discomfort, doubt, observation that nags, loyalty being tested",
           "outcome": "The state change — what is different after this part because of what they did or experienced",
@@ -2490,9 +2490,9 @@ Your job: Read the POV character's actions and determine the sequence of locatio
     {
       "stop": 1,
       "location": "location_string",
-      "actions": ["action 1", "action 2"],
-      "dialogues": ["dialogue 1"],
-      "thoughts": ["thought 1"]
+      "actions": ["..."],
+      "dialogues": ["..."],
+      "thoughts": ["..."]
     }
   ]
 }

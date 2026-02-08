@@ -1894,7 +1894,6 @@ Each fragment must carry distinct information in every field. State is not situa
         {
           "character": "Character name",
           "character_type": "protagonist | love_interest | stakeholder",
-          "location": "Short consistent string for where they are (reuse same strings across parts)",
           "state": "Their personal condition coming into this part — mindset, emotional state, what they're carrying from previous events",
           "situation": "External context they're walking into — what's happening around them, independent of their personal state",
           "actions": ["..."],
@@ -1997,7 +1996,7 @@ Each field in a fragment must carry distinct, substantive information:
 
 **THOUGHTS ARE FOR POV CHARACTERS ONLY.** Stakeholders get 0 thoughts — their interiority is revealed through actions and dialogue only.
 
-**LET THE STORY DICTATE VOLUME.** Each fragment should include as many actions, dialogues, and thoughts as the character's role in this part warrants. Protagonist and love interest fragments will naturally be richer than stakeholder fragments. Do not pad — if a stakeholder only does one thing in this part, that's one action. If the protagonist has a complex sequence of events, that could be six actions. Let the story dictate the volume.
+**LET THE STORY DICTATE VOLUME — NO LIMITS.** There is NO upper or lower bound on the number of actions, dialogues, or thoughts in a fragment. Include as many as the character's role in this part demands. A part covers a TIME PERIOD, not a single event — a protagonist moving through a busy period might have 15 actions, 10 dialogues, and 8 thoughts. A stakeholder doing one thing gets one action. Do not pad, do not truncate, do not cap. The arrays are unbounded. Let the story dictate the volume.
 
 GOOD action: "Goes to check frozen vines, finds wounded soldier"
 BAD action: "Feels conflicted about her duty"
@@ -2044,13 +2043,7 @@ Phase 1 defines \`theme.tension\` — a tension between two competing values (e.
 
 The grid is not just plot choreography. It is a thematic argument across multiple characters. Each part should advance or complicate that argument.
 
-### 8. Locations are CONSISTENT Strings
-
-Use the same location string every time a place appears. "The vineyard tower" should always be "vineyard_tower" — not "tower room", "the tower", "Esperanza's hiding spot". This allows downstream phases to cluster fragments by part + location mechanically.
-
-Create a mental vocabulary of 5-15 locations for this story and reuse them consistently.
-
-### 9. Outcome→State Continuity (CRITICAL)
+### 8. Outcome→State Continuity (CRITICAL)
 
 Each character's **state** at Part N+1 must follow logically from their **outcome** at Part N.
 
@@ -2060,7 +2053,7 @@ No resets. No contradictions. No skipping consequences. The outcome→state chai
 
 The first part's states come from Phase 2 character setup. Later part states come from the previous part's outcome.
 
-### 10. Density Creates Novel
+### 9. Density Creates Novel
 
 Multiple parts × full cast = potentially 50+ scene fragments. This IS the master timeline. Every fragment is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
 
@@ -2081,7 +2074,6 @@ Multiple parts × full cast = potentially 50+ scene fragments. This IS the maste
 Act 1 Part 1: The Winter Offensive Period
 
 Esperanza (protagonist):
-  location: vineyard_fields
   state: Restless, unfulfilled — running family vineyard alone since father's death, no life beyond duty
   situation: Distant gunfire as Republican forces retreat through the valley
   actions: [
@@ -2107,7 +2099,6 @@ Esperanza (protagonist):
   psychology_note: Lie ("I must handle everything alone") already operating — she tells no one
 
 Mikel (love_interest):
-  location: vineyard_fields
   state: Exhausted, bleeding — unit scattered in failed offensive, separated from command
   situation: Nationalist patrols closing in, no safe route to Republican lines
   actions: [
@@ -2132,7 +2123,6 @@ Mikel (love_interest):
   psychology_note: Lie ("Trust no one outside the cause") immediately challenged — he has no choice
 
 Don Sebastián (stakeholder):
-  location: town_hall
   state: Confident, consolidating power — war going well, opportunity to eliminate rivals
   situation: Reports of Republican soldiers fleeing through the valley
   actions: [
@@ -2270,16 +2260,15 @@ ${allCharacters.map(c => {
 1. For each part (across all acts), include ALL characters — protagonist, love interests, and every stakeholder character
 2. Generate a complete scene fragment for EACH character at EACH part
 3. Every field is substantive — no field restates another
-4. Locations are consistent strings — reuse the same string for the same place
-5. State at Part N+1 follows from outcome at Part N (outcome→state continuity)
-6. Actions[] entries are physical and concrete, not thematic or psychological
-7. Dialogues[] are summaries of exchanges, not literal script
-8. Thoughts[] only for POV characters (protagonist)
-9. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
-10. Protagonist/love_interest early part actions must ENACT their lie (first half of parts)
-11. Each stakeholder's final part fragment must reflect their arc_outcome
-12. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
-13. Validate all romance_arc_stages from Phase 1 appear in order
+4. State at Part N+1 follows from outcome at Part N (outcome→state continuity)
+5. Actions[] entries are physical and concrete, not thematic or psychological
+6. Dialogues[] are summaries of exchanges, not literal script
+7. Thoughts[] only for POV characters (protagonist)
+8. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
+9. Protagonist/love_interest early part actions must ENACT their lie (first half of parts)
+10. Each stakeholder's final part fragment must reflect their arc_outcome
+11. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
+12. Validate all romance_arc_stages from Phase 1 appear in order
 
 ## EXPECTED FRAGMENT COUNT
 
@@ -2460,20 +2449,19 @@ const PHASE_4_STEP1_SYSTEM_PROMPT = `You are extracting the POV character's jour
 
 You receive:
 - The POV character's name
-- Their Phase 3 fragment: location, actions, dialogues, thoughts
+- Their Phase 3 fragment: actions, dialogues, thoughts
 - The part context: act, part name, part description
 
-Your job: Read the POV character's actions and determine the sequence of locations they visit during this part. Actions may all happen at one location, or they may imply movement between locations.
+Your job: Read the POV character's actions and determine the sequence of locations they visit during this part. A part covers a TIME PERIOD — the character may move through multiple locations. Infer locations from the actions themselves and the part context.
 
 ## RULES
 
-1. Use the fragment's location field as the starting location
-2. Read actions in order — if an action implies the character has moved to a new place, start a new journey stop
+1. Read actions in order — infer where each action takes place based on context
+2. If an action implies the character has moved to a new place, start a new journey stop
 3. Each journey stop has: the location and the actions that happen there
 4. Include dialogues and thoughts at the stop where they naturally occur
 5. If all actions happen at one location, there is one journey stop
 6. Location strings must be snake_case (e.g., hacienda_courtyard, village_church)
-7. Reuse the Phase 3 location string when applicable — don't rename it
 
 ## SIGNALS THAT INDICATE MOVEMENT
 
@@ -2527,7 +2515,7 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     throw new Error(`Phase 4: No fragment for protagonist "${protagonist}" in Act ${firstPart.act} Part ${firstPart.part}`)
   }
 
-  console.log(`  Fragment: ${povFragment.actions?.length || 0} actions, ${povFragment.dialogues?.length || 0} dialogues, ${povFragment.thoughts?.length || 0} thoughts @ ${povFragment.location}`)
+  console.log(`  Fragment: ${povFragment.actions?.length || 0} actions, ${povFragment.dialogues?.length || 0} dialogues, ${povFragment.thoughts?.length || 0} thoughts`)
 
   const userPrompt = `## POV Character
 ${protagonist}
@@ -2537,7 +2525,6 @@ Act ${firstPart.act} Part ${firstPart.part}: ${firstPart.part_name}
 ${firstPart.part_description}
 
 ## POV Character's Phase 3 Fragment
-Location: ${povFragment.location}
 Actions: ${JSON.stringify(povFragment.actions || [])}
 Dialogues: ${JSON.stringify(povFragment.dialogues || [])}
 Thoughts: ${JSON.stringify(povFragment.thoughts || [])}

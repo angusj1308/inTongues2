@@ -804,18 +804,23 @@ Container types:
 - journey: Pilgrimage, migration, escape, expedition, road trip
 - crisis: Epidemic, siege, scandal, investigation, natural disaster
 
-Step 2: Define 5-8 beats for this container. These are WORLD events, not character events.
-- What is the inciting event?
-- What are the escalating stages?
-- What is the climax of the external situation?
-- What is the resolution?
+Step 2: Define a three-act structure with parts within each act. Parts are TIME PERIODS or PHASES of the situation, not specific events.
+
+- Act 1 (Setup): 1-3 parts — establish the world, the situation, and the characters' entry into it
+- Act 2 (Confrontation): 2-4 parts — escalation, complications, shifting dynamics
+- Act 3 (Resolution): 1-2 parts — climax and aftermath
+
+Parts are containers. Name them after spans of time or phases of the situation. Events happen WITHIN parts — a part is not an event itself.
+
+GOOD part name: "The First Week of Harvest" — a time container that could hold multiple scenes
+BAD part name: "The Discovery of the Letter" — that's an event, not a time period
 
 Step 3: Identify pressure points.
-- Which beats create deadlines for the characters?
-- Which beats force characters together?
-- Which beats force characters apart?
-- Which beats create danger or stakes?
-- The romantic dark moment should align with the external climax.
+- Which parts create deadlines for the characters?
+- Which parts force characters together?
+- Which parts force characters apart?
+- Which parts create danger or stakes?
+- The romantic dark moment should align with the external plot climax.
 
 ## Output
 
@@ -861,16 +866,22 @@ Step 3: Identify pressure points.
   "external_plot": {
     "container_type": "historical_event | professional_situation | social_structure | time_bounded | competition | journey | crisis",
     "container_summary": "One sentence describing the external situation",
-    "beats": [
+    "acts": [
       {
-        "order": 1,
-        "beat": "Name of this beat",
-        "what_happens": "What occurs in the world",
-        "world_state": "Pressure, danger, or opportunity at this point",
-        "timing": "When in the story timespan this occurs"
+        "act": 1,
+        "name": "Act name",
+        "parts": [
+          {
+            "part": 1,
+            "name": "Time period name (NOT an event name)",
+            "time_period": "What span of time this covers",
+            "world_state": "What conditions exist during this period",
+            "events_possible": ["Event that could happen", "Another event"]
+          }
+        ]
       }
     ],
-    "climax_beat": number,
+    "climax_part": "Act X Part Y",
     "alignment_note": "How the romantic dark moment should align with the external plot climax"
   },
   "love_triangle": {
@@ -1189,16 +1200,26 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
 
   // Validate external plot structure
   const ep = data.external_plot
-  if (!ep.container_type || !ep.container_summary || !ep.beats || !Array.isArray(ep.beats)) {
-    throw new Error('Phase 1 external_plot missing required fields (container_type, container_summary, beats)')
+  if (!ep.container_type || !ep.container_summary || !ep.acts || !Array.isArray(ep.acts)) {
+    throw new Error('Phase 1 external_plot missing required fields (container_type, container_summary, acts)')
   }
-  if (ep.beats.length < 3) {
-    console.warn(`Phase 1 WARNING: external_plot has only ${ep.beats.length} beats (expected 5-8)`)
+  if (ep.acts.length !== 3) {
+    console.warn(`Phase 1 WARNING: external_plot has ${ep.acts.length} acts (expected 3)`)
   }
-  for (const beat of ep.beats) {
-    if (!beat.order || !beat.beat || !beat.what_happens) {
-      throw new Error('External plot beat missing required fields (order, beat, what_happens)')
+  let totalParts = 0
+  for (const act of ep.acts) {
+    if (!act.act || !act.parts || !Array.isArray(act.parts)) {
+      throw new Error(`External plot act ${act.act || '?'} missing required fields (act, parts)`)
     }
+    for (const part of act.parts) {
+      if (!part.part || !part.name) {
+        throw new Error(`External plot Act ${act.act} Part ${part.part || '?'} missing required fields (part, name)`)
+      }
+      totalParts++
+    }
+  }
+  if (totalParts < 5) {
+    console.warn(`Phase 1 WARNING: external_plot has only ${totalParts} total parts (expected 5-9)`)
   }
 
   console.log('Phase 1 complete.')
@@ -1217,11 +1238,14 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   console.log(`  Theme: ${data.theme.tension}`)
   console.log(`    Explored through: ${data.theme.explored_through}`)
   console.log(`  External Plot: ${ep.container_type} — "${ep.container_summary}"`)
-  console.log(`    Beats: ${ep.beats.length}`)
-  ep.beats.forEach(b => {
-    console.log(`      ${b.order}. ${b.beat}: ${b.what_happens.slice(0, 60)}...`)
+  console.log(`    Acts: ${ep.acts.length}, Total parts: ${totalParts}`)
+  ep.acts.forEach(act => {
+    console.log(`    Act ${act.act}: ${act.name || ''}`)
+    act.parts.forEach(p => {
+      console.log(`      Part ${p.part}: ${p.name} (${p.time_period || ''})`)
+    })
   })
-  console.log(`    Climax beat: ${ep.climax_beat}`)
+  console.log(`    Climax part: ${ep.climax_part}`)
   console.log(`    Alignment: ${ep.alignment_note}`)
 
   // Validate love triangle if present
@@ -1366,7 +1390,7 @@ Every faced character must have:
 1. A POSITION on the story's central thematic tension (from Phase 1)
 2. An ARC TYPE (transformation or hardening)
 3. Moments that TEST their belief against the theme
-4. Mapping to EXTERNAL BEATS they embody or drive
+4. Mapping to EXTERNAL PLOT PARTS they embody or drive
 5. A plausible MECHANISM to pressure the protagonists
 6. An OUTCOME that follows from their thematic choice
 
@@ -1408,7 +1432,7 @@ For each interest, ask: **"Will this character share physical space with a POV c
 
 A character PASSES the proximity test if ALL of these are true:
 - Present in the protagonists' physical world REGULARLY, not occasionally
-- Will be physically present with a POV character in at least 3 beats
+- Will be physically present with a POV character in at least 3 parts
 - Has a personal relationship or role that creates regular contact
 
 A character FAILS the proximity test if ANY of these are true:
@@ -1423,7 +1447,7 @@ Fails proximity test → faceless force. No exceptions for thematic importance.
 **Step 3: Face or Faceless Decision**
 
 An interest GETS A FACE only if ALL of these are true:
-1. Passes the proximity test (will share physical space with POV character in 3+ beats)
+1. Passes the proximity test (will share physical space with POV character in 3+ parts)
 2. Has a personal connection to a POV character (not institutional/professional distance)
 3. Has personal interests that create friction with the protagonists
 
@@ -1443,7 +1467,7 @@ One character serving multiple interests is better than two characters each serv
 - Characters who would occupy similar spaces in the protagonists' lives
 - Opportunities to deepen one character rather than spreading thin across many
 
-Consolidate aggressively. Fewer, richer characters beat more, thinner ones.
+Consolidate aggressively. Fewer, richer characters are better than more, thinner ones.
 
 **Step 4: Thematic Position**
 
@@ -1498,9 +1522,9 @@ This ensures every faced character has:
 
 No partial or minimal characters. If a character doesn't warrant full psychology, they should be faceless or consolidated with another character.
 
-**Step 8: External Beat Mapping**
+**Step 8: External Plot Mapping**
 
-Which Phase 1 external plot beats does each character EMBODY or DRIVE?
+Which Phase 1 external plot parts does each character EMBODY or DRIVE?
 
 A character might:
 - BE the inciting incident
@@ -1508,16 +1532,16 @@ A character might:
 - FORCE the crisis point
 - RESOLVE or COMPLICATE the climax
 
-Map characters to external beats to ensure they're integrated with the world's events, not floating in a character vacuum.
+Map characters to external plot parts to ensure they're integrated with the world's events, not floating in a character vacuum.
 
 **Step 9: Screen-Time Sanity Check**
 
 After all characters are generated, review each faced character and ask:
 
-"How many beats will this character share physical space with a POV character?"
+"How many parts will this character share physical space with a POV character?"
 
-- If 3+ beats: Confirmed as faced character
-- If fewer than 3 beats: Reconsider. Should this character be faceless? Can their role be consolidated with another character who IS proximal?
+- If 3+ parts: Confirmed as faced character
+- If fewer than 3 parts: Reconsider. Should this character be faceless? Can their role be consolidated with another character who IS proximal?
 
 This is a FINAL CHECK. Characters who seemed important during ideation but fail the screen-time test should be converted to faceless forces or consolidated.
 
@@ -1533,7 +1557,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
       "interest": "Description of the force/pressure/stake",
       "pressure_mechanism": "How this interest could pressure protagonists",
       "can_reach_protagonists": true,
-      "reach_explanation": "Proximity assessment: Will they share physical space with POV character in 3+ beats?",
+      "reach_explanation": "Proximity assessment: Will they share physical space with POV character in 3+ parts?",
       "has_face": true,
       "why_face": "Why this passes proximity test and gets a character (or null if faceless)"
     }
@@ -1551,7 +1575,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
       "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-      "external_beats": ["Array of Phase 1 external beat names they embody or drive"],
+      "external_parts": ["Array of Phase 1 external plot part names they embody or drive"],
       "pressure_mechanism": "How they reach and pressure protagonists (must be plausible)",
       "thematic_test": "What challenges their belief",
 
@@ -1585,7 +1609,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
   "faceless_pressures": [
     {
       "interest": "The faceless force",
-      "why_faceless": "Why this fails the proximity test (won't share physical space with POV character in 3+ beats)",
+      "why_faceless": "Why this fails the proximity test (won't share physical space with POV character in 3+ parts)",
       "how_manifests": "How it shows up in the story without a character"
     }
   ]
@@ -1594,7 +1618,7 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
 ## CRITICAL RULES
 
 1. Characters must have THEMATIC POSITIONS, not just plot functions.
-2. Characters must PASS THE PROXIMITY TEST - will they share physical space with a POV character in 3+ beats? If not, make them faceless.
+2. Characters must PASS THE PROXIMITY TEST - will they share physical space with a POV character in 3+ parts? If not, make them faceless.
 3. All stakeholder characters get FULL PSYCHOLOGY including vice. No partial or minimal characters.
 4. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
 5. Consolidate aggressively - one character serving multiple interests is better than many thin characters.
@@ -1638,14 +1662,14 @@ ARCS AND ENDINGS:
 CONSOLIDATE AGGRESSIVELY:
 - One character serving multiple interests is better than many thin characters
 - Look for opportunities to combine characters who would occupy similar spaces
-- Fewer, richer characters beat more, thinner ones
+- Fewer, richer characters are better than more, thinner ones
 
 ALL STAKEHOLDER CHARACTERS GET FULL PSYCHOLOGY:
 - Every faced character needs wound, lie, want, need, coping_mechanism, vice, arc, voice
 - If a character doesn't warrant full psychology, make them faceless or consolidate
 
 PROXIMITY IS PARAMOUNT:
-- Faced characters must share physical space with POV character in 3+ beats
+- Faced characters must share physical space with POV character in 3+ parts
 - If they won't be physically present repeatedly, make them faceless
 - Thematic importance does NOT override proximity failure
 
@@ -1657,10 +1681,12 @@ function buildPhase2UserPrompt(concept, phase1, lengthPreset) {
   const povStructure = phase1.pov?.structure || 'Multiple'
   const povPerson = phase1.pov?.person || 'Third'
 
-  // Build external beats summary
-  const externalBeatsSummary = phase1.external_plot?.beats?.map(b =>
-    `${b.order}. **${b.beat}**: ${b.what_happens}`
-  ).join('\n') || 'No external beats defined'
+  // Build external plot parts summary
+  const externalPartsSummary = (phase1.external_plot?.acts || []).map(act =>
+    `**Act ${act.act}: ${act.name || ''}**\n` + (act.parts || []).map(p =>
+      `  Part ${p.part}: ${p.name} — ${p.time_period || ''} (${p.world_state || ''})`
+    ).join('\n')
+  ).join('\n') || 'No external plot parts defined'
 
   // Complexity guide based on length
   const stakeholderCount = lengthPreset === 'novella' ? '2-4' : '4-8'
@@ -1701,11 +1727,11 @@ You MUST create the stakeholder characters. This is not optional. Your output MU
 
 Every faced character needs a POSITION on this tension. Their arc tests that position.
 
-### EXTERNAL PLOT BEATS (characters can embody/drive these)
+### EXTERNAL PLOT PARTS (characters can embody/drive these)
 
-${externalBeatsSummary}
+${externalPartsSummary}
 
-Map characters to these beats - they shouldn't float in a vacuum. Each character should embody or drive at least one external beat.
+Map characters to these parts - they shouldn't float in a vacuum. Each character should embody or drive at least one external plot part.
 
 ### Complexity Guide for ${lengthPreset}
 
@@ -1722,7 +1748,7 @@ Start from the protagonists' daily life and work outward:
 Q1-3 produce candidate faced characters. Q4 produces candidate faceless forces.
 
 **Step 2: Proximity test (not just reachability)**
-For each interest ask: "Will this character share physical space with a POV character in 3+ beats?"
+For each interest ask: "Will this character share physical space with a POV character in 3+ parts?"
 - Must be REGULARLY present, not occasional
 - Must have personal relationship or role creating regular contact
 - Fails proximity → faceless. No exceptions for thematic importance.
@@ -1730,17 +1756,17 @@ For each interest ask: "Will this character share physical space with a POV char
 **Step 3: Face or faceless decision with CONSOLIDATION CHECK**
 Face requires ALL: passes proximity test + personal connection + personal interests creating friction
 Faceless if ANY: fails proximity OR institutional/systemic OR pressure through consequences not presence
-After decisions, check: Can any faced characters be CONSOLIDATED? One character serving multiple interests beats two thin characters.
+After decisions, check: Can any faced characters be CONSOLIDATED? One character serving multiple interests is better than two thin characters.
 
 **Steps 4-8: (per system prompt)**
 4. Thematic position for faced characters
 5. Archetype (pressure role)
 6. Arc type and outcome
 7. Full psychology for ALL stakeholder characters (wound, lie, want, need, coping_mechanism, vice, arc, voice)
-8. External beat mapping
+8. External plot mapping
 
 **Step 9: Screen-time sanity check**
-Review each faced character: How many beats will they share physical space with a POV character?
+Review each faced character: How many parts will they share physical space with a POV character?
 If fewer than 3 → reconsider: Should they be faceless? Can they be consolidated?
 
 ## CRITICAL OUTPUT REQUIREMENTS
@@ -1750,7 +1776,7 @@ Your JSON output MUST include ALL of these top-level keys:
 2. love_interests (array)
 3. dynamics (object with romantic and rivals arrays)
 4. interests (array - REQUIRED, minimum 3 entries with pressure_mechanism and can_reach_protagonists for proximity assessment)
-5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_beats, pressure_mechanism)
+5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_parts, pressure_mechanism)
 6. faceless_pressures (array - REQUIRED, even if empty)
 
 DO NOT return output with empty interests or stakeholder_characters arrays.`
@@ -1875,18 +1901,18 @@ async function executePhase2(concept, phase1, lengthPreset) {
 // PHASE 3: CHARACTER ACTION GRID
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a story architect. Your task is to create a beat-by-beat CHARACTER ACTION GRID that tracks what every character does during every external beat.
+const PHASE_3_SYSTEM_PROMPT = `You are a story architect. Your task is to create an act-by-act, part-by-part CHARACTER ACTION GRID that tracks what every character does during every part of the story.
 
 You will receive:
 - The original concept
-- Phase 1 output (external_plot with beats, romance_arc_stages as constraint list, theme, tone)
+- Phase 1 output (external_plot with acts and parts, romance_arc_stages as constraint list, theme, tone)
 - Phase 2 output (protagonist, love_interests, stakeholder_characters - the full cast with psychology)
 
 ## THE CHARACTER ACTION GRID
 
 Romance arc stages are STATES the relationship moves through. They are not moments. Multiple story events can occur within a single stage before the relationship tips to the next one. The exact stages come from Phase 1's \`romance_arc_stages\` array — these are the ONLY valid values for \`romance_stage_tag\`. No invented stages. No skipping. Every stage must appear exactly once.
 
-For EVERY external beat, for EVERY character (all characters appear at all beats), generate a SCENE FRAGMENT — a structured cell containing everything needed to build a scene around that character at that beat.
+For EVERY part (across all acts), for EVERY character (all characters appear at all parts), generate a SCENE FRAGMENT — a structured cell containing everything needed to build a scene around that character during that part.
 
 Each fragment must carry distinct information in every field. State is not situation. Situation is not action. Action is not outcome. Tension is not psychology_note. Every field serves a different downstream purpose.
 
@@ -1895,22 +1921,23 @@ Each fragment must carry distinct information in every field. State is not situa
 {
   "grid": [
     {
-      "beat_number": 1,
-      "beat_name": "Name from Phase 1 external_plot",
-      "beat_description": "What happens in the world during this beat",
+      "act": 1,
+      "part": 1,
+      "part_name": "Name from Phase 1 external_plot",
+      "part_description": "What time period this covers and the world conditions",
       "fragments": [
         {
           "character": "Character name",
           "character_type": "protagonist | love_interest | stakeholder",
-          "location": "Short consistent string for where they are (reuse same strings across beats)",
-          "state": "Their personal condition coming into this beat — mindset, emotional state, what they're carrying from previous events",
+          "location": "Short consistent string for where they are (reuse same strings across parts)",
+          "state": "Their personal condition coming into this part — mindset, emotional state, what they're carrying from previous events",
           "situation": "External context they're walking into — what's happening around them, independent of their personal state",
           "actions": ["action 1", "action 2", "action 3", ...],
           "dialogues": ["dialogue summary 1", "dialogue summary 2", ...],
           "thoughts": ["thought 1", "thought 2", ...],
           "intent": "What they were trying to achieve with their actions",
           "tension": "What's pulling against them — discomfort, doubt, observation that nags, loyalty being tested",
-          "outcome": "The state change — what is different after this beat because of what they did or experienced",
+          "outcome": "The state change — what is different after this part because of what they did or experienced",
           "romance_stage_tag": "awareness | attraction | etc." | null,
           "psychology_note": "How this fragment relates to their lie, arc, and thematic position" | null
         }
@@ -1921,7 +1948,8 @@ Each fragment must carry distinct information in every field. State is not situa
   "romance_stage_progression": [
     {
       "stage": "awareness",
-      "beat_number": 1,
+      "act": 1,
+      "part": 1,
       "character": "Esperanza",
       "description": "Brief description of what tips the relationship into this stage"
     }
@@ -1941,11 +1969,11 @@ Each fragment must carry distinct information in every field. State is not situa
 
 ## CRITICAL RULES
 
-### 1. Every Character Appears at Every Beat
+### 1. Every Character Appears at Every Part
 
-Every named character from Phase 2 (protagonist, love interests, all stakeholder characters) MUST have a row at every beat. These characters live in this world — they are always doing something. Their actions may not intersect with the main plot at a given beat, but we need to know what they're doing in their own lives, pursuing their own interests, reacting to the world events.
+Every named character from Phase 2 (protagonist, love interests, all stakeholder characters) MUST have a row at every part. These characters live in this world — they are always doing something. Their actions may not intersect with the main plot at a given part, but we need to know what they're doing in their own lives, pursuing their own interests, reacting to the world events.
 
-This is about generating maximum content density for downstream phases to select from. The alcalde doesn't stop existing during quiet beats. The priest doesn't vanish between scenes. Every character is living their life, and we want to know what that looks like at each beat.
+This is about generating maximum content density for downstream phases to select from. The alcalde doesn't stop existing during quiet parts. The priest doesn't vanish between scenes. Every character is living their life, and we want to know what that looks like during each part.
 
 The ONLY exception: characters who are dead or have physically left the story world.
 
@@ -1955,15 +1983,15 @@ Most cells have NO romance tag. Tags only appear when the relationship TIPS from
 
 **HARD CONSTRAINT:** Romance stage tags may ONLY appear on protagonist or love_interest rows. Never on stakeholder characters. If a stage involves mutual transformation, place the tag on the protagonist's row.
 
-Example: Awareness might be tagged on Beat 1. The next 10, 20, 30 cells might have no tag at all while other things happen. Then eventually a cell tips to "attraction" - and the gap between those tags is where the story lives.
+Example: Awareness might be tagged on Act 1 Part 1. The next 10, 20, 30 cells might have no tag at all while other things happen. Then eventually a cell tips to "attraction" - and the gap between those tags is where the story lives.
 
 ### 3. Every Field is CONCRETE and DISTINCT
 
 Each field in a fragment must carry distinct, substantive information:
 
-- **state**: Personal condition COMING INTO this beat (not what happens during it)
+- **state**: Personal condition COMING INTO this part (not what happens during it)
 - **situation**: External context (not the character's feelings about it)
-- **actions**: Array of physical, observable things they DO — chronologically ordered within the beat
+- **actions**: Array of physical, observable things they DO — chronologically ordered within the part
 - **dialogues**: Array of dialogue SUMMARIES (what is said, not literal lines — prose phase writes actual dialogue)
 - **thoughts**: Array of internal monologue — what they're thinking/feeling as events unfold (protagonist and love_interest ONLY)
 - **intent**: What they were TRYING to achieve (not what they did)
@@ -1978,7 +2006,7 @@ Each field in a fragment must carry distinct, substantive information:
 
 **THOUGHTS ARE FOR POV CHARACTERS ONLY.** Stakeholders get 0 thoughts — their interiority is revealed through actions and dialogue only.
 
-**LET THE STORY DICTATE VOLUME.** Each fragment should include as many actions, dialogues, and thoughts as the character's role in this beat warrants. Protagonist and love interest fragments will naturally be richer than stakeholder fragments. Do not pad — if a stakeholder only does one thing in this beat, that's one action. If the protagonist has a complex sequence of events, that could be six actions. Let the story dictate the volume.
+**LET THE STORY DICTATE VOLUME.** Each fragment should include as many actions, dialogues, and thoughts as the character's role in this part warrants. Protagonist and love interest fragments will naturally be richer than stakeholder fragments. Do not pad — if a stakeholder only does one thing in this part, that's one action. If the protagonist has a complex sequence of events, that could be six actions. Let the story dictate the volume.
 
 GOOD action: "Goes to check frozen vines, finds wounded soldier"
 BAD action: "Feels conflicted about her duty"
@@ -1993,29 +2021,29 @@ BAD outcome: "Has hidden him in the tower" (this is action, not outcome)
 
 The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list must appear somewhere in the protagonist's or love_interest's cells, tagged in order. You cannot skip stages. You cannot regress.
 
-### 5. Lies DOMINATE Early Beats, DISSOLVE Gradually
+### 5. Lies DOMINATE Early Parts, DISSOLVE Gradually
 
 For protagonist and love interests: the first HALF of the grid, their **actions**, **dialogues**, and **thoughts** must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
 
 This creates earned transformation. If the lie isn't visible in early actions/dialogues/thoughts, the ending feels cheap.
 
 Example (lie: "I must never depend on anyone"):
-- Beat 1 actions: ["Refuses help carrying supplies despite struggling", "Brushes off concern with dismissive gesture"]
-- Beat 1 dialogues: ["Insists she can manage alone"]
-- Beat 1 thoughts: ["Reminds herself that depending on others always leads to disappointment"]
-- Beat 1 intent: "To prove she doesn't need anyone"
+- Act 1 Part 1 actions: ["Refuses help carrying supplies despite struggling", "Brushes off concern with dismissive gesture"]
+- Act 1 Part 1 dialogues: ["Insists she can manage alone"]
+- Act 1 Part 1 thoughts: ["Reminds herself that depending on others always leads to disappointment"]
+- Act 1 Part 1 intent: "To prove she doesn't need anyone"
 
 The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
 
 ### 6. Thematic Tests Must Fire as Visible Actions
 
-Every stakeholder character has a \`thematic_test\` defined in Phase 2 — what challenges their belief. This test MUST appear as a concrete, visible action in at least one beat cell. The test doesn't have to be passed (hardening characters can fail it), but the moment must exist in the grid.
+Every stakeholder character has a \`thematic_test\` defined in Phase 2 — what challenges their belief. This test MUST appear as a concrete, visible action in at least one grid cell. The test doesn't have to be passed (hardening characters can fail it), but the moment must exist in the grid.
 
 If a character's thematic_test is "Witnessing sacrifice that doesn't lead to destruction," then somewhere in the grid that character must WITNESS such a sacrifice. Show the test happening, not just the character's position.
 
-### 7. Arc Outcomes Must Match Final Beat Actions
+### 7. Arc Outcomes Must Match Final Part Actions
 
-Each stakeholder character's final beat action(s) must reflect their defined \`arc_outcome\` from Phase 2:
+Each stakeholder character's final part action(s) must reflect their defined \`arc_outcome\` from Phase 2:
 
 - **redemption**: Character visibly changes — action shows new belief or reconciliation
 - **tragic_death**: Character's death (literal or metaphorical) visible in final actions
@@ -2025,47 +2053,47 @@ Each stakeholder character's final beat action(s) must reflect their defined \`a
 
 The model must NOT default toward redemption. A character defined as hardening with hollow_victory does NOT get a soft ending. Show the hollowness.
 
-### 8. Central Theme Tests Every Beat
+### 8. Central Theme Tests Every Part
 
-Phase 1 defines \`theme.tension\` — a tension between two competing values (e.g., "duty vs truth"). Every beat should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
+Phase 1 defines \`theme.tension\` — a tension between two competing values (e.g., "duty vs truth"). Every part should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
 
-The grid is not just plot choreography. It is a thematic argument across multiple characters. Each beat should advance or complicate that argument.
+The grid is not just plot choreography. It is a thematic argument across multiple characters. Each part should advance or complicate that argument.
 
 ### 9. Locations are CONSISTENT Strings
 
-Use the same location string every time a place appears. "The vineyard tower" should always be "vineyard_tower" — not "tower room", "the tower", "Esperanza's hiding spot". This allows downstream phases to cluster fragments by beat + location mechanically.
+Use the same location string every time a place appears. "The vineyard tower" should always be "vineyard_tower" — not "tower room", "the tower", "Esperanza's hiding spot". This allows downstream phases to cluster fragments by part + location mechanically.
 
 Create a mental vocabulary of 5-15 locations for this story and reuse them consistently.
 
 ### 10. Outcome→State Continuity (CRITICAL)
 
-Each character's **state** at Beat N+1 must follow logically from their **outcome** at Beat N.
+Each character's **state** at Part N+1 must follow logically from their **outcome** at Part N.
 
-If Beat 2 outcome is "Now hiding a wounded enemy soldier — terrified of discovery", then Beat 3 state must acknowledge this: "Carrying the weight of her secret, sleeping poorly, jumping at sounds".
+If Act 1 Part 2 outcome is "Now hiding a wounded enemy soldier — terrified of discovery", then Act 1 Part 3 state must acknowledge this: "Carrying the weight of her secret, sleeping poorly, jumping at sounds".
 
 No resets. No contradictions. No skipping consequences. The outcome→state chain creates continuity per character through the entire grid.
 
-Beat 1 states come from Phase 2 character setup. Beat 2+ states come from the previous beat's outcome.
+The first part's states come from Phase 2 character setup. Later part states come from the previous part's outcome.
 
 ### 11. Density Creates Novel
 
-7 beats × full cast = potentially 50+ scene fragments. This IS the master timeline. Every fragment is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
+Multiple parts × full cast = potentially 50+ scene fragments. This IS the master timeline. Every fragment is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
 
 ## PROCESS
 
-1. Read the external_plot beats from Phase 1
+1. Read the external_plot acts and parts from Phase 1
 2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
-3. For each beat, include ALL characters from the cast (everyone appears at every beat)
-4. For each character at each beat, generate a complete scene fragment with arrays for actions, dialogues, thoughts
+3. For each part (across all acts), include ALL characters from the cast (everyone appears at every part)
+4. For each character at each part, generate a complete scene fragment with arrays for actions, dialogues, thoughts
 5. Let the story dictate volume — don't pad, don't skimp
-6. Ensure each character's state at Beat N+1 follows from their outcome at Beat N
+6. Ensure each character's state at Part N+1 follows from their outcome at Part N
 7. After generating all fragments, identify which protagonist/love_interest cells represent romance stage transitions
 8. Tag those cells with the appropriate romance_stage
 9. Validate that all romance_arc_stages appear in order
 
 ## EXAMPLE
 
-Beat 1: Winter Offensive
+Act 1 Part 1: The Winter Offensive Period
 
 Esperanza (protagonist):
   location: vineyard_fields
@@ -2143,7 +2171,7 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
   // Build full cast list with constraint data
   const allCharacters = []
 
-  // Add protagonist with lie/coping for early beat constraint
+  // Add protagonist with lie/coping for early part constraint
   allCharacters.push({
     name: phase2.protagonist?.name,
     type: 'protagonist',
@@ -2177,10 +2205,15 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
     })
   })
 
-  // Build external beats summary
-  const externalBeatsSummary = phase1.external_plot?.beats?.map(b =>
-    `${b.order}. **${b.beat}**: ${b.what_happens}`
-  ).join('\n') || 'No external beats defined'
+  // Build external plot parts summary
+  const externalPartsSummary = (phase1.external_plot?.acts || []).map(act =>
+    `**Act ${act.act}: ${act.name || ''}**\n` + (act.parts || []).map(p =>
+      `  Part ${p.part}: ${p.name} — ${p.time_period || ''} (${p.world_state || ''})`
+    ).join('\n')
+  ).join('\n') || 'No external plot parts defined'
+
+  // Count total parts
+  const totalParts = (phase1.external_plot?.acts || []).reduce((sum, act) => sum + (act.parts?.length || 0), 0)
 
   // Build romance arc stages constraint
   const romanceStages = phase1.romance_arc_stages?.join(' → ') || 'awareness → attraction → tension → touch → kiss → intimacy → dark_moment → reunion'
@@ -2195,15 +2228,15 @@ ${JSON.stringify(phase2, null, 2)}
 
 ## Your Task
 
-Create a beat-by-beat CHARACTER ACTION GRID. For EVERY external beat, for EVERY character (no exceptions), generate a SCENE FRAGMENT. Every character appears at every beat — they don't vanish when not in scenes with the protagonist.
+Create an act-by-act, part-by-part CHARACTER ACTION GRID. For EVERY part (across all acts), for EVERY character (no exceptions), generate a SCENE FRAGMENT. Every character appears at every part — they don't vanish when not in scenes with the protagonist.
 
-Each field must carry distinct information. State ≠ situation ≠ outcome. Each character's state at Beat N+1 must follow from their outcome at Beat N.
+Each field must carry distinct information. State ≠ situation ≠ outcome. Each character's state at Part N+1 must follow from their outcome at Part N.
 
-## EXTERNAL BEATS (HARD CONSTRAINT — the grid rows)
+## EXTERNAL PLOT PARTS (HARD CONSTRAINT — the grid rows)
 
-${externalBeatsSummary}
+${externalPartsSummary}
 
-**HARD CONSTRAINT:** Use EXACTLY these ${phase1.external_plot?.beats?.length || 6} beats. No more. No fewer. Do not invent additional beats. Do not split beats. Do not combine beats. The grid must have exactly ${phase1.external_plot?.beats?.length || 6} beat rows, matching the list above.
+**HARD CONSTRAINT:** Use EXACTLY these ${totalParts} parts across ${phase1.external_plot?.acts?.length || 3} acts. No more. No fewer. Do not invent additional parts. Do not split parts. Do not combine parts. The grid must have exactly ${totalParts} rows, matching the list above.
 
 ## ROMANCE ARC STAGES (HARD CONSTRAINT)
 
@@ -2217,15 +2250,15 @@ These are STATES the relationship moves through. Tag protagonist cells when the 
 
 **Theme Tension:** ${phase1.theme?.tension || 'Not defined'}
 
-Every beat should contain at least one action where a character's thematic position is tested, reinforced, or challenged.
+Every part should contain at least one action where a character's thematic position is tested, reinforced, or challenged.
 
-## ROMANTIC LEADS — LIES THAT MUST DOMINATE EARLY BEATS
+## ROMANTIC LEADS — LIES THAT MUST DOMINATE EARLY PARTS
 
 ${allCharacters.filter(c => c.type === 'protagonist' || c.type === 'love_interest').map(c => {
   return `**${c.name}** (${c.type})
   - Lie: "${c.lie}"
   - Coping: "${c.coping_mechanism}"
-  - CONSTRAINT: For beats 1-${Math.floor((phase1.external_plot?.beats?.length || 6) / 2)}, actions must VISIBLY ENACT this lie/coping`
+  - CONSTRAINT: For the first half of parts, actions must VISIBLY ENACT this lie/coping`
 }).join('\n\n')}
 
 ## STAKEHOLDER CHARACTERS — THEMATIC TESTS AND ARC OUTCOMES
@@ -2234,7 +2267,7 @@ ${allCharacters.filter(c => c.type === 'stakeholder').map(c => {
   return `**${c.name}** (${c.archetype})
   - Position: "${c.thematic_position}"
   - Test: "${c.thematic_test}" ← MUST appear as visible action in grid
-  - Arc: ${c.arc_type} → ${c.arc_outcome} ← Final beat actions must reflect this outcome`
+  - Arc: ${c.arc_type} → ${c.arc_outcome} ← Final part actions must reflect this outcome`
 }).join('\n\n')}
 
 ## FULL CAST SUMMARY
@@ -2251,24 +2284,24 @@ ${allCharacters.map(c => {
 
 ## REQUIREMENTS
 
-1. For each external beat, include ALL characters — protagonist, love interests, and every stakeholder character
-2. Generate a complete scene fragment for EACH character at EACH beat
+1. For each part (across all acts), include ALL characters — protagonist, love interests, and every stakeholder character
+2. Generate a complete scene fragment for EACH character at EACH part
 3. Every field is substantive — no field restates another
 4. Locations are consistent strings — reuse the same string for the same place
-5. State at Beat N+1 follows from outcome at Beat N (outcome→state continuity)
+5. State at Part N+1 follows from outcome at Part N (outcome→state continuity)
 6. Actions[] entries are physical and concrete, not thematic or psychological
 7. Dialogues[] are summaries of exchanges, not literal script
 8. Thoughts[] only for POV characters (protagonist)
 9. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
-10. Protagonist/love_interest early beat actions must ENACT their lie (first half of beats)
+10. Protagonist/love_interest early part actions must ENACT their lie (first half of parts)
 11. Each stakeholder's thematic_test must appear as visible action somewhere in grid
-12. Each stakeholder's final beat fragment must reflect their arc_outcome
+12. Each stakeholder's final part fragment must reflect their arc_outcome
 13. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
 14. Validate all romance_arc_stages from Phase 1 appear in order
 
 ## EXPECTED FRAGMENT COUNT
 
-You have ${allCharacters.length} characters and ${phase1.external_plot?.beats?.length || 6} beats. That means ${allCharacters.length} × ${phase1.external_plot?.beats?.length || 6} = ${allCharacters.length * (phase1.external_plot?.beats?.length || 6)} scene fragments in the grid. Every character. Every beat. No exceptions.
+You have ${allCharacters.length} characters and ${totalParts} parts. That means ${allCharacters.length} × ${totalParts} = ${allCharacters.length * totalParts} scene fragments in the grid. Every character. Every part. No exceptions.
 
 ## OUTPUT
 
@@ -2292,23 +2325,23 @@ async function executePhase3(concept, phase1, phase2) {
 
   // Normalize: find whatever array the model used for fragments and rename it to 'fragments'
   if (data.grid && Array.isArray(data.grid)) {
-    for (const beat of data.grid) {
-      if (!beat.fragments) {
+    for (const gridEntry of data.grid) {
+      if (!gridEntry.fragments) {
         // Find the array field (could be character_actions, actions, cells, etc.)
-        const arrayField = Object.entries(beat).find(([key, val]) =>
+        const arrayField = Object.entries(gridEntry).find(([key, val]) =>
           Array.isArray(val) && key !== 'fragments'
         )
         if (arrayField) {
           const [fieldName, fieldValue] = arrayField
-          console.log(`Phase 3: Normalizing ${fieldName} → fragments for beat ${beat.beat_number}`)
-          beat.fragments = fieldValue
-          delete beat[fieldName]
+          console.log(`Phase 3: Normalizing ${fieldName} → fragments for Act ${gridEntry.act} Part ${gridEntry.part}`)
+          gridEntry.fragments = fieldValue
+          delete gridEntry[fieldName]
         }
       }
 
       // Normalize fragment fields: ensure actions/dialogues/thoughts are arrays
-      if (beat.fragments && Array.isArray(beat.fragments)) {
-        for (const fragment of beat.fragments) {
+      if (gridEntry.fragments && Array.isArray(gridEntry.fragments)) {
+        for (const fragment of gridEntry.fragments) {
           // Convert old 'action' string to 'actions' array
           if (fragment.action && !fragment.actions) {
             fragment.actions = [fragment.action]
@@ -2336,13 +2369,13 @@ async function executePhase3(concept, phase1, phase2) {
 
   // Validate grid structure
   if (data.grid.length === 0) {
-    throw new Error('Phase 3 grid must have at least one beat')
+    throw new Error('Phase 3 grid must have at least one part')
   }
 
-  // Validate beat count matches Phase 1
-  const expectedBeatCount = phase1.external_plot?.beats?.length || 0
-  if (expectedBeatCount > 0 && data.grid.length !== expectedBeatCount) {
-    console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} beats but Phase 1 defined ${expectedBeatCount} beats`)
+  // Validate part count matches Phase 1
+  const expectedPartCount = (phase1.external_plot?.acts || []).reduce((sum, act) => sum + (act.parts?.length || 0), 0)
+  if (expectedPartCount > 0 && data.grid.length !== expectedPartCount) {
+    console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} parts but Phase 1 defined ${expectedPartCount} parts`)
   }
 
   // Count fragments, actions, dialogues, thoughts (normalization guarantees arrays exist)
@@ -2353,11 +2386,11 @@ async function executePhase3(concept, phase1, phase2) {
   let totalDialogues = 0
   let totalThoughts = 0
 
-  for (const beat of data.grid) {
-    if (!beat.beat_number || !beat.beat_name || !beat.fragments) {
-      throw new Error(`Grid beat ${beat.beat_number || '?'} missing required fields (beat_number, beat_name, fragments)`)
+  for (const gridEntry of data.grid) {
+    if (!gridEntry.act || !gridEntry.part || !gridEntry.part_name || !gridEntry.fragments) {
+      throw new Error(`Grid entry Act ${gridEntry.act || '?'} Part ${gridEntry.part || '?'} missing required fields (act, part, part_name, fragments)`)
     }
-    for (const fragment of beat.fragments) {
+    for (const fragment of gridEntry.fragments) {
       totalFragments++
       totalActions += fragment.actions?.length || 0
       totalDialogues += fragment.dialogues?.length || 0
@@ -2395,7 +2428,7 @@ async function executePhase3(concept, phase1, phase2) {
 
   // Console logging
   console.log('Phase 3 complete.')
-  console.log(`  External beats: ${data.grid.length}`)
+  console.log(`  Total parts: ${data.grid.length}`)
   console.log(`  Total fragments: ${totalFragments}`)
   console.log(`  Protagonist fragments: ${protagonistFragments}`)
   console.log(`  Romance-tagged fragments: ${romanceTaggedFragments}`)
@@ -2408,11 +2441,11 @@ async function executePhase3(concept, phase1, phase2) {
   }
   console.log(`  Stages in order: ${stagesInOrder}`)
 
-  // Log grid summary (normalization guarantees beat.fragments exists)
+  // Log grid summary
   console.log('\n  Grid Summary:')
-  data.grid.forEach(beat => {
-    console.log(`    Beat ${beat.beat_number}: ${beat.beat_name}`)
-    beat.fragments.forEach(fragment => {
+  data.grid.forEach(gridEntry => {
+    console.log(`    Act ${gridEntry.act} Part ${gridEntry.part}: ${gridEntry.part_name}`)
+    gridEntry.fragments.forEach(fragment => {
       const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
       const actCount = fragment.actions?.length || 0
       const dlgCount = fragment.dialogues?.length || 0
@@ -2425,7 +2458,7 @@ async function executePhase3(concept, phase1, phase2) {
   console.log('\n  Romance Stage Progression:')
   data.romance_stage_progression.forEach(p => {
     const desc = p.description ? p.description.slice(0, 50) : 'no description'
-    console.log(`    ${p.stage}: Beat ${p.beat_number}, ${p.character} - ${desc}...`)
+    console.log(`    ${p.stage}: Act ${p.act} Part ${p.part}, ${p.character} - ${desc}...`)
   })
 
   console.log('')
@@ -2439,16 +2472,16 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SCENE ASSEMBLY
 // =============================================================================
 
-// Step 1: POV Character Journey — extract the protagonist's location-sequenced path through a beat
+// Step 1: POV Character Journey — extract the protagonist's location-sequenced path through a part
 
-const PHASE_4_STEP1_SYSTEM_PROMPT = `You are extracting the POV character's journey through a single story beat.
+const PHASE_4_STEP1_SYSTEM_PROMPT = `You are extracting the POV character's journey through a single story part.
 
 You receive:
 - The POV character's name
 - Their Phase 3 fragment: location, actions, dialogues, thoughts
-- The beat context: beat name, beat description
+- The part context: act, part name, part description
 
-Your job: Read the POV character's actions and determine the sequence of locations they visit during this beat. Actions may all happen at one location, or they may imply movement between locations.
+Your job: Read the POV character's actions and determine the sequence of locations they visit during this part. Actions may all happen at one location, or they may imply movement between locations.
 
 ## RULES
 
@@ -2487,9 +2520,9 @@ Only output JSON. No commentary.`
 async function executePhase4(concept, phase1, phase2, phase3) {
   console.log('Executing Phase 4: Scene Assembly (Step 1 — POV Journey)...')
 
-  const beats = phase3.grid || []
-  if (beats.length === 0) {
-    throw new Error('Phase 4: Phase 3 grid is empty — no beats to process')
+  const parts = phase3.grid || []
+  if (parts.length === 0) {
+    throw new Error('Phase 4: Phase 3 grid is empty — no parts to process')
   }
 
   // Identify POV character (protagonist from Phase 2)
@@ -2500,16 +2533,16 @@ async function executePhase4(concept, phase1, phase2, phase3) {
   }
   console.log(`  POV character: ${protagonist}`)
 
-  // Process Beat 1 only (for testing)
-  const beat1 = beats[0]
-  console.log(`  Processing Beat 1: ${beat1.beat_name}`)
+  // Process first part only (Act 1 Part 1, for testing)
+  const firstPart = parts[0]
+  console.log(`  Processing Act ${firstPart.act} Part ${firstPart.part}: ${firstPart.part_name}`)
 
-  // Find protagonist's fragment in Beat 1
-  const povFragment = beat1.fragments?.find(f =>
+  // Find protagonist's fragment in first part
+  const povFragment = firstPart.fragments?.find(f =>
     f.character === protagonist || f.character_type === 'protagonist'
   )
   if (!povFragment) {
-    throw new Error(`Phase 4: No fragment for protagonist "${protagonist}" in Beat 1`)
+    throw new Error(`Phase 4: No fragment for protagonist "${protagonist}" in Act ${firstPart.act} Part ${firstPart.part}`)
   }
 
   console.log(`  Fragment: ${povFragment.actions?.length || 0} actions, ${povFragment.dialogues?.length || 0} dialogues, ${povFragment.thoughts?.length || 0} thoughts @ ${povFragment.location}`)
@@ -2517,9 +2550,9 @@ async function executePhase4(concept, phase1, phase2, phase3) {
   const userPrompt = `## POV Character
 ${protagonist}
 
-## Beat Context
-Beat 1: ${beat1.beat_name}
-${beat1.beat_description}
+## Part Context
+Act ${firstPart.act} Part ${firstPart.part}: ${firstPart.part_name}
+${firstPart.part_description}
 
 ## POV Character's Phase 3 Fragment
 Location: ${povFragment.location}
@@ -2529,7 +2562,7 @@ Thoughts: ${JSON.stringify(povFragment.thoughts || [])}
 State: ${povFragment.state || 'not specified'}
 Intent: ${povFragment.intent || 'not specified'}
 
-Extract the journey — the sequence of locations this character visits during this beat, with their actions/dialogues/thoughts at each stop.`
+Extract the journey — the sequence of locations this character visits during this part, with their actions/dialogues/thoughts at each stop.`
 
   const response = await callOpenAI(PHASE_4_STEP1_SYSTEM_PROMPT, userPrompt, { maxTokens: 4096 })
   const parsed = parseJSON(response)
@@ -2542,7 +2575,7 @@ Extract the journey — the sequence of locations this character visits during t
   let journeyData = parsed.data
   // Normalize: model might wrap
   if (journeyData.phase4_output) journeyData = journeyData.phase4_output
-  if (journeyData.beat) journeyData = journeyData.beat
+  if (journeyData.part) journeyData = journeyData.part
 
   // Validate journey structure
   if (!journeyData.journey || !Array.isArray(journeyData.journey)) {
@@ -2551,15 +2584,15 @@ Extract the journey — the sequence of locations this character visits during t
 
   // Assemble output
   const data = {
-    act: 1,
-    part: 1,
-    beat_name: beat1.beat_name,
+    act: firstPart.act,
+    part: firstPart.part,
+    part_name: firstPart.part_name,
     pov_character: protagonist,
     journey: journeyData.journey
   }
 
   // Log result
-  console.log(`\n  POV Journey for Beat 1:`)
+  console.log(`\n  POV Journey for Act ${firstPart.act} Part ${firstPart.part}:`)
   for (const stop of data.journey) {
     console.log(`    Stop ${stop.stop}: ${stop.location} — ${stop.actions?.length || 0} actions, ${stop.dialogues?.length || 0} dialogues, ${stop.thoughts?.length || 0} thoughts`)
   }
@@ -2759,7 +2792,7 @@ function initializeTimeline(phase3) {
       romance_beat: t.romance_beat || null,
       intimacy_stage: t.intimacy_stage || null,
       psychological_beat: t.psychological_beat || null,
-      external_beat: t.external_beat || null,
+      external_part: t.external_part || null,
       characters_present: [] // Will be filled as we process
     })
   })
@@ -3274,7 +3307,7 @@ const PHASE_6_SYSTEM_PROMPT = `You organize a story's decisive moments into the 
 You receive a master timeline of decisive moments and the story's external plot structure. Your job:
 
 1. IDENTIFY CLUSTERS: Group moments that would naturally occur at the same occasion (a festival, a church service, a family dinner, a battle, a ceremony). Base this on:
-   - External plot beat (moments tied to the same world event)
+   - External plot part (moments tied to the same world event)
    - Timing (moments occurring at the same point in the story)
    - Logic (characters who would be in the same physical space)
    Moments that are private, intimate, or require isolation remain separate as lone moments.
@@ -3298,7 +3331,7 @@ Return ONLY valid JSON in this exact format:
   "major_events": [
     {
       "name": "string - name for this occasion",
-      "external_beat": "string - which Phase 1 beat this relates to, or null",
+      "external_part": "string - which Phase 1 act/part this relates to, or null",
       "moments_contained": [array of moment order numbers from the master timeline],
       "location": "string - specific location",
       "atmosphere": "string - sensory and emotional tone",
@@ -3354,9 +3387,11 @@ function buildPhase6UserPrompt(concept, phase1, phase2, phase4, phase5) {
     return `  ${m.order}. [${m.type}] "${m.moment}" - Characters: ${chars}`
   }).join('\n')
 
-  // Extract external plot beats from Phase 1
-  const externalBeats = phase1.external_plot?.beats?.map(b =>
-    `  ${b.order}. ${b.beat}: ${b.what_happens}`
+  // Extract external plot parts from Phase 1
+  const externalParts = (phase1.external_plot?.acts || []).map(act =>
+    `  **Act ${act.act}: ${act.name || ''}**\n` + (act.parts || []).map(p =>
+      `    Part ${p.part}: ${p.name} — ${p.time_period || ''}`
+    ).join('\n')
   ).join('\n') || '  (none specified)'
 
   return `CONCEPT: ${concept}
@@ -3368,9 +3403,9 @@ Timespan: ${phase1.timespan?.duration || 'not specified'}
 External plot type: ${phase1.external_plot?.container_type || 'not specified'}
 External plot summary: ${phase1.external_plot?.container_summary || 'not specified'}
 
-## EXTERNAL PLOT BEATS (from Phase 1)
+## EXTERNAL PLOT PARTS (from Phase 1)
 
-${externalBeats}
+${externalParts}
 
 ## FULL CAST (from Phase 2 + Phase 4)
 
@@ -3560,7 +3595,7 @@ Return ONLY valid JSON in this exact format:
   },
 
   "external_pressure": {
-    "beat": "Phase 1 external beat name or null",
+    "part": "Phase 1 external act/part name or null",
     "how_it_manifests": "How the world/situation creates pressure",
     "deadline_or_constraint": "What's forcing action"
   },
@@ -3713,14 +3748,18 @@ ${characterPsychology.join('\n\n')}
 
 Theme Tension: ${phase1.theme?.tension || 'not specified'}
 External Plot: ${phase1.external_plot?.container_type || 'not specified'}
-External Beats:
-${phase1.external_plot?.beats?.map(b => `  ${b.order}. ${b.beat}: ${b.what_happens}`).join('\n') || '  (none)'}
+External Plot Parts:
+${(phase1.external_plot?.acts || []).map(act =>
+    `  Act ${act.act}: ${act.name || ''}\n` + (act.parts || []).map(p =>
+      `    Part ${p.part}: ${p.name} — ${p.time_period || ''}`
+    ).join('\n')
+  ).join('\n') || '  (none)'}
 ${setupContext}
 ${previousContext}
 
 ## YOUR TASK
 
-Develop this event fully. For each character present, specify their objective and arc state. Break down each decisive moment. Identify romance and psychological beats. Specify what must be established earlier in the story for this event to land.`
+Develop this event fully. For each character present, specify their objective and arc state. Break down each decisive moment. Identify romance progression and psychological shifts. Specify what must be established earlier in the story for this event to land.`
 }
 
 async function executePhase7(concept, phase1, phase2, phase4, phase5, phase6) {
@@ -3817,7 +3856,7 @@ Return ONLY valid JSON.`
         moment_breakdown: [],
         romance_beat: { stage: null },
         psychological_beats: { lies_reinforced: [], lies_challenged: [], transformations: [] },
-        external_pressure: { beat: null },
+        external_pressure: { part: null },
         outcome: {},
         setup_requirements: [],
         _parse_error: true
@@ -4708,10 +4747,10 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
-  1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot beats, and romance arc stages' },
+  1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot acts/parts, and romance arc stages' },
   2: { name: 'Full Cast', description: 'Creating protagonist, love interests, AND stakeholder characters with psychology' },
-  3: { name: 'Character Action Grid', description: 'Beat-by-beat actions for all characters across all external beats' },
-  4: { name: 'Scene Assembly', description: 'Transforming action grid into scene-ready structures with moments, locations, delivery modes, and scene groupings' },
+  3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
+  4: { name: 'Scene Assembly', description: 'Extracting POV character journey through each part' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with setup requirements' },
   8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
@@ -4848,7 +4887,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
       origin: bible.coreFoundation.tropes?.origin,
       theme: bible.coreFoundation.theme,
       externalPlot: bible.coreFoundation.external_plot?.container_type,
-      externalBeats: bible.coreFoundation.external_plot?.beats?.length,
+      externalActs: bible.coreFoundation.external_plot?.acts?.length,
       romanceArcStages: bible.coreFoundation.romance_arc_stages?.length
     })
     await savePhase(1)
@@ -4871,7 +4910,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(3, 'starting')
     bible.actionGrid = await executePhase3(concept, bible.coreFoundation, bible.characters)
     reportProgress(3, 'complete', {
-      externalBeats: bible.actionGrid.grid?.length,
+      totalParts: bible.actionGrid.grid?.length,
       totalFragments: bible.actionGrid.validation?.total_fragments,
       protagonistFragments: bible.actionGrid.validation?.protagonist_fragments_count,
       romanceStagesFound: bible.actionGrid.romance_stage_progression?.length,
@@ -4884,7 +4923,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     reportProgress(4, 'starting')
     bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
     reportProgress(4, 'complete', {
-      beat: bible.sceneAssembly.beat_name,
+      part: bible.sceneAssembly.part_name,
       povCharacter: bible.sceneAssembly.pov_character,
       journeyStops: bible.sceneAssembly.journey?.length
     })
@@ -5074,18 +5113,18 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 // CHAPTER GENERATION
 // =============================================================================
 
-const CHAPTER_SYSTEM_PROMPT = `You are a romance novelist writing in {{target_language}}. Your task is to write a single chapter that executes the provided beats while maintaining voice consistency, continuity, and reading level.
+const CHAPTER_SYSTEM_PROMPT = `You are a romance novelist writing in {{target_language}}. Your task is to write a single chapter that executes the provided events while maintaining voice consistency, continuity, and reading level.
 
 You will receive:
 - Story bible (core elements)
 - POV character profile (voice, psychology, arc)
-- This chapter's breakdown (beats, location, hook, foreshadowing)
+- This chapter's breakdown (events, location, hook, foreshadowing)
 - Previous chapter summaries (context)
 - Level-specific prose guidance
 
 Your job is to:
 1. Write the chapter prose in {{target_language}}
-2. Hit every specified beat
+2. Hit every specified event
 3. Maintain the POV character's distinct voice
 4. End with the specified hook type
 5. Plant or pay off foreshadowing as specified
@@ -5107,11 +5146,11 @@ CONTINUITY:
 - Physical locations and time must flow logically from previous chapter
 - Relationship state continues from where it was
 
-BEATS:
-- Every beat listed must appear in the chapter
-- Beats should flow naturally, not feel like a checklist
-- You may add connective tissue between beats
-- Do not add major events not in the beat list
+EVENTS:
+- Every event listed must appear in the chapter
+- Events should flow naturally, not feel like a checklist
+- You may add connective tissue between events
+- Do not add major events not in the event list
 
 FORESHADOWING:
 - Seeds to plant should feel natural, not forced
@@ -5223,7 +5262,7 @@ function getWordCountTarget(tensionRating) {
 // SCENE-BY-SCENE GENERATION
 // =============================================================================
 
-// Calculate word count target for a scene based on beat count
+// Calculate word count target for a scene based on event count
 function getSceneWordCountTarget(eventCount = 4) {
   // Each event should expand to ~150-200 words of prose
   // Scenes typically have 3-6 events, so 600-1200 words is reasonable
@@ -5608,7 +5647,7 @@ ${proseGuidanceText}
 Write Chapter ${chapter.number} now in ${language}.
 
 REQUIREMENTS:
-1. Hit every beat listed above
+1. Hit every event listed above
 2. End with the ${chapter.hook?.type || 'emotional'} hook
 3. Stay within ${wordCountTarget.min}-${wordCountTarget.max} words
 4. STRICTLY follow the level constraints above - violation means rejection
@@ -6278,7 +6317,7 @@ EXPANSION APPROACH:
 - Add interiority (what POV character thinks/feels)
 - Add sensory detail (what they see/hear/smell/touch)
 - Add micro-actions (small physical movements)
-- Extend dialogue exchanges (another beat or two)
+- Extend dialogue exchanges (another exchange or two)
 - Deepen emotional moments (let them breathe)
 
 Do NOT:

@@ -810,10 +810,7 @@ Step 2: Define a three-act structure with parts within each act. Parts are TIME 
 - Act 2 (Confrontation): 2-4 parts — escalation, complications, shifting dynamics
 - Act 3 (Resolution): 1-2 parts — climax and aftermath
 
-Parts are containers. Name them after spans of time or phases of the situation. Events happen WITHIN parts — a part is not an event itself.
-
-GOOD part name: "The First Week of Harvest" — a time container that could hold multiple scenes
-BAD part name: "The Discovery of the Letter" — that's an event, not a time period
+Parts are time containers. Name them after spans of time or phases of the situation. Do not include events in part definitions.
 
 Step 3: Identify pressure points.
 - Which parts create deadlines for the characters?

@@ -2710,6 +2710,82 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
     throw new Error(`Phase 4 Step 2: Missing timeline array. Keys: ${Object.keys(timelineData).join(', ')}`)
   }
 
+  // Normalize: if model returned old schema (stop/pov_content/other_characters/offscreen),
+  // convert to flat linear timeline (order/timing/is_pov_stop/characters)
+  const firstEntry = timelineData.timeline[0]
+  if (firstEntry && (firstEntry.pov_content || firstEntry.other_characters || firstEntry.stop !== undefined) && firstEntry.order === undefined) {
+    console.log('    Step 2 normalization: converting old schema to flat timeline')
+    const flatTimeline = []
+    let orderCounter = 1
+
+    for (const entry of timelineData.timeline) {
+      const stopNum = entry.stop || orderCounter
+      const timelineEntry = {
+        order: orderCounter++,
+        timing: `stop_${stopNum}`,
+        location: entry.location,
+        is_pov_stop: true,
+        characters: []
+      }
+
+      // Add POV character
+      if (entry.pov_content) {
+        timelineEntry.characters.push({
+          character: protagonist,
+          is_pov: true,
+          actions: entry.pov_content.actions || [],
+          dialogues: entry.pov_content.dialogues || [],
+          thoughts: entry.pov_content.thoughts || []
+        })
+      }
+
+      // Add co-located characters
+      for (const other of (entry.other_characters || [])) {
+        timelineEntry.characters.push({
+          character: other.character,
+          is_pov: false,
+          actions: other.actions || [],
+          dialogues: other.dialogues || []
+        })
+      }
+
+      flatTimeline.push(timelineEntry)
+    }
+
+    // Convert offscreen entries to during_stop entries
+    if (timelineData.offscreen && Array.isArray(timelineData.offscreen)) {
+      // Group offscreen by location
+      const offscreenByLocation = {}
+      for (const off of timelineData.offscreen) {
+        const loc = off.location || 'unknown'
+        if (!offscreenByLocation[loc]) offscreenByLocation[loc] = []
+        offscreenByLocation[loc].push(off)
+      }
+
+      for (const [loc, entries] of Object.entries(offscreenByLocation)) {
+        const timelineEntry = {
+          order: orderCounter++,
+          timing: 'during_part',
+          location: loc,
+          is_pov_stop: false,
+          characters: entries.map(e => ({
+            character: e.character,
+            is_pov: false,
+            actions: e.actions || [],
+            dialogues: e.dialogues || []
+          }))
+        }
+        flatTimeline.push(timelineEntry)
+      }
+    }
+
+    timelineData.timeline = flatTimeline
+    // Clean up offscreen from location_summary since it's now in the timeline
+    if (timelineData.location_summary) {
+      delete timelineData.location_summary.offscreen_locations
+    }
+  }
+
   // Assemble output
   const data = {
     act: step1Data.act,

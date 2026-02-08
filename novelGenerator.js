@@ -1518,29 +1518,6 @@ This ensures every faced character has:
 
 No partial or minimal characters. If a character doesn't warrant full psychology, they should be faceless or consolidated with another character.
 
-**Step 8: External Plot Mapping**
-
-Which Phase 1 external plot parts does each character EMBODY or DRIVE?
-
-A character might:
-- BE the inciting incident
-- CREATE the escalation
-- FORCE the crisis point
-- RESOLVE or COMPLICATE the climax
-
-Map characters to external plot parts to ensure they're integrated with the world's events, not floating in a character vacuum.
-
-**Step 9: Screen-Time Sanity Check**
-
-After all characters are generated, review each faced character and ask:
-
-"How many parts will this character share physical space with a POV character?"
-
-- If 3+ parts: Confirmed as faced character
-- If fewer than 3 parts: Reconsider. Should this character be faceless? Can their role be consolidated with another character who IS proximal?
-
-This is a FINAL CHECK. Characters who seemed important during ideation but fail the screen-time test should be converted to faceless forces or consolidated.
-
 ## OUTPUT FORMAT
 
 {
@@ -1571,9 +1548,6 @@ This is a FINAL CHECK. Characters who seemed important during ideation but fail 
       "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
       "arc_type": "transformation | hardening",
       "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-      "external_parts": ["Array of Phase 1 external plot part names they embody or drive"],
-      "pressure_mechanism": "How they reach and pressure protagonists (must be plausible)",
-      "thematic_test": "What challenges their belief",
 
       // Full psychology (required for all stakeholder characters):
       "wound": {
@@ -1733,7 +1707,7 @@ Map characters to these parts - they shouldn't float in a vacuum. Each character
 
 - Stakeholder characters (all with full psychology): ${stakeholderCount}
 
-### PROCESS (Follow the 9 steps from the system prompt)
+### PROCESS (Follow the 7 steps from the system prompt)
 
 **Step 1: List interests PROTAGONIST-FACING (not world-facing)**
 Start from the protagonists' daily life and work outward:
@@ -1754,16 +1728,11 @@ Face requires ALL: passes proximity test + personal connection + personal intere
 Faceless if ANY: fails proximity OR institutional/systemic OR pressure through consequences not presence
 After decisions, check: Can any faced characters be CONSOLIDATED? One character serving multiple interests is better than two thin characters.
 
-**Steps 4-8: (per system prompt)**
+**Steps 4-7: (per system prompt)**
 4. Thematic position for faced characters
 5. Archetype (pressure role)
 6. Arc type and outcome
 7. Full psychology for ALL stakeholder characters (wound, lie, want, need, coping_mechanism, vice, arc, voice)
-8. External plot mapping
-
-**Step 9: Screen-time sanity check**
-Review each faced character: How many parts will they share physical space with a POV character?
-If fewer than 3 → reconsider: Should they be faceless? Can they be consolidated?
 
 ## CRITICAL OUTPUT REQUIREMENTS
 
@@ -1772,7 +1741,7 @@ Your JSON output MUST include ALL of these top-level keys:
 2. love_interests (array)
 3. dynamics (object with romantic and rivals arrays)
 4. interests (array - REQUIRED, minimum 3 entries with pressure_mechanism and can_reach_protagonists for proximity assessment)
-5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, external_parts, pressure_mechanism)
+5. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome)
 6. faceless_pressures (array - REQUIRED, even if empty)
 
 DO NOT return output with empty interests or stakeholder_characters arrays.`
@@ -1951,6 +1920,18 @@ Each fragment must carry distinct information in every field. State is not situa
     }
   ],
 
+  "faceless_manifestations": [
+    {
+      "pressure": "Name of the faceless pressure from Phase 2",
+      "part": "Act X Part Y",
+      "part_name": "Name of the part",
+      "delivery": "letter | memory | news | object | environment | document",
+      "moment": "Specific description of what happens",
+      "pov_affected": "Which POV character experiences this",
+      "emotional_function": "What this does to them emotionally"
+    }
+  ],
+
   "validation": {
     "all_stages_present": true | false,
     "stages_in_order": true | false,
@@ -1962,6 +1943,20 @@ Each fragment must carry distinct information in every field. State is not situa
     "total_thoughts": number
   }
 }
+
+## FACELESS PRESSURE MANIFESTATIONS
+
+Phase 2 identifies faceless pressures — forces that affect the protagonists but have no single person embodying them (financial deadlines, memories of the dead, abstract political causes, etc.).
+
+These do not get action rows like characters. Instead, determine WHERE in the story each pressure manifests as a moment in the POV character's experience.
+
+For each faceless pressure, ask:
+- In which part(s) does this pressure naturally peak or intrude?
+- How does it reach the POV character? (letter arrives, memory triggered by object/place, news overheard, document discovered, environmental detail noticed)
+- What specific moment occurs?
+- What emotional function does it serve? (increases urgency, triggers guilt, raises stakes, forces decision)
+
+Not every pressure manifests in every part. Place them where they create maximum narrative impact.
 
 ## CRITICAL RULES
 
@@ -2031,13 +2026,7 @@ Example (lie: "I must never depend on anyone"):
 
 The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
 
-### 6. Thematic Tests Must Fire as Visible Actions
-
-Every stakeholder character has a \`thematic_test\` defined in Phase 2 — what challenges their belief. This test MUST appear as a concrete, visible action in at least one grid cell. The test doesn't have to be passed (hardening characters can fail it), but the moment must exist in the grid.
-
-If a character's thematic_test is "Witnessing sacrifice that doesn't lead to destruction," then somewhere in the grid that character must WITNESS such a sacrifice. Show the test happening, not just the character's position.
-
-### 7. Arc Outcomes Must Match Final Part Actions
+### 6. Arc Outcomes Must Match Final Part Actions
 
 Each stakeholder character's final part action(s) must reflect their defined \`arc_outcome\` from Phase 2:
 
@@ -2049,19 +2038,19 @@ Each stakeholder character's final part action(s) must reflect their defined \`a
 
 The model must NOT default toward redemption. A character defined as hardening with hollow_victory does NOT get a soft ending. Show the hollowness.
 
-### 8. Central Theme Tests Every Part
+### 7. Central Theme Tests Every Part
 
 Phase 1 defines \`theme.tension\` — a tension between two competing values (e.g., "duty vs truth"). Every part should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
 
 The grid is not just plot choreography. It is a thematic argument across multiple characters. Each part should advance or complicate that argument.
 
-### 9. Locations are CONSISTENT Strings
+### 8. Locations are CONSISTENT Strings
 
 Use the same location string every time a place appears. "The vineyard tower" should always be "vineyard_tower" — not "tower room", "the tower", "Esperanza's hiding spot". This allows downstream phases to cluster fragments by part + location mechanically.
 
 Create a mental vocabulary of 5-15 locations for this story and reuse them consistently.
 
-### 10. Outcome→State Continuity (CRITICAL)
+### 9. Outcome→State Continuity (CRITICAL)
 
 Each character's **state** at Part N+1 must follow logically from their **outcome** at Part N.
 
@@ -2071,7 +2060,7 @@ No resets. No contradictions. No skipping consequences. The outcome→state chai
 
 The first part's states come from Phase 2 character setup. Later part states come from the previous part's outcome.
 
-### 11. Density Creates Novel
+### 10. Density Creates Novel
 
 Multiple parts × full cast = potentially 50+ scene fragments. This IS the master timeline. Every fragment is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
 
@@ -2188,14 +2177,13 @@ function buildPhase3UserPrompt(concept, phase1, phase2) {
     })
   })
 
-  // Add stakeholder characters with thematic_test and arc_outcome
+  // Add stakeholder characters with arc_outcome
   phase2.stakeholder_characters?.forEach(sc => {
     allCharacters.push({
       name: sc.name,
       type: 'stakeholder',
       archetype: sc.archetype,
       thematic_position: sc.thematic_position,
-      thematic_test: sc.thematic_test,
       arc_type: sc.arc_type,
       arc_outcome: sc.arc_outcome
     })
@@ -2257,12 +2245,11 @@ ${allCharacters.filter(c => c.type === 'protagonist' || c.type === 'love_interes
   - CONSTRAINT: For the first half of parts, actions must VISIBLY ENACT this lie/coping`
 }).join('\n\n')}
 
-## STAKEHOLDER CHARACTERS — THEMATIC TESTS AND ARC OUTCOMES
+## STAKEHOLDER CHARACTERS — ARC OUTCOMES
 
 ${allCharacters.filter(c => c.type === 'stakeholder').map(c => {
   return `**${c.name}** (${c.archetype})
   - Position: "${c.thematic_position}"
-  - Test: "${c.thematic_test}" ← MUST appear as visible action in grid
   - Arc: ${c.arc_type} → ${c.arc_outcome} ← Final part actions must reflect this outcome`
 }).join('\n\n')}
 
@@ -2290,10 +2277,9 @@ ${allCharacters.map(c => {
 8. Thoughts[] only for POV characters (protagonist)
 9. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
 10. Protagonist/love_interest early part actions must ENACT their lie (first half of parts)
-11. Each stakeholder's thematic_test must appear as visible action somewhere in grid
-12. Each stakeholder's final part fragment must reflect their arc_outcome
-13. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
-14. Validate all romance_arc_stages from Phase 1 appear in order
+11. Each stakeholder's final part fragment must reflect their arc_outcome
+12. Identify which protagonist/love_interest fragments represent romance stage transitions and tag them
+13. Validate all romance_arc_stages from Phase 1 appear in order
 
 ## EXPECTED FRAGMENT COUNT
 

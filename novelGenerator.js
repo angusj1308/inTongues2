@@ -2505,71 +2505,123 @@ Extract the journey — the sequence of locations this character visits during t
 
 // Step 2: Non-POV Location Tagging & Timeline Assembly
 
-const PHASE_4_STEP2_SYSTEM_PROMPT = `You are assembling a complete timeline for a single story part by placing all characters' actions in time and space.
+const PHASE_4_STEP2_SYSTEM_PROMPT = `You are assembling a complete linear timeline for a single story part by placing ALL characters' actions in temporal order.
 
 You receive:
-- The POV character's journey (from Step 1): a sequence of stops, each with a location and the POV character's actions/dialogues/thoughts at that stop
-- All non-POV characters' Phase 3 fragments for this part: their actions and dialogues arrays
-- The part context: act, part name, part description
+- The POV character's journey (from Step 1): a sequence of numbered stops, each with a location and the POV character's actions/dialogues/thoughts
+- All non-POV characters' Phase 3 fragments: their actions and dialogues arrays
+- The part context
 
-The POV journey is the TEMPORAL BACKBONE. Stop 1 happens before Stop 2. Your job is to figure out where each non-POV character's actions take place and whether they overlap with the POV character's stops.
+The POV journey is the TEMPORAL BACKBONE. Stop 1 happens before Stop 2, etc. Your job is to:
+1. For each non-POV character's actions, infer the location and determine WHEN each action happens relative to the POV stops
+2. Assemble everything into a single flat linear timeline ordered by time
+
+## TIMING MODEL
+
+For a POV journey with N stops, these are the possible timing slots (in order):
+
+- before_stop_1 — things that happen before the POV journey begins
+- stop_1 — the first POV stop (co-located characters go here)
+- during_stop_1 — things happening elsewhere WHILE the POV is at stop 1
+- between_stop_1_and_2 — after stop 1 ends, before stop 2 begins
+- stop_2 — the second POV stop
+- during_stop_2 — things happening elsewhere WHILE the POV is at stop 2
+- ... (extend for N stops)
+- after_stop_N — things that happen after the POV journey ends
+
+For a single-stop journey: before_stop_1, stop_1, during_stop_1, after_stop_1.
 
 ## PROCESS
 
 For each non-POV character:
+1. Read their actions in order
+2. For each action, infer the location from the action content, the character's role, and the part context
+3. Determine timing: when does this action happen relative to the POV stops?
+   - If the action involves the POV character or happens at the same location as a POV stop at the same time → place it AT that stop (co-located)
+   - If the action happens elsewhere while the POV is at a stop → during_stop_N
+   - If the action logically precedes the POV journey → before_stop_1
+   - If the action logically follows the POV journey → after_stop_N
+   - If the action falls between two POV stops → between_stop_N_and_M
 
-1. Read their actions array in order
-2. For each action, infer the location where it happens based on what the action describes
-3. Check if that location matches any POV journey stop location
-4. If YES → the character is co-located with the POV at that stop (same time, same place)
-5. If NO → the action is offscreen (happening elsewhere, time relative to POV is unknown)
+## ASSEMBLING THE TIMELINE
+
+The output is a FLAT LIST of timeline entries, ordered by time. Each entry has:
+- An order number (sequential)
+- A timing value (from the timing model above)
+- A location
+- Whether it is a POV stop (is_pov_stop)
+- A characters array with everyone present at that location and timing
+
+GROUPING: Multiple characters at the SAME location and SAME timing go into ONE timeline entry. Do not create separate entries for characters who are at the same place at the same time.
 
 ## RULES
 
-1. Location strings must be snake_case and CONSISTENT — if the POV journey uses "market_square", use that exact string when a non-POV character is also at the market square
-2. A single non-POV character may have actions split across multiple locations — some co-located with POV stops, some offscreen
-3. Dialogues between two characters require BOTH to be at the same location. If a non-POV character's dialogue involves the POV character, that dialogue must be placed at a matching POV stop
-4. Non-POV characters do NOT get thoughts in the timeline — thoughts are POV-only
-5. If a non-POV character's actions all happen away from the POV, they are entirely offscreen for this part
-6. Offscreen actions retain their chronological order relative to each other but have no fixed temporal position relative to POV stops
-7. When inferring locations, use context from the action itself, the character's role, and the part description — do not guess randomly
+1. Location strings must be snake_case and CONSISTENT — if the POV journey uses "market_square", use that exact string when a non-POV character is at the same place
+2. Dialogues between two characters require BOTH at the same location and timing
+3. Thoughts ONLY appear on the POV character's entries — no other character gets thoughts
+4. Every POV stop from the journey MUST appear in the timeline (they are anchors)
+5. Non-POV actions that happen at a POV stop's location during that stop get MERGED into the POV stop entry
+6. A non-POV character may have actions spread across multiple timing slots
+7. Do not invent actions — only place what is provided in the fragments
 
 ## OUTPUT FORMAT (JSON)
 
 {
   "timeline": [
     {
-      "stop": 1,
+      "order": 1,
+      "timing": "before_stop_1",
       "location": "location_string",
-      "pov_content": {
-        "actions": ["POV actions at this stop"],
-        "dialogues": ["POV dialogues at this stop"],
-        "thoughts": ["POV thoughts at this stop"]
-      },
-      "other_characters": [
+      "is_pov_stop": false,
+      "characters": [
         {
           "character": "Character name",
-          "actions": ["Their actions at this same location"],
-          "dialogues": ["Their dialogues at this same location"],
-          "co_located": true
+          "is_pov": false,
+          "actions": ["..."],
+          "dialogues": ["..."]
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "timing": "stop_1",
+      "location": "location_string",
+      "is_pov_stop": true,
+      "characters": [
+        {
+          "character": "POV Character name",
+          "is_pov": true,
+          "actions": ["..."],
+          "dialogues": ["..."],
+          "thoughts": ["..."]
+        },
+        {
+          "character": "Co-located character",
+          "is_pov": false,
+          "actions": ["..."],
+          "dialogues": ["..."]
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "timing": "during_stop_1",
+      "location": "other_location",
+      "is_pov_stop": false,
+      "characters": [
+        {
+          "character": "Character elsewhere",
+          "is_pov": false,
+          "actions": ["..."],
+          "dialogues": ["..."]
         }
       ]
     }
   ],
 
-  "offscreen": [
-    {
-      "character": "Character name",
-      "location": "location_string",
-      "actions": ["Actions happening at this offscreen location"],
-      "dialogues": ["Dialogues happening at this offscreen location"]
-    }
-  ],
-
   "location_summary": {
-    "pov_locations": ["locations the POV visits in order"],
-    "all_locations": ["every unique location mentioned"],
-    "offscreen_locations": ["locations that only appear offscreen"]
+    "pov_locations": ["locations the POV visits in stop order"],
+    "all_locations": ["every unique location in the timeline"]
   }
 }
 
@@ -2583,29 +2635,31 @@ async function executePhase4Step2(phase3Part, step1Data, protagonist) {
     f.character !== protagonist && f.character_type !== 'protagonist'
   )
 
+  const povLocations = step1Data.journey.map(s => s.location)
+
   if (nonPovFragments.length === 0) {
-    console.log('    No non-POV characters in this part — skipping Step 2')
-    // Return timeline with just POV content
+    console.log('    No non-POV characters in this part — building POV-only timeline')
     return {
       act: step1Data.act,
       part: step1Data.part,
       part_name: step1Data.part_name,
       pov_character: protagonist,
-      timeline: step1Data.journey.map(stop => ({
-        stop: stop.stop,
+      timeline: step1Data.journey.map((stop, i) => ({
+        order: i + 1,
+        timing: `stop_${stop.stop}`,
         location: stop.location,
-        pov_content: {
+        is_pov_stop: true,
+        characters: [{
+          character: protagonist,
+          is_pov: true,
           actions: stop.actions || [],
           dialogues: stop.dialogues || [],
           thoughts: stop.thoughts || []
-        },
-        other_characters: []
+        }]
       })),
-      offscreen: [],
       location_summary: {
-        pov_locations: step1Data.journey.map(s => s.location),
-        all_locations: step1Data.journey.map(s => s.location),
-        offscreen_locations: []
+        pov_locations: povLocations,
+        all_locations: povLocations
       }
     }
   }
@@ -2626,6 +2680,7 @@ Act ${step1Data.act} Part ${step1Data.part}: ${step1Data.part_name}
 
 ## POV Character Journey (from Step 1)
 POV Character: ${protagonist}
+Number of stops: ${step1Data.journey.length}
 
 ${step1Data.journey.map(stop => `### Stop ${stop.stop}: ${stop.location}
 Actions: ${JSON.stringify(stop.actions || [])}
@@ -2636,7 +2691,7 @@ Thoughts: ${JSON.stringify(stop.thoughts || [])}`).join('\n\n')}
 
 ${nonPovSummaries}
 
-Place each non-POV character's actions in the timeline. For each action, infer the location. If the location matches a POV stop, the character is co-located at that stop. If not, the action is offscreen.`
+Assemble the complete linear timeline. For each non-POV action, infer its location and timing relative to the POV stops. Group characters at the same location and timing into single timeline entries. Every POV stop must appear as an entry.`
 
   const response = await callOpenAI(PHASE_4_STEP2_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
   const parsed = parseJSON(response)
@@ -2662,33 +2717,23 @@ Place each non-POV character's actions in the timeline. For each action, infer t
     part_name: step1Data.part_name,
     pov_character: protagonist,
     timeline: timelineData.timeline,
-    offscreen: timelineData.offscreen || [],
     location_summary: timelineData.location_summary || {
-      pov_locations: step1Data.journey.map(s => s.location),
-      all_locations: [],
-      offscreen_locations: []
+      pov_locations: povLocations,
+      all_locations: []
     }
   }
 
   // Log result
-  console.log(`\n  Timeline for Act ${data.act} Part ${data.part}:`)
-  for (const stop of data.timeline) {
-    const coLocated = (stop.other_characters || []).filter(c => c.co_located)
-    console.log(`    Stop ${stop.stop}: ${stop.location}`)
-    console.log(`      POV: ${stop.pov_content?.actions?.length || 0}a/${stop.pov_content?.dialogues?.length || 0}d/${stop.pov_content?.thoughts?.length || 0}t`)
-    for (const other of coLocated) {
-      console.log(`      ${other.character}: ${other.actions?.length || 0}a/${other.dialogues?.length || 0}d (co-located)`)
-    }
+  console.log(`\n  Timeline for Act ${data.act} Part ${data.part}: ${data.timeline.length} entries`)
+  for (const entry of data.timeline) {
+    const charSummaries = (entry.characters || []).map(c => {
+      const pov = c.is_pov ? ' [POV]' : ''
+      return `${c.character}${pov}: ${c.actions?.length || 0}a/${c.dialogues?.length || 0}d${c.thoughts ? '/' + c.thoughts.length + 't' : ''}`
+    }).join(', ')
+    console.log(`    ${entry.order}. [${entry.timing}] ${entry.location}${entry.is_pov_stop ? ' (POV stop)' : ''} — ${charSummaries}`)
   }
 
-  if (data.offscreen.length > 0) {
-    console.log(`    Offscreen:`)
-    for (const off of data.offscreen) {
-      console.log(`      ${off.character} @ ${off.location}: ${off.actions?.length || 0}a/${off.dialogues?.length || 0}d`)
-    }
-  }
-
-  console.log(`    Locations — POV: ${data.location_summary.pov_locations?.length || 0}, All: ${data.location_summary.all_locations?.length || 0}, Offscreen: ${data.location_summary.offscreen_locations?.length || 0}`)
+  console.log(`    Locations — POV: ${data.location_summary.pov_locations?.length || 0}, All: ${data.location_summary.all_locations?.length || 0}`)
 
   console.log('')
   console.log('Phase 4 Step 2 complete output:')

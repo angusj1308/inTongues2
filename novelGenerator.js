@@ -2363,46 +2363,89 @@ async function executePhase3(concept, phase1, phase2) {
 }
 
 // =============================================================================
-// PHASE 4: SCENE ASSEMBLY
+// PHASE 4: SCENE & CHAPTER BOUNDARIES
 // =============================================================================
 
-// Step 1: POV Action Sequencing — tag each POV action with its location in chronological order
-
-const PHASE_4_STEP1_SYSTEM_PROMPT = `You are sequencing the POV character's actions through a single story part.
+const PHASE_4_SYSTEM_PROMPT = `You are a story architect dividing a story part into scenes and chapters.
 
 You receive:
-- The POV character's name
-- Their Phase 3 fragment: actions array (15-20 actions)
-- The part context: act, part name, part description
+- A Phase 3 grid entry for a single part containing:
+  - pov_actions: numbered actions for the POV character (15-20 actions)
+  - characters: array of present characters (with their own numbered actions) and absent characters (with pressures)
+  - part context: act, part number, part name, part description
 
-Your job: For each action, infer the location where it occurs. Output a flat list of actions in chronological order, each tagged with its location. Do NOT group or cluster actions — every action is its own entry.
+Your job: Draw boundaries between scenes, group scenes into chapters, and specify exactly what content belongs in each scene.
 
-## INFERRING LOCATIONS
+## IDENTIFYING SCENE BREAKS
 
-For each action:
-1. Read the action content — it often names or implies a place
-2. Consider the part's setting and geography
-3. If the previous action was at location A and this action requires location B, the character moved
-4. If the action doesn't imply a new location, it happens at the same location as the previous action
+Read the POV actions in order. A new scene starts when:
+
+1. **Location change** — the action implies the character has moved to a different place
+2. **Time jump** — a gap in time is implied (morning to evening, one day to the next)
+3. **Character entrance/exit** — a significant character enters or leaves the POV's space
+4. **Dramatic beat shift** — tension peaks and releases, or a new tension begins
+
+Not every small moment change is a scene break. A scene is a continuous unit of action in one place, at one time, with a stable set of characters. Aim for 3-8 scenes per part.
+
+## ASSIGNING CHARACTERS TO SCENES
+
+For each scene, determine which PRESENT characters have actions that overlap with the POV actions in that scene:
+
+- Each present character has their own actions array with order numbers (1-10)
+- Look at each character's action content and determine which ones temporally/spatially coincide with the POV actions in this scene
+- List the character's relevant action order numbers (from their own actions array in Phase 3)
+- If a character has first_appearance: true and this is the scene containing their first relevant action, set first_appearance: true and include narration_cue
+
+## ASSIGNING PRESSURES TO SCENES
+
+For absent characters' pressures:
+- Event pressures (a letter arrives, news comes) should appear in exactly ONE scene — the most dramatically appropriate one
+- Ambient pressures (distant sounds, weather effects) CAN appear in multiple scenes if they persist
+- Place each pressure where it creates maximum narrative impact
+
+## GROUPING SCENES INTO CHAPTERS
+
+Group scenes into chapters based on:
+- **Narrative arc**: setup, confrontation, aftermath
+- **Pacing**: 2-4 scenes per chapter is typical
+- **Endings**: chapters should end at cliffhanger moments or resolution points
 
 ## RULES
 
-1. Every action from the fragment must appear exactly once in the output
-2. Do not group, cluster, or collapse actions — each is a separate entry
-3. Do not invent actions — only sequence what was provided
-4. Do not invent locations — infer from action content and part context only
-5. If chronological order is ambiguous, preserve the original order from Phase 3
-6. Location strings must be snake_case (e.g., main_road, church_courtyard)
+1. Every POV action order number must appear in exactly one scene — no skipping, no duplicating
+2. POV actions within a scene must be consecutive (you split the ordered sequence at boundaries)
+3. Do not invent content — only organize what Phase 3 provided
+4. Do not assign a present character to a scene unless their actions temporally overlap with that scene's POV actions
+5. Every present character action must appear in exactly one scene — no skipping, no duplicating
+6. Pressures from absent characters should be placed where dramatically appropriate
+7. Narration cues appear in the scene where the character first appears
 
 ## OUTPUT FORMAT (JSON)
 
 {
-  "pov_character": "Character Name",
-  "actions": [
+  "act": <number>,
+  "part": <number>,
+  "part_name": "<string>",
+  "chapters": [
     {
-      "order": 1,
-      "action": "The action text",
-      "location": "location_string"
+      "chapter_number": 1,
+      "scenes": [
+        {
+          "scene_number": 1,
+          "pov_actions": [1, 2, 3, 4, 5],
+          "present_characters": [
+            {
+              "name": "Character Name",
+              "actions": [1, 2, 3],
+              "first_appearance": true,
+              "narration_cue": "Brief cue for prose introduction"
+            }
+          ],
+          "pressures": [
+            "Distant sound of conflict from the hills"
+          ]
+        }
+      ]
     }
   ]
 }
@@ -2410,7 +2453,7 @@ For each action:
 Only output JSON. No commentary.`
 
 async function executePhase4(concept, phase1, phase2, phase3) {
-  console.log('Executing Phase 4: Scene Assembly (Step 1 — POV Action Sequencing)...')
+  console.log('Executing Phase 4: Scene & Chapter Boundaries...')
 
   const parts = phase3.grid || []
   if (parts.length === 0) {
@@ -2425,382 +2468,126 @@ async function executePhase4(concept, phase1, phase2, phase3) {
   }
   console.log(`  POV character: ${protagonist}`)
 
-  // Process first part only (Act 1 Part 1, for testing)
-  const firstPart = parts[0]
-  console.log(`  Processing Act ${firstPart.act} Part ${firstPart.part}: ${firstPart.part_name}`)
+  const allPartBreakdowns = []
 
-  // Get POV actions from Phase 3
-  const povActions = firstPart.pov_actions || []
-  if (povActions.length === 0) {
-    throw new Error(`Phase 4: No POV actions in Act ${firstPart.act} Part ${firstPart.part}`)
-  }
+  for (const gridPart of parts) {
+    console.log(`\n  Processing Act ${gridPart.act} Part ${gridPart.part}: ${gridPart.part_name}`)
 
-  // Extract action strings (Phase 3 now outputs {order, action} objects)
-  const actionStrings = povActions.map(a => typeof a === 'string' ? a : a.action)
+    const povActions = gridPart.pov_actions || []
+    if (povActions.length === 0) {
+      throw new Error(`Phase 4: No POV actions in Act ${gridPart.act} Part ${gridPart.part}`)
+    }
 
-  console.log(`  POV actions: ${actionStrings.length}`)
+    console.log(`    POV actions: ${povActions.length}`)
 
-  const userPrompt = `## POV Character
-${protagonist}
+    // Build present characters summary
+    const presentChars = (gridPart.characters || []).filter(c => c.present)
+    const absentChars = (gridPart.characters || []).filter(c => !c.present)
 
-## Part Context
-Act ${firstPart.act} Part ${firstPart.part}: ${firstPart.part_name}
-${firstPart.part_description}
+    console.log(`    Present characters: ${presentChars.map(c => c.name).join(', ') || 'none'}`)
+    console.log(`    Absent characters: ${absentChars.map(c => c.name).join(', ') || 'none'}`)
 
-## POV Character's Phase 3 Actions
-Actions: ${JSON.stringify(actionStrings)}
+    // Build user prompt with full Phase 3 data for this part
+    const userPrompt = `## Part Context
+Act ${gridPart.act} Part ${gridPart.part}: ${gridPart.part_name}
+${gridPart.part_description || ''}
 
-For each action, infer the location. Output a flat list — one entry per action, in chronological order.`
+## POV Character: ${protagonist}
 
-  const response = await callOpenAI(PHASE_4_STEP1_SYSTEM_PROMPT, userPrompt, { maxTokens: 4096 })
-  const parsed = parseJSON(response)
+### POV Actions (${povActions.length} actions)
+${povActions.map(a => `${a.order}. ${a.action}`).join('\n')}
 
-  if (!parsed.success) {
-    console.error('Phase 4 Step 1 raw response (first 1000 chars):', response.slice(0, 1000))
-    throw new Error(`Phase 4 Step 1 JSON parse failed: ${parsed.error}`)
-  }
+## Present Characters
+${presentChars.length === 0 ? 'None' : presentChars.map(c => {
+  const actions = (c.actions || []).map(a => `  ${a.order}. ${a.action}`).join('\n')
+  const firstApp = c.first_appearance ? `\nFirst appearance: true\nNarration cue: ${c.narration_cue || 'none'}` : ''
+  return `### ${c.name}${firstApp}\nActions:\n${actions}`
+}).join('\n\n')}
 
-  let step1Data = parsed.data
-  // Normalize: model might wrap
-  if (step1Data.phase4_output) step1Data = step1Data.phase4_output
-  if (step1Data.part) step1Data = step1Data.part
+## Absent Characters & Pressures
+${absentChars.length === 0 ? 'None' : absentChars.map(c => {
+  const pressures = (c.pressures || []).length > 0
+    ? c.pressures.map(p => `  - ${p}`).join('\n')
+    : '  (no pressures)'
+  return `### ${c.name}\nPressures:\n${pressures}`
+}).join('\n\n')}
 
-  // Validate structure
-  if (!step1Data.actions || !Array.isArray(step1Data.actions)) {
-    // Normalize: model might return journey stops instead of flat actions
-    if (step1Data.journey && Array.isArray(step1Data.journey)) {
-      console.log('    Step 1 normalization: converting journey stops to flat action list')
-      const flatActions = []
-      let order = 1
-      for (const stop of step1Data.journey) {
-        for (const action of (stop.actions || [])) {
-          flatActions.push({
-            order: order++,
-            action: action,
-            location: stop.location
-          })
+Divide this part into scenes and chapters. Every POV action must appear in exactly one scene. Assign present characters and pressures to scenes where they belong.`
+
+    const response = await callOpenAI(PHASE_4_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
+    const parsed = parseJSON(response)
+
+    if (!parsed.success) {
+      console.error(`Phase 4 raw response for Act ${gridPart.act} Part ${gridPart.part} (first 1000 chars):`, response.slice(0, 1000))
+      throw new Error(`Phase 4 JSON parse failed for Act ${gridPart.act} Part ${gridPart.part}: ${parsed.error}`)
+    }
+
+    let partData = parsed.data
+    // Normalize: model might wrap in phase4_output or similar
+    if (partData.phase4_output) partData = partData.phase4_output
+    if (partData.scene_breakdown) partData = partData.scene_breakdown
+
+    // Validate chapters array
+    if (!partData.chapters || !Array.isArray(partData.chapters)) {
+      throw new Error(`Phase 4: Missing chapters array for Act ${gridPart.act} Part ${gridPart.part}. Keys: ${Object.keys(partData).join(', ')}`)
+    }
+
+    // Validate every POV action appears exactly once
+    const allPovActionNums = new Set(povActions.map(a => a.order))
+    const assignedPovActions = new Set()
+    let totalScenes = 0
+
+    for (const chapter of partData.chapters) {
+      for (const scene of (chapter.scenes || [])) {
+        totalScenes++
+        for (const actionNum of (scene.pov_actions || [])) {
+          if (assignedPovActions.has(actionNum)) {
+            console.warn(`    WARNING: POV action ${actionNum} assigned to multiple scenes`)
+          }
+          assignedPovActions.add(actionNum)
         }
       }
-      step1Data.actions = flatActions
-    } else {
-      throw new Error(`Phase 4 Step 1: Missing actions array. Keys: ${Object.keys(step1Data).join(', ')}`)
     }
+
+    const missingActions = [...allPovActionNums].filter(n => !assignedPovActions.has(n))
+    if (missingActions.length > 0) {
+      console.warn(`    WARNING: POV actions not assigned to any scene: ${missingActions.join(', ')}`)
+    }
+
+    // Ensure act/part/part_name are set
+    partData.act = gridPart.act
+    partData.part = gridPart.part
+    partData.part_name = gridPart.part_name
+
+    // Log result
+    console.log(`\n    Act ${gridPart.act} Part ${gridPart.part}: ${partData.chapters.length} chapters, ${totalScenes} scenes`)
+    for (const chapter of partData.chapters) {
+      console.log(`      Chapter ${chapter.chapter_number}:`)
+      for (const scene of (chapter.scenes || [])) {
+        const charNames = (scene.present_characters || []).map(c => c.name).join(', ')
+        const pressureCount = (scene.pressures || []).length
+        console.log(`        Scene ${scene.scene_number}: POV actions [${(scene.pov_actions || []).join(',')}], characters: ${charNames || 'none'}, pressures: ${pressureCount}`)
+      }
+    }
+
+    allPartBreakdowns.push(partData)
   }
 
-  // Assemble output
-  const data = {
-    act: firstPart.act,
-    part: firstPart.part,
-    part_name: firstPart.part_name,
-    pov_character: protagonist,
-    actions: step1Data.actions
-  }
-
-  // Log result
-  console.log(`\n  POV Actions for Act ${firstPart.act} Part ${firstPart.part}: ${data.actions.length} actions`)
-  for (const a of data.actions) {
-    console.log(`    ${a.order}. [${a.location}] ${a.action}`)
-  }
+  const result = { parts: allPartBreakdowns, pov_character: protagonist }
 
   console.log('')
-  console.log('Phase 4 Step 1 complete output:')
-  console.log(JSON.stringify(data, null, 2))
-
-  // Step 2: Non-POV Location Tagging & Timeline Assembly
-  const step2Data = await executePhase4Step2(firstPart, data, protagonist)
-
-  return step2Data
-}
-
-// Step 2: Non-POV Location Tagging & Timeline Assembly
-
-const PHASE_4_STEP2_SYSTEM_PROMPT = `You are assembling a complete linear timeline for a single story part by placing ALL characters' actions in temporal order.
-
-You receive:
-- The POV character's sequenced actions (from Step 1): a flat list of numbered actions, each tagged with a location
-- All non-POV characters' Phase 3 fragments: their actions arrays
-- The part context
-
-The POV action sequence is the TEMPORAL BACKBONE. Action 1 happens before action 2, etc. Your job is to:
-1. For each non-POV character's actions, infer the location and determine WHEN each action happens relative to the POV actions
-2. Assemble everything into a single flat linear timeline ordered by time
-
-## TIMING MODEL
-
-Non-POV actions are placed relative to specific POV actions:
-
-- before_pov — happens before the POV sequence begins
-- at_pov_action_N — happens at the same time and place as POV action N (co-located)
-- during_pov_action_N — happens elsewhere while POV action N is occurring
-- between_pov_action_N_and_M — happens between two POV actions
-- after_pov — happens after the POV sequence ends
-
-## PROCESS
-
-For each non-POV character:
-1. Read their actions in order
-2. For each action, infer the location from the action content, the character's role, and the part context
-3. Determine timing: when does this action happen relative to the POV actions?
-   - If the action involves the POV character or happens at the same location as a POV action at the same time → at_pov_action_N
-   - If the action happens elsewhere while a POV action occurs → during_pov_action_N
-   - If the action logically precedes the POV sequence → before_pov
-   - If the action logically follows the POV sequence → after_pov
-   - If the action falls between two POV actions → between_pov_action_N_and_M
-
-## ASSEMBLING THE TIMELINE
-
-The output is a FLAT LIST of timeline entries, ordered by time. Each entry has:
-- An order number (sequential)
-- A timing value (from the timing model above)
-- A location
-- Whether it contains POV actions (is_pov)
-- A characters array with everyone present at that location and timing
-
-GROUPING: Multiple characters at the SAME location and SAME timing go into ONE timeline entry.
-
-## RULES
-
-1. Location strings must be snake_case and CONSISTENT — if the POV actions use "market_square", use that exact string when a non-POV character is at the same place
-2. Every POV action MUST appear in the timeline
-3. Non-POV actions at the same location and timing as a POV action get MERGED into the same entry
-4. A non-POV character may have actions spread across multiple timing slots
-5. Do not invent actions — only place what is provided in the fragments
-
-## OUTPUT FORMAT (JSON)
-
-{
-  "timeline": [
-    {
-      "order": 1,
-      "timing": "before_stop_1",
-      "location": "location_string",
-      "is_pov_stop": false,
-      "characters": [
-        {
-          "character": "Character name",
-          "is_pov": false,
-          "actions": ["..."]
-        }
-      ]
-    },
-    {
-      "order": 2,
-      "timing": "stop_1",
-      "location": "location_string",
-      "is_pov_stop": true,
-      "characters": [
-        {
-          "character": "POV Character name",
-          "is_pov": true,
-          "actions": ["..."]
-        },
-        {
-          "character": "Co-located character",
-          "is_pov": false,
-          "actions": ["..."]
-        }
-      ]
-    },
-    {
-      "order": 3,
-      "timing": "during_stop_1",
-      "location": "other_location",
-      "is_pov_stop": false,
-      "characters": [
-        {
-          "character": "Character elsewhere",
-          "is_pov": false,
-          "actions": ["..."]
-        }
-      ]
-    }
-  ],
-
-  "location_summary": {
-    "pov_locations": ["locations the POV visits in stop order"],
-    "all_locations": ["every unique location in the timeline"]
-  }
-}
-
-Only output JSON. No commentary.`
-
-async function executePhase4Step2(phase3Part, step1Data, protagonist) {
-  console.log(`  Phase 4 Step 2: Non-POV Location Tagging & Timeline Assembly...`)
-
-  // Collect present non-POV characters (only those with actions)
-  const nonPovFragments = (phase3Part.characters || []).filter(c => c.present && c.actions?.length > 0)
-
-  const povActions = step1Data.actions || []
-  const povLocations = [...new Set(povActions.map(a => a.location))]
-
-  if (nonPovFragments.length === 0) {
-    console.log('    No non-POV characters in this part — building POV-only timeline')
-    return {
-      act: step1Data.act,
-      part: step1Data.part,
-      part_name: step1Data.part_name,
-      pov_character: protagonist,
-      timeline: povActions.map((a, i) => ({
-        order: i + 1,
-        timing: `at_pov_action_${a.order}`,
-        location: a.location,
-        is_pov: true,
-        characters: [{
-          character: protagonist,
-          is_pov: true,
-          actions: [a.action]
-        }]
-      })),
-      location_summary: {
-        pov_locations: povLocations,
-        all_locations: povLocations
-      }
-    }
-  }
-
-  console.log(`    Present non-POV characters: ${nonPovFragments.map(f => f.name).join(', ')}`)
-
-  // Build non-POV character summaries for the prompt
-  const actionStrings = f => (f.actions || []).map(a => typeof a === 'string' ? a : a.action)
-  const nonPovSummaries = nonPovFragments.map(f => {
-    return `**${f.name}**
-Actions: ${JSON.stringify(actionStrings(f))}`
-  }).join('\n\n')
-
-  const userPrompt = `## Part Context
-Act ${step1Data.act} Part ${step1Data.part}: ${step1Data.part_name}
-
-## POV Character Actions (from Step 1)
-POV Character: ${protagonist}
-Total actions: ${povActions.length}
-
-${povActions.map(a => `${a.order}. [${a.location}] ${a.action}`).join('\n')}
-
-## Non-POV Character Fragments
-
-${nonPovSummaries}
-
-Assemble the complete linear timeline. For each non-POV action, infer its location and timing relative to the POV actions. Group characters at the same location and timing into single timeline entries. Every POV action must appear in the timeline.`
-
-  const response = await callOpenAI(PHASE_4_STEP2_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    console.error('Phase 4 Step 2 raw response (first 1000 chars):', response.slice(0, 1000))
-    throw new Error(`Phase 4 Step 2 JSON parse failed: ${parsed.error}`)
-  }
-
-  let timelineData = parsed.data
-  // Normalize: model might wrap
-  if (timelineData.phase4_step2) timelineData = timelineData.phase4_step2
-
-  // Validate timeline structure
-  if (!timelineData.timeline || !Array.isArray(timelineData.timeline)) {
-    throw new Error(`Phase 4 Step 2: Missing timeline array. Keys: ${Object.keys(timelineData).join(', ')}`)
-  }
-
-  // Normalize: if model returned old schema (stop/pov_content/other_characters/offscreen),
-  // convert to flat linear timeline (order/timing/is_pov_stop/characters)
-  const firstEntry = timelineData.timeline[0]
-  if (firstEntry && (firstEntry.pov_content || firstEntry.other_characters || firstEntry.stop !== undefined) && firstEntry.order === undefined) {
-    console.log('    Step 2 normalization: converting old schema to flat timeline')
-    const flatTimeline = []
-    let orderCounter = 1
-
-    for (const entry of timelineData.timeline) {
-      const timelineEntry = {
-        order: orderCounter++,
-        timing: `at_pov_action_${orderCounter - 1}`,
-        location: entry.location,
-        is_pov: true,
-        characters: []
-      }
-
-      // Add POV character
-      if (entry.pov_content) {
-        timelineEntry.characters.push({
-          character: protagonist,
-          is_pov: true,
-          actions: entry.pov_content.actions || []
-        })
-      }
-
-      // Add co-located characters
-      for (const other of (entry.other_characters || [])) {
-        timelineEntry.characters.push({
-          character: other.character,
-          is_pov: false,
-          actions: other.actions || []
-        })
-      }
-
-      flatTimeline.push(timelineEntry)
-    }
-
-    // Convert offscreen entries to during_stop entries
-    if (timelineData.offscreen && Array.isArray(timelineData.offscreen)) {
-      // Group offscreen by location
-      const offscreenByLocation = {}
-      for (const off of timelineData.offscreen) {
-        const loc = off.location || 'unknown'
-        if (!offscreenByLocation[loc]) offscreenByLocation[loc] = []
-        offscreenByLocation[loc].push(off)
-      }
-
-      for (const [loc, entries] of Object.entries(offscreenByLocation)) {
-        const timelineEntry = {
-          order: orderCounter++,
-          timing: 'during_part',
-          location: loc,
-          is_pov: false,
-          characters: entries.map(e => ({
-            character: e.character,
-            is_pov: false,
-            actions: e.actions || []
-          }))
-        }
-        flatTimeline.push(timelineEntry)
-      }
-    }
-
-    timelineData.timeline = flatTimeline
-    // Clean up offscreen from location_summary since it's now in the timeline
-    if (timelineData.location_summary) {
-      delete timelineData.location_summary.offscreen_locations
-    }
-  }
-
-  // Assemble output
-  const data = {
-    act: step1Data.act,
-    part: step1Data.part,
-    part_name: step1Data.part_name,
-    pov_character: protagonist,
-    timeline: timelineData.timeline,
-    location_summary: timelineData.location_summary || {
-      pov_locations: povLocations,
-      all_locations: []
-    }
-  }
-
-  // Log result
-  console.log(`\n  Timeline for Act ${data.act} Part ${data.part}: ${data.timeline.length} entries`)
-  for (const entry of data.timeline) {
-    const charSummaries = (entry.characters || []).map(c => {
-      const pov = c.is_pov ? ' [POV]' : ''
-      return `${c.character}${pov}: ${c.actions?.length || 0} actions`
-    }).join(', ')
-    console.log(`    ${entry.order}. [${entry.timing}] ${entry.location}${entry.is_pov_stop ? ' (POV stop)' : ''} — ${charSummaries}`)
-  }
-
-  console.log(`    Locations — POV: ${data.location_summary.pov_locations?.length || 0}, All: ${data.location_summary.all_locations?.length || 0}`)
+  console.log('Phase 4 complete.')
+  console.log(`  Total parts: ${allPartBreakdowns.length}`)
+  console.log(`  Total chapters: ${allPartBreakdowns.reduce((sum, p) => sum + p.chapters.length, 0)}`)
+  console.log(`  Total scenes: ${allPartBreakdowns.reduce((sum, p) => sum + p.chapters.reduce((s, c) => s + (c.scenes?.length || 0), 0), 0)}`)
 
   console.log('')
-  console.log('Phase 4 Step 2 complete output:')
-  console.log(JSON.stringify(data, null, 2))
+  console.log('Phase 4 complete output:')
+  console.log(JSON.stringify(result, null, 2))
 
-  return data
+  return result
 }
+
 
 // =============================================================================
 // PHASE 5: MASTER TIMELINE (Iterative Character-by-Character Approach)
@@ -4948,7 +4735,7 @@ const PHASE_DESCRIPTIONS = {
   1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot acts/parts, and romance arc stages' },
   2: { name: 'Full Cast', description: 'Creating protagonist, love interests, AND stakeholder characters with psychology' },
   3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
-  4: { name: 'Scene Assembly', description: 'Extracting POV character journey through each part' },
+  4: { name: 'Scene & Chapter Boundaries', description: 'Dividing parts into scenes and chapters for prose generation' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with setup requirements' },
   8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
@@ -5007,7 +4794,7 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
       if (!bible.coreFoundation || !bible.characters || !bible.actionGrid) {
         throw new Error('Phase 4 requires Phases 1-3 (bible.coreFoundation, bible.characters, bible.actionGrid) to be complete')
       }
-      console.log('Phase 4: Scene Assembly (Step 1 — POV Journey)')
+      console.log('Phase 4: Scene & Chapter Boundaries')
       bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
       break
 
@@ -5117,19 +4904,20 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(3)
 
-    // Phase 4: Scene Assembly — Step 1: POV Journey
+    // Phase 4: Scene & Chapter Boundaries
     reportProgress(4, 'starting')
     bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
     reportProgress(4, 'complete', {
-      part: bible.sceneAssembly.part_name,
       povCharacter: bible.sceneAssembly.pov_character,
-      journeyStops: bible.sceneAssembly.journey?.length
+      totalParts: bible.sceneAssembly.parts?.length,
+      totalChapters: bible.sceneAssembly.parts?.reduce((sum, p) => sum + p.chapters.length, 0),
+      totalScenes: bible.sceneAssembly.parts?.reduce((sum, p) => sum + p.chapters.reduce((s, c) => s + (c.scenes?.length || 0), 0), 0)
     })
     await savePhase(4)
 
-    // TESTING: Stop after Phase 4 Step 1 to validate POV journey
+    // TESTING: Stop after Phase 4 to validate scene/chapter boundaries
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 4 Step 1 (POV Journey)')
+    console.log('TEST MODE - Stopping after Phase 4 (Scene & Chapter Boundaries)')
     console.log('Phase 4 Output:', JSON.stringify(bible.sceneAssembly, null, 2))
     console.log('='.repeat(60))
 

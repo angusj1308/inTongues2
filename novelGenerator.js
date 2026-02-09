@@ -2590,6 +2590,198 @@ Divide this part into scenes and chapters. Every POV action must appear in exact
 
 
 // =============================================================================
+// PROSE GENERATION (Scene by Scene)
+// =============================================================================
+
+const PROSE_FIRST_SCENE_SYSTEM_PROMPT = `You are a romance novel writer. You are to write Act 1 Part 1 Scene 1 in the style of Charlotte Brontë's prose, with a long and detailed opening to the book in the style of John Steinbeck that describes the physical world.
+
+Write continuous prose. Render the provided actions as narrative — characters doing things, moving through space, interacting. Weave pressures into the atmosphere. Use narration cues when introducing characters for the first time.
+
+Do not add events, characters, or plot points not in the scene data. The actions are your choreography — transform them into vivid prose. Do not include chapter headings or scene numbers.`
+
+const PROSE_SCENE_SYSTEM_PROMPT = `You are a romance novel writer. You are to write this scene in the style of Charlotte Brontë's prose.
+
+Write continuous prose. Render the provided actions as narrative — characters doing things, moving through space, interacting. Weave pressures into the atmosphere. Use narration cues when introducing characters for the first time.
+
+Do not add events, characters, or plot points not in the scene data. The actions are your choreography — transform them into vivid prose. Do not include chapter headings or scene numbers.`
+
+function flattenScenes(sceneAssembly) {
+  const scenes = []
+  for (const part of (sceneAssembly.parts || [])) {
+    for (const chapter of (part.chapters || [])) {
+      for (const scene of (chapter.scenes || [])) {
+        scenes.push({
+          ...scene,
+          act: part.act,
+          part: part.part,
+          part_name: part.part_name,
+          chapter_number: chapter.chapter_number
+        })
+      }
+    }
+  }
+  return scenes
+}
+
+function getCharacterPsychology(phase2, name) {
+  if (phase2.protagonist?.name === name) {
+    const p = phase2.protagonist
+    return {
+      name: p.name,
+      role: 'protagonist',
+      wound: p.wound?.event,
+      lie: p.lie,
+      coping_mechanism: p.coping_mechanism?.behaviour,
+      desire: p.desire
+    }
+  }
+  const li = phase2.love_interests?.find(c => c.name === name)
+  if (li) {
+    return {
+      name: li.name,
+      role: 'love_interest',
+      wound: li.wound?.event,
+      lie: li.lie,
+      coping_mechanism: li.coping_mechanism?.behaviour,
+      role_in_story: li.role_in_story
+    }
+  }
+  const sc = phase2.stakeholder_characters?.find(c => c.name === name)
+  if (sc) {
+    return {
+      name: sc.name,
+      role: 'stakeholder',
+      archetype: sc.archetype,
+      thematic_position: sc.thematic_position
+    }
+  }
+  return null
+}
+
+async function generateProseScene(bible, sceneIndex, previousSceneProse = null) {
+  const allScenes = flattenScenes(bible.sceneAssembly)
+
+  if (sceneIndex < 0 || sceneIndex >= allScenes.length) {
+    throw new Error(`Scene index ${sceneIndex} out of range (0-${allScenes.length - 1})`)
+  }
+
+  const scene = allScenes[sceneIndex]
+  const isFirstScene = sceneIndex === 0
+  const povName = bible.sceneAssembly.pov_character
+
+  // Find Phase 3 grid entry for this part
+  const gridPart = (bible.actionGrid.grid || []).find(
+    p => p.act === scene.act && p.part === scene.part
+  )
+  if (!gridPart) {
+    throw new Error(`Phase 3 grid entry not found for Act ${scene.act} Part ${scene.part}`)
+  }
+
+  // Resolve POV action order numbers to text
+  const povActionTexts = (scene.pov_actions || []).map(orderNum => {
+    const action = (gridPart.pov_actions || []).find(a => a.order === orderNum)
+    return action ? action.action : `[Action ${orderNum}]`
+  })
+
+  // Resolve present character actions and get psychology
+  const presentCharacterDetails = (scene.present_characters || []).map(sc => {
+    const gridChar = (gridPart.characters || []).find(c => c.name === sc.name)
+    const actionTexts = (sc.actions || []).map(orderNum => {
+      const action = (gridChar?.actions || []).find(a => a.order === orderNum)
+      return action ? action.action : `[Action ${orderNum}]`
+    })
+    const psychology = getCharacterPsychology(bible.characters, sc.name)
+    return {
+      name: sc.name,
+      actions: actionTexts,
+      first_appearance: sc.first_appearance,
+      narration_cue: sc.narration_cue,
+      psychology
+    }
+  })
+
+  // Get POV character psychology
+  const povPsychology = getCharacterPsychology(bible.characters, povName)
+
+  // Get romance stage for this part from romance_stage_progression
+  const romanceStages = (bible.actionGrid.romance_stage_progression || [])
+    .filter(rsp => rsp.act === scene.act && rsp.part === scene.part)
+    .map(rsp => `${rsp.stage}: ${rsp.description}`)
+
+  // Build prompts
+  const systemPrompt = isFirstScene ? PROSE_FIRST_SCENE_SYSTEM_PROMPT : PROSE_SCENE_SYSTEM_PROMPT
+
+  let userPrompt = `## Part Context
+Act ${scene.act} Part ${scene.part}: "${scene.part_name}"
+${gridPart.part_description || ''}
+
+## Scene ${scene.scene_number} (Chapter ${scene.chapter_number})
+
+### POV Character: ${povName}
+Actions in this scene:
+${povActionTexts.map((text, i) => `${i + 1}. ${text}`).join('\n')}`
+
+  if (povPsychology) {
+    userPrompt += `\n\nPOV Psychology:`
+    if (povPsychology.wound) userPrompt += `\n- Wound: ${povPsychology.wound}`
+    if (povPsychology.lie) userPrompt += `\n- Lie they believe: ${povPsychology.lie}`
+    if (povPsychology.coping_mechanism) userPrompt += `\n- Coping mechanism: ${povPsychology.coping_mechanism}`
+    if (povPsychology.desire) userPrompt += `\n- Desire: ${povPsychology.desire}`
+  }
+
+  if (presentCharacterDetails.length > 0) {
+    userPrompt += `\n\n### Present Characters`
+    for (const char of presentCharacterDetails) {
+      userPrompt += `\n\n**${char.name}**`
+      if (char.first_appearance && char.narration_cue) {
+        userPrompt += `\nFirst appearance — narration cue: ${char.narration_cue}`
+      }
+      userPrompt += `\nActions:\n${char.actions.map((text, i) => `${i + 1}. ${text}`).join('\n')}`
+      if (char.psychology) {
+        if (char.psychology.wound) userPrompt += `\n- Wound: ${char.psychology.wound}`
+        if (char.psychology.lie) userPrompt += `\n- Lie: ${char.psychology.lie}`
+        if (char.psychology.thematic_position) userPrompt += `\n- Position: ${char.psychology.thematic_position}`
+      }
+    }
+  }
+
+  if ((scene.pressures || []).length > 0) {
+    userPrompt += `\n\n### Atmospheric Pressures\n${scene.pressures.map(p => `- ${p}`).join('\n')}`
+  }
+
+  if (romanceStages.length > 0) {
+    userPrompt += `\n\n### Romance Stage\n${romanceStages.map(s => `- ${s}`).join('\n')}`
+  }
+
+  if (previousSceneProse) {
+    const words = previousSceneProse.split(/\s+/)
+    const contextWords = words.length > 500 ? words.slice(-500).join(' ') : previousSceneProse
+    userPrompt += `\n\n### Previous Scene (for continuity)\n${contextWords}`
+  }
+
+  userPrompt += `\n\nWrite this scene as continuous prose.`
+
+  console.log(`Generating prose for Act ${scene.act} Part ${scene.part} Chapter ${scene.chapter_number} Scene ${scene.scene_number}...`)
+
+  const response = await callOpenAI(systemPrompt, userPrompt, { maxTokens: 4096 })
+
+  const wordCount = response.split(/\s+/).length
+  console.log(`  Generated ${wordCount} words`)
+
+  return {
+    prose: response,
+    scene_index: sceneIndex,
+    act: scene.act,
+    part: scene.part,
+    part_name: scene.part_name,
+    chapter_number: scene.chapter_number,
+    scene_number: scene.scene_number,
+    word_count: wordCount
+  }
+}
+
+
+// =============================================================================
 // PHASE 5: MASTER TIMELINE (Iterative Character-by-Character Approach)
 // =============================================================================
 
@@ -6459,6 +6651,8 @@ export {
   executePhase7,
   executePhase8,
   executePhase9,
+  generateProseScene,
+  flattenScenes,
   WORD_COUNT_BY_TENSION,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,
@@ -6482,6 +6676,8 @@ export default {
   executePhase7,
   executePhase8,
   executePhase9,
+  generateProseScene,
+  flattenScenes,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS,

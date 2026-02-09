@@ -19,7 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
-import { regeneratePhases, executePhase, resetGeneration } from '../services/novelApiClient'
+import { regeneratePhases, executePhase, executeScene, resetGeneration } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -242,7 +242,7 @@ const BookGrid = ({
         {books.map((book) => {
           const progress = Math.max(0, Math.min(100, book.progress || 0))
           const titleText = getStoryTitle ? getStoryTitle(book) : book.title
-          const isGenerating = book.status === 'generating' || book.status === 'planning'
+          const isGenerating = book.status === 'generating' || book.status === 'planning' || book.status === 'generating_prose'
           const isRegenerating = book.status === 'regenerating'
           const isFailed = book.status === 'failed' || book.status === 'error'
           const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating || isRegenerating
@@ -299,16 +299,19 @@ const BookGrid = ({
                 {showPhaseControls && (
                   <div className="book-phase-controls">
                     <span className="book-phase-indicator">
-                      Phase {book.currentPhase || book.lastPhaseCompleted || 0}/9
+                      {(book.currentPhase || book.lastPhaseCompleted || 0) >= 4
+                        ? `Scene ${book.nextSceneIndex || 0}/${book.totalScenes || '?'}`
+                        : `Phase ${book.currentPhase || book.lastPhaseCompleted || 0}/4`
+                      }
                     </span>
-                    {(book.currentPhase || book.lastPhaseCompleted || 0) < 9 && onNextPhase && (
+                    {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.nextSceneIndex || 0) < (book.totalScenes || 0)) || (book.currentPhase || book.lastPhaseCompleted || 0) === 4) && onNextPhase && (
                       <button
                         className="book-phase-btn book-phase-next"
                         onClick={(e) => {
                           e.stopPropagation()
                           onNextPhase(e, book)
                         }}
-                        title={`Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                        title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Scene ${(book.nextSceneIndex || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
                       >
                         ▶
                       </button>
@@ -320,7 +323,7 @@ const BookGrid = ({
                           e.stopPropagation()
                           onRegeneratePhase(e, book)
                         }}
-                        title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                        title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 && book.nextSceneIndex > 0 ? `Redo Scene ${book.nextSceneIndex}` : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                       >
                         ↻
                       </button>
@@ -964,15 +967,38 @@ const Dashboard = () => {
     }
   }
 
-  // Execute next phase for a book
+  // Execute next phase or next scene for a book
   const handleNextPhase = async (e, book) => {
     e.stopPropagation()
     if (!book?.id || !user?.uid) return
 
     const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+
+    // After Phase 4, switch to scene-by-scene prose generation
+    if (currentPhase >= 4) {
+      const nextSceneIndex = book.nextSceneIndex || 0
+      const totalScenes = book.totalScenes || 0
+
+      if (totalScenes > 0 && nextSceneIndex >= totalScenes) {
+        alert('All scenes generated!')
+        return
+      }
+
+      try {
+        await executeScene({
+          uid: user.uid,
+          bookId: book.id
+        })
+      } catch (err) {
+        console.error(`Error generating scene ${nextSceneIndex}:`, err)
+        alert(`Failed to generate scene: ${err.message}`)
+      }
+      return
+    }
+
     const nextPhase = currentPhase + 1
 
-    if (nextPhase > 9) {
+    if (nextPhase > 4) {
       alert('All phases complete!')
       return
     }
@@ -983,19 +1009,40 @@ const Dashboard = () => {
         bookId: book.id,
         phase: nextPhase
       })
-      // Real-time listener will update UI
     } catch (err) {
       console.error(`Error executing phase ${nextPhase}:`, err)
       alert(`Failed to execute Phase ${nextPhase}: ${err.message}`)
     }
   }
 
-  // Re-run current phase
+  // Re-run current phase or current scene
   const handleRegenerateCurrentPhase = async (e, book) => {
     e.stopPropagation()
     if (!book?.id || !user?.uid) return
 
     const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+
+    // After Phase 4, redo means regenerate current scene
+    if (currentPhase >= 4 && book.nextSceneIndex > 0) {
+      const sceneToRedo = (book.nextSceneIndex || 1) - 1
+      const confirmed = window.confirm(
+        `Regenerate Scene ${sceneToRedo + 1}?\n\nThis will re-generate the scene with fresh prose.`
+      )
+      if (!confirmed) return
+
+      try {
+        await executeScene({
+          uid: user.uid,
+          bookId: book.id,
+          sceneIndex: sceneToRedo
+        })
+      } catch (err) {
+        console.error(`Error regenerating scene ${sceneToRedo}:`, err)
+        alert(`Failed to regenerate scene: ${err.message}`)
+      }
+      return
+    }
+
     if (currentPhase < 1) {
       alert('No phase to regenerate. Click "Next Phase" to start.')
       return
@@ -1039,22 +1086,67 @@ const Dashboard = () => {
     }
   }
 
-  // Run a specific phase (allows going back to earlier phases)
+  // Run a specific phase or jump to a specific scene
   const handleRunSpecificPhase = async (e, book) => {
     e.stopPropagation()
     if (!book?.id || !user?.uid) return
 
     const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+
+    // After Phase 4, allow jumping to a specific scene
+    if (currentPhase >= 4) {
+      const totalScenes = book.totalScenes || 0
+      const sceneInput = window.prompt(
+        `Enter scene number to generate (1-${totalScenes}):\n\nCurrent: Scene ${book.nextSceneIndex || 0}/${totalScenes}\n\nOr enter "p1"-"p4" to re-run a planning phase.`,
+        String((book.nextSceneIndex || 0) + 1)
+      )
+
+      if (!sceneInput) return
+
+      // Check if they want to run a phase instead
+      const phaseMatch = sceneInput.match(/^p(\d)$/i)
+      if (phaseMatch) {
+        const phase = parseInt(phaseMatch[1], 10)
+        if (phase < 1 || phase > 4) {
+          alert('Please enter a valid phase number (p1-p4)')
+          return
+        }
+        try {
+          await executePhase({ uid: user.uid, bookId: book.id, phase })
+        } catch (err) {
+          alert(`Failed to execute Phase ${phase}: ${err.message}`)
+        }
+        return
+      }
+
+      const sceneNum = parseInt(sceneInput, 10)
+      if (isNaN(sceneNum) || sceneNum < 1 || sceneNum > totalScenes) {
+        alert(`Please enter a valid scene number (1-${totalScenes})`)
+        return
+      }
+
+      try {
+        await executeScene({
+          uid: user.uid,
+          bookId: book.id,
+          sceneIndex: sceneNum - 1
+        })
+      } catch (err) {
+        alert(`Failed to generate scene ${sceneNum}: ${err.message}`)
+      }
+      return
+    }
+
     const phaseInput = window.prompt(
-      `Enter phase number to run (1-9):\n\nCurrent phase: ${currentPhase}\n\nNote: Running an earlier phase will regenerate from that point.`,
+      `Enter phase number to run (1-4):\n\nCurrent phase: ${currentPhase}\n\nNote: Running an earlier phase will regenerate from that point.`,
       String(currentPhase || 1)
     )
 
     if (!phaseInput) return
 
     const phase = parseInt(phaseInput, 10)
-    if (isNaN(phase) || phase < 1 || phase > 9) {
-      alert('Please enter a valid phase number (1-9)')
+    if (isNaN(phase) || phase < 1 || phase > 4) {
+      alert('Please enter a valid phase number (1-4)')
       return
     }
 
@@ -1335,7 +1427,7 @@ const Dashboard = () => {
                       <div className="reading-shelf-scroll">
                         {yourRecentBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
-                          const isGenerating = book.status === 'generating' || book.status === 'planning'
+                          const isGenerating = book.status === 'generating' || book.status === 'planning' || book.status === 'generating_prose'
                           const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
                           const isProcessing = isGenerating || isRegenerating
@@ -1355,13 +1447,16 @@ const Dashboard = () => {
                               {book.isGeneratedBook && !isProcessing && (
                                 <div className="book-phase-controls">
                                   <span className="book-phase-indicator">
-                                    Phase {book.currentPhase || book.lastPhaseCompleted || 0}/9
+                                    {(book.currentPhase || book.lastPhaseCompleted || 0) >= 4
+                                      ? `Scene ${book.nextSceneIndex || 0}/${book.totalScenes || '?'}`
+                                      : `Phase ${book.currentPhase || book.lastPhaseCompleted || 0}/4`
+                                    }
                                   </span>
-                                  {(book.currentPhase || book.lastPhaseCompleted || 0) < 9 && (
+                                  {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.nextSceneIndex || 0) < (book.totalScenes || 0)) || (book.currentPhase || book.lastPhaseCompleted || 0) === 4) && (
                                     <button
                                       className="book-phase-btn book-phase-next"
                                       onClick={(e) => handleNextPhase(e, book)}
-                                      title={`Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Scene ${(book.nextSceneIndex || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
                                     >
                                       ▶
                                     </button>
@@ -1370,7 +1465,7 @@ const Dashboard = () => {
                                     <button
                                       className="book-phase-btn book-phase-redo"
                                       onClick={(e) => handleRegenerateCurrentPhase(e, book)}
-                                      title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 && book.nextSceneIndex > 0 ? `Redo Scene ${book.nextSceneIndex}` : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                                     >
                                       ↻
                                     </button>
@@ -1458,7 +1553,7 @@ const Dashboard = () => {
                       <div className="reading-shelf-scroll">
                         {allBooks.map((book) => {
                           const progress = Math.max(0, Math.min(100, book.progress || 0))
-                          const isGenerating = book.status === 'generating' || book.status === 'planning'
+                          const isGenerating = book.status === 'generating' || book.status === 'planning' || book.status === 'generating_prose'
                           const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
                           const isProcessing = isGenerating || isRegenerating
@@ -1478,13 +1573,16 @@ const Dashboard = () => {
                               {book.isGeneratedBook && !isProcessing && (
                                 <div className="book-phase-controls">
                                   <span className="book-phase-indicator">
-                                    Phase {book.currentPhase || book.lastPhaseCompleted || 0}/9
+                                    {(book.currentPhase || book.lastPhaseCompleted || 0) >= 4
+                                      ? `Scene ${book.nextSceneIndex || 0}/${book.totalScenes || '?'}`
+                                      : `Phase ${book.currentPhase || book.lastPhaseCompleted || 0}/4`
+                                    }
                                   </span>
-                                  {(book.currentPhase || book.lastPhaseCompleted || 0) < 9 && (
+                                  {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.nextSceneIndex || 0) < (book.totalScenes || 0)) || (book.currentPhase || book.lastPhaseCompleted || 0) === 4) && (
                                     <button
                                       className="book-phase-btn book-phase-next"
                                       onClick={(e) => handleNextPhase(e, book)}
-                                      title={`Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Scene ${(book.nextSceneIndex || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
                                     >
                                       ▶
                                     </button>
@@ -1493,7 +1591,7 @@ const Dashboard = () => {
                                     <button
                                       className="book-phase-btn book-phase-redo"
                                       onClick={(e) => handleRegenerateCurrentPhase(e, book)}
-                                      title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 && book.nextSceneIndex > 0 ? `Redo Scene ${book.nextSceneIndex}` : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                                     >
                                       ↻
                                     </button>

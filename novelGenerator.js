@@ -1897,8 +1897,6 @@ Each fragment must carry distinct information in every field. State is not situa
           "state": "Their personal condition coming into this part — mindset, emotional state, what they're carrying from previous events",
           "situation": "External context they're walking into — what's happening around them, independent of their personal state",
           "actions": ["..."],
-          "dialogues": ["..."],
-          "thoughts": ["..."],
           "intent": "What they were trying to achieve with their actions",
           "tension": "What's pulling against them — discomfort, doubt, observation that nags, loyalty being tested",
           "outcome": "The state change — what is different after this part because of what they did or experienced",
@@ -1937,9 +1935,7 @@ Each fragment must carry distinct information in every field. State is not situa
     "missing_stages": ["any stages from Phase 1 romance_arc_stages not found"],
     "protagonist_fragments_count": number,
     "total_fragments": number,
-    "total_actions": number,
-    "total_dialogues": number,
-    "total_thoughts": number
+    "total_actions": number
   }
 }
 
@@ -1981,22 +1977,14 @@ Each field in a fragment must carry distinct, substantive information:
 
 - **state**: Personal condition COMING INTO this part (not what happens during it)
 - **situation**: External context (not the character's feelings about it)
-- **actions**: Array of physical, observable things they DO — chronologically ordered within the part
-- **dialogues**: Array of dialogue SUMMARIES (what is said, not literal lines — prose phase writes actual dialogue)
-- **thoughts**: Array of internal monologue — what they're thinking/feeling as events unfold (protagonist and love_interest ONLY)
+- **actions**: Array of physical, observable things they DO — chronologically ordered within the part. ACTIONS ONLY — no dialogue, no internal thoughts. The prose phase produces dialogue and interiority naturally.
 - **intent**: What they were TRYING to achieve (not what they did)
 - **tension**: What's pulling AGAINST them (not just difficulty — the specific discomfort)
 - **outcome**: What CHANGED (not what they did — the result/consequence)
 
-**DIALOGUE IS NOT SCRIPT.** Each dialogue entry summarizes what is said:
-- GOOD: "Warns him that danger is approaching and he needs to leave"
-- BAD: "You need to be gone before first light." (this is script, not summary)
-
 **ACTIONS ARE CHRONOLOGICAL.** List the sequence of what they physically do, in order.
 
-**THOUGHTS ARE FOR POV CHARACTERS ONLY.** Stakeholders get 0 thoughts — their interiority is revealed through actions and dialogue only.
-
-**LET THE STORY DICTATE VOLUME — NO LIMITS.** There is NO upper or lower bound on the number of actions, dialogues, or thoughts in a fragment. Include as many as the character's role in this part demands. A part covers a TIME PERIOD, not a single event — a protagonist moving through a busy period might have 15 actions, 10 dialogues, and 8 thoughts. A stakeholder doing one thing gets one action. Do not pad, do not truncate, do not cap. The arrays are unbounded. Let the story dictate the volume.
+**ACTION COUNTS.** The POV character (protagonist) gets **15-20 actions** per part. Every other character gets **5-10 actions** per part. A part covers a TIME PERIOD, not a single event — these counts reflect that density.
 
 GOOD action: "Searches the property, discovers someone hiding"
 BAD action: "Feels conflicted about her duty"
@@ -2013,11 +2001,9 @@ The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list mu
 
 ### 5. Lies DOMINATE Early Parts, DISSOLVE Gradually
 
-For protagonist and love interests: the first HALF of the grid, their **actions**, **dialogues**, and **thoughts** must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
+For protagonist and love interests: the first HALF of the grid, their **actions** must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
 
-This creates earned transformation. If the lie isn't visible in early actions/dialogues/thoughts, the ending feels cheap.
-
-The character's lie and coping mechanism should be visible in their early actions, dialogues, and thoughts. The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
+This creates earned transformation. If the lie isn't visible in early actions, the ending feels cheap. The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
 
 ### 6. Arc Outcomes Must Match Final Part Actions
 
@@ -2054,8 +2040,7 @@ Multiple parts × full cast = potentially 50+ scene fragments. This IS the maste
 1. Read the external_plot acts and parts from Phase 1
 2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
 3. For each part (across all acts), include ALL characters from the cast (everyone appears at every part)
-4. For each character at each part, generate a complete scene fragment with arrays for actions, dialogues, thoughts
-5. Let the story dictate volume — don't pad, don't skimp
+4. For each character at each part, generate a complete scene fragment with actions array (POV: 15-20, others: 5-10)
 6. Ensure each character's state at Part N+1 follows from their outcome at Part N
 7. After generating all fragments, identify which protagonist/love_interest cells represent romance stage transitions
 8. Tag those cells with the appropriate romance_stage
@@ -2063,8 +2048,8 @@ Multiple parts × full cast = potentially 50+ scene fragments. This IS the maste
 
 ## NOTES ON FRAGMENT STRUCTURE
 
-- Protagonist and love_interest fragments will naturally be richer than stakeholder fragments
-- Stakeholders get NO thoughts array entries — their interiority is revealed through actions and dialogue only
+- POV character (protagonist) gets 15-20 actions per part; all other characters get 5-10
+- ACTIONS ONLY — no dialogues, no internal thoughts. The prose phase produces those naturally
 - Romance stage tags ONLY appear on protagonist or love_interest rows — never on stakeholders
 - Every field must carry distinct information — state is not situation, action is not outcome
 - Do NOT reference any specific story, setting, or character names in your schema understanding — generate everything from the provided concept and Phase 1/2 data`
@@ -2186,11 +2171,11 @@ ${allCharacters.map(c => {
 
 1. For each part (across all acts), include ALL characters — protagonist, love interests, and every stakeholder character
 2. Generate a complete scene fragment for EACH character at EACH part
-3. Every field is substantive — no field restates another
-4. State at Part N+1 follows from outcome at Part N (outcome→state continuity)
-5. Actions[] entries are physical and concrete, not thematic or psychological
-6. Dialogues[] are summaries of exchanges, not literal script
-7. Thoughts[] only for POV characters (protagonist)
+3. POV character (protagonist) gets 15-20 actions per part; every other character gets 5-10
+4. ACTIONS ONLY — no dialogues, no internal thoughts
+5. Every field is substantive — no field restates another
+6. State at Part N+1 follows from outcome at Part N (outcome→state continuity)
+7. Actions[] entries are physical and concrete, not thematic or psychological
 8. Romance stage tags ONLY on protagonist or love_interest rows — never on stakeholders
 9. Protagonist/love_interest early part actions must ENACT their lie (first half of parts)
 10. Each stakeholder's final part fragment must reflect their arc_outcome
@@ -2203,7 +2188,7 @@ You have ${allCharacters.length} characters and ${totalParts} parts. That means 
 
 ## OUTPUT
 
-Return valid JSON matching the schema from the system prompt. Remember: actions, dialogues, and thoughts are ARRAYS.`
+Return valid JSON matching the schema from the system prompt. Remember: actions is an ARRAY. No dialogues or thoughts — actions only.`
 }
 
 async function executePhase3(concept, phase1, phase2) {
@@ -2237,7 +2222,7 @@ async function executePhase3(concept, phase1, phase2) {
         }
       }
 
-      // Normalize fragment fields: ensure actions/dialogues/thoughts are arrays
+      // Normalize fragment fields: ensure actions is an array
       if (gridEntry.fragments && Array.isArray(gridEntry.fragments)) {
         for (const fragment of gridEntry.fragments) {
           // Convert old 'action' string to 'actions' array
@@ -2245,10 +2230,10 @@ async function executePhase3(concept, phase1, phase2) {
             fragment.actions = [fragment.action]
             delete fragment.action
           }
-          // Ensure arrays exist
           if (!fragment.actions) fragment.actions = []
-          if (!fragment.dialogues) fragment.dialogues = []
-          if (!fragment.thoughts) fragment.thoughts = []
+          // Strip dialogues/thoughts if model included them
+          delete fragment.dialogues
+          delete fragment.thoughts
         }
       }
     }
@@ -2276,13 +2261,11 @@ async function executePhase3(concept, phase1, phase2) {
     console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} parts but Phase 1 defined ${expectedPartCount} parts`)
   }
 
-  // Count fragments, actions, dialogues, thoughts (normalization guarantees arrays exist)
+  // Count fragments and actions
   let totalFragments = 0
   let protagonistFragments = 0
   let romanceTaggedFragments = 0
   let totalActions = 0
-  let totalDialogues = 0
-  let totalThoughts = 0
 
   for (const gridEntry of data.grid) {
     if (!gridEntry.act || !gridEntry.part || !gridEntry.part_name || !gridEntry.fragments) {
@@ -2291,8 +2274,6 @@ async function executePhase3(concept, phase1, phase2) {
     for (const fragment of gridEntry.fragments) {
       totalFragments++
       totalActions += fragment.actions?.length || 0
-      totalDialogues += fragment.dialogues?.length || 0
-      totalThoughts += fragment.thoughts?.length || 0
       if (fragment.character_type === 'protagonist') {
         protagonistFragments++
       }
@@ -2331,8 +2312,6 @@ async function executePhase3(concept, phase1, phase2) {
   console.log(`  Protagonist fragments: ${protagonistFragments}`)
   console.log(`  Romance-tagged fragments: ${romanceTaggedFragments}`)
   console.log(`  Total actions: ${totalActions}`)
-  console.log(`  Total dialogues: ${totalDialogues}`)
-  console.log(`  Total thoughts: ${totalThoughts}`)
   console.log(`  Romance stages found: ${foundStages.length}/${expectedStages.length}`)
   if (missingStages.length > 0) {
     console.log(`  Missing stages: ${missingStages.join(', ')}`)
@@ -2346,9 +2325,7 @@ async function executePhase3(concept, phase1, phase2) {
     gridEntry.fragments.forEach(fragment => {
       const tag = fragment.romance_stage_tag ? ` [${fragment.romance_stage_tag}]` : ''
       const actCount = fragment.actions?.length || 0
-      const dlgCount = fragment.dialogues?.length || 0
-      const thtCount = fragment.thoughts?.length || 0
-      console.log(`      ${fragment.character} (${fragment.character_type}): ${actCount}a/${dlgCount}d/${thtCount}t${tag}`)
+      console.log(`      ${fragment.character} (${fragment.character_type}): ${actCount} actions${tag}`)
     })
   })
 
@@ -2376,7 +2353,7 @@ const PHASE_4_STEP1_SYSTEM_PROMPT = `You are extracting the POV character's jour
 
 You receive:
 - The POV character's name
-- Their Phase 3 fragment: actions, dialogues, thoughts
+- Their Phase 3 fragment: actions array
 - The part context: act, part name, part description
 
 Your job: Read the POV character's actions and determine the sequence of locations they visit during this part. A part covers a TIME PERIOD — the character may move through multiple locations. Infer locations from the actions themselves and the part context.
@@ -2386,8 +2363,7 @@ Your job: Read the POV character's actions and determine the sequence of locatio
 1. Read actions in order — infer where each action takes place based on context
 2. If an action implies the character has moved to a new place, start a new journey stop
 3. Each journey stop has: the location and the actions that happen there
-4. Include dialogues and thoughts at the stop where they naturally occur
-5. If all actions happen at one location, there is one journey stop
+4. If all actions happen at one location, there is one journey stop
 6. Location strings must be snake_case (e.g., hacienda_courtyard, village_church)
 
 ## SIGNALS THAT INDICATE MOVEMENT
@@ -2405,9 +2381,7 @@ Your job: Read the POV character's actions and determine the sequence of locatio
     {
       "stop": 1,
       "location": "location_string",
-      "actions": ["..."],
-      "dialogues": ["..."],
-      "thoughts": ["..."]
+      "actions": ["..."]
     }
   ]
 }
@@ -2442,7 +2416,7 @@ async function executePhase4(concept, phase1, phase2, phase3) {
     throw new Error(`Phase 4: No fragment for protagonist "${protagonist}" in Act ${firstPart.act} Part ${firstPart.part}`)
   }
 
-  console.log(`  Fragment: ${povFragment.actions?.length || 0} actions, ${povFragment.dialogues?.length || 0} dialogues, ${povFragment.thoughts?.length || 0} thoughts`)
+  console.log(`  Fragment: ${povFragment.actions?.length || 0} actions`)
 
   const userPrompt = `## POV Character
 ${protagonist}
@@ -2453,12 +2427,10 @@ ${firstPart.part_description}
 
 ## POV Character's Phase 3 Fragment
 Actions: ${JSON.stringify(povFragment.actions || [])}
-Dialogues: ${JSON.stringify(povFragment.dialogues || [])}
-Thoughts: ${JSON.stringify(povFragment.thoughts || [])}
 State: ${povFragment.state || 'not specified'}
 Intent: ${povFragment.intent || 'not specified'}
 
-Extract the journey — the sequence of locations this character visits during this part, with their actions/dialogues/thoughts at each stop.`
+Extract the journey — the sequence of locations this character visits during this part, with their actions at each stop.`
 
   const response = await callOpenAI(PHASE_4_STEP1_SYSTEM_PROMPT, userPrompt, { maxTokens: 4096 })
   const parsed = parseJSON(response)
@@ -2490,7 +2462,7 @@ Extract the journey — the sequence of locations this character visits during t
   // Log result
   console.log(`\n  POV Journey for Act ${firstPart.act} Part ${firstPart.part}:`)
   for (const stop of data.journey) {
-    console.log(`    Stop ${stop.stop}: ${stop.location} — ${stop.actions?.length || 0} actions, ${stop.dialogues?.length || 0} dialogues, ${stop.thoughts?.length || 0} thoughts`)
+    console.log(`    Stop ${stop.stop}: ${stop.location} — ${stop.actions?.length || 0} actions`)
   }
 
   console.log('')
@@ -2508,8 +2480,8 @@ Extract the journey — the sequence of locations this character visits during t
 const PHASE_4_STEP2_SYSTEM_PROMPT = `You are assembling a complete linear timeline for a single story part by placing ALL characters' actions in temporal order.
 
 You receive:
-- The POV character's journey (from Step 1): a sequence of numbered stops, each with a location and the POV character's actions/dialogues/thoughts
-- All non-POV characters' Phase 3 fragments: their actions and dialogues arrays
+- The POV character's journey (from Step 1): a sequence of numbered stops, each with a location and the POV character's actions
+- All non-POV characters' Phase 3 fragments: their actions arrays
 - The part context
 
 The POV journey is the TEMPORAL BACKBONE. Stop 1 happens before Stop 2, etc. Your job is to:
@@ -2557,12 +2529,10 @@ GROUPING: Multiple characters at the SAME location and SAME timing go into ONE t
 ## RULES
 
 1. Location strings must be snake_case and CONSISTENT — if the POV journey uses "market_square", use that exact string when a non-POV character is at the same place
-2. Dialogues between two characters require BOTH at the same location and timing
-3. Thoughts ONLY appear on the POV character's entries — no other character gets thoughts
-4. Every POV stop from the journey MUST appear in the timeline (they are anchors)
-5. Non-POV actions that happen at a POV stop's location during that stop get MERGED into the POV stop entry
-6. A non-POV character may have actions spread across multiple timing slots
-7. Do not invent actions — only place what is provided in the fragments
+2. Every POV stop from the journey MUST appear in the timeline (they are anchors)
+3. Non-POV actions that happen at a POV stop's location during that stop get MERGED into the POV stop entry
+4. A non-POV character may have actions spread across multiple timing slots
+5. Do not invent actions — only place what is provided in the fragments
 
 ## OUTPUT FORMAT (JSON)
 
@@ -2577,8 +2547,7 @@ GROUPING: Multiple characters at the SAME location and SAME timing go into ONE t
         {
           "character": "Character name",
           "is_pov": false,
-          "actions": ["..."],
-          "dialogues": ["..."]
+          "actions": ["..."]
         }
       ]
     },
@@ -2591,15 +2560,12 @@ GROUPING: Multiple characters at the SAME location and SAME timing go into ONE t
         {
           "character": "POV Character name",
           "is_pov": true,
-          "actions": ["..."],
-          "dialogues": ["..."],
-          "thoughts": ["..."]
+          "actions": ["..."]
         },
         {
           "character": "Co-located character",
           "is_pov": false,
-          "actions": ["..."],
-          "dialogues": ["..."]
+          "actions": ["..."]
         }
       ]
     },
@@ -2612,8 +2578,7 @@ GROUPING: Multiple characters at the SAME location and SAME timing go into ONE t
         {
           "character": "Character elsewhere",
           "is_pov": false,
-          "actions": ["..."],
-          "dialogues": ["..."]
+          "actions": ["..."]
         }
       ]
     }
@@ -2652,9 +2617,7 @@ async function executePhase4Step2(phase3Part, step1Data, protagonist) {
         characters: [{
           character: protagonist,
           is_pov: true,
-          actions: stop.actions || [],
-          dialogues: stop.dialogues || [],
-          thoughts: stop.thoughts || []
+          actions: stop.actions || []
         }]
       })),
       location_summary: {
@@ -2670,7 +2633,6 @@ async function executePhase4Step2(phase3Part, step1Data, protagonist) {
   const nonPovSummaries = nonPovFragments.map(f => {
     return `**${f.character}** (${f.character_type})
 Actions: ${JSON.stringify(f.actions || [])}
-Dialogues: ${JSON.stringify(f.dialogues || [])}
 State: ${f.state || 'not specified'}
 Intent: ${f.intent || 'not specified'}`
   }).join('\n\n')
@@ -2683,9 +2645,7 @@ POV Character: ${protagonist}
 Number of stops: ${step1Data.journey.length}
 
 ${step1Data.journey.map(stop => `### Stop ${stop.stop}: ${stop.location}
-Actions: ${JSON.stringify(stop.actions || [])}
-Dialogues: ${JSON.stringify(stop.dialogues || [])}
-Thoughts: ${JSON.stringify(stop.thoughts || [])}`).join('\n\n')}
+Actions: ${JSON.stringify(stop.actions || [])}`).join('\n\n')}
 
 ## Non-POV Character Fragments
 
@@ -2733,9 +2693,7 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
         timelineEntry.characters.push({
           character: protagonist,
           is_pov: true,
-          actions: entry.pov_content.actions || [],
-          dialogues: entry.pov_content.dialogues || [],
-          thoughts: entry.pov_content.thoughts || []
+          actions: entry.pov_content.actions || []
         })
       }
 
@@ -2744,8 +2702,7 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
         timelineEntry.characters.push({
           character: other.character,
           is_pov: false,
-          actions: other.actions || [],
-          dialogues: other.dialogues || []
+          actions: other.actions || []
         })
       }
 
@@ -2771,8 +2728,7 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
           characters: entries.map(e => ({
             character: e.character,
             is_pov: false,
-            actions: e.actions || [],
-            dialogues: e.dialogues || []
+            actions: e.actions || []
           }))
         }
         flatTimeline.push(timelineEntry)
@@ -2804,7 +2760,7 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
   for (const entry of data.timeline) {
     const charSummaries = (entry.characters || []).map(c => {
       const pov = c.is_pov ? ' [POV]' : ''
-      return `${c.character}${pov}: ${c.actions?.length || 0}a/${c.dialogues?.length || 0}d${c.thoughts ? '/' + c.thoughts.length + 't' : ''}`
+      return `${c.character}${pov}: ${c.actions?.length || 0} actions`
     }).join(', ')
     console.log(`    ${entry.order}. [${entry.timing}] ${entry.location}${entry.is_pov_stop ? ' (POV stop)' : ''} — ${charSummaries}`)
   }

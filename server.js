@@ -8427,6 +8427,12 @@ app.post('/api/generate/execute-scene', async (req, res) => {
     })
 
     console.log(`Scene ${sceneIndex + 1}/${totalScenes} complete (${result.word_count} words)`)
+    console.log('')
+    console.log('='.repeat(60))
+    console.log(`SCENE PROSE — Act ${result.act} Part ${result.part} Chapter ${result.chapter_number} Scene ${result.scene_number}`)
+    console.log('='.repeat(60))
+    console.log(result.prose)
+    console.log('='.repeat(60))
 
     return res.status(200).json({
       success: true,

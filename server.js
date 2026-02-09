@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase1, executePhase2, executePhase3, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9 } from './novelGenerator.js'
+import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase1, executePhase2, executePhase3, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9, generateProseScene, flattenScenes } from './novelGenerator.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8218,8 +8218,8 @@ app.post('/api/generate/execute-phase', async (req, res) => {
     if (phase >= 3 && !bible.characters) {
       return res.status(400).json({ error: 'Phase 3 requires Phase 2 (characters) data' })
     }
-    if (phase >= 4 && !bible.plot) {
-      return res.status(400).json({ error: 'Phase 4 requires Phase 3 (plot) data' })
+    if (phase >= 4 && !bible.actionGrid) {
+      return res.status(400).json({ error: 'Phase 4 requires Phase 3 (actionGrid) data' })
     }
     if (phase >= 5 && !bible.subplots) {
       return res.status(400).json({ error: 'Phase 5 requires Phase 4 (subplots) data' })
@@ -8276,11 +8276,11 @@ app.post('/api/generate/execute-phase', async (req, res) => {
         break
       case 3:
         result = await executePhase3(concept, bible.coreFoundation, bible.characters)
-        updatedBible.plot = result
+        updatedBible.actionGrid = result
         break
       case 4:
-        result = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.plot, lengthPreset)
-        updatedBible.subplots = result
+        result = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
+        updatedBible.sceneAssembly = result
         break
       case 5:
         result = await executePhase5(concept, bible.coreFoundation, bible.characters, bible.plot, bible.subplots, lengthPreset)
@@ -8343,6 +8343,117 @@ app.post('/api/generate/execute-phase', async (req, res) => {
     }
 
     return res.status(500).json({ error: 'Failed to execute phase', details: error.message })
+  }
+})
+
+// POST /api/generate/execute-scene - Generate prose for next (or specific) scene
+app.post('/api/generate/execute-scene', async (req, res) => {
+  try {
+    const { uid, bookId, sceneIndex: requestedIndex } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const bible = bookData.bible || {}
+
+    if (!bible.sceneAssembly) {
+      return res.status(400).json({ error: 'Scene generation requires Phase 4 (sceneAssembly) to be complete' })
+    }
+
+    // Determine scene index
+    const allScenes = flattenScenes(bible.sceneAssembly)
+    const totalScenes = allScenes.length
+    const sceneIndex = requestedIndex !== undefined ? requestedIndex : (bookData.nextSceneIndex || 0)
+
+    if (sceneIndex < 0 || sceneIndex >= totalScenes) {
+      return res.status(400).json({ error: `Scene index ${sceneIndex} out of range (0-${totalScenes - 1})` })
+    }
+
+    console.log(`Generating scene ${sceneIndex + 1}/${totalScenes} for book ${bookId}`)
+
+    // Update status
+    await bookRef.update({
+      status: 'generating_prose',
+      currentSceneIndex: sceneIndex
+    })
+
+    // Get previous scene prose for context
+    let previousSceneProse = null
+    if (sceneIndex > 0) {
+      const prevSceneDoc = await bookRef.collection('scenes').doc(String(sceneIndex - 1)).get()
+      if (prevSceneDoc.exists) {
+        previousSceneProse = prevSceneDoc.data().prose
+      }
+    }
+
+    // Generate the scene
+    const result = await generateProseScene(bible, sceneIndex, previousSceneProse)
+
+    // Sanitize for Firestore
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) return obj.map(item => sanitizeForFirestore(item))
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) cleaned[key] = sanitizeForFirestore(value)
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    // Store scene in Firestore
+    await bookRef.collection('scenes').doc(String(sceneIndex)).set(sanitizeForFirestore({
+      ...result,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }))
+
+    // Update book tracking
+    const isLastScene = sceneIndex >= totalScenes - 1
+    await bookRef.update({
+      status: isLastScene ? 'prose_complete' : 'prose_in_progress',
+      nextSceneIndex: sceneIndex + 1,
+      totalScenes,
+      lastSceneGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+
+    console.log(`Scene ${sceneIndex + 1}/${totalScenes} complete (${result.word_count} words)`)
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      sceneIndex,
+      totalScenes,
+      isLastScene,
+      result
+    })
+
+  } catch (error) {
+    console.error('Execute scene error:', error)
+
+    try {
+      const { uid, bookId } = req.body
+      if (uid && bookId) {
+        const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+        await bookRef.update({
+          status: 'prose_in_progress',
+          lastError: error.message
+        })
+      }
+    } catch (resetError) {
+      console.error('Failed to reset book status:', resetError.message)
+    }
+
+    return res.status(500).json({ error: 'Failed to generate scene', details: error.message })
   }
 })
 

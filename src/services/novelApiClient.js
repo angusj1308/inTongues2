@@ -203,6 +203,31 @@ export async function executePhase(params) {
 }
 
 /**
+ * Execute next (or specific) prose scene generation
+ * @param {Object} params
+ * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Book ID
+ * @param {number} [params.sceneIndex] - Optional specific scene index (0-based). If omitted, generates next scene.
+ * @returns {Promise<Object>} Scene generation result
+ */
+export async function executeScene(params) {
+  const { uid, bookId, sceneIndex } = params
+
+  const response = await fetch(`${API_BASE}/api/generate/execute-scene`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, bookId, sceneIndex }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to generate scene')
+  }
+
+  return response.json()
+}
+
+/**
  * Reset generation to start fresh from Phase 1
  * @param {Object} params
  * @param {string} params.uid - User ID

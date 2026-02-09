@@ -2347,41 +2347,43 @@ async function executePhase3(concept, phase1, phase2) {
 // PHASE 4: SCENE ASSEMBLY
 // =============================================================================
 
-// Step 1: POV Character Journey — extract the protagonist's location-sequenced path through a part
+// Step 1: POV Action Sequencing — tag each POV action with its location in chronological order
 
-const PHASE_4_STEP1_SYSTEM_PROMPT = `You are extracting the POV character's journey through a single story part.
+const PHASE_4_STEP1_SYSTEM_PROMPT = `You are sequencing the POV character's actions through a single story part.
 
 You receive:
 - The POV character's name
-- Their Phase 3 fragment: actions array
+- Their Phase 3 fragment: actions array (15-20 actions)
 - The part context: act, part name, part description
 
-Your job: Read the POV character's actions and determine the sequence of locations they visit during this part. A part covers a TIME PERIOD — the character may move through multiple locations. Infer locations from the actions themselves and the part context.
+Your job: For each action, infer the location where it occurs. Output a flat list of actions in chronological order, each tagged with its location. Do NOT group or cluster actions — every action is its own entry.
+
+## INFERRING LOCATIONS
+
+For each action:
+1. Read the action content — it often names or implies a place
+2. Consider the part's setting and geography
+3. If the previous action was at location A and this action requires location B, the character moved
+4. If the action doesn't imply a new location, it happens at the same location as the previous action
 
 ## RULES
 
-1. Read actions in order — infer where each action takes place based on context
-2. If an action implies the character has moved to a new place, start a new journey stop
-3. Each journey stop has: the location and the actions that happen there
-4. If all actions happen at one location, there is one journey stop
-6. Location strings must be snake_case (e.g., hacienda_courtyard, village_church)
-
-## SIGNALS THAT INDICATE MOVEMENT
-
-- "goes to", "walks to", "rides to", "arrives at"
-- "in the [new place]", "at the [new place]"
-- Actions that cannot physically happen at the current location
-- Meeting someone who is established as being elsewhere
+1. Every action from the fragment must appear exactly once in the output
+2. Do not group, cluster, or collapse actions — each is a separate entry
+3. Do not invent actions — only sequence what was provided
+4. Do not invent locations — infer from action content and part context only
+5. If chronological order is ambiguous, preserve the original order from Phase 3
+6. Location strings must be snake_case (e.g., main_road, church_courtyard)
 
 ## OUTPUT FORMAT (JSON)
 
 {
   "pov_character": "Character Name",
-  "journey": [
+  "actions": [
     {
-      "stop": 1,
-      "location": "location_string",
-      "actions": ["..."]
+      "order": 1,
+      "action": "The action text",
+      "location": "location_string"
     }
   ]
 }
@@ -2389,7 +2391,7 @@ Your job: Read the POV character's actions and determine the sequence of locatio
 Only output JSON. No commentary.`
 
 async function executePhase4(concept, phase1, phase2, phase3) {
-  console.log('Executing Phase 4: Scene Assembly (Step 1 — POV Journey)...')
+  console.log('Executing Phase 4: Scene Assembly (Step 1 — POV Action Sequencing)...')
 
   const parts = phase3.grid || []
   if (parts.length === 0) {
@@ -2430,7 +2432,7 @@ Actions: ${JSON.stringify(povFragment.actions || [])}
 State: ${povFragment.state || 'not specified'}
 Intent: ${povFragment.intent || 'not specified'}
 
-Extract the journey — the sequence of locations this character visits during this part, with their actions at each stop.`
+For each action, infer the location. Output a flat list — one entry per action, in chronological order.`
 
   const response = await callOpenAI(PHASE_4_STEP1_SYSTEM_PROMPT, userPrompt, { maxTokens: 4096 })
   const parsed = parseJSON(response)
@@ -2440,14 +2442,31 @@ Extract the journey — the sequence of locations this character visits during t
     throw new Error(`Phase 4 Step 1 JSON parse failed: ${parsed.error}`)
   }
 
-  let journeyData = parsed.data
+  let step1Data = parsed.data
   // Normalize: model might wrap
-  if (journeyData.phase4_output) journeyData = journeyData.phase4_output
-  if (journeyData.part) journeyData = journeyData.part
+  if (step1Data.phase4_output) step1Data = step1Data.phase4_output
+  if (step1Data.part) step1Data = step1Data.part
 
-  // Validate journey structure
-  if (!journeyData.journey || !Array.isArray(journeyData.journey)) {
-    throw new Error(`Phase 4 Step 1: Missing journey array. Keys: ${Object.keys(journeyData).join(', ')}`)
+  // Validate structure
+  if (!step1Data.actions || !Array.isArray(step1Data.actions)) {
+    // Normalize: model might return journey stops instead of flat actions
+    if (step1Data.journey && Array.isArray(step1Data.journey)) {
+      console.log('    Step 1 normalization: converting journey stops to flat action list')
+      const flatActions = []
+      let order = 1
+      for (const stop of step1Data.journey) {
+        for (const action of (stop.actions || [])) {
+          flatActions.push({
+            order: order++,
+            action: action,
+            location: stop.location
+          })
+        }
+      }
+      step1Data.actions = flatActions
+    } else {
+      throw new Error(`Phase 4 Step 1: Missing actions array. Keys: ${Object.keys(step1Data).join(', ')}`)
+    }
   }
 
   // Assemble output
@@ -2456,13 +2475,13 @@ Extract the journey — the sequence of locations this character visits during t
     part: firstPart.part,
     part_name: firstPart.part_name,
     pov_character: protagonist,
-    journey: journeyData.journey
+    actions: step1Data.actions
   }
 
   // Log result
-  console.log(`\n  POV Journey for Act ${firstPart.act} Part ${firstPart.part}:`)
-  for (const stop of data.journey) {
-    console.log(`    Stop ${stop.stop}: ${stop.location} — ${stop.actions?.length || 0} actions`)
+  console.log(`\n  POV Actions for Act ${firstPart.act} Part ${firstPart.part}: ${data.actions.length} actions`)
+  for (const a of data.actions) {
+    console.log(`    ${a.order}. [${a.location}] ${a.action}`)
   }
 
   console.log('')
@@ -2480,40 +2499,35 @@ Extract the journey — the sequence of locations this character visits during t
 const PHASE_4_STEP2_SYSTEM_PROMPT = `You are assembling a complete linear timeline for a single story part by placing ALL characters' actions in temporal order.
 
 You receive:
-- The POV character's journey (from Step 1): a sequence of numbered stops, each with a location and the POV character's actions
+- The POV character's sequenced actions (from Step 1): a flat list of numbered actions, each tagged with a location
 - All non-POV characters' Phase 3 fragments: their actions arrays
 - The part context
 
-The POV journey is the TEMPORAL BACKBONE. Stop 1 happens before Stop 2, etc. Your job is to:
-1. For each non-POV character's actions, infer the location and determine WHEN each action happens relative to the POV stops
+The POV action sequence is the TEMPORAL BACKBONE. Action 1 happens before action 2, etc. Your job is to:
+1. For each non-POV character's actions, infer the location and determine WHEN each action happens relative to the POV actions
 2. Assemble everything into a single flat linear timeline ordered by time
 
 ## TIMING MODEL
 
-For a POV journey with N stops, these are the possible timing slots (in order):
+Non-POV actions are placed relative to specific POV actions:
 
-- before_stop_1 — things that happen before the POV journey begins
-- stop_1 — the first POV stop (co-located characters go here)
-- during_stop_1 — things happening elsewhere WHILE the POV is at stop 1
-- between_stop_1_and_2 — after stop 1 ends, before stop 2 begins
-- stop_2 — the second POV stop
-- during_stop_2 — things happening elsewhere WHILE the POV is at stop 2
-- ... (extend for N stops)
-- after_stop_N — things that happen after the POV journey ends
-
-For a single-stop journey: before_stop_1, stop_1, during_stop_1, after_stop_1.
+- before_pov — happens before the POV sequence begins
+- at_pov_action_N — happens at the same time and place as POV action N (co-located)
+- during_pov_action_N — happens elsewhere while POV action N is occurring
+- between_pov_action_N_and_M — happens between two POV actions
+- after_pov — happens after the POV sequence ends
 
 ## PROCESS
 
 For each non-POV character:
 1. Read their actions in order
 2. For each action, infer the location from the action content, the character's role, and the part context
-3. Determine timing: when does this action happen relative to the POV stops?
-   - If the action involves the POV character or happens at the same location as a POV stop at the same time → place it AT that stop (co-located)
-   - If the action happens elsewhere while the POV is at a stop → during_stop_N
-   - If the action logically precedes the POV journey → before_stop_1
-   - If the action logically follows the POV journey → after_stop_N
-   - If the action falls between two POV stops → between_stop_N_and_M
+3. Determine timing: when does this action happen relative to the POV actions?
+   - If the action involves the POV character or happens at the same location as a POV action at the same time → at_pov_action_N
+   - If the action happens elsewhere while a POV action occurs → during_pov_action_N
+   - If the action logically precedes the POV sequence → before_pov
+   - If the action logically follows the POV sequence → after_pov
+   - If the action falls between two POV actions → between_pov_action_N_and_M
 
 ## ASSEMBLING THE TIMELINE
 
@@ -2521,16 +2535,16 @@ The output is a FLAT LIST of timeline entries, ordered by time. Each entry has:
 - An order number (sequential)
 - A timing value (from the timing model above)
 - A location
-- Whether it is a POV stop (is_pov_stop)
+- Whether it contains POV actions (is_pov)
 - A characters array with everyone present at that location and timing
 
-GROUPING: Multiple characters at the SAME location and SAME timing go into ONE timeline entry. Do not create separate entries for characters who are at the same place at the same time.
+GROUPING: Multiple characters at the SAME location and SAME timing go into ONE timeline entry.
 
 ## RULES
 
-1. Location strings must be snake_case and CONSISTENT — if the POV journey uses "market_square", use that exact string when a non-POV character is at the same place
-2. Every POV stop from the journey MUST appear in the timeline (they are anchors)
-3. Non-POV actions that happen at a POV stop's location during that stop get MERGED into the POV stop entry
+1. Location strings must be snake_case and CONSISTENT — if the POV actions use "market_square", use that exact string when a non-POV character is at the same place
+2. Every POV action MUST appear in the timeline
+3. Non-POV actions at the same location and timing as a POV action get MERGED into the same entry
 4. A non-POV character may have actions spread across multiple timing slots
 5. Do not invent actions — only place what is provided in the fragments
 
@@ -2600,7 +2614,8 @@ async function executePhase4Step2(phase3Part, step1Data, protagonist) {
     f.character !== protagonist && f.character_type !== 'protagonist'
   )
 
-  const povLocations = step1Data.journey.map(s => s.location)
+  const povActions = step1Data.actions || []
+  const povLocations = [...new Set(povActions.map(a => a.location))]
 
   if (nonPovFragments.length === 0) {
     console.log('    No non-POV characters in this part — building POV-only timeline')
@@ -2609,15 +2624,15 @@ async function executePhase4Step2(phase3Part, step1Data, protagonist) {
       part: step1Data.part,
       part_name: step1Data.part_name,
       pov_character: protagonist,
-      timeline: step1Data.journey.map((stop, i) => ({
+      timeline: povActions.map((a, i) => ({
         order: i + 1,
-        timing: `stop_${stop.stop}`,
-        location: stop.location,
-        is_pov_stop: true,
+        timing: `at_pov_action_${a.order}`,
+        location: a.location,
+        is_pov: true,
         characters: [{
           character: protagonist,
           is_pov: true,
-          actions: stop.actions || []
+          actions: [a.action]
         }]
       })),
       location_summary: {
@@ -2640,18 +2655,17 @@ Intent: ${f.intent || 'not specified'}`
   const userPrompt = `## Part Context
 Act ${step1Data.act} Part ${step1Data.part}: ${step1Data.part_name}
 
-## POV Character Journey (from Step 1)
+## POV Character Actions (from Step 1)
 POV Character: ${protagonist}
-Number of stops: ${step1Data.journey.length}
+Total actions: ${povActions.length}
 
-${step1Data.journey.map(stop => `### Stop ${stop.stop}: ${stop.location}
-Actions: ${JSON.stringify(stop.actions || [])}`).join('\n\n')}
+${povActions.map(a => `${a.order}. [${a.location}] ${a.action}`).join('\n')}
 
 ## Non-POV Character Fragments
 
 ${nonPovSummaries}
 
-Assemble the complete linear timeline. For each non-POV action, infer its location and timing relative to the POV stops. Group characters at the same location and timing into single timeline entries. Every POV stop must appear as an entry.`
+Assemble the complete linear timeline. For each non-POV action, infer its location and timing relative to the POV actions. Group characters at the same location and timing into single timeline entries. Every POV action must appear in the timeline.`
 
   const response = await callOpenAI(PHASE_4_STEP2_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
   const parsed = parseJSON(response)
@@ -2679,12 +2693,11 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
     let orderCounter = 1
 
     for (const entry of timelineData.timeline) {
-      const stopNum = entry.stop || orderCounter
       const timelineEntry = {
         order: orderCounter++,
-        timing: `stop_${stopNum}`,
+        timing: `at_pov_action_${orderCounter - 1}`,
         location: entry.location,
-        is_pov_stop: true,
+        is_pov: true,
         characters: []
       }
 
@@ -2724,7 +2737,7 @@ Assemble the complete linear timeline. For each non-POV action, infer its locati
           order: orderCounter++,
           timing: 'during_part',
           location: loc,
-          is_pov_stop: false,
+          is_pov: false,
           characters: entries.map(e => ({
             character: e.character,
             is_pov: false,

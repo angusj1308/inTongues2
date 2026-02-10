@@ -1649,6 +1649,123 @@ THEMATIC ENGAGEMENT:
 - Every faced character needs a position on the theme
 - Arc outcomes must follow from thematic choices`
 
+// =============================================================================
+// PHASE 2 CALL 1: CHARACTER CENSUS
+// =============================================================================
+
+const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world, ordered from most proximal to least.
+
+Start from the people who live in the same house. Then people they see daily through work or routine. Then people who visit regularly. Then people at the edge of their world — present but not close.
+
+Rules:
+- Start from the setting and era, not the plot. A sherry house in 1812 Cádiz has specific household patterns. A Manhattan apartment has different ones. Ground your answer in what's normal for this world.
+- Account for the dead or absent. If family members are dead, ask: who survives? A father is dead — what about a mother? Siblings? Don't assume the protagonist is alone just because some family died.
+- The love interest counts if physically present.
+- The rival/betrothed counts if they visit regularly.
+- Workers, staff, and servants count. In historical settings, household staff are physically present every day.
+- Do NOT think about dramatic conflict, thematic positions, or what would be interesting for the story. Just list who is physically there.
+- If the story has multiple POV characters, list people for EACH POV character separately. People may appear in more than one POV character's world.
+
+Output format:
+
+{
+  "characters": {
+    "pov_character_name_or_role": [
+      {
+        "who": "Description (e.g., 'her mother', 'the household cook', 'a lady's maid')",
+        "relationship": "Their relationship to this POV character",
+        "proximity": "How often they share physical space (e.g., 'lives in the house', 'works on the property daily', 'visits weekly for business')"
+      }
+    ]
+  },
+  "absent_but_expected": [
+    {
+      "who": "Person who SHOULD be present given the setting/era but isn't",
+      "why_absent": "Dead, estranged, away, etc."
+    }
+  ]
+}
+
+Order each list from most proximal (lives together, sees daily) to least (occasional contact).`
+
+function buildPhase2Call1UserPrompt(concept, phase1) {
+  const povStructure = phase1.pov?.structure || 'Multiple'
+  const povPerson = phase1.pov?.person || 'Third'
+  const situation = phase1.tropes?.situation || {}
+
+  let prompt = `ORIGINAL CONCEPT: ${concept}
+
+SETTING/SUBGENRE: ${phase1.subgenre || 'not specified'}
+
+POV STRUCTURE: ${povPerson} Person, ${povStructure}
+${povStructure === 'Multiple' || povStructure === 'Dual-Alternating'
+    ? 'This is a multi-POV story. Map the daily world for EACH POV character separately.'
+    : 'This is a single POV story. Map the daily world for the protagonist.'}
+
+TROPES SITUATION (who is established as physically present):
+- Forces together: ${situation.forces_together || 'none specified'}
+- Keeps apart: ${situation.keeps_apart || 'none specified'}
+- Arrangement: ${situation.arrangement || 'none specified'}`
+
+  return prompt
+}
+
+async function executePhase2Call1(concept, phase1) {
+  console.log('Phase 2 Call 1: Character Census...')
+
+  const userPrompt = buildPhase2Call1UserPrompt(concept, phase1)
+  const response = await callOpenAI(PHASE_2_CALL1_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error(`Phase 2 Call 1 JSON parse failed: ${parsed.error}`)
+  }
+
+  const data = parsed.data
+
+  // Validate: characters object exists with at least one POV character entry
+  if (!data.characters || typeof data.characters !== 'object' || Object.keys(data.characters).length === 0) {
+    throw new Error('Phase 2 Call 1: characters object missing or empty — must have at least one POV character entry')
+  }
+
+  // Validate each POV entry is a non-empty array
+  for (const [pov, people] of Object.entries(data.characters)) {
+    if (!Array.isArray(people) || people.length === 0) {
+      throw new Error(`Phase 2 Call 1: POV character "${pov}" has no people listed`)
+    }
+  }
+
+  // Ensure absent_but_expected exists (can be empty)
+  if (!data.absent_but_expected) {
+    data.absent_but_expected = []
+  }
+
+  // Log output
+  console.log('Phase 2 Call 1 complete.')
+  for (const [pov, people] of Object.entries(data.characters)) {
+    console.log(`  ${pov}: ${people.length} people`)
+    people.forEach(p => {
+      console.log(`    - ${p.who} (${p.proximity})`)
+    })
+  }
+  if (data.absent_but_expected.length > 0) {
+    console.log(`  Absent but expected: ${data.absent_but_expected.length}`)
+    data.absent_but_expected.forEach(a => {
+      console.log(`    - ${a.who}: ${a.why_absent}`)
+    })
+  }
+
+  console.log('')
+  console.log('Phase 2 Call 1 complete output:')
+  console.log(JSON.stringify(data, null, 2))
+
+  return data
+}
+
+// =============================================================================
+// PHASE 2 (EXISTING): FULL CAST WITH PSYCHOLOGY
+// =============================================================================
+
 function buildPhase2UserPrompt(concept, phase1, lengthPreset) {
   const povStructure = phase1.pov?.structure || 'Multiple'
   const povPerson = phase1.pov?.person || 'Third'
@@ -1750,6 +1867,13 @@ DO NOT return output with empty interests or stakeholder_characters arrays.`
 }
 
 async function executePhase2(concept, phase1, lengthPreset) {
+  // Phase 2 Call 1: Character Census (who physically exists in the world)
+  const censusData = await executePhase2Call1(concept, phase1)
+  console.log('Phase 2: Stopping after Call 1 (Character Census). Full psychology call not yet implemented.')
+  return censusData
+
+  // --- EXISTING PHASE 2 CODE (full psychology call) - gated for future Call 2 ---
+  /* eslint-disable no-unreachable */
   console.log('Executing Phase 2: Full Cast (Romantic Leads + Secondary Characters)...')
 
   const userPrompt = buildPhase2UserPrompt(concept, phase1, lengthPreset)
@@ -1862,6 +1986,7 @@ async function executePhase2(concept, phase1, lengthPreset) {
   console.log(JSON.stringify(data, null, 2))
 
   return data
+  /* eslint-enable no-unreachable */
 }
 
 // =============================================================================
@@ -4861,7 +4986,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       // Fall through to regenerate subsequent phases
     case 2:
       if (phaseNumber <= 2) {
-        updatedBible.world = await executePhase2(concept, updatedBible.coreFoundation)
+        updatedBible.characters = await executePhase2(concept, updatedBible.coreFoundation)
       }
     case 3:
       if (phaseNumber <= 3) {
@@ -4927,7 +5052,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
   1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot acts/parts, and romance arc stages' },
-  2: { name: 'Full Cast', description: 'Creating protagonist, love interests, AND stakeholder characters with psychology' },
+  2: { name: 'Character Census', description: 'Mapping who physically exists in the protagonist\'s world' },
   3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
   4: { name: 'Scene & Chapter Boundaries', description: 'Dividing parts into scenes and chapters for prose generation' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
@@ -4966,11 +5091,8 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
       if (!bible.coreFoundation) {
         throw new Error('Phase 2 requires Phase 1 (bible.coreFoundation) to be complete')
       }
-      console.log('Phase 2: Full Cast (Protagonist, Love Interests, Secondary Characters)')
+      console.log('Phase 2: Character Census (Call 1)')
       bible.characters = await executePhase2(concept, bible.coreFoundation, lengthPreset)
-      console.log('')
-      console.log('Phase 2 complete output:')
-      console.log(JSON.stringify(bible.characters, null, 2))
       break
 
     case 3:
@@ -5071,19 +5193,32 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(1)
 
-    // Phase 2: Full Cast (Protagonist, Love Interests, AND Secondary Characters)
-    // Secondary character creation moved here from old Phase 4
+    // Phase 2: Character Census (Call 1 only — who physically exists)
     reportProgress(2, 'starting')
     bible.characters = await executePhase2(concept, bible.coreFoundation, lengthPreset)
     reportProgress(2, 'complete', {
-      protagonist: bible.characters.protagonist?.name,
-      loveInterests: bible.characters.love_interests?.length,
-      stakeholderCharacters: bible.characters.stakeholder_characters?.length,
-      interests: bible.characters.interests?.length,
-      facelessPressures: bible.characters.faceless_pressures?.length
+      povCharacters: Object.keys(bible.characters.characters || {}).length,
+      totalPeople: Object.values(bible.characters.characters || {}).reduce((sum, arr) => sum + arr.length, 0),
+      absentButExpected: bible.characters.absent_but_expected?.length || 0
     })
     await savePhase(2)
 
+    // TESTING: Stop after Phase 2 Call 1 to validate character census
+    console.log('='.repeat(60))
+    console.log('TEST MODE - Stopping after Phase 2 Call 1 (Character Census)')
+    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
+    console.log('='.repeat(60))
+
+    return {
+      success: true,
+      bible,
+      validationStatus: 'PHASE_2_CALL1_TEST',
+      validationAttempts: 0
+    }
+
+    // --- GATED: Phase 3+ will resume once Phase 2 Call 2 is implemented ---
+
+    /*
     // Phase 3: Character Action Grid (replaces old Phase 3 timeline + eliminates old Phase 4/5)
     // The grid IS the master timeline - all characters gridded simultaneously
     reportProgress(3, 'starting')
@@ -5109,18 +5244,13 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(4)
 
-    // TESTING: Stop after Phase 4 to validate scene/chapter boundaries
-    console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 4 (Scene & Chapter Boundaries)')
-    console.log('Phase 4 Output:', JSON.stringify(bible.sceneAssembly, null, 2))
-    console.log('='.repeat(60))
-
     return {
       success: true,
       bible,
       validationStatus: 'PHASE_4_TEST',
       validationAttempts: 0
     }
+    */
 
     // TODO: Downstream phases (6+) need to be updated to read from bible.sceneAssembly
     // instead of bible.plot, bible.subplots, bible.masterTimeline

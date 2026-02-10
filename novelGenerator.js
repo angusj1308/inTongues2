@@ -1763,6 +1763,175 @@ async function executePhase2Call1(concept, phase1) {
 }
 
 // =============================================================================
+// PHASE 2 CALL 2: MATCH PEOPLE TO PRESSURES
+// =============================================================================
+
+const PHASE_2_CALL2_SYSTEM_PROMPT = `You are selecting the cast for a romance novel. You will receive:
+- A list of people who physically exist in each POV character's daily world (from a previous step)
+- Story DNA including theme, conflict, tropes, and external plot (from Phase 1)
+
+Your job is to match people to pressures and decide who becomes a faced character.
+
+## Step 1: Identify the pressures
+
+Extract every pressure acting on the protagonist(s) from the story DNA. Pressures come from:
+- The theme tension
+- The internal and external conflict
+- The tropes (what forces them together, what keeps them apart, what arrangement binds them)
+- The external plot (what's happening in the world that creates deadlines, danger, or stakes)
+
+List each pressure. Label it:
+- "internal" if it operates through the character's own guilt, conscience, memory, oath, or desire. Internal pressures do not need a person to deliver them.
+- "external" if it requires someone or something outside the character to exert it.
+
+## Step 2: Match people to pressures
+
+For each external pressure, ask: is there someone in the census who could naturally carry this pressure?
+
+Rules:
+- The person must already exist in the census. Do not invent new characters.
+- The match must be natural given the person's relationship and proximity. Don't stretch.
+- One person can carry multiple pressures. This is preferred — it makes richer characters.
+- If no one in the census can carry a pressure, it becomes faceless.
+
+## Step 3: Decide faced or faceless
+
+A person becomes a FACED CHARACTER if:
+- They carry at least one external pressure
+- They are proximal enough to deliver that pressure regularly (not a one-off encounter)
+
+A pressure becomes FACELESS if:
+- It is internal (guilt, oath, memory, conscience)
+- No one in the census can naturally carry it
+- The pressure operates through consequences or atmosphere rather than personal interaction
+
+## Step 4: Consolidate
+
+Check: are any faced characters carrying pressures that could be combined into fewer people? One character carrying two pressures is better than two characters carrying one each. Consolidate where the same person could logically hold both.
+
+After consolidation, check the count. For a novella, 2-4 faced stakeholder characters. For a novel, 4-6. If you have more, consolidate further or demote the least essential to background.
+
+## Output format
+
+{
+  "pressures": [
+    {
+      "pressure": "Description of the force",
+      "type": "internal | external",
+      "source": "Which part of the story DNA this comes from"
+    }
+  ],
+  "faced_characters": [
+    {
+      "who": "The person from the census",
+      "from_census_of": "Which POV character's census they appeared in",
+      "pressures_carried": ["Which pressure(s) they carry"],
+      "why": "Why this person is a natural fit for this pressure"
+    }
+  ],
+  "faceless_pressures": [
+    {
+      "pressure": "The pressure",
+      "why_faceless": "Why no person carries this — internal, no natural carrier, or atmospheric"
+    }
+  ]
+}`
+
+function buildPhase2Call2UserPrompt(concept, phase1, call1Output, lengthPreset) {
+  const situation = phase1.tropes?.situation || {}
+
+  // Build external plot summary
+  const externalPlotSummary = phase1.external_plot
+    ? `Container: ${phase1.external_plot.container_summary || phase1.external_plot.container_type || 'not specified'}\n` +
+      (phase1.external_plot.acts || []).map(act =>
+        `  Act ${act.act}: ${act.name || ''}\n` + (act.parts || []).map(p =>
+          `    Part ${p.part}: ${p.name} — ${p.time_period || ''} (${p.world_state || ''})`
+        ).join('\n')
+      ).join('\n')
+    : 'No external plot defined'
+
+  const stakeholderTarget = lengthPreset === 'novella' ? '2-4' : '4-6'
+
+  return `ORIGINAL CONCEPT: ${concept}
+
+CHARACTER CENSUS (from previous step):
+${JSON.stringify(call1Output, null, 2)}
+
+STORY DNA (pressures come from these):
+
+Theme tension: ${phase1.theme?.tension || 'not specified'}
+
+Conflict:
+- External: ${phase1.conflict?.external || 'not specified'}
+- Internal: ${phase1.conflict?.internal || 'not specified'}
+
+Tropes situation:
+- Forces together: ${situation.forces_together || 'none specified'}
+- Keeps apart: ${situation.keeps_apart || 'none specified'}
+- Arrangement: ${situation.arrangement || 'none specified'}
+
+External plot:
+${externalPlotSummary}
+
+LENGTH: ${lengthPreset}
+TARGET faced stakeholder characters after consolidation: ${stakeholderTarget}`
+}
+
+async function executePhase2Call2(concept, phase1, call1Output, lengthPreset) {
+  console.log('Phase 2 Call 2: Match People to Pressures...')
+
+  const userPrompt = buildPhase2Call2UserPrompt(concept, phase1, call1Output, lengthPreset)
+  const response = await callOpenAI(PHASE_2_CALL2_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error(`Phase 2 Call 2 JSON parse failed: ${parsed.error}`)
+  }
+
+  const data = parsed.data
+
+  // Validate pressures array
+  if (!data.pressures || !Array.isArray(data.pressures) || data.pressures.length === 0) {
+    throw new Error('Phase 2 Call 2: pressures array missing or empty')
+  }
+
+  // Validate faced_characters array
+  if (!data.faced_characters || !Array.isArray(data.faced_characters) || data.faced_characters.length === 0) {
+    throw new Error('Phase 2 Call 2: faced_characters array missing or empty')
+  }
+
+  // Ensure faceless_pressures exists (can be empty)
+  if (!data.faceless_pressures) {
+    data.faceless_pressures = []
+  }
+
+  // Log output
+  console.log('Phase 2 Call 2 complete.')
+  const internalCount = data.pressures.filter(p => p.type === 'internal').length
+  const externalCount = data.pressures.filter(p => p.type === 'external').length
+  console.log(`  Pressures: ${data.pressures.length} total (${internalCount} internal, ${externalCount} external)`)
+  data.pressures.forEach(p => {
+    console.log(`    [${p.type}] ${p.pressure} (from: ${p.source})`)
+  })
+
+  console.log(`  Faced characters: ${data.faced_characters.length}`)
+  data.faced_characters.forEach(fc => {
+    console.log(`    - ${fc.who} (from ${fc.from_census_of}): ${fc.pressures_carried.join(', ')}`)
+  })
+
+  console.log(`  Faceless pressures: ${data.faceless_pressures.length}`)
+  data.faceless_pressures.forEach(fp => {
+    console.log(`    - ${fp.pressure}: ${fp.why_faceless}`)
+  })
+
+  console.log('')
+  console.log('Phase 2 Call 2 complete output:')
+  console.log(JSON.stringify(data, null, 2))
+
+  return data
+}
+
+// =============================================================================
 // PHASE 2 (EXISTING): FULL CAST WITH PSYCHOLOGY
 // =============================================================================
 
@@ -1869,8 +2038,12 @@ DO NOT return output with empty interests or stakeholder_characters arrays.`
 async function executePhase2(concept, phase1, lengthPreset) {
   // Phase 2 Call 1: Character Census (who physically exists in the world)
   const censusData = await executePhase2Call1(concept, phase1)
-  console.log('Phase 2: Stopping after Call 1 (Character Census). Full psychology call not yet implemented.')
-  return censusData
+
+  // Phase 2 Call 2: Match People to Pressures
+  const matchData = await executePhase2Call2(concept, phase1, censusData, lengthPreset)
+
+  console.log('Phase 2: Stopping after Call 2 (Match People to Pressures). Psychology call not yet implemented.')
+  return { census: censusData, cast: matchData }
 
   // --- EXISTING PHASE 2 CODE (full psychology call) - gated for future Call 2 ---
   /* eslint-disable no-unreachable */
@@ -5052,7 +5225,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
   1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot acts/parts, and romance arc stages' },
-  2: { name: 'Character Census', description: 'Mapping who physically exists in the protagonist\'s world' },
+  2: { name: 'Character Census & Casting', description: 'Mapping who exists in the protagonist\'s world and matching people to pressures' },
   3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
   4: { name: 'Scene & Chapter Boundaries', description: 'Dividing parts into scenes and chapters for prose generation' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
@@ -5193,30 +5366,32 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(1)
 
-    // Phase 2: Character Census (Call 1 only — who physically exists)
+    // Phase 2: Character Census + Match People to Pressures (Calls 1 & 2)
     reportProgress(2, 'starting')
     bible.characters = await executePhase2(concept, bible.coreFoundation, lengthPreset)
     reportProgress(2, 'complete', {
-      povCharacters: Object.keys(bible.characters.characters || {}).length,
-      totalPeople: Object.values(bible.characters.characters || {}).reduce((sum, arr) => sum + arr.length, 0),
-      absentButExpected: bible.characters.absent_but_expected?.length || 0
+      censusPovCharacters: Object.keys(bible.characters.census?.characters || {}).length,
+      censusTotalPeople: Object.values(bible.characters.census?.characters || {}).reduce((sum, arr) => sum + arr.length, 0),
+      pressures: bible.characters.cast?.pressures?.length || 0,
+      facedCharacters: bible.characters.cast?.faced_characters?.length || 0,
+      facelessPressures: bible.characters.cast?.faceless_pressures?.length || 0
     })
     await savePhase(2)
 
-    // TESTING: Stop after Phase 2 Call 1 to validate character census
+    // TESTING: Stop after Phase 2 Call 2 to validate pressure matching
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 2 Call 1 (Character Census)')
+    console.log('TEST MODE - Stopping after Phase 2 Call 2 (Match People to Pressures)')
     console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_2_CALL1_TEST',
+      validationStatus: 'PHASE_2_CALL2_TEST',
       validationAttempts: 0
     }
 
-    // --- GATED: Phase 3+ will resume once Phase 2 Call 2 is implemented ---
+    // --- GATED: Phase 3+ will resume once Phase 2 Call 3 (psychology) is implemented ---
 
     /*
     // Phase 3: Character Action Grid (replaces old Phase 3 timeline + eliminates old Phase 4/5)

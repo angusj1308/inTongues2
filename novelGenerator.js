@@ -781,13 +781,15 @@ CONFLICT
 - Internal: What psychological barrier keeps them apart?
 
 THEME
-Pick two values from this list that best represent the protagonist's central conflict — the two things they are torn between:
+The theme must be built on one or more of these romance tensions:
+(1) passion vs. duty/obligation
+(2) passion vs. safety/self-preservation
+(3) passion vs. identity — where falling in love forces one or both to confront who they really are vs. who they've been pretending to be
 
-Accountability, Acceptance, Adventure, Ambition, Authenticity, Charity, Chivalry, Commitment, Community, Compassion, Connection, Courage, Creativity, Curiosity, Devotion, Dignity, Discipline, Duty, Empathy, Equality, Faith, Fairness, Family, Forgiveness, Freedom, Generosity, Grace, Gratitude, Grit, Hard Work, Harmony, Honor, Honesty, Hope, Hospitality, Humility, Independence, Integrity, Justice, Kindness, Legacy, Liberty, Love, Loyalty, Mastery, Mercy, Moderation, Obedience, Passion, Patience, Peace, Perseverance, Power, Protection, Respect, Responsibility, Sacrifice, Safety, Security, Self-Reliance, Service, Simplicity, Stability, Stewardship, Strength, Tradition, Trust, Truth, Unity, Wisdom
+Choose one as central. The others may appear as secondary.
 
-- Format: "X vs Y" (e.g., "duty vs love", "loyalty vs justice", "security vs freedom")
-- Both values must be genuinely defensible — neither is simply wrong
-- The protagonist is torn between these two values — this is the core dilemma they cannot resolve until the climax
+- Format: "X vs Y"
+- The protagonist is torn between these — this is the core dilemma they cannot resolve until the climax
 - Every major decision in the story tests this tension
 
 EXTERNAL PLOT

@@ -933,7 +933,7 @@ const ROMANCE_TENSIONS = [
   },
   {
     id: 'safety',
-    text: 'The central romantic obstacle is passion vs. safety — loving this person puts everything she has protected at risk.'
+    text: 'The central romantic obstacle is passion vs. safety — the love interest is dangerous.'
   },
   {
     id: 'identity',

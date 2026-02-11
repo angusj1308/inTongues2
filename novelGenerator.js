@@ -760,7 +760,7 @@ Third Person:
 - Multiple: Three or more perspectives
 - Omniscient: Narrator sees all
 
-DEFAULT: Use Multiple POV (Third Person, Multiple perspectives) unless the user concept explicitly requests a single POV or first person. Romance benefits from seeing both sides of the relationship. Only deviate if the concept specifically asks for single POV or first person narration.
+DEFAULT: Use Third Person, Single POV (protagonist only) unless the user concept explicitly requests otherwise. The protagonist is always the female lead. Literary romance works best when the reader is locked inside one character's experience — the love interest's interiority is revealed through their behaviour as observed by the protagonist, not through their own POV chapters. Only deviate if the concept specifically requests dual POV, multiple POV, or first person.
 
 ENDING
 - HEA: Together permanently

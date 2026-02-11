@@ -713,7 +713,7 @@ The user may not name tropes. Infer from their concept.
 ## Decisions
 
 TROPES
-- Origin (pick one): Enemies to Lovers, Friends to Lovers, Strangers to Lovers, Second Chance, Childhood Sweethearts
+- Origin: The origin trope has already been selected during concept generation. Use it. Do not substitute a different origin trope. Valid values: strangers_to_lovers, enemies_to_lovers, friends_to_lovers, second_chance, forbidden_love
 - Situation: What external circumstances shape the romance?
   - What forces them together?
   - What keeps them apart?
@@ -902,13 +902,14 @@ Step 3: Identify pressure points.
 
 NOTE: "love_triangle" should be null if there is no love triangle (single love interest). Only include it when complication is Love Triangle or the concept implies multiple love interests.`
 
-function buildPhase1UserPrompt(concept, lengthPreset, level, tensionText) {
+function buildPhase1UserPrompt(concept, lengthPreset, level, tensionText, tropeId) {
   return `CONCEPT: ${concept}
 
 LENGTH: ${lengthPreset}
 LEVEL: ${level}
 
 ROMANCE TENSION (already selected, do not override): ${tensionText}
+ORIGIN TROPE (already selected, do not override): ${tropeId}
 
 Analyze this concept and establish the story's DNA.`
 }
@@ -933,6 +934,30 @@ const ROMANCE_TENSIONS = [
   }
 ]
 
+// Romance plot tropes for concept generation (one selected randomly per concept)
+const ROMANCE_TROPES = [
+  {
+    id: 'strangers_to_lovers',
+    text: 'The lovers are strangers who meet for the first time during the story.'
+  },
+  {
+    id: 'enemies_to_lovers',
+    text: 'The lovers begin as adversaries — opposing sides, mutual dislike, or genuine conflict — and are drawn together despite themselves.'
+  },
+  {
+    id: 'friends_to_lovers',
+    text: 'The lovers already know each other. Something shifts and the familiar becomes charged with new feeling.'
+  },
+  {
+    id: 'second_chance',
+    text: 'The lovers had a relationship before that ended or was interrupted. They re-encounter each other and old feelings resurface against old wounds.'
+  },
+  {
+    id: 'forbidden_love',
+    text: 'The lovers are drawn together across a boundary that should not be crossed — class, family, allegiance, faith, or law.'
+  }
+]
+
 // Default values for unfilled slots
 const SLOT_DEFAULTS = {
   location: 'anywhere in the Spanish-speaking world',
@@ -942,17 +967,17 @@ const SLOT_DEFAULTS = {
 // Prompt templates with slot placeholders (50/50 random selection)
 const PROMPT_TEMPLATES = {
   // For blank/from-scratch generation
-  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}. {tension} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
+  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}. {trope} {tension} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
 
-  literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}. {tension} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
+  literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}. {trope} {tension} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
 
   // For expanding user concepts (keeps what they said, fills in missing details)
-  regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}. {tension} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
+  regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
 
-  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}. {tension} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
+  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
 
   // For neutral expansion (vague but specific - preserve user's style)
-  neutral: `Expand this into a complete romance novel concept. Keep everything the user specified. Add character names, specific setting details, and a clear obstacle to their relationship. Output 2-3 sentences only. Do not include any preamble.
+  neutral: `Expand this into a complete romance novel concept. {trope} {tension} Keep everything the user specified. Add character names, specific setting details, and a clear obstacle to their relationship. Output 2-3 sentences only. Do not include any preamble.
 
 User's concept: "{user_concept}"
 Set in: {location}, {time_period}`
@@ -1075,10 +1100,12 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   // Path 3: Detailed enough (20+ words) - pass through unchanged
   if (wordCount >= 20) {
     console.log('[Expansion Check] Skipping - concept is detailed enough')
-    // Still select a tension for Phase 1
+    // Still select tension and trope for Phase 1
     const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
+    const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
     console.log('  Tension (random for detailed concept):', selectedTension.id)
-    return { concept, tensionText: selectedTension.text }
+    console.log('  Trope (random for detailed concept):', selectedTrope.id)
+    return { concept, tensionText: selectedTension.text, tropeId: selectedTrope.id }
   }
 
   // Extract slots for location and time period
@@ -1092,8 +1119,9 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   let userPrompt
   let trackName
 
-  // Select random tension for this concept
+  // Select random tension and trope for this concept
   const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
+  const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
 
   // Path 1: Blank concept - use Regency/Literary 50/50 tracks
   if (isBlankConcept(concept)) {
@@ -1116,6 +1144,7 @@ async function expandVagueConcept(concept, librarySummaries = []) {
       .replace('{user_concept}', concept)
       .replace('{location}', location)
       .replace('{time_period}', timePeriod)
+      .replace('{trope}', selectedTrope.text)
       .replace('{tension}', selectedTension.text)
 
   // Path 2: Vague but specific (3-19 words) - use neutral expansion
@@ -1129,6 +1158,8 @@ async function expandVagueConcept(concept, librarySummaries = []) {
       .replace('{user_concept}', concept)
       .replace('{location}', location)
       .replace('{time_period}', timePeriod)
+      .replace('{trope}', selectedTrope.text)
+      .replace('{tension}', selectedTension.text)
   }
 
   // Add library avoidance if available
@@ -1142,6 +1173,7 @@ ${summaryList}`
 
   console.log('\n[Expansion]')
   console.log('  Track:', trackName)
+  console.log('  Trope:', selectedTrope.id)
   console.log('  Tension:', selectedTension.id)
   console.log('  Location:', location)
   console.log('  Time Period:', timePeriod)
@@ -1151,7 +1183,7 @@ ${summaryList}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return { concept: response, tensionText: selectedTension.text }
+  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id }
 }
 
 // Generate a different concept from existing one using slot-based library-aware generation
@@ -1167,13 +1199,15 @@ async function generateDifferentConcept(existingConcept, librarySummaries = []) 
   const useRegency = Math.random() < 0.5
   const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
 
-  // Select random tension
+  // Select random tension and trope
   const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
+  const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
 
   // Fill slots in template
   let userPrompt = promptTemplate
     .replace('{location}', location)
     .replace('{time_period}', timePeriod)
+    .replace('{trope}', selectedTrope.text)
     .replace('{tension}', selectedTension.text)
 
   // Build avoidance list: current concept + library summaries
@@ -1191,6 +1225,7 @@ ${avoidList.join('\n')}`
 
   console.log('\n[Different Concept]')
   console.log('  Track:', useRegency ? 'Regency Historical' : 'Literary')
+  console.log('  Trope:', selectedTrope.id)
   console.log('  Tension:', selectedTension.id)
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt)
@@ -1198,7 +1233,7 @@ ${avoidList.join('\n')}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return { concept: response, tensionText: selectedTension.text }
+  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id }
 }
 
 async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
@@ -1208,8 +1243,9 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   const expanded = await expandVagueConcept(concept, librarySummaries)
   const expandedConcept = expanded.concept
   const tensionText = expanded.tensionText
+  const tropeId = expanded.tropeId
 
-  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level, tensionText)
+  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level, tensionText, tropeId)
   const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-opus-4-20250514'
   })

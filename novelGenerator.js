@@ -786,7 +786,7 @@ The romance tension has already been selected during concept generation. Use it 
 The three romance tensions are:
 (1) passion vs. duty/obligation
 (2) passion vs. safety/self-preservation
-(3) passion vs. identity — where falling in love forces one or both to confront who they really are vs. who they've been pretending to be
+(3) passion vs. identity — falling in love forces the protagonist to confront who they really are inside (psychological, not disguise — faith that cracks, self-image that love dismantles, vulnerability as the price of connection)
 
 - Format: "X vs Y"
 - The protagonist is torn between these — this is the core dilemma they cannot resolve until the climax
@@ -929,7 +929,7 @@ const ROMANCE_TENSIONS = [
   },
   {
     id: 'identity',
-    text: 'The central romantic obstacle is passion vs. identity — falling in love forces the protagonist to confront who they really are vs. who they have been pretending to be. This could be a secret, a lie they are living, a faith or belief system that cracks, a social role that no longer fits, or a self-image that love dismantles.'
+    text: 'The central romantic obstacle is passion vs. identity — falling in love forces the protagonist to confront who they really are inside. This is psychological, not a disguise or impersonation. Examples: a devout woman whose faith cracks when she falls for someone her beliefs forbid; a woman who has always defined herself as strong and independent and finds that terrifying vulnerability is the price of love; a woman whose entire self-image — what she values, what she wants, who she thinks she is — gets dismantled by loving someone who doesn\'t fit her picture of her life. The obstacle is not external costume but internal self-concept.'
   }
 ]
 

@@ -8755,9 +8755,9 @@ app.post('/api/generate/prompt', async (req, res) => {
     const librarySummaries = await getLibrarySummaries()
 
     // Generate concept with library awareness (single pass)
-    const { concept: prompt, tensionText, tropeId, endingId } = await expandVagueConcept('from-scratch', librarySummaries)
+    const { concept: prompt, tensionText, tropeId, endingId, modifierId } = await expandVagueConcept('from-scratch', librarySummaries)
 
-    return res.json({ success: true, prompt, tensionText, tropeId, endingId })
+    return res.json({ success: true, prompt, tensionText, tropeId, endingId, modifierId })
   } catch (error) {
     console.error('Generate prompt error:', error)
     return res.status(500).json({ error: 'Failed to generate prompt', details: error.message })
@@ -8777,9 +8777,9 @@ app.post('/api/generate/expand-prompt', async (req, res) => {
     const librarySummaries = await getLibrarySummaries()
 
     // Use slot-based expansion (extracts user-specified location/time, defaults the rest)
-    const { concept: prompt, tensionText, tropeId, endingId } = await expandVagueConcept(concept.trim(), librarySummaries)
+    const { concept: prompt, tensionText, tropeId, endingId, modifierId } = await expandVagueConcept(concept.trim(), librarySummaries)
 
-    return res.json({ success: true, prompt, tensionText, tropeId, endingId })
+    return res.json({ success: true, prompt, tensionText, tropeId, endingId, modifierId })
   } catch (error) {
     console.error('Expand prompt error:', error)
     return res.status(500).json({ error: 'Failed to expand prompt', details: error.message })
@@ -8798,9 +8798,9 @@ app.post('/api/generate/different-prompt', async (req, res) => {
     // Fetch existing library summaries for diversity
     const librarySummaries = await getLibrarySummaries()
 
-    const { concept: prompt, tensionText, tropeId, endingId } = await generateDifferentConcept(existingConcept.trim(), librarySummaries)
+    const { concept: prompt, tensionText, tropeId, endingId, modifierId } = await generateDifferentConcept(existingConcept.trim(), librarySummaries)
 
-    return res.json({ success: true, prompt, tensionText, tropeId, endingId })
+    return res.json({ success: true, prompt, tensionText, tropeId, endingId, modifierId })
   } catch (error) {
     console.error('Generate different prompt error:', error)
     return res.status(500).json({ error: 'Failed to generate different prompt', details: error.message })

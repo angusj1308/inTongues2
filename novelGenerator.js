@@ -900,7 +900,15 @@ Step 3: Identify pressure points.
 
 NOTE: "love_triangle" should be null if there is no love triangle (single love interest). Only include it when complication is Love Triangle or the concept implies multiple love interests.`
 
-function buildPhase1UserPrompt(concept, lengthPreset, level, tensionText, tropeId, endingId) {
+function buildPhase1UserPrompt(concept, lengthPreset, level, tensionText, tropeId, endingId, modifierId) {
+  let modifierInstruction = ''
+  if (modifierId === 'love_triangle' || modifierId === 'both') {
+    modifierInstruction += '\nMODIFIER — LOVE TRIANGLE: This story has a rival love interest. Activate the love triangle section. The rival must be a genuine alternative, not a villain.'
+  }
+  if (modifierId === 'secret' || modifierId === 'both') {
+    modifierInstruction += '\nMODIFIER — SECRET: One of the lovers is hiding something significant. Establish the nature of the secret in the story DNA — what it is, who holds it, and why it matters.'
+  }
+
   return `CONCEPT: ${concept}
 
 LENGTH: ${lengthPreset}
@@ -908,7 +916,7 @@ LEVEL: ${level}
 
 ROMANCE TENSION (already selected, do not override): ${tensionText}
 ORIGIN TROPE (already selected, do not override): ${tropeId}
-ENDING TYPE (already selected, do not override): ${endingId}
+ENDING TYPE (already selected, do not override): ${endingId}${modifierInstruction}
 
 Analyze this concept and establish the story's DNA.`
 }
@@ -974,6 +982,24 @@ function selectWeightedEnding() {
   return ROMANCE_ENDINGS[0]
 }
 
+// Romance modifiers for concept generation (weighted random selection)
+const ROMANCE_MODIFIERS = [
+  { id: 'none', weight: 25, text: '' },
+  { id: 'love_triangle', weight: 25, text: 'There is a rival love interest who offers something genuine — not a villain or a placeholder, but a real alternative the protagonist is drawn to for understandable reasons.' },
+  { id: 'secret', weight: 25, text: 'One of the lovers is hiding something significant that would change everything if revealed. The secret shadows every moment of intimacy.' },
+  { id: 'both', weight: 25, text: 'There is a rival love interest who offers something genuine — not a villain or a placeholder, but a real alternative the protagonist is drawn to for understandable reasons. Additionally, one of the lovers is hiding something significant that would change everything if revealed.' }
+]
+
+function selectWeightedModifier() {
+  const totalWeight = ROMANCE_MODIFIERS.reduce((sum, m) => sum + m.weight, 0)
+  let roll = Math.random() * totalWeight
+  for (const modifier of ROMANCE_MODIFIERS) {
+    roll -= modifier.weight
+    if (roll <= 0) return modifier
+  }
+  return ROMANCE_MODIFIERS[0]
+}
+
 // Default values for unfilled slots
 const SLOT_DEFAULTS = {
   location: 'anywhere in the Spanish-speaking world',
@@ -983,17 +1009,17 @@ const SLOT_DEFAULTS = {
 // Prompt templates with slot placeholders (50/50 random selection)
 const PROMPT_TEMPLATES = {
   // For blank/from-scratch generation
-  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}. {trope} {tension} {ending} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
+  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
 
-  literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}. {trope} {tension} {ending} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
+  literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
 
   // For expanding user concepts (keeps what they said, fills in missing details)
-  regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} {ending} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
+  regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
 
-  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} {ending} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
+  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
 
   // For neutral expansion (vague but specific - preserve user's style)
-  neutral: `Expand this into a complete romance novel concept. {trope} {tension} {ending} Keep everything the user specified. Add character names, specific setting details, and a clear obstacle to their relationship. Output 2-3 sentences only. Do not include any preamble.
+  neutral: `Expand this into a complete romance novel concept. {trope} {tension} {ending} {modifier} Keep everything the user specified. Add character names, specific setting details, and a clear obstacle to their relationship. Output 2-3 sentences only. Do not include any preamble.
 
 User's concept: "{user_concept}"
 Set in: {location}, {time_period}`
@@ -1116,14 +1142,16 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   // Path 3: Detailed enough (20+ words) - pass through unchanged
   if (wordCount >= 20) {
     console.log('[Expansion Check] Skipping - concept is detailed enough')
-    // Still select tension, trope, and ending for Phase 1
+    // Still select tension, trope, ending, and modifier for Phase 1
     const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
     const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
     const selectedEnding = selectWeightedEnding()
+    const selectedModifier = selectWeightedModifier()
     console.log('  Trope (random for detailed concept):', selectedTrope.id)
     console.log('  Tension (random for detailed concept):', selectedTension.id)
     console.log('  Ending (random for detailed concept):', selectedEnding.id)
-    return { concept, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id }
+    console.log('  Modifier (random for detailed concept):', selectedModifier.id)
+    return { concept, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
   }
 
   // Extract slots for location and time period
@@ -1137,10 +1165,11 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   let userPrompt
   let trackName
 
-  // Select random tension, trope, and ending for this concept
+  // Select random tension, trope, ending, and modifier for this concept
   const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
   const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
   const selectedEnding = selectWeightedEnding()
+  const selectedModifier = selectWeightedModifier()
 
   // Path 1: Blank concept - use Regency/Literary 50/50 tracks
   if (isBlankConcept(concept)) {
@@ -1166,6 +1195,7 @@ async function expandVagueConcept(concept, librarySummaries = []) {
       .replace('{trope}', selectedTrope.text)
       .replace('{tension}', selectedTension.text)
       .replace('{ending}', selectedEnding.text)
+      .replace('{modifier}', selectedModifier.text)
 
   // Path 2: Vague but specific (3-19 words) - use neutral expansion
   } else {
@@ -1181,6 +1211,7 @@ async function expandVagueConcept(concept, librarySummaries = []) {
       .replace('{trope}', selectedTrope.text)
       .replace('{tension}', selectedTension.text)
       .replace('{ending}', selectedEnding.text)
+      .replace('{modifier}', selectedModifier.text)
   }
 
   // Add library avoidance if available
@@ -1197,6 +1228,7 @@ ${summaryList}`
   console.log('  Trope:', selectedTrope.id)
   console.log('  Tension:', selectedTension.id)
   console.log('  Ending:', selectedEnding.id)
+  console.log('  Modifier:', selectedModifier.id)
   console.log('  Location:', location)
   console.log('  Time Period:', timePeriod)
   console.log('  SYSTEM:', systemPrompt)
@@ -1205,7 +1237,7 @@ ${summaryList}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id }
+  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
 }
 
 // Generate a different concept from existing one using slot-based library-aware generation
@@ -1221,10 +1253,11 @@ async function generateDifferentConcept(existingConcept, librarySummaries = []) 
   const useRegency = Math.random() < 0.5
   const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
 
-  // Select random tension, trope, and ending
+  // Select random tension, trope, ending, and modifier
   const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
   const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
   const selectedEnding = selectWeightedEnding()
+  const selectedModifier = selectWeightedModifier()
 
   // Fill slots in template
   let userPrompt = promptTemplate
@@ -1233,6 +1266,7 @@ async function generateDifferentConcept(existingConcept, librarySummaries = []) 
     .replace('{trope}', selectedTrope.text)
     .replace('{tension}', selectedTension.text)
     .replace('{ending}', selectedEnding.text)
+    .replace('{modifier}', selectedModifier.text)
 
   // Build avoidance list: current concept + library summaries
   const avoidList = [`Current: ${existingConcept}`]
@@ -1252,13 +1286,14 @@ ${avoidList.join('\n')}`
   console.log('  Trope:', selectedTrope.id)
   console.log('  Tension:', selectedTension.id)
   console.log('  Ending:', selectedEnding.id)
+  console.log('  Modifier:', selectedModifier.id)
   console.log('  SYSTEM:', systemPrompt)
   console.log('  USER:', userPrompt)
 
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id }
+  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
 }
 
 async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
@@ -1270,8 +1305,9 @@ async function executePhase1(concept, lengthPreset, level, librarySummaries = []
   const tensionText = expanded.tensionText
   const tropeId = expanded.tropeId
   const endingId = expanded.endingId
+  const modifierId = expanded.modifierId
 
-  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level, tensionText, tropeId, endingId)
+  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level, tensionText, tropeId, endingId, modifierId)
   const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-opus-4-20250514'
   })

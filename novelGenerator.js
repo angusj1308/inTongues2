@@ -969,7 +969,7 @@ const ROMANCE_TROPES = [
 const ROMANCE_ENDINGS = [
   { id: 'HEA', weight: 70, text: 'This is an HEA story.' },
   { id: 'bittersweet', weight: 20, text: 'This is a bittersweet ending.' },
-  { id: 'tragic', weight: 10, text: 'This is a tragic ending.' }
+  { id: 'tragic', weight: 10, text: 'This is a tragic ending. The protagonist survives.' }
 ]
 
 function selectWeightedEnding() {
@@ -986,8 +986,8 @@ function selectWeightedEnding() {
 const ROMANCE_MODIFIERS = [
   { id: 'none', weight: 25, text: '' },
   { id: 'love_triangle', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain.' },
-  { id: 'secret', weight: 25, text: 'This story includes a significant secret.' },
-  { id: 'both', weight: 25, text: 'This story includes a love triangle and a significant secret. The rival must be a genuine alternative, not a villain.' }
+  { id: 'secret', weight: 25, text: 'This story includes a significant secret that threatens the present relationship.' },
+  { id: 'both', weight: 25, text: 'This story includes a love triangle and a significant secret that threatens the present relationship. The rival must be a genuine alternative, not a villain.' }
 ]
 
 function selectWeightedModifier() {

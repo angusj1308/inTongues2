@@ -1958,6 +1958,236 @@ async function executePhase2Call2(concept, phase1, call1Output, lengthPreset) {
 }
 
 // =============================================================================
+// PHASE 2 CALL 3: PSYCHOLOGY (reuses existing PHASE_2_SYSTEM_PROMPT)
+// =============================================================================
+
+function buildPhase2Call3UserPrompt(concept, phase1, call2Output, lengthPreset) {
+  const povStructure = phase1.pov?.structure || 'Multiple'
+  const povPerson = phase1.pov?.person || 'Third'
+
+  // Build external plot parts summary
+  const externalPartsSummary = (phase1.external_plot?.acts || []).map(act =>
+    `**Act ${act.act}: ${act.name || ''}**\n` + (act.parts || []).map(p =>
+      `  Part ${p.part}: ${p.name} — ${p.time_period || ''} (${p.world_state || ''})`
+    ).join('\n')
+  ).join('\n') || 'No external plot parts defined'
+
+  // Build faced characters list from Call 2
+  const facedList = call2Output.faced_characters.map(fc =>
+    `- ${fc.who} (from ${fc.from_census_of}'s world): carries pressure(s): ${fc.pressures_carried.join('; ')}`
+  ).join('\n')
+
+  // Build faceless pressures list from Call 2
+  const facelessList = call2Output.faceless_pressures.length > 0
+    ? call2Output.faceless_pressures.map(fp =>
+        `- ${fp.pressure}: ${fp.why_faceless}`
+      ).join('\n')
+    : '(none)'
+
+  const stakeholderCount = lengthPreset === 'novella' ? '2-4' : '4-8'
+
+  return `ORIGINAL CONCEPT: ${concept}
+
+PHASE 1 OUTPUT (Story DNA):
+${JSON.stringify(phase1, null, 2)}
+
+LENGTH PRESET: ${lengthPreset}
+
+## PART 1: Create Romantic Leads
+
+**POV Structure: ${povPerson} Person, ${povStructure}**
+${povStructure === 'Multiple' || povStructure === 'Dual-Alternating'
+    ? 'This is a multi-POV story. The protagonist AND each love interest will be POV characters. Every POV character needs full psychology.'
+    : 'This is a single POV story. The protagonist is the POV character and needs full psychology. Love interests still need full psychology for consistency.'}
+
+Count the number of love interests implied by the concept. If it mentions "3 suitors" create 3. If "love triangle" create 2. If standard romance create 1.
+
+Ensure:
+- All wounds connect to the theme tension "${phase1.theme?.tension || 'from Phase 1'}"
+- Arcs match the ${phase1.ending?.type || 'established'} ending
+- Each love interest is distinct with different wounds
+- One love interest is marked Primary (unless tragic/open ending)
+- If multiple love interests, include rival dynamics between them
+
+## PART 2: Create Stakeholder Characters (REQUIRED - DO NOT SKIP)
+
+**The cast has already been selected. Do not add, remove, or replace any faced characters. Your job is to give them names, full psychology, and thematic engagement. The faced characters are:**
+
+${facedList}
+
+**These pressures are faceless — they operate without a character:**
+
+${facelessList}
+
+### THE THEME (characters must engage with this)
+
+**Theme Tension:** ${phase1.theme?.tension}
+
+Every faced character needs a POSITION on this tension. Their arc tests that position.
+
+### EXTERNAL PLOT PARTS (characters can embody/drive these)
+
+${externalPartsSummary}
+
+Map characters to these parts - they shouldn't float in a vacuum. Each character should embody or drive at least one external plot part.
+
+### Complexity Guide for ${lengthPreset}
+
+- Stakeholder characters (all with full psychology): ${stakeholderCount}
+
+### PROCESS (Steps 1-3 already done — start from Step 4)
+
+The cast is decided. Skip Steps 1-3 (interest identification, proximity test, face/faceless decision). Begin here:
+
+**Step 4: Thematic position for each faced character**
+Each faced character needs a position on the theme tension "${phase1.theme?.tension || ''}". Their position should connect to the pressure(s) they carry.
+
+**Step 5: Archetype (pressure role)**
+Assign each faced character an archetype from the system prompt's list.
+
+**Step 6: Arc type and outcome**
+Assign arc type and outcome for each faced character.
+
+**Step 7: Full psychology**
+Full psychology for ALL stakeholder characters: wound, lie, want, need, coping_mechanism, vice, arc, voice.
+
+## CRITICAL OUTPUT REQUIREMENTS
+
+Your JSON output MUST include ALL of these top-level keys:
+1. protagonist (object)
+2. love_interests (array)
+3. dynamics (object with romantic and rivals arrays)
+4. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, and full psychology)
+
+Do NOT include interests or faceless_pressures arrays — those will be merged from the previous step.
+Do NOT include character_moments or arc_outcomes arrays.`
+}
+
+async function executePhase2Call3(concept, phase1, call2Output, lengthPreset) {
+  console.log('Phase 2 Call 3: Psychology (using existing Phase 2 system prompt)...')
+
+  const userPrompt = buildPhase2Call3UserPrompt(concept, phase1, call2Output, lengthPreset)
+  const response = await callOpenAI(PHASE_2_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
+  const parsed = parseJSON(response)
+
+  if (!parsed.success) {
+    throw new Error(`Phase 2 Call 3 JSON parse failed: ${parsed.error}`)
+  }
+
+  const data = parsed.data
+
+  // Validate romantic leads
+  if (!data.protagonist) {
+    throw new Error('Phase 2 Call 3 missing protagonist')
+  }
+  if (!data.love_interests || !Array.isArray(data.love_interests) || data.love_interests.length === 0) {
+    throw new Error('Phase 2 Call 3 must include at least one love interest')
+  }
+  if (!data.dynamics) {
+    throw new Error('Phase 2 Call 3 missing dynamics')
+  }
+
+  // Validate protagonist wound and coping_mechanism structure
+  if (!data.protagonist.wound || typeof data.protagonist.wound !== 'object') {
+    throw new Error('Phase 2 Call 3 protagonist wound must be an object with event, who_caused_it, age')
+  }
+  if (!data.protagonist.coping_mechanism || typeof data.protagonist.coping_mechanism !== 'object') {
+    throw new Error('Phase 2 Call 3 protagonist must have coping_mechanism object with behaviour, as_flaw, as_virtue')
+  }
+
+  // Validate love interests wound and coping_mechanism structure
+  for (const li of data.love_interests) {
+    if (!li.wound || typeof li.wound !== 'object') {
+      throw new Error(`Phase 2 Call 3: Love interest "${li.name}" wound must be an object with event, who_caused_it, age`)
+    }
+    if (!li.coping_mechanism || typeof li.coping_mechanism !== 'object') {
+      throw new Error(`Phase 2 Call 3: Love interest "${li.name}" must have coping_mechanism object with behaviour, as_flaw, as_virtue`)
+    }
+  }
+
+  // Validate stakeholder characters
+  if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters) || data.stakeholder_characters.length === 0) {
+    throw new Error('Phase 2 Call 3: stakeholder_characters array is missing or empty')
+  }
+
+  for (const char of data.stakeholder_characters) {
+    if (!char.name) {
+      throw new Error(`Phase 2 Call 3: Stakeholder character missing name: ${JSON.stringify(char).slice(0, 100)}`)
+    }
+  }
+
+  // Validate thematic fields for all stakeholder characters
+  const missingThematic = data.stakeholder_characters.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
+  if (missingThematic.length > 0) {
+    console.warn('Phase 2 Call 3 WARNING: Faced characters missing thematic fields:')
+    missingThematic.forEach(c => {
+      const missing = []
+      if (!c.thematic_position) missing.push('thematic_position')
+      if (!c.archetype) missing.push('archetype')
+      if (!c.arc_type) missing.push('arc_type')
+      if (!c.arc_outcome) missing.push('arc_outcome')
+      console.warn(`  - ${c.name}: missing ${missing.join(', ')}`)
+    })
+  }
+
+  // Remove moment arrays if model included them (Phase 3 handles character actions)
+  if (data.character_moments) {
+    console.log('Phase 2 Call 3: Removing character_moments array (handled by Phase 3)')
+    delete data.character_moments
+  }
+  if (data.arc_outcomes) {
+    console.log('Phase 2 Call 3: Removing arc_outcomes array (handled by Phase 3)')
+    delete data.arc_outcomes
+  }
+
+  // Merge Call 2 data: build interests array from pressures, carry over faceless_pressures
+  data.interests = call2Output.pressures.map(p => ({
+    interest: p.pressure,
+    type: p.type,
+    source: p.source,
+    has_face: p.type === 'external' && call2Output.faced_characters.some(fc =>
+      fc.pressures_carried.includes(p.pressure)
+    )
+  }))
+  data.faceless_pressures = call2Output.faceless_pressures.map(fp => ({
+    pressure: fp.pressure,
+    why_faceless: fp.why_faceless
+  }))
+
+  // Also remove any interests/faceless_pressures the model may have included
+  // (we use the Call 2 sourced ones above)
+
+  // Console logging
+  console.log('Phase 2 Call 3 complete.')
+  console.log(`  Protagonist: ${data.protagonist?.name}`)
+  console.log(`    Wound caused by: ${data.protagonist?.wound?.who_caused_it || 'circumstance'}`)
+  console.log(`    Coping mechanism: ${data.protagonist?.coping_mechanism?.behaviour}`)
+  console.log(`  Love interests: ${data.love_interests?.length}`)
+  data.love_interests?.forEach((li, i) => {
+    console.log(`    ${i + 1}. ${li.name} (${li.role_in_story})`)
+    console.log(`       Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}`)
+  })
+  console.log(`  Rival dynamics: ${data.dynamics?.rivals?.length || 0}`)
+
+  console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
+  data.stakeholder_characters.forEach(c => {
+    console.log(`    - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
+  })
+
+  console.log(`  Interests (from Call 2): ${data.interests.length}`)
+  const faced = data.interests.filter(i => i.has_face).length
+  const faceless = data.interests.filter(i => !i.has_face).length
+  console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
+  console.log(`  Faceless pressures (from Call 2): ${data.faceless_pressures.length}`)
+
+  console.log('')
+  console.log('Phase 2 Call 3 complete output:')
+  console.log(JSON.stringify(data, null, 2))
+
+  return data
+}
+
+// =============================================================================
 // PHASE 2 (EXISTING): FULL CAST WITH PSYCHOLOGY
 // =============================================================================
 
@@ -2068,10 +2298,12 @@ async function executePhase2(concept, phase1, lengthPreset) {
   // Phase 2 Call 2: Match People to Pressures
   const matchData = await executePhase2Call2(concept, phase1, censusData, lengthPreset)
 
-  console.log('Phase 2: Stopping after Call 2 (Match People to Pressures). Psychology call not yet implemented.')
-  return { census: censusData, cast: matchData }
+  // Phase 2 Call 3: Psychology (names, wounds, arcs, thematic positions)
+  const psychologyData = await executePhase2Call3(concept, phase1, matchData, lengthPreset)
 
-  // --- EXISTING PHASE 2 CODE (full psychology call) - gated for future Call 2 ---
+  return psychologyData
+
+  // --- EXISTING PHASE 2 CODE (original single-call approach) - kept for comparison ---
   /* eslint-disable no-unreachable */
   console.log('Executing Phase 2: Full Cast (Romantic Leads + Secondary Characters)...')
 
@@ -5251,7 +5483,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
   1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot acts/parts, and romance arc stages' },
-  2: { name: 'Character Census & Casting', description: 'Mapping who exists in the protagonist\'s world and matching people to pressures' },
+  2: { name: 'Full Cast', description: 'Census of protagonist\'s world, matching people to pressures, then full psychology' },
   3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
   4: { name: 'Scene & Chapter Boundaries', description: 'Dividing parts into scenes and chapters for prose generation' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
@@ -5290,7 +5522,7 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
       if (!bible.coreFoundation) {
         throw new Error('Phase 2 requires Phase 1 (bible.coreFoundation) to be complete')
       }
-      console.log('Phase 2: Character Census (Call 1)')
+      console.log('Phase 2: Full Cast (Census → Pressure Matching → Psychology)')
       bible.characters = await executePhase2(concept, bible.coreFoundation, lengthPreset)
       break
 
@@ -5392,34 +5624,18 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(1)
 
-    // Phase 2: Character Census + Match People to Pressures (Calls 1 & 2)
+    // Phase 2: Full Cast (Census → Pressure Matching → Psychology)
     reportProgress(2, 'starting')
     bible.characters = await executePhase2(concept, bible.coreFoundation, lengthPreset)
     reportProgress(2, 'complete', {
-      censusPovCharacters: Object.keys(bible.characters.census?.characters || {}).length,
-      censusTotalPeople: Object.values(bible.characters.census?.characters || {}).reduce((sum, arr) => sum + arr.length, 0),
-      pressures: bible.characters.cast?.pressures?.length || 0,
-      facedCharacters: bible.characters.cast?.faced_characters?.length || 0,
-      facelessPressures: bible.characters.cast?.faceless_pressures?.length || 0
+      protagonist: bible.characters.protagonist?.name,
+      loveInterests: bible.characters.love_interests?.length,
+      stakeholderCharacters: bible.characters.stakeholder_characters?.length,
+      interests: bible.characters.interests?.length,
+      facelessPressures: bible.characters.faceless_pressures?.length
     })
     await savePhase(2)
 
-    // TESTING: Stop after Phase 2 Call 2 to validate pressure matching
-    console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 2 Call 2 (Match People to Pressures)')
-    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
-    console.log('='.repeat(60))
-
-    return {
-      success: true,
-      bible,
-      validationStatus: 'PHASE_2_CALL2_TEST',
-      validationAttempts: 0
-    }
-
-    // --- GATED: Phase 3+ will resume once Phase 2 Call 3 (psychology) is implemented ---
-
-    /*
     // Phase 3: Character Action Grid (replaces old Phase 3 timeline + eliminates old Phase 4/5)
     // The grid IS the master timeline - all characters gridded simultaneously
     reportProgress(3, 'starting')
@@ -5445,13 +5661,18 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(4)
 
+    // TESTING: Stop after Phase 4 to validate scene/chapter boundaries
+    console.log('='.repeat(60))
+    console.log('TEST MODE - Stopping after Phase 4 (Scene & Chapter Boundaries)')
+    console.log('Phase 4 Output:', JSON.stringify(bible.sceneAssembly, null, 2))
+    console.log('='.repeat(60))
+
     return {
       success: true,
       bible,
       validationStatus: 'PHASE_4_TEST',
       validationAttempts: 0
     }
-    */
 
     // TODO: Downstream phases (6+) need to be updated to read from bible.sceneAssembly
     // instead of bible.plot, bible.subplots, bible.masterTimeline

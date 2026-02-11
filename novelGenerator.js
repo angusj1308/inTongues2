@@ -781,12 +781,12 @@ CONFLICT
 - Internal: What psychological barrier keeps them apart?
 
 THEME
-The theme must be built on one or more of these romance tensions:
+The romance tension has already been selected during concept generation. Use it as the central theme tension. Do not substitute a different tension. The other tensions may appear as secondary.
+
+The three romance tensions are:
 (1) passion vs. duty/obligation
 (2) passion vs. safety/self-preservation
 (3) passion vs. identity — where falling in love forces one or both to confront who they really are vs. who they've been pretending to be
-
-Choose one as central. The others may appear as secondary.
 
 - Format: "X vs Y"
 - The protagonist is torn between these — this is the core dilemma they cannot resolve until the climax
@@ -902,11 +902,13 @@ Step 3: Identify pressure points.
 
 NOTE: "love_triangle" should be null if there is no love triangle (single love interest). Only include it when complication is Love Triangle or the concept implies multiple love interests.`
 
-function buildPhase1UserPrompt(concept, lengthPreset, level) {
+function buildPhase1UserPrompt(concept, lengthPreset, level, tensionText) {
   return `CONCEPT: ${concept}
 
 LENGTH: ${lengthPreset}
 LEVEL: ${level}
+
+ROMANCE TENSION (already selected, do not override): ${tensionText}
 
 Analyze this concept and establish the story's DNA.`
 }
@@ -1073,7 +1075,10 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   // Path 3: Detailed enough (20+ words) - pass through unchanged
   if (wordCount >= 20) {
     console.log('[Expansion Check] Skipping - concept is detailed enough')
-    return concept
+    // Still select a tension for Phase 1
+    const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
+    console.log('  Tension (random for detailed concept):', selectedTension.id)
+    return { concept, tensionText: selectedTension.text }
   }
 
   // Extract slots for location and time period
@@ -1146,7 +1151,7 @@ ${summaryList}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return response
+  return { concept: response, tensionText: selectedTension.text }
 }
 
 // Generate a different concept from existing one using slot-based library-aware generation
@@ -1193,16 +1198,18 @@ ${avoidList.join('\n')}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return response
+  return { concept: response, tensionText: selectedTension.text }
 }
 
 async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
   console.log('Executing Phase 1: Story DNA...')
 
   // Expand vague concepts first (with library awareness)
-  const expandedConcept = await expandVagueConcept(concept, librarySummaries)
+  const expanded = await expandVagueConcept(concept, librarySummaries)
+  const expandedConcept = expanded.concept
+  const tensionText = expanded.tensionText
 
-  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level)
+  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level, tensionText)
   const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-opus-4-20250514'
   })

@@ -929,15 +929,15 @@ Analyze this concept and establish the story's DNA.`
 const ROMANCE_TENSIONS = [
   {
     id: 'duty',
-    text: 'The central romantic obstacle is passion vs. duty or obligation — the protagonist wants this person but is bound by family expectation, a promise, a betrothal, a debt, or a social contract that makes the relationship impossible.'
+    text: 'The central romantic obstacle is passion vs. duty — the protagonist wants this person but is bound by an obligation.'
   },
   {
     id: 'safety',
-    text: 'The central romantic obstacle is passion vs. safety or self-preservation — the protagonist wants this person but has been hurt before, has built walls, knows this love is dangerous, or has every reason to protect themselves from the vulnerability that love demands.'
+    text: 'The central romantic obstacle is passion vs. safety — loving this person puts everything she has protected at risk.'
   },
   {
     id: 'identity',
-    text: 'The central romantic obstacle is passion vs. identity — falling in love dismantles the protagonist\'s understanding of who she is. Not a disguise or impersonation — a psychological reckoning. Something she has believed about herself, lived by, built her life around, turns out to be incompatible with the love she feels. The obstacle is internal self-concept, not external costume.'
+    text: 'The central romantic obstacle is passion vs. identity — falling in love dismantles the protagonist\'s understanding of who she is. Not a disguise or impersonation — a psychological reckoning. The obstacle is internal self-concept, not external costume.'
   }
 ]
 
@@ -945,31 +945,31 @@ const ROMANCE_TENSIONS = [
 const ROMANCE_TROPES = [
   {
     id: 'strangers_to_lovers',
-    text: 'The lovers are strangers who meet for the first time during the story.'
+    text: 'This is a strangers to lovers story.'
   },
   {
     id: 'enemies_to_lovers',
-    text: 'The lovers begin as adversaries — opposing sides, mutual dislike, or genuine conflict — and are drawn together despite themselves.'
+    text: 'This is an enemies to lovers story.'
   },
   {
     id: 'friends_to_lovers',
-    text: 'The lovers already know each other. Something shifts and the familiar becomes charged with new feeling.'
+    text: 'This is a friends to lovers story.'
   },
   {
     id: 'second_chance',
-    text: 'The lovers had a relationship before that ended or was interrupted. They re-encounter each other and old feelings resurface against old wounds.'
+    text: 'This is a second chance romance.'
   },
   {
     id: 'forbidden_love',
-    text: 'The lovers are drawn together across a boundary that should not be crossed — class, family, allegiance, faith, or law.'
+    text: 'This is a forbidden love story.'
   }
 ]
 
 // Romance endings for concept generation (weighted random selection)
 const ROMANCE_ENDINGS = [
-  { id: 'HEA', weight: 70, text: 'The lovers end up together permanently.' },
-  { id: 'bittersweet', weight: 20, text: 'The lovers are transformed by their love but cannot be together. Love changed them even though it could not save the relationship.' },
-  { id: 'tragic', weight: 10, text: 'Love is not enough. The obstacle proves insurmountable, or one of them is lost. The story ends in permanent separation or death.' }
+  { id: 'HEA', weight: 70, text: 'This is an HEA story.' },
+  { id: 'bittersweet', weight: 20, text: 'This is a bittersweet ending.' },
+  { id: 'tragic', weight: 10, text: 'This is a tragic ending.' }
 ]
 
 function selectWeightedEnding() {
@@ -985,9 +985,9 @@ function selectWeightedEnding() {
 // Romance modifiers for concept generation (weighted random selection)
 const ROMANCE_MODIFIERS = [
   { id: 'none', weight: 25, text: '' },
-  { id: 'love_triangle', weight: 25, text: 'There is a rival love interest who offers something genuine — not a villain or a placeholder, but a real alternative the protagonist is drawn to for understandable reasons.' },
-  { id: 'secret', weight: 25, text: 'One of the lovers is hiding something significant that would change everything if revealed. The secret shadows every moment of intimacy.' },
-  { id: 'both', weight: 25, text: 'There is a rival love interest who offers something genuine — not a villain or a placeholder, but a real alternative the protagonist is drawn to for understandable reasons. Additionally, one of the lovers is hiding something significant that would change everything if revealed.' }
+  { id: 'love_triangle', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain.' },
+  { id: 'secret', weight: 25, text: 'This story includes a significant secret.' },
+  { id: 'both', weight: 25, text: 'This story includes a love triangle and a significant secret. The rival must be a genuine alternative, not a villain.' }
 ]
 
 function selectWeightedModifier() {

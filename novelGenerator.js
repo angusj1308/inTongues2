@@ -1145,14 +1145,15 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   if (wordCount >= 20) {
     console.log('[Expansion Check] Skipping - concept is detailed enough')
     // Still select tension, trope, ending, and modifier for Phase 1
-    const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
-    const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
-    const selectedEnding = selectWeightedEnding()
-    const selectedModifier = selectWeightedModifier()
-    console.log('  Trope (random for detailed concept):', selectedTrope.id)
-    console.log('  Tension (random for detailed concept):', selectedTension.id)
-    console.log('  Ending (random for detailed concept):', selectedEnding.id)
-    console.log('  Modifier (random for detailed concept):', selectedModifier.id)
+    // TEMPORARY: Hardcode to the one blueprint we have
+    const selectedTension = ROMANCE_TENSIONS.find(t => t.id === 'safety')
+    const selectedTrope = ROMANCE_TROPES.find(t => t.id === 'enemies_to_lovers')
+    const selectedEnding = ROMANCE_ENDINGS.find(e => e.id === 'HEA')
+    const selectedModifier = ROMANCE_MODIFIERS.find(m => m.id === 'both')
+    console.log('  Trope (hardcoded for blueprint testing):', selectedTrope.id)
+    console.log('  Tension (hardcoded for blueprint testing):', selectedTension.id)
+    console.log('  Ending (hardcoded for blueprint testing):', selectedEnding.id)
+    console.log('  Modifier (hardcoded for blueprint testing):', selectedModifier.id)
     return { concept, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
   }
 
@@ -1167,11 +1168,11 @@ async function expandVagueConcept(concept, librarySummaries = []) {
   let userPrompt
   let trackName
 
-  // Select random tension, trope, ending, and modifier for this concept
-  const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
-  const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
-  const selectedEnding = selectWeightedEnding()
-  const selectedModifier = selectWeightedModifier()
+  // TEMPORARY: Hardcode to the one blueprint we have
+  const selectedTension = ROMANCE_TENSIONS.find(t => t.id === 'safety')
+  const selectedTrope = ROMANCE_TROPES.find(t => t.id === 'enemies_to_lovers')
+  const selectedEnding = ROMANCE_ENDINGS.find(e => e.id === 'HEA')
+  const selectedModifier = ROMANCE_MODIFIERS.find(m => m.id === 'both')
 
   // Path 1: Blank concept - use Regency/Literary 50/50 tracks
   if (isBlankConcept(concept)) {
@@ -1255,11 +1256,11 @@ async function generateDifferentConcept(existingConcept, librarySummaries = []) 
   const useRegency = Math.random() < 0.5
   const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
 
-  // Select random tension, trope, ending, and modifier
-  const selectedTension = ROMANCE_TENSIONS[Math.floor(Math.random() * ROMANCE_TENSIONS.length)]
-  const selectedTrope = ROMANCE_TROPES[Math.floor(Math.random() * ROMANCE_TROPES.length)]
-  const selectedEnding = selectWeightedEnding()
-  const selectedModifier = selectWeightedModifier()
+  // TEMPORARY: Hardcode to the one blueprint we have
+  const selectedTension = ROMANCE_TENSIONS.find(t => t.id === 'safety')
+  const selectedTrope = ROMANCE_TROPES.find(t => t.id === 'enemies_to_lovers')
+  const selectedEnding = ROMANCE_ENDINGS.find(e => e.id === 'HEA')
+  const selectedModifier = ROMANCE_MODIFIERS.find(m => m.id === 'both')
 
   // Fill slots in template
   let userPrompt = promptTemplate

@@ -5,6 +5,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import fs from 'fs/promises'
 import path from 'path'
+import { hasBlueprint, checkBlueprintAvailable } from './storyBlueprints.js'
+import { executePhase1Blueprint } from './phase1Blueprint.js'
 
 // Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
@@ -1151,7 +1153,7 @@ async function expandVagueConcept(concept, librarySummaries = []) {
     console.log('  Tension (random for detailed concept):', selectedTension.id)
     console.log('  Ending (random for detailed concept):', selectedEnding.id)
     console.log('  Modifier (random for detailed concept):', selectedModifier.id)
-    return { concept, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
+    return { concept, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
   }
 
   // Extract slots for location and time period
@@ -1237,7 +1239,7 @@ ${summaryList}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
+  return { concept: response, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
 }
 
 // Generate a different concept from existing one using slot-based library-aware generation
@@ -1293,7 +1295,7 @@ ${avoidList.join('\n')}`
   const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
   console.log('  RESPONSE:', response)
 
-  return { concept: response, tensionText: selectedTension.text, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
+  return { concept: response, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
 }
 
 async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
@@ -5716,16 +5718,44 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   }
 
   try {
-    // Phase 1: Story DNA (includes romance_arc_stages based on ending type)
+    // Phase 1: Blueprint → Chapter Descriptions
     reportProgress(1, 'starting')
-    bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
+
+    // Step 1: Expand concept (pulled out of old executePhase1)
+    const expanded = await expandVagueConcept(concept, librarySummaries)
+    const expandedConcept = expanded.concept
+    const tensionId = expanded.tensionId
+    const tropeId = expanded.tropeId
+    const endingId = expanded.endingId
+    const modifierId = expanded.modifierId
+
+    // Step 2: Blueprint guard
+    const bpCheck = checkBlueprintAvailable(tropeId, tensionId, endingId, modifierId)
+    if (!bpCheck.allowed) {
+      console.error(`Blueprint not available: ${bpCheck.reason}`)
+      return {
+        success: false,
+        error: `No blueprint available for this combination. ${bpCheck.reason}`,
+        partialBible: {}
+      }
+    }
+    console.log(`Blueprint found: ${bpCheck.blueprintName}`)
+
+    // Step 3: Execute Phase 1 Blueprint
+    bible.coreFoundation = await executePhase1Blueprint(
+      expandedConcept,
+      tropeId,
+      tensionId,
+      endingId,
+      modifierId,
+      callClaude,
+      parseJSON
+    )
     reportProgress(1, 'complete', {
-      subgenre: bible.coreFoundation.subgenre,
-      origin: bible.coreFoundation.tropes?.origin,
-      theme: bible.coreFoundation.theme,
-      externalPlot: bible.coreFoundation.external_plot?.container_type,
-      externalActs: bible.coreFoundation.external_plot?.acts?.length,
-      romanceArcStages: bible.coreFoundation.romance_arc_stages?.length
+      blueprintId: bible.coreFoundation.blueprint?.id,
+      blueprintName: bible.coreFoundation.blueprint?.name,
+      totalChapters: bible.coreFoundation.blueprint?.totalChapters,
+      chapters: bible.coreFoundation.chapters?.length
     })
     await savePhase(1)
 

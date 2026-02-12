@@ -775,8 +775,8 @@ function selectWeightedEnding() {
 const ROMANCE_MODIFIERS = [
   { id: 'none', weight: 25, text: '' },
   { id: 'love_triangle', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain.' },
-  { id: 'secret', weight: 25, text: 'This story includes a secret held by one or both lovers — information that, if revealed, would change how the other sees the relationship.' },
-  { id: 'both', weight: 25, text: 'This story includes a love triangle and a secret held by one or both lovers — information that, if revealed, would change how the other sees the relationship. The rival must be a genuine alternative, not a villain.' }
+  { id: 'secret', weight: 25, text: 'This story includes a secret. One character is hiding something that, when the other discovers it, recontextualises every tender moment they have shared — what felt like love now looks like betrayal. The secret is not a hidden identity that makes them more interesting or more compatible. It must be something the injured character cannot easily forgive. It must connect to what they value most in the story. One strong secret is better than two weak ones.' },
+  { id: 'both', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain. This story also includes a secret. One character is hiding something that, when the other discovers it, recontextualises every tender moment they have shared — what felt like love now looks like betrayal. The secret is not a hidden identity that makes them more interesting or more compatible. It must be something the injured character cannot easily forgive. It must connect to what they value most in the story. One strong secret is better than two weak ones.' }
 ]
 
 function selectWeightedModifier() {

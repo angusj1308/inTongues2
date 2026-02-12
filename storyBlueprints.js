@@ -45,13 +45,29 @@ BLUEPRINTS[blueprintKey('enemies_to_lovers', 'safety', 'HEA', 'both')] = {
     primary: 'Male love interest. Enters as hostile force. Dangerous but magnetic.',
     rival: 'Safe option. Genuinely appealing at first. Becomes possessive, then villain.'
   },
-  // Secret modifier: bilateral secrets between protagonist and primary
+  // Secret modifier: the concept provides the secret, blueprint provides placement and pacing
   secretStructure: {
-    type: 'bilateral',
-    description: 'Each lover holds a secret that, if known, would destroy the other\'s trust. The secrets work underground until Phase 3-4.',
-    protagonist_secret: 'Something she did that harmed the primary or his people before they met.',
-    primary_secret: 'Something he did that harmed the protagonist or her people before they met.',
-    surfacing: 'Phase 3 (chapter 9) — both secrets collide in a single confrontation.'
+    description: 'The concept contains a secret. Plant it early, let it work underground, and surface it in the dark moment (chapter 9).',
+    surfacing: 'Phase 3 (chapter 9) — the secret surfaces and changes how the other character sees the relationship.',
+    guidance: {
+      qualities: [
+        'The reader understands why it is being hidden — fear, shame, loyalty, love. The person keeping it is sympathetic, not villainous.',
+        'The reveal recontextualises what came before. Every kind moment, every intimate conversation, every step closer now looks different.',
+        'It connects to what the characters value most. The secret threatens the thing the story is about.'
+      ],
+      common_forms: [
+        'I am not who you think I am (a hidden connection, identity, or history)',
+        'I did something that affects your world and you do not know it was me',
+        'I know something about you that you have not chosen to share with me',
+        'Someone I love hurt you and I am protecting them',
+        'I am here under false pretences — our meeting was not what you think it was'
+      ],
+      rules: [
+        'Do not invent a secret. The concept provides it. Your job is placement and pacing.',
+        'The secret can be held by one person or both. One secret held by one person is often stronger than two.',
+        'A secret in romance is not a plot twist. It is information one character is hiding that, when revealed, changes how the other character sees the relationship.'
+      ]
+    }
   },
   phases: [
     {
@@ -174,10 +190,19 @@ For each chapter in the blueprint, write a 2-4 sentence description of what happ
 - Don't write prose — write clear, direct descriptions of what happens
 - Don't add backstory or world-building beyond what the concept provides
 ## SECRET MODIFIER
-If the blueprint has a secret structure, your descriptions must account for it:
-- Plant the secrets in early chapter descriptions (who did what before the story began)
-- Show the secrets working underground in middle chapters
-- Make the secret surfacing in the designated chapter feel inevitable, not sudden
+If the blueprint has a secret structure, your job is placement and pacing — not invention. The concept provides the secret. You decide:
+- When the reader learns it (plant it early so it works underground from the start)
+- When the other character learns it (the designated surfacing chapter — usually the dark moment)
+- What it destroys when it surfaces (it must change how the other character sees the relationship)
+
+A good secret in romance is not a plot twist. It is information one character is hiding that, when revealed, changes how the other character sees the relationship. It has three qualities:
+1. The reader understands why it is being hidden. Fear, shame, loyalty, love — the person keeping it has a reason that makes them sympathetic, not villainous.
+2. The reveal recontextualises what came before. Every kind moment, every intimate conversation, every step closer now looks different because this was underneath the whole time.
+3. It connects to what the characters value most. The secret threatens the thing the story is about — safety, identity, duty, whatever the tension is.
+
+The secret can be held by one person or both. It does not need to be bilateral. One secret held by one person is often stronger than two secrets splitting the reader's attention. The POV character holding the secret creates slow dread. The other character holding it creates sudden devastation. Either works.
+
+Do not invent a secret. Do not force a bilateral pattern. Use what the concept gives you.
 ## LOVE TRIANGLE MODIFIER
 If the blueprint has a rival role:
 - The rival must be genuinely appealing in early chapters — not a villain from the start
@@ -209,7 +234,10 @@ function buildPhase1BlueprintPrompt(concept, blueprint) {
   let secretText = ''
   if (blueprint.secretStructure) {
     const ss = blueprint.secretStructure
-    secretText = `\n\nSECRET STRUCTURE (${ss.type}):\n${ss.description}\n- Protagonist's secret: ${ss.protagonist_secret}\n- Primary's secret: ${ss.primary_secret}\n- Secrets surface: ${ss.surfacing}`
+    const qualitiesText = ss.guidance.qualities.map((q, i) => `${i + 1}. ${q}`).join('\n')
+    const formsText = ss.guidance.common_forms.map(f => `* ${f}`).join('\n')
+    const rulesText = ss.guidance.rules.map(r => `- ${r}`).join('\n')
+    secretText = `\n\nSECRET STRUCTURE:\n${ss.description}\nSurfaces: ${ss.surfacing}\n\nQualities of a good secret:\n${qualitiesText}\n\nCommon forms secrets take in romance:\n${formsText}\n\nRules:\n${rulesText}`
   }
   // Build expected roles
   const rolesText = Object.entries(blueprint.expectedRoles)

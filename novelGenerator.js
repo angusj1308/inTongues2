@@ -775,8 +775,8 @@ function selectWeightedEnding() {
 const ROMANCE_MODIFIERS = [
   { id: 'none', weight: 25, text: '' },
   { id: 'love_triangle', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain.' },
-  { id: 'secret', weight: 25, text: 'This story includes a significant secret.' },
-  { id: 'both', weight: 25, text: 'This story includes a love triangle and a significant secret. The rival must be a genuine alternative, not a villain.' }
+  { id: 'secret', weight: 25, text: 'This story includes a secret held by one or both lovers — information that, if revealed, would change how the other sees the relationship.' },
+  { id: 'both', weight: 25, text: 'This story includes a love triangle and a secret held by one or both lovers — information that, if revealed, would change how the other sees the relationship. The rival must be a genuine alternative, not a villain.' }
 ]
 
 function selectWeightedModifier() {

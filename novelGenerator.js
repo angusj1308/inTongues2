@@ -705,223 +705,10 @@ function validateCoherence(coherenceCheck, requiredFields) {
 }
 
 // =============================================================================
-// PHASE 1: STORY DNA
+// PHASE 1: BLUEPRINT → CHAPTER DESCRIPTIONS
 // =============================================================================
-
-const PHASE_1_SYSTEM_PROMPT = `Analyze the user's concept and establish the story's DNA. Be creative and original. If the user's concept is vague or generic, select tropes randomly rather than defaulting to the most common choices.
-
-The user may not name tropes. Infer from their concept.
-
-## Decisions
-
-TROPES
-- Origin: The origin trope has already been selected during concept generation. Use it. Do not substitute a different origin trope. Valid values: strangers_to_lovers, enemies_to_lovers, friends_to_lovers, second_chance, forbidden_love
-- Situation: What external circumstances shape the romance?
-  - What forces them together?
-  - What keeps them apart?
-  - What arrangement binds them?
-  - If none — straightforward romance with no external pressure
-- Dynamic (pick one or two): Slow Burn, Fast Burn, Opposites Attract, Grumpy/Sunshine
-- Complication (optional): Love Triangle
-
-LOVE TRIANGLE (only if complication is Love Triangle or concept implies multiple love interests)
-
-If there are multiple love interests, identify the triangle type:
-
-Types (can combine):
-- starts_with_rival: Protagonist is attached to rival when primary appears (engaged, married, dating)
-- better_option: Rival appears when primary seems impossible (primary unavailable, rival offers solution)
-- simultaneous: Both court protagonist at same time (unattached, two suitors pursue)
-- represents_lie: Rival embodies what protagonist's lie says she needs (false belief makes rival seem right)
-
-For each love interest, define:
-- Their genuine appeal (what draws protagonist to them - must be real, not just convenience)
-- Their limitation (why they're ultimately not the choice - must be about fit, not character defect)
-- What they represent thematically
-
-Define the tension source: Why is this choice difficult? What makes the rival a genuine option?
-Define "almost chooses rival because": What nearly makes the rival win?
-
-For three or more love interests, each rival gets their own type.
-
-SUBGENRE
-Historical, Contemporary, Paranormal, Fantasy, Sci-Fi, Romantic Suspense, etc.
-
-TIMESPAN
-How long does the story cover? Days, weeks, months, years?
-
-POV STRUCTURE
-First Person:
-- Single: One narrator throughout
-- Dual-Alternating: Two narrators, alternating chapters
-- Multiple: Three or more narrators
-
-Third Person:
-- Single: One character's perspective
-- Dual-Alternating: Two perspectives, alternating chapters
-- Multiple: Three or more perspectives
-- Omniscient: Narrator sees all
-
-DEFAULT: Use Third Person, Single POV (protagonist only) unless the user concept explicitly requests otherwise. The protagonist is always the female lead. Literary romance works best when the reader is locked inside one character's experience — the love interest's interiority is revealed through their behaviour as observed by the protagonist, not through their own POV chapters. Only deviate if the concept specifically requests dual POV, multiple POV, or first person.
-
-ENDING
-The ending type has already been selected during concept generation. Use it. Do not substitute a different ending type. Valid values: HEA, bittersweet, tragic.
-- HEA: Together permanently
-- bittersweet: Apart but transformed — love changed them even though it could not save the relationship
-- tragic: Loss or permanent separation — love is not enough
-
-TONE
-- Lightness: 0-10 (0 = heavy drama, 10 = light comedy)
-- Sensuality: 0-10 (0 = closed door, 10 = explicit)
-- Fade to black: true/false
-- Mood: hopeful, bittersweet, intense, playful, dark
-
-CONFLICT
-- External: What circumstance keeps them apart?
-- Internal: What psychological barrier keeps them apart?
-
-THEME
-The romance tension has already been selected during concept generation. Use it as the central theme tension. Do not substitute a different tension. The other tensions may appear as secondary.
-
-The three romance tensions are:
-(1) passion vs. duty/obligation
-(2) passion vs. safety/self-preservation
-(3) passion vs. identity — falling in love dismantles the protagonist's understanding of who she is (psychological reckoning, not disguise — something she has believed about herself turns out to be incompatible with the love she feels)
-
-- Format: "X vs Y"
-- The protagonist is torn between these — this is the core dilemma they cannot resolve until the climax
-- Every major decision in the story tests this tension
-
-EXTERNAL PLOT
-Every romance rides on an external wave - something happening in the world independent of the characters falling in love. This creates pressure, deadlines, and structure.
-
-Step 1: Identify the external container. Ask: What is happening in this world that creates the conditions for this romance?
-
-Container types:
-- historical_event: War, revolution, invasion, coronation, political upheaval
-- professional_situation: Case, deal, project, campaign, harvest, production
-- social_structure: Season, wedding, reunion, inheritance dispute, family obligation
-- time_bounded: Holiday visit, summer, voyage, festival, countdown
-- competition: Tournament, contest, election, audition, race
-- journey: Pilgrimage, migration, escape, expedition, road trip
-- crisis: Epidemic, siege, scandal, investigation, natural disaster
-
-Step 2: Define a three-act structure with parts within each act. Parts are TIME PERIODS or PHASES of the situation, not specific events.
-
-- Act 1 (Setup): 1-3 parts — establish the world, the situation, and the characters' entry into it
-- Act 2 (Confrontation): 2-4 parts — escalation, complications, shifting dynamics
-- Act 3 (Resolution): 1-2 parts — climax and aftermath
-
-Parts are time containers. Name them after spans of time or phases of the situation. Do not include events in part definitions.
-
-Step 3: Identify pressure points.
-- Which parts create deadlines for the characters?
-- Which parts force characters together?
-- Which parts force characters apart?
-- Which parts create danger or stakes?
-- The romantic dark moment should align with the external plot climax.
-
-## Output
-
-{
-  "subgenre": string,
-  "tropes": {
-    "origin": string,
-    "situation": {
-      "forces_together": string or null,
-      "keeps_apart": string or null,
-      "arrangement": string or null
-    },
-    "dynamic": [],
-    "complication": string or null
-  },
-  "ending": {
-    "type": "HEA | HFN | Bittersweet | Tragic",
-    "reason": string
-  },
-  "tone": {
-    "lightness": number,
-    "sensuality": number,
-    "fade_to_black": boolean,
-    "mood": string
-  },
-  "timespan": {
-    "duration": string,
-    "rationale": string
-  },
-  "pov": {
-    "person": "First | Third",
-    "structure": "Single | Dual-Alternating | Multiple | Omniscient",
-    "rationale": string
-  },
-  "conflict": {
-    "external": string,
-    "internal": string
-  },
-  "theme": {
-    "tension": "X vs Y — two competing values (2-4 words total)",
-    "explored_through": "How the romance embodies this tension"
-  },
-  "external_plot": {
-    "container_type": "historical_event | professional_situation | social_structure | time_bounded | competition | journey | crisis",
-    "container_summary": "One sentence describing the external situation",
-    "acts": [
-      {
-        "act": 1,
-        "name": "Act name",
-        "parts": [
-          {
-            "part": 1,
-            "name": "Time period name (NOT an event name)",
-            "time_period": "What span of time this covers",
-            "world_state": "What conditions exist during this period"
-          }
-        ]
-      }
-    ],
-    "climax_part": "Act X Part Y",
-    "alignment_note": "How the romantic dark moment should align with the external plot climax"
-  },
-  "love_triangle": {
-    "type": "starts_with_rival | better_option | simultaneous | represents_lie (or combination)",
-    "why_this_type": "How the concept maps to this triangle type",
-    "love_interests": [
-      {
-        "name": "Character name",
-        "role": "primary | rival",
-        "appeal": "What genuinely draws protagonist to them",
-        "limitation": "Why they're ultimately not the easy/right choice",
-        "represents": "What they mean thematically"
-      }
-    ],
-    "tension_source": "Why the choice between them is genuinely difficult",
-    "almost_chooses_rival_because": "What nearly makes the rival win"
-  },
-  "premise": string
-}
-
-NOTE: "love_triangle" should be null if there is no love triangle (single love interest). Only include it when complication is Love Triangle or the concept implies multiple love interests.`
-
-function buildPhase1UserPrompt(concept, lengthPreset, level, tensionText, tropeId, endingId, modifierId) {
-  let modifierInstruction = ''
-  if (modifierId === 'love_triangle' || modifierId === 'both') {
-    modifierInstruction += '\nMODIFIER — LOVE TRIANGLE: This story has a rival love interest. Activate the love triangle section. The rival must be a genuine alternative, not a villain.'
-  }
-  if (modifierId === 'secret' || modifierId === 'both') {
-    modifierInstruction += '\nMODIFIER — SECRET: One of the lovers is hiding something significant. Establish the nature of the secret in the story DNA — what it is, who holds it, and why it matters.'
-  }
-
-  return `CONCEPT: ${concept}
-
-LENGTH: ${lengthPreset}
-LEVEL: ${level}
-
-ROMANCE TENSION (already selected, do not override): ${tensionText}
-ORIGIN TROPE (already selected, do not override): ${tropeId}
-ENDING TYPE (already selected, do not override): ${endingId}${modifierInstruction}
-
-Analyze this concept and establish the story's DNA.`
-}
+// Phase 1 uses blueprint matching via executePhase1Blueprint() from
+// phase1Blueprint.js. See storyBlueprints.js for blueprint definitions.
 
 // =============================================
 // Slot-Based Concept Expansion
@@ -1300,121 +1087,38 @@ ${avoidList.join('\n')}`
 }
 
 async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
-  console.log('Executing Phase 1: Story DNA...')
+  console.log('Executing Phase 1: Blueprint → Chapter Descriptions...')
 
-  // Expand vague concepts first (with library awareness)
+  // Step 1: Expand vague concepts (with library awareness)
   const expanded = await expandVagueConcept(concept, librarySummaries)
   const expandedConcept = expanded.concept
-  const tensionText = expanded.tensionText
   const tropeId = expanded.tropeId
+  const tensionId = expanded.tensionId
   const endingId = expanded.endingId
   const modifierId = expanded.modifierId
 
-  const userPrompt = buildPhase1UserPrompt(expandedConcept, lengthPreset, level, tensionText, tropeId, endingId, modifierId)
-  const response = await callClaude(PHASE_1_SYSTEM_PROMPT, userPrompt, {
-    model: 'claude-opus-4-20250514'
-  })
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    throw new Error(`Phase 1 JSON parse failed: ${parsed.error}`)
+  // Step 2: Blueprint guard — refuse if no blueprint exists
+  const bpCheck = checkBlueprintAvailable(tropeId, tensionId, endingId, modifierId)
+  if (!bpCheck.allowed) {
+    throw new Error(
+      `No blueprint available for: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}. ` +
+      bpCheck.reason
+    )
   }
+  console.log(`  Blueprint found: ${bpCheck.blueprintName}`)
 
-  const data = parsed.data
+  // Step 3: Execute blueprint-based Phase 1
+  const result = await executePhase1Blueprint(
+    expandedConcept,
+    tropeId,
+    tensionId,
+    endingId,
+    modifierId,
+    callClaude,
+    parseJSON
+  )
 
-  // Validate required fields
-  const requiredFields = ['subgenre', 'tropes', 'ending', 'tone', 'timespan', 'pov', 'conflict', 'theme', 'premise', 'external_plot']
-  const missing = requiredFields.filter(f => !data[f])
-
-  if (missing.length > 0) {
-    throw new Error(`Phase 1 missing required fields: ${missing.join(', ')}`)
-  }
-
-  // Validate external plot structure
-  const ep = data.external_plot
-  if (!ep.container_type || !ep.container_summary || !ep.acts || !Array.isArray(ep.acts)) {
-    throw new Error('Phase 1 external_plot missing required fields (container_type, container_summary, acts)')
-  }
-  if (ep.acts.length !== 3) {
-    console.warn(`Phase 1 WARNING: external_plot has ${ep.acts.length} acts (expected 3)`)
-  }
-  let totalParts = 0
-  for (const act of ep.acts) {
-    if (!act.act || !act.parts || !Array.isArray(act.parts)) {
-      throw new Error(`External plot act ${act.act || '?'} missing required fields (act, parts)`)
-    }
-    for (const part of act.parts) {
-      if (!part.part || !part.name) {
-        throw new Error(`External plot Act ${act.act} Part ${part.part || '?'} missing required fields (part, name)`)
-      }
-      totalParts++
-    }
-  }
-  if (totalParts < 5) {
-    console.warn(`Phase 1 WARNING: external_plot has only ${totalParts} total parts (expected 5-9)`)
-  }
-
-  console.log('Phase 1 complete.')
-  console.log(`  Subgenre: ${data.subgenre}`)
-  console.log(`  Origin: ${data.tropes.origin}`)
-  const situation = data.tropes.situation
-  const situationParts = [
-    situation?.forces_together && `Together: ${situation.forces_together}`,
-    situation?.keeps_apart && `Apart: ${situation.keeps_apart}`,
-    situation?.arrangement && `Arrangement: ${situation.arrangement}`
-  ].filter(Boolean)
-  console.log(`  Situation: ${situationParts.length ? situationParts.join(', ') : 'None'}`)
-  console.log(`  POV: ${data.pov.person} Person, ${data.pov.structure}`)
-  console.log(`  Timespan: ${data.timespan.duration}`)
-  console.log(`  Ending: ${data.ending.type}`)
-  console.log(`  Theme: ${data.theme.tension}`)
-  console.log(`    Explored through: ${data.theme.explored_through}`)
-  console.log(`  External Plot: ${ep.container_type} — "${ep.container_summary}"`)
-  console.log(`    Acts: ${ep.acts.length}, Total parts: ${totalParts}`)
-  ep.acts.forEach(act => {
-    console.log(`    Act ${act.act}: ${act.name || ''}`)
-    act.parts.forEach(p => {
-      console.log(`      Part ${p.part}: ${p.name} (${p.time_period || ''})`)
-    })
-  })
-  console.log(`    Climax part: ${ep.climax_part}`)
-  console.log(`    Alignment: ${ep.alignment_note}`)
-
-  // Validate love triangle if present
-  const lt = data.love_triangle
-  if (lt && lt !== null) {
-    if (!lt.type || !lt.love_interests || !Array.isArray(lt.love_interests)) {
-      console.warn('Phase 1 WARNING: love_triangle present but missing type or love_interests')
-    } else {
-      console.log(`  Love Triangle: ${lt.type}`)
-      console.log(`    Tension: ${lt.tension_source}`)
-      lt.love_interests.forEach(li => {
-        console.log(`    - ${li.name} (${li.role}): appeal="${li.appeal?.slice(0, 50)}"`)
-      })
-      console.log(`    Almost chooses rival because: ${lt.almost_chooses_rival_because}`)
-    }
-  } else {
-    console.log(`  Love Triangle: None`)
-  }
-
-  // Add romance_arc_stages based on ending type (deterministic, not LLM-generated)
-  const ROMANCE_ARC_STAGES_BY_ENDING = {
-    'HEA': ['awareness', 'attraction', 'tension', 'touch', 'kiss', 'intimacy', 'dark_moment', 'reunion', 'commitment'],
-    'HFN': ['awareness', 'attraction', 'tension', 'touch', 'kiss', 'intimacy', 'dark_moment', 'reunion'],
-    'Bittersweet': ['awareness', 'attraction', 'tension', 'touch', 'kiss', 'intimacy', 'dark_moment', 'separation', 'transformation'],
-    'Tragic': ['awareness', 'attraction', 'tension', 'touch', 'kiss', 'intimacy', 'dark_moment', 'loss']
-  }
-
-  const endingType = data.ending?.type || 'HEA'
-  data.romance_arc_stages = ROMANCE_ARC_STAGES_BY_ENDING[endingType] || ROMANCE_ARC_STAGES_BY_ENDING['HEA']
-
-  console.log(`  Romance Arc Stages: ${data.romance_arc_stages.join(' → ')}`)
-
-  console.log('')
-  console.log('Phase 1 complete output:')
-  console.log(JSON.stringify(data, null, 2))
-
-  return data
+  return result
 }
 
 // =============================================================================
@@ -5590,7 +5294,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
-  1: { name: 'Story DNA', description: 'Establishing story DNA, theme, external plot acts/parts, and romance arc stages' },
+  1: { name: 'Blueprint Chapters', description: 'Matching blueprint and generating story-specific chapter descriptions' },
   2: { name: 'Full Cast', description: 'Census of protagonist\'s world, matching people to pressures, then full psychology' },
   3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
   4: { name: 'Scene & Chapter Boundaries', description: 'Dividing parts into scenes and chapters for prose generation' },
@@ -5619,7 +5323,7 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
 
   switch (phase) {
     case 1:
-      console.log('Phase 1: Story DNA (includes romance_arc_stages)')
+      console.log('Phase 1: Blueprint → Chapter Descriptions')
       bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
       console.log('')
       console.log('Phase 1 complete output:')
@@ -5721,37 +5425,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   try {
     // Phase 1: Blueprint → Chapter Descriptions
     reportProgress(1, 'starting')
-
-    // Step 1: Expand concept (pulled out of old executePhase1)
-    const expanded = await expandVagueConcept(concept, librarySummaries)
-    const expandedConcept = expanded.concept
-    const tensionId = expanded.tensionId
-    const tropeId = expanded.tropeId
-    const endingId = expanded.endingId
-    const modifierId = expanded.modifierId
-
-    // Step 2: Blueprint guard
-    const bpCheck = checkBlueprintAvailable(tropeId, tensionId, endingId, modifierId)
-    if (!bpCheck.allowed) {
-      console.error(`Blueprint not available: ${bpCheck.reason}`)
-      return {
-        success: false,
-        error: `No blueprint available for this combination. ${bpCheck.reason}`,
-        partialBible: {}
-      }
-    }
-    console.log(`Blueprint found: ${bpCheck.blueprintName}`)
-
-    // Step 3: Execute Phase 1 Blueprint
-    bible.coreFoundation = await executePhase1Blueprint(
-      expandedConcept,
-      tropeId,
-      tensionId,
-      endingId,
-      modifierId,
-      callClaude,
-      parseJSON
-    )
+    bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
     reportProgress(1, 'complete', {
       blueprintId: bible.coreFoundation.blueprint?.id,
       blueprintName: bible.coreFoundation.blueprint?.name,

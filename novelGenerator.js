@@ -1493,14 +1493,14 @@ THEMATIC ENGAGEMENT:
 // PHASE 2 CALL 1: CHARACTER CENSUS
 // =============================================================================
 
-const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world, ordered from most proximal to least.
-
-Start from family, dead or alive — parents, siblings, grandparents, extended family who live in the house or nearby. Then friends and confidantes, dead or alive. Then people who live in the same house (staff, servants). Then people they see daily through work or routine. Then people who visit regularly. Then people at the edge of their world — present but not close.
+const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world.
 
 You will receive:
 - The original concept
 - 14 chapter descriptions that tell you what happens in this story
 - The expected character roles from the blueprint (protagonist, love interest, rival, etc.)
+
+You must populate three categories: family, friends, and everyone else. All three are required.
 
 Rules:
 - Start from the setting and era, not the plot. A sherry house in 1812 Cádiz has specific household patterns. A Manhattan apartment has different ones. Ground your answer in what's normal for this world.
@@ -1508,8 +1508,6 @@ Rules:
 - The love interest counts if physically present.
 - The rival/betrothed counts if they visit regularly.
 - Workers, staff, and servants count. In historical settings, household staff are physically present every day.
-- Family defaults to alive and present. Parents, siblings, grandparents, aunts, uncles, cousins — assume they exist unless the concept explicitly says otherwise. Do not kill them off or decide they were "never born." If the concept says someone is dead, they're dead. Otherwise they're alive.
-- Friends default to present. Every person has friends — a childhood companion, a neighbour, a confidante. The concept won't name them. Infer at least one from the setting.
 - Do NOT think about dramatic conflict, thematic positions, or what would be interesting for the story. Just list who is physically there.
 - Read the chapter descriptions to understand what world the protagonist inhabits and who populates it. The chapters imply people — family, workers, neighbours, authority figures, rivals — even if not named.
 
@@ -1517,13 +1515,29 @@ Output format:
 
 {
   "characters": {
-    "protagonist": [
-      {
-        "who": "Description (e.g., 'her mother', 'the household cook', 'a lady's maid')",
-        "relationship": "Their relationship to the protagonist",
-        "proximity": "How often they share physical space (e.g., 'lives in the house', 'works on the property daily', 'visits weekly for business')"
-      }
-    ]
+    "protagonist": {
+      "family": [
+        {
+          "who": "Description (e.g., 'her mother', 'a younger sister', 'a widowed aunt')",
+          "relationship": "Their relationship to the protagonist",
+          "proximity": "How often they share physical space (e.g., 'lives in the house', 'visits weekly')"
+        }
+      ],
+      "friends": [
+        {
+          "who": "Description (e.g., 'a childhood companion', 'a neighbour she confides in')",
+          "relationship": "Their relationship to the protagonist",
+          "proximity": "How often they share physical space"
+        }
+      ],
+      "everyone_else": [
+        {
+          "who": "Description (e.g., 'the household cook', 'a local merchant', 'French soldiers')",
+          "relationship": "Their relationship to the protagonist",
+          "proximity": "How often they share physical space"
+        }
+      ]
+    }
   },
   "absent_but_expected": [
     {
@@ -1533,7 +1547,7 @@ Output format:
   ]
 }
 
-Order each list from most proximal (lives together, sees daily) to least (occasional contact).`
+Order each category from most proximal (lives together, sees daily) to least (occasional contact).`
 
 function buildPhase2Call1UserPrompt(concept, phase1) {
   const blueprint = phase1.blueprint || {}
@@ -1581,10 +1595,18 @@ async function executePhase2Call1(concept, phase1) {
     throw new Error('Phase 2 Call 1: characters object missing or empty — must have at least one POV character entry')
   }
 
-  // Validate each POV entry is a non-empty array
-  for (const [pov, people] of Object.entries(data.characters)) {
-    if (!Array.isArray(people) || people.length === 0) {
-      throw new Error(`Phase 2 Call 1: POV character "${pov}" has no people listed`)
+  // Validate each POV entry has categorized people
+  for (const [pov, categories] of Object.entries(data.characters)) {
+    if (!categories || typeof categories !== 'object') {
+      throw new Error(`Phase 2 Call 1: POV character "${pov}" has no categories`)
+    }
+    const allPeople = [
+      ...(categories.family || []),
+      ...(categories.friends || []),
+      ...(categories.everyone_else || [])
+    ]
+    if (allPeople.length === 0) {
+      throw new Error(`Phase 2 Call 1: POV character "${pov}" has no people listed in any category`)
     }
   }
 
@@ -1595,11 +1617,15 @@ async function executePhase2Call1(concept, phase1) {
 
   // Log output
   console.log('Phase 2 Call 1 complete.')
-  for (const [pov, people] of Object.entries(data.characters)) {
-    console.log(`  ${pov}: ${people.length} people`)
-    people.forEach(p => {
+  for (const [pov, categories] of Object.entries(data.characters)) {
+    const family = categories.family || []
+    const friends = categories.friends || []
+    const everyoneElse = categories.everyone_else || []
+    const total = family.length + friends.length + everyoneElse.length
+    console.log(`  ${pov}: ${total} people (${family.length} family, ${friends.length} friends, ${everyoneElse.length} others)`)
+    for (const p of [...family, ...friends, ...everyoneElse]) {
       console.log(`    - ${p.who} (${p.proximity})`)
-    })
+    }
   }
   if (data.absent_but_expected.length > 0) {
     console.log(`  Absent but expected: ${data.absent_but_expected.length}`)
@@ -2016,6 +2042,9 @@ async function executePhase2(concept, phase1) {
   // Phase 2 Call 3: Psychology (names, wounds, arcs, thematic positions)
   const psychologyData = await executePhase2Call3(concept, phase1, matchData)
 
+  // Preserve census for Phase 3 scene generation
+  psychologyData.census = censusData.characters
+
   return psychologyData
 }
 
@@ -2040,7 +2069,7 @@ Characters appear because the scene needs them, not to fill a quota. Only list c
 
 Locations come from the world the concept establishes. Do not invent locations that contradict the setting.
 
-Scenes within a chapter should have distinct locations or cast — if two scenes have the same people in the same place doing the same thing, they are one scene.
+No two scenes in a chapter may share both the same location and the same cast. If you need multiple beats in the same place with the same people, they are one scene.
 
 Use character psychology from Phase 2. A character's wound, lie, and coping mechanism should be visible in how they behave, even if not stated explicitly.
 
@@ -2052,7 +2081,7 @@ You can see all 14 chapter functions. Use this to plant setups for later chapter
 
 Do not generate prose. Scenes are skeletons — location, cast, action.
 
-Do not invent new named characters. All characters must come from the Phase 2 cast. Unnamed background people (soldiers, workers, market crowds) are fine but should not have names or dialogue.
+Do not invent new named characters. All characters must come from the Phase 2 cast or the supporting census. Unnamed background people (soldiers, workers, market crowds) are fine but should not have names or dialogue.
 
 Do not describe character psychology in the action. Show what they DO, not what they FEEL. Psychology informs behaviour but is not stated.
 
@@ -2102,6 +2131,20 @@ function buildPhase3UserPrompt(concept, phase1, phase2, previousScenes, currentC
     for (const sc of phase2.stakeholder_characters) {
       castLines.push(`STAKEHOLDER: ${sc.name} (${sc.archetype || sc.role || 'supporting'})`)
       if (sc.thematic_position) castLines.push(`  Position: ${sc.thematic_position}`)
+    }
+  }
+
+  if (phase2.census) {
+    castLines.push('')
+    castLines.push('SUPPORTING CAST (from census — available for scenes but not required):')
+    const censusCategories = phase2.census.protagonist || {}
+    const allCensus = [
+      ...(censusCategories.family || []),
+      ...(censusCategories.friends || []),
+      ...(censusCategories.everyone_else || [])
+    ]
+    for (const c of allCensus) {
+      castLines.push(`  - ${c.who} (${c.relationship}) — ${c.proximity}`)
     }
   }
 

@@ -1495,7 +1495,7 @@ THEMATIC ENGAGEMENT:
 
 const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world, ordered from most proximal to least.
 
-Start from family — parents, siblings, grandparents, extended family who live in the house or nearby. Then friends and confidantes. Then people who live in the same house (staff, servants). Then people they see daily through work or routine. Then people who visit regularly. Then people at the edge of their world — present but not close.
+Start from family, dead or alive — parents, siblings, grandparents, extended family who live in the house or nearby. Then friends and confidantes, dead or alive. Then people who live in the same house (staff, servants). Then people they see daily through work or routine. Then people who visit regularly. Then people at the edge of their world — present but not close.
 
 You will receive:
 - The original concept

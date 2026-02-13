@@ -27,3 +27,5 @@ acess token.pages
 .firebaserc
 
 serviceAccountKey.json
+.env
+.env.*

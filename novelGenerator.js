@@ -2018,503 +2018,187 @@ async function executePhase2(concept, phase1) {
 }
 
 // =============================================================================
-// PHASE 3: CHARACTER ACTION GRID
+// PHASE 3: SCENE GENERATION
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are a story architect. Your task is to create an act-by-act, part-by-part CHARACTER ACTION GRID from the POV character's perspective.
+const PHASE_3_SYSTEM_PROMPT = `You are breaking a single chapter into scenes — the skeleton that prose generation will build from.
 
 You will receive:
 - The original concept
-- Phase 1 output (external_plot with acts and parts, romance_arc_stages as constraint list, theme, tone)
-- Phase 2 output (protagonist, love_interests, stakeholder_characters - the full cast with psychology)
+- All 14 chapter functions and descriptions (so you know where the story is going)
+- The full cast with psychology from Phase 2 (protagonist, love interests, stakeholder characters)
+- All scenes from previous chapters (empty for chapter 1)
+- The current chapter number, function, and description to generate scenes for
 
-## THE POV-RELATIVE ACTION GRID
+Generate 3-5 scenes for this chapter.
 
-Everything in the grid is relative to the POV character. The POV character gets a dense sequence of actions. Every other character is evaluated per part: do they enter the POV's physical space, or not?
+Each scene must serve the chapter's function. If the chapter function is "Maybe I was wrong", every scene in that chapter contributes to that shift.
 
-- **Present characters** get 5-10 actions (things they DO in the POV's space)
-- **Absent characters** get 0-3 atmospheric pressures (observable effects the POV can perceive: sounds, sights, news, letters, consequences) OR nothing if they have no observable effect on the POV's part
-- Characters who are absent produce NO actions — only pressures or nothing
+Characters appear because the scene needs them, not to fill a quota. Only list characters who are present and active in the scene.
 
-Romance arc stages are STATES the relationship moves through. The exact stages come from Phase 1's \`romance_arc_stages\` array — these are the ONLY valid values for \`romance_stage_tag\`. No invented stages. No skipping. Every stage must appear exactly once.
+Locations come from the world the concept establishes. Do not invent locations that contradict the setting.
 
-## OUTPUT FORMAT
+Scenes within a chapter should have distinct locations or cast — if two scenes have the same people in the same place doing the same thing, they are one scene.
+
+Use character psychology from Phase 2. A character's wound, lie, and coping mechanism should be visible in how they behave, even if not stated explicitly.
+
+The scene action should be what happens, not what it means. "She inspects the barrels and finds three have spoiled" not "We see her competence and her burden."
+
+Maintain continuity with all previous chapters. Do not contradict what has already happened. Characters who left cannot reappear without explanation. Information revealed stays revealed.
+
+You can see all 14 chapter functions. Use this to plant setups for later chapters. A detail in chapter 2 can be planted knowing it will pay off in chapter 9.
+
+Do not generate prose. Scenes are skeletons — location, cast, action.
+
+Do not invent new named characters. All characters must come from the Phase 2 cast. Unnamed background people (soldiers, workers, market crowds) are fine but should not have names or dialogue.
+
+Do not describe character psychology in the action. Show what they DO, not what they FEEL. Psychology informs behaviour but is not stated.
+
+Output format:
 
 {
-  "grid": [
+  "chapter": <chapter number>,
+  "function": "<chapter function>",
+  "scenes": [
     {
-      "act": 1,
-      "part": 1,
-      "part_name": "Name from Phase 1 external_plot",
-      "part_description": "What time period this covers and the world conditions",
-      "pov_character": "Protagonist name",
-      "pov_actions": [
-        {
-          "order": 1,
-          "action": "Physical observable action"
-        }
-      ],
-      "characters": [
-        {
-          "name": "Character name",
-          "present": true,
-          "first_appearance": true,
-          "narration_cue": "Brief cue for how the prose should introduce this character",
-          "actions": [
-            {
-              "order": 1,
-              "action": "Physical observable action"
-            }
-          ],
-          "romance_stage_tag": "awareness" | null
-        },
-        {
-          "name": "Character name",
-          "present": false,
-          "pressures": [
-            "Distant sound of gunfire from the mountains",
-            "A letter arrives bearing bad news about the harvest"
-          ]
-        },
-        {
-          "name": "Character name",
-          "present": false,
-          "pressures": []
-        }
-      ]
+      "scene": 1,
+      "location": "Where this scene takes place — a specific place from the story's world",
+      "cast": ["Character names present in this scene"],
+      "action": "What happens in this scene. 2-3 sentences. Concrete and specific."
     }
-  ],
+  ]
+}`
 
-  "romance_stage_progression": [
-    {
-      "stage": "awareness",
-      "act": 1,
-      "part": 1,
-      "character": "Protagonist name",
-      "description": "Brief description of what tips the relationship into this stage"
-    }
-  ],
+function buildPhase3UserPrompt(concept, phase1, phase2, previousScenes, currentChapter) {
+  const chapters = phase1.chapters || []
 
-  "faceless_manifestations": [
-    {
-      "pressure": "Name of the faceless pressure from Phase 2",
-      "part": "Act X Part Y",
-      "part_name": "Name of the part",
-      "delivery": "letter | memory | news | object | environment | document",
-      "moment": "Specific description of what happens",
-      "pov_affected": "Which POV character experiences this",
-      "emotional_function": "What this does to them emotionally"
-    }
-  ],
+  // Format all 14 chapter functions/descriptions
+  const chapterList = chapters.map(ch =>
+    `  Chapter ${ch.chapter} [${ch.function}]: ${ch.description}`
+  ).join('\n')
 
-  "validation": {
-    "all_stages_present": true | false,
-    "stages_in_order": true | false,
-    "missing_stages": ["any stages from Phase 1 romance_arc_stages not found"],
-    "total_pov_actions": number,
-    "total_present_characters": number,
-    "total_pressures": number
+  // Format full cast from Phase 2
+  const castLines = []
+
+  if (phase2.protagonist) {
+    castLines.push(`PROTAGONIST: ${phase2.protagonist.name}`)
+    if (phase2.protagonist.wound) castLines.push(`  Wound: ${phase2.protagonist.wound.event}`)
+    if (phase2.protagonist.lie) castLines.push(`  Lie: ${phase2.protagonist.lie}`)
+    if (phase2.protagonist.coping_mechanism) castLines.push(`  Coping: ${phase2.protagonist.coping_mechanism.behaviour}`)
   }
-}
 
-## FACELESS PRESSURE MANIFESTATIONS
-
-Phase 2 identifies faceless pressures — forces that affect the protagonists but have no single person embodying them (financial deadlines, memories of the dead, abstract political causes, etc.).
-
-These do not get action rows like characters. Instead, determine WHERE in the story each pressure manifests as a moment in the POV character's experience.
-
-For each faceless pressure, ask:
-- In which part(s) does this pressure naturally peak or intrude?
-- How does it reach the POV character? (letter arrives, memory triggered by object/place, news overheard, document discovered, environmental detail noticed)
-- What specific moment occurs?
-- What emotional function does it serve? (increases urgency, triggers guilt, raises stakes, forces decision)
-
-Not every pressure manifests in every part. Place them where they create maximum narrative impact.
-
-## CRITICAL RULES
-
-### 1. Every Character Evaluated at Every Part
-
-Every named character from Phase 2 MUST be evaluated at every part. For each, ask: **do they enter the POV character's physical space in this part?**
-
-- If YES → \`present: true\`, generate 5-10 actions
-- If NO → \`present: false\`, generate 0-3 atmospheric pressures that the POV can observe (or an empty pressures array if they have no observable effect)
-
-Do NOT generate actions for absent characters. Do NOT invent presence — if the story logic doesn't bring them into POV's space, they are not present. Characters who are dead or have left the story world get an empty pressures array.
-
-### 2. Romance Stage Tags: Sparse AND Only on Romantic Leads
-
-Most cells have NO romance tag. Tags only appear when the relationship TIPS from one state to the next.
-
-**HARD CONSTRAINT:** Romance stage tags may ONLY appear on protagonist or love_interest rows. Never on stakeholder characters. If a stage involves mutual transformation, place the tag on the protagonist's row.
-
-Example: Awareness might be tagged on Act 1 Part 1. The next 10, 20, 30 cells might have no tag at all while other things happen. Then eventually a cell tips to "attraction" - and the gap between those tags is where the story lives.
-
-### 3. Actions are CONCRETE, Pressures are OBSERVABLE
-
-**ACTIONS** (POV and present characters):
-- Physical, observable things they DO — chronologically ordered
-- Each action has an order number
-- ACTIONS ONLY — no dialogue, no internal thoughts. Prose phase produces those.
-- POV character: **15-20 actions** per part
-- Present non-POV characters: **5-10 actions** per part
-
-**PRESSURES** (absent characters):
-- Things the POV can perceive: distant sounds, smoke on the horizon, a letter arriving, news from a traveller, visible consequences of the absent character's actions
-- Must be POV-observable — if the POV can't hear it, see it, receive it, or learn about it, don't include it
-- 0-3 per absent character per part. Zero is valid — not every character affects every part
-
-**NARRATION CUES** (present characters only):
-- If \`first_appearance: true\`, include a brief \`narration_cue\` — a hint for the prose phase about how to introduce this character (physical description focus, role context, etc.)
-- Only on the FIRST part where this character is present
-
-### 4. Romance Stage Must Match Phase 1 romance_arc_stages
-
-The romance_arc_stages from Phase 1 is a CONSTRAINT. Every stage in that list must appear somewhere in the protagonist's or love_interest's cells, tagged in order. You cannot skip stages. You cannot regress.
-
-### 5. Lies DOMINATE Early Parts, DISSOLVE Gradually
-
-For protagonist and love interests: the first HALF of the grid, their **actions** must VISIBLY ENACT their lie and coping mechanism. They resist intimacy. They deflect. They protect themselves. The romance progresses anyway, but they fight it.
-
-This creates earned transformation. If the lie isn't visible in early actions, the ending feels cheap. The lie weakens mid-story (challenged by events) and releases at the dark moment or transformation.
-
-### 6. Arc Outcomes Must Match Final Part Actions
-
-Each stakeholder character's final part action(s) must reflect their defined \`arc_outcome\` from Phase 2:
-
-- **redemption**: Character visibly changes — action shows new belief or reconciliation
-- **tragic_death**: Character's death (literal or metaphorical) visible in final actions
-- **hollow_victory**: Character achieves stated goal BUT action shows emptiness/cost
-- **damnation**: Character fully embraces darkness — action shows doubling down
-- **survival_unchanged**: Character demonstrably unchanged — same behavior as start
-
-The model must NOT default toward redemption. A character defined as hardening with hollow_victory does NOT get a soft ending. Show the hollowness.
-
-### 7. Central Theme Tests Every Part
-
-Phase 1 defines \`theme.tension\` — a tension between two competing values (e.g., "duty vs truth"). Every part should contain at least one action where a character's thematic_position is being tested, reinforced, or challenged by events.
-
-The grid is not just plot choreography. It is a thematic argument across multiple characters. Each part should advance or complicate that argument.
-
-### 8. Outcome→State Continuity (CRITICAL)
-
-Each character's **state** at Part N+1 must follow logically from their **outcome** at Part N.
-
-If a character's outcome at the end of one part changes their circumstances, their state at the next part must reflect that change. No resets. No contradictions. No skipping consequences. The outcome→state chain creates continuity per character through the entire grid.
-
-The first part's states come from Phase 2 character setup. Later part states come from the previous part's outcome.
-
-### 9. Density Creates Novel
-
-Multiple parts × full cast = potentially 50+ scene fragments. This IS the master timeline. Every fragment is a potential scene. This density is what makes a novel, not a list of 14 romance moments with gaps.
-
-## PROCESS
-
-1. Read the external_plot acts and parts from Phase 1
-2. Read the full cast from Phase 2 (protagonist, love_interests, stakeholder_characters)
-3. For each part, generate 15-20 POV actions
-4. For each non-POV character at each part, determine: present or absent?
-5. Present characters: generate 5-10 actions, mark first_appearance if new
-6. Absent characters: generate 0-3 atmospheric pressures, or empty array
-7. After generating all grid entries, identify romance stage transitions on protagonist/love_interest rows
-8. Validate that all romance_arc_stages appear in order
-
-## NOTES
-
-- ACTIONS ONLY — no dialogues, no internal thoughts. The prose phase produces those naturally
-- Romance stage tags ONLY appear on present protagonist or love_interest characters — never on stakeholders
-- Pressures are NOT actions — they are observable effects (sounds, sights, news, consequences)
-- Do NOT generate actions for absent characters — only pressures or nothing
-- Do NOT reference any specific story, setting, or character names in your schema understanding — generate everything from the provided concept and Phase 1/2 data`
-
-function buildPhase3UserPrompt(concept, phase1, phase2) {
-  // Build full cast list with constraint data
-  const allCharacters = []
-
-  // Add protagonist with lie/coping for early part constraint
-  allCharacters.push({
-    name: phase2.protagonist?.name,
-    type: 'protagonist',
-    wound: phase2.protagonist?.wound?.event,
-    lie: phase2.protagonist?.lie,
-    coping_mechanism: phase2.protagonist?.coping_mechanism?.behaviour
-  })
-
-  // Add love interests with lie/coping
-  phase2.love_interests?.forEach(li => {
-    allCharacters.push({
-      name: li.name,
-      type: 'love_interest',
-      role: li.role_in_story,
-      wound: li.wound?.event,
-      lie: li.lie,
-      coping_mechanism: li.coping_mechanism?.behaviour
-    })
-  })
-
-  // Add stakeholder characters with arc_outcome
-  phase2.stakeholder_characters?.forEach(sc => {
-    allCharacters.push({
-      name: sc.name,
-      type: 'stakeholder',
-      archetype: sc.archetype,
-      thematic_position: sc.thematic_position,
-      arc_type: sc.arc_type,
-      arc_outcome: sc.arc_outcome
-    })
-  })
-
-  // Build external plot parts summary
-  const externalPartsSummary = (phase1.external_plot?.acts || []).map(act =>
-    `**Act ${act.act}: ${act.name || ''}**\n` + (act.parts || []).map(p =>
-      `  Part ${p.part}: ${p.name} — ${p.time_period || ''} (${p.world_state || ''})`
-    ).join('\n')
-  ).join('\n') || 'No external plot parts defined'
-
-  // Count total parts
-  const totalParts = (phase1.external_plot?.acts || []).reduce((sum, act) => sum + (act.parts?.length || 0), 0)
-
-  // Build romance arc stages constraint
-  const romanceStages = phase1.romance_arc_stages?.join(' → ') || 'awareness → attraction → tension → touch → kiss → intimacy → dark_moment → reunion'
-
-  return `ORIGINAL CONCEPT: ${concept}
-
-PHASE 1 OUTPUT (Story DNA):
-${JSON.stringify(phase1, null, 2)}
-
-PHASE 2 OUTPUT (Full Cast):
-${JSON.stringify(phase2, null, 2)}
-
-## Your Task
-
-Create an act-by-act, part-by-part POV-RELATIVE ACTION GRID. For each part, generate 15-20 POV actions. For each non-POV character, determine if they are present in POV's physical space — if yes, generate 5-10 actions; if no, generate 0-3 atmospheric pressures or nothing.
-
-## EXTERNAL PLOT PARTS (HARD CONSTRAINT — the grid rows)
-
-${externalPartsSummary}
-
-**HARD CONSTRAINT:** Use EXACTLY these ${totalParts} parts across ${phase1.external_plot?.acts?.length || 3} acts. No more. No fewer. Do not invent additional parts. Do not split parts. Do not combine parts. The grid must have exactly ${totalParts} rows, matching the list above.
-
-## ROMANCE ARC STAGES (HARD CONSTRAINT)
-
-${romanceStages}
-
-Every stage above MUST appear exactly once as a \`romance_stage_tag\` in the grid. No stage may be skipped. No stages may be invented. This is a hard constraint, not a guideline.
-
-These are STATES the relationship moves through. Tag protagonist cells when the relationship TIPS to a new stage. Most cells have NO tag - tags are sparse.
-
-## CENTRAL THEME (CONSTRAINT)
-
-**Theme Tension:** ${phase1.theme?.tension || 'Not defined'}
-
-Every part should contain at least one action where a character's thematic position is tested, reinforced, or challenged.
-
-## ROMANTIC LEADS — LIES THAT MUST DOMINATE EARLY PARTS
-
-${allCharacters.filter(c => c.type === 'protagonist' || c.type === 'love_interest').map(c => {
-  return `**${c.name}** (${c.type})
-  - Lie: "${c.lie}"
-  - Coping: "${c.coping_mechanism}"
-  - CONSTRAINT: For the first half of parts, actions must VISIBLY ENACT this lie/coping`
-}).join('\n\n')}
-
-## STAKEHOLDER CHARACTERS — ARC OUTCOMES
-
-${allCharacters.filter(c => c.type === 'stakeholder').map(c => {
-  return `**${c.name}** (${c.archetype})
-  - Position: "${c.thematic_position}"
-  - Arc: ${c.arc_type} → ${c.arc_outcome} ← Final part actions must reflect this outcome`
-}).join('\n\n')}
-
-## FULL CAST SUMMARY
-
-${allCharacters.map(c => {
-  if (c.type === 'protagonist') {
-    return `**${c.name}** (PROTAGONIST)`
-  } else if (c.type === 'love_interest') {
-    return `**${c.name}** (${c.role} LOVE INTEREST)`
-  } else {
-    return `**${c.name}** (STAKEHOLDER)`
+  if (phase2.love_interests) {
+    for (const li of phase2.love_interests) {
+      castLines.push(`LOVE INTEREST: ${li.name} (${li.role_in_story || 'love interest'})`)
+      if (li.wound) castLines.push(`  Wound: ${li.wound.event}`)
+      if (li.lie) castLines.push(`  Lie: ${li.lie}`)
+      if (li.coping_mechanism) castLines.push(`  Coping: ${li.coping_mechanism.behaviour}`)
+    }
   }
-}).join('\n')}
 
-## REQUIREMENTS
+  if (phase2.stakeholder_characters) {
+    for (const sc of phase2.stakeholder_characters) {
+      castLines.push(`STAKEHOLDER: ${sc.name} (${sc.archetype || sc.role || 'supporting'})`)
+      if (sc.thematic_position) castLines.push(`  Position: ${sc.thematic_position}`)
+    }
+  }
 
-1. POV character gets 15-20 actions per part
-2. Every non-POV character is evaluated at every part: present (5-10 actions) or absent (0-3 pressures or nothing)
-3. ACTIONS ONLY — no dialogues, no internal thoughts
-4. Actions are physical and concrete, not thematic or psychological
-5. Pressures are POV-observable — things the POV can hear, see, receive, or learn
-6. Do not generate actions for absent characters — only pressures or nothing
-7. Romance stage tags ONLY on present protagonist or love_interest characters
-8. Protagonist/love_interest early part actions must ENACT their lie (first half of parts)
-9. Each stakeholder's final part (where present) must reflect their arc_outcome
-10. Validate all romance_arc_stages from Phase 1 appear in order
-11. Mark first_appearance: true with a narration_cue for characters entering POV's space for the first time
+  // Format previous chapter scenes
+  let previousScenesText = 'None yet (this is chapter 1).'
+  if (previousScenes.length > 0) {
+    previousScenesText = previousScenes.map(ch => {
+      const sceneLines = ch.scenes.map(s =>
+        `    Scene ${s.scene}: [${s.location}] ${s.cast.join(', ')} — ${s.action}`
+      ).join('\n')
+      return `  Chapter ${ch.chapter} [${ch.function}]:\n${sceneLines}`
+    }).join('\n')
+  }
 
-## OUTPUT
+  return `CONCEPT: ${concept}
 
-Return valid JSON matching the schema from the system prompt. Actions are ARRAYS of {order, action} objects. No dialogues or thoughts.`
+ALL 14 CHAPTERS (the full story):
+${chapterList}
+
+FULL CAST (from Phase 2):
+${castLines.join('\n')}
+
+PREVIOUS CHAPTER SCENES:
+${previousScenesText}
+
+CURRENT CHAPTER TO GENERATE:
+  Chapter ${currentChapter.chapter} [${currentChapter.function}]: ${currentChapter.description}
+
+Generate 3-5 scenes for chapter ${currentChapter.chapter}. Return valid JSON.`
 }
 
 async function executePhase3(concept, phase1, phase2) {
-  console.log('Executing Phase 3: Character Action Grid...')
+  console.log('Executing Phase 3: Scene Generation...')
 
-  const userPrompt = buildPhase3UserPrompt(concept, phase1, phase2)
-  const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt, { maxTokens: 32768 })
-  const parsed = parseJSON(response)
+  const chapters = phase1.chapters || []
+  const allScenes = []
 
-  if (!parsed.success) {
-    console.error('Phase 3 raw response (first 1000 chars):', response.slice(0, 1000))
-    console.error('Phase 3 raw response (last 500 chars):', response.slice(-500))
-    throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
-  }
+  for (const chapter of chapters) {
+    console.log(`  Chapter ${chapter.chapter} [${chapter.function}]...`)
 
-  const data = parsed.data
+    const userPrompt = buildPhase3UserPrompt(concept, phase1, phase2, allScenes, chapter)
+    const response = await callOpenAI(PHASE_3_SYSTEM_PROMPT, userPrompt, { maxTokens: 4096 })
+    const parsed = parseJSON(response)
 
-  // Validate required fields
-  if (!data.grid || !Array.isArray(data.grid)) {
-    throw new Error('Phase 3 missing grid array')
-  }
-  if (!data.romance_stage_progression || !Array.isArray(data.romance_stage_progression)) {
-    throw new Error('Phase 3 missing romance_stage_progression array')
-  }
-
-  if (data.grid.length === 0) {
-    throw new Error('Phase 3 grid must have at least one part')
-  }
-
-  // Validate part count matches Phase 1
-  const expectedPartCount = (phase1.external_plot?.acts || []).reduce((sum, act) => sum + (act.parts?.length || 0), 0)
-  if (expectedPartCount > 0 && data.grid.length !== expectedPartCount) {
-    console.warn(`Phase 3 WARNING: Grid has ${data.grid.length} parts but Phase 1 defined ${expectedPartCount} parts`)
-  }
-
-  // Normalize and count
-  let totalPovActions = 0
-  let totalPresent = 0
-  let totalPressures = 0
-  let romanceTagCount = 0
-
-  for (const gridEntry of data.grid) {
-    if (!gridEntry.act || !gridEntry.part || !gridEntry.part_name) {
-      throw new Error(`Grid entry Act ${gridEntry.act || '?'} Part ${gridEntry.part || '?'} missing required fields`)
+    if (!parsed.success) {
+      console.error(`Phase 3 raw response for chapter ${chapter.chapter}:`, response.slice(0, 500))
+      throw new Error(`Phase 3 chapter ${chapter.chapter} JSON parse failed: ${parsed.error}`)
     }
 
-    // Count POV actions
-    totalPovActions += gridEntry.pov_actions?.length || 0
+    const data = parsed.data
 
-    // Normalize and count characters
-    if (gridEntry.characters && Array.isArray(gridEntry.characters)) {
-      for (const char of gridEntry.characters) {
-        if (char.present) {
-          totalPresent++
-          // Strip dialogues/thoughts if model included them
-          delete char.dialogues
-          delete char.thoughts
-        } else {
-          totalPressures += char.pressures?.length || 0
-          // Absent characters should not have actions
-          delete char.actions
-        }
-        if (char.romance_stage_tag) romanceTagCount++
+    // Validate scene count
+    if (!data.scenes || !Array.isArray(data.scenes)) {
+      throw new Error(`Phase 3 chapter ${chapter.chapter}: missing scenes array`)
+    }
+    if (data.scenes.length < 3 || data.scenes.length > 5) {
+      console.warn(`Phase 3 WARNING: chapter ${chapter.chapter} has ${data.scenes.length} scenes (expected 3-5)`)
+    }
+
+    // Validate each scene
+    for (const scene of data.scenes) {
+      if (!scene.location) {
+        throw new Error(`Phase 3 chapter ${chapter.chapter} scene ${scene.scene}: missing location`)
+      }
+      if (!scene.cast || !Array.isArray(scene.cast) || scene.cast.length === 0) {
+        throw new Error(`Phase 3 chapter ${chapter.chapter} scene ${scene.scene}: missing or empty cast`)
+      }
+      if (!scene.action) {
+        throw new Error(`Phase 3 chapter ${chapter.chapter} scene ${scene.scene}: missing action`)
       }
     }
 
-    // Also handle old format: if model returned fragments instead of pov_actions/characters
-    if (gridEntry.fragments && !gridEntry.pov_actions) {
-      console.log(`  Phase 3 normalization: converting old fragments format for Act ${gridEntry.act} Part ${gridEntry.part}`)
-      const protagonist = phase2.protagonist?.name
-      const povFrag = gridEntry.fragments.find(f => f.character === protagonist || f.character_type === 'protagonist')
-      if (povFrag) {
-        gridEntry.pov_character = protagonist
-        gridEntry.pov_actions = (povFrag.actions || []).map((a, i) => ({
-          order: i + 1,
-          action: typeof a === 'string' ? a : a.action || a
-        }))
-        totalPovActions += gridEntry.pov_actions.length
-      }
-      gridEntry.characters = gridEntry.fragments
-        .filter(f => f.character !== protagonist && f.character_type !== 'protagonist')
-        .map(f => ({
-          name: f.character,
-          present: true,
-          first_appearance: false,
-          actions: (f.actions || []).map((a, i) => ({
-            order: i + 1,
-            action: typeof a === 'string' ? a : a.action || a
-          })),
-          romance_stage_tag: f.romance_stage_tag || null
-        }))
-      totalPresent += gridEntry.characters.length
-      delete gridEntry.fragments
+    const result = {
+      chapter: chapter.chapter,
+      function: chapter.function,
+      scenes: data.scenes
+    }
+
+    allScenes.push(result)
+    console.log(`    → ${data.scenes.length} scenes`)
+  }
+
+  const totalScenes = allScenes.reduce((sum, ch) => sum + ch.scenes.length, 0)
+  console.log(`Phase 3 complete. ${allScenes.length} chapters, ${totalScenes} total scenes.`)
+
+  // Log summary
+  console.log('\n  Scene Summary:')
+  for (const ch of allScenes) {
+    console.log(`    Chapter ${ch.chapter} [${ch.function}]: ${ch.scenes.length} scenes`)
+    for (const s of ch.scenes) {
+      console.log(`      Scene ${s.scene}: [${s.location}] ${s.cast.join(', ')}`)
     }
   }
-
-  // Validate romance stage progression
-  const expectedStages = phase1.romance_arc_stages || []
-  const foundStages = data.romance_stage_progression.map(p => p.stage)
-  const missingStages = expectedStages.filter(s => !foundStages.includes(s))
-
-  if (missingStages.length > 0) {
-    console.warn(`Phase 3 WARNING: Missing romance stages: ${missingStages.join(', ')}`)
-  }
-
-  let stagesInOrder = true
-  for (let i = 0; i < foundStages.length; i++) {
-    const expectedIndex = expectedStages.indexOf(foundStages[i])
-    if (i > 0) {
-      const prevExpectedIndex = expectedStages.indexOf(foundStages[i - 1])
-      if (expectedIndex <= prevExpectedIndex) {
-        stagesInOrder = false
-        console.warn(`Phase 3 WARNING: Romance stages out of order at ${foundStages[i]}`)
-      }
-    }
-  }
-
-  // Console logging
-  console.log('Phase 3 complete.')
-  console.log(`  Total parts: ${data.grid.length}`)
-  console.log(`  Total POV actions: ${totalPovActions}`)
-  console.log(`  Present characters (across all parts): ${totalPresent}`)
-  console.log(`  Atmospheric pressures: ${totalPressures}`)
-  console.log(`  Romance tags: ${romanceTagCount}`)
-  console.log(`  Romance stages found: ${foundStages.length}/${expectedStages.length}`)
-  if (missingStages.length > 0) {
-    console.log(`  Missing stages: ${missingStages.join(', ')}`)
-  }
-  console.log(`  Stages in order: ${stagesInOrder}`)
-
-  // Log grid summary
-  console.log('\n  Grid Summary:')
-  data.grid.forEach(gridEntry => {
-    console.log(`    Act ${gridEntry.act} Part ${gridEntry.part}: ${gridEntry.part_name} — POV: ${gridEntry.pov_actions?.length || 0} actions`)
-    if (gridEntry.characters) {
-      gridEntry.characters.forEach(char => {
-        if (char.present) {
-          const tag = char.romance_stage_tag ? ` [${char.romance_stage_tag}]` : ''
-          const first = char.first_appearance ? ' (FIRST)' : ''
-          console.log(`      ${char.name}: present, ${char.actions?.length || 0} actions${first}${tag}`)
-        } else {
-          const pCount = char.pressures?.length || 0
-          console.log(`      ${char.name}: absent${pCount > 0 ? `, ${pCount} pressures` : ''}`)
-        }
-      })
-    }
-  })
-
-  // Log romance progression
-  console.log('\n  Romance Stage Progression:')
-  data.romance_stage_progression.forEach(p => {
-    const desc = p.description ? p.description.slice(0, 50) : 'no description'
-    console.log(`    ${p.stage}: Act ${p.act} Part ${p.part}, ${p.character} - ${desc}...`)
-  })
 
   console.log('')
   console.log('Phase 3 complete output:')
-  console.log(JSON.stringify(data, null, 2))
+  console.log(JSON.stringify({ chapters: allScenes }, null, 2))
 
-  return data
+  return { chapters: allScenes }
 }
 
 // =============================================================================
@@ -5018,15 +4702,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
       }
     case 3:
       if (phaseNumber <= 3) {
-        updatedBible.characters = await executePhase3(concept, updatedBible.coreFoundation, updatedBible.world)
-      }
-    case 4:
-      if (phaseNumber <= 4) {
-        updatedBible.sceneAssembly = await executePhase4(concept, updatedBible.coreFoundation, updatedBible.characters, updatedBible.actionGrid)
-      }
-    case 5:
-      if (phaseNumber <= 5) {
-        updatedBible.plot = await executePhase5(concept, updatedBible.coreFoundation, updatedBible.world, updatedBible.characters, updatedBible.chemistry, lengthPreset)
+        updatedBible.scenes = await executePhase3(concept, updatedBible.coreFoundation, updatedBible.characters)
       }
     case 6:
       if (phaseNumber <= 6) {
@@ -5081,8 +4757,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 const PHASE_DESCRIPTIONS = {
   1: { name: 'Blueprint Chapters', description: 'Matching blueprint and generating story-specific chapter descriptions' },
   2: { name: 'Full Cast', description: 'Census of protagonist\'s world, matching people to pressures, then full psychology' },
-  3: { name: 'Character Action Grid', description: 'Act-by-act, part-by-part actions for all characters across all external parts' },
-  4: { name: 'Scene & Chapter Boundaries', description: 'Dividing parts into scenes and chapters for prose generation' },
+  3: { name: 'Scene Generation', description: 'Breaking each chapter into 3-5 scenes with location, cast, and action' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with setup requirements' },
   8: { name: 'Supporting Scenes', description: 'Creating supporting scenes to fulfill setup requirements' },
@@ -5127,23 +4802,15 @@ export async function runPhase(phase, concept, lengthPreset, level, bible = {}, 
       if (!bible.coreFoundation || !bible.characters) {
         throw new Error('Phase 3 requires Phases 1-2 (bible.coreFoundation, bible.characters) to be complete')
       }
-      console.log('Phase 3: Character Action Grid')
-      bible.actionGrid = await executePhase3(concept, bible.coreFoundation, bible.characters)
+      console.log('Phase 3: Scene Generation')
+      bible.scenes = await executePhase3(concept, bible.coreFoundation, bible.characters)
       console.log('')
       console.log('Phase 3 complete output:')
-      console.log(JSON.stringify(bible.actionGrid, null, 2))
-      break
-
-    case 4:
-      if (!bible.coreFoundation || !bible.characters || !bible.actionGrid) {
-        throw new Error('Phase 4 requires Phases 1-3 (bible.coreFoundation, bible.characters, bible.actionGrid) to be complete')
-      }
-      console.log('Phase 4: Scene & Chapter Boundaries')
-      bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
+      console.log(JSON.stringify(bible.scenes, null, 2))
       break
 
     default:
-      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 2, 3, 4`)
+      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 2, 3`)
   }
 
   return bible
@@ -5170,7 +4837,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   let bible = {}
   let validationAttempts = 0
-  const totalPhases = 7 // Phases 1, 2, 3, 6, 7, 8, 9 (old 4-5 eliminated)
+  const totalPhases = 3 // Phases 1, 2, 3 (downstream phases not yet updated)
 
   // Helper to report progress
   const reportProgress = (phase, status = 'in_progress', details = null) => {
@@ -5231,50 +4898,33 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     })
     await savePhase(2)
 
-    // Phase 3: Character Action Grid (replaces old Phase 3 timeline + eliminates old Phase 4/5)
-    // The grid IS the master timeline - all characters gridded simultaneously
+    // Phase 3: Scene Generation (14 sequential calls, one per chapter)
     reportProgress(3, 'starting')
-    bible.actionGrid = await executePhase3(concept, bible.coreFoundation, bible.characters)
+    bible.scenes = await executePhase3(concept, bible.coreFoundation, bible.characters)
     reportProgress(3, 'complete', {
-      totalParts: bible.actionGrid.grid?.length,
-      totalFragments: bible.actionGrid.validation?.total_fragments,
-      protagonistFragments: bible.actionGrid.validation?.protagonist_fragments_count,
-      romanceStagesFound: bible.actionGrid.romance_stage_progression?.length,
-      allStagesPresent: bible.actionGrid.validation?.all_stages_present,
-      stagesInOrder: bible.actionGrid.validation?.stages_in_order
+      totalChapters: bible.scenes.chapters?.length,
+      totalScenes: bible.scenes.chapters?.reduce((sum, ch) => sum + ch.scenes.length, 0)
     })
     await savePhase(3)
 
-    // Phase 4: Scene & Chapter Boundaries
-    reportProgress(4, 'starting')
-    bible.sceneAssembly = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
-    reportProgress(4, 'complete', {
-      povCharacter: bible.sceneAssembly.pov_character,
-      totalParts: bible.sceneAssembly.parts?.length,
-      totalChapters: bible.sceneAssembly.parts?.reduce((sum, p) => sum + p.chapters.length, 0),
-      totalScenes: bible.sceneAssembly.parts?.reduce((sum, p) => sum + p.chapters.reduce((s, c) => s + (c.scenes?.length || 0), 0), 0)
-    })
-    await savePhase(4)
-
-    // TESTING: Stop after Phase 4 to validate scene/chapter boundaries
+    // TESTING: Stop after Phase 3 to validate scene generation
     console.log('='.repeat(60))
-    console.log('TEST MODE - Stopping after Phase 4 (Scene & Chapter Boundaries)')
-    console.log('Phase 4 Output:', JSON.stringify(bible.sceneAssembly, null, 2))
+    console.log('TEST MODE - Stopping after Phase 3 (Scene Generation)')
+    console.log('Phase 3 Output:', JSON.stringify(bible.scenes, null, 2))
     console.log('='.repeat(60))
 
     return {
       success: true,
       bible,
-      validationStatus: 'PHASE_4_TEST',
+      validationStatus: 'PHASE_3_TEST',
       validationAttempts: 0
     }
 
-    // TODO: Downstream phases (6+) need to be updated to read from bible.sceneAssembly
-    // instead of bible.plot, bible.subplots, bible.masterTimeline
+    // TODO: Downstream phases need to be updated to read from bible.scenes
 
-    // Phase 6: Major Events & Locations (needs update to read from actionGrid)
+    // Phase 6: Major Events & Locations
     reportProgress(6, 'starting')
-    bible.eventsAndLocations = await executePhase6(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
+    bible.eventsAndLocations = await executePhase6(concept, bible.coreFoundation, bible.characters, bible.scenes)
     reportProgress(6, 'complete', {
       majorEvents: bible.eventsAndLocations.major_events?.length || 0,
       loneMoments: bible.eventsAndLocations.lone_moments?.length || 0,

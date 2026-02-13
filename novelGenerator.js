@@ -1493,9 +1493,16 @@ THEMATIC ENGAGEMENT:
 // PHASE 2 CALL 1: CHARACTER CENSUS
 // =============================================================================
 
-const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world, ordered from most proximal to least.
+const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world.
 
-Start from the people who live in the same house. Then people they see daily through work or routine. Then people who visit regularly. Then people at the edge of their world — present but not close.
+Order the census by these proximity tiers — list every person in tier 1 before moving to tier 2, and so on:
+
+1. FAMILY — who lives in the house, who visits regularly, who's nearby. In most historical settings families were large and extended: parents, siblings, grandparents, aunts, uncles, cousins. Start here.
+2. FRIENDS AND CONFIDANTES — childhood friends, neighbours the protagonist is close to, a trusted companion.
+3. HOUSEHOLD STAFF AND SERVANTS — in historical settings these people are physically present every day. A cook, a maid, a housekeeper, a steward.
+4. DAILY CONTACTS — workers, employees, business associates the protagonist sees through routine.
+5. REGULAR VISITORS — the rival, the betrothed, a priest, a merchant, anyone who appears periodically.
+6. EDGE OF WORLD — people who are present in the protagonist's life but not close. Authority figures, distant acquaintances.
 
 You will receive:
 - The original concept
@@ -1504,10 +1511,10 @@ You will receive:
 
 Rules:
 - Start from the setting and era, not the plot. A sherry house in 1812 Cádiz has specific household patterns. A Manhattan apartment has different ones. Ground your answer in what's normal for this world.
+- FAMILY FIRST. Before you list a single employee or servant, list every family member who is alive and present. Historical settings typically had large extended families — parents, siblings, grandparents, aunts, uncles, cousins. If the setting would have them, list them.
 - Account for the dead or absent. If family members are dead, ask: who survives? A father is dead — what about a mother? Siblings? Don't assume the protagonist is alone just because some family died.
-- The love interest counts if physically present.
-- The rival/betrothed counts if they visit regularly.
-- Workers, staff, and servants count. In historical settings, household staff are physically present every day.
+- The protagonist needs at least one friend or confidante — someone who is not family, not staff, not a plot role. A childhood friend, a neighbour, a trusted companion.
+- The love interest counts if physically present. Place them in whichever tier matches their proximity.
 - Do NOT think about dramatic conflict, thematic positions, or what would be interesting for the story. Just list who is physically there.
 - Read the chapter descriptions to understand what world the protagonist inhabits and who populates it. The chapters imply people — family, workers, neighbours, authority figures, rivals — even if not named.
 
@@ -1517,9 +1524,9 @@ Output format:
   "characters": {
     "protagonist": [
       {
-        "who": "Description (e.g., 'her mother', 'the household cook', 'a lady's maid')",
+        "who": "Description (e.g., 'her mother', 'her younger brother', 'a childhood friend', 'the household cook')",
         "relationship": "Their relationship to the protagonist",
-        "proximity": "How often they share physical space (e.g., 'lives in the house', 'works on the property daily', 'visits weekly for business')"
+        "proximity": "How often they share physical space (e.g., 'lives in the house', 'visits weekly', 'works on the property daily')"
       }
     ]
   },
@@ -1531,7 +1538,7 @@ Output format:
   ]
 }
 
-Order each list from most proximal (lives together, sees daily) to least (occasional contact).`
+Order each list following the tier order above: family first, then friends, then staff, then daily contacts, then visitors, then edge of world.`
 
 function buildPhase2Call1UserPrompt(concept, phase1) {
   const blueprint = phase1.blueprint || {}

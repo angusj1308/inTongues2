@@ -1508,8 +1508,8 @@ Rules:
 - The love interest counts if physically present.
 - The rival/betrothed counts if they visit regularly.
 - Workers, staff, and servants count. In historical settings, household staff are physically present every day.
-- Family counts. Parents, siblings, grandparents, aunts, uncles, cousins — the concept won't name them all. Infer them from the setting and era. Every absent family member needs a reason in absent_but_expected.
-- Friends and social circle count. In every setting and era, people have friends, companions, or confidantes — a childhood friend, a neighbour, a cousin who visits. The concept won't name them. Infer them from the setting.
+- Family defaults to alive and present. Parents, siblings, grandparents, aunts, uncles, cousins — assume they exist unless the concept explicitly says otherwise. Do not kill them off or decide they were "never born." If the concept says someone is dead, they're dead. Otherwise they're alive.
+- Friends default to present. Every person has friends — a childhood companion, a neighbour, a confidante. The concept won't name them. Infer at least one from the setting.
 - Do NOT think about dramatic conflict, thematic positions, or what would be interesting for the story. Just list who is physically there.
 - Read the chapter descriptions to understand what world the protagonist inhabits and who populates it. The chapters imply people — family, workers, neighbours, authority figures, rivals — even if not named.
 

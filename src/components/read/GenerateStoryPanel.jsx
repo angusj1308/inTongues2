@@ -9,7 +9,6 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
-import { generatePrompt, expandPrompt, generateDifferentPrompt } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -23,18 +22,6 @@ const GENERATE_TITLES = {
 
 const GENRES = [
   { id: 'romance', label: 'Romance' },
-]
-
-// Culturally relevant setting examples that cycle through
-const SETTING_EXAMPLES = [
-  'Forbidden love during the British occupation of Buenos Aires',
-  'A chance encounter in a Parisian café during the 1920s',
-  'Star-crossed lovers in feudal Japan',
-  'A summer romance on the Amalfi Coast',
-  'Love blooming in colonial-era Havana',
-  'A passionate affair in revolutionary Mexico',
-  'Unexpected connection in modern-day Seoul',
-  'Romance amid the vineyards of Tuscany',
 ]
 
 // Length presets with page ranges
@@ -63,10 +50,7 @@ const GenerateStoryPanel = ({
   const [voiceGender, setVoiceGender] = useState('male')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [exampleIndex, setExampleIndex] = useState(0)
   const [bibleProgress, setBibleProgress] = useState('') // Progress message for bible generation
-  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
-  const [isGeneratedContent, setIsGeneratedContent] = useState(false) // Track if description was AI-generated
   const [uploadedFileName, setUploadedFileName] = useState('')
   const [uploadedContent, setUploadedContent] = useState('')
   const fileInputRef = useRef(null)
@@ -102,14 +86,6 @@ const GenerateStoryPanel = ({
   // Get current preset details
   const currentPreset = LENGTH_PRESETS.find((p) => p.id === lengthPreset) || LENGTH_PRESETS[0]
 
-  // Cycle through setting examples
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setExampleIndex((prev) => (prev + 1) % SETTING_EXAMPLES.length)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
-
   useEffect(() => {
     if (profile && !availableLanguages.length && !isModal) {
       navigate('/select-language')
@@ -135,33 +111,6 @@ const GenerateStoryPanel = ({
     const resolved = toLanguageLabel(newLanguage)
     if (!resolved) return
     setLastUsedLanguage(resolved)
-  }
-
-  const handleGeneratePrompt = async () => {
-    setIsGeneratingPrompt(true)
-    setError('')
-    try {
-      const currentText = description.trim()
-      let prompt
-
-      if (!currentText) {
-        // Empty field: generate fresh concept
-        prompt = await generatePrompt()
-      } else if (isGeneratedContent) {
-        // Already generated: create something completely different
-        prompt = await generateDifferentPrompt(currentText)
-      } else {
-        // User typed something: expand their idea
-        prompt = await expandPrompt(currentText)
-      }
-
-      setDescription(prompt)
-      setIsGeneratedContent(true)
-    } catch (err) {
-      setError(err.message || 'Failed to generate prompt')
-    } finally {
-      setIsGeneratingPrompt(false)
-    }
   }
 
   const handleFileUpload = (event) => {
@@ -421,34 +370,10 @@ const GenerateStoryPanel = ({
         <label className="ui-text">
           Setting
           <textarea
-            placeholder={SETTING_EXAMPLES[exampleIndex]}
+            placeholder="When and where does your story take place?"
             value={description}
-            onChange={(event) => {
-              setDescription(event.target.value)
-              setIsGeneratedContent(false)
-            }}
+            onChange={(event) => setDescription(event.target.value)}
           />
-          <div className="setting-actions">
-            <button
-              type="button"
-              className="button ghost small"
-              onClick={handleGeneratePrompt}
-              disabled={isGeneratingPrompt}
-            >
-              {isGeneratingPrompt
-                ? 'Generating...'
-                : !description.trim()
-                  ? 'Generate Prompt'
-                  : isGeneratedContent
-                    ? 'New Story Idea'
-                    : 'Expand My Prompt'}
-            </button>
-            <p className="muted small ui-text">
-              {description.trim()
-                ? 'Generate a different concept, or edit the one above.'
-                : 'Or describe the time, place, and setting for your story.'}
-            </p>
-          </div>
         </label>
 
         {/* Document Upload — for novella/novel length */}

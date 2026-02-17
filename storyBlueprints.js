@@ -1702,6 +1702,564 @@ function buildPhase1BlueprintPrompt(concept, blueprint) {
   return `CONCEPT:\n${concept}\n\nBLUEPRINT: ${blueprint.name}\nTotal chapters: ${blueprint.totalChapters}\n\nEXPECTED ROLES:\n${rolesText}${secretText}${castText}${constraintText}\n\nCHAPTER STRUCTURE:\n\n${blueprintText}\n\nFill each chapter function with a story-specific description for this concept. 2-4 sentences per chapter. Concrete and specific to this story. For each employment group, select the option that best fits this concept.`
 }
 
+// =============================================================================
+// ROLL SKELETON — Pure randomizer, no LLM calls
+// =============================================================================
+// Reads the blueprint data and produces a complete rolled skeleton with every
+// structural variable selected and every chapter employment option chosen,
+// respecting all constraints and locks. Output is ready for concept generation.
+// =============================================================================
+
+function rollSkeleton() {
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function weightedPick(options) {
+    const total = options.reduce((sum, o) => sum + o.weight, 0)
+    let r = Math.random() * total
+    for (const o of options) {
+      r -= o.weight
+      if (r <= 0) return o.value
+    }
+    return options[options.length - 1].value
+  }
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1. STRUCTURAL VARIABLES (rolled in order, with locks)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const trope = 'enemies_to_lovers'
+  const tension = Math.random() < 0.5 ? 'safety' : 'identity'
+
+  let ending, triangle
+  if (tension === 'identity') {
+    ending = 'HEA'       // LOCK: identity → HEA
+    triangle = false      // LOCK: identity → no triangle
+  } else {
+    ending = weightedPick([
+      { value: 'HEA', weight: 60 },
+      { value: 'bittersweet', weight: 30 },
+      { value: 'tragic', weight: 10 }
+    ])
+    triangle = Math.random() < 0.3
+  }
+
+  const secret = Math.random() < 0.5
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2. CHAPTER EMPLOYMENT OPTIONS (sequential, constraints enforced)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const chapters = []
+  let chapterNum = 0
+
+  // Cross-chapter state
+  let ch1Selection = null
+  let ch2EnmitySelection = null
+  let ch3TriangleSelection = null
+  let rivalRole = null
+  let rivalFlaw = { id: null, selectedIn: null }
+  let ch9TragedySelection = null
+
+  // ── CH.1: ESTABLISH HER WORLD ──────────────────────────────────────────
+  chapterNum++
+  const ch1Def = CHAPTER_TREE.act1.chapters.ch1
+  const ch1Options = tension === 'safety'
+    ? ch1Def.employment.safety.options
+    : ch1Def.employment.identity.options
+  const ch1Pick = pick(ch1Options)
+  ch1Selection = ch1Pick.id
+
+  let ch1EndState
+  if (tension === 'identity') {
+    ch1EndState = ch1Def.endStates.identity
+  } else if (ch1Selection === 'safe_stable') {
+    ch1EndState = ch1Def.endStates.safety_safe_stable
+  } else {
+    ch1EndState = ch1Def.endStates.safety_default
+  }
+
+  const ch1Entry = {
+    chapter: chapterNum,
+    title: ch1Def.title,
+    endState: ch1EndState,
+    employmentSelections: [
+      { group: 'Employment Options', id: ch1Pick.id, text: ch1Pick.text }
+    ]
+  }
+  if (triangle) ch1Entry.notes = ['The rival is established as part of her world']
+  chapters.push(ch1Entry)
+
+  // ── CH.2: THE FIRST ENCOUNTER ──────────────────────────────────────────
+  chapterNum++
+  const ch2Def = CHAPTER_TREE.act1.chapters.ch2
+  const ch2Selections = []
+
+  // How they meet
+  let meetOptions = [...ch2Def.employment.howTheyMeet.options]
+  if (ch1Selection === 'safe_stable') {
+    meetOptions = meetOptions.filter(o => o.id !== 'open_hostility')
+  }
+  const ch2MeetPick = pick(meetOptions)
+  ch2Selections.push({ group: 'How They Meet', id: ch2MeetPick.id, text: ch2MeetPick.text })
+
+  // Why they're enemies
+  if (tension === 'safety') {
+    let enmityOptions = [...ch2Def.employment.enmity_safety.options]
+    if (ch1Selection === 'safe_stable') {
+      enmityOptions = enmityOptions.filter(o => o.id !== 'rivals' && o.id !== 'opposite_sides')
+    }
+    const enmityPick = pick(enmityOptions)
+    ch2EnmitySelection = enmityPick.id
+    ch2Selections.push({ group: "Why They're Enemies", id: enmityPick.id, text: enmityPick.text })
+  } else {
+    const enmityKey = `enmity_identity_${ch1Selection}`
+    const enmityGroup = ch2Def.employment[enmityKey]
+    const enmityPick = pick(enmityGroup.options)
+    ch2EnmitySelection = enmityPick.id
+    ch2Selections.push({ group: enmityGroup.header, id: enmityPick.id, text: enmityPick.text })
+  }
+
+  chapters.push({
+    chapter: chapterNum,
+    title: ch2Def.title,
+    endState: tension === 'safety' ? ch2Def.endStates.safety : ch2Def.endStates.identity,
+    employmentSelections: ch2Selections
+  })
+
+  // ── CH.3 ───────────────────────────────────────────────────────────────
+  chapterNum++
+  if (tension === 'identity') {
+    const ch3Def = CHAPTER_TREE.act1.chapters.ch3_identity
+    const ch3Pick = pick(ch3Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch3Def.title,
+      endState: ch3Def.endStates.default,
+      employmentSelections: [{ group: 'Employment Options', id: ch3Pick.id, text: ch3Pick.text }]
+    })
+  } else if (triangle) {
+    const ch3Def = CHAPTER_TREE.act1.chapters.ch3_triangle
+    let ch3Options = [...ch3Def.employment.main.options]
+    // CONSTRAINT: presents_solution disabled if ch2 enmity is opposite_sides or she_pursues
+    if (ch2EnmitySelection === 'opposite_sides' || ch2EnmitySelection === 'she_pursues') {
+      ch3Options = ch3Options.filter(o => o.id !== 'presents_solution')
+    }
+    const ch3Pick = pick(ch3Options)
+    ch3TriangleSelection = ch3Pick.id
+
+    const ch3Sels = [{ group: 'Employment Options', id: ch3Pick.id, text: ch3Pick.text }]
+
+    if (ch3TriangleSelection === 'already_in_life') {
+      // Flaw selected now, rival fixed to passive
+      const flawPick = pick(ch3Def.employment.flawOptions.options)
+      rivalFlaw = { id: flawPick.id, selectedIn: 'ch3' }
+      ch3Sels.push({ group: "The First Crack — Rival's Flaw", id: flawPick.id, text: flawPick.text })
+      rivalRole = 'passive'
+    } else {
+      // presents_solution — flaw deferred to ch5, rival fixed to active
+      rivalRole = 'active'
+    }
+
+    const ch3EndState = ch3Def.endStates[ch3TriangleSelection] || ch3Def.endStates.default
+    chapters.push({
+      chapter: chapterNum,
+      title: ch3Def.title,
+      endState: ch3EndState,
+      employmentSelections: ch3Sels
+    })
+  } else {
+    const ch3Def = CHAPTER_TREE.act1.chapters.ch3_notriangle
+    const ch3Pick = pick(ch3Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch3Def.title,
+      endState: ch3Def.endStates.default,
+      employmentSelections: [{ group: 'Employment Options', id: ch3Pick.id, text: ch3Pick.text }]
+    })
+  }
+
+  // ── CH.4 ───────────────────────────────────────────────────────────────
+  chapterNum++
+  const ch4Key = tension === 'identity' ? 'ch4_identity' : 'ch4_safety'
+  const ch4Def = CHAPTER_TREE.act1.chapters[ch4Key]
+  const ch4Pick = pick(ch4Def.employment.main.options)
+  chapters.push({
+    chapter: chapterNum,
+    title: ch4Def.title,
+    endState: ch4Def.endStates.default,
+    employmentSelections: [{ group: ch4Def.employment.main.header, id: ch4Pick.id, text: ch4Pick.text }]
+  })
+
+  // ── CH.5: THE CRACK ────────────────────────────────────────────────────
+  chapterNum++
+  if (tension === 'identity') {
+    const ch5Def = CHAPTER_TREE.act2.chapters.ch5_identity
+    const ch5Pick = pick(ch5Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch5Def.title,
+      endState: ch5Def.endStates.default,
+      employmentSelections: [{ group: ch5Def.employment.main.header, id: ch5Pick.id, text: ch5Pick.text }]
+    })
+  } else {
+    const ch5Def = CHAPTER_TREE.act2.chapters.ch5_safety
+    const ch5Sels = []
+    const ch5Pick = pick(ch5Def.employment.main.options)
+    ch5Sels.push({ group: ch5Def.employment.main.header, id: ch5Pick.id, text: ch5Pick.text })
+
+    // Rival flaw emerges in ch5 when triangle + presents_solution
+    if (triangle && ch3TriangleSelection === 'presents_solution') {
+      const flawPick = pick(ch5Def.employment.rivalFlawEmerges.options)
+      rivalFlaw = { id: flawPick.id, selectedIn: 'ch5' }
+      ch5Sels.push({ group: ch5Def.employment.rivalFlawEmerges.header, id: flawPick.id, text: flawPick.text })
+    }
+
+    const ch5Entry = {
+      chapter: chapterNum,
+      title: ch5Def.title,
+      endState: ch5Def.endStates.default,
+      employmentSelections: ch5Sels
+    }
+    if (triangle && ch3TriangleSelection === 'already_in_life') {
+      ch5Entry.notes = ["Rival's flaw escalates — same flaw from Ch.3, louder"]
+    }
+    chapters.push(ch5Entry)
+  }
+
+  // ── CH.6: THE FALL ─────────────────────────────────────────────────────
+  chapterNum++
+  if (tension === 'identity') {
+    const ch6Def = CHAPTER_TREE.act2.chapters.ch6_identity
+    const ch6Pick = pick(ch6Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch6Def.title,
+      endState: ch6Def.endStates.default,
+      employmentSelections: [{ group: ch6Def.employment.main.header, id: ch6Pick.id, text: ch6Pick.text }]
+    })
+  } else {
+    const ch6Def = CHAPTER_TREE.act2.chapters.ch6_safety
+    const ch6Pick = pick(ch6Def.employment.main.options)
+    const ch6Entry = {
+      chapter: chapterNum,
+      title: ch6Def.title,
+      endState: triangle ? ch6Def.endStates.triangle : ch6Def.endStates.notriangle,
+      employmentSelections: [{ group: ch6Def.employment.main.header, id: ch6Pick.id, text: ch6Pick.text }]
+    }
+    if (triangle) {
+      ch6Entry.notes = ["Rival's flaw escalates further — degradation accelerates"]
+    }
+    chapters.push(ch6Entry)
+  }
+
+  // ── CH.7: THE DARK MOMENT ──────────────────────────────────────────────
+  chapterNum++
+  if (tension === 'identity') {
+    const ch7Def = CHAPTER_TREE.act3.chapters.ch7_identity
+    const ch7Sels = []
+
+    if (secret) {
+      const secretPick = pick(ch7Def.employment.secret.options)
+      ch7Sels.push({ group: ch7Def.employment.secret.header, id: secretPick.id, text: secretPick.text })
+      const surfacePick = pick(ch7Def.employment.secretSurface.options)
+      ch7Sels.push({ group: ch7Def.employment.secretSurface.header, id: surfacePick.id, text: surfacePick.text })
+    } else {
+      const triggerPick = pick(ch7Def.employment.trigger.options)
+      ch7Sels.push({ group: ch7Def.employment.trigger.header, id: triggerPick.id, text: triggerPick.text })
+    }
+
+    chapters.push({
+      chapter: chapterNum,
+      title: ch7Def.title,
+      endState: ch7Def.endStates.default,
+      employmentSelections: ch7Sels
+    })
+  } else {
+    const ch7Def = CHAPTER_TREE.act3.chapters.ch7_safety
+    const ch7Sels = []
+
+    if (secret) {
+      const secretPick = pick(ch7Def.employment.secret.options)
+      ch7Sels.push({ group: ch7Def.employment.secret.header, id: secretPick.id, text: secretPick.text })
+
+      // Filter rival_exposes to triangle-only
+      let surfaceOptions = [...ch7Def.employment.secretSurface.options]
+      if (!triangle) {
+        surfaceOptions = surfaceOptions.filter(o => o.id !== 'rival_exposes')
+      }
+      const surfacePick = pick(surfaceOptions)
+      ch7Sels.push({ group: ch7Def.employment.secretSurface.header, id: surfacePick.id, text: surfacePick.text })
+
+      // rival_exposes overrides rival role to active
+      if (surfacePick.id === 'rival_exposes') {
+        rivalRole = 'active'
+      }
+    } else {
+      const triggerPick = pick(ch7Def.employment.trigger.options)
+      ch7Sels.push({ group: ch7Def.employment.trigger.header, id: triggerPick.id, text: triggerPick.text })
+    }
+
+    // Rival role + manipulation (triangle only)
+    if (triangle) {
+      const rivalRoleOpt = ch7Def.employment.rivalRole.options.find(o => o.id === rivalRole)
+      ch7Sels.push({ group: ch7Def.employment.rivalRole.header, id: rivalRole, text: rivalRoleOpt.text })
+
+      if (rivalRole === 'active') {
+        if (secret) {
+          const manipPick = pick(ch7Def.employment.manipulation_secret.options)
+          ch7Sels.push({ group: ch7Def.employment.manipulation_secret.header, id: manipPick.id, text: manipPick.text })
+        } else {
+          const manipPick = pick(ch7Def.employment.manipulation_nosecret.options)
+          ch7Sels.push({ group: ch7Def.employment.manipulation_nosecret.header, id: manipPick.id, text: manipPick.text })
+        }
+      }
+    }
+
+    chapters.push({
+      chapter: chapterNum,
+      title: ch7Def.title,
+      endState: ch7Def.endStates.default,
+      employmentSelections: ch7Sels
+    })
+  }
+
+  // ── CH.8: THE RETREAT ──────────────────────────────────────────────────
+  chapterNum++
+  const ch8Key = tension === 'identity' ? 'ch8_identity' : 'ch8_safety'
+  const ch8Def = CHAPTER_TREE.act3.chapters[ch8Key]
+  const ch8Pick = pick(ch8Def.employment.main.options)
+
+  let ch8EndState
+  if (tension === 'identity') {
+    ch8EndState = ch8Def.endStates.default
+  } else {
+    ch8EndState = triangle ? ch8Def.endStates.triangle : ch8Def.endStates.notriangle
+  }
+
+  chapters.push({
+    chapter: chapterNum,
+    title: ch8Def.title,
+    endState: ch8EndState,
+    employmentSelections: [{ group: ch8Def.employment.main.header, id: ch8Pick.id, text: ch8Pick.text }]
+  })
+
+  // ═══ ACT IV — branching by ending ═════════════════════════════════════
+
+  if (ending === 'tragic' && tension === 'safety') {
+    // ── TRAGEDY PATH ──────────────────────────────────────────────────
+    const trag = CHAPTER_TREE.act4_tragedy.chapters
+
+    // Ch.9: The Irreversible Act
+    chapterNum++
+    const ch9Def = trag.ch9_tragedy
+    const ch9Options = triangle
+      ? [...ch9Def.employment.withTriangle.options]
+      : [...ch9Def.employment.withoutTriangle.options]
+    const ch9Pick = pick(ch9Options)
+    ch9TragedySelection = ch9Pick.id
+
+    chapters.push({
+      chapter: chapterNum,
+      title: ch9Def.title,
+      endState: triangle ? ch9Def.endStates.triangle : ch9Def.endStates.notriangle,
+      employmentSelections: [{ group: 'The irreversible act', id: ch9Pick.id, text: ch9Pick.text }]
+    })
+
+    // Ch.10: locked by Ch.9 selection
+    chapterNum++
+    if (ch9TragedySelection === 'was_monster') {
+      const ch10Def = trag.ch10_tragedy_monster
+      const ch10Pick = pick(ch10Def.employment.main.options)
+      chapters.push({
+        chapter: chapterNum,
+        title: ch10Def.title,
+        endState: ch10Def.endStates.default,
+        employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
+      })
+    } else {
+      const ch10Def = trag.ch10_tragedy_truth
+      const ch10Pick = pick(ch10Def.employment.main.options)
+      chapters.push({
+        chapter: chapterNum,
+        title: ch10Def.title,
+        endState: ch10Def.endStates.default,
+        employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
+      })
+    }
+
+    // Ch.11: The Consequence — variant locked by Ch.9
+    chapterNum++
+    const ch11Def = trag.ch11_tragedy
+    let consequenceVariant
+    if (triangle && ch9TragedySelection === 'rival_kills') {
+      consequenceVariant = ch11Def.variants.rival_killed
+    } else if (ch9TragedySelection === 'she_betrays' || ch9TragedySelection === 'she_fails') {
+      consequenceVariant = ch11Def.variants.she_caused
+    } else if (!triangle && ch9TragedySelection === 'conflict_destroys') {
+      consequenceVariant = ch11Def.variants.conflict
+    } else if (!triangle && ch9TragedySelection === 'was_monster') {
+      consequenceVariant = ch11Def.variants.monster
+    }
+
+    const ch11Pick = pick(consequenceVariant.employment.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch11Def.title,
+      endState: consequenceVariant.endState,
+      employmentSelections: [{ group: consequenceVariant.employment.header, id: ch11Pick.id, text: ch11Pick.text }]
+    })
+    // No Ch.12 for tragedy
+
+  } else if (tension === 'identity') {
+    // ── IDENTITY HEA PATH ─────────────────────────────────────────────
+    const res = CHAPTER_TREE.act4_resolution.chapters
+
+    // Ch.9
+    chapterNum++
+    const ch9Def = secret ? res.ch9_identity_secret : res.ch9_identity_nosecret
+    const ch9Pick = pick(ch9Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch9Def.title,
+      endState: ch9Def.endStates.default,
+      employmentSelections: [{ group: ch9Def.employment.main.header, id: ch9Pick.id, text: ch9Pick.text }]
+    })
+
+    // Ch.10: Reunited
+    chapterNum++
+    const ch10Def = res.ch10_identity
+    const ch10Pick = pick(ch10Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch10Def.title,
+      endState: ch10Def.endStates.default,
+      employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
+    })
+
+    // Ch.11: HEA (no employment)
+    chapterNum++
+    chapters.push({
+      chapter: chapterNum,
+      title: res.ch_hea_identity.title,
+      endState: res.ch_hea_identity.endStates.default,
+      employmentSelections: []
+    })
+
+  } else {
+    // ── SAFETY HEA / BITTERSWEET PATH ─────────────────────────────────
+    const res = CHAPTER_TREE.act4_resolution.chapters
+
+    // Ch.9
+    chapterNum++
+    if (secret) {
+      const ch9Def = res.ch9_safety_secret
+      // rival_slips only available when triangle is on
+      let ch9Options = [...ch9Def.employment.main.options]
+      if (!triangle) {
+        ch9Options = ch9Options.filter(o => o.id !== 'rival_slips')
+      }
+      const ch9Pick = pick(ch9Options)
+
+      let ch9EndState
+      if (triangle && rivalRole === 'active') {
+        ch9EndState = ch9Def.endStates.active_rival
+      } else if (triangle && rivalRole === 'passive') {
+        ch9EndState = ch9Def.endStates.passive_rival
+      } else {
+        ch9EndState = ch9Def.endStates.notriangle
+      }
+
+      chapters.push({
+        chapter: chapterNum,
+        title: ch9Def.title,
+        endState: ch9EndState,
+        employmentSelections: [{ group: ch9Def.employment.main.header, id: ch9Pick.id, text: ch9Pick.text }]
+      })
+    } else {
+      const ch9Def = res.ch9_safety_nosecret
+      const ch9Pick = pick(ch9Def.employment.main.options)
+      chapters.push({
+        chapter: chapterNum,
+        title: ch9Def.title,
+        endState: ch9Def.endStates.default,
+        employmentSelections: [{ group: ch9Def.employment.main.header, id: ch9Pick.id, text: ch9Pick.text }]
+      })
+    }
+
+    // Ch.10: Reunited
+    chapterNum++
+    const ch10Def = res.ch10_safety
+    const ch10Pick = pick(ch10Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch10Def.title,
+      endState: ch10Def.endStates.default,
+      employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
+    })
+
+    // Ch.11: Rival Neutralised (triangle only)
+    if (triangle) {
+      chapterNum++
+      const ch11Def = res.ch11_rival
+      const ch11Pick = pick(ch11Def.employment.main.options)
+      chapters.push({
+        chapter: chapterNum,
+        title: ch11Def.title,
+        endState: ch11Def.endStates.default,
+        employmentSelections: [{ group: ch11Def.employment.main.header, id: ch11Pick.id, text: ch11Pick.text }]
+      })
+    }
+
+    // Final chapter: HEA or Bittersweet
+    chapterNum++
+    if (ending === 'HEA') {
+      chapters.push({
+        chapter: chapterNum,
+        title: res.ch_hea_safety.title,
+        endState: res.ch_hea_safety.endStates.default,
+        employmentSelections: []
+      })
+    } else {
+      const bsDef = res.ch_bittersweet_safety
+      const bsGroup = triangle ? bsDef.employment.withTriangle : bsDef.employment.withoutTriangle
+      const bsPick = pick(bsGroup.options)
+      chapters.push({
+        chapter: chapterNum,
+        title: bsDef.title,
+        endState: bsDef.endStates.default,
+        employmentSelections: [{ group: bsGroup.header, id: bsPick.id, text: bsPick.text }]
+      })
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3. CAST FUNCTIONS (listed, not rolled — LLM fills during concept gen)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const castFunctions = CAST[tension]
+    .filter(c => !c.requiresTriangle || triangle)
+    .map(c => ({
+      id: c.function.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+      name: c.function,
+      description: c.description,
+      employmentOptions: c.employmentOptions
+    }))
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 4. RETURN COMPLETE SKELETON
+  // ═══════════════════════════════════════════════════════════════════════════
+  return {
+    trope,
+    tension,
+    ending,
+    triangle,
+    secret,
+    chapters,
+    rivalFlaw: triangle ? rivalFlaw : { id: null, selectedIn: null },
+    castFunctions
+  }
+}
+
 export {
   BLUEPRINTS,
   CHAPTER_TREE,
@@ -1712,6 +2270,7 @@ export {
   getBlueprint,
   hasBlueprint,
   resolveBlueprint,
+  rollSkeleton,
   PHASE_1_BLUEPRINT_SYSTEM_PROMPT,
   buildPhase1BlueprintPrompt
 }

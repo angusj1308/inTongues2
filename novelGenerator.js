@@ -5,8 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import fs from 'fs/promises'
 import path from 'path'
-import { hasBlueprint } from './storyBlueprints.js'
-import { executePhase1Blueprint, checkBlueprintAvailable } from './phase1Blueprint.js'
+import { getBlueprint, hasBlueprint, PHASE_1_BLUEPRINT_SYSTEM_PROMPT, buildPhase1BlueprintPrompt } from './storyBlueprints.js'
 
 // Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
@@ -707,8 +706,86 @@ function validateCoherence(coherenceCheck, requiredFields) {
 // =============================================================================
 // PHASE 1: BLUEPRINT → CHAPTER DESCRIPTIONS
 // =============================================================================
-// Phase 1 uses blueprint matching via executePhase1Blueprint() from
-// phase1Blueprint.js. See storyBlueprints.js for blueprint definitions.
+
+function checkBlueprintAvailable(tropeId, tensionId, endingId, modifierId) {
+  if (hasBlueprint(tropeId, tensionId, endingId, modifierId)) {
+    const bp = getBlueprint(tropeId, tensionId, endingId, modifierId)
+    return { allowed: true, blueprintName: bp.name }
+  }
+  return {
+    allowed: false,
+    reason: `No blueprint for: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}. Build this blueprint before generation can proceed.`
+  }
+}
+
+async function executePhase1Blueprint(concept, tropeId, tensionId, endingId, modifierId, callLLM, parseJSONFn) {
+  console.log('Executing Phase 1: Blueprint → Chapter Descriptions...')
+  console.log(`  Combination: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}`)
+  const blueprint = getBlueprint(tropeId, tensionId, endingId, modifierId)
+  if (!blueprint) {
+    throw new Error(
+      `No blueprint exists for combination: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}. ` +
+      `Generation cannot proceed without a blueprint.`
+    )
+  }
+  console.log(`  Blueprint found: "${blueprint.name}" (${blueprint.totalChapters} chapters)`)
+  const userPrompt = buildPhase1BlueprintPrompt(concept, blueprint)
+  const response = await callLLM(PHASE_1_BLUEPRINT_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 8192
+  })
+  const parsed = parseJSONFn(response)
+  if (!parsed.success) {
+    throw new Error(`Phase 1 Blueprint JSON parse failed: ${parsed.error}`)
+  }
+  const data = parsed.data
+  if (!data.chapters || !Array.isArray(data.chapters)) {
+    throw new Error('Phase 1 Blueprint: missing chapters array')
+  }
+  if (data.chapters.length !== blueprint.totalChapters) {
+    throw new Error(
+      `Phase 1 Blueprint: expected ${blueprint.totalChapters} chapters, got ${data.chapters.length}`
+    )
+  }
+  const allBlueprintChapters = blueprint.phases.flatMap(p => p.chapters)
+  for (const ch of data.chapters) {
+    const expected = allBlueprintChapters.find(bc => bc.chapter === ch.chapter)
+    if (!expected) {
+      throw new Error(`Phase 1 Blueprint: unexpected chapter number ${ch.chapter}`)
+    }
+    if (!ch.description || ch.description.trim().length < 20) {
+      throw new Error(`Phase 1 Blueprint: chapter ${ch.chapter} description is too short or missing`)
+    }
+    if (ch.function !== expected.function) {
+      console.warn(`Phase 1 Blueprint: chapter ${ch.chapter} function mismatch. Expected "${expected.function}", got "${ch.function}". Overriding.`)
+      ch.function = expected.function
+    }
+  }
+  const result = {
+    blueprint: {
+      id: blueprint.id,
+      name: blueprint.name,
+      trope: blueprint.trope,
+      tension: blueprint.tension,
+      ending: blueprint.ending,
+      modifier: blueprint.modifier,
+      totalChapters: blueprint.totalChapters,
+      expectedRoles: blueprint.expectedRoles,
+      secretStructure: blueprint.secretStructure || null,
+      phases: blueprint.phases
+    },
+    chapters: data.chapters,
+    concept_summary: data.concept_summary || concept
+  }
+  console.log('Phase 1 Blueprint complete.')
+  console.log(`  Concept: ${result.concept_summary}`)
+  for (const ch of result.chapters) {
+    const desc = ch.description.length > 80 ? ch.description.slice(0, 80) + '...' : ch.description
+    console.log(`    ${ch.chapter}. [${ch.function}] ${desc}`)
+  }
+  return result
+}
 
 // =============================================
 // Slot-Based Concept Expansion

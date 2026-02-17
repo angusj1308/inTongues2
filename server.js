@@ -21,7 +21,8 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateChapterWithValidation, buildPreviousContext, callClaude, expandVagueConcept, generateDifferentConcept, executePhase1, executePhase2, executePhase3, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9, generateProseScene, flattenScenes } from './novelGenerator.js'
+import { generateBible, generateStory, generateChapterWithValidation, buildPreviousContext, callClaude, executePhase1, executePhase3, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9, generateProseScene, flattenScenes } from './novelGenerator.js'
+import { rollSkeleton } from './storyBlueprints.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -8267,12 +8268,9 @@ app.post('/api/generate/execute-phase', async (req, res) => {
     // Execute the requested phase
     switch (phase) {
       case 1:
-        result = await executePhase1(concept, lengthPreset, level, [])
-        updatedBible.coreFoundation = result
-        break
-      case 2:
-        result = await executePhase2(concept, bible.coreFoundation)
-        updatedBible.characters = result
+        updatedBible.skeleton = rollSkeleton()
+        result = await executePhase1(updatedBible.skeleton, concept)
+        updatedBible.concept = result
         break
       case 3:
         result = await executePhase3(concept, bible.coreFoundation, bible.characters)
@@ -8748,23 +8746,27 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
   }
 })
 
-// POST /api/generate/prompt - Generate a story concept prompt (library-aware)
+// POST /api/generate/prompt - Roll a skeleton and return structural variables
 app.post('/api/generate/prompt', async (req, res) => {
   try {
-    // Fetch existing library summaries for diversity
-    const librarySummaries = await getLibrarySummaries()
+    const skeleton = rollSkeleton()
 
-    // Generate concept with library awareness (single pass)
-    const { concept: prompt, tensionText, tropeId, endingId, modifierId } = await expandVagueConcept('from-scratch', librarySummaries)
-
-    return res.json({ success: true, prompt, tensionText, tropeId, endingId, modifierId })
+    return res.json({
+      success: true,
+      skeleton,
+      tension: skeleton.tension,
+      ending: skeleton.ending,
+      triangle: skeleton.triangle,
+      secret: skeleton.secret,
+      chapters: skeleton.chapters.length
+    })
   } catch (error) {
     console.error('Generate prompt error:', error)
     return res.status(500).json({ error: 'Failed to generate prompt', details: error.message })
   }
 })
 
-// POST /api/generate/expand-prompt - Expand a vague story concept (slot-based, library-aware)
+// POST /api/generate/expand-prompt - Roll a skeleton for a given setting (no expansion needed)
 app.post('/api/generate/expand-prompt', async (req, res) => {
   try {
     const { concept } = req.body
@@ -8773,34 +8775,38 @@ app.post('/api/generate/expand-prompt', async (req, res) => {
       return res.status(400).json({ error: 'concept is required' })
     }
 
-    // Fetch existing library summaries for diversity
-    const librarySummaries = await getLibrarySummaries()
+    const skeleton = rollSkeleton()
 
-    // Use slot-based expansion (extracts user-specified location/time, defaults the rest)
-    const { concept: prompt, tensionText, tropeId, endingId, modifierId } = await expandVagueConcept(concept.trim(), librarySummaries)
-
-    return res.json({ success: true, prompt, tensionText, tropeId, endingId, modifierId })
+    return res.json({
+      success: true,
+      skeleton,
+      setting: concept.trim(),
+      tension: skeleton.tension,
+      ending: skeleton.ending,
+      triangle: skeleton.triangle,
+      secret: skeleton.secret,
+      chapters: skeleton.chapters.length
+    })
   } catch (error) {
     console.error('Expand prompt error:', error)
     return res.status(500).json({ error: 'Failed to expand prompt', details: error.message })
   }
 })
 
-// POST /api/generate/different-prompt - Generate a completely different story concept
+// POST /api/generate/different-prompt - Roll a fresh skeleton (different structural variables)
 app.post('/api/generate/different-prompt', async (req, res) => {
   try {
-    const { existingConcept } = req.body
+    const skeleton = rollSkeleton()
 
-    if (!existingConcept || !existingConcept.trim()) {
-      return res.status(400).json({ error: 'existingConcept is required' })
-    }
-
-    // Fetch existing library summaries for diversity
-    const librarySummaries = await getLibrarySummaries()
-
-    const { concept: prompt, tensionText, tropeId, endingId, modifierId } = await generateDifferentConcept(existingConcept.trim(), librarySummaries)
-
-    return res.json({ success: true, prompt, tensionText, tropeId, endingId, modifierId })
+    return res.json({
+      success: true,
+      skeleton,
+      tension: skeleton.tension,
+      ending: skeleton.ending,
+      triangle: skeleton.triangle,
+      secret: skeleton.secret,
+      chapters: skeleton.chapters.length
+    })
   } catch (error) {
     console.error('Generate different prompt error:', error)
     return res.status(500).json({ error: 'Failed to generate different prompt', details: error.message })

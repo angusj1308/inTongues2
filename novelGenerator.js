@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import fs from 'fs/promises'
 import path from 'path'
-import { getBlueprint, hasBlueprint, PHASE_1_BLUEPRINT_SYSTEM_PROMPT, buildPhase1BlueprintPrompt } from './storyBlueprints.js'
+import { rollSkeleton } from './storyBlueprints.js'
 
 // Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
@@ -704,1425 +704,283 @@ function validateCoherence(coherenceCheck, requiredFields) {
 }
 
 // =============================================================================
-// PHASE 1: BLUEPRINT → CHAPTER DESCRIPTIONS
+// PHASE 1: CONCEPT GENERATION
 // =============================================================================
 
-function checkBlueprintAvailable(tropeId, tensionId, endingId, modifierId) {
-  if (hasBlueprint(tropeId, tensionId, endingId, modifierId)) {
-    const bp = getBlueprint(tropeId, tensionId, endingId, modifierId)
-    return { allowed: true, blueprintName: bp.name }
-  }
-  return {
-    allowed: false,
-    reason: `No blueprint for: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}. Build this blueprint before generation can proceed.`
+const PHASE_1_CONCEPT_SYSTEM_PROMPT = `You are a romance novelist architecting a complete story concept. You receive a structural skeleton — every plot decision has already been made. Your job is to make it concrete.
+
+You will receive:
+1. A complete structural skeleton: trope, tension type, ending type, whether there is a love triangle, whether there is a secret, every chapter with its employment option and end state, and all cast functions with their descriptions and employment options.
+2. A setting string from the user (a place and time).
+
+YOUR JOB:
+- Turn abstract structural elements into specific people, places, obligations, and events that belong to this setting.
+- Ground everything in the historical and social reality of the setting. If the setting is "Buenos Aires, 1806", that means the British invasion, colonial Spanish society, specific social structures. The characters must belong to that world.
+- Employment options are ALREADY SELECTED in the skeleton. You do not choose different ones. You make the selected options concrete in this world.
+- For each cast function, select ONE employment option from the list provided and create a specific character for it.
+- If triangle is false, the rival field must be null. Do not create a rival character.
+- If secret is false, do not invent a secret.
+
+KEY FIELDS:
+- protagonist.framework: This is the tension-specific psychological core.
+  For SAFETY tension: What threat does she protect against? Why does danger terrify her? What does this protection cost her?
+  For IDENTITY tension: What belief system has she built? Why does it define her? What does maintaining it cost her?
+- primary.threat: This mirrors the framework.
+  For SAFETY tension: He IS the danger. What about him represents a direct threat to her safety?
+  For IDENTITY tension: He dismantles who she thinks she is. What about him challenges her framework?
+
+OUTPUT FORMAT:
+Return a single JSON object with this exact structure:
+{
+  "synopsis": {
+    "variables": "This is an enemies-to-lovers romance novel set in [location] during [period]. The tension is [tension]. The ending is [ending]. There is [no] love triangle. There is [no] secret.",
+    "act1": "One sentence summarising Act 1 arc",
+    "act2": "One sentence summarising Act 2 arc",
+    "act3": "One sentence summarising Act 3 arc",
+    "act4": "One sentence summarising Act 4 arc"
+  },
+  "characters": {
+    "protagonist": {
+      "name": "Full name",
+      "backstory": "Where she came from, what shaped her, key events",
+      "psychology": "What she wants, what she fears, how she thinks, what she avoids",
+      "framework": "Tension-specific (see KEY FIELDS above)",
+      "appearance": "Physical description",
+      "mannerisms": "Speech patterns, habits, tells",
+      "voice": "How she thinks internally, what her interiority sounds like"
+    },
+    "primary": {
+      "name": "Full name",
+      "backstory": "Where he came from, what shaped him",
+      "psychology": "What he wants, what he fears, how he operates",
+      "threat": "Tension-specific (see KEY FIELDS above)",
+      "appearance": "Physical description",
+      "mannerisms": "Speech patterns, habits, tells"
+    },
+    "rival": {
+      "name": "Full name or null if no triangle",
+      "backstory": "...",
+      "psychology": "...",
+      "appearance": "...",
+      "mannerisms": "..."
+    },
+    "cast": [
+      {
+        "name": "Full name",
+        "function": "Plain language description of what this character does thematically — not just the label but the full explanation of the role and why they exist in the story",
+        "functionId": "The cast function ID from the skeleton (e.g. 'all_passion_no_fear')",
+        "employmentOption": "Which employment option was selected for this cast member (e.g. 'A younger sister or cousin')",
+        "backstory": "Who they are, where they came from, why they're in this world",
+        "psychology": "How they think, what they want, what they fear",
+        "appearance": "Physical description",
+        "mannerisms": "How they speak, move, behave",
+        "relationshipToProtagonist": "Specific dynamic, history, emotional weight"
+      }
+    ]
   }
 }
 
-async function executePhase1Blueprint(concept, tropeId, tensionId, endingId, modifierId, callLLM, parseJSONFn) {
-  console.log('Executing Phase 1: Blueprint → Chapter Descriptions...')
-  console.log(`  Combination: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}`)
-  const blueprint = getBlueprint(tropeId, tensionId, endingId, modifierId)
-  if (!blueprint) {
-    throw new Error(
-      `No blueprint exists for combination: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}. ` +
-      `Generation cannot proceed without a blueprint.`
-    )
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Every field must be filled with substantive content grounded in the setting.
+- The cast array must have exactly one entry per cast function in the skeleton.
+- If triangle is false, set rival to null (not an empty object).`
+
+/**
+ * Format a rolled skeleton into a readable document for the LLM prompt.
+ * Converts raw skeleton data into structured plain language.
+ */
+function formatSkeletonForPrompt(skeleton) {
+  const lines = []
+
+  // Structural variables
+  lines.push('=== STRUCTURAL VARIABLES ===')
+  lines.push(`Trope: ${skeleton.trope}`)
+  lines.push(`Tension: ${skeleton.tension}`)
+  lines.push(`Ending: ${skeleton.ending}`)
+  lines.push(`Love Triangle: ${skeleton.triangle ? 'YES' : 'NO'}`)
+  lines.push(`Secret: ${skeleton.secret ? 'YES' : 'NO'}`)
+  lines.push('')
+
+  // Rival flaw (if triangle)
+  if (skeleton.triangle && skeleton.rivalFlaw && skeleton.rivalFlaw.id) {
+    lines.push(`Rival Flaw: ${skeleton.rivalFlaw.id} (selected in ${skeleton.rivalFlaw.selectedIn})`)
+    lines.push('')
   }
-  console.log(`  Blueprint found: "${blueprint.name}" (${blueprint.totalChapters} chapters)`)
-  const userPrompt = buildPhase1BlueprintPrompt(concept, blueprint)
-  const response = await callLLM(PHASE_1_BLUEPRINT_SYSTEM_PROMPT, userPrompt, {
+
+  // Chapters
+  lines.push('=== CHAPTERS ===')
+  for (const ch of skeleton.chapters) {
+    lines.push(`Chapter ${ch.chapter}: "${ch.title}"`)
+    lines.push(`  End state: ${ch.endState}`)
+
+    if (ch.employmentSelections && ch.employmentSelections.length > 0) {
+      for (const sel of ch.employmentSelections) {
+        lines.push(`  [${sel.group}] ${sel.text}`)
+      }
+    }
+
+    if (ch.notes && ch.notes.length > 0) {
+      for (const note of ch.notes) {
+        lines.push(`  Note: ${note}`)
+      }
+    }
+    lines.push('')
+  }
+
+  // Cast functions
+  lines.push('=== CAST FUNCTIONS ===')
+  lines.push('For each cast function below, select ONE employment option and create a concrete character.')
+  lines.push('')
+
+  for (const cf of skeleton.castFunctions) {
+    lines.push(`Function: "${cf.name}" (id: ${cf.id})`)
+    lines.push(`  Description: ${cf.description}`)
+    if (cf.employmentOptions && cf.employmentOptions.length > 0) {
+      lines.push('  Employment options (choose one):')
+      for (const opt of cf.employmentOptions) {
+        lines.push(`    - ${opt}`)
+      }
+    } else {
+      lines.push('  (No specific employment options — role is determined by story context)')
+    }
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+/**
+ * Build the user prompt from skeleton + setting for Phase 1 concept generation.
+ */
+function buildPhase1UserPrompt(skeleton, setting) {
+  const skeletonText = formatSkeletonForPrompt(skeleton)
+
+  return `=== SETTING ===
+${setting}
+
+${skeletonText}
+Generate the complete story concept for this skeleton and setting. Return the JSON object only.`
+}
+
+/**
+ * Phase 1: Concept Generation
+ * Takes a rolled skeleton and user setting, makes one LLM call,
+ * and returns the complete concept document.
+ *
+ * @param {Object} skeleton - Output of rollSkeleton() from storyBlueprints.js
+ * @param {string} setting - User-provided setting string, e.g. "Buenos Aires, 1806"
+ * @returns {Promise<Object>} The concept document with synopsis and characters
+ */
+async function executePhase1(skeleton, setting) {
+  console.log('Executing Phase 1: Concept Generation...')
+  console.log(`  Tension: ${skeleton.tension}`)
+  console.log(`  Ending: ${skeleton.ending}`)
+  console.log(`  Triangle: ${skeleton.triangle}`)
+  console.log(`  Secret: ${skeleton.secret}`)
+  console.log(`  Chapters: ${skeleton.chapters.length}`)
+  console.log(`  Cast Functions: ${skeleton.castFunctions.length}`)
+  console.log(`  Setting: ${setting}`)
+
+  const userPrompt = buildPhase1UserPrompt(skeleton, setting)
+
+  const response = await callClaude(PHASE_1_CONCEPT_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-sonnet-4-20250514',
     temperature: 1.0,
     maxTokens: 8192
   })
-  const parsed = parseJSONFn(response)
-  if (!parsed.success) {
-    throw new Error(`Phase 1 Blueprint JSON parse failed: ${parsed.error}`)
-  }
-  const data = parsed.data
-  if (!data.chapters || !Array.isArray(data.chapters)) {
-    throw new Error('Phase 1 Blueprint: missing chapters array')
-  }
-  if (data.chapters.length !== blueprint.totalChapters) {
-    throw new Error(
-      `Phase 1 Blueprint: expected ${blueprint.totalChapters} chapters, got ${data.chapters.length}`
-    )
-  }
-  const allBlueprintChapters = blueprint.phases.flatMap(p => p.chapters)
-  for (const ch of data.chapters) {
-    const expected = allBlueprintChapters.find(bc => bc.chapter === ch.chapter)
-    if (!expected) {
-      throw new Error(`Phase 1 Blueprint: unexpected chapter number ${ch.chapter}`)
-    }
-    if (!ch.description || ch.description.trim().length < 20) {
-      throw new Error(`Phase 1 Blueprint: chapter ${ch.chapter} description is too short or missing`)
-    }
-    if (ch.function !== expected.function) {
-      console.warn(`Phase 1 Blueprint: chapter ${ch.chapter} function mismatch. Expected "${expected.function}", got "${ch.function}". Overriding.`)
-      ch.function = expected.function
-    }
-  }
-  const result = {
-    blueprint: {
-      id: blueprint.id,
-      name: blueprint.name,
-      trope: blueprint.trope,
-      tension: blueprint.tension,
-      ending: blueprint.ending,
-      modifier: blueprint.modifier,
-      totalChapters: blueprint.totalChapters,
-      expectedRoles: blueprint.expectedRoles,
-      secretStructure: blueprint.secretStructure || null,
-      phases: blueprint.phases
-    },
-    chapters: data.chapters,
-    concept_summary: data.concept_summary || concept
-  }
-  console.log('Phase 1 Blueprint complete.')
-  console.log(`  Concept: ${result.concept_summary}`)
-  for (const ch of result.chapters) {
-    const desc = ch.description.length > 80 ? ch.description.slice(0, 80) + '...' : ch.description
-    console.log(`    ${ch.chapter}. [${ch.function}] ${desc}`)
-  }
-  return result
-}
 
-// =============================================
-// Slot-Based Concept Expansion
-// =============================================
-
-// Romance tensions for concept generation (one selected randomly per concept)
-const ROMANCE_TENSIONS = [
-  {
-    id: 'duty',
-    text: 'The central romantic obstacle is passion vs. duty — the protagonist wants this person but is bound by an obligation.'
-  },
-  {
-    id: 'safety',
-    text: 'The central romantic obstacle is passion vs. safety — the love interest is dangerous.'
-  },
-  {
-    id: 'identity',
-    text: 'The central romantic obstacle is passion vs. identity — falling in love dismantles the protagonist\'s understanding of who she is. Not a disguise or impersonation — a psychological reckoning. The obstacle is internal self-concept, not external costume.'
-  }
-]
-
-// Romance plot tropes for concept generation (one selected randomly per concept)
-const ROMANCE_TROPES = [
-  {
-    id: 'strangers_to_lovers',
-    text: 'This is a strangers to lovers story.'
-  },
-  {
-    id: 'enemies_to_lovers',
-    text: 'This is an enemies to lovers story.'
-  },
-  {
-    id: 'friends_to_lovers',
-    text: 'This is a friends to lovers story.'
-  },
-  {
-    id: 'second_chance',
-    text: 'This is a second chance romance.'
-  },
-  {
-    id: 'forbidden_love',
-    text: 'This is a forbidden love story.'
-  }
-]
-
-// Romance endings for concept generation (weighted random selection)
-const ROMANCE_ENDINGS = [
-  { id: 'HEA', weight: 70, text: 'This is an HEA story.' },
-  { id: 'bittersweet', weight: 20, text: 'This is a bittersweet ending.' },
-  { id: 'tragic', weight: 10, text: 'This is a tragic ending.' }
-]
-
-function selectWeightedEnding() {
-  const totalWeight = ROMANCE_ENDINGS.reduce((sum, e) => sum + e.weight, 0)
-  let roll = Math.random() * totalWeight
-  for (const ending of ROMANCE_ENDINGS) {
-    roll -= ending.weight
-    if (roll <= 0) return ending
-  }
-  return ROMANCE_ENDINGS[0]
-}
-
-// Romance modifiers for concept generation (weighted random selection)
-const ROMANCE_MODIFIERS = [
-  { id: 'none', weight: 25, text: '' },
-  { id: 'love_triangle', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain.' },
-  { id: 'secret', weight: 25, text: 'This story includes a secret. One character is hiding something that, when the other discovers it, recontextualises every tender moment they have shared — what felt like love now looks like betrayal. The secret is not a hidden identity that makes them more interesting or more compatible. It must be something the injured character cannot easily forgive. It must connect to what they value most in the story. One strong secret is better than two weak ones.' },
-  { id: 'both', weight: 25, text: 'This story includes a love triangle. The rival must be a genuine alternative, not a villain. This story also includes a secret. One character is hiding something that, when the other discovers it, recontextualises every tender moment they have shared — what felt like love now looks like betrayal. The secret is not a hidden identity that makes them more interesting or more compatible. It must be something the injured character cannot easily forgive. It must connect to what they value most in the story. One strong secret is better than two weak ones.' }
-]
-
-function selectWeightedModifier() {
-  const totalWeight = ROMANCE_MODIFIERS.reduce((sum, m) => sum + m.weight, 0)
-  let roll = Math.random() * totalWeight
-  for (const modifier of ROMANCE_MODIFIERS) {
-    roll -= modifier.weight
-    if (roll <= 0) return modifier
-  }
-  return ROMANCE_MODIFIERS[0]
-}
-
-// Default values for unfilled slots
-const SLOT_DEFAULTS = {
-  location: 'anywhere in the Spanish-speaking world',
-  timePeriod: 'any time period'
-}
-
-// Prompt templates with slot placeholders (50/50 random selection)
-const PROMPT_TEMPLATES = {
-  // For blank/from-scratch generation
-  regency: `Generate an original idea for a romance novel in the style of classic Regency romance. Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
-
-  literary: `Generate an original idea for a literary romance novel. Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Output 2-3 sentences only. Do not include any preamble.`,
-
-  // For expanding user concepts (keeps what they said, fills in missing details)
-  regencyExpand: `Expand this into a romance novel concept in the style of classic Regency romance: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Austen or Quinn style love story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
-
-  literaryExpand: `Expand this into a literary romance novel concept: "{user_concept}". Set in {location}, in {time_period}. {trope} {tension} {ending} {modifier} The protagonist must be female. A traditional Brontë or Hemingway style story, not modernist feminist professional stakes. Keep everything the user specified. Output 2-3 sentences only. Do not include any preamble.`,
-
-  // For neutral expansion (vague but specific - preserve user's style)
-  neutral: `Expand this into a complete romance novel concept. {trope} {tension} {ending} {modifier} Keep everything the user specified. Add character names, specific setting details, and a clear obstacle to their relationship. Output 2-3 sentences only. Do not include any preamble.
-
-User's concept: "{user_concept}"
-Set in: {location}, {time_period}`
-}
-
-// Location patterns for Spanish-speaking world
-const LOCATION_PATTERNS = {
-  countries: [
-    'argentina', 'mexico', 'spain', 'colombia', 'peru', 'chile', 'cuba',
-    'venezuela', 'ecuador', 'guatemala', 'bolivia', 'dominican republic',
-    'honduras', 'paraguay', 'el salvador', 'nicaragua', 'costa rica',
-    'panama', 'uruguay', 'puerto rico'
-  ],
-  cities: [
-    'buenos aires', 'mexico city', 'madrid', 'barcelona', 'lima', 'bogotá',
-    'bogota', 'havana', 'santiago', 'caracas', 'quito', 'medellín', 'medellin',
-    'guadalajara', 'monterrey', 'seville', 'sevilla', 'valencia', 'cartagena',
-    'córdoba', 'cordoba', 'rosario', 'mendoza', 'cusco', 'cuzco', 'arequipa',
-    'san juan', 'montevideo', 'asunción', 'asuncion', 'la paz', 'santa cruz'
-  ],
-  regions: [
-    'patagonia', 'andalusia', 'andalucía', 'yucatan', 'yucatán', 'galicia',
-    'catalonia', 'cataluña', 'basque country', 'castile', 'la mancha',
-    'pampas', 'tierra del fuego', 'andes', 'amazon', 'oaxaca', 'chiapas'
-  ]
-}
-
-// Time period patterns
-const TIME_PATTERNS = {
-  decades: /\b(18[0-9]0s|19[0-9]0s|20[0-2]0s|the\s+(twenties|thirties|forties|fifties|sixties|seventies|eighties|nineties))\b/i,
-  centuries: /\b(1[6-9]th|20th|21st)\s+century\b/i,
-  eras: /\b(colonial|victorian|edwardian|post-war|postwar|pre-war|prewar|golden age|belle époque|belle epoque|prohibition|revolution|civil war)\b/i,
-  contemporary: /\b(contemporary|modern|present-day|present day|current|today|now|21st century|2000s|2010s|2020s)\b/i
-}
-
-// Extract slots from user concept
-function extractConceptSlots(userConcept) {
-  const concept = userConcept.toLowerCase()
-  const result = {
-    location: null,
-    timePeriod: null
-  }
-
-  // Extract location - check cities first (more specific), then countries, then regions
-  for (const city of LOCATION_PATTERNS.cities) {
-    if (concept.includes(city)) {
-      result.location = city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-      break
-    }
-  }
-  if (!result.location) {
-    for (const country of LOCATION_PATTERNS.countries) {
-      if (concept.includes(country)) {
-        result.location = country.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-        break
-      }
-    }
-  }
-  if (!result.location) {
-    for (const region of LOCATION_PATTERNS.regions) {
-      if (concept.includes(region)) {
-        result.location = region.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-        break
-      }
-    }
-  }
-
-  // Extract time period - check all patterns
-  const contemporaryMatch = userConcept.match(TIME_PATTERNS.contemporary)
-  if (contemporaryMatch) {
-    result.timePeriod = contemporaryMatch[0].toLowerCase()
-  }
-  if (!result.timePeriod) {
-    const decadeMatch = userConcept.match(TIME_PATTERNS.decades)
-    if (decadeMatch) {
-      result.timePeriod = 'the ' + decadeMatch[0].toLowerCase().replace('the ', '')
-    }
-  }
-  if (!result.timePeriod) {
-    const centuryMatch = userConcept.match(TIME_PATTERNS.centuries)
-    if (centuryMatch) {
-      result.timePeriod = 'the ' + centuryMatch[0].toLowerCase()
-    }
-  }
-  if (!result.timePeriod) {
-    const eraMatch = userConcept.match(TIME_PATTERNS.eras)
-    if (eraMatch) {
-      result.timePeriod = 'the ' + eraMatch[0].toLowerCase() + ' era'
-    }
-  }
-
-  console.log(`[Slot Extraction] Input: "${userConcept}"`)
-  console.log(`[Slot Extraction] Extracted: location="${result.location}", timePeriod="${result.timePeriod}"`)
-
-  return result
-}
-
-// Check if concept is effectively blank (needs full generation)
-function isBlankConcept(concept) {
-  if (!concept) return true
-  const normalized = concept.toLowerCase().trim()
-  const blankPatterns = [
-    'from-scratch',
-    'from scratch',
-    'romance',
-    'love story',
-    'a romance',
-    'a love story',
-    'romance novel',
-    'a romance novel'
-  ]
-  return blankPatterns.includes(normalized) || normalized.split(/\s+/).length < 3
-}
-
-// Expand vague concepts before Phase 1 using slot-based library-aware generation
-async function expandVagueConcept(concept, librarySummaries = []) {
-  const wordCount = concept.trim().split(/\s+/).length
-  console.log(`[Expansion Check] Concept: "${concept}" (${wordCount} words)`)
-
-  // Path 3: Detailed enough (20+ words) - pass through unchanged
-  if (wordCount >= 20) {
-    console.log('[Expansion Check] Skipping - concept is detailed enough')
-    // Still select tension, trope, ending, and modifier for Phase 1
-    // TEMPORARY: Hardcode to the one blueprint we have
-    const selectedTension = ROMANCE_TENSIONS.find(t => t.id === 'safety')
-    const selectedTrope = ROMANCE_TROPES.find(t => t.id === 'enemies_to_lovers')
-    const selectedEnding = ROMANCE_ENDINGS.find(e => e.id === 'HEA')
-    const selectedModifier = ROMANCE_MODIFIERS.find(m => m.id === 'both')
-    console.log('  Trope (hardcoded for blueprint testing):', selectedTrope.id)
-    console.log('  Tension (hardcoded for blueprint testing):', selectedTension.id)
-    console.log('  Ending (hardcoded for blueprint testing):', selectedEnding.id)
-    console.log('  Modifier (hardcoded for blueprint testing):', selectedModifier.id)
-    return { concept, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
-  }
-
-  // Extract slots for location and time period
-  const slots = extractConceptSlots(concept)
-  const location = slots.location || SLOT_DEFAULTS.location
-  const timePeriod = slots.timePeriod || SLOT_DEFAULTS.timePeriod
-
-  console.log(`[Expansion Check] Library has ${librarySummaries.length} existing books`)
-
-  let systemPrompt
-  let userPrompt
-  let trackName
-
-  // TEMPORARY: Hardcode to the one blueprint we have
-  const selectedTension = ROMANCE_TENSIONS.find(t => t.id === 'safety')
-  const selectedTrope = ROMANCE_TROPES.find(t => t.id === 'enemies_to_lovers')
-  const selectedEnding = ROMANCE_ENDINGS.find(e => e.id === 'HEA')
-  const selectedModifier = ROMANCE_MODIFIERS.find(m => m.id === 'both')
-
-  // Path 1: Blank concept - use Regency/Literary 50/50 tracks
-  if (isBlankConcept(concept)) {
-    console.log('[Expansion Check] Blank concept - using Regency/Literary tracks')
-
-    const useRegency = Math.random() < 0.5
-    trackName = useRegency ? 'Regency' : 'Literary'
-    systemPrompt = 'You are a classic romance novelist.'
-
-    // Use base templates for from-scratch, expand templates if there's any user input
-    const hasUserInput = concept && concept.toLowerCase().trim() !== 'from-scratch' && concept.toLowerCase().trim() !== 'from scratch'
-    let promptTemplate
-    if (hasUserInput) {
-      promptTemplate = useRegency ? PROMPT_TEMPLATES.regencyExpand : PROMPT_TEMPLATES.literaryExpand
-    } else {
-      promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
-    }
-
-    userPrompt = promptTemplate
-      .replace('{user_concept}', concept)
-      .replace('{location}', location)
-      .replace('{time_period}', timePeriod)
-      .replace('{trope}', selectedTrope.text)
-      .replace('{tension}', selectedTension.text)
-      .replace('{ending}', selectedEnding.text)
-      .replace('{modifier}', selectedModifier.text)
-
-  // Path 2: Vague but specific (3-19 words) - use neutral expansion
-  } else {
-    console.log('[Expansion Check] Vague but specific - using neutral expansion')
-
-    trackName = 'Neutral'
-    systemPrompt = 'You are a romance novelist.'
-
-    userPrompt = PROMPT_TEMPLATES.neutral
-      .replace('{user_concept}', concept)
-      .replace('{location}', location)
-      .replace('{time_period}', timePeriod)
-      .replace('{trope}', selectedTrope.text)
-      .replace('{tension}', selectedTension.text)
-      .replace('{ending}', selectedEnding.text)
-      .replace('{modifier}', selectedModifier.text)
-  }
-
-  // Add library avoidance if available
-  if (librarySummaries.length > 0) {
-    const summaryList = librarySummaries.map((s, i) => `${i + 1}. ${s}`).join('\n')
-    userPrompt += `
-
-Do not generate a concept that duplicates any of these existing books:
-${summaryList}`
-  }
-
-  console.log('\n[Expansion]')
-  console.log('  Track:', trackName)
-  console.log('  Trope:', selectedTrope.id)
-  console.log('  Tension:', selectedTension.id)
-  console.log('  Ending:', selectedEnding.id)
-  console.log('  Modifier:', selectedModifier.id)
-  console.log('  Location:', location)
-  console.log('  Time Period:', timePeriod)
-  console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt)
-
-  const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
-  console.log('  RESPONSE:', response)
-
-  return { concept: response, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
-}
-
-// Generate a different concept from existing one using slot-based library-aware generation
-async function generateDifferentConcept(existingConcept, librarySummaries = []) {
-  console.log(`[Different Concept] Generating concept different from existing...`)
-  console.log(`[Different Concept] Library has ${librarySummaries.length} existing books`)
-
-  // Use defaults for location and time period (generating fresh concept)
-  const location = SLOT_DEFAULTS.location
-  const timePeriod = SLOT_DEFAULTS.timePeriod
-
-  // Select track (50/50 between Regency and Literary)
-  const useRegency = Math.random() < 0.5
-  const promptTemplate = useRegency ? PROMPT_TEMPLATES.regency : PROMPT_TEMPLATES.literary
-
-  // TEMPORARY: Hardcode to the one blueprint we have
-  const selectedTension = ROMANCE_TENSIONS.find(t => t.id === 'safety')
-  const selectedTrope = ROMANCE_TROPES.find(t => t.id === 'enemies_to_lovers')
-  const selectedEnding = ROMANCE_ENDINGS.find(e => e.id === 'HEA')
-  const selectedModifier = ROMANCE_MODIFIERS.find(m => m.id === 'both')
-
-  // Fill slots in template
-  let userPrompt = promptTemplate
-    .replace('{location}', location)
-    .replace('{time_period}', timePeriod)
-    .replace('{trope}', selectedTrope.text)
-    .replace('{tension}', selectedTension.text)
-    .replace('{ending}', selectedEnding.text)
-    .replace('{modifier}', selectedModifier.text)
-
-  // Build avoidance list: current concept + library summaries
-  const avoidList = [`Current: ${existingConcept}`]
-  librarySummaries.forEach((s, i) => {
-    avoidList.push(`${i + 1}. ${s}`)
-  })
-
-  userPrompt += `
-
-Generate something different from all of these:
-${avoidList.join('\n')}`
-
-  const systemPrompt = `You are a classic romance novelist.`
-
-  console.log('\n[Different Concept]')
-  console.log('  Track:', useRegency ? 'Regency Historical' : 'Literary')
-  console.log('  Trope:', selectedTrope.id)
-  console.log('  Tension:', selectedTension.id)
-  console.log('  Ending:', selectedEnding.id)
-  console.log('  Modifier:', selectedModifier.id)
-  console.log('  SYSTEM:', systemPrompt)
-  console.log('  USER:', userPrompt)
-
-  const response = await callChatGPT(systemPrompt, userPrompt, { noMaxTokens: true })
-  console.log('  RESPONSE:', response)
-
-  return { concept: response, tensionText: selectedTension.text, tensionId: selectedTension.id, tropeId: selectedTrope.id, endingId: selectedEnding.id, modifierId: selectedModifier.id }
-}
-
-async function executePhase1(concept, lengthPreset, level, librarySummaries = []) {
-  console.log('Executing Phase 1: Blueprint → Chapter Descriptions...')
-
-  // Step 1: Expand vague concepts (with library awareness)
-  const expanded = await expandVagueConcept(concept, librarySummaries)
-  const expandedConcept = expanded.concept
-  const tropeId = expanded.tropeId
-  const tensionId = expanded.tensionId
-  const endingId = expanded.endingId
-  const modifierId = expanded.modifierId
-
-  // Step 2: Blueprint guard — refuse if no blueprint exists
-  const bpCheck = checkBlueprintAvailable(tropeId, tensionId, endingId, modifierId)
-  if (!bpCheck.allowed) {
-    throw new Error(
-      `No blueprint available for: ${tropeId} | ${tensionId} | ${endingId} | ${modifierId}. ` +
-      bpCheck.reason
-    )
-  }
-  console.log(`  Blueprint found: ${bpCheck.blueprintName}`)
-
-  // Step 3: Execute blueprint-based Phase 1
-  const result = await executePhase1Blueprint(
-    expandedConcept,
-    tropeId,
-    tensionId,
-    endingId,
-    modifierId,
-    callClaude,
-    parseJSON
-  )
-
-  return result
-}
-
-// =============================================================================
-// PHASE 2: CHARACTERS (Full Cast)
-// =============================================================================
-
-const PHASE_2_SYSTEM_PROMPT = `You are a romance character architect. Your task is to create the COMPLETE cast for this story: protagonist, love interests, AND stakeholder characters.
-
-You will receive:
-- The user's original concept
-- Blueprint metadata (trope, tension, ending, expected roles)
-- 14 chapter descriptions (what happens in each chapter of this story)
-- The faced character list from a previous step (cast is already decided)
-
-## VICE (REQUIRED FOR ALL CHARACTERS)
-
-Every character with psychology (protagonist, love interests, AND stakeholder characters) MUST have a vice — the behavioral flaw that emerges from their lie.
-
-Pick from this list:
-Pride, Vanity, Ambition, Greed, Envy, Jealousy, Possessiveness, Controlling, Domineering, Cowardice, Denial, Evasion, Self-Deception, Willful Ignorance, Escapism, Wrath, Bitterness, Resentment, Cruelty, Spite, Vindictiveness, Vengefulness, Gluttony, Lust, Sloth, Hedonism, Recklessness, Impulsiveness, Manipulation, Deception, Betrayal, Disloyalty, Coldness, Indifference, Callousness, Stubbornness, Obstinacy, Judgmentalism, Self-Righteousness, Fanaticism, Intolerance, Self-Pity, Martyrdom, Insecurity, Arrogance, Narcissism, Covetousness, Dishonesty, Hypocrisy, Corruption, Opportunism
-
-The vice must:
-- Flow from the character's lie (the lie justifies the vice)
-- Shape how they act on their thematic position
-
-## PART 1: ROMANTIC LEADS
-
-The story uses Single POV (protagonist only). The protagonist needs full psychology. Love interests also need full psychology.
-
-### Protagonist and Love Interest Format
-
-{
-  "protagonist": {
-    "name": "Full name",
-    "age": number,
-    "role": "Their position in this world",
-    "wound": {
-      "event": "What specifically happened to them",
-      "who_caused_it": "Person responsible (name them), or null if circumstance",
-      "age": "When it happened (age or 'childhood' or 'recently')"
-    },
-    "lie": "The false belief formed BECAUSE of the wound",
-    "want": "What they're consciously pursuing",
-    "need": "What they actually need (often unconscious)",
-    "coping_mechanism": {
-      "behaviour": "What they learned to do to survive the wound",
-      "as_flaw": "How this behaviour sabotages them",
-      "as_virtue": "How this same behaviour serves them"
-    },
-    "vice": "The behavioral flaw that emerges from their lie (from vice list)",
-    "arc": {
-      "starts": "Who they are at the beginning",
-      "ends": "Who they become"
-    },
-    "voice": {
-      "register": "Formal/casual, educated/simple, warm/guarded",
-      "patterns": "How they talk - terse, verbose, deflecting, direct",
-      "tells": "What speech habits reveal their emotional state"
-    }
-  },
-
-  "love_interests": [
-    {
-      "name": "Full name",
-      "age": number,
-      "role": "Their position in this world",
-      "role_in_story": "Primary | Rival | Secondary",
-      "wound": { ... same as protagonist },
-      "lie": "...",
-      "want": "...",
-      "need": "...",
-      "coping_mechanism": { ... },
-      "vice": "...",
-      "arc": { ... },
-      "voice": { ... }
-    }
-  ],
-
-  "dynamics": {
-    "romantic": [
-      {
-        "between": ["Protagonist name", "Love interest name"],
-        "attraction": "What draws them together",
-        "friction": "What makes them clash",
-        "challenge": "How each forces the other to confront their lie",
-        "balance": "What each provides that the other lacks"
-      }
-    ],
-    "rivals": [
-      {
-        "between": ["Love interest A", "Love interest B"],
-        "conflict_type": "How they oppose each other",
-        "methods": "How they compete or scheme",
-        "dynamic": "Respect, hatred, grudging admiration, etc."
-      }
-    ]
-  }
-}
-
-## PART 2: STAKEHOLDER CHARACTERS (from World Interests)
-
-Create supporting characters as THEMATIC PARTICIPANTS, not just plot functionaries.
-
-### THE THEMATIC IMPERATIVE
-
-Every faced character must have:
-1. A POSITION on the story's central thematic tension (the blueprint's core tension)
-2. An ARC TYPE (transformation or hardening)
-3. Moments that TEST their belief against the theme
-4. Mapping to EXTERNAL PLOT PARTS they embody or drive
-5. A plausible MECHANISM to pressure the protagonists
-6. An OUTCOME that follows from their thematic choice
-
-Characters who just perform plot functions without thematic engagement are hollow.
-
-### PROCESS (Follow this order)
-
-**Step 1: List the Interests (Protagonist-Facing)**
-
-Start from the protagonists' daily life and work outward. Ask these questions IN ORDER:
-
-1. **Who is in the protagonists' daily physical world?**
-   - People they live with, work with, see regularly
-   - People in their neighborhood, workplace, social circle
-   - People who share their physical spaces
-
-2. **Who has a personal relationship with them?**
-   - Family members (by blood or chosen)
-   - Friends, rivals, ex-lovers
-   - Mentors, protégés, colleagues with personal history
-
-3. **Who will the external plot force into direct contact with them?**
-   - People the plot brings to their doorstep
-   - People they must seek out to achieve their goals
-   - People whose paths will physically cross theirs repeatedly
-
-4. **What larger forces or institutions create pressure but have no single person regularly in the protagonists' space?**
-   - Systems, laws, social expectations
-   - Organizations too large or distant to personify
-   - Threats that work through consequences rather than presence
-
-Questions 1-3 produce candidate FACED characters. Question 4 produces candidate FACELESS forces.
-
-List each interest as a force/pressure/stake - NOT as a character yet. Note which question category it came from.
-
-**Step 2: Proximity Test (BEFORE face/faceless decision)**
-
-For each interest, ask: **"Will this character share physical space with a POV character repeatedly across the story?"**
-
-A character PASSES the proximity test if ALL of these are true:
-- Present in the protagonists' physical world REGULARLY, not occasionally
-- Will be physically present with a POV character in at least 3 parts
-- Has a personal relationship or role that creates regular contact
-
-A character FAILS the proximity test if ANY of these are true:
-- Contact would be a single scene or rare occurrence
-- Connection is institutional rather than personal (e.g., "the government" vs "the officer who lives next door")
-- Pressure is felt through consequences rather than presence
-
-**PROXIMITY IS STRICTER THAN REACHABILITY.** Almost any interest can "reach" the protagonists somehow. The question is whether they will share physical space repeatedly.
-
-Fails proximity test → faceless force. No exceptions for thematic importance.
-
-**Step 3: Face or Faceless Decision**
-
-An interest GETS A FACE only if ALL of these are true:
-1. Passes the proximity test (will share physical space with POV character in 3+ parts)
-2. Has a personal connection to a POV character (not institutional/professional distance)
-3. Has personal interests that create friction with the protagonists
-
-An interest STAYS FACELESS if ANY ONE of these is true:
-1. Fails the proximity test (won't share physical space repeatedly)
-2. Represents an institution or system rather than a personal relationship
-3. Pressure is felt through consequences rather than personal interaction
-
-**IMPORTANT:** Thematic importance does NOT override proximity failure. A distant antagonist who embodies the theme perfectly but won't share space with protagonists must be faceless. The theme can be embodied by characters who ARE proximal.
-
-**Step 3b: Consolidation Check**
-
-After making face/faceless decisions, ask: Can any faced characters be CONSOLIDATED?
-
-One character serving multiple interests is better than two characters each serving one. Look for:
-- Two interests that could logically be held by one person
-- Characters who would occupy similar spaces in the protagonists' lives
-- Opportunities to deepen one character rather than spreading thin across many
-
-Consolidate aggressively. Fewer, richer characters are better than more, thinner ones.
-
-**Step 4: Thematic Position**
-
-For each FACED character, determine their position on the core tension.
-
-Examples (if theme tension is "love vs safety"):
-- Prioritizes love over safety (will be tested when love brings danger)
-- Prioritizes safety over love (will be tested when safety means losing love)
-- Believes you can have both (will be tested by forced choice)
-
-Their position creates their LENS on events and their arc trajectory.
-
-**Step 5: Archetype (Pressure Role)**
-
-What kind of PRESSURE do they apply? The archetype is their FUNCTION in pressuring the protagonists:
-
-- **The Hunter** — Actively pursues, hunts, tracks
-- **The Rival** — Competes for same goal/person/position
-- **The Gatekeeper** — Controls access to what protagonist needs
-- **The Fanatic** — Represents extreme commitment to a belief
-- **The Tempter** — Offers easy path that would betray values
-- **The Mirror** — Reflects what protagonist could become
-- **The Judge** — Evaluates, condemns, or threatens consequences
-- **The Betrayer** — Trust weaponized into harm
-- **The Guardian** — Protects something protagonist needs to change/destroy
-- **The Witness** — Observes and threatens to expose
-
-**Step 6: Arc Type and Outcome**
-
-**Arc Type** — How does their belief evolve?
-- **Transformation**: Their position on the theme CHANGES through the story
-- **Hardening**: They DOUBLE DOWN on their position despite challenges
-
-**Arc Outcome** — What happens as a consequence of their thematic choice?
-- **Redemption**: They change and find something better
-- **Tragic death**: Their belief kills them (literally or metaphorically)
-- **Hollow victory**: They get what they wanted but it's empty
-- **Damnation**: They fully embrace their darkness
-- **Survival unchanged**: They persist, neither redeemed nor destroyed
-
-The outcome must FOLLOW FROM their thematic position and arc type.
-
-**Step 7: Full Psychology for All Stakeholder Characters**
-
-All stakeholder characters get full psychology (wound, lie, want, need, coping_mechanism, vice, arc, voice).
-
-This ensures every faced character has:
-- A wound that connects to the theme
-- A lie that justifies their thematic position
-- A vice that shapes how they act on that position
-- An arc that tests their belief
-
-No partial or minimal characters. If a character doesn't warrant full psychology, they should be faceless or consolidated with another character.
-
-## OUTPUT FORMAT
-
-{
-  "protagonist": { ... full psychology ... },
-  "love_interests": [ ... full psychology each ... ],
-  "dynamics": { "romantic": [...], "rivals": [...] },
-
-  "interests": [
-    {
-      "interest": "Description of the force/pressure/stake",
-      "pressure_mechanism": "How this interest could pressure protagonists",
-      "can_reach_protagonists": true,
-      "reach_explanation": "Proximity assessment: Will they share physical space with POV character in 3+ parts?",
-      "has_face": true,
-      "why_face": "Why this passes proximity test and gets a character (or null if faceless)"
-    }
-  ],
-
-  // EVERY stakeholder character MUST have ALL fields below. No partial characters. No exceptions.
-  "stakeholder_characters": [
-    {
-      "name": "Full name",
-      "interest": "Which interest they represent",
-      "connected_to": "Which POV character(s)",
-
-      // Thematic engagement (required):
-      "thematic_position": "What they believe about the core tension",
-      "archetype": "The Hunter | The Rival | The Gatekeeper | The Fanatic | The Tempter | The Mirror | The Judge | The Betrayer | The Guardian | The Witness",
-      "arc_type": "transformation | hardening",
-      "arc_outcome": "redemption | tragic_death | hollow_victory | damnation | survival_unchanged",
-
-      // Full psychology (required for all stakeholder characters):
-      "wound": {
-        "event": "What specifically happened to them",
-        "who_caused_it": "Person responsible or null",
-        "age": "When it happened"
-      },
-      "lie": "The false belief formed because of the wound",
-      "want": "What they're consciously pursuing",
-      "need": "What they actually need",
-      "coping_mechanism": {
-        "behaviour": "How they cope",
-        "as_flaw": "How it hurts them",
-        "as_virtue": "How it helps them"
-      },
-      "vice": "The behavioral flaw from the vice list that emerges from their lie",
-      "arc": {
-        "starts": "Who they are at start",
-        "ends": "Who they become"
-      },
-      "voice": {
-        "register": "How they speak",
-        "patterns": "Speech habits",
-        "tells": "Emotional reveals"
-      }
-    }
-  ],
-
-  "faceless_pressures": [
-    {
-      "interest": "The faceless force",
-      "why_faceless": "Why this fails the proximity test (won't share physical space with POV character in 3+ parts)",
-      "how_manifests": "How it shows up in the story without a character"
-    }
-  ]
-}
-
-## CRITICAL RULES
-
-1. Characters must have THEMATIC POSITIONS, not just plot functions.
-2. Characters must PASS THE PROXIMITY TEST - will they share physical space with a POV character in 3+ parts? If not, make them faceless.
-3. All stakeholder characters get FULL PSYCHOLOGY including vice. No partial or minimal characters.
-4. Arc outcomes must FOLLOW FROM thematic choices, not be arbitrary.
-5. Consolidate aggressively - one character serving multiple interests is better than many thin characters.
-6. Thematic importance does NOT override proximity failure. Distant antagonists become faceless forces.
-
-## ROMANTIC LEADS GUIDELINES
-
-COUNTING LOVE INTERESTS:
-- "3 suitors" = 3 love interests
-- "Love triangle" = 2 love interests
-- Standard romance = 1 love interest
-
-ROLE IN STORY:
-- Primary: The one protagonist ends up with (for HEA/HFN)
-- Rival: Competing for protagonist's heart
-- One should be marked Primary unless tragic/open ending
-
-THE CAUSAL WOUND CHAIN:
-wound → lie → coping mechanism
-
-THE WOUND CREATES THE LIE:
-- "Father sent me away for being soft" → "Softness is weakness"
-
-THE LIE CREATES THE COPING MECHANISM:
-- "Softness is weakness" → "Proves strength constantly"
-
-THE COPING MECHANISM IS BOTH FLAW AND VIRTUE:
-- Same trait, two expressions
-
-WOUNDS CONNECT TO THEME:
-- All characters' wounds should relate to the core tension
-
-ARCS AND ENDINGS:
-- HEA: Characters overcome their lies
-- HFN: Characters grow but circumstances uncertain
-- Bittersweet: Characters transform but cannot be together
-- Tragic: Coping mechanisms prove insurmountable
-
-## SECONDARY CAST GUIDELINES
-
-CONSOLIDATE AGGRESSIVELY:
-- One character serving multiple interests is better than many thin characters
-- Look for opportunities to combine characters who would occupy similar spaces
-- Fewer, richer characters are better than more, thinner ones
-
-ALL STAKEHOLDER CHARACTERS GET FULL PSYCHOLOGY:
-- Every faced character needs wound, lie, want, need, coping_mechanism, vice, arc, voice
-- If a character doesn't warrant full psychology, make them faceless or consolidate
-
-PROXIMITY IS PARAMOUNT:
-- Faced characters must share physical space with POV character in 3+ parts
-- If they won't be physically present repeatedly, make them faceless
-- Thematic importance does NOT override proximity failure
-
-THEMATIC ENGAGEMENT:
-- Every faced character needs a position on the theme
-- Arc outcomes must follow from thematic choices`
-
-// =============================================================================
-// PHASE 2 CALL 1: CHARACTER CENSUS
-// =============================================================================
-
-const PHASE_2_CALL1_SYSTEM_PROMPT = `You are generating the cast of characters for a romance novel. Your ONLY job is to list the people who physically exist in the protagonist's world.
-
-You will receive:
-- The original concept
-- 14 chapter descriptions that tell you what happens in this story
-- The expected character roles from the blueprint (protagonist, love interest, rival, etc.)
-
-You must populate three categories: family, friends, and everyone else. All three are required.
-
-Rules:
-- Start from the setting and era, not the plot. A sherry house in 1812 Cádiz has specific household patterns. A Manhattan apartment has different ones. Ground your answer in what's normal for this world.
-- Account for the dead or absent. If family members are dead, ask: who survives? A father is dead — what about a mother? Siblings? Don't assume the protagonist is alone just because some family died.
-- The love interest counts if physically present.
-- The rival/betrothed counts if they visit regularly.
-- Workers, staff, and servants count. In historical settings, household staff are physically present every day.
-- Do NOT think about dramatic conflict, thematic positions, or what would be interesting for the story. Just list who is physically there.
-- Read the chapter descriptions to understand what world the protagonist inhabits and who populates it. The chapters imply people — family, workers, neighbours, authority figures, rivals — even if not named.
-
-Output format:
-
-{
-  "characters": {
-    "protagonist": {
-      "family": [
-        {
-          "who": "Description (e.g., 'her mother', 'a younger sister', 'a widowed aunt')",
-          "relationship": "Their relationship to the protagonist",
-          "proximity": "How often they share physical space (e.g., 'lives in the house', 'visits weekly')"
-        }
-      ],
-      "friends": [
-        {
-          "who": "Description (e.g., 'a childhood companion', 'a neighbour she confides in')",
-          "relationship": "Their relationship to the protagonist",
-          "proximity": "How often they share physical space"
-        }
-      ],
-      "everyone_else": [
-        {
-          "who": "Description (e.g., 'the household cook', 'a local merchant', 'French soldiers')",
-          "relationship": "Their relationship to the protagonist",
-          "proximity": "How often they share physical space"
-        }
-      ]
-    }
-  },
-  "absent_but_expected": [
-    {
-      "who": "Person who SHOULD be present given the setting/era but isn't",
-      "why_absent": "Dead, estranged, away, etc."
-    }
-  ]
-}
-
-Order each category from most proximal (lives together, sees daily) to least (occasional contact).`
-
-function buildPhase2Call1UserPrompt(concept, phase1) {
-  const blueprint = phase1.blueprint || {}
-  const chapters = phase1.chapters || []
-
-  // Format chapter descriptions
-  const chapterList = chapters.map(ch =>
-    `  Chapter ${ch.chapter} [${ch.function}]: ${ch.description}`
-  ).join('\n')
-
-  // Format expected roles
-  const rolesText = blueprint.expectedRoles
-    ? Object.entries(blueprint.expectedRoles).map(([role, desc]) =>
-        `  - ${role}: ${desc}`
-      ).join('\n')
-    : '  (none specified)'
-
-  return `ORIGINAL CONCEPT: ${concept}
-
-POV STRUCTURE: Single POV (protagonist only)
-Map the daily world for the protagonist.
-
-EXPECTED CHARACTER ROLES:
-${rolesText}
-
-CHAPTER DESCRIPTIONS (what happens in this story — use these to understand who populates the protagonist's world):
-${chapterList}`
-}
-
-async function executePhase2Call1(concept, phase1) {
-  console.log('Phase 2 Call 1: Character Census...')
-
-  const userPrompt = buildPhase2Call1UserPrompt(concept, phase1)
-  const response = await callOpenAI(PHASE_2_CALL1_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
   const parsed = parseJSON(response)
-
   if (!parsed.success) {
-    throw new Error(`Phase 2 Call 1 JSON parse failed: ${parsed.error}`)
+    throw new Error(`Phase 1 Concept Generation JSON parse failed: ${parsed.error}`)
   }
 
   const data = parsed.data
 
-  // Validate: characters object exists with at least one POV character entry
-  if (!data.characters || typeof data.characters !== 'object' || Object.keys(data.characters).length === 0) {
-    throw new Error('Phase 2 Call 1: characters object missing or empty — must have at least one POV character entry')
+  // Validate required top-level fields
+  if (!data.synopsis) {
+    throw new Error('Phase 1: missing synopsis')
+  }
+  if (!data.synopsis.variables || !data.synopsis.act1 || !data.synopsis.act2 || !data.synopsis.act3 || !data.synopsis.act4) {
+    throw new Error('Phase 1: synopsis missing required fields (variables, act1, act2, act3, act4)')
   }
 
-  // Validate each POV entry has categorized people
-  for (const [pov, categories] of Object.entries(data.characters)) {
-    if (!categories || typeof categories !== 'object') {
-      throw new Error(`Phase 2 Call 1: POV character "${pov}" has no categories`)
-    }
-    const allPeople = [
-      ...(categories.family || []),
-      ...(categories.friends || []),
-      ...(categories.everyone_else || [])
-    ]
-    if (allPeople.length === 0) {
-      throw new Error(`Phase 2 Call 1: POV character "${pov}" has no people listed in any category`)
-    }
+  if (!data.characters) {
+    throw new Error('Phase 1: missing characters')
+  }
+  if (!data.characters.protagonist) {
+    throw new Error('Phase 1: missing characters.protagonist')
+  }
+  if (!data.characters.primary) {
+    throw new Error('Phase 1: missing characters.primary')
   }
 
-  // Ensure absent_but_expected exists (can be empty)
-  if (!data.absent_but_expected) {
-    data.absent_but_expected = []
-  }
-
-  // Log output
-  console.log('Phase 2 Call 1 complete.')
-  for (const [pov, categories] of Object.entries(data.characters)) {
-    const family = categories.family || []
-    const friends = categories.friends || []
-    const everyoneElse = categories.everyone_else || []
-    const total = family.length + friends.length + everyoneElse.length
-    console.log(`  ${pov}: ${total} people (${family.length} family, ${friends.length} friends, ${everyoneElse.length} others)`)
-    for (const p of [...family, ...friends, ...everyoneElse]) {
-      console.log(`    - ${p.who} (${p.proximity})`)
+  // Validate protagonist fields
+  const protag = data.characters.protagonist
+  for (const field of ['name', 'backstory', 'psychology', 'framework', 'appearance', 'mannerisms', 'voice']) {
+    if (!protag[field] || (typeof protag[field] === 'string' && protag[field].trim().length === 0)) {
+      throw new Error(`Phase 1: protagonist missing required field: ${field}`)
     }
   }
-  if (data.absent_but_expected.length > 0) {
-    console.log(`  Absent but expected: ${data.absent_but_expected.length}`)
-    data.absent_but_expected.forEach(a => {
-      console.log(`    - ${a.who}: ${a.why_absent}`)
-    })
+
+  // Validate primary fields
+  const primary = data.characters.primary
+  for (const field of ['name', 'backstory', 'psychology', 'threat', 'appearance', 'mannerisms']) {
+    if (!primary[field] || (typeof primary[field] === 'string' && primary[field].trim().length === 0)) {
+      throw new Error(`Phase 1: primary missing required field: ${field}`)
+    }
   }
 
-  console.log('')
-  console.log('Phase 2 Call 1 complete output:')
-  console.log(JSON.stringify(data, null, 2))
+  // Validate rival presence matches skeleton
+  if (skeleton.triangle) {
+    if (!data.characters.rival || !data.characters.rival.name) {
+      throw new Error('Phase 1: skeleton has triangle=true but rival is missing or has no name')
+    }
+  }
+
+  // Validate cast array
+  if (!Array.isArray(data.characters.cast)) {
+    throw new Error('Phase 1: characters.cast must be an array')
+  }
+
+  // Filter out the rival cast function for count comparison (rival is in characters.rival, not cast)
+  const nonRivalCastFunctions = skeleton.castFunctions.filter(cf => cf.id !== 'the_rival')
+  if (data.characters.cast.length !== nonRivalCastFunctions.length) {
+    console.warn(`Phase 1: expected ${nonRivalCastFunctions.length} cast members, got ${data.characters.cast.length}`)
+  }
+
+  // Validate each cast member
+  for (const member of data.characters.cast) {
+    for (const field of ['name', 'function', 'functionId', 'employmentOption', 'backstory', 'psychology', 'appearance', 'mannerisms', 'relationshipToProtagonist']) {
+      if (!member[field] || (typeof member[field] === 'string' && member[field].trim().length === 0)) {
+        throw new Error(`Phase 1: cast member missing required field: ${field}`)
+      }
+    }
+  }
+
+  console.log('Phase 1 Concept Generation complete.')
+  console.log(`  Protagonist: ${data.characters.protagonist.name}`)
+  console.log(`  Primary: ${data.characters.primary.name}`)
+  if (data.characters.rival && data.characters.rival.name) {
+    console.log(`  Rival: ${data.characters.rival.name}`)
+  }
+  console.log(`  Cast: ${data.characters.cast.length} members`)
+  console.log(`  Synopsis: ${data.synopsis.variables}`)
 
   return data
 }
 
-// =============================================================================
-// PHASE 2 CALL 2: MATCH PEOPLE TO PRESSURES
-// =============================================================================
-
-const PHASE_2_CALL2_SYSTEM_PROMPT = `You are selecting the cast for a romance novel. You will receive:
-- A list of people who physically exist in the protagonist's daily world (from a previous step)
-- 14 chapter descriptions that tell you what happens in this story
-- The blueprint's core tension (e.g. "safety", "duty", "identity")
-
-Your job is to match people to pressures and decide who becomes a faced character.
-
-## Step 1: Identify the pressures
-
-Read every chapter description and extract the pressures acting on the protagonist. Each chapter implies forces — people who threaten, tempt, control, rescue, judge, or compete. Also consider:
-- The core tension (what the protagonist is torn between)
-- What the chapter descriptions reveal about external forces vs internal struggles
-
-List each pressure. Label it:
-- "internal" if it operates through the character's own guilt, conscience, memory, oath, or desire. Internal pressures do not need a person to deliver them.
-- "external" if it requires someone or something outside the character to exert it.
-
-## Step 2: Match people to pressures
-
-For each external pressure, ask: is there someone in the census who could naturally carry this pressure?
-
-Rules:
-- The person must already exist in the census. Do not invent new characters.
-- The match must be natural given the person's relationship and proximity. Don't stretch.
-- One person can carry multiple pressures. This is preferred — it makes richer characters.
-- If no one in the census can carry a pressure, it becomes faceless.
-
-## Step 3: Decide faced or faceless
-
-A person becomes a FACED CHARACTER if:
-- They carry at least one external pressure
-- They are proximal enough to deliver that pressure regularly (not a one-off encounter)
-
-A pressure becomes FACELESS if:
-- It is internal (guilt, oath, memory, conscience)
-- No one in the census can naturally carry it
-- The pressure operates through consequences or atmosphere rather than personal interaction
-
-## Step 4: Consolidate
-
-Check: are any faced characters carrying pressures that could be combined into fewer people? One character carrying two pressures is better than two characters carrying one each. Consolidate where the same person could logically hold both.
-
-After consolidation, target 3-5 faced stakeholder characters. If you have more, consolidate further or demote the least essential to background.
-
-## Output format
-
-{
-  "pressures": [
-    {
-      "pressure": "Description of the force",
-      "type": "internal | external",
-      "source": "Which chapter(s) or the core tension this comes from"
-    }
-  ],
-  "faced_characters": [
-    {
-      "who": "The person from the census",
-      "from_census_of": "protagonist",
-      "pressures_carried": ["Which pressure(s) they carry"],
-      "why": "Why this person is a natural fit for this pressure"
-    }
-  ],
-  "faceless_pressures": [
-    {
-      "pressure": "The pressure",
-      "why_faceless": "Why no person carries this — internal, no natural carrier, or atmospheric"
-    }
-  ]
-}`
-
-function buildPhase2Call2UserPrompt(concept, phase1, call1Output) {
-  const blueprint = phase1.blueprint || {}
-  const chapters = phase1.chapters || []
-
-  // Format chapter descriptions
-  const chapterList = chapters.map(ch =>
-    `  Chapter ${ch.chapter} [${ch.function}]: ${ch.description}`
-  ).join('\n')
-
-  return `ORIGINAL CONCEPT: ${concept}
-
-CHARACTER CENSUS (from previous step):
-${JSON.stringify(call1Output, null, 2)}
-
-CORE TENSION: ${blueprint.tension || 'not specified'}
-
-CHAPTER DESCRIPTIONS (extract pressures from these):
-${chapterList}
-
-TARGET faced stakeholder characters after consolidation: 3-5`
-}
-
-async function executePhase2Call2(concept, phase1, call1Output) {
-  console.log('Phase 2 Call 2: Match People to Pressures...')
-
-  const userPrompt = buildPhase2Call2UserPrompt(concept, phase1, call1Output)
-  const response = await callOpenAI(PHASE_2_CALL2_SYSTEM_PROMPT, userPrompt, { maxTokens: 8192 })
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    throw new Error(`Phase 2 Call 2 JSON parse failed: ${parsed.error}`)
-  }
-
-  const data = parsed.data
-
-  // Validate pressures array
-  if (!data.pressures || !Array.isArray(data.pressures) || data.pressures.length === 0) {
-    throw new Error('Phase 2 Call 2: pressures array missing or empty')
-  }
-
-  // Validate faced_characters array
-  if (!data.faced_characters || !Array.isArray(data.faced_characters) || data.faced_characters.length === 0) {
-    throw new Error('Phase 2 Call 2: faced_characters array missing or empty')
-  }
-
-  // Ensure faceless_pressures exists (can be empty)
-  if (!data.faceless_pressures) {
-    data.faceless_pressures = []
-  }
-
-  // Log output
-  console.log('Phase 2 Call 2 complete.')
-  const internalCount = data.pressures.filter(p => p.type === 'internal').length
-  const externalCount = data.pressures.filter(p => p.type === 'external').length
-  console.log(`  Pressures: ${data.pressures.length} total (${internalCount} internal, ${externalCount} external)`)
-  data.pressures.forEach(p => {
-    console.log(`    [${p.type}] ${p.pressure} (from: ${p.source})`)
-  })
-
-  console.log(`  Faced characters: ${data.faced_characters.length}`)
-  data.faced_characters.forEach(fc => {
-    console.log(`    - ${fc.who} (from ${fc.from_census_of}): ${fc.pressures_carried.join(', ')}`)
-  })
-
-  console.log(`  Faceless pressures: ${data.faceless_pressures.length}`)
-  data.faceless_pressures.forEach(fp => {
-    console.log(`    - ${fp.pressure}: ${fp.why_faceless}`)
-  })
-
-  console.log('')
-  console.log('Phase 2 Call 2 complete output:')
-  console.log(JSON.stringify(data, null, 2))
-
-  return data
-}
-
-// =============================================================================
-// PHASE 2 CALL 3: PSYCHOLOGY (reuses existing PHASE_2_SYSTEM_PROMPT)
-// =============================================================================
-
-function buildPhase2Call3UserPrompt(concept, phase1, call2Output) {
-  const blueprint = phase1.blueprint || {}
-  const chapters = phase1.chapters || []
-
-  // Format chapter descriptions
-  const chapterList = chapters.map(ch =>
-    `  Chapter ${ch.chapter} [${ch.function}]: ${ch.description}`
-  ).join('\n')
-
-  // Format expected roles
-  const rolesText = blueprint.expectedRoles
-    ? Object.entries(blueprint.expectedRoles).map(([role, desc]) =>
-        `  - ${role}: ${desc}`
-      ).join('\n')
-    : '  (none specified)'
-
-  // Build faced characters list from Call 2
-  const facedList = call2Output.faced_characters.map(fc =>
-    `- ${fc.who} (from ${fc.from_census_of}'s world): carries pressure(s): ${fc.pressures_carried.join('; ')}`
-  ).join('\n')
-
-  // Build faceless pressures list from Call 2
-  const facelessList = call2Output.faceless_pressures.length > 0
-    ? call2Output.faceless_pressures.map(fp =>
-        `- ${fp.pressure}: ${fp.why_faceless}`
-      ).join('\n')
-    : '(none)'
-
-  // Determine love interest count from expected roles
-  const hasRival = blueprint.expectedRoles?.rival
-  const loveInterestHint = hasRival
-    ? 'The blueprint defines a rival role — create 2 love interests (primary + rival).'
-    : 'Create 1 love interest (primary) unless the concept implies more.'
-
-  return `ORIGINAL CONCEPT: ${concept}
-
-EXPECTED CHARACTER ROLES:
-${rolesText}
-
-CHAPTER DESCRIPTIONS (what happens in this story):
-${chapterList}
-
-CORE TENSION: ${blueprint.tension || 'not specified'}
-ENDING: ${blueprint.ending || 'not specified'}
-
-## PART 1: Create Romantic Leads
-
-**POV Structure: Single POV (protagonist only)**
-The protagonist is the POV character and needs full psychology. Love interests still need full psychology for consistency.
-
-${loveInterestHint}
-
-Ensure:
-- All wounds connect to the core tension "${blueprint.tension || 'from blueprint'}"
-- Arcs match the ${blueprint.ending || 'established'} ending
-- Each love interest is distinct with different wounds
-- One love interest is marked Primary (unless tragic/open ending)
-- If multiple love interests, include rival dynamics between them
-
-## PART 2: Create Stakeholder Characters (REQUIRED - DO NOT SKIP)
-
-**The cast has already been selected. Do not add, remove, or replace any faced characters. Your job is to give them names, full psychology, and thematic engagement. The faced characters are:**
-
-${facedList}
-
-**These pressures are faceless — they operate without a character:**
-
-${facelessList}
-
-### THE THEME (characters must engage with this)
-
-**Core Tension:** ${blueprint.tension || 'not specified'}
-
-Every faced character needs a POSITION on this tension. Their arc tests that position.
-
-### CHAPTER DESCRIPTIONS (characters must connect to these events)
-
-${chapterList}
-
-Map characters to these chapters — they shouldn't float in a vacuum. Each character should appear in or drive events from at least one chapter.
-
-### Complexity Guide
-
-- Stakeholder characters (all with full psychology): 3-5
-
-### PROCESS (Steps 1-3 already done — start from Step 4)
-
-The cast is decided. Skip Steps 1-3 (interest identification, proximity test, face/faceless decision). Begin here:
-
-**Step 4: Thematic position for each faced character**
-Each faced character needs a position on the core tension "${blueprint.tension || ''}". Their position should connect to the pressure(s) they carry.
-
-**Step 5: Archetype (pressure role)**
-Assign each faced character an archetype from the system prompt's list.
-
-**Step 6: Arc type and outcome**
-Assign arc type and outcome for each faced character.
-
-**Step 7: Full psychology**
-Full psychology for ALL stakeholder characters: wound, lie, want, need, coping_mechanism, vice, arc, voice.
-
-## CRITICAL OUTPUT REQUIREMENTS
-
-Your JSON output MUST include ALL of these top-level keys:
-1. protagonist (object)
-2. love_interests (array)
-3. dynamics (object with romantic and rivals arrays)
-4. stakeholder_characters (array - REQUIRED, with thematic_position, archetype, arc_type, arc_outcome, and full psychology)
-
-Do NOT include interests or faceless_pressures arrays — those will be merged from the previous step.
-Do NOT include character_moments or arc_outcomes arrays.`
-}
-
-async function executePhase2Call3(concept, phase1, call2Output) {
-  console.log('Phase 2 Call 3: Psychology (using existing Phase 2 system prompt)...')
-
-  const userPrompt = buildPhase2Call3UserPrompt(concept, phase1, call2Output)
-  const response = await callOpenAI(PHASE_2_SYSTEM_PROMPT, userPrompt, { maxTokens: 16384 })
-  const parsed = parseJSON(response)
-
-  if (!parsed.success) {
-    throw new Error(`Phase 2 Call 3 JSON parse failed: ${parsed.error}`)
-  }
-
-  const data = parsed.data
-
-  // Validate romantic leads
-  if (!data.protagonist) {
-    throw new Error('Phase 2 Call 3 missing protagonist')
-  }
-  if (!data.love_interests || !Array.isArray(data.love_interests) || data.love_interests.length === 0) {
-    throw new Error('Phase 2 Call 3 must include at least one love interest')
-  }
-  if (!data.dynamics) {
-    throw new Error('Phase 2 Call 3 missing dynamics')
-  }
-
-  // Validate protagonist wound and coping_mechanism structure
-  if (!data.protagonist.wound || typeof data.protagonist.wound !== 'object') {
-    throw new Error('Phase 2 Call 3 protagonist wound must be an object with event, who_caused_it, age')
-  }
-  if (!data.protagonist.coping_mechanism || typeof data.protagonist.coping_mechanism !== 'object') {
-    throw new Error('Phase 2 Call 3 protagonist must have coping_mechanism object with behaviour, as_flaw, as_virtue')
-  }
-
-  // Validate love interests wound and coping_mechanism structure
-  for (const li of data.love_interests) {
-    if (!li.wound || typeof li.wound !== 'object') {
-      throw new Error(`Phase 2 Call 3: Love interest "${li.name}" wound must be an object with event, who_caused_it, age`)
-    }
-    if (!li.coping_mechanism || typeof li.coping_mechanism !== 'object') {
-      throw new Error(`Phase 2 Call 3: Love interest "${li.name}" must have coping_mechanism object with behaviour, as_flaw, as_virtue`)
-    }
-  }
-
-  // Validate stakeholder characters
-  if (!data.stakeholder_characters || !Array.isArray(data.stakeholder_characters) || data.stakeholder_characters.length === 0) {
-    throw new Error('Phase 2 Call 3: stakeholder_characters array is missing or empty')
-  }
-
-  for (const char of data.stakeholder_characters) {
-    if (!char.name) {
-      throw new Error(`Phase 2 Call 3: Stakeholder character missing name: ${JSON.stringify(char).slice(0, 100)}`)
-    }
-  }
-
-  // Validate thematic fields for all stakeholder characters
-  const missingThematic = data.stakeholder_characters.filter(c => !c.thematic_position || !c.archetype || !c.arc_type || !c.arc_outcome)
-  if (missingThematic.length > 0) {
-    console.warn('Phase 2 Call 3 WARNING: Faced characters missing thematic fields:')
-    missingThematic.forEach(c => {
-      const missing = []
-      if (!c.thematic_position) missing.push('thematic_position')
-      if (!c.archetype) missing.push('archetype')
-      if (!c.arc_type) missing.push('arc_type')
-      if (!c.arc_outcome) missing.push('arc_outcome')
-      console.warn(`  - ${c.name}: missing ${missing.join(', ')}`)
-    })
-  }
-
-  // Remove moment arrays if model included them (Phase 3 handles character actions)
-  if (data.character_moments) {
-    console.log('Phase 2 Call 3: Removing character_moments array (handled by Phase 3)')
-    delete data.character_moments
-  }
-  if (data.arc_outcomes) {
-    console.log('Phase 2 Call 3: Removing arc_outcomes array (handled by Phase 3)')
-    delete data.arc_outcomes
-  }
-
-  // Merge Call 2 data: build interests array from pressures, carry over faceless_pressures
-  data.interests = call2Output.pressures.map(p => ({
-    interest: p.pressure,
-    type: p.type,
-    source: p.source,
-    has_face: p.type === 'external' && call2Output.faced_characters.some(fc =>
-      fc.pressures_carried.includes(p.pressure)
-    )
-  }))
-  data.faceless_pressures = call2Output.faceless_pressures.map(fp => ({
-    pressure: fp.pressure,
-    why_faceless: fp.why_faceless
-  }))
-
-  // Also remove any interests/faceless_pressures the model may have included
-  // (we use the Call 2 sourced ones above)
-
-  // Console logging
-  console.log('Phase 2 Call 3 complete.')
-  console.log(`  Protagonist: ${data.protagonist?.name}`)
-  console.log(`    Wound caused by: ${data.protagonist?.wound?.who_caused_it || 'circumstance'}`)
-  console.log(`    Coping mechanism: ${data.protagonist?.coping_mechanism?.behaviour}`)
-  console.log(`  Love interests: ${data.love_interests?.length}`)
-  data.love_interests?.forEach((li, i) => {
-    console.log(`    ${i + 1}. ${li.name} (${li.role_in_story})`)
-    console.log(`       Wound caused by: ${li.wound?.who_caused_it || 'circumstance'}`)
-  })
-  console.log(`  Rival dynamics: ${data.dynamics?.rivals?.length || 0}`)
-
-  console.log(`  Stakeholder characters: ${data.stakeholder_characters.length}`)
-  data.stakeholder_characters.forEach(c => {
-    console.log(`    - ${c.name}: archetype="${c.archetype}", arc="${c.arc_type}→${c.arc_outcome}"`)
-  })
-
-  console.log(`  Interests (from Call 2): ${data.interests.length}`)
-  const faced = data.interests.filter(i => i.has_face).length
-  const faceless = data.interests.filter(i => !i.has_face).length
-  console.log(`    Faced: ${faced}, Faceless: ${faceless}`)
-  console.log(`  Faceless pressures (from Call 2): ${data.faceless_pressures.length}`)
-
-  console.log('')
-  console.log('Phase 2 Call 3 complete output:')
-  console.log(JSON.stringify(data, null, 2))
-
-  return data
-}
-
-async function executePhase2(concept, phase1) {
-  // Phase 2 Call 1: Character Census (who physically exists in the world)
-  const censusData = await executePhase2Call1(concept, phase1)
-
-  // Phase 2 Call 2: Match People to Pressures
-  const matchData = await executePhase2Call2(concept, phase1, censusData)
-
-  // Phase 2 Call 3: Psychology (names, wounds, arcs, thematic positions)
-  const psychologyData = await executePhase2Call3(concept, phase1, matchData)
-
-  // Preserve census for Phase 3 scene generation
-  psychologyData.census = censusData.characters
-
-  return psychologyData
+/**
+ * New pipeline entry point.
+ * Rolls a skeleton, then generates the concept in one LLM call.
+ *
+ * @param {string} setting - User-provided setting string
+ * @returns {Promise<Object>} Object with skeleton and concept
+ */
+export async function generateStory(setting) {
+  const skeleton = rollSkeleton()
+  const concept = await executePhase1(skeleton, setting)
+  return { skeleton, concept }
 }
 
 // =============================================================================
@@ -4815,13 +3673,10 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 
   switch (phaseNumber) {
     case 1:
-      // Note: regeneration doesn't use library summaries (concept already exists)
-      updatedBible.coreFoundation = await executePhase1(concept, lengthPreset, level, [])
+      // Re-roll skeleton and regenerate concept
+      updatedBible.skeleton = rollSkeleton()
+      updatedBible.concept = await executePhase1(updatedBible.skeleton, concept)
       // Fall through to regenerate subsequent phases
-    case 2:
-      if (phaseNumber <= 2) {
-        updatedBible.characters = await executePhase2(concept, updatedBible.coreFoundation)
-      }
     case 3:
       if (phaseNumber <= 3) {
         updatedBible.scenes = await executePhase3(concept, updatedBible.coreFoundation, updatedBible.characters)
@@ -4877,8 +3732,7 @@ async function regenerateFromPhase(phaseNumber, completeBible, concept, level, l
 
 // Phase descriptions for progress reporting
 const PHASE_DESCRIPTIONS = {
-  1: { name: 'Blueprint Chapters', description: 'Matching blueprint and generating story-specific chapter descriptions' },
-  2: { name: 'Full Cast', description: 'Census of protagonist\'s world, matching people to pressures, then full psychology' },
+  1: { name: 'Concept Generation', description: 'Rolling skeleton and generating story concept with characters from setting' },
   3: { name: 'Scene Generation', description: 'Breaking each chapter into 3-5 scenes with location, cast, and action' },
   6: { name: 'Major Events & Locations', description: 'Organizing grid actions into events, assigning locations' },
   7: { name: 'Event Development', description: 'Developing events back-to-front with setup requirements' },
@@ -4888,51 +3742,43 @@ const PHASE_DESCRIPTIONS = {
 
 /**
  * Run a single phase of the bible generation pipeline
- * @param {number} phase - Which phase to run (1, 2, or 3)
- * @param {string} concept - Story concept/description
+ * @param {number} phase - Which phase to run (1 or 3+)
+ * @param {string} setting - User setting string (for Phase 1)
  * @param {string} lengthPreset - 'novella' or 'novel'
  * @param {string} level - Reading level (Beginner, Intermediate, Native)
- * @param {Object} bible - Existing bible object (for phases 2+)
- * @param {Array} librarySummaries - Existing book summaries for diversity (default [])
+ * @param {Object} bible - Existing bible object (for phases 3+)
  * @returns {Promise<Object>} Updated bible with new phase data
  */
-export async function runPhase(phase, concept, lengthPreset, level, bible = {}, librarySummaries = []) {
+export async function runPhase(phase, setting, lengthPreset, level, bible = {}) {
   console.log('='.repeat(60))
   console.log(`RUNNING PHASE ${phase}`)
-  console.log(`Concept: ${concept}`)
+  console.log(`Setting: ${setting}`)
   console.log(`Length: ${lengthPreset}, Level: ${level}`)
   console.log('='.repeat(60))
 
   switch (phase) {
     case 1:
-      console.log('Phase 1: Blueprint → Chapter Descriptions')
-      bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
+      console.log('Phase 1: Concept Generation')
+      bible.skeleton = rollSkeleton()
+      bible.concept = await executePhase1(bible.skeleton, setting)
       console.log('')
       console.log('Phase 1 complete output:')
-      console.log(JSON.stringify(bible.coreFoundation, null, 2))
-      break
-
-    case 2:
-      if (!bible.coreFoundation) {
-        throw new Error('Phase 2 requires Phase 1 (bible.coreFoundation) to be complete')
-      }
-      console.log('Phase 2: Full Cast (Census → Pressure Matching → Psychology)')
-      bible.characters = await executePhase2(concept, bible.coreFoundation)
+      console.log(JSON.stringify({ skeleton: bible.skeleton, concept: bible.concept }, null, 2))
       break
 
     case 3:
-      if (!bible.coreFoundation || !bible.characters) {
-        throw new Error('Phase 3 requires Phases 1-2 (bible.coreFoundation, bible.characters) to be complete')
+      if (!bible.skeleton || !bible.concept) {
+        throw new Error('Phase 3 requires Phase 1 (bible.skeleton, bible.concept) to be complete')
       }
       console.log('Phase 3: Scene Generation')
-      bible.scenes = await executePhase3(concept, bible.coreFoundation, bible.characters)
+      bible.scenes = await executePhase3(setting, bible.concept, bible.concept.characters)
       console.log('')
       console.log('Phase 3 complete output:')
       console.log(JSON.stringify(bible.scenes, null, 2))
       break
 
     default:
-      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 2, 3`)
+      throw new Error(`Unknown phase: ${phase}. Valid phases are 1, 3`)
   }
 
   return bible
@@ -4959,7 +3805,7 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
 
   let bible = {}
   let validationAttempts = 0
-  const totalPhases = 3 // Phases 1, 2, 3 (downstream phases not yet updated)
+  const totalPhases = 2 // Phase 1 (concept), Phase 3+ (downstream phases not yet updated)
 
   // Helper to report progress
   const reportProgress = (phase, status = 'in_progress', details = null) => {
@@ -4997,32 +3843,24 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
   }
 
   try {
-    // Phase 1: Blueprint → Chapter Descriptions
+    // Phase 1: Concept Generation (skeleton + setting → concept)
     reportProgress(1, 'starting')
-    bible.coreFoundation = await executePhase1(concept, lengthPreset, level, librarySummaries)
+    bible.skeleton = rollSkeleton()
+    bible.concept = await executePhase1(bible.skeleton, concept)
     reportProgress(1, 'complete', {
-      blueprintId: bible.coreFoundation.blueprint?.id,
-      blueprintName: bible.coreFoundation.blueprint?.name,
-      totalChapters: bible.coreFoundation.blueprint?.totalChapters,
-      chapters: bible.coreFoundation.chapters?.length
+      tension: bible.skeleton.tension,
+      ending: bible.skeleton.ending,
+      triangle: bible.skeleton.triangle,
+      chapters: bible.skeleton.chapters?.length,
+      protagonist: bible.concept.characters?.protagonist?.name,
+      primary: bible.concept.characters?.primary?.name,
+      cast: bible.concept.characters?.cast?.length
     })
     await savePhase(1)
 
-    // Phase 2: Full Cast (Census → Pressure Matching → Psychology)
-    reportProgress(2, 'starting')
-    bible.characters = await executePhase2(concept, bible.coreFoundation)
-    reportProgress(2, 'complete', {
-      protagonist: bible.characters.protagonist?.name,
-      loveInterests: bible.characters.love_interests?.length,
-      stakeholderCharacters: bible.characters.stakeholder_characters?.length,
-      interests: bible.characters.interests?.length,
-      facelessPressures: bible.characters.faceless_pressures?.length
-    })
-    await savePhase(2)
-
-    // Phase 3: Scene Generation (14 sequential calls, one per chapter)
+    // Phase 3: Scene Generation
     reportProgress(3, 'starting')
-    bible.scenes = await executePhase3(concept, bible.coreFoundation, bible.characters)
+    bible.scenes = await executePhase3(concept, bible.concept, bible.concept.characters)
     reportProgress(3, 'complete', {
       totalChapters: bible.scenes.chapters?.length,
       totalScenes: bible.scenes.chapters?.reduce((sum, ch) => sum + ch.scenes.length, 0)
@@ -5098,8 +3936,8 @@ export async function generateBible(concept, level, lengthPreset, language, maxV
     // TESTING: Stop after Phase 9 to validate Chapter Assembly output
     console.log('='.repeat(60))
     console.log('TEST MODE - Stopping after Phase 9')
-    console.log('Phase 1 Output:', JSON.stringify(bible.coreFoundation, null, 2))
-    console.log('Phase 2 Output:', JSON.stringify(bible.characters, null, 2))
+    console.log('Skeleton Output:', JSON.stringify(bible.skeleton, null, 2))
+    console.log('Concept Output:', JSON.stringify(bible.concept, null, 2))
     console.log('Phase 3 Output:', JSON.stringify(bible.plot, null, 2))
     console.log('Phase 4 Output:', JSON.stringify(bible.subplots, null, 2))
     console.log('Phase 5 Output:', JSON.stringify(bible.masterTimeline, null, 2))
@@ -6547,8 +5385,6 @@ async function generateChapterWithValidation(bible, chapterIndex, previousSummar
 
 export {
   callClaude,
-  expandVagueConcept,
-  generateDifferentConcept,
   generateChapter,
   generateChapterByScenes,
   generateScene,
@@ -6564,7 +5400,6 @@ export {
   getLevelDefinition,
   formatLevelDefinitionForPrompt,
   executePhase1,
-  executePhase2,
   executePhase3,
   executePhase4,
   executePhase5,
@@ -6582,6 +5417,7 @@ export {
 
 export default {
   generateBible,
+  generateStory,
   generateChapter,
   generateChapterByScenes,
   generateScene,
@@ -6589,7 +5425,6 @@ export default {
   buildPreviousContext,
   compressSummaries,
   executePhase1,
-  executePhase2,
   executePhase3,
   executePhase4,
   executePhase5,

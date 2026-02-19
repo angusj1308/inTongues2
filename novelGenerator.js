@@ -703,153 +703,326 @@ function validateCoherence(coherenceCheck, requiredFields) {
 }
 
 // =============================================================================
-// PHASE 1: CONCEPT GENERATION
+// PHASE 1: CHARACTER GENERATION
 // =============================================================================
 
-const PHASE_1_CONCEPT_SYSTEM_PROMPT = `You are plotting the chapter-by-chapter arc of an enemies-to-lovers romance. You receive a structural skeleton with every plot decision already made, and a setting. Your job: make each chapter's employment option concrete for this world.
+const TENSION_FRAMEWORK_DESCRIPTIONS = {
+  safety: 'She built a framework to protect something tangible — a livelihood, a family, a fragile stability. Danger is physical, material, real. The primary represents that danger. Her behaviour shows what she protects and why she cannot afford to let him close.',
+  identity: 'She built a framework that defines who she is — competence, principles, a role, a reputation. The primary threatens that constructed self. Her behaviour shows what framework she built and why losing it feels like losing herself.'
+}
+
+const CHARACTER_FIELDS = ['backstory', 'psychology', 'voiceAndMannerisms', 'appearance']
+
+const PHASE_1_CALL1_SYSTEM_PROMPT = `You are creating the core characters for an enemies-to-lovers romance. You receive a setting, a tension type with its framework description, and whether a love triangle exists.
+
+You will produce:
+- "protagonist" — She. The woman whose framework the story breaks.
+- "primary" — He. The man who represents danger to that framework.
+- If triangle is YES: "rival" — The safe option. The man who represents everything her framework endorses.
 
 RULES:
-1. Each chapter has one or more employment options already selected. Make each one specific for this setting. Not paraphrased. Not skipped. Made real — what actually happens between she and he in this place and time.
-2. She and he only. No names. No secondary characters. No cast. Those don't exist yet. Use "she" and "he" throughout.
-3. No backstory. No character psychology. No physical descriptions. Just what happens.
-4. Each summary should be concrete enough that a later phase could build 2-5 scenes from it without inventing new plot.
-5. The summaries must work as a sequence — each one follows from the last. The story must cohere across all chapters.
-6. Do not declare the theme, the tension type, or the ending type. These are embedded in the plot through what happens, not stated.
-7. Ground everything in the historical and social reality of the setting. If the setting is a frontier during a military campaign, the story beats involve land, armies, survival — not abstract emotions.
+1. Each character has exactly four fields: backstory, psychology, voiceAndMannerisms, appearance. Each field is one paragraph of substantial prose.
+2. No "name" field. Names appear naturally within the backstory paragraph — chosen to fit the setting, the culture, the time.
+3. Every character must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
+4. Ground each character in the historical and social reality of the setting. If the setting is a frontier during a military campaign, these people exist in that world — their clothes, their trades, their scars come from that reality.
+5. Psychology must reflect the tension type without ever naming or declaring it. For safety tension: her psychology shows what she protects and why danger terrifies her. For identity tension: her psychology shows the constructed self and why it cannot bend. No theme lectures. No meta-commentary.
+6. The primary's psychology must make him genuinely dangerous to her framework — not a bad person, but someone whose nature or position makes her framework unsustainable.
+7. If triangle is YES, the rival is the safe option personified — stable, respectable, everything the framework endorses. But he has a latent flaw that will surface later. Plant it subtly in his psychology without declaring it.
+8. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
+9. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
 
 OUTPUT FORMAT:
 Return a single JSON object:
 {
-  "chapters": [
+  "protagonist": {
+    "backstory": "One paragraph. Where she came from, what shaped her.",
+    "psychology": "One paragraph. What she wants, fears, avoids. How the tension manifests in her thinking.",
+    "voiceAndMannerisms": "One paragraph. How she speaks, moves, behaves. Speech patterns, habits, tells.",
+    "appearance": "One paragraph. Physical description grounded in the setting."
+  },
+  "primary": {
+    "backstory": "One paragraph.",
+    "psychology": "One paragraph. What he wants, fears. How he relates to her tension.",
+    "voiceAndMannerisms": "One paragraph.",
+    "appearance": "One paragraph."
+  },
+  "rival": null
+}
+
+When triangle is YES, rival follows the same four-field structure instead of null.
+
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Every paragraph must be substantive — at least 3-4 sentences of concrete detail.
+- Do not produce generic characters. These people are specific to this setting, this time, this place.`
+
+const PHASE_1_CALL2_SYSTEM_PROMPT = `You are creating the secondary cast for an enemies-to-lovers romance. You receive the setting, tension type, the already-created protagonist and primary characters, and a list of cast functions with employment options.
+
+For each cast function, you must:
+1. Select exactly ONE employment option from the provided list.
+2. Create a concrete character who fulfils that function in relationship to the protagonist.
+
+RULES:
+1. Each cast member has exactly six fields: functionId, employmentOption, backstory, psychology, voiceAndMannerisms, appearance.
+2. functionId must match the id provided in the cast function list exactly.
+3. employmentOption must be copied exactly from the provided options — the one you selected.
+4. No "name" field. Names appear naturally within the backstory paragraph.
+5. Every cast member must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
+6. Ground each character in the historical and social reality of the setting. A "widow" on the Argentine pampas is different from a "widow" in Regency England. Make the employment option real for this world.
+7. Each cast member exists in relationship to the protagonist. The function description tells you what role they play in her story. Their backstory and psychology should make that relationship concrete and specific — build them knowing who she is.
+8. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
+9. Appearance must be specific and grounded.
+10. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
+
+OUTPUT FORMAT:
+Return a single JSON object:
+{
+  "cast": [
     {
-      "chapter": 1,
-      "title": "Chapter title from skeleton",
-      "summary": "What specifically happens in this chapter. She and he only. The employment option made concrete for this setting."
+      "functionId": "exact_id_from_list",
+      "employmentOption": "Exact option text you selected",
+      "backstory": "One paragraph.",
+      "psychology": "One paragraph.",
+      "voiceAndMannerisms": "One paragraph.",
+      "appearance": "One paragraph."
     }
   ]
 }
 
-One entry per chapter in the skeleton. The chapter number and title must match the skeleton exactly. The summary is your only creative contribution.
+One entry per cast function. Do not skip any. Do not add extras.
 
 IMPORTANT:
 - Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
-- Every chapter must have a substantive summary grounded in the setting.
-- Do not invent plot that contradicts the skeleton's employment options or end states.`
+- Every paragraph must be substantive — at least 3-4 sentences of concrete detail.
+- Do not produce generic characters. These people are specific to this setting, this protagonist, this world.`
 
 /**
- * Format a rolled skeleton for the Phase 1 prompt.
- * Shows only what the LLM needs: chapters with employment options and end states,
- * plus structural booleans for conditional chapters.
+ * Build the user prompt for Call 1: protagonist, primary, and optionally rival.
  */
-function formatSkeletonForPrompt(skeleton) {
-  const lines = []
+function buildCall1UserPrompt(setting, tension, tensionFramework, triangle) {
+  return `=== SETTING ===
+${setting}
 
-  lines.push(`Triangle: ${skeleton.triangle ? 'YES' : 'NO'}`)
-  lines.push(`Secret: ${skeleton.secret ? 'YES' : 'NO'}`)
-  lines.push('')
+=== TENSION TYPE ===
+${tension}
 
-  lines.push('=== CHAPTERS ===')
-  for (const ch of skeleton.chapters) {
-    lines.push(`Chapter ${ch.chapter}: "${ch.title}"`)
-    lines.push(`  End state: ${ch.endState}`)
+=== TENSION FRAMEWORK ===
+${tensionFramework}
 
-    if (ch.employmentSelections && ch.employmentSelections.length > 0) {
-      for (const sel of ch.employmentSelections) {
-        lines.push(`  Employment option: ${sel.text}`)
-      }
-    }
-    lines.push('')
-  }
+=== TRIANGLE ===
+${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}
 
-  return lines.join('\n')
+Create the protagonist (she), the primary (he)${triangle ? ', and the rival' : ''}. Return the JSON object only.`
 }
 
 /**
- * Build the user prompt from skeleton + setting for Phase 1 chapter summaries.
+ * Build the user prompt for Call 2: secondary cast.
+ * Includes protagonist and primary from Call 1 so the LLM builds cast in relation to them.
  */
-function buildPhase1UserPrompt(skeleton, setting) {
-  const skeletonText = formatSkeletonForPrompt(skeleton)
+function buildCall2UserPrompt(setting, tension, protagonist, primary, castFunctions) {
+  const castList = castFunctions.map(cf => {
+    const optionsStr = cf.employmentOptions.map((o, i) => `    ${i + 1}. ${o}`).join('\n')
+    return `- Function: "${cf.name}" (id: ${cf.id})
+  Description: ${cf.description}
+  Employment options (pick exactly one):
+${optionsStr}`
+  }).join('\n\n')
 
   return `=== SETTING ===
 ${setting}
 
-${skeletonText}
-Write a chapter summary for each chapter. Make every employment option concrete for this setting. Return the JSON object only.`
+=== TENSION TYPE ===
+${tension}
+
+=== PROTAGONIST (already created) ===
+Backstory: ${protagonist.backstory}
+Psychology: ${protagonist.psychology}
+Voice and mannerisms: ${protagonist.voiceAndMannerisms}
+Appearance: ${protagonist.appearance}
+
+=== PRIMARY (already created) ===
+Backstory: ${primary.backstory}
+Psychology: ${primary.psychology}
+Voice and mannerisms: ${primary.voiceAndMannerisms}
+Appearance: ${primary.appearance}
+
+=== CAST FUNCTIONS ===
+${castList}
+
+Create one character for each cast function. Select one employment option per function. Return the JSON object only.`
 }
 
 /**
- * Phase 1: Chapter Summary Generation
- * Takes a rolled skeleton and user setting, makes one LLM call,
- * and returns an array of chapter summaries.
+ * Validate that a character object has all four required non-empty string fields.
+ */
+function validateCharacterFields(obj, label) {
+  if (!obj || typeof obj !== 'object') {
+    throw new Error(`Phase 1: ${label} is missing or not an object`)
+  }
+  for (const field of CHARACTER_FIELDS) {
+    if (!obj[field] || typeof obj[field] !== 'string' || obj[field].trim().length === 0) {
+      throw new Error(`Phase 1: ${label} missing or empty field "${field}"`)
+    }
+  }
+}
+
+/**
+ * Validate Call 1 output: protagonist, primary, and optionally rival.
+ */
+function validateCall1(data, triangle) {
+  validateCharacterFields(data.protagonist, 'protagonist')
+  validateCharacterFields(data.primary, 'primary')
+
+  if (triangle) {
+    if (!data.rival) {
+      throw new Error('Phase 1 Call 1: rival must be present when triangle is true')
+    }
+    validateCharacterFields(data.rival, 'rival')
+  } else {
+    if (data.rival !== null && data.rival !== undefined) {
+      throw new Error('Phase 1 Call 1: rival must be null when triangle is false')
+    }
+  }
+}
+
+/**
+ * Validate Call 2 output: cast array with functionId, employmentOption, and character fields.
+ */
+function validateCall2(data, filteredCastFunctions) {
+  if (!Array.isArray(data.cast)) {
+    throw new Error('Phase 1 Call 2: cast must be an array')
+  }
+
+  if (data.cast.length !== filteredCastFunctions.length) {
+    throw new Error(
+      `Phase 1 Call 2: expected ${filteredCastFunctions.length} cast members, got ${data.cast.length}`
+    )
+  }
+
+  const expectedIds = new Set(filteredCastFunctions.map(cf => cf.id))
+
+  for (const member of data.cast) {
+    if (!member.functionId || !expectedIds.has(member.functionId)) {
+      throw new Error(
+        `Phase 1 Call 2: invalid or missing functionId "${member.functionId}". Expected one of: ${[...expectedIds].join(', ')}`
+      )
+    }
+
+    if (!member.employmentOption || typeof member.employmentOption !== 'string' || member.employmentOption.trim().length === 0) {
+      throw new Error(`Phase 1 Call 2: cast member "${member.functionId}" missing employmentOption`)
+    }
+
+    validateCharacterFields(member, `cast member "${member.functionId}"`)
+  }
+
+  const returnedIds = new Set(data.cast.map(m => m.functionId))
+  for (const expectedId of expectedIds) {
+    if (!returnedIds.has(expectedId)) {
+      throw new Error(`Phase 1 Call 2: missing cast member for functionId "${expectedId}"`)
+    }
+  }
+}
+
+/**
+ * Phase 1: Character Generation
+ * Takes a rolled skeleton and user setting, makes two LLM calls,
+ * and returns a characters object with protagonist, primary, rival, and cast.
+ *
+ * Call 1: Setting + tension → protagonist and primary (+ rival if triangle)
+ * Call 2: Setting + protagonist + primary + cast functions → secondary cast
  *
  * @param {Object} skeleton - Output of rollSkeleton() from storyBlueprints.js
- * @param {string} setting - User-provided setting string, e.g. "Las pampas during the conquest of the desert"
- * @returns {Promise<Object>} Object with chapters array
+ * @param {string} setting - User-provided setting string
+ * @returns {Promise<Object>} Object with characters
  */
 async function executePhase1(skeleton, setting) {
-  console.log('Executing Phase 1: Chapter Summaries...')
+  console.log('Executing Phase 1: Character Generation...')
   console.log(`  Tension: ${skeleton.tension}`)
   console.log(`  Ending: ${skeleton.ending}`)
   console.log(`  Triangle: ${skeleton.triangle}`)
   console.log(`  Secret: ${skeleton.secret}`)
-  console.log(`  Chapters: ${skeleton.chapters.length}`)
+  console.log(`  Cast functions: ${skeleton.castFunctions.length}`)
   console.log(`  Setting: ${setting}`)
 
-  const userPrompt = buildPhase1UserPrompt(skeleton, setting)
+  const tension = skeleton.tension
+  const triangle = skeleton.triangle
+  const tensionFramework = TENSION_FRAMEWORK_DESCRIPTIONS[tension]
 
-  const response = await callClaude(PHASE_1_CONCEPT_SYSTEM_PROMPT, userPrompt, {
+  // ── Call 1: Protagonist, Primary, and optionally Rival ──────────────
+  console.log('\n  Call 1: Generating protagonist, primary' + (triangle ? ', and rival...' : '...'))
+
+  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle)
+
+  const call1Response = await callClaude(PHASE_1_CALL1_SYSTEM_PROMPT, call1UserPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 4096
+  })
+
+  const call1Parsed = parseJSON(call1Response)
+  if (!call1Parsed.success) {
+    throw new Error(`Phase 1 Call 1 JSON parse failed: ${call1Parsed.error}`)
+  }
+
+  validateCall1(call1Parsed.data, triangle)
+  console.log('  Call 1 validated successfully.')
+
+  const { protagonist, primary, rival } = call1Parsed.data
+
+  // ── Call 2: Secondary Cast ──────────────────────────────────────────
+  // Filter out cast functions with empty employmentOptions (e.g., The Rival)
+  const filteredCastFunctions = skeleton.castFunctions.filter(cf => cf.employmentOptions.length > 0)
+
+  console.log(`\n  Call 2: Generating ${filteredCastFunctions.length} secondary cast members...`)
+
+  const call2UserPrompt = buildCall2UserPrompt(setting, tension, protagonist, primary, filteredCastFunctions)
+
+  const call2Response = await callClaude(PHASE_1_CALL2_SYSTEM_PROMPT, call2UserPrompt, {
     model: 'claude-sonnet-4-20250514',
     temperature: 1.0,
     maxTokens: 8192
   })
 
-  const parsed = parseJSON(response)
-  if (!parsed.success) {
-    throw new Error(`Phase 1 JSON parse failed: ${parsed.error}`)
+  const call2Parsed = parseJSON(call2Response)
+  if (!call2Parsed.success) {
+    throw new Error(`Phase 1 Call 2 JSON parse failed: ${call2Parsed.error}`)
   }
 
-  const data = parsed.data
+  validateCall2(call2Parsed.data, filteredCastFunctions)
+  console.log('  Call 2 validated successfully.')
 
-  // Validate chapters array
-  if (!Array.isArray(data.chapters)) {
-    throw new Error('Phase 1: chapters must be an array')
+  // ── Assemble output ─────────────────────────────────────────────────
+  const characters = {
+    protagonist,
+    primary,
+    rival: rival || null,
+    cast: call2Parsed.data.cast
   }
 
-  if (data.chapters.length !== skeleton.chapters.length) {
-    throw new Error(`Phase 1: expected ${skeleton.chapters.length} chapters, got ${data.chapters.length}`)
+  console.log('\nPhase 1 Character Generation complete.')
+  console.log(`  Protagonist backstory: ${protagonist.backstory.slice(0, 80)}...`)
+  console.log(`  Primary backstory: ${primary.backstory.slice(0, 80)}...`)
+  if (rival) {
+    console.log(`  Rival backstory: ${rival.backstory.slice(0, 80)}...`)
+  }
+  for (const m of characters.cast) {
+    console.log(`  Cast [${m.functionId}] (${m.employmentOption}): ${m.backstory.slice(0, 60)}...`)
   }
 
-  for (const ch of data.chapters) {
-    if (ch.chapter === undefined || ch.chapter === null) {
-      throw new Error('Phase 1: chapter entry missing chapter number')
-    }
-    if (!ch.title || typeof ch.title !== 'string' || ch.title.trim().length === 0) {
-      throw new Error(`Phase 1: chapter ${ch.chapter} missing title`)
-    }
-    if (!ch.summary || typeof ch.summary !== 'string' || ch.summary.trim().length === 0) {
-      throw new Error(`Phase 1: chapter ${ch.chapter} missing summary`)
-    }
-  }
-
-  console.log('Phase 1 Chapter Summaries complete.')
-  for (const ch of data.chapters) {
-    console.log(`  Ch.${ch.chapter} "${ch.title}": ${ch.summary.slice(0, 80)}...`)
-  }
-
-  return data
+  return { characters }
 }
 
 /**
  * Pipeline entry point.
- * Rolls a skeleton, then generates chapter summaries in one LLM call.
+ * Rolls a skeleton, then generates characters in two LLM calls.
  *
  * @param {string} setting - User-provided setting string
- * @returns {Promise<Object>} Object with skeleton and chapters
+ * @returns {Promise<Object>} Object with skeleton and characters
  */
 export async function generateStory(setting) {
   const skeleton = rollSkeleton()
   const result = await executePhase1(skeleton, setting)
-  return { skeleton, chapters: result.chapters }
+  return { skeleton, characters: result.characters }
 }
 
 export {
@@ -874,3 +1047,4 @@ export default {
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS
 }
+

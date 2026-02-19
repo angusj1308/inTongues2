@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateBible, generateStory, generateChapterWithValidation, buildPreviousContext, callClaude, executePhase1, executePhase3, executePhase4, executePhase5, executePhase6, executePhase7, executePhase8, executePhase9, generateProseScene, flattenScenes } from './novelGenerator.js'
+import { generateStory, callClaude, executePhase1 } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
@@ -7890,6 +7890,8 @@ function validateCoherenceCheck(coherenceCheck, requiredFields) {
 
 // POST /api/generate/bible - Generate complete story bible (Phases 1-8)
 app.post('/api/generate/bible', async (req, res) => {
+  return res.status(501).json({ error: 'Bible generation not yet reimplemented — use generateStory() for Phase 1' })
+  /* TODO: Reimplement with new pipeline
   console.log('=== /api/generate/bible endpoint hit ===')
   console.log('Request body:', JSON.stringify(req.body, null, 2))
   try {
@@ -8159,6 +8161,7 @@ app.post('/api/generate/bible', async (req, res) => {
     console.error('Generate bible error:', error)
     return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
   }
+  */
 })
 
 // POST /api/generate/reset-status - Reset a stuck book status back to bible_complete
@@ -8187,6 +8190,8 @@ app.post('/api/generate/reset-status', async (req, res) => {
 
 // POST /api/generate/execute-phase - Execute a single phase for a book
 app.post('/api/generate/execute-phase', async (req, res) => {
+  return res.status(501).json({ error: 'Phase execution not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
   try {
     const { uid, bookId, phase } = req.body
 
@@ -8342,10 +8347,13 @@ app.post('/api/generate/execute-phase', async (req, res) => {
 
     return res.status(500).json({ error: 'Failed to execute phase', details: error.message })
   }
+  */
 })
 
 // POST /api/generate/execute-scene - Generate prose for next (or specific) scene
 app.post('/api/generate/execute-scene', async (req, res) => {
+  return res.status(501).json({ error: 'Scene execution not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
   try {
     const { uid, bookId, sceneIndex: requestedIndex } = req.body
 
@@ -8459,6 +8467,7 @@ app.post('/api/generate/execute-scene', async (req, res) => {
 
     return res.status(500).json({ error: 'Failed to generate scene', details: error.message })
   }
+  */
 })
 
 // POST /api/generate/reset-generation - Reset a book to start fresh from Phase 1
@@ -8502,6 +8511,8 @@ app.post('/api/generate/reset-generation', async (req, res) => {
 
 // POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
 app.post('/api/generate/regenerate-phases', async (req, res) => {
+  return res.status(501).json({ error: 'Phase regeneration not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
   try {
     const { uid, bookId, phases = [6] } = req.body
 
@@ -8744,6 +8755,7 @@ app.post('/api/generate/regenerate-phases', async (req, res) => {
 
     return res.status(500).json({ error: 'Failed to regenerate phases', details: error.message })
   }
+  */
 })
 
 // POST /api/generate/prompt - Roll a skeleton and return structural variables
@@ -8815,6 +8827,8 @@ app.post('/api/generate/different-prompt', async (req, res) => {
 
 // POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
 app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
+  return res.status(501).json({ error: 'Chapter generation not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
   try {
     const { bookId, chapterIndex } = req.params
     const { uid } = req.body
@@ -8936,6 +8950,7 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     console.error('Generate chapter error:', error)
     return res.status(500).json({ error: 'Failed to generate chapter', details: error.message })
   }
+  */
 })
 
 // GET /api/generate/book/:bookId - Get book status and bible

@@ -1238,18 +1238,168 @@ async function executePhase2(skeleton, characters) {
   return { sceneSummaries: parsed.data }
 }
 
+// =============================================================================
+// PHASE 3: LOCATIONS
+// =============================================================================
+
+const PHASE_3_SYSTEM_PROMPT = `You are describing locations for an enemies-to-lovers romance. You receive a setting and a list of location names extracted from scene summaries. Your job: describe each unique physical place once.
+
+RULES:
+
+1. Consolidate duplicates. "The estancia kitchen at dawn" and "the estancia kitchen at night" are the same place. Time of day, weather, and lighting do not make a different location. Strip those qualifiers and produce one entry per physical place.
+
+2. Ground in the setting. Materials, construction, objects, and scale must be plausible for the era and place. An estancia kitchen on the Argentine pampas in the 1870s has an iron stove, packed earth or flagstone floors, whitewashed adobe walls — not stainless steel and tile.
+
+3. Physical description is what's fixed. Layout, furniture, walls, floors, doors, windows, objects that are always there. Not what happens in the space. Not who is there. Not mood, not atmosphere.
+
+4. Sensory environment is what's constant. The sounds, smells, textures that define this place regardless of time of day or who's present. The corral always smells of horses and dry manure. The chapel is always cool and quiet. The river crossing always has the sound of water over stones.
+
+5. No mood, no lighting, no weather, no time of day. Those change per scene and belong to the prose generator. You describe the container, not the moment.
+
+6. Two fields per location. physicalDescription is one paragraph of substantial prose. sensoryEnvironment is one paragraph of substantial prose.
+
+7. Location names should be the base place name, stripped of time or weather qualifiers. "The estancia kitchen" not "The estancia kitchen at dawn."
+
+OUTPUT FORMAT:
+Return a single JSON object:
+{
+  "locations": [
+    {
+      "name": "The estancia kitchen",
+      "physicalDescription": "One paragraph. Layout, objects, materials, scale.",
+      "sensoryEnvironment": "One paragraph. What you always hear, smell, feel here."
+    }
+  ]
+}
+
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Every unique physical place from the list must have an entry.
+- Each paragraph must be substantive — at least 3-4 sentences of concrete detail.
+- Do not invent locations that are not in the list.`
+
+/**
+ * Extract all unique location strings from Phase 2 scene summaries.
+ */
+function extractUniqueLocations(sceneSummaries) {
+  const seen = new Set()
+  const locations = []
+  for (const ch of sceneSummaries.chapters) {
+    for (const scene of ch.scenes) {
+      const key = scene.location.toLowerCase().trim()
+      if (!seen.has(key)) {
+        seen.add(key)
+        locations.push(scene.location)
+      }
+    }
+  }
+  return locations
+}
+
+/**
+ * Build the user prompt for Phase 3: location descriptions.
+ */
+function buildPhase3UserPrompt(locationNames, setting) {
+  const locationList = locationNames.map((name, i) => `${i + 1}. ${name}`).join('\n')
+
+  return `=== SETTING ===
+${setting}
+
+=== LOCATIONS FROM SCENES ===
+${locationList}
+
+Describe each unique location. Consolidate duplicates that differ only by time of day or weather. Return the JSON object only.`
+}
+
+/**
+ * Validate Phase 3 output: location descriptions.
+ * Includes fuzzy matching to ensure every scene location is covered.
+ */
+function validatePhase3(data, locationNames) {
+  if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
+    throw new Error('Phase 3: locations must be a non-empty array')
+  }
+
+  for (let i = 0; i < data.locations.length; i++) {
+    const loc = data.locations[i]
+
+    if (!loc.name || typeof loc.name !== 'string' || loc.name.trim().length === 0) {
+      throw new Error(`Phase 3: location ${i + 1} missing or empty name`)
+    }
+
+    if (!loc.physicalDescription || typeof loc.physicalDescription !== 'string' || loc.physicalDescription.trim().length === 0) {
+      throw new Error(`Phase 3: location "${loc.name}" missing or empty physicalDescription`)
+    }
+
+    if (!loc.sensoryEnvironment || typeof loc.sensoryEnvironment !== 'string' || loc.sensoryEnvironment.trim().length === 0) {
+      throw new Error(`Phase 3: location "${loc.name}" missing or empty sensoryEnvironment`)
+    }
+  }
+
+  // Fuzzy coverage check: every scene location must match at least one output location
+  const outputNames = data.locations.map(l => l.name.toLowerCase().trim())
+
+  for (const sceneLoc of locationNames) {
+    const sceneLocLower = sceneLoc.toLowerCase().trim()
+    const matched = outputNames.some(outName =>
+      sceneLocLower.includes(outName) || outName.includes(sceneLocLower)
+    )
+    if (!matched) {
+      throw new Error(`Phase 3: scene location "${sceneLoc}" has no matching entry in output`)
+    }
+  }
+}
+
+/**
+ * Phase 3: Generate location descriptions.
+ * One LLM call. Input: Phase 2 scene summaries + setting.
+ * Output: master list of unique locations with physical and sensory descriptions.
+ */
+async function executePhase3(sceneSummaries, setting) {
+  console.log('\nExecuting Phase 3: Locations...')
+
+  const locationNames = extractUniqueLocations(sceneSummaries)
+  console.log(`  Unique location strings: ${locationNames.length}`)
+
+  const userPrompt = buildPhase3UserPrompt(locationNames, setting)
+
+  const response = await callClaude(PHASE_3_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 8192
+  })
+
+  const parsed = parseJSON(response)
+  if (!parsed.success) {
+    throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
+  }
+
+  validatePhase3(parsed.data, locationNames)
+  console.log('  Phase 3 validated successfully.')
+
+  for (const loc of parsed.data.locations) {
+    console.log(`  Location: ${loc.name}`)
+  }
+
+  console.log(`\nPhase 3 Locations complete. ${parsed.data.locations.length} locations described.`)
+
+  return { locations: parsed.data }
+}
+
 /**
  * Pipeline entry point.
- * Rolls a skeleton, generates characters (Phase 1), then scene summaries (Phase 2).
+ * Rolls a skeleton, generates characters (Phase 1), scene summaries (Phase 2),
+ * and location descriptions (Phase 3).
  *
  * @param {string} setting - User-provided setting string
- * @returns {Promise<Object>} Object with skeleton, characters, and sceneSummaries
+ * @returns {Promise<Object>} Object with skeleton, characters, sceneSummaries, and locations
  */
 export async function generateStory(setting) {
   const skeleton = rollSkeleton()
   const phase1 = await executePhase1(skeleton, setting)
   const phase2 = await executePhase2(skeleton, phase1.characters)
-  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries }
+  const phase3 = await executePhase3(phase2.sceneSummaries, setting)
+  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations }
 }
 
 export {
@@ -1260,6 +1410,7 @@ export {
   formatLevelDefinitionForPrompt,
   executePhase1,
   executePhase2,
+  executePhase3,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS
@@ -1272,6 +1423,7 @@ export default {
   parseJSON,
   executePhase1,
   executePhase2,
+  executePhase3,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS

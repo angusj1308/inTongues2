@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateStory, callClaude, executePhase1 } from './novelGenerator.js'
+import { generateStory, callClaude, executePhase1, executePhase2, executePhase3 } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
@@ -7947,10 +7947,6 @@ app.post('/api/generate/execute-phase', async (req, res) => {
     if (!bookId) return res.status(400).json({ error: 'bookId is required' })
     if (phase === undefined) return res.status(400).json({ error: 'phase is required' })
 
-    if (phase !== 1) {
-      return res.status(501).json({ error: `Phase ${phase} not yet implemented — only Phase 1 is available` })
-    }
-
     const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
     const bookDoc = await bookRef.get()
 
@@ -7959,31 +7955,6 @@ app.post('/api/generate/execute-phase', async (req, res) => {
     }
 
     const bookData = bookDoc.data()
-    const setting = bookData.concept || ''
-
-    console.log(`Executing Phase 1 for book ${bookId}`)
-    console.log(`  Setting: "${setting}"`)
-
-    await bookRef.update({ status: 'generating', currentPhase: 1 })
-
-    // Retry up to 3 times — LLM occasionally returns malformed JSON
-    const skeleton = rollSkeleton()
-    let concept
-    const maxAttempts = 3
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        concept = await executePhase1(skeleton, setting)
-        break
-      } catch (err) {
-        console.error(`Phase 1 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
-        if (attempt === maxAttempts) throw err
-        console.log(`Retrying Phase 1...`)
-      }
-    }
-
-    console.log('=== Phase 1 Complete ===')
-    console.log('Skeleton:', JSON.stringify(skeleton, null, 2))
-    console.log('Concept:', JSON.stringify(concept, null, 2))
 
     // Recursively remove undefined values (Firestore can't handle them)
     function sanitizeForFirestore(obj) {
@@ -7999,19 +7970,129 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       return obj
     }
 
-    const updatedBible = { skeleton: sanitizeForFirestore(skeleton), concept: sanitizeForFirestore(concept) }
+    const maxAttempts = 3
 
-    await bookRef.update({
-      bible: updatedBible,
-      currentPhase: 1,
-      status: 'phase_complete',
-      lastPhaseCompleted: 1,
-      lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
-    })
+    if (phase === 1) {
+      const setting = bookData.concept || ''
 
-    console.log(`Phase 1 saved to Firestore for book ${bookId}`)
+      console.log(`Executing Phase 1 for book ${bookId}`)
+      console.log(`  Setting: "${setting}"`)
 
-    return res.status(200).json({ success: true, bookId, phase: 1, phaseComplete: true })
+      await bookRef.update({ status: 'generating', currentPhase: 1 })
+
+      // Retry up to 3 times — LLM occasionally returns malformed JSON
+      const skeleton = rollSkeleton()
+      let concept
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          concept = await executePhase1(skeleton, setting)
+          break
+        } catch (err) {
+          console.error(`Phase 1 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+          if (attempt === maxAttempts) throw err
+          console.log(`Retrying Phase 1...`)
+        }
+      }
+
+      console.log('=== Phase 1 Complete ===')
+      console.log('Skeleton:', JSON.stringify(skeleton, null, 2))
+      console.log('Concept:', JSON.stringify(concept, null, 2))
+
+      const updatedBible = { skeleton: sanitizeForFirestore(skeleton), concept: sanitizeForFirestore(concept) }
+
+      await bookRef.update({
+        bible: updatedBible,
+        currentPhase: 1,
+        status: 'phase_complete',
+        lastPhaseCompleted: 1,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 1 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 1, phaseComplete: true })
+
+    } else if (phase === 2) {
+      const bible = bookData.bible || {}
+      if (!bible.skeleton || !bible.concept) {
+        return res.status(400).json({ error: 'Phase 1 must be completed before Phase 2' })
+      }
+
+      console.log(`Executing Phase 2 for book ${bookId}`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 2 })
+
+      const skeleton = bible.skeleton
+      const characters = bible.concept.characters
+
+      let phase2Result
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          phase2Result = await executePhase2(skeleton, characters)
+          break
+        } catch (err) {
+          console.error(`Phase 2 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+          if (attempt === maxAttempts) throw err
+          console.log(`Retrying Phase 2...`)
+        }
+      }
+
+      console.log('=== Phase 2 Complete ===')
+
+      await bookRef.update({
+        'bible.sceneSummaries': sanitizeForFirestore(phase2Result.sceneSummaries),
+        currentPhase: 2,
+        status: 'phase_complete',
+        lastPhaseCompleted: 2,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 2 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 2, phaseComplete: true })
+
+    } else if (phase === 3) {
+      const bible = bookData.bible || {}
+      if (!bible.sceneSummaries) {
+        return res.status(400).json({ error: 'Phase 2 must be completed before Phase 3' })
+      }
+
+      console.log(`Executing Phase 3 for book ${bookId}`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 3 })
+
+      const sceneSummaries = bible.sceneSummaries
+      const setting = bookData.concept || ''
+
+      let phase3Result
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          phase3Result = await executePhase3(sceneSummaries, setting)
+          break
+        } catch (err) {
+          console.error(`Phase 3 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+          if (attempt === maxAttempts) throw err
+          console.log(`Retrying Phase 3...`)
+        }
+      }
+
+      console.log('=== Phase 3 Complete ===')
+
+      await bookRef.update({
+        'bible.locations': sanitizeForFirestore(phase3Result.locations),
+        currentPhase: 3,
+        status: 'phase_complete',
+        lastPhaseCompleted: 3,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 3 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 3, phaseComplete: true })
+
+    } else {
+      return res.status(501).json({ error: `Phase ${phase} not yet implemented` })
+    }
 
   } catch (error) {
     console.error('Execute phase error:', error)

@@ -7940,16 +7940,16 @@ app.post('/api/generate/reset-status', async (req, res) => {
 
 // POST /api/generate/execute-phase - Execute a single phase for a book
 app.post('/api/generate/execute-phase', async (req, res) => {
-  return res.status(501).json({ error: 'Phase execution not yet reimplemented' })
-  /* TODO: Reimplement with new pipeline
   try {
     const { uid, bookId, phase } = req.body
 
-    // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
     if (!bookId) return res.status(400).json({ error: 'bookId is required' })
     if (phase === undefined) return res.status(400).json({ error: 'phase is required' })
-    if (phase < 1 || phase > 9) return res.status(400).json({ error: 'phase must be between 1 and 9' })
+
+    if (phase !== 1) {
+      return res.status(501).json({ error: `Phase ${phase} not yet implemented — only Phase 1 is available` })
+    }
 
     const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
     const bookDoc = await bookRef.get()
@@ -7959,137 +7959,56 @@ app.post('/api/generate/execute-phase', async (req, res) => {
     }
 
     const bookData = bookDoc.data()
-    const bible = bookData.bible || {}
-    const concept = bookData.concept
-    const lengthPreset = bookData.lengthPreset || 'novella'
-    const level = bookData.level || 'Intermediate'
+    const setting = bookData.concept || ''
 
-    console.log(`Executing Phase ${phase} for book ${bookId}`)
-    console.log(`  Concept: ${concept?.slice(0, 50)}...`)
+    console.log(`Executing Phase 1 for book ${bookId}`)
+    console.log(`  Setting: "${setting}"`)
 
-    // Validate prerequisites for each phase
-    if (phase >= 2 && !bible.coreFoundation) {
-      return res.status(400).json({ error: 'Phase 2 requires Phase 1 (coreFoundation) data' })
-    }
-    if (phase >= 3 && !bible.characters) {
-      return res.status(400).json({ error: 'Phase 3 requires Phase 2 (characters) data' })
-    }
-    if (phase >= 4 && !bible.actionGrid) {
-      return res.status(400).json({ error: 'Phase 4 requires Phase 3 (actionGrid) data' })
-    }
-    if (phase >= 5 && !bible.subplots) {
-      return res.status(400).json({ error: 'Phase 5 requires Phase 4 (subplots) data' })
-    }
-    if (phase >= 6 && !bible.masterTimeline) {
-      return res.status(400).json({ error: 'Phase 6 requires Phase 5 (masterTimeline) data' })
-    }
-    if (phase >= 7 && !bible.eventsAndLocations) {
-      return res.status(400).json({ error: 'Phase 7 requires Phase 6 (eventsAndLocations) data' })
-    }
-    if (phase >= 8 && !bible.eventDevelopment) {
-      return res.status(400).json({ error: 'Phase 8 requires Phase 7 (eventDevelopment) data' })
-    }
-    if (phase >= 9 && !bible.supportingScenes) {
-      return res.status(400).json({ error: 'Phase 9 requires Phase 8 (supportingScenes) data' })
-    }
+    await bookRef.update({ status: 'generating', currentPhase: 1 })
 
-    // Update status to show phase in progress
-    await bookRef.update({
-      status: 'generating',
-      currentPhase: phase
-    })
+    const skeleton = rollSkeleton()
+    const concept = await executePhase1(skeleton, setting)
+
+    console.log('=== Phase 1 Complete ===')
+    console.log('Skeleton:', JSON.stringify(skeleton, null, 2))
+    console.log('Concept:', JSON.stringify(concept, null, 2))
 
     // Recursively remove undefined values (Firestore can't handle them)
     function sanitizeForFirestore(obj) {
       if (obj === null || obj === undefined) return null
-      if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeForFirestore(item))
-      }
+      if (Array.isArray(obj)) return obj.map(item => sanitizeForFirestore(item))
       if (typeof obj === 'object') {
         const cleaned = {}
         for (const [key, value] of Object.entries(obj)) {
-          if (value !== undefined) {
-            cleaned[key] = sanitizeForFirestore(value)
-          }
+          if (value !== undefined) cleaned[key] = sanitizeForFirestore(value)
         }
         return cleaned
       }
       return obj
     }
 
-    let result
-    const updatedBible = { ...bible }
-
-    // Execute the requested phase
-    switch (phase) {
-      case 1:
-        updatedBible.skeleton = rollSkeleton()
-        result = await executePhase1(updatedBible.skeleton, concept)
-        updatedBible.concept = result
-        break
-      case 3:
-        result = await executePhase3(concept, bible.coreFoundation, bible.characters)
-        updatedBible.actionGrid = result
-        break
-      case 4:
-        result = await executePhase4(concept, bible.coreFoundation, bible.characters, bible.actionGrid)
-        updatedBible.sceneAssembly = result
-        break
-      case 5:
-        result = await executePhase5(concept, bible.coreFoundation, bible.characters, bible.plot, bible.subplots, lengthPreset)
-        updatedBible.masterTimeline = result
-        break
-      case 6:
-        result = await executePhase6(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline)
-        updatedBible.eventsAndLocations = result
-        break
-      case 7:
-        result = await executePhase7(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline, bible.eventsAndLocations)
-        updatedBible.eventDevelopment = result
-        break
-      case 8:
-        result = await executePhase8(concept, bible.coreFoundation, bible.characters, bible.subplots, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment)
-        updatedBible.supportingScenes = result
-        break
-      case 9:
-        result = await executePhase9(concept, bible.characters, bible.masterTimeline, bible.eventsAndLocations, bible.eventDevelopment, bible.supportingScenes, lengthPreset)
-        updatedBible.chapterAssembly = result
-        break
-    }
-
-    // Sanitize and save to Firestore
-    const sanitizedBible = sanitizeForFirestore(updatedBible)
+    const updatedBible = { skeleton: sanitizeForFirestore(skeleton), concept: sanitizeForFirestore(concept) }
 
     await bookRef.update({
-      bible: sanitizedBible,
-      currentPhase: phase,
-      status: phase === 9 ? 'bible_complete' : 'phase_complete',
-      lastPhaseCompleted: phase,
+      bible: updatedBible,
+      currentPhase: 1,
+      status: 'phase_complete',
+      lastPhaseCompleted: 1,
       lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
     })
 
-    console.log(`Phase ${phase} complete for book ${bookId}`)
+    console.log(`Phase 1 saved to Firestore for book ${bookId}`)
 
-    return res.status(200).json({
-      success: true,
-      bookId,
-      phase,
-      phaseComplete: true,
-      isLastPhase: phase === 9
-    })
+    return res.status(200).json({ success: true, bookId, phase: 1, phaseComplete: true })
 
   } catch (error) {
     console.error('Execute phase error:', error)
 
-    // Reset status so book doesn't stay stuck
     try {
-      const { uid, bookId, phase } = req.body
+      const { uid, bookId } = req.body
       if (uid && bookId) {
         const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
-        await bookRef.update({
-          status: 'phase_complete',
-          lastError: error.message
-        })
+        await bookRef.update({ status: 'phase_complete', lastError: error.message })
       }
     } catch (resetError) {
       console.error('Failed to reset book status:', resetError.message)
@@ -8097,7 +8016,6 @@ app.post('/api/generate/execute-phase', async (req, res) => {
 
     return res.status(500).json({ error: 'Failed to execute phase', details: error.message })
   }
-  */
 })
 
 // POST /api/generate/execute-scene - Generate prose for next (or specific) scene

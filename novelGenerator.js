@@ -731,13 +731,7 @@ KEY FIELDS:
 OUTPUT FORMAT:
 Return a single JSON object with this exact structure:
 {
-  "synopsis": {
-    "variables": "This is an enemies-to-lovers romance novel set in [location] during [period]. The tension is [tension]. The ending is [ending]. There is [no] love triangle. There is [no] secret.",
-    "act1": "One sentence summarising Act 1 arc",
-    "act2": "One sentence summarising Act 2 arc",
-    "act3": "One sentence summarising Act 3 arc",
-    "act4": "One sentence summarising Act 4 arc"
-  },
+  "synopsis": "A single plain-text string. Two stanzas separated by a blank line.\n\nStanza 1 — Variables on setting (exactly 2 sentences):\nSentence 1: Trope + setting. When the skeleton has a love triangle, include 'love triangle' in the sentence. When it does not, simply omit it — do not mention its absence.\n  Triangle active: 'This is an enemies-to-lovers love triangle romance set in [setting].'\n  Triangle inactive: 'This is an enemies-to-lovers romance set in [setting].'\nSentence 2: Tension. 'The central thematic exploration of this story is passion vs [safety/identity].'\n\nStanza 2 — Employment options as story:\nWalk through every chapter's selected employment option in order. Write each as a concrete story beat grounded in the setting. This is the core romance only — she and he. No character names. No cast members. Every employment option must appear. None skipped. The ending type should be apparent from how the final chapters play out — not declared. The secret (if active) should be apparent from the story — not labelled.",
   "characters": {
     "protagonist": {
       "name": "Full name",
@@ -897,11 +891,8 @@ async function executePhase1(skeleton, setting) {
   const data = parsed.data
 
   // Validate required top-level fields
-  if (!data.synopsis) {
-    throw new Error('Phase 1: missing synopsis')
-  }
-  if (!data.synopsis.variables || !data.synopsis.act1 || !data.synopsis.act2 || !data.synopsis.act3 || !data.synopsis.act4) {
-    throw new Error('Phase 1: synopsis missing required fields (variables, act1, act2, act3, act4)')
+  if (!data.synopsis || typeof data.synopsis !== 'string' || data.synopsis.trim().length === 0) {
+    throw new Error('Phase 1: synopsis must be a non-empty string')
   }
 
   if (!data.characters) {
@@ -964,7 +955,7 @@ async function executePhase1(skeleton, setting) {
     console.log(`  Rival: ${data.characters.rival.name}`)
   }
   console.log(`  Cast: ${data.characters.cast.length} members`)
-  console.log(`  Synopsis: ${data.synopsis.variables}`)
+  console.log(`  Synopsis: ${data.synopsis.slice(0, 120)}...`)
 
   return data
 }

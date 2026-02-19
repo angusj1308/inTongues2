@@ -7888,280 +7888,30 @@ function validateCoherenceCheck(coherenceCheck, requiredFields) {
   return { valid: missing.length === 0, missing }
 }
 
-// POST /api/generate/bible - Generate complete story bible (Phases 1-8)
+// POST /api/generate/bible - Phase 1 concept generation via generateStory()
 app.post('/api/generate/bible', async (req, res) => {
-  return res.status(501).json({ error: 'Bible generation not yet reimplemented — use generateStory() for Phase 1' })
-  /* TODO: Reimplement with new pipeline
   console.log('=== /api/generate/bible endpoint hit ===')
-  console.log('Request body:', JSON.stringify(req.body, null, 2))
   try {
-    const { uid, bookId: existingBookId, concept, level, lengthPreset, language, generateAudio = false } = req.body
+    const { concept } = req.body
 
-    // Validate required fields
-    if (!uid) return res.status(400).json({ error: 'uid is required' })
-    if (!concept) return res.status(400).json({ error: 'concept is required' })
-    if (!level) return res.status(400).json({ error: 'level is required' })
-    if (!lengthPreset) return res.status(400).json({ error: 'lengthPreset is required' })
-    if (!language) return res.status(400).json({ error: 'language is required' })
-
-    // Validate level
-    const validLevels = ['Beginner', 'Intermediate', 'Native']
-    if (!validLevels.includes(level)) {
-      return res.status(400).json({ error: `level must be one of: ${validLevels.join(', ')}` })
+    if (!concept || !concept.trim()) {
+      return res.status(400).json({ error: 'concept (setting) is required' })
     }
 
-    // Validate lengthPreset
-    const validLengths = ['novella', 'novel']
-    if (!validLengths.includes(lengthPreset)) {
-      return res.status(400).json({ error: `lengthPreset must be one of: ${validLengths.join(', ')}` })
-    }
+    const setting = concept.trim()
+    console.log(`Starting Phase 1 generation with setting: "${setting}"`)
 
-    // Use existing book document if provided, otherwise create new one
-    const bookRef = existingBookId
-      ? firestore.collection('users').doc(uid).collection('generatedBooks').doc(existingBookId)
-      : firestore.collection('users').doc(uid).collection('generatedBooks').doc()
-    const bookId = bookRef.id
+    const result = await generateStory(setting)
 
-    // Update or create the book document with planning status
-    console.log('=== INITIAL BOOK CREATION ===')
-    console.log('bookRef path:', bookRef.path)
-    console.log('existingBookId:', existingBookId || 'NEW')
+    console.log('=== Phase 1 Complete ===')
+    console.log('Skeleton:', JSON.stringify(result.skeleton, null, 2))
+    console.log('Concept:', JSON.stringify(result.concept, null, 2))
 
-    try {
-      await bookRef.set({
-        concept,
-        language,
-        level,
-        genre: 'Romance', // Pilot genre
-        lengthPreset,
-        chapterCount: lengthPreset === 'novella' ? 12 : 35,
-        generateAudio,
-        status: 'planning',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        bible: {} // Will be populated by phases
-      }, { merge: true })
-      console.log('=== INITIAL BOOK CREATED SUCCESSFULLY ===')
-
-      // Verify it was created
-      const verifyInitial = await bookRef.get()
-      console.log('Initial doc exists:', verifyInitial.exists)
-      console.log('Initial doc bible keys:', Object.keys(verifyInitial.data()?.bible || {}))
-    } catch (createError) {
-      console.error('=== INITIAL BOOK CREATION FAILED ===')
-      console.error('Error:', createError.message)
-      throw createError
-    }
-
-    // Fetch library summaries for diversity in concept expansion
-    const librarySummaries = await getLibrarySummaries()
-
-    // Recursively remove undefined values (Firestore can't handle them)
-    function sanitizeForFirestore(obj) {
-      if (obj === null || obj === undefined) return null
-      if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeForFirestore(item))
-      }
-      if (typeof obj === 'object') {
-        const cleaned = {}
-        for (const [key, value] of Object.entries(obj)) {
-          if (value !== undefined) {
-            cleaned[key] = sanitizeForFirestore(value)
-          }
-        }
-        return cleaned
-      }
-      return obj
-    }
-
-    // Create callback to save bible after each phase
-    const onPhaseSave = async (bible, phase) => {
-      try {
-        const sanitizedBible = sanitizeForFirestore(bible)
-        await bookRef.update({
-          bible: sanitizedBible,
-          lastPhaseCompleted: phase,
-          status: 'generating'
-        })
-        console.log(`[Server] Phase ${phase} saved to Firestore`)
-      } catch (saveError) {
-        console.error(`[Server] Phase ${phase} save failed:`, saveError.message)
-        throw saveError
-      }
-    }
-
-    // Generate the complete bible using the 9-phase pipeline
-    console.log(`Starting bible generation for book ${bookId}...`)
-    const result = await generateBible(concept, level, lengthPreset, language, 2, null, librarySummaries, onPhaseSave)
-
-    console.log('=== GENERATE BIBLE RETURNED ===')
-    console.log('result:', result ? 'EXISTS' : 'NULL/UNDEFINED')
-    console.log('result.success:', result?.success)
-    console.log('result.bible type:', typeof result?.bible)
-    console.log('result.bible is null:', result?.bible === null)
-    console.log('result.bible is undefined:', result?.bible === undefined)
-    if (result?.bible) {
-      const bibleStr = JSON.stringify(result.bible)
-      console.log('Bible JSON size:', bibleStr.length, 'characters')
-      console.log('Bible approx MB:', (bibleStr.length / 1024 / 1024).toFixed(2), 'MB')
-    }
-
-    if (!result.success) {
-      // Update book status to failed
-      await bookRef.update({
-        status: 'failed',
-        error: result.error,
-        bible: result.partialBible || {}
-      })
-
-      return res.status(500).json({
-        success: false,
-        bookId,
-        error: result.error,
-        partialBible: result.partialBible
-      })
-    }
-
-    // Update book with completed bible
-    const bibleStatus = result.validationStatus === 'PASS' || result.validationStatus === 'CONDITIONAL_PASS'
-      ? 'bible_complete'
-      : 'bible_needs_review'
-
-    // Debug: Log what we're about to save
-    console.log('=== BIBLE SAVE DEBUG ===')
-    console.log('result.bible keys:', Object.keys(result.bible || {}))
-    console.log('Has coreFoundation:', !!result.bible?.coreFoundation)
-    console.log('Has characters:', !!result.bible?.characters)
-    console.log('Has plot:', !!result.bible?.plot)
-    console.log('Has subplots:', !!result.bible?.subplots)
-    console.log('Has masterTimeline:', !!result.bible?.masterTimeline)
-    console.log('Has eventsAndLocations:', !!result.bible?.eventsAndLocations)
-    console.log('Has eventDevelopment:', !!result.bible?.eventDevelopment)
-    console.log('Has supportingScenes:', !!result.bible?.supportingScenes)
-    console.log('Has chapterAssembly:', !!result.bible?.chapterAssembly)
-    console.log('validationStatus:', result.validationStatus)
-
-    // Validate master_timeline - ensure all characters_present have arc_state
-    if (result.bible?.masterTimeline?.master_timeline) {
-      result.bible.masterTimeline.master_timeline.forEach(moment => {
-        if (moment.characters_present) {
-          moment.characters_present.forEach(char => {
-            if (char.arc_state === undefined) {
-              char.arc_state = 'present'
-            }
-          })
-        }
-      })
-    }
-
-    // Use the sanitizeForFirestore function defined earlier
-    const sanitizedBible = sanitizeForFirestore(result.bible)
-    const sanitizedStr = JSON.stringify(sanitizedBible)
-    console.log('Bible sanitized for Firestore')
-    console.log('Sanitized Bible JSON size:', sanitizedStr.length, 'characters')
-    console.log('Sanitized Bible approx MB:', (sanitizedStr.length / 1024 / 1024).toFixed(2), 'MB')
-
-    if (sanitizedStr.length > 1000000) {
-      console.error('WARNING: Bible size exceeds 1MB - Firestore has a 1MB document limit!')
-    }
-
-    console.log('=== ABOUT TO SAVE TO FIRESTORE ===')
-    console.log('bookRef path:', bookRef.path)
-    console.log('bibleStatus:', bibleStatus)
-
-    try {
-      await bookRef.update({
-        bible: sanitizedBible,
-        status: bibleStatus,
-        validationStatus: result.validationStatus,
-        validationAttempts: result.validationAttempts
-      })
-      console.log('=== BIBLE SAVED SUCCESSFULLY ===')
-
-      // Verify the save by reading back
-      const verifyDoc = await bookRef.get()
-      const verifyData = verifyDoc.data()
-      console.log('=== VERIFY SAVE ===')
-      console.log('Document exists:', verifyDoc.exists)
-      console.log('Bible keys after save:', Object.keys(verifyData?.bible || {}))
-      console.log('Has coreFoundation after save:', !!verifyData?.bible?.coreFoundation)
-    } catch (saveError) {
-      console.error('=== BIBLE SAVE FAILED ===')
-      console.error('Save error:', saveError.message)
-      console.error('Full error:', saveError)
-      throw saveError
-    }
-
-    // Auto-generate Chapter 1 so user can start reading immediately
-    console.log(`Auto-generating Chapter 1 for book ${bookId}...`)
-    let chapter1 = null
-    let chapter1Error = null
-
-    try {
-      // Generate Chapter 1 (no previous summaries needed)
-      const chapter1Result = await generateChapterWithValidation(
-        result.bible,
-        1,
-        [], // No previous summaries for Chapter 1
-        language
-      )
-
-      // Get chapter info from bible
-      const bibleChapter = result.bible.chapters?.chapters?.[0] || {}
-
-      // Build chapter document
-      const chapterDoc = {
-        index: 1,
-        title: chapter1Result.chapter?.chapter?.title || bibleChapter.title || 'Chapter 1',
-        pov: bibleChapter.pov || 'Unknown',
-        content: chapter1Result.chapter?.chapter?.content || '',
-        wordCount: chapter1Result.chapter?.validation?.wordCount || 0,
-        tensionRating: bibleChapter.tension_rating || 5,
-        summary: chapter1Result.chapter?.summary || {},
-        compressedSummary: null,
-        ultraSummary: null,
-        audioUrl: null,
-        audioStatus: 'none',
-        validationPassed: chapter1Result.success,
-        regenerationCount: chapter1Result.attempts - 1,
-        needsReview: chapter1Result.needsReview || false,
-        generatedAt: admin.firestore.FieldValue.serverTimestamp()
-      }
-
-      // Save Chapter 1 to Firestore
-      const chapter1Ref = bookRef.collection('chapters').doc('1')
-      await chapter1Ref.set(chapterDoc)
-
-      // Update book status to in_progress (since we have a chapter now)
-      await bookRef.update({ status: 'in_progress' })
-
-      chapter1 = {
-        ...chapterDoc,
-        generatedAt: new Date().toISOString()
-      }
-
-      console.log(`Chapter 1 generated successfully for book ${bookId}`)
-    } catch (chapterError) {
-      console.error(`Failed to auto-generate Chapter 1 for book ${bookId}:`, chapterError)
-      chapter1Error = chapterError.message
-      // Book stays at bible_complete status - user can still trigger chapter generation manually
-    }
-
-    return res.status(201).json({
-      success: true,
-      bookId,
-      status: chapter1 ? 'in_progress' : bibleStatus,
-      validationStatus: result.validationStatus,
-      validationAttempts: result.validationAttempts,
-      bible: result.bible,
-      chapter1,
-      chapter1Error
-    })
-
+    return res.status(200).json({ success: true, skeleton: result.skeleton, concept: result.concept })
   } catch (error) {
-    console.error('Generate bible error:', error)
-    return res.status(500).json({ error: 'Failed to generate bible', details: error.message })
+    console.error('Generate story error:', error)
+    return res.status(500).json({ error: 'Failed to generate story', details: error.message })
   }
-  */
 })
 
 // POST /api/generate/reset-status - Reset a stuck book status back to bible_complete

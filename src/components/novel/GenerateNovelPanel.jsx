@@ -52,7 +52,7 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
 
     setError('')
     setIsGenerating(true)
-    setProgress('Starting bible generation (8 phases)...')
+    setProgress('Running Phase 1 concept generation...')
 
     try {
       const result = await generateBible({
@@ -65,13 +65,13 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
       })
 
       if (result.success) {
-        setProgress('Bible generated successfully!')
+        setProgress('Phase 1 complete! Check the terminal for full output.')
         onBibleGenerated(result)
       } else {
-        setError(result.error || 'Failed to generate bible')
+        setError(result.error || 'Failed to generate story')
       }
     } catch (err) {
-      setError(err.message || 'Failed to generate bible')
+      setError(err.message || 'Failed to generate story')
     } finally {
       setIsGenerating(false)
       setProgress('')
@@ -178,7 +178,7 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
             <div className="progress-spinner" />
             <p className="progress-text">{progress}</p>
             <p className="progress-hint">
-              This may take several minutes as we generate your story bible through 8 validation phases.
+              Generating skeleton and concept — output will appear in the terminal.
             </p>
           </div>
         )}

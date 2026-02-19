@@ -725,11 +725,12 @@ RULES:
 2. No "name" field. Names appear naturally within the backstory paragraph — chosen to fit the setting, the culture, the time.
 3. Every character must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
 4. Ground each character in the historical and social reality of the setting. If the setting is a frontier during a military campaign, these people exist in that world — their clothes, their trades, their scars come from that reality.
-5. Psychology must reflect the tension type without ever naming or declaring it. For safety tension: her psychology shows what she protects and why danger terrifies her. For identity tension: her psychology shows the constructed self and why it cannot bend. No theme lectures. No meta-commentary.
-6. The primary's psychology must make him genuinely dangerous to her framework — not a bad person, but someone whose nature or position makes her framework unsustainable.
-7. If triangle is YES, the rival is the safe option personified — stable, respectable, everything the framework endorses. But he has a latent flaw that will surface later. Plant it subtly in his psychology without declaring it.
-8. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
-9. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
+5. Traditional gender roles preferred. Avoid modernist feminist tropes. Build characters whose roles are plausible for the era and setting.
+6. Psychology must reflect the tension type without ever naming or declaring it. For safety tension: her psychology shows what she protects and why danger terrifies her. For identity tension: her psychology shows the constructed self and why it cannot bend. No theme lectures. No meta-commentary.
+7. The primary's psychology must make him genuinely dangerous to her framework — not a bad person, but someone whose nature or position makes her framework unsustainable.
+8. If triangle is YES, the rival is the safe option personified — stable, respectable, everything the framework endorses. But he has a latent flaw that will surface later. Plant it subtly in his psychology without declaring it.
+9. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
+10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -769,10 +770,11 @@ RULES:
 4. No "name" field. Names appear naturally within the backstory paragraph.
 5. Every cast member must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
 6. Ground each character in the historical and social reality of the setting. A "widow" on the Argentine pampas is different from a "widow" in Regency England. Make the employment option real for this world.
-7. Each cast member exists in relationship to the protagonist. The function description tells you what role they play in her story. Their backstory and psychology should make that relationship concrete and specific — build them knowing who she is.
-8. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
-9. Appearance must be specific and grounded.
-10. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
+7. Traditional gender roles preferred. Avoid modernist feminist tropes. Build characters whose roles are plausible for the era and setting.
+8. Each cast member exists in relationship to the protagonist. The function description tells you what role they play in her story. Their backstory and psychology should make that relationship concrete and specific — build them knowing who she is.
+9. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
+10. Appearance must be specific and grounded.
+11. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
 
 OUTPUT FORMAT:
 Return a single JSON object:

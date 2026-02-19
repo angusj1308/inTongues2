@@ -226,7 +226,6 @@ const CHAPTER_TREE = {
               { id: 'rivals', text: 'They are rivals competing over the same thing or resource' },
               { id: 'opposite_sides', text: 'They are enemies on opposite sides of an external conflict' },
               { id: 'acquiring', text: 'He is trying to acquire what she already has' },
-              { id: 'she_pursues', text: 'She is an authority figure pursuing him' },
               { id: 'he_threatens', text: 'He is an authority figure threatening her livelihood' }
             ],
             constraints: [

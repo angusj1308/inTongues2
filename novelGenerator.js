@@ -1014,17 +1014,242 @@ async function executePhase1(skeleton, setting) {
   return { characters }
 }
 
+// =============================================================================
+// PHASE 2: SCENE SUMMARIES
+// =============================================================================
+
+const PHASE_2_SYSTEM_PROMPT = `You are a story architect creating scene-by-scene chapter summaries for an enemies-to-lovers romance. You receive a complete chapter skeleton with employment selections and end states, plus full character profiles from Phase 1.
+
+Your job: break every chapter into 2-5 scenes. Each scene is a unit of continuous action in one location with specific characters physically present.
+
+RULES:
+
+1. The employment selection is a mandatory beat, not a chapter description. Every chapter has one or more employment selections from the skeleton. Each employment selection must appear as a concrete beat in exactly one scene in that chapter. But the employment beat is not the only thing that happens in the chapter — it is a guardrail for the central romance arc, nothing more.
+
+2. Other scenes do other work. A chapter with 3 scenes might have: one scene introducing a cast member, one scene building a relationship or showing the world, and one scene where the employment beat lands. The chapter is not 3 variations of the same beat. Not every scene carries an employment beat.
+
+3. Scenes chain. Within a chapter, Scene 1's exitState flows naturally into Scene 2's entryState. Scene 2's exitState flows into Scene 3's entryState. The final scene's exitState must align with the chapter's endState from the skeleton. For Chapter 1, the first scene's entryState establishes the status quo. For later chapters, continue from the previous chapter's trajectory.
+
+4. Entry and exit states only. Do not describe what happens in the scene. Do not include beats, turning points, dialogue suggestions, mood, or tone. Just the emotional or situational state at the opening and closing. The gap between entry and exit is the prose generator's creative space.
+
+5. Characters present means physically in the scene. Only list characters who are in the room, on the road, at the table. Not characters who are discussed, remembered, or thought about.
+
+6. Use character names from the profiles. Read the backstory paragraphs of every character to find their names. Use those exact first names in the characters arrays.
+
+7. Locations are specific. Not "the estancia" but "the estancia kitchen at dawn" or "the corral behind the main house." Specific enough to write a scene in.
+
+8. Chapter numbers and titles must match the skeleton exactly. Do not renumber, rename, or reorder.
+
+9. Cast members serve their function. When a cast member appears in a scene, they should be doing something consistent with their narrative function described in their profile. Do not use cast members as generic extras.
+
+OUTPUT FORMAT:
+Return a single JSON object:
+{
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "Exact Title from Skeleton",
+      "scenes": [
+        {
+          "location": "Specific location with atmosphere or time detail",
+          "characters": ["FirstName", "FirstName"],
+          "entryState": "One sentence. Where things stand when the scene opens.",
+          "exitState": "One sentence. Where things stand when the scene ends."
+        }
+      ]
+    }
+  ]
+}
+
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Every chapter from the skeleton must appear in your output.
+- 2 to 5 scenes per chapter. No fewer, no more.
+- Every employment selection must be realised in exactly one scene per chapter.
+- Scene chains must be continuous — no gaps, no jumps.`
+
+/**
+ * Build the user prompt for Phase 2: scene summaries.
+ * Combines story structure, character profiles, and chapter skeleton.
+ */
+function buildPhase2UserPrompt(skeleton, characters) {
+  // ── Story structure ──
+  const structureBlock = `=== STORY STRUCTURE ===
+Tension: ${skeleton.tension}
+Ending: ${skeleton.ending}
+Triangle: ${skeleton.triangle ? 'YES' : 'NO'}
+Secret: ${skeleton.secret ? 'YES' : 'NO'}
+Total chapters: ${skeleton.chapters.length}`
+
+  // ── Character profiles ──
+  let characterBlock = `=== PROTAGONIST ===
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
+
+=== PRIMARY ===
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}`
+
+  if (characters.rival) {
+    characterBlock += `
+
+=== RIVAL ===
+Backstory: ${characters.rival.backstory}
+Psychology: ${characters.rival.psychology}
+Voice and mannerisms: ${characters.rival.voiceAndMannerisms}`
+  }
+
+  if (characters.cast && characters.cast.length > 0) {
+    characterBlock += '\n\n=== CAST ==='
+    for (const member of characters.cast) {
+      characterBlock += `
+
+--- ${member.functionId} (${member.employmentOption}) ---
+Backstory: ${member.backstory}
+Psychology: ${member.psychology}`
+    }
+  }
+
+  // ── Chapters ──
+  const chaptersBlock = skeleton.chapters.map(ch => {
+    let chapterStr = `--- Chapter ${ch.chapter}: ${ch.title} ---
+End state: ${ch.endState}`
+
+    if (ch.employmentSelections.length > 0) {
+      chapterStr += '\nEmployment selections:'
+      for (const sel of ch.employmentSelections) {
+        chapterStr += `\n  - [${sel.group}] ${sel.text}`
+      }
+    } else {
+      chapterStr += '\nEmployment selections: (none — this is a resolution chapter)'
+    }
+
+    return chapterStr
+  }).join('\n\n')
+
+  return `${structureBlock}
+
+${characterBlock}
+
+=== CHAPTERS ===
+${chaptersBlock}
+
+Create scene summaries for every chapter. Return the JSON object only.`
+}
+
+/**
+ * Validate Phase 2 output: scene summaries for all chapters.
+ */
+function validatePhase2(data, skeleton) {
+  if (!data.chapters || !Array.isArray(data.chapters)) {
+    throw new Error('Phase 2: chapters must be an array')
+  }
+
+  if (data.chapters.length !== skeleton.chapters.length) {
+    throw new Error(
+      `Phase 2: expected ${skeleton.chapters.length} chapters, got ${data.chapters.length}`
+    )
+  }
+
+  for (let i = 0; i < data.chapters.length; i++) {
+    const ch = data.chapters[i]
+    const skCh = skeleton.chapters[i]
+
+    if (ch.chapter !== skCh.chapter) {
+      throw new Error(
+        `Phase 2: chapter ${i + 1} has number ${ch.chapter}, expected ${skCh.chapter}`
+      )
+    }
+
+    if (!ch.title || ch.title !== skCh.title) {
+      throw new Error(
+        `Phase 2: chapter ${ch.chapter} title mismatch: got "${ch.title}", expected "${skCh.title}"`
+      )
+    }
+
+    if (!Array.isArray(ch.scenes) || ch.scenes.length < 2 || ch.scenes.length > 5) {
+      throw new Error(
+        `Phase 2: chapter ${ch.chapter} must have 2-5 scenes, got ${ch.scenes?.length ?? 0}`
+      )
+    }
+
+    for (let j = 0; j < ch.scenes.length; j++) {
+      const scene = ch.scenes[j]
+
+      if (!scene.location || typeof scene.location !== 'string' || scene.location.trim().length === 0) {
+        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} missing or empty location`)
+      }
+
+      if (!Array.isArray(scene.characters) || scene.characters.length === 0) {
+        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} must have at least one character`)
+      }
+      for (const name of scene.characters) {
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+          throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} has empty character name`)
+        }
+      }
+
+      if (!scene.entryState || typeof scene.entryState !== 'string' || scene.entryState.trim().length === 0) {
+        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} missing or empty entryState`)
+      }
+
+      if (!scene.exitState || typeof scene.exitState !== 'string' || scene.exitState.trim().length === 0) {
+        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} missing or empty exitState`)
+      }
+    }
+  }
+}
+
+/**
+ * Phase 2: Generate scene summaries for all chapters.
+ * One LLM call. Input: skeleton + Phase 1 characters.
+ * Output: 2-5 scene summaries per chapter.
+ */
+async function executePhase2(skeleton, characters) {
+  console.log('\nExecuting Phase 2: Scene Summaries...')
+  console.log(`  Chapters: ${skeleton.chapters.length}`)
+  console.log(`  Cast members: ${characters.cast.length}`)
+  console.log(`  Triangle: ${skeleton.triangle}`)
+
+  const userPrompt = buildPhase2UserPrompt(skeleton, characters)
+
+  const response = await callClaude(PHASE_2_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 16384
+  })
+
+  const parsed = parseJSON(response)
+  if (!parsed.success) {
+    throw new Error(`Phase 2 JSON parse failed: ${parsed.error}`)
+  }
+
+  validatePhase2(parsed.data, skeleton)
+  console.log('  Phase 2 validated successfully.')
+
+  for (const ch of parsed.data.chapters) {
+    console.log(`  Chapter ${ch.chapter} "${ch.title}": ${ch.scenes.length} scenes`)
+  }
+
+  console.log('\nPhase 2 Scene Summaries complete.')
+
+  return { sceneSummaries: parsed.data }
+}
+
 /**
  * Pipeline entry point.
- * Rolls a skeleton, then generates characters in two LLM calls.
+ * Rolls a skeleton, generates characters (Phase 1), then scene summaries (Phase 2).
  *
  * @param {string} setting - User-provided setting string
- * @returns {Promise<Object>} Object with skeleton and characters
+ * @returns {Promise<Object>} Object with skeleton, characters, and sceneSummaries
  */
 export async function generateStory(setting) {
   const skeleton = rollSkeleton()
-  const result = await executePhase1(skeleton, setting)
-  return { skeleton, characters: result.characters }
+  const phase1 = await executePhase1(skeleton, setting)
+  const phase2 = await executePhase2(skeleton, phase1.characters)
+  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries }
 }
 
 export {
@@ -1034,6 +1259,7 @@ export {
   getLevelDefinition,
   formatLevelDefinitionForPrompt,
   executePhase1,
+  executePhase2,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS
@@ -1045,6 +1271,7 @@ export default {
   callChatGPT,
   parseJSON,
   executePhase1,
+  executePhase2,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS

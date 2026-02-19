@@ -7966,8 +7966,20 @@ app.post('/api/generate/execute-phase', async (req, res) => {
 
     await bookRef.update({ status: 'generating', currentPhase: 1 })
 
+    // Retry up to 3 times — LLM occasionally returns malformed JSON
     const skeleton = rollSkeleton()
-    const concept = await executePhase1(skeleton, setting)
+    let concept
+    const maxAttempts = 3
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        concept = await executePhase1(skeleton, setting)
+        break
+      } catch (err) {
+        console.error(`Phase 1 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+        if (attempt === maxAttempts) throw err
+        console.log(`Retrying Phase 1...`)
+      }
+    }
 
     console.log('=== Phase 1 Complete ===')
     console.log('Skeleton:', JSON.stringify(skeleton, null, 2))

@@ -932,8 +932,7 @@ const CHAPTER_TREE = {
             options: [
               { id: 'she_betrays', text: 'She betrays him to his enemies while still in her dark moment' },
               { id: 'she_fails', text: 'She fails to act when she could have saved him' },
-              { id: 'conflict_destroys', text: 'The conflict itself destroys him — the thing that made them enemies kills him' },
-              { id: 'was_monster', text: 'He was the monster all along — the fall was the lie, Act II was the con' }
+              { id: 'conflict_destroys', text: 'The conflict itself destroys him — the thing that made them enemies kills him' }
             ],
             notes: [
               { on: 'conflict_destroys', text: '"Conflict destroys him" requires a setting with lethal stakes (war, crime, frontier)' }
@@ -945,7 +944,6 @@ const CHAPTER_TREE = {
       // ─── CH.10: TRAGEDY — THE TRUTH ARRIVES TOO LATE ─────────────────────
       ch10_tragedy_truth: {
         title: 'The Truth Arrives Too Late',
-        showWhen: 'ch9_tragedy !== "was_monster"',
         endStates: {
           default: 'By the end, she knows the full picture. But he\'s already gone.'
         },
@@ -956,25 +954,6 @@ const CHAPTER_TREE = {
               { id: 'evidence_surfaces', text: 'Evidence surfaces that reveals the full context' },
               { id: 'ally_tells_her', text: 'Someone from his world tells her the truth he couldn\'t' },
               { id: 'primary_left_proof', text: 'He left proof — a letter, a document, an act she discovers after' }
-            ]
-          }
-        }
-      },
-
-      // ─── CH.10: TRAGEDY — THE FULL EXTENT (monster) ──────────────────────
-      ch10_tragedy_monster: {
-        title: 'The Full Extent',
-        showWhen: 'ch9_tragedy === "was_monster"',
-        endStates: {
-          default: 'By the end, she discovers the dark moment was only the surface. It\'s worse than she thought.'
-        },
-        employment: {
-          main: {
-            header: 'How the full extent is revealed',
-            options: [
-              { id: 'discovers_more', text: 'She discovers additional evidence — the deception ran deeper than the secret' },
-              { id: 'he_reveals', text: 'He reveals himself fully — no longer needs to pretend' },
-              { id: 'others_emerge', text: 'Other victims emerge — she wasn\'t the first, the pattern becomes visible' }
             ]
           }
         }
@@ -1002,7 +981,6 @@ const CHAPTER_TREE = {
             employment: {
               header: 'The consequence',
               options: [
-                { id: 'takes_life', text: 'She takes her own life — the guilt is unsurvivable' },
                 { id: 'lives_with_it', text: 'She lives with it — the tragedy is endurance, not death' },
                 { id: 'destroys_safe_path', text: 'She destroys what she retreated to — burns the safe path that made her complicit' }
               ]
@@ -1014,21 +992,8 @@ const CHAPTER_TREE = {
             employment: {
               header: 'The consequence',
               options: [
-                { id: 'takes_life', text: 'She takes her own life' },
                 { id: 'lives_with_it', text: 'She lives with it — the tragedy is endurance' },
                 { id: 'destroys_defended', text: 'She destroys what she was defending — nothing matters anymore' }
-              ]
-            }
-          },
-          monster: {
-            showWhen: '!triangle && ch9_tragedy === "was_monster"',
-            endState: 'By the end, she faces what she gave herself to.',
-            employment: {
-              header: 'The consequence',
-              options: [
-                { id: 'destroys_him', text: 'She destroys him — turns his own weapons against him' },
-                { id: 'escapes', text: 'She escapes — survival is the victory' },
-                { id: 'lives_with_it', text: 'She lives with it — the tragedy is what she learned about herself' }
               ]
             }
           }
@@ -1291,28 +1256,14 @@ function resolveBlueprint(tension, ending, secret, triangle) {
       notes: []
     })
 
-    // Ch.10 — Truth Too Late (default) or Full Extent (monster)
-    // Include both variants — the AI picks based on Ch.9 selection
+    // Ch.10 — Truth Too Late
     act4Chapters.push({
       chapter: ++chapterNum,
       function: trag.chapters.ch10_tragedy_truth.title,
       endState: trag.chapters.ch10_tragedy_truth.endStates.default,
       employment: collectEmployment(trag.chapters.ch10_tragedy_truth.employment),
-      notes: [],
-      variant: 'default'
+      notes: []
     })
-    // Monster variant (only available when no triangle + was_monster selected)
-    if (!triangle) {
-      act4Chapters.push({
-        chapter: chapterNum, // same chapter number — variant
-        function: trag.chapters.ch10_tragedy_monster.title,
-        endState: trag.chapters.ch10_tragedy_monster.endStates.default,
-        employment: collectEmployment(trag.chapters.ch10_tragedy_monster.employment),
-        notes: [],
-        variant: 'was_monster',
-        variantNote: 'This chapter replaces "The Truth Arrives Too Late" if Ch.9 selection is "He was the monster all along"'
-      })
-    }
 
     // Ch.11 — Consequence (variants based on Ch.9)
     const ch11t = trag.chapters.ch11_tragedy
@@ -1337,12 +1288,6 @@ function resolveBlueprint(tension, ending, secret, triangle) {
         label: 'If the conflict destroyed him',
         endState: ch11t.variants.conflict.endState,
         employment: [{ header: ch11t.variants.conflict.employment.header, options: ch11t.variants.conflict.employment.options.map(o => ({ id: o.id, text: o.text })), constraints: [], cascadingNote: null }]
-      })
-      consequenceVariants.push({
-        variant: 'monster',
-        label: 'If he was the monster all along',
-        endState: ch11t.variants.monster.endState,
-        employment: [{ header: ch11t.variants.monster.employment.header, options: ch11t.variants.monster.employment.options.map(o => ({ id: o.id, text: o.text })), constraints: [], cascadingNote: null }]
       })
     }
     act4Chapters.push({
@@ -2067,25 +2012,14 @@ function rollSkeleton() {
 
     // Ch.10: locked by Ch.9 selection
     chapterNum++
-    if (ch9TragedySelection === 'was_monster') {
-      const ch10Def = trag.ch10_tragedy_monster
-      const ch10Pick = pick(ch10Def.employment.main.options)
-      chapters.push({
-        chapter: chapterNum,
-        title: ch10Def.title,
-        endState: ch10Def.endStates.default,
-        employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
-      })
-    } else {
-      const ch10Def = trag.ch10_tragedy_truth
-      const ch10Pick = pick(ch10Def.employment.main.options)
-      chapters.push({
-        chapter: chapterNum,
-        title: ch10Def.title,
-        endState: ch10Def.endStates.default,
-        employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
-      })
-    }
+    const ch10Def = trag.ch10_tragedy_truth
+    const ch10Pick = pick(ch10Def.employment.main.options)
+    chapters.push({
+      chapter: chapterNum,
+      title: ch10Def.title,
+      endState: ch10Def.endStates.default,
+      employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
+    })
 
     // Ch.11: The Consequence — variant locked by Ch.9
     chapterNum++
@@ -2097,8 +2031,6 @@ function rollSkeleton() {
       consequenceVariant = ch11Def.variants.she_caused
     } else if (!triangle && ch9TragedySelection === 'conflict_destroys') {
       consequenceVariant = ch11Def.variants.conflict
-    } else if (!triangle && ch9TragedySelection === 'was_monster') {
-      consequenceVariant = ch11Def.variants.monster
     }
 
     const ch11Pick = pick(consequenceVariant.employment.options)

@@ -1018,61 +1018,130 @@ async function executePhase1(skeleton, setting) {
 // PHASE 2: SCENE SUMMARIES
 // =============================================================================
 
-const PHASE_2_SYSTEM_PROMPT = `You are a story architect creating scene-by-scene chapter summaries for an enemies-to-lovers romance. You receive a complete chapter skeleton with employment selections and end states, plus full character profiles from Phase 1.
+const PHASE_2_VALID_FUNCTIONS = [
+  'Established', 'Revealed', 'Planted', 'Foreshadowed', 'Clarified', 'Withheld',
+  'Shifted', 'Bonded', 'Fractured', 'Tested', 'Mirrored', 'Contrasted',
+  'Escalated', 'Complicated', 'Trapped', 'Ticking', 'Suspended',
+  'Broken', 'Confirmed', 'Challenged', 'Realized', 'Denied',
+  'Exposed', 'Earned', 'Wounded', 'Decided', 'Regressed', 'Transformed',
+  'Grounded', 'Textured', 'Pressured', 'Juxtaposed',
+  'Delivered', 'Paid off', 'Bridged', 'Resolved', 'Opened'
+]
 
-Your job: break every chapter into scenes. Write as many scenes as the chapter requires. No more. Each scene is a unit of continuous action in one location with specific characters physically present.
+const PHASE_2_SYSTEM_PROMPT = `You are a story architect breaking a single chapter into scenes for an enemies-to-lovers romance. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
+
+Each scene has exactly three fields:
+- location: a specific physical place — not "the estancia" but "the estancia kitchen at dawn"
+- characters: only characters physically present in this scene
+- achieves: an array of functions this scene accomplishes
+
+SCENE FUNCTIONS — VOCABULARY (33 functions)
+
+Each achieves entry uses a label from this list, followed by a colon, followed by the specific condition that is true by the end of the scene.
+
+Information:
+- Established — a fact about the world, character, or relationship is now understood
+- Revealed — something previously hidden is exposed, changing understanding of what came before
+- Planted — a detail is introduced that will matter later
+- Foreshadowed — a hint points toward future events without revealing them
+- Clarified — something previously ambiguous is made clear
+- Withheld — the reader learns something important exists but is kept from knowing it
+
+Relationship:
+- Shifted — the relationship between two characters has changed direction or quality
+- Bonded — characters are closer, more trusting, or more allied
+- Fractured — trust, closeness, or alliance is damaged
+- Tested — loyalty, commitment, or trust is put under pressure
+- Mirrored — two characters are shown to be more alike than either would admit
+- Contrasted — two characters or relationships are placed side by side to highlight differences
+
+Stakes & Tension:
+- Escalated — danger, consequences, urgency, or intensity has increased
+- Complicated — a new obstacle, constraint, or contradiction has been introduced
+- Trapped — a character's options have narrowed, commitments becoming irreversible
+- Ticking — a time pressure or deadline is established or advanced
+- Suspended — tension is held without resolution
+
+Belief & Understanding:
+- Broken — a belief, assumption, or self-deception has been destroyed
+- Confirmed — a suspicion, fear, or hope has been validated
+- Challenged — a belief is under pressure but not yet broken
+- Realized — a character comes to understand something about themselves or their situation
+- Denied — a character refuses to accept what is becoming clear (dramatic irony)
+
+Character:
+- Exposed — a character's true nature or hidden motive is shown under pressure
+- Earned — a character's quality is demonstrated through action, not dialogue
+- Wounded — a character suffers damage that affects what comes next
+- Decided — a character commits to a course of action, crossing a threshold
+- Regressed — a character falls back into old patterns or defenses
+- Transformed — a character has fundamentally changed (rare, late-story)
+
+World & Atmosphere:
+- Grounded — the physical/social/historical world is made tangible through lived detail
+- Textured — sensory or cultural detail deepens immersion beyond what plot requires
+- Pressured — the external world exerts force on the characters
+- Juxtaposed — two conditions or worlds are placed side by side within the scene
+
+Structural:
+- Delivered — an obligatory genre beat or blueprint requirement is satisfied
+- Paid off — something previously planted has come to fruition
+- Bridged — transition across time or space without dead air
+- Resolved — a question or thread is answered or closed
+- Opened — a new question or thread is introduced that carries forward
 
 RULES:
 
-1. The employment selection is a mandatory beat, not a chapter description. Every chapter has one or more employment selections from the skeleton. Each employment selection must appear as a concrete beat in exactly one scene in that chapter. But the employment beat is not the only thing that happens in the chapter — it is a guardrail for the central romance arc, nothing more.
+1. Employment option is mandatory. This chapter has one. It must appear as a Delivered function in exactly one scene. But it is not the only thing happening — other scenes do other work.
 
-2. Other scenes do other work. A chapter with 3 scenes might have: one scene introducing a cast member, one scene building a relationship or showing the world, and one scene where the employment beat lands. The chapter is not 3 variations of the same beat. Not every scene carries an employment beat.
+2. Earn your place. Every scene must list at least two functions. If you can't name what a scene accomplishes, it doesn't exist.
 
-3. Scenes chain. Within a chapter, Scene 1's exitState flows naturally into Scene 2's entryState. Scene 2's exitState flows into Scene 3's entryState. The final scene's exitState must align with the chapter's endState from the skeleton. For Chapter 1, the first scene's entryState establishes the status quo. For later chapters, continue from the previous chapter's trajectory.
+3. No default scene count. Write as many scenes as the chapter requires. No more. Could be 1, could be 6. No uniform number.
 
-4. Entry and exit states describe what the reader understands — not what the reader sees. 'The reader understands that her world is built on a wound' is a state. 'The reader sees him comfort her child' is an action with 'the reader' prepended. Describe understanding, not events.
+4. Functions are conditions, not actions. "Bonded: Elena and Joaquín" is wrong — that's a label with no condition. "Bonded: Elena trusts Joaquín enough to mention her husband for the first time" is right — that's a specific state that is true when the scene ends.
 
-5. Characters present means physically in the scene. Only list characters who are in the room, on the road, at the table. Not characters who are discussed, remembered, or thought about.
+5. No padding scenes. "Elena reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene's only function is Realized, it should probably be folded into the scene that triggered the realization.
 
-6. Use character names from the profiles. Read the backstory paragraphs of every character to find their names. Use those exact first names in the characters arrays.
+6. Locations are specific. Not "the town" but "the well at the edge of the plaza, mid-morning." Specific enough for the prose generator to write a physical space.
 
-7. Locations are specific. Not "the estancia" but "the estancia kitchen at dawn" or "the corral behind the main house." Specific enough to write a scene in.
+7. Characters present means physically present. Not mentioned, not remembered — in the room.
 
-8. Chapter numbers and titles must match the skeleton exactly. Do not renumber, rename, or reorder.
-
-9. Cast members serve their function. When a cast member appears in a scene, they should be doing something consistent with their narrative function described in their profile. Do not use cast members as generic extras.
+8. Chapter end state from the blueprint becomes a Delivered function. One scene must achieve it. It may be the final scene or it may not — the end state might be achieved early and the chapter continues past it.
 
 OUTPUT FORMAT:
-Return a single JSON object:
-{
-  "chapters": [
-    {
-      "chapter": 1,
-      "title": "Exact Title from Skeleton",
-      "scenes": [
-        {
-          "location": "Specific location with atmosphere or time detail",
-          "characters": ["FirstName", "FirstName"],
-          "entryState": "One sentence. Where things stand when the scene opens.",
-          "exitState": "One sentence. Where things stand when the scene ends."
-        }
-      ]
-    }
-  ]
-}
+Return a JSON array of scenes for this chapter:
+[
+  {
+    "location": "specific physical place with time or atmosphere detail",
+    "characters": ["FirstName", "FirstName"],
+    "achieves": [
+      "Function: specific condition that is true by the end of this scene",
+      "Function: another specific condition"
+    ]
+  }
+]
 
 IMPORTANT:
-- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
-- Every chapter from the skeleton must appear in your output.
-- Write as many scenes as the chapter requires. No more.
-- Every employment selection must be realised in exactly one scene per chapter.
-- Scene chains must be continuous — no gaps, no jumps.`
+- Return ONLY the JSON array. No preamble, no explanation, no markdown fences.
+- Use character names from the profiles. Read the backstory paragraphs of every character to find their names. Use those exact first names.
+- Cast members serve their function. When a cast member appears, they should be doing something consistent with their narrative function.
+- Every achieves entry must start with a function label from the vocabulary above, followed by a colon, followed by a specific condition.`
 
 /**
- * Build the user prompt for Phase 2: scene summaries.
- * Combines story structure, character profiles, and chapter skeleton.
+ * Build the user prompt for Phase 2: a single chapter's scene generation.
+ * Includes setting, characters, this chapter's blueprint, and previous chapters' scenes.
+ *
+ * @param {string} setting - The story setting
+ * @param {Object} skeleton - The full skeleton
+ * @param {Object} characters - Phase 1 character profiles
+ * @param {Object} chapterBlueprint - This chapter's skeleton entry
+ * @param {Array} previousChaptersScenes - Array of { chapter, title, scenes } for prior chapters
  */
-function buildPhase2UserPrompt(skeleton, characters) {
+function buildPhase2UserPrompt(setting, skeleton, characters, chapterBlueprint, previousChaptersScenes) {
+  // ── Setting ──
+  const settingBlock = `=== SETTING ===
+${setting}`
+
   // ── Story structure ──
   const structureBlock = `=== STORY STRUCTURE ===
 Tension: ${skeleton.tension}
@@ -1112,130 +1181,196 @@ Psychology: ${member.psychology}`
     }
   }
 
-  // ── Chapters ──
-  const chaptersBlock = skeleton.chapters.map(ch => {
-    let chapterStr = `--- Chapter ${ch.chapter}: ${ch.title} ---
-End state: ${ch.endState}`
+  // ── This chapter's blueprint ──
+  let chapterBlock = `=== THIS CHAPTER ===
+Chapter ${chapterBlueprint.chapter}: ${chapterBlueprint.title}
+End state: ${chapterBlueprint.endState}`
 
-    if (ch.employmentSelections.length > 0) {
-      chapterStr += '\nEmployment selections:'
-      for (const sel of ch.employmentSelections) {
-        chapterStr += `\n  - [${sel.group}] ${sel.text}`
-      }
-    } else {
-      chapterStr += '\nEmployment selections: (none — this is a resolution chapter)'
+  if (chapterBlueprint.employmentSelections.length > 0) {
+    chapterBlock += '\nEmployment selections:'
+    for (const sel of chapterBlueprint.employmentSelections) {
+      chapterBlock += `\n  - [${sel.group}] ${sel.text}`
     }
+  } else {
+    chapterBlock += '\nEmployment selections: (none — this is a resolution chapter)'
+  }
 
-    return chapterStr
-  }).join('\n\n')
+  // ── Previous chapters' scenes ──
+  let previousBlock = ''
+  if (previousChaptersScenes.length > 0) {
+    previousBlock = '\n\n=== PREVIOUS CHAPTERS\' SCENES ===\n'
+    for (const prev of previousChaptersScenes) {
+      previousBlock += `\n--- Chapter ${prev.chapter}: ${prev.title} ---\n`
+      for (let i = 0; i < prev.scenes.length; i++) {
+        const scene = prev.scenes[i]
+        previousBlock += `Scene ${i + 1}: ${scene.location}\n`
+        previousBlock += `  Characters: ${scene.characters.join(', ')}\n`
+        previousBlock += `  Achieves:\n`
+        for (const a of scene.achieves) {
+          previousBlock += `    - ${a}\n`
+        }
+      }
+    }
+  }
 
-  return `${structureBlock}
+  return `${settingBlock}
+
+${structureBlock}
 
 ${characterBlock}
 
-=== CHAPTERS ===
-${chaptersBlock}
+${chapterBlock}${previousBlock}
 
-Create scene summaries for every chapter. Return the JSON object only.`
+Break this chapter into scenes. Return the JSON array only.`
 }
 
 /**
- * Validate Phase 2 output: scene summaries for all chapters.
+ * Validate a single chapter's Phase 2 output: array of scenes with achieves.
+ *
+ * @param {Array} scenes - Array of scene objects from LLM response
+ * @param {number} chapterNum - Chapter number for error messages
+ * @param {Object} chapterBlueprint - This chapter's skeleton entry
+ * @param {number|null} prevChapterSceneCount - Previous chapter's scene count (for soft check)
  */
-function validatePhase2(data, skeleton) {
-  if (!data.chapters || !Array.isArray(data.chapters)) {
-    throw new Error('Phase 2: chapters must be an array')
-  }
-
-  if (data.chapters.length !== skeleton.chapters.length) {
+function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapterSceneCount) {
+  if (!Array.isArray(scenes) || scenes.length < 1) {
     throw new Error(
-      `Phase 2: expected ${skeleton.chapters.length} chapters, got ${data.chapters.length}`
+      `Phase 2: chapter ${chapterNum} must have at least 1 scene, got ${scenes?.length ?? 0}`
     )
   }
 
-  for (let i = 0; i < data.chapters.length; i++) {
-    const ch = data.chapters[i]
-    const skCh = skeleton.chapters[i]
+  let deliveredEmploymentCount = 0
 
-    if (ch.chapter !== skCh.chapter) {
+  for (let j = 0; j < scenes.length; j++) {
+    const scene = scenes[j]
+
+    // ── location ──
+    if (!scene.location || typeof scene.location !== 'string' || scene.location.trim().length === 0) {
+      throw new Error(`Phase 2: chapter ${chapterNum} scene ${j + 1} missing or empty location`)
+    }
+
+    // ── characters ──
+    if (!Array.isArray(scene.characters) || scene.characters.length === 0) {
+      throw new Error(`Phase 2: chapter ${chapterNum} scene ${j + 1} must have at least one character`)
+    }
+    for (const name of scene.characters) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error(`Phase 2: chapter ${chapterNum} scene ${j + 1} has empty character name`)
+      }
+    }
+
+    // ── achieves ──
+    if (!Array.isArray(scene.achieves) || scene.achieves.length < 2) {
       throw new Error(
-        `Phase 2: chapter ${i + 1} has number ${ch.chapter}, expected ${skCh.chapter}`
+        `Phase 2: chapter ${chapterNum} scene ${j + 1} must have at least 2 achieves entries, got ${scene.achieves?.length ?? 0}`
       )
     }
 
-    if (!ch.title || ch.title !== skCh.title) {
-      throw new Error(
-        `Phase 2: chapter ${ch.chapter} title mismatch: got "${ch.title}", expected "${skCh.title}"`
-      )
-    }
-
-    if (!Array.isArray(ch.scenes) || ch.scenes.length < 1) {
-      throw new Error(
-        `Phase 2: chapter ${ch.chapter} must have at least 1 scene, got ${ch.scenes?.length ?? 0}`
-      )
-    }
-
-    for (let j = 0; j < ch.scenes.length; j++) {
-      const scene = ch.scenes[j]
-
-      if (!scene.location || typeof scene.location !== 'string' || scene.location.trim().length === 0) {
-        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} missing or empty location`)
+    for (let k = 0; k < scene.achieves.length; k++) {
+      const entry = scene.achieves[k]
+      if (!entry || typeof entry !== 'string') {
+        throw new Error(
+          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] is not a string`
+        )
       }
 
-      if (!Array.isArray(scene.characters) || scene.characters.length === 0) {
-        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} must have at least one character`)
-      }
-      for (const name of scene.characters) {
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-          throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} has empty character name`)
-        }
+      const colonIndex = entry.indexOf(':')
+      if (colonIndex === -1) {
+        throw new Error(
+          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] missing colon — got "${entry}"`
+        )
       }
 
-      if (!scene.entryState || typeof scene.entryState !== 'string' || scene.entryState.trim().length === 0) {
-        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} missing or empty entryState`)
+      const label = entry.slice(0, colonIndex).trim()
+      if (!PHASE_2_VALID_FUNCTIONS.includes(label)) {
+        throw new Error(
+          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] has invalid function label "${label}"`
+        )
       }
 
-      if (!scene.exitState || typeof scene.exitState !== 'string' || scene.exitState.trim().length === 0) {
-        throw new Error(`Phase 2: chapter ${ch.chapter} scene ${j + 1} missing or empty exitState`)
+      const condition = entry.slice(colonIndex + 1).trim()
+      if (condition.length === 0) {
+        throw new Error(
+          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] has empty condition after colon`
+        )
+      }
+
+      // Track Delivered functions referencing employment option
+      if (label === 'Delivered') {
+        deliveredEmploymentCount++
       }
     }
+  }
+
+  // ── Exactly one scene must contain a Delivered function referencing the employment option ──
+  if (chapterBlueprint.employmentSelections.length > 0 && deliveredEmploymentCount < 1) {
+    throw new Error(
+      `Phase 2: chapter ${chapterNum} has no Delivered function — employment option must be delivered in exactly one scene`
+    )
+  }
+
+  // ── Soft check: no two consecutive chapters have the same scene count ──
+  if (prevChapterSceneCount !== null && scenes.length === prevChapterSceneCount) {
+    console.warn(
+      `  Warning: chapter ${chapterNum} has ${scenes.length} scenes, same as the previous chapter. Consider varying scene count.`
+    )
   }
 }
 
 /**
  * Phase 2: Generate scene summaries for all chapters.
- * One LLM call. Input: skeleton + Phase 1 characters.
- * Output: 2-5 scene summaries per chapter.
+ * One LLM call per chapter, sequential. Each call sees previous chapters' output.
+ * Input: skeleton + Phase 1 characters + setting.
+ * Output: scenes per chapter using function-based achieves.
  */
-async function executePhase2(skeleton, characters) {
+async function executePhase2(skeleton, characters, setting) {
   console.log('\nExecuting Phase 2: Scene Summaries...')
   console.log(`  Chapters: ${skeleton.chapters.length}`)
   console.log(`  Cast members: ${characters.cast.length}`)
   console.log(`  Triangle: ${skeleton.triangle}`)
 
-  const userPrompt = buildPhase2UserPrompt(skeleton, characters)
+  const completedChapters = []
 
-  const response = await callClaude(PHASE_2_SYSTEM_PROMPT, userPrompt, {
-    model: 'claude-sonnet-4-20250514',
-    temperature: 1.0,
-    maxTokens: 16384
-  })
+  for (let i = 0; i < skeleton.chapters.length; i++) {
+    const chapterBlueprint = skeleton.chapters[i]
+    console.log(`  Generating scenes for Chapter ${chapterBlueprint.chapter}: "${chapterBlueprint.title}"...`)
 
-  const parsed = parseJSON(response)
-  if (!parsed.success) {
-    throw new Error(`Phase 2 JSON parse failed: ${parsed.error}`)
+    const userPrompt = buildPhase2UserPrompt(
+      setting, skeleton, characters, chapterBlueprint, completedChapters
+    )
+
+    const response = await callClaude(PHASE_2_SYSTEM_PROMPT, userPrompt, {
+      model: 'claude-sonnet-4-20250514',
+      temperature: 1.0,
+      maxTokens: 4096
+    })
+
+    const parsed = parseJSON(response)
+    if (!parsed.success) {
+      throw new Error(`Phase 2 JSON parse failed for chapter ${chapterBlueprint.chapter}: ${parsed.error}`)
+    }
+
+    const scenes = parsed.data
+    const prevSceneCount = completedChapters.length > 0
+      ? completedChapters[completedChapters.length - 1].scenes.length
+      : null
+
+    validatePhase2Chapter(scenes, chapterBlueprint.chapter, chapterBlueprint, prevSceneCount)
+
+    const chapterResult = {
+      chapter: chapterBlueprint.chapter,
+      title: chapterBlueprint.title,
+      scenes
+    }
+
+    completedChapters.push(chapterResult)
+    console.log(`  Chapter ${chapterBlueprint.chapter}: ${scenes.length} scenes`)
   }
 
-  validatePhase2(parsed.data, skeleton)
-  console.log('  Phase 2 validated successfully.')
-
-  for (const ch of parsed.data.chapters) {
-    console.log(`  Chapter ${ch.chapter} "${ch.title}": ${ch.scenes.length} scenes`)
-  }
-
+  const sceneSummaries = { chapters: completedChapters }
   console.log('\nPhase 2 Scene Summaries complete.')
 
-  return { sceneSummaries: parsed.data }
+  return { sceneSummaries }
 }
 
 // =============================================================================
@@ -1397,7 +1532,7 @@ async function executePhase3(sceneSummaries, setting) {
 export async function generateStory(setting) {
   const skeleton = rollSkeleton()
   const phase1 = await executePhase1(skeleton, setting)
-  const phase2 = await executePhase2(skeleton, phase1.characters)
+  const phase2 = await executePhase2(skeleton, phase1.characters, setting)
   const phase3 = await executePhase3(phase2.sceneSummaries, setting)
   return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations }
 }

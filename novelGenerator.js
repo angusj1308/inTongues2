@@ -1090,6 +1090,8 @@ Structural:
 - Resolved — a question or thread is answered or closed
 - Opened — a new question or thread is introduced that carries forward
 
+VALID LABELS (closed set — use ONLY these exact words, no synonyms, no variations): Established, Revealed, Planted, Foreshadowed, Clarified, Withheld, Shifted, Bonded, Fractured, Tested, Mirrored, Contrasted, Escalated, Complicated, Trapped, Ticking, Suspended, Broken, Confirmed, Challenged, Realized, Denied, Exposed, Earned, Wounded, Decided, Regressed, Transformed, Grounded, Textured, Pressured, Juxtaposed, Delivered, Paid off, Bridged, Resolved, Opened. Any label not in this list will cause a system error.
+
 RULES:
 
 1. Employment option is mandatory. This chapter has one. It must appear as a Delivered function in exactly one scene. But it is not the only thing happening — other scenes do other work.
@@ -1339,23 +1341,36 @@ async function executePhase2(skeleton, characters, setting) {
       setting, skeleton, characters, chapterBlueprint, completedChapters
     )
 
-    const response = await callClaude(PHASE_2_SYSTEM_PROMPT, userPrompt, {
-      model: 'claude-sonnet-4-20250514',
-      temperature: 1.0,
-      maxTokens: 4096
-    })
-
-    const parsed = parseJSON(response)
-    if (!parsed.success) {
-      throw new Error(`Phase 2 JSON parse failed for chapter ${chapterBlueprint.chapter}: ${parsed.error}`)
-    }
-
-    const scenes = parsed.data
     const prevSceneCount = completedChapters.length > 0
       ? completedChapters[completedChapters.length - 1].scenes.length
       : null
 
-    validatePhase2Chapter(scenes, chapterBlueprint.chapter, chapterBlueprint, prevSceneCount)
+    let scenes = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await callClaude(PHASE_2_SYSTEM_PROMPT, userPrompt, {
+        model: 'claude-sonnet-4-20250514',
+        temperature: 1.0,
+        maxTokens: 4096
+      })
+
+      const parsed = parseJSON(response)
+      if (!parsed.success) {
+        console.warn(`  Chapter ${chapterBlueprint.chapter} attempt ${attempt + 1} JSON parse failed, retrying...`)
+        continue
+      }
+
+      try {
+        validatePhase2Chapter(parsed.data, chapterBlueprint.chapter, chapterBlueprint, prevSceneCount)
+        scenes = parsed.data
+        break
+      } catch (e) {
+        console.warn(`  Chapter ${chapterBlueprint.chapter} attempt ${attempt + 1} failed: ${e.message}`)
+      }
+    }
+
+    if (!scenes) {
+      throw new Error(`Phase 2: chapter ${chapterBlueprint.chapter} failed after 3 attempts`)
+    }
 
     const chapterResult = {
       chapter: chapterBlueprint.chapter,

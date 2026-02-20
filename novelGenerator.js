@@ -1042,7 +1042,7 @@ Each achieves entry uses a label from this list, followed by a colon, followed b
 Information:
 - Established — a fact about the world, character, or relationship is now understood
 - Revealed — something previously hidden is exposed, changing understanding of what came before
-- Planted — a detail is introduced that will matter later
+- Planted — a detail is introduced that WILL return later in the story. If it's just world-building or backstory context, use Established or Textured instead
 - Foreshadowed — a hint points toward future events without revealing them
 - Clarified — something previously ambiguous is made clear
 - Withheld — the reader learns something important exists but is kept from knowing it
@@ -1098,7 +1098,7 @@ RULES:
 
 3. No default scene count. Write as many scenes as the chapter requires. No more. Could be 1, could be 6. No uniform number.
 
-4. Functions are conditions, not actions. "Bonded: Elena and Joaquín" is wrong — that's a label with no condition. "Bonded: Elena trusts Joaquín enough to mention her husband for the first time" is right — that's a specific state that is true when the scene ends.
+4. Functions are conditions, not actions. After the colon, write what is NOW TRUE when the scene ends — not how it became true. Never use verbs like "reveals," "shows," "admits," "discloses," "demonstrates," or "warns." Those describe what happens in the scene. You describe what is true when it's over.
 
 5. No padding scenes. "Elena reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene's only function is Realized, it should probably be folded into the scene that triggered the realization.
 

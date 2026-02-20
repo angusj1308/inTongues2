@@ -1030,7 +1030,7 @@ RULES:
 
 3. Scenes chain. Within a chapter, Scene 1's exitState flows naturally into Scene 2's entryState. Scene 2's exitState flows into Scene 3's entryState. The final scene's exitState must align with the chapter's endState from the skeleton. For Chapter 1, the first scene's entryState establishes the status quo. For later chapters, continue from the previous chapter's trajectory.
 
-4. Entry and exit states only. Do not describe what happens in the scene. Do not include beats, turning points, dialogue suggestions, mood, or tone. Just the emotional or situational state at the opening and closing. The gap between entry and exit is the prose generator's creative space.
+4. Entry and exit states describe what the reader knows, understands, or feels. Not what characters do. 'The reader has no sense of her world' is a state. 'She checks her emergency supplies' is an action. You write states. The prose generator writes actions.
 
 5. Characters present means physically in the scene. Only list characters who are in the room, on the road, at the table. Not characters who are discussed, remembered, or thought about.
 

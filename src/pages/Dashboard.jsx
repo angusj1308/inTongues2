@@ -19,7 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
-import { regeneratePhases, executePhase, executeScene, resetGeneration } from '../services/novelApiClient'
+import { regeneratePhases, executePhase, executeScene, resetGeneration, cancelGeneration } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -221,6 +221,7 @@ const BookGrid = ({
   onRegeneratePhase,
   onResetGeneration,
   onRunSpecificPhase,
+  onCancelGeneration,
 }) => (
   <section className="read-section read-slab">
     <div className="read-section-header">
@@ -293,6 +294,17 @@ const BookGrid = ({
                         : (book.status === 'generating' || book.status === 'planning') ? 'Generating...'
                         : 'Processing...'}
                     </span>
+                    {book.isGeneratedBook && (isGenerating || isRegenerating) && (
+                      <button
+                        className="book-tile-cancel-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onCancelGeneration?.(e, book)
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 )}
                 {/* Phase controls for generated books */}
@@ -1086,6 +1098,20 @@ const Dashboard = () => {
     }
   }
 
+  const handleCancelGeneration = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    try {
+      await cancelGeneration({
+        uid: user.uid,
+        bookId: book.id
+      })
+    } catch (err) {
+      console.error('Error cancelling generation:', err)
+    }
+  }
+
   // Run a specific phase or jump to a specific scene
   const handleRunSpecificPhase = async (e, book) => {
     e.stopPropagation()
@@ -1513,6 +1539,17 @@ const Dashboard = () => {
                                       <span className="reading-shelf-generating-text">
                                         {isRegenerating ? 'Regenerating...' : 'Generating...'}
                                       </span>
+                                      {book.isGeneratedBook && (isGenerating || isRegenerating) && (
+                                        <button
+                                          className="book-tile-cancel-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCancelGeneration(e, book)
+                                          }}
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                   {!isProcessing && (
@@ -1639,6 +1676,17 @@ const Dashboard = () => {
                                       <span className="reading-shelf-generating-text">
                                         {isRegenerating ? 'Regenerating...' : 'Generating...'}
                                       </span>
+                                      {book.isGeneratedBook && (isGenerating || isRegenerating) && (
+                                        <button
+                                          className="book-tile-cancel-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCancelGeneration(e, book)
+                                          }}
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                   {!isProcessing && (

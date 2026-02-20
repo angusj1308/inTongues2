@@ -212,6 +212,30 @@ export async function resetGeneration(params) {
   return response.json()
 }
 
+/**
+ * Cancel a stuck generation — resets status to phase_complete, preserving progress
+ * @param {Object} params
+ * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Book ID
+ * @returns {Promise<Object>} Cancel result
+ */
+export async function cancelGeneration(params) {
+  const { uid, bookId } = params
+
+  const response = await fetch(`${API_BASE}/api/generate/reset-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, bookId }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to cancel generation')
+  }
+
+  return response.json()
+}
+
 // Level mapping for display
 export const NOVEL_LEVELS = [
   { value: 'Beginner', label: 'Beginner', description: 'Simple vocabulary and short sentences' },

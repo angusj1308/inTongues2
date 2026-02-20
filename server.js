@@ -7928,10 +7928,10 @@ app.post('/api/generate/reset-status', async (req, res) => {
       return res.status(404).json({ error: 'Book not found' })
     }
 
-    await bookRef.update({ status: 'bible_complete' })
-    console.log(`Reset status to bible_complete for book ${bookId}`)
+    await bookRef.update({ status: 'phase_complete' })
+    console.log(`Reset status to phase_complete for book ${bookId}`)
 
-    res.json({ success: true, message: 'Status reset to bible_complete' })
+    res.json({ success: true, message: 'Status reset to phase_complete' })
   } catch (error) {
     console.error('Reset status error:', error)
     res.status(500).json({ error: error.message })

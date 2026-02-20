@@ -8038,6 +8038,7 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       }
 
       console.log('=== Phase 2 Complete ===')
+      console.log('Scene Summaries:', JSON.stringify(phase2Result.sceneSummaries, null, 2))
 
       await bookRef.update({
         'bible.sceneSummaries': sanitizeForFirestore(phase2Result.sceneSummaries),
@@ -8077,6 +8078,7 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       }
 
       console.log('=== Phase 3 Complete ===')
+      console.log('Locations:', JSON.stringify(phase3Result.locations, null, 2))
 
       await bookRef.update({
         'bible.locations': sanitizeForFirestore(phase3Result.locations),

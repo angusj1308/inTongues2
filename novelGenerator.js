@@ -1486,13 +1486,22 @@ function validatePhase3(data, locationNames) {
     }
   }
 
+  // ── Helpers for fuzzy location matching ──
+  function normalizeForMatch(str) {
+    return str.toLowerCase().trim().replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+  }
+
+  function stripTimeWeather(str) {
+    return str.replace(/\s+(at\s+(dawn|dusk|midday|noon|night|sunrise|sunset)|in\s+the\s+(morning|afternoon|evening|rain|dark|moonlight|sunlight))$/i, '')
+  }
+
   // Fuzzy coverage check: every scene location must match at least one output location
-  const outputNames = data.locations.map(l => l.name.toLowerCase().trim())
+  const outputNames = data.locations.map(l => normalizeForMatch(l.name))
 
   for (const sceneLoc of locationNames) {
-    const sceneLocLower = sceneLoc.toLowerCase().trim()
+    const sceneLocNorm = stripTimeWeather(normalizeForMatch(sceneLoc))
     const matched = outputNames.some(outName =>
-      sceneLocLower.includes(outName) || outName.includes(sceneLocLower)
+      sceneLocNorm.includes(outName) || outName.includes(sceneLocNorm)
     )
     if (!matched) {
       throw new Error(`Phase 3: scene location "${sceneLoc}" has no matching entry in output`)

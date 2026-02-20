@@ -1020,7 +1020,7 @@ async function executePhase1(skeleton, setting) {
 
 const PHASE_2_SYSTEM_PROMPT = `You are a story architect creating scene-by-scene chapter summaries for an enemies-to-lovers romance. You receive a complete chapter skeleton with employment selections and end states, plus full character profiles from Phase 1.
 
-Your job: break every chapter into 2-5 scenes. Each scene is a unit of continuous action in one location with specific characters physically present.
+Your job: break every chapter into scenes. Write as many scenes as the chapter requires. No more. Each scene is a unit of continuous action in one location with specific characters physically present.
 
 RULES:
 
@@ -1064,7 +1064,7 @@ Return a single JSON object:
 IMPORTANT:
 - Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
 - Every chapter from the skeleton must appear in your output.
-- 2 to 5 scenes per chapter. No fewer, no more.
+- Write as many scenes as the chapter requires. No more.
 - Every employment selection must be realised in exactly one scene per chapter.
 - Scene chains must be continuous — no gaps, no jumps.`
 
@@ -1169,9 +1169,9 @@ function validatePhase2(data, skeleton) {
       )
     }
 
-    if (!Array.isArray(ch.scenes) || ch.scenes.length < 2 || ch.scenes.length > 5) {
+    if (!Array.isArray(ch.scenes) || ch.scenes.length < 1) {
       throw new Error(
-        `Phase 2: chapter ${ch.chapter} must have 2-5 scenes, got ${ch.scenes?.length ?? 0}`
+        `Phase 2: chapter ${ch.chapter} must have at least 1 scene, got ${ch.scenes?.length ?? 0}`
       )
     }
 

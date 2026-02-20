@@ -1031,7 +1031,7 @@ const PHASE_2_VALID_FUNCTIONS = [
 const PHASE_2_SYSTEM_PROMPT = `You are a story architect breaking a single chapter into scenes for an enemies-to-lovers romance. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
 
 Each scene has exactly three fields:
-- location: a specific physical place — not "the estancia" but "the estancia kitchen at dawn"
+- location: a place name only — not "the estancia" but "the estancia kitchen." No time of day, weather, light, or atmosphere
 - characters: only characters physically present in this scene
 - achieves: an array of functions this scene accomplishes
 
@@ -1104,7 +1104,7 @@ RULES:
 
 5. No padding scenes. "Elena reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene's only function is Realized, it should probably be folded into the scene that triggered the realization.
 
-6. Locations are specific. Not "the town" but "the well at the edge of the plaza, mid-morning." Specific enough for the prose generator to write a physical space.
+6. Locations are specific place names. Not "the town" but "the well at the edge of the plaza." No time of day, weather, or atmosphere — just the place.
 
 7. Characters present means physically present. Not mentioned, not remembered — in the room.
 
@@ -1114,7 +1114,7 @@ OUTPUT FORMAT:
 Return a JSON array of scenes for this chapter:
 [
   {
-    "location": "specific physical place with time or atmosphere detail",
+    "location": "the estancia kitchen",
     "characters": ["FirstName", "FirstName"],
     "achieves": [
       "Function: specific condition that is true by the end of this scene",

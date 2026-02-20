@@ -1030,7 +1030,7 @@ RULES:
 
 3. Scenes chain. Within a chapter, Scene 1's exitState flows naturally into Scene 2's entryState. Scene 2's exitState flows into Scene 3's entryState. The final scene's exitState must align with the chapter's endState from the skeleton. For Chapter 1, the first scene's entryState establishes the status quo. For later chapters, continue from the previous chapter's trajectory.
 
-4. Entry and exit states describe what the reader understands — not what the reader sees. 'The reader understands that her world is built on a wound' is a state. 'The reader sees him comfort her child' is an action with 'the reader' prepended. Describe understanding, not events.
+4. Both entry and exit states describe what the reader understands at that moment. Never use 'the reader sees.' Never copy text from the chapter end states or employment selections — write original states in your own words.
 
 5. Characters present means physically in the scene. Only list characters who are in the room, on the road, at the table. Not characters who are discussed, remembered, or thought about.
 

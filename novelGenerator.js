@@ -1711,7 +1711,7 @@ async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, l
   const response = await callClaude(PHASE_4_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-sonnet-4-20250514',
     temperature: 1.0,
-    maxTokens: 16000
+    maxTokens: 16385
   })
 
   validatePhase4(response, chapterNumber)

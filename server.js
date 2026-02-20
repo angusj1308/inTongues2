@@ -21,7 +21,7 @@ import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
-import { generateStory, callClaude, executePhase1, executePhase2, executePhase3 } from './novelGenerator.js'
+import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
@@ -8091,6 +8091,55 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       console.log(`Phase 3 saved to Firestore for book ${bookId}`)
 
       return res.status(200).json({ success: true, bookId, phase: 3, phaseComplete: true })
+
+    } else if (phase === 4) {
+      const bible = bookData.bible || {}
+      if (!bible.locations) {
+        return res.status(400).json({ error: 'Phase 3 must be completed before Phase 4' })
+      }
+      if (!bible.sceneSummaries) {
+        return res.status(400).json({ error: 'Phase 2 must be completed before Phase 4' })
+      }
+      if (!bible.concept?.characters) {
+        return res.status(400).json({ error: 'Phase 1 must be completed before Phase 4' })
+      }
+
+      const totalChapters = bible.sceneSummaries.chapters.length
+      console.log(`Executing Phase 4 for book ${bookId}: ${totalChapters} chapters`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 4 })
+
+      const characters = bible.concept.characters
+      const sceneSummaries = bible.sceneSummaries
+      const locations = bible.locations
+      const prose = []
+
+      for (let i = 1; i <= totalChapters; i++) {
+        console.log(`  Phase 4: writing chapter ${i}/${totalChapters}...`)
+        const chapterResult = await executePhase4Chapter(
+          i,
+          characters,
+          sceneSummaries,
+          locations,
+          prose
+        )
+        prose.push(sanitizeForFirestore(chapterResult))
+      }
+
+      console.log('=== Phase 4 Complete ===')
+      console.log(`  ${prose.length} chapters written`)
+
+      await bookRef.update({
+        'bible.prose': sanitizeForFirestore(prose),
+        currentPhase: 4,
+        status: 'phase_complete',
+        lastPhaseCompleted: 4,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 4 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 4, phaseComplete: true })
 
     } else {
       return res.status(501).json({ error: `Phase ${phase} not yet implemented` })

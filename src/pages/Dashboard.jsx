@@ -1539,17 +1539,6 @@ const Dashboard = () => {
                                       <span className="reading-shelf-generating-text">
                                         {isRegenerating ? 'Regenerating...' : 'Generating...'}
                                       </span>
-                                      {book.isGeneratedBook && (isGenerating || isRegenerating) && (
-                                        <button
-                                          className="book-tile-cancel-btn"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleCancelGeneration(e, book)
-                                          }}
-                                        >
-                                          Cancel
-                                        </button>
-                                      )}
                                     </div>
                                   )}
                                   {!isProcessing && (
@@ -1567,6 +1556,17 @@ const Dashboard = () => {
                                   )}
                                 </div>
                               </button>
+                              {book.isGeneratedBook && isProcessing && (
+                                <button
+                                  className="reading-shelf-cancel-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCancelGeneration(e, book)
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              )}
                             </div>
                           )
                         })}
@@ -1676,17 +1676,6 @@ const Dashboard = () => {
                                       <span className="reading-shelf-generating-text">
                                         {isRegenerating ? 'Regenerating...' : 'Generating...'}
                                       </span>
-                                      {book.isGeneratedBook && (isGenerating || isRegenerating) && (
-                                        <button
-                                          className="book-tile-cancel-btn"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleCancelGeneration(e, book)
-                                          }}
-                                        >
-                                          Cancel
-                                        </button>
-                                      )}
                                     </div>
                                   )}
                                   {!isProcessing && (
@@ -1704,6 +1693,17 @@ const Dashboard = () => {
                                   )}
                                 </div>
                               </button>
+                              {book.isGeneratedBook && isProcessing && (
+                                <button
+                                  className="reading-shelf-cancel-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCancelGeneration(e, book)
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              )}
                             </div>
                           )
                         })}

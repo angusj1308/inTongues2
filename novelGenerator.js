@@ -1461,6 +1461,24 @@ ${locationList}
 Describe each unique location. Consolidate duplicates that differ only by time of day or weather. Return the JSON object only.`
 }
 
+// ── Helpers for fuzzy location matching ──
+function normalizeForMatch(str) {
+  return str.toLowerCase().trim().replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+}
+
+function stripTimeWeather(str) {
+  return str.replace(/\s+(at\s+(dawn|dusk|midday|noon|night|sunrise|sunset)|in\s+the\s+(morning|afternoon|evening|rain|dark|moonlight|sunlight))$/i, '')
+}
+
+function wordOverlap(a, b) {
+  const stopWords = new Set(['the', 'a', 'an', 'of', 'at', 'in', 'on', 'by'])
+  const wordsA = a.split(/\s+/).filter(w => !stopWords.has(w) && w.length > 1)
+  const wordsB = new Set(b.split(/\s+/).filter(w => !stopWords.has(w) && w.length > 1))
+  if (wordsA.length === 0) return 0
+  const matches = wordsA.filter(w => wordsB.has(w)).length
+  return matches / wordsA.length
+}
+
 /**
  * Validate Phase 3 output: location descriptions.
  * Includes fuzzy matching to ensure every scene location is covered.
@@ -1486,22 +1504,14 @@ function validatePhase3(data, locationNames) {
     }
   }
 
-  // ── Helpers for fuzzy location matching ──
-  function normalizeForMatch(str) {
-    return str.toLowerCase().trim().replace(/[\u2018\u2019\u201A\u201B]/g, "'")
-  }
-
-  function stripTimeWeather(str) {
-    return str.replace(/\s+(at\s+(dawn|dusk|midday|noon|night|sunrise|sunset)|in\s+the\s+(morning|afternoon|evening|rain|dark|moonlight|sunlight))$/i, '')
-  }
-
   // Fuzzy coverage check: every scene location must match at least one output location
-  const outputNames = data.locations.map(l => normalizeForMatch(l.name))
+  const outputNames = data.locations.map(l => stripTimeWeather(normalizeForMatch(l.name)))
 
   for (const sceneLoc of locationNames) {
     const sceneLocNorm = stripTimeWeather(normalizeForMatch(sceneLoc))
     const matched = outputNames.some(outName =>
-      sceneLocNorm.includes(outName) || outName.includes(sceneLocNorm)
+      sceneLocNorm.includes(outName) || outName.includes(sceneLocNorm) ||
+      wordOverlap(sceneLocNorm, outName) >= 0.5 || wordOverlap(outName, sceneLocNorm) >= 0.5
     )
     if (!matched) {
       throw new Error(`Phase 3: scene location "${sceneLoc}" has no matching entry in output`)
@@ -1517,10 +1527,21 @@ function validatePhase3(data, locationNames) {
 async function executePhase3(sceneSummaries, setting) {
   console.log('\nExecuting Phase 3: Locations...')
 
-  const locationNames = extractUniqueLocations(sceneSummaries)
-  console.log(`  Unique location strings: ${locationNames.length}`)
+  const rawLocationNames = extractUniqueLocations(sceneSummaries)
 
-  const userPrompt = buildPhase3UserPrompt(locationNames, setting)
+  // Strip time/weather qualifiers and deduplicate so the LLM gets clean base names
+  const seenNorm = new Set()
+  const cleanedNames = []
+  for (const name of rawLocationNames) {
+    const norm = stripTimeWeather(normalizeForMatch(name))
+    if (!seenNorm.has(norm)) {
+      seenNorm.add(norm)
+      cleanedNames.push(stripTimeWeather(name))
+    }
+  }
+  console.log(`  Unique location strings: ${cleanedNames.length} (from ${rawLocationNames.length} raw)`)
+
+  const userPrompt = buildPhase3UserPrompt(cleanedNames, setting)
 
   const response = await callClaude(PHASE_3_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-sonnet-4-20250514',
@@ -1533,7 +1554,7 @@ async function executePhase3(sceneSummaries, setting) {
     throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
   }
 
-  validatePhase3(parsed.data, locationNames)
+  validatePhase3(parsed.data, cleanedNames)
   console.log('  Phase 3 validated successfully.')
 
   for (const loc of parsed.data.locations) {

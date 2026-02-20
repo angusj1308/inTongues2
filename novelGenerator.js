@@ -1566,6 +1566,165 @@ async function executePhase3(sceneSummaries, setting) {
   return { locations: parsed.data }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 4: Prose Generation
+// One LLM call per chapter, sequential. Each call writes one complete chapter.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const PHASE_4_SYSTEM_PROMPT = `You are writing a romance novel in the prose style of Emily Brontë. Write the next chapter as continuous prose.
+
+Each scene in the chapter has a list of conditions that must be true by the end of that scene. Do not narrate the labels — just make the conditions true through the prose. The reader should never feel they are reading a checklist.
+
+Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.`
+
+function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse) {
+  const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
+  const previousChapters = sceneSummaries.chapters.slice(0, chapterNumber - 1)
+
+  // ── Block 1: Characters ──
+  let characterBlock = `=== CHARACTERS ===
+
+--- PROTAGONIST ---
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
+Appearance: ${characters.protagonist.appearance}
+
+--- PRIMARY ---
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}
+Appearance: ${characters.primary.appearance}`
+
+  if (characters.rival) {
+    characterBlock += `
+
+--- RIVAL ---
+Backstory: ${characters.rival.backstory}
+Psychology: ${characters.rival.psychology}
+Voice and mannerisms: ${characters.rival.voiceAndMannerisms}
+Appearance: ${characters.rival.appearance}`
+  }
+
+  if (characters.cast && characters.cast.length > 0) {
+    for (const member of characters.cast) {
+      characterBlock += `
+
+--- ${member.functionId} (${member.employmentOption}) ---
+Backstory: ${member.backstory}
+Psychology: ${member.psychology}
+Voice and mannerisms: ${member.voiceAndMannerisms}
+Appearance: ${member.appearance}`
+    }
+  }
+
+  // ── Block 2: Locations (this chapter only) ──
+  const chapterLocationNames = new Set()
+  for (const scene of chapterSummary.scenes) {
+    chapterLocationNames.add(normalizeForMatch(scene.location))
+  }
+
+  const locationArray = locations.locations || locations
+  const relevantLocations = locationArray.filter(loc =>
+    chapterLocationNames.has(normalizeForMatch(loc.name)) ||
+    [...chapterLocationNames].some(sceneLoc =>
+      normalizeForMatch(loc.name).includes(sceneLoc) || sceneLoc.includes(normalizeForMatch(loc.name)) ||
+      wordOverlap(sceneLoc, normalizeForMatch(loc.name)) >= 0.5
+    )
+  )
+
+  let locationBlock = '=== LOCATIONS ==='
+  for (const loc of relevantLocations) {
+    locationBlock += `
+
+--- ${loc.name} ---
+Physical: ${loc.physicalDescription}
+Sensory: ${loc.sensoryEnvironment}`
+  }
+
+  // ── Block 3: Previous chapters' scene summaries (the ledger) ──
+  let ledgerBlock = ''
+  if (previousChapters.length > 0) {
+    ledgerBlock = '=== STORY SO FAR (scene summaries) ==='
+    for (const ch of previousChapters) {
+      ledgerBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---`
+      for (let i = 0; i < ch.scenes.length; i++) {
+        const scene = ch.scenes[i]
+        ledgerBlock += `\nScene ${i + 1}: ${scene.location}`
+        ledgerBlock += `\n  Characters: ${scene.characters.join(', ')}`
+        ledgerBlock += `\n  Achieves:`
+        for (const a of scene.achieves) {
+          ledgerBlock += `\n    - ${a}`
+        }
+      }
+    }
+  }
+
+  // ── Block 4: Previous chapter's prose ──
+  let previousProseBlock = ''
+  if (previousProse) {
+    previousProseBlock = `=== PREVIOUS CHAPTER'S PROSE ===
+
+${previousProse}`
+  }
+
+  // ── Block 5: This chapter's scene summaries ──
+  let thisChapterBlock = `=== THIS CHAPTER: Chapter ${chapterSummary.chapter}: "${chapterSummary.title}" ===`
+  for (let i = 0; i < chapterSummary.scenes.length; i++) {
+    const scene = chapterSummary.scenes[i]
+    thisChapterBlock += `\n\nScene ${i + 1}: ${scene.location}`
+    thisChapterBlock += `\n  Characters: ${scene.characters.join(', ')}`
+    thisChapterBlock += `\n  Achieves:`
+    for (const a of scene.achieves) {
+      thisChapterBlock += `\n    - ${a}`
+    }
+  }
+
+  // ── Assemble ──
+  const blocks = [characterBlock, locationBlock]
+  if (ledgerBlock) blocks.push(ledgerBlock)
+  if (previousProseBlock) blocks.push(previousProseBlock)
+  blocks.push(thisChapterBlock)
+
+  return blocks.join('\n\n') + `\n\nWrite Chapter ${chapterSummary.chapter}: "${chapterSummary.title}"`
+}
+
+function validatePhase4(prose, chapterNumber) {
+  if (!prose || typeof prose !== 'string') {
+    throw new Error(`Phase 4: chapter ${chapterNumber} returned empty or non-string response`)
+  }
+  if (prose.length < 500) {
+    throw new Error(`Phase 4: chapter ${chapterNumber} prose too short (${prose.length} chars, minimum 500)`)
+  }
+}
+
+async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, locations, previousChaptersProse) {
+  const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
+  const previousProse = previousChaptersProse.length > 0
+    ? previousChaptersProse[previousChaptersProse.length - 1].prose
+    : ''
+
+  console.log(`\n  Writing Chapter ${chapterNumber}: "${chapterSummary.title}" (${chapterSummary.scenes.length} scenes)...`)
+
+  const userPrompt = buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse)
+
+  const response = await callClaude(PHASE_4_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 16000
+  })
+
+  validatePhase4(response, chapterNumber)
+
+  console.log(`  Chapter ${chapterNumber} complete: ${response.length} chars`)
+
+  return {
+    chapter: chapterSummary.chapter,
+    title: chapterSummary.title,
+    prose: response
+  }
+}
+
 /**
  * Pipeline entry point.
  * Rolls a skeleton, generates characters (Phase 1), scene summaries (Phase 2),
@@ -1579,7 +1738,27 @@ export async function generateStory(setting) {
   const phase1 = await executePhase1(skeleton, setting)
   const phase2 = await executePhase2(skeleton, phase1.characters, setting)
   const phase3 = await executePhase3(phase2.sceneSummaries, setting)
-  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations }
+
+  // Phase 4: Prose generation — one chapter at a time, sequential
+  console.log('\n=== Phase 4: Prose Generation ===')
+  const totalChapters = phase2.sceneSummaries.chapters.length
+  console.log(`  Writing ${totalChapters} chapters...`)
+
+  const prose = []
+  for (let i = 1; i <= totalChapters; i++) {
+    const chapterResult = await executePhase4Chapter(
+      i,
+      phase1.characters,
+      phase2.sceneSummaries,
+      phase3.locations,
+      prose
+    )
+    prose.push(chapterResult)
+  }
+
+  console.log(`\nPhase 4 complete. ${prose.length} chapters written.`)
+
+  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations, prose }
 }
 
 export {
@@ -1591,6 +1770,7 @@ export {
   executePhase1,
   executePhase2,
   executePhase3,
+  executePhase4Chapter,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS
@@ -1604,6 +1784,7 @@ export default {
   executePhase1,
   executePhase2,
   executePhase3,
+  executePhase4Chapter,
   CONFIG,
   LEVEL_DEFINITIONS,
   LANGUAGE_LEVEL_ADJUSTMENTS

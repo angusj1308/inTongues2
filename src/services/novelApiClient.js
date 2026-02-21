@@ -147,12 +147,15 @@ export async function regeneratePhases(params) {
  * @returns {Promise<Object>} Phase execution result
  */
 export async function executePhase(params) {
-  const { uid, bookId, phase } = params
+  const { uid, bookId, phase, chapterNumber } = params
+
+  const body = { uid, bookId, phase }
+  if (chapterNumber !== undefined) body.chapterNumber = chapterNumber
 
   const response = await fetch(`${API_BASE}/api/generate/execute-phase`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uid, bookId, phase }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {

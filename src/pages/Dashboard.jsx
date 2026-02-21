@@ -1035,23 +1035,30 @@ const Dashboard = () => {
 
     const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
 
-    // After Phase 4, redo means regenerate current scene
-    if (currentPhase >= 4 && book.nextSceneIndex > 0) {
-      const sceneToRedo = (book.nextSceneIndex || 1) - 1
+    // Phase 4: redo means regenerate the last generated chapter
+    if (currentPhase >= 4) {
+      const chaptersGenerated = book.chaptersGenerated || book.bible?.prose?.length || 0
+      if (chaptersGenerated < 1) {
+        alert('No chapter to redo. Click ▶ to generate the first chapter.')
+        return
+      }
+
+      const chapterToRedo = chaptersGenerated
       const confirmed = window.confirm(
-        `Regenerate Scene ${sceneToRedo + 1}?\n\nThis will re-generate the scene with fresh prose.`
+        `Regenerate Chapter ${chapterToRedo}?\n\nThis will discard the current version and write it fresh.`
       )
       if (!confirmed) return
 
       try {
-        await executeScene({
+        await executePhase({
           uid: user.uid,
           bookId: book.id,
-          sceneIndex: sceneToRedo
+          phase: 4,
+          chapterNumber: chapterToRedo
         })
       } catch (err) {
-        console.error(`Error regenerating scene ${sceneToRedo}:`, err)
-        alert(`Failed to regenerate scene: ${err.message}`)
+        console.error(`Error regenerating chapter ${chapterToRedo}:`, err)
+        alert(`Failed to regenerate chapter: ${err.message}`)
       }
       return
     }

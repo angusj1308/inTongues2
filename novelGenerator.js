@@ -1660,12 +1660,13 @@ Sensory: ${loc.sensoryEnvironment}`
     }
   }
 
-  // ── Block 4: Previous chapter's prose ──
+  // ── Block 4: All previous chapters' prose ──
   let previousProseBlock = ''
-  if (previousProse) {
-    previousProseBlock = `=== PREVIOUS CHAPTER'S PROSE ===
-
-${previousProse}`
+  if (previousProse && previousProse.length > 0) {
+    previousProseBlock = '=== PREVIOUS CHAPTERS PROSE ==='
+    for (const ch of previousProse) {
+      previousProseBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---\n${ch.prose}`
+    }
   }
 
   // ── Block 5: This chapter's scene summaries ──
@@ -1700,9 +1701,7 @@ function validatePhase4(prose, chapterNumber) {
 
 async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, locations, previousChaptersProse) {
   const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
-  const previousProse = previousChaptersProse.length > 0
-    ? previousChaptersProse[previousChaptersProse.length - 1].prose
-    : ''
+  const previousProse = previousChaptersProse || []
 
   console.log(`\n  Writing Chapter ${chapterNumber}: "${chapterSummary.title}" (${chapterSummary.scenes.length} scenes)...`)
 
@@ -1739,26 +1738,10 @@ export async function generateStory(setting) {
   const phase2 = await executePhase2(skeleton, phase1.characters, setting)
   const phase3 = await executePhase3(phase2.sceneSummaries, setting)
 
-  // Phase 4: Prose generation — one chapter at a time, sequential
-  console.log('\n=== Phase 4: Prose Generation ===')
-  const totalChapters = phase2.sceneSummaries.chapters.length
-  console.log(`  Writing ${totalChapters} chapters...`)
+  // Phase 4 is now caller-driven, one chapter at a time
+  console.log('\n=== Phases 1-3 Complete. Use executePhase4Chapter for prose. ===')
 
-  const prose = []
-  for (let i = 1; i <= totalChapters; i++) {
-    const chapterResult = await executePhase4Chapter(
-      i,
-      phase1.characters,
-      phase2.sceneSummaries,
-      phase3.locations,
-      prose
-    )
-    prose.push(chapterResult)
-  }
-
-  console.log(`\nPhase 4 complete. ${prose.length} chapters written.`)
-
-  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations, prose }
+  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations }
 }
 
 export {

@@ -8105,41 +8105,76 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       }
 
       const totalChapters = bible.sceneSummaries.chapters.length
-      console.log(`Executing Phase 4 for book ${bookId}: ${totalChapters} chapters`)
+      const existingProse = bible.prose || []
+
+      // Determine which chapter to generate
+      const requestedChapter = req.body.chapterNumber
+      const chapterNumber = requestedChapter !== undefined
+        ? Number(requestedChapter)
+        : existingProse.length + 1
+
+      if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+        return res.status(400).json({ error: `Invalid chapterNumber: ${chapterNumber}. Must be a positive integer.` })
+      }
+      if (chapterNumber > totalChapters) {
+        return res.status(400).json({ error: `chapterNumber ${chapterNumber} exceeds totalChapters (${totalChapters}).` })
+      }
+
+      const alreadyGenerated = existingProse.find(p => p.chapter === chapterNumber)
+      if (alreadyGenerated) {
+        return res.status(409).json({ error: `Chapter ${chapterNumber} has already been generated.`, chapter: alreadyGenerated })
+      }
+
+      const expectedNext = existingProse.length + 1
+      if (chapterNumber !== expectedNext) {
+        console.warn(`Warning: generating chapter ${chapterNumber} out of order (expected ${expectedNext})`)
+      }
+
+      console.log(`Executing Phase 4 for book ${bookId}: chapter ${chapterNumber}/${totalChapters}`)
 
       await bookRef.update({ status: 'generating', currentPhase: 4 })
 
       const characters = bible.concept.characters
       const sceneSummaries = bible.sceneSummaries
       const locations = bible.locations
-      const prose = []
+      const previousChaptersProse = existingProse.filter(p => p.chapter < chapterNumber)
 
-      for (let i = 1; i <= totalChapters; i++) {
-        console.log(`  Phase 4: writing chapter ${i}/${totalChapters}...`)
-        const chapterResult = await executePhase4Chapter(
-          i,
-          characters,
-          sceneSummaries,
-          locations,
-          prose
-        )
-        prose.push(sanitizeForFirestore(chapterResult))
-      }
+      const chapterResult = await executePhase4Chapter(
+        chapterNumber,
+        characters,
+        sceneSummaries,
+        locations,
+        previousChaptersProse
+      )
 
-      console.log('=== Phase 4 Complete ===')
-      console.log(`  ${prose.length} chapters written`)
+      const updatedProse = [...existingProse, sanitizeForFirestore(chapterResult)]
+      updatedProse.sort((a, b) => a.chapter - b.chapter)
+
+      const isLastChapter = updatedProse.length === totalChapters
+
+      console.log(`\n=== Chapter ${chapterNumber}: "${chapterResult.title}" ===`)
+      console.log(chapterResult.prose)
 
       await bookRef.update({
-        'bible.prose': sanitizeForFirestore(prose),
+        'bible.prose': sanitizeForFirestore(updatedProse),
         currentPhase: 4,
-        status: 'phase_complete',
-        lastPhaseCompleted: 4,
+        status: isLastChapter ? 'phase_complete' : 'generating',
+        lastPhaseCompleted: isLastChapter ? 4 : (bookData.lastPhaseCompleted || 3),
         lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
       })
 
-      console.log(`Phase 4 saved to Firestore for book ${bookId}`)
+      console.log(`Phase 4 chapter ${chapterNumber} saved to Firestore for book ${bookId}`)
 
-      return res.status(200).json({ success: true, bookId, phase: 4, phaseComplete: true })
+      return res.status(200).json({
+        success: true,
+        bookId,
+        phase: 4,
+        chapterNumber,
+        totalChapters,
+        chaptersGenerated: updatedProse.length,
+        phaseComplete: isLastChapter,
+        chapter: { chapter: chapterResult.chapter, title: chapterResult.title, prose: chapterResult.prose }
+      })
 
     } else {
       return res.status(501).json({ error: `Phase ${phase} not yet implemented` })

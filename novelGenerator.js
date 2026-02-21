@@ -1575,7 +1575,9 @@ const PHASE_4_SYSTEM_PROMPT = `You are writing a romance novel in the prose styl
 
 Each scene in the chapter has a list of conditions that must be true by the end of that scene. Do not narrate the labels — just make the conditions true through the prose. The reader should never feel they are reading a checklist.
 
-Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.`
+Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.
+
+Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact. If a detail was established in a previous chapter, match it exactly.`
 
 function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse) {
   const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]

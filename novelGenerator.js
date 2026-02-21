@@ -1591,9 +1591,10 @@ Rules:
 - Only fix contradictions. Do not alter style, tone, pacing, word choice, or prose quality.
 - Do not add content. Do not remove content unless it directly contradicts established facts.
 - When fixing a contradiction, change the minimum number of words necessary to resolve it.
+- No newly introduced character may share a name (first or last) with any character in the character documents or any character previously named in the prose. If a duplicate name is found, replace it with a different name that fits the setting and time period.
 - If you find no contradictions, return the chapter unchanged.
 
-Return the complete chapter text with any corrections applied. Do not return a list of changes — return the full corrected prose only.`
+Return ONLY the complete chapter text. No analysis, no commentary, no preamble, no explanation, no headers. Your entire response must be the chapter prose and nothing else.`
 
 async function validateAndFixCoherence(prose, characters, locations, sceneSummaries, previousChaptersProse) {
   // ── Character block (same format as writing call) ──
@@ -1679,11 +1680,22 @@ ${prose}`
   blocks.push(newChapterBlock)
   const userPrompt = blocks.join('\n\n') + '\n\nFind and fix any contradictions in the new chapter. Return the complete corrected chapter text.'
 
-  const corrected = await callClaude(COHERENCE_VALIDATION_SYSTEM_PROMPT, userPrompt, {
+  let corrected = await callClaude(COHERENCE_VALIDATION_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-sonnet-4-20250514',
     temperature: 0,
     maxTokens: 16385
   })
+
+  // Strip any commentary preamble the validator may have prepended.
+  // Find the first line of the original prose and discard everything before it.
+  const firstLine = prose.split('\n').find(l => l.trim().length > 0)
+  if (firstLine && !corrected.trimStart().startsWith(firstLine.trim())) {
+    const idx = corrected.indexOf(firstLine.trim())
+    if (idx > 0) {
+      console.log(`  Coherence validator prepended commentary (${idx} chars) — stripping.`)
+      corrected = corrected.slice(idx)
+    }
+  }
 
   return corrected
 }

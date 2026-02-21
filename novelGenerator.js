@@ -1579,6 +1579,115 @@ Write in third person limited from the protagonist's perspective. Scenes flow in
 
 Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact. If a detail was established in a previous chapter, match it exactly.`
 
+const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your sole task is to find and fix contradictions in the new chapter.
+
+Check the new chapter against:
+- Character documents: names, ages, relationships, appearances, backstories, psychology, voice and mannerisms. Every fact in the character documents is authoritative. The prose must not contradict any of them.
+- Location documents: physical descriptions, sensory details. Every fact in the location documents is authoritative. The prose must not contradict any of them.
+- Scene summaries: planned events and character appearances.
+- Previous chapters' prose: any detail established in earlier chapters is canon. Ages, object descriptions, names, events, decisions, unresolved plot threads — all must remain consistent.
+
+Rules:
+- Only fix contradictions. Do not alter style, tone, pacing, word choice, or prose quality.
+- Do not add content. Do not remove content unless it directly contradicts established facts.
+- When fixing a contradiction, change the minimum number of words necessary to resolve it.
+- If you find no contradictions, return the chapter unchanged.
+
+Return the complete chapter text with any corrections applied. Do not return a list of changes — return the full corrected prose only.`
+
+async function validateAndFixCoherence(prose, characters, locations, sceneSummaries, previousChaptersProse) {
+  // ── Character block (same format as writing call) ──
+  let characterBlock = `=== CHARACTER DOCUMENTS ===
+
+--- PROTAGONIST ---
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
+Appearance: ${characters.protagonist.appearance}
+
+--- PRIMARY ---
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}
+Appearance: ${characters.primary.appearance}`
+
+  if (characters.rival) {
+    characterBlock += `
+
+--- RIVAL ---
+Backstory: ${characters.rival.backstory}
+Psychology: ${characters.rival.psychology}
+Voice and mannerisms: ${characters.rival.voiceAndMannerisms}
+Appearance: ${characters.rival.appearance}`
+  }
+
+  if (characters.cast?.length > 0) {
+    for (const member of characters.cast) {
+      characterBlock += `
+
+--- ${member.functionId} (${member.employmentOption}) ---
+Backstory: ${member.backstory}
+Psychology: ${member.psychology}
+Voice and mannerisms: ${member.voiceAndMannerisms}
+Appearance: ${member.appearance}`
+    }
+  }
+
+  // ── Location block (ALL locations, not filtered) ──
+  const locationArray = locations.locations || locations
+  let locationBlock = '=== LOCATION DOCUMENTS ==='
+  for (const loc of locationArray) {
+    locationBlock += `
+
+--- ${loc.name} ---
+Physical: ${loc.physicalDescription}
+Sensory: ${loc.sensoryEnvironment}`
+  }
+
+  // ── Scene summaries (ALL chapters) ──
+  let summariesBlock = '=== SCENE SUMMARIES ==='
+  for (const ch of sceneSummaries.chapters) {
+    summariesBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---`
+    for (let i = 0; i < ch.scenes.length; i++) {
+      const scene = ch.scenes[i]
+      summariesBlock += `\nScene ${i + 1}: ${scene.location}`
+      summariesBlock += `\n  Characters: ${scene.characters.join(', ')}`
+      summariesBlock += `\n  Achieves:`
+      for (const a of scene.achieves) {
+        summariesBlock += `\n    - ${a}`
+      }
+    }
+  }
+
+  // ── Previous chapters' prose ──
+  let previousProseBlock = ''
+  if (previousChaptersProse?.length > 0) {
+    previousProseBlock = '=== PREVIOUS CHAPTERS PROSE ==='
+    for (const ch of previousChaptersProse) {
+      previousProseBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---\n${ch.prose}`
+    }
+  }
+
+  // ── New chapter ──
+  const newChapterBlock = `=== NEW CHAPTER TO VALIDATE ===
+
+${prose}`
+
+  // ── Assemble ──
+  const blocks = [characterBlock, locationBlock, summariesBlock]
+  if (previousProseBlock) blocks.push(previousProseBlock)
+  blocks.push(newChapterBlock)
+  const userPrompt = blocks.join('\n\n') + '\n\nFind and fix any contradictions in the new chapter. Return the complete corrected chapter text.'
+
+  const corrected = await callClaude(COHERENCE_VALIDATION_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 0,
+    maxTokens: 16385
+  })
+
+  return corrected
+}
+
 function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse) {
   const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
   const previousChapters = sceneSummaries.chapters.slice(0, chapterNumber - 1)
@@ -1717,12 +1826,15 @@ async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, l
 
   validatePhase4(response, chapterNumber)
 
-  console.log(`  Chapter ${chapterNumber} complete: ${response.length} chars`)
+  console.log(`  Chapter ${chapterNumber} draft: ${response.length} chars — running coherence validation...`)
+  const correctedProse = await validateAndFixCoherence(response, characters, locations, sceneSummaries, previousProse)
+  validatePhase4(correctedProse, chapterNumber)
+  console.log(`  Chapter ${chapterNumber} validated: ${correctedProse.length} chars`)
 
   return {
     chapter: chapterSummary.chapter,
     title: chapterSummary.title,
-    prose: response
+    prose: correctedProse
   }
 }
 

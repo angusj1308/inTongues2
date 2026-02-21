@@ -8158,9 +8158,11 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       await bookRef.update({
         'bible.prose': sanitizeForFirestore(updatedProse),
         currentPhase: 4,
-        status: isLastChapter ? 'phase_complete' : 'generating',
+        status: 'phase_complete',
         lastPhaseCompleted: isLastChapter ? 4 : (bookData.lastPhaseCompleted || 3),
-        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
+        chaptersGenerated: updatedProse.length,
+        totalChapters,
       })
 
       console.log(`Phase 4 chapter ${chapterNumber} saved to Firestore for book ${bookId}`)

@@ -8120,8 +8120,12 @@ app.post('/api/generate/execute-phase', async (req, res) => {
         return res.status(400).json({ error: `chapterNumber ${chapterNumber} exceeds totalChapters (${totalChapters}).` })
       }
 
+      // If chapter was explicitly requested and already exists, remove it (redo)
       const alreadyGenerated = existingProse.find(p => p.chapter === chapterNumber)
-      if (alreadyGenerated) {
+      if (alreadyGenerated && requestedChapter !== undefined) {
+        console.log(`Redo: removing existing chapter ${chapterNumber} before regenerating`)
+        existingProse.splice(existingProse.indexOf(alreadyGenerated), 1)
+      } else if (alreadyGenerated) {
         return res.status(409).json({ error: `Chapter ${chapterNumber} has already been generated.`, chapter: alreadyGenerated })
       }
 

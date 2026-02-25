@@ -731,6 +731,7 @@ RULES:
 8. If triangle is YES, the rival is the safe option personified — stable, respectable, everything the framework endorses. But he has a latent flaw that will surface later. Plant it subtly in his psychology without declaring it.
 9. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
 10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
+11. The protagonist's backstory must be compatible with the Chapter 1 starting condition provided. Her world at the start of the story must match this condition. If it says her world is safe and stable, she is not in hiding, not in danger, not living a double life. Build backward from the starting condition — what kind of woman, in this setting, would have a world that looks like that?
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -801,8 +802,8 @@ IMPORTANT:
 /**
  * Build the user prompt for Call 1: protagonist, primary, and optionally rival.
  */
-function buildCall1UserPrompt(setting, tension, tensionFramework, triangle) {
-  return `=== SETTING ===
+function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition) {
+  let prompt = `=== SETTING ===
 ${setting}
 
 === TENSION TYPE ===
@@ -812,9 +813,20 @@ ${tension}
 ${tensionFramework}
 
 === TRIANGLE ===
-${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}
+${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}`
+
+  if (ch1StartingCondition) {
+    prompt += `
+
+=== CHAPTER 1 STARTING CONDITION ===
+${ch1StartingCondition}`
+  }
+
+  prompt += `
 
 Create the protagonist (she), the primary (he)${triangle ? ', and the rival' : ''}. Return the JSON object only.`
+
+  return prompt
 }
 
 /**
@@ -950,10 +962,16 @@ async function executePhase1(skeleton, setting) {
   const triangle = skeleton.triangle
   const tensionFramework = TENSION_FRAMEWORK_DESCRIPTIONS[tension]
 
+  // ── Extract Ch.1 starting condition from the chapter blueprint ──────
+  const ch1StartingCondition = skeleton.chapters.length > 0
+    && skeleton.chapters[0].employmentSelections.length > 0
+    ? skeleton.chapters[0].employmentSelections[0].text
+    : null
+
   // ── Call 1: Protagonist, Primary, and optionally Rival ──────────────
   console.log('\n  Call 1: Generating protagonist, primary' + (triangle ? ', and rival...' : '...'))
 
-  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle)
+  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition)
 
   const call1Response = await callClaude(PHASE_1_CALL1_SYSTEM_PROMPT, call1UserPrompt, {
     model: 'claude-sonnet-4-20250514',

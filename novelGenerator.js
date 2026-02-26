@@ -1037,101 +1037,43 @@ async function executePhase1(skeleton, setting) {
 // PHASE 2: SCENE SUMMARIES
 // =============================================================================
 
-const PHASE_2_VALID_FUNCTIONS = [
-  'Established', 'Revealed', 'Planted', 'Foreshadowed', 'Clarified', 'Withheld',
-  'Shifted', 'Bonded', 'Fractured', 'Tested', 'Mirrored', 'Contrasted',
-  'Escalated', 'Complicated', 'Trapped', 'Ticking', 'Suspended',
-  'Broken', 'Confirmed', 'Challenged', 'Realized', 'Denied',
-  'Exposed', 'Earned', 'Wounded', 'Decided', 'Regressed', 'Transformed',
-  'Grounded', 'Textured', 'Pressured', 'Juxtaposed',
-  'Delivered', 'Paid off', 'Bridged', 'Resolved', 'Opened'
-]
-
 const PHASE_2_SYSTEM_PROMPT = `${CHAPTER_ARCHITECTURE_ESSAY}
 
 The essay above is your guide to chapter construction. Use it when deciding how many scenes this chapter needs, what each scene does, how they sequence, and where the employment option lands. The rules below govern your output format.
 
-You are a story architect breaking a single chapter into scenes for an enemies-to-lovers romance. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
+You are a story architect breaking a single chapter into scenes. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
 
 Each scene has exactly three fields:
 - location: a place name only — not "the estancia" but "the estancia kitchen." No time of day, weather, light, or atmosphere
 - characters: only characters physically present in this scene
-- achieves: an array of functions this scene accomplishes
+- synopsis: a paragraph describing what happens in the scene — who does what, what changes, and what is true by the end
 
-SCENE FUNCTIONS — VOCABULARY (33 functions)
+SYNOPSIS GUIDELINES:
 
-Each achieves entry uses a label from this list, followed by a colon, followed by the specific condition that is true by the end of the scene.
+The synopsis is a dense paragraph — not a list of bullet points or labels. It describes the scene's dramatic action: what the characters do, what shifts between them, what information surfaces, what pressure builds or breaks, and what condition holds when the scene ends.
 
-Information:
-- Established — a fact about the world, character, or relationship is now understood
-- Revealed — something previously hidden is exposed, changing understanding of what came before
-- Planted — a detail is introduced that WILL return later in the story. If it's just world-building or backstory context, use Established or Textured instead
-- Foreshadowed — a hint points toward future events without revealing them
-- Clarified — something previously ambiguous is made clear
-- Withheld — the reader learns something important exists but is kept from knowing it
+Write in present tense. Focus on specifics, not abstractions. "Marco confronts Elena about the missing ledger; she deflects by pointing out his own debts, and the argument ends with both aware the other is hiding something" — not "tension rises between the characters."
 
-Relationship:
-- Shifted — the relationship between two characters has changed direction or quality
-- Bonded — characters are closer, more trusting, or more allied
-- Fractured — trust, closeness, or alliance is damaged
-- Tested — loyalty, commitment, or trust is put under pressure
-- Mirrored — two characters are shown to be more alike than either would admit
-- Contrasted — two characters or relationships are placed side by side to highlight differences
-
-Stakes & Tension:
-- Escalated — danger, consequences, urgency, or intensity has increased
-- Complicated — a new obstacle, constraint, or contradiction has been introduced
-- Trapped — a character's options have narrowed, commitments becoming irreversible
-- Ticking — a time pressure or deadline is established or advanced
-- Suspended — tension is held without resolution
-
-Belief & Understanding:
-- Broken — a belief, assumption, or self-deception has been destroyed
-- Confirmed — a suspicion, fear, or hope has been validated
-- Challenged — a belief is under pressure but not yet broken
-- Realized — a character comes to understand something about themselves or their situation
-- Denied — a character refuses to accept what is becoming clear (dramatic irony)
-
-Character:
-- Exposed — a character's true nature or hidden motive is shown under pressure
-- Earned — a character's quality is demonstrated through action, not dialogue
-- Wounded — a character suffers damage that affects what comes next
-- Decided — a character commits to a course of action, crossing a threshold
-- Regressed — a character falls back into old patterns or defenses
-- Transformed — a character has fundamentally changed (rare, late-story)
-
-World & Atmosphere:
-- Grounded — the physical/social/historical world is made tangible through lived detail
-- Textured — sensory or cultural detail deepens immersion beyond what plot requires
-- Pressured — the external world exerts force on the characters
-- Juxtaposed — two conditions or worlds are placed side by side within the scene
-
-Structural:
-- Delivered — an obligatory genre beat or blueprint requirement is satisfied
-- Paid off — something previously planted has come to fruition
-- Bridged — transition across time or space without dead air
-- Resolved — a question or thread is answered or closed
-- Opened — a new question or thread is introduced that carries forward
-
-VALID LABELS (closed set — use ONLY these exact words, no synonyms, no variations): Established, Revealed, Planted, Foreshadowed, Clarified, Withheld, Shifted, Bonded, Fractured, Tested, Mirrored, Contrasted, Escalated, Complicated, Trapped, Ticking, Suspended, Broken, Confirmed, Challenged, Realized, Denied, Exposed, Earned, Wounded, Decided, Regressed, Transformed, Grounded, Textured, Pressured, Juxtaposed, Delivered, Paid off, Bridged, Resolved, Opened. Any label not in this list will cause a system error.
+The synopsis should make clear:
+1. What the employment option or end state achieves in this scene (if this is the scene that delivers it)
+2. What has changed by the scene's end — in relationships, knowledge, stakes, or character positions
+3. Enough concrete detail that a prose writer can dramatize the scene without inventing new plot
 
 RULES:
 
-1. Employment option is mandatory. This chapter has one. It must appear as a Delivered function in exactly one scene. But it is not the only thing happening — other scenes do other work.
+1. Employment option is mandatory. This chapter has one. It must be delivered in exactly one scene's synopsis. But it is not the only thing happening — other scenes do other work.
 
-2. Earn your place. Every scene must list at least two functions. If you can't name what a scene accomplishes, it doesn't exist.
+2. Earn your place. Every scene must accomplish something. If you can't describe what a scene changes or establishes, it doesn't exist.
 
 3. No default scene count. Write as many scenes as the chapter requires. No more. Could be 1, could be 6. No uniform number.
 
-4. Functions are conditions, not actions. After the colon, write what is NOW TRUE when the scene ends — not how it became true. Never use verbs like "reveals," "shows," "admits," "discloses," "demonstrates," or "warns." Those describe what happens in the scene. You describe what is true when it's over.
+4. No padding scenes. "The protagonist reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene exists only for a character to think, fold that into the scene that triggered it.
 
-5. No padding scenes. "Elena reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene's only function is Realized, it should probably be folded into the scene that triggered the realization.
+5. Locations are specific place names. Not "the town" but "the well at the edge of the plaza." No time of day, weather, or atmosphere — just the place.
 
-6. Locations are specific place names. Not "the town" but "the well at the edge of the plaza." No time of day, weather, or atmosphere — just the place.
+6. Characters present means physically present. Not mentioned, not remembered — in the room.
 
-7. Characters present means physically present. Not mentioned, not remembered — in the room.
-
-8. Chapter end state from the blueprint becomes a Delivered function. One scene must achieve it. It may be the final scene or it may not — the end state might be achieved early and the chapter continues past it.
+7. Chapter end state from the blueprint must be delivered. One scene's synopsis must show it happening.
 
 OUTPUT FORMAT:
 Return a JSON array of scenes for this chapter:
@@ -1139,18 +1081,14 @@ Return a JSON array of scenes for this chapter:
   {
     "location": "the estancia kitchen",
     "characters": ["FirstName", "FirstName"],
-    "achieves": [
-      "Function: specific condition that is true by the end of this scene",
-      "Function: another specific condition"
-    ]
+    "synopsis": "A paragraph describing what happens in this scene, who does what, what changes, and what is true by the end."
   }
 ]
 
 IMPORTANT:
 - Return ONLY the JSON array. No preamble, no explanation, no markdown fences.
 - Use character names from the profiles. Read the backstory paragraphs of every character to find their names. Use those exact first names.
-- Cast members serve their function. When a cast member appears, they should be doing something consistent with their narrative function.
-- Every achieves entry must start with a function label from the vocabulary above, followed by a colon, followed by a specific condition.`
+- Cast members serve their function. When a cast member appears, they should be doing something consistent with their narrative function.`
 
 /**
  * Build the user prompt for Phase 2: a single chapter's scene generation.
@@ -1230,10 +1168,7 @@ End state: ${chapterBlueprint.endState}`
         const scene = prev.scenes[i]
         previousBlock += `Scene ${i + 1}: ${scene.location}\n`
         previousBlock += `  Characters: ${scene.characters.join(', ')}\n`
-        previousBlock += `  Achieves:\n`
-        for (const a of scene.achieves) {
-          previousBlock += `    - ${a}\n`
-        }
+        previousBlock += `  Synopsis: ${scene.synopsis}\n`
       }
     }
   }
@@ -1250,7 +1185,7 @@ Break this chapter into scenes. Return the JSON array only.`
 }
 
 /**
- * Validate a single chapter's Phase 2 output: array of scenes with achieves.
+ * Validate a single chapter's Phase 2 output: array of scenes with synopsis.
  *
  * @param {Array} scenes - Array of scene objects from LLM response
  * @param {number} chapterNum - Chapter number for error messages
@@ -1263,8 +1198,6 @@ function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapter
       `Phase 2: chapter ${chapterNum} must have at least 1 scene, got ${scenes?.length ?? 0}`
     )
   }
-
-  let deliveredEmploymentCount = 0
 
   for (let j = 0; j < scenes.length; j++) {
     const scene = scenes[j]
@@ -1284,54 +1217,12 @@ function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapter
       }
     }
 
-    // ── achieves ──
-    if (!Array.isArray(scene.achieves) || scene.achieves.length < 2) {
+    // ── synopsis ──
+    if (!scene.synopsis || typeof scene.synopsis !== 'string' || scene.synopsis.trim().length < 20) {
       throw new Error(
-        `Phase 2: chapter ${chapterNum} scene ${j + 1} must have at least 2 achieves entries, got ${scene.achieves?.length ?? 0}`
+        `Phase 2: chapter ${chapterNum} scene ${j + 1} missing or too short synopsis (need at least 20 chars, got ${scene.synopsis?.length ?? 0})`
       )
     }
-
-    for (let k = 0; k < scene.achieves.length; k++) {
-      const entry = scene.achieves[k]
-      if (!entry || typeof entry !== 'string') {
-        throw new Error(
-          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] is not a string`
-        )
-      }
-
-      const colonIndex = entry.indexOf(':')
-      if (colonIndex === -1) {
-        throw new Error(
-          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] missing colon — got "${entry}"`
-        )
-      }
-
-      const label = entry.slice(0, colonIndex).trim()
-      if (!PHASE_2_VALID_FUNCTIONS.includes(label)) {
-        throw new Error(
-          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] has invalid function label "${label}"`
-        )
-      }
-
-      const condition = entry.slice(colonIndex + 1).trim()
-      if (condition.length === 0) {
-        throw new Error(
-          `Phase 2: chapter ${chapterNum} scene ${j + 1} achieves[${k}] has empty condition after colon`
-        )
-      }
-
-      // Track Delivered functions referencing employment option
-      if (label === 'Delivered') {
-        deliveredEmploymentCount++
-      }
-    }
-  }
-
-  // ── Exactly one scene must contain a Delivered function referencing the employment option ──
-  if (chapterBlueprint.employmentSelections.length > 0 && deliveredEmploymentCount < 1) {
-    throw new Error(
-      `Phase 2: chapter ${chapterNum} has no Delivered function — employment option must be delivered in exactly one scene`
-    )
   }
 
   // ── Soft check: no two consecutive chapters have the same scene count ──
@@ -1346,7 +1237,7 @@ function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapter
  * Phase 2: Generate scene summaries for all chapters.
  * One LLM call per chapter, sequential. Each call sees previous chapters' output.
  * Input: skeleton + Phase 1 characters + setting.
- * Output: scenes per chapter using function-based achieves.
+ * Output: scenes per chapter with synopsis paragraphs.
  */
 async function executePhase2(skeleton, characters, setting) {
   console.log('\nExecuting Phase 2: Scene Summaries...')
@@ -1695,10 +1586,7 @@ Sensory: ${loc.sensoryEnvironment}`
       const scene = ch.scenes[i]
       summariesBlock += `\nScene ${i + 1}: ${scene.location}`
       summariesBlock += `\n  Characters: ${scene.characters.join(', ')}`
-      summariesBlock += `\n  Achieves:`
-      for (const a of scene.achieves) {
-        summariesBlock += `\n    - ${a}`
-      }
+      summariesBlock += `\n  Synopsis: ${scene.synopsis}`
     }
   }
 
@@ -1817,10 +1705,7 @@ Sensory: ${loc.sensoryEnvironment}`
         const scene = ch.scenes[i]
         ledgerBlock += `\nScene ${i + 1}: ${scene.location}`
         ledgerBlock += `\n  Characters: ${scene.characters.join(', ')}`
-        ledgerBlock += `\n  Achieves:`
-        for (const a of scene.achieves) {
-          ledgerBlock += `\n    - ${a}`
-        }
+        ledgerBlock += `\n  Synopsis: ${scene.synopsis}`
       }
     }
   }
@@ -1840,10 +1725,7 @@ Sensory: ${loc.sensoryEnvironment}`
     const scene = chapterSummary.scenes[i]
     thisChapterBlock += `\n\nScene ${i + 1}: ${scene.location}`
     thisChapterBlock += `\n  Characters: ${scene.characters.join(', ')}`
-    thisChapterBlock += `\n  Achieves:`
-    for (const a of scene.achieves) {
-      thisChapterBlock += `\n    - ${a}`
-    }
+    thisChapterBlock += `\n  Synopsis: ${scene.synopsis}`
   }
 
   // ── Assemble ──

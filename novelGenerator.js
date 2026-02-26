@@ -1604,10 +1604,11 @@ Every detail established in previous chapters is canon. This includes character 
 
 /**
  * Build the Phase 4 system prompt, conditionally appending a style essay.
- * When no styleKey is provided, returns the base prompt only.
+ * Defaults to 'bronte' when no styleKey is provided (for testing).
  */
 function buildPhase4SystemPrompt(styleKey) {
-  const selectedStyleEssay = styleKey ? STYLE_ESSAYS[styleKey] : ''
+  const effectiveKey = styleKey || 'bronte'
+  const selectedStyleEssay = STYLE_ESSAYS[effectiveKey] || ''
 
   if (!selectedStyleEssay) {
     return PHASE_4_BASE_SYSTEM_PROMPT

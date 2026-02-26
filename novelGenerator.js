@@ -5,7 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { rollSkeleton } from './storyBlueprints.js'
-import { CHAPTER_ARCHITECTURE_ESSAY } from './craftEssays.js'
+import { CHAPTER_ARCHITECTURE_ESSAY, STYLE_ESSAYS } from './craftEssays.js'
 
 // Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
@@ -1594,13 +1594,31 @@ async function executePhase3(sceneSummaries, setting) {
 // One LLM call per chapter, sequential. Each call writes one complete chapter.
 // ══════════════════════════════════════════════════════════════════════════════
 
-const PHASE_4_SYSTEM_PROMPT = `You are writing a romance novel in the prose style of Emily Brontë. Write the next chapter as continuous prose.
+const PHASE_4_BASE_SYSTEM_PROMPT = `You are writing a romance novel. Write the next chapter as continuous prose.
 
 Each scene in the chapter has a list of conditions that must be true by the end of that scene. Do not narrate the labels — just make the conditions true through the prose. The reader should never feel they are reading a checklist.
 
 Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.
 
 Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact. If a detail was established in a previous chapter, match it exactly.`
+
+/**
+ * Build the Phase 4 system prompt, conditionally appending a style essay.
+ * When no styleKey is provided, returns the base prompt only.
+ */
+function buildPhase4SystemPrompt(styleKey) {
+  const selectedStyleEssay = styleKey ? STYLE_ESSAYS[styleKey] : ''
+
+  if (!selectedStyleEssay) {
+    return PHASE_4_BASE_SYSTEM_PROMPT
+  }
+
+  return `${PHASE_4_BASE_SYSTEM_PROMPT}
+
+${selectedStyleEssay}
+
+The essay above describes the prose style you are writing in. Absorb its principles. Every sentence you write should reflect these patterns — the sentence length variation, the diction choices, the imagery palette, the dialogue handling, all of it. Do not imitate surface features. Internalise the structural logic described in the essay and let it govern your prose.`
+}
 
 const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your sole task is to find and fix contradictions in the new chapter.
 
@@ -1845,15 +1863,17 @@ function validatePhase4(prose, chapterNumber) {
   }
 }
 
-async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, locations, previousChaptersProse) {
+async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, locations, previousChaptersProse, styleKey) {
   const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
   const previousProse = previousChaptersProse || []
 
   console.log(`\n  Writing Chapter ${chapterNumber}: "${chapterSummary.title}" (${chapterSummary.scenes.length} scenes)...`)
+  if (styleKey) console.log(`  Prose style: ${styleKey}`)
 
+  const systemPrompt = buildPhase4SystemPrompt(styleKey)
   const userPrompt = buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse)
 
-  const response = await callClaude(PHASE_4_SYSTEM_PROMPT, userPrompt, {
+  const response = await callClaude(systemPrompt, userPrompt, {
     model: 'claude-sonnet-4-20250514',
     temperature: 1.0,
     maxTokens: 16385

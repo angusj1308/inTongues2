@@ -8142,13 +8142,15 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       const sceneSummaries = bible.sceneSummaries
       const locations = bible.locations
       const previousChaptersProse = existingProse.filter(p => p.chapter < chapterNumber)
+      const styleKey = bookData.styleKey || null
 
       const chapterResult = await executePhase4Chapter(
         chapterNumber,
         characters,
         sceneSummaries,
         locations,
-        previousChaptersProse
+        previousChaptersProse,
+        styleKey
       )
 
       const updatedProse = [...existingProse, sanitizeForFirestore(chapterResult)]

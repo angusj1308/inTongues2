@@ -16,12 +16,12 @@ const API_BASE = 'http://localhost:4000'
  * @returns {Promise<Object>} Generated bible and book metadata
  */
 export async function generateBible(params) {
-  const { uid, bookId, concept, level, lengthPreset, language, generateAudio = false } = params
+  const { uid, bookId, concept, level, lengthPreset, language, generateAudio = false, styleKey = null } = params
 
   const response = await fetch(`${API_BASE}/api/generate/bible`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uid, bookId, concept, level, lengthPreset, language, generateAudio }),
+    body: JSON.stringify({ uid, bookId, concept, level, lengthPreset, language, generateAudio, styleKey }),
   })
 
   if (!response.ok) {
@@ -250,4 +250,10 @@ export const NOVEL_LEVELS = [
 export const LENGTH_PRESETS = [
   { value: 'novella', label: 'Novella', chapters: 12, description: '~12 chapters, shorter story arc' },
   { value: 'novel', label: 'Novel', chapters: 35, description: '~35 chapters, full story arc' },
+]
+
+// Prose style presets — value matches keys in STYLE_ESSAYS (craftEssays.js)
+export const PROSE_STYLES = [
+  { value: '', label: 'None', description: 'No specific author voice applied' },
+  { value: 'bronte', label: 'Emily Brontë — Elemental & Visceral', description: 'Wuthering Heights style' },
 ]

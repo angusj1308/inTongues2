@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { filterSupportedLanguages, resolveSupportedLanguageLabel } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
-import { generateBible, NOVEL_LEVELS, LENGTH_PRESETS } from '../../services/novelApiClient'
+import { generateBible, NOVEL_LEVELS, LENGTH_PRESETS, PROSE_STYLES } from '../../services/novelApiClient'
 
 const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
   const { user, profile, setLastUsedLanguage } = useAuth()
@@ -10,6 +10,7 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
   const [level, setLevel] = useState('Intermediate')
   const [lengthPreset, setLengthPreset] = useState('novella')
   const [generateAudio, setGenerateAudio] = useState(false)
+  const [styleKey, setStyleKey] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -62,6 +63,7 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
         lengthPreset,
         language: activeLanguage,
         generateAudio,
+        styleKey: styleKey || null,
       })
 
       if (result.success) {
@@ -160,6 +162,24 @@ const GenerateNovelPanel = ({ onBibleGenerated, onCancel }) => {
             ))}
           </div>
         </label>
+
+        {/* Prose Style */}
+        <div className="section">
+          <label className="ui-text">
+            Prose Style
+            <select
+              value={styleKey}
+              onChange={(e) => setStyleKey(e.target.value)}
+              disabled={isGenerating}
+            >
+              {PROSE_STYLES.map((style) => (
+                <option key={style.value} value={style.value}>
+                  {style.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         {/* Audio Toggle */}
         <label className="ui-text checkbox-label">

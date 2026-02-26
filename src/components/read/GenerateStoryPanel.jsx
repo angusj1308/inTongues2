@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
+import { PROSE_STYLES } from '../../services/novelApiClient'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -48,6 +49,7 @@ const GenerateStoryPanel = ({
   const [description, setDescription] = useState('')
   const [generateAudio, setGenerateAudio] = useState(false)
   const [voiceGender, setVoiceGender] = useState('male')
+  const [styleKey, setStyleKey] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [bibleProgress, setBibleProgress] = useState('') // Progress message for bible generation
@@ -139,6 +141,7 @@ const GenerateStoryPanel = ({
           lengthPreset: lengthPreset,
           language: activeLanguage,
           generateAudio,
+          styleKey: styleKey || null,
           createdAt: serverTimestamp(),
           bible: {},
         })
@@ -340,6 +343,22 @@ const GenerateStoryPanel = ({
             onChange={(event) => setDescription(event.target.value)}
           />
         </label>
+
+        {(lengthPreset === 'novella' || lengthPreset === 'novel') && (
+          <label className="ui-text">
+            Prose Style
+            <select
+              value={styleKey}
+              onChange={(event) => setStyleKey(event.target.value)}
+            >
+              {PROSE_STYLES.map((style) => (
+                <option key={style.value} value={style.value}>
+                  {style.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="checkbox ui-text">
           <span className="ui-text">Generate audio</span>

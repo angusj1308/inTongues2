@@ -5,6 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { rollSkeleton } from './storyBlueprints.js'
+import { CHAPTER_ARCHITECTURE_ESSAY } from './craftEssays.js'
 
 // Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
 let client = null
@@ -1046,7 +1047,11 @@ const PHASE_2_VALID_FUNCTIONS = [
   'Delivered', 'Paid off', 'Bridged', 'Resolved', 'Opened'
 ]
 
-const PHASE_2_SYSTEM_PROMPT = `You are a story architect breaking a single chapter into scenes for an enemies-to-lovers romance. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
+const PHASE_2_SYSTEM_PROMPT = `${CHAPTER_ARCHITECTURE_ESSAY}
+
+The essay above is your guide to chapter construction. Use it when deciding how many scenes this chapter needs, what each scene does, how they sequence, and where the employment option lands. The rules below govern your output format.
+
+You are a story architect breaking a single chapter into scenes for an enemies-to-lovers romance. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
 
 Each scene has exactly three fields:
 - location: a place name only — not "the estancia" but "the estancia kitchen." No time of day, weather, light, or atmosphere

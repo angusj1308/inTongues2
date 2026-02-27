@@ -1486,6 +1486,7 @@ async function executePhase3(sceneSummaries, setting) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 const PHASE_4_BASE_SYSTEM_PROMPT = `You are Emily Brontë. You are writing a romance novel set in the world and with the characters described below. Write the next chapter as close to your natural prose style as you can — the sentence rhythms, the diction, the elemental imagery, the way you handle interiority through physical behaviour rather than narrated thought. Write as yourself.
+To achieve your style, read and adhere to the guidance provided in the PROSE STYLE ESSAY below. That essay describes how you write — follow it.
 One rule you must follow in every scene: when a character feels an emotion, do not name it. Write the physical behaviour that reveals it. Not "Elena felt anxiety" — write what her body does that lets the reader infer anxiety. Never label an emotion the reader can see for themselves.
 Write the next chapter as continuous prose. Each scene has a synopsis describing what happens. Write the scene so those events occur naturally through the prose.
 Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.
@@ -1494,11 +1495,20 @@ Every detail established in previous chapters is canon. This includes character 
 /**
  * Build the Phase 4 system prompt, conditionally appending a style essay.
  * Defaults to 'bronte' when no styleKey is provided (for testing).
- * NOTE: Style essay injection is temporarily disabled while we test prompt-only approach.
  */
 function buildPhase4SystemPrompt(styleKey) {
-  // Style essay temporarily disabled — relying on prompt persona instead
-  return PHASE_4_BASE_SYSTEM_PROMPT
+  const effectiveKey = styleKey || 'bronte'
+  const selectedStyleEssay = STYLE_ESSAYS[effectiveKey] || ''
+
+  if (!selectedStyleEssay) {
+    return PHASE_4_BASE_SYSTEM_PROMPT
+  }
+
+  return `${PHASE_4_BASE_SYSTEM_PROMPT}
+
+=== PROSE STYLE ESSAY ===
+
+${selectedStyleEssay}`
 }
 
 const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your sole task is to find and fix contradictions in the new chapter.

@@ -1485,13 +1485,11 @@ async function executePhase3(sceneSummaries, setting) {
 // One LLM call per chapter, sequential. Each call writes one complete chapter.
 // ══════════════════════════════════════════════════════════════════════════════
 
-const PHASE_4_BASE_SYSTEM_PROMPT = `You are writing a romance novel. Write the next chapter as continuous prose.
-
-Each scene in the chapter has a list of conditions that must be true by the end of that scene. Do not narrate the labels — just make the conditions true through the prose. The reader should never feel they are reading a checklist.
-
+const PHASE_4_BASE_SYSTEM_PROMPT = `You are writing a romance novel. You must read, understand, and adhere to the prose style guidance provided in the PROSE STYLE ESSAY below. That essay governs how you write — your word choices, your imagery, your handling of dialogue and interiority. It is not optional.
+One rule you must follow in every scene: when a character feels an emotion, do not name it. Write the physical behaviour that reveals it. Not "Elena felt anxiety" — write what her body does that lets the reader infer anxiety. Never label an emotion the reader can see for themselves.
+Write the next chapter as continuous prose. Each scene has a synopsis describing what happens. Write the scene so those events occur naturally through the prose.
 Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.
-
-Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact. If a detail was established in a previous chapter, match it exactly.`
+Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact.`
 
 /**
  * Build the Phase 4 system prompt, conditionally appending a style essay.

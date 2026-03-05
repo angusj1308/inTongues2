@@ -734,12 +734,14 @@ RULES:
 10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
 11. The protagonist's backstory must be compatible with the Chapter 1 starting condition provided. Her world at the start of the story must match this condition. If it says her world is safe and stable, she is not in hiding, not in danger, not living a double life. Build backward from the starting condition — what kind of woman, in this setting, would have a world that looks like that?
 12. IDENTITY TENSION ONLY: The protagonist must include a "coreBelief" field — one sentence that captures the belief her identity is built around. This is the conviction the romance will challenge. It should be specific to her, not generic. Example: "A woman who teaches is worth more than a woman who marries." It must emerge from her backstory and setting.
+13. SECRET STORIES ONLY (when secret is YES): The primary must include a "secret" field — a single paragraph describing what he is concealing from the protagonist, why he originally entered her world (the real reason, not the apparent one), and how this secret, when revealed, will recontextualise every tender moment between them. The secret must pass this test: when the protagonist discovers it, she must learn something she genuinely DID NOT KNOW — not confirmation of a suspicion, not a detail she could have guessed, but information that changes the meaning of the romance itself. GOOD SECRETS: he was sent to gather information about her by someone she trusts; his presence was arranged by a third party with hostile intentions; he has a prior connection to someone who harmed her that he has concealed; he has already taken an action that damaged her interests before they met. BAD SECRETS: he is doing his job and she finds out (she already knew his job); he has feelings he hasn't expressed (withholding, not betrayal); he has a difficult past (backstory, not betrayal); he was once associated with bad people (too vague). The secret must make the protagonist feel that the intimacy was weaponised — that what she revealed about herself during the fall was used or could be used against her.
 
 OUTPUT FORMAT:
 Return a single JSON object:
 {
   "protagonist": {
     "coreBelief": "(IDENTITY TENSION ONLY) One sentence — the belief her identity is built around.",
+    "theCost": "(IDENTITY TENSION ONLY) One sentence — what this belief is secretly costing her.",
     "backstory": "One paragraph. Where she came from, what shaped her.",
     "psychology": "One paragraph. What she wants, fears, avoids. How the tension manifests in her thinking.",
     "voiceAndMannerisms": "One paragraph. How she speaks, moves, behaves. Speech patterns, habits, tells.",
@@ -749,7 +751,8 @@ Return a single JSON object:
     "backstory": "One paragraph.",
     "psychology": "One paragraph. What he wants, fears. How he relates to her tension.",
     "voiceAndMannerisms": "One paragraph.",
-    "appearance": "One paragraph."
+    "appearance": "One paragraph.",
+    "secret": "(SECRET STORIES ONLY) One paragraph. What he is concealing, why he entered her world, and how discovery will recontextualise the romance."
   },
   "rival": null
 }
@@ -801,7 +804,7 @@ IMPORTANT:
 /**
  * Build the user prompt for Call 1: protagonist, primary, and optionally rival.
  */
-function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition) {
+function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, hasSecret, valueTension) {
   let prompt = `=== SETTING ===
 ${setting}
 
@@ -812,13 +815,31 @@ ${tension}
 ${tensionFramework}
 
 === TRIANGLE ===
-${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}`
+${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}
+
+=== SECRET ===
+${hasSecret ? 'YES — the primary must include a "secret" field.' : 'NO — no secret field needed.'}`
 
   if (ch1StartingCondition) {
     prompt += `
 
 === CHAPTER 1 STARTING CONDITION ===
 ${ch1StartingCondition}`
+  }
+
+  if (valueTension) {
+    prompt += `
+
+=== VALUE TENSION ===
+Direction: ${valueTension.direction === 'conforms' ? 'She conforms, he is free' : 'She rebels, he is rooted'}
+Her position: ${valueTension.herPosition}
+His position: ${valueTension.hisPosition}
+${valueTension.description}
+
+Select the flavour of this tension most natural to the setting. Then generate:
+- The protagonist's coreBelief from her position, grounded in this specific setting and era
+- The primary's character from his position — his way of being must expose the cost of her belief
+- theCost: one sentence describing what her belief is secretly costing her`
   }
 
   prompt += `
@@ -879,16 +900,25 @@ function validateCharacterFields(obj, label) {
 /**
  * Validate Call 1 output: protagonist, primary, and optionally rival.
  */
-function validateCall1(data, triangle, tension) {
+function validateCall1(data, triangle, tension, hasSecret) {
   validateCharacterFields(data.protagonist, 'protagonist')
 
   if (tension === 'identity') {
     if (!data.protagonist.coreBelief || typeof data.protagonist.coreBelief !== 'string' || data.protagonist.coreBelief.trim().length === 0) {
       throw new Error('Phase 1 Call 1: protagonist missing coreBelief (required for identity tension)')
     }
+    if (!data.protagonist.theCost || typeof data.protagonist.theCost !== 'string' || data.protagonist.theCost.trim().length === 0) {
+      throw new Error('Phase 1 Call 1: protagonist missing theCost (required for identity tension)')
+    }
   }
 
   validateCharacterFields(data.primary, 'primary')
+
+  if (hasSecret) {
+    if (!data.primary.secret || typeof data.primary.secret !== 'string' || data.primary.secret.trim().length === 0) {
+      throw new Error('Phase 1 Call 1: primary must have a non-empty "secret" field when secret is YES')
+    }
+  }
 
   if (triangle) {
     if (!data.rival) {
@@ -970,7 +1000,7 @@ async function executePhase1(skeleton, setting) {
   // ── Call 1: Protagonist, Primary, and optionally Rival ──────────────
   console.log('\n  Call 1: Generating protagonist, primary' + (triangle ? ', and rival...' : '...'))
 
-  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition)
+  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, skeleton.secret, skeleton.valueTension)
 
   const call1Response = await callClaude(PHASE_1_CALL1_SYSTEM_PROMPT, call1UserPrompt, {
     model: 'claude-sonnet-4-20250514',
@@ -983,7 +1013,7 @@ async function executePhase1(skeleton, setting) {
     throw new Error(`Phase 1 Call 1 JSON parse failed: ${call1Parsed.error}`)
   }
 
-  validateCall1(call1Parsed.data, triangle, tension)
+  validateCall1(call1Parsed.data, triangle, tension, skeleton.secret)
   console.log('  Call 1 validated successfully.')
 
   const { protagonist, primary, rival } = call1Parsed.data
@@ -1020,6 +1050,9 @@ async function executePhase1(skeleton, setting) {
   console.log('\nPhase 1 Character Generation complete.')
   if (protagonist.coreBelief) {
     console.log(`  Protagonist core belief: ${protagonist.coreBelief}`)
+    if (protagonist.theCost) {
+      console.log(`  Protagonist the cost: ${protagonist.theCost}`)
+    }
   }
   console.log(`  Protagonist backstory: ${protagonist.backstory.slice(0, 80)}...`)
   console.log(`  Primary backstory: ${primary.backstory.slice(0, 80)}...`)
@@ -1114,7 +1147,7 @@ Secret: ${skeleton.secret ? 'YES' : 'NO'}
 Total chapters: ${skeleton.chapters.length}`
 
   // ── Character profiles ──
-  let characterBlock = `=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+  let characterBlock = `=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
@@ -1122,7 +1155,7 @@ Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
 === PRIMARY ===
 Backstory: ${characters.primary.backstory}
 Psychology: ${characters.primary.psychology}
-Voice and mannerisms: ${characters.primary.voiceAndMannerisms}`
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}${characters.primary.secret ? `\nSecret: ${characters.primary.secret}` : ''}`
 
   if (characters.rival) {
     characterBlock += `
@@ -1551,7 +1584,7 @@ async function validateAndFixCoherence(prose, characters, locations, sceneSummar
   // ── Character block (same format as writing call) ──
   let characterBlock = `=== CHARACTER DOCUMENTS ===
 
---- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
@@ -1655,7 +1688,7 @@ function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locati
   // ── Block 1: Characters ──
   let characterBlock = `=== CHARACTERS ===
 
---- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}

@@ -8018,17 +8018,17 @@ app.post('/api/generate/execute-phase', async (req, res) => {
         return res.status(400).json({ error: 'Phase 1 must be completed before Phase 2' })
       }
 
-      console.log(`Executing Phase 2 for book ${bookId}`)
+      console.log(`Executing Phase 2 (Locations) for book ${bookId}`)
 
       await bookRef.update({ status: 'generating', currentPhase: 2 })
 
-      const skeleton = bible.skeleton
       const characters = bible.concept.characters
+      const setting = bookData.concept || ''
 
       let phase2Result
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          phase2Result = await executePhase2(skeleton, characters)
+          phase2Result = await executePhase3(setting, characters)
           break
         } catch (err) {
           console.error(`Phase 2 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
@@ -8038,10 +8038,10 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       }
 
       console.log('=== Phase 2 Complete ===')
-      console.log('Scene Summaries:', JSON.stringify(phase2Result.sceneSummaries, null, 2))
+      console.log('Locations:', JSON.stringify(phase2Result.locations, null, 2))
 
       await bookRef.update({
-        'bible.sceneSummaries': sanitizeForFirestore(phase2Result.sceneSummaries),
+        'bible.locations': sanitizeForFirestore(phase2Result.locations),
         currentPhase: 2,
         status: 'phase_complete',
         lastPhaseCompleted: 2,
@@ -8054,21 +8054,23 @@ app.post('/api/generate/execute-phase', async (req, res) => {
 
     } else if (phase === 3) {
       const bible = bookData.bible || {}
-      if (!bible.sceneSummaries) {
+      if (!bible.locations) {
         return res.status(400).json({ error: 'Phase 2 must be completed before Phase 3' })
       }
 
-      console.log(`Executing Phase 3 for book ${bookId}`)
+      console.log(`Executing Phase 3 (Scene Summaries) for book ${bookId}`)
 
       await bookRef.update({ status: 'generating', currentPhase: 3 })
 
-      const sceneSummaries = bible.sceneSummaries
+      const skeleton = bible.skeleton
+      const characters = bible.concept.characters
       const setting = bookData.concept || ''
+      const locations = bible.locations
 
       let phase3Result
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          phase3Result = await executePhase3(sceneSummaries, setting)
+          phase3Result = await executePhase2(skeleton, characters, setting, locations)
           break
         } catch (err) {
           console.error(`Phase 3 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
@@ -8078,10 +8080,10 @@ app.post('/api/generate/execute-phase', async (req, res) => {
       }
 
       console.log('=== Phase 3 Complete ===')
-      console.log('Locations:', JSON.stringify(phase3Result.locations, null, 2))
+      console.log('Scene Summaries:', JSON.stringify(phase3Result.sceneSummaries, null, 2))
 
       await bookRef.update({
-        'bible.locations': sanitizeForFirestore(phase3Result.locations),
+        'bible.sceneSummaries': sanitizeForFirestore(phase3Result.sceneSummaries),
         currentPhase: 3,
         status: 'phase_complete',
         lastPhaseCompleted: 3,

@@ -77,56 +77,26 @@ const CAST = {
     {
       function: 'The Source',
       color: 'passion',
-      description: 'Where the identity came from. Their approval is what the framework was built to earn. She can\'t change without confronting this origin.',
-      employmentOptions: [
-        'A parent she modelled herself on',
-        'A mentor or teacher who shaped her framework',
-        'A formative figure from her past — no longer present but their influence is the architecture',
-        'An older sibling she grew up admiring'
-      ]
+      description: 'An older individual who had a significant influence over her as a formative figure. Their approval is what the core belief was built to earn.',
+      employmentOptions: []
     },
     {
-      function: 'The Validator',
+      function: 'The Romantic Confidant',
       color: 'caution',
-      description: 'Confirms her framework is correct. Takes her side. Reflects her judgments back uncritically. Makes the identity feel earned and shared rather than constructed.',
-      employmentOptions: [
-        'A best friend or close peer who shares her worldview',
-        'A colleague or rival who operates by the same rules',
-        'A confidant who reflects her judgments back to her uncritically'
-      ]
+      description: 'A female character of a similar age. Sees the romance before she does. Names the attraction before the protagonist will admit it. Plants the seed. Later, the person she confesses to. May have her own romantic resolution.',
+      employmentOptions: []
     },
     {
-      function: 'What She\'s Afraid Of Becoming',
+      function: 'Her Opposite',
       color: 'dignity',
-      description: 'The undisciplined, out-of-control, or degraded version. The reason the framework exists. Every time she sees this person, she grips tighter.',
-      employmentOptions: [
-        'A parent or relative who represents the undisciplined version',
-        'A sibling or peer who abandoned the same standards',
-        'A public figure in her world who lost standing or control',
-        'A former version of herself she\'s buried'
-      ]
+      description: 'A younger woman or girl who does not share her core belief and lives in opposition to it.',
+      employmentOptions: []
     },
     {
-      function: 'The One Who Let Go',
+      function: 'The Mirror',
       color: 'tender',
-      description: 'Chose differently. Abandoned the framework or broke ranks. Either it destroyed them or freed them. Either way, she can\'t look at them without seeing a possible future.',
-      employmentOptions: [
-        'A friend or peer who chose differently and survived — or didn\'t',
-        'A sibling who took the other path',
-        'Someone from her world who broke ranks and either thrived or was destroyed'
-      ]
-    },
-    {
-      function: 'Someone He\'s Genuine With',
-      color: 'rival',
-      description: 'Can\'t protect themselves. He protects them anyway. She sees him be tender and her categorisation breaks. Trope-level — shared across tensions.',
-      employmentOptions: [
-        'A child he\'s responsible for — his own, an orphan, a ward',
-        'A younger sibling or relative he raised',
-        'An elderly parent or grandparent he cares for',
-        'A loyal subordinate who depends on him',
-        'A vulnerable person others abandoned but he hasn\'t'
-      ]
+      description: 'An older woman who shows her what a life looks like at the end of the road she\'s on. Either she chose romance and was burned, or she kept her identity and is alone.',
+      employmentOptions: []
     }
   ]
 }
@@ -184,17 +154,13 @@ const CHAPTER_TREE = {
               { id: 'safety_scarce', text: 'She lives in a world where safety is scarce — a frontier, a contested territory, an unstable community. What she has is the exception' },
               { id: 'safe_stable', text: 'Her world is safe, stable, and unremarkable — nothing is broken, nothing is threatened. The danger when it arrives is something she\'s never imagined' }
             ]
-          },
-          identity: {
-            header: 'Employment Options',
-            options: [
-              { id: 'competence', text: 'She is defined by her competence — she\'s the best at what she does and that\'s who she is' },
-              { id: 'principles', text: 'She is defined by her principles — a moral or intellectual framework that governs everything' },
-              { id: 'role', text: 'She is defined by her role — daughter, leader, professional, caretaker. The role IS her' },
-              { id: 'rejection', text: 'She is defined by what she\'s rejected — she built herself in opposition to something, a past, a class, a world' },
-              { id: 'reputation', text: 'She is defined by how others see her — reputation, standing, image in the community is the architecture of her self' }
-            ]
           }
+        },
+        sceneArchitecture: {
+          identity: [
+            { scene: 1, description: 'We see her core belief operating in private.' },
+            { scene: 2, description: 'The reader sees her core belief operating in the social world.' }
+          ]
         }
       },
 
@@ -203,11 +169,12 @@ const CHAPTER_TREE = {
         title: 'The First Encounter',
         endStates: {
           safety: 'By the end, the reader\'s first impression of the primary as dangerous and hostile is established.',
-          identity: 'By the end, the reader understands why he is a threat to who she is. The enmity is personal.'
+          identity: 'By the end, she has formed a negative impression that no one else shares. The threat to her identity is personal and private.'
         },
         employment: {
           howTheyMeet: {
             header: 'How They Meet',
+            tension: 'safety',
             options: [
               { id: 'open_hostility', text: 'They meet already knowing — open hostility from the first moment' },
               { id: 'meet_not_knowing', text: 'They meet not knowing — attraction or neutrality first, enmity surfaces' },
@@ -231,62 +198,13 @@ const CHAPTER_TREE = {
             constraints: [
               { disables: ['rivals', 'opposite_sides'], when: 'ch1 === "safe_stable"', note: '"rivals" and "opposite sides" unavailable when Ch.1 is "safe, stable, and unremarkable"' }
             ]
-          },
-          enmity_identity_competence: {
-            header: 'Why They\'re Enemies — Competence',
-            tension: 'identity',
-            requiresCh1: 'competence',
-            options: [
-              { id: 'hes_better', text: 'He\'s better than her at the thing that defines her' },
-              { id: 'dismisses_skill', text: 'He dismisses her skill as irrelevant — wins a different way' },
-              { id: 'effortless', text: 'He succeeds effortlessly at what she had to fight for' },
-              { id: 'exposes_flaw', text: 'He exposes a flaw in her competence she didn\'t know existed' }
-            ]
-          },
-          enmity_identity_principles: {
-            header: 'Why They\'re Enemies — Principles',
-            tension: 'identity',
-            requiresCh1: 'principles',
-            options: [
-              { id: 'embodies_wrong', text: 'He embodies what she believes is wrong and thrives' },
-              { id: 'opposing_works', text: 'He lives by an opposing philosophy and it works' },
-              { id: 'celebrated', text: 'He acts against her principles and people celebrate him for it' },
-              { id: 'blind_spot', text: 'He proves her framework has a blind spot she can\'t explain away' }
-            ]
-          },
-          enmity_identity_role: {
-            header: 'Why They\'re Enemies — Role',
-            tension: 'identity',
-            requiresCh1: 'role',
-            options: [
-              { id: 'role_impossible', text: 'He makes the role impossible to perform' },
-              { id: 'role_forbids', text: 'He offers her something the role forbids her from wanting' },
-              { id: 'sees_past_role', text: 'He sees her apart from the role and she finds that threatening' },
-              { id: 'step_outside', text: 'He needs something from her that requires stepping outside the role' }
-            ]
-          },
-          enmity_identity_rejection: {
-            header: 'Why They\'re Enemies — Rejection',
-            tension: 'identity',
-            requiresCh1: 'rejection',
-            options: [
-              { id: 'is_rejected_thing', text: 'He IS the thing she rejected — same class, same world, same past' },
-              { id: 'proud_of_shame', text: 'He\'s proud of what she\'s ashamed of' },
-              { id: 'sees_through', text: 'He sees through her reinvention' },
-              { id: 'makes_appealing', text: 'He makes the rejected thing look appealing' }
-            ]
-          },
-          enmity_identity_reputation: {
-            header: 'Why They\'re Enemies — Reputation',
-            tension: 'identity',
-            requiresCh1: 'reputation',
-            options: [
-              { id: 'destroys_standing', text: 'Association with him would destroy her standing' },
-              { id: 'publicly_despised', text: 'He\'s publicly despised by the people whose opinion she needs' },
-              { id: 'doesnt_care', text: 'He doesn\'t care about reputation and that itself is a threat' },
-              { id: 'sees_gap', text: 'He sees the gap between who she is and who people think she is' }
-            ]
           }
+        },
+        sceneArchitecture: {
+          identity: [
+            { scene: 1, description: 'He shows up in her world. She forms a negative impression rooted in her core belief.' },
+            { scene: 2, description: 'The reader sees how her social circle responds to him.' }
+          ]
         }
       },
 
@@ -343,45 +261,19 @@ const CHAPTER_TREE = {
         }
       },
 
-      // ─── CH.3: IDENTITY — THE REJECTION ──────────────────────────────────
+      // ─── CH.3: IDENTITY — THE ESCALATION ─────────────────────────────────
       ch3_identity: {
-        title: 'The Rejection',
+        title: 'The Escalation',
         conditions: { tension: 'identity' },
         endStates: {
-          default: 'By the end, the reader sees how strong the wall is. She has rejected him, misread what\'s real, and reinforced the identity. The reader sees what she can\'t.'
+          default: 'By the end, the hostility is open.'
         },
-        employment: {
-          main: {
-            header: 'Employment Options',
-            options: [
-              { id: 'weaponises_identity', text: 'She uses her identity as a weapon against him — the very thing that defines her becomes the instrument of rejection' },
-              { id: 'categorises', text: 'She categorises and dismisses him — her framework slots him, labels him, and she\'s done. He\'s a type she already understands' },
-              { id: 'doubles_down', text: 'She doubles down on being more herself — doesn\'t engage with the threat, just becomes louder, sharper, more committed to who she already is' },
-              { id: 'humiliates_publicly', text: 'She humiliates him publicly — the rejection is performative. Others witness it. Her identity is reinforced socially. Now she can\'t back down without losing face' }
-            ]
-          }
-        }
-      },
-
-      // ─── CH.4: IDENTITY — THE PERSISTENCE ────────────────────────────────
-      ch4_identity: {
-        title: 'The Persistence',
-        conditions: { tension: 'identity' },
-        endStates: {
-          default: 'By the end, he is a fixture she can\'t remove. Her rejection failed.'
-        },
-        employment: {
-          main: {
-            header: 'Employment Options',
-            options: [
-              { id: 'keeps_showing_up', text: 'He keeps showing up in her space — she can\'t avoid him without changing her own routine' },
-              { id: 'matches_her', text: 'He matches her — she pushes, he pushes back with wit or competence. He won\'t retreat' },
-              { id: 'does_without_asking', text: 'He does something for her without asking — no performance. She finds out after' },
-              { id: 'shows_up_differently', text: 'He shows up differently than expected — she can\'t stabilise her framework because he won\'t stay in the box' },
-              { id: 'forced_obligation', text: 'They\'re forced into shared obligation — she can\'t exit without sacrificing something her identity depends on' }
-            ]
-          }
-        }
+        employment: {},
+        sceneArchitecture: [
+          { scene: 1, description: 'He is becoming a regular part of her world. Her dislike intensifies.' },
+          { scene: 2, description: 'A confrontation. The hostility becomes open.' },
+          { scene: 3, description: 'The reader sees the response of her social circle.' }
+        ]
       },
 
       // ─── CH.4: SAFETY — THE ESCALATION ───────────────────────────────────
@@ -456,19 +348,13 @@ const CHAPTER_TREE = {
         title: 'The Crack',
         conditions: { tension: 'identity' },
         endStates: {
-          default: 'By the end, her framework is broken. She can no longer maintain he is what she decided he was.'
+          default: 'By the end, her categorization of him is broken, and the attraction has registered.'
         },
-        employment: {
-          main: {
-            header: 'How the primary cracks her framework',
-            options: [
-              { id: 'defies_framework', text: 'He does something her framework says he shouldn\'t be capable of — he doesn\'t fit the box she put him in' },
-              { id: 'sees_her', text: 'He sees something true about her that no one else has noticed — she can\'t dismiss someone who sees her clearly' },
-              { id: 'genuinely_himself', text: 'She witnesses him being genuinely himself — the contrast between who he is and who she decided he was is undeniable' },
-              { id: 'earns_respect', text: 'He earns respect from someone she respects — someone whose judgment she trusts disagrees with her framework' }
-            ]
-          }
-        }
+        employment: {},
+        sceneArchitecture: [
+          { scene: 1, description: 'He acts in a way that breaks her categorization of him.' },
+          { scene: 2, description: 'The attraction registers. She fights it.' }
+        ]
       },
 
       // ─── CH.6: SAFETY — THE FALL ─────────────────────────────────────────
@@ -500,19 +386,14 @@ const CHAPTER_TREE = {
         title: 'The Fall',
         conditions: { tension: 'identity' },
         endStates: {
-          default: 'By the end, she has started becoming someone she doesn\'t recognise. The identity she built is no longer holding.'
+          default: 'By the end, she has fallen in love with him.'
         },
-        employment: {
-          main: {
-            header: 'How she falls',
-            options: [
-              { id: 'likes_herself', text: 'She likes who she is around him — the version of herself that emerges feels more real than the constructed one' },
-              { id: 'buried_part', text: 'He draws out a part of her she\'d buried — something her identity required her to suppress comes back alive around him' },
-              { id: 'his_world_home', text: 'She enters his world and finds herself at home — the thing she rejected or dismissed turns out to hold something she actually wanted' },
-              { id: 'defends_him', text: 'She defends him when she doesn\'t have to — she catches herself doing it and knows the identity cracked without her permission' }
-            ]
-          }
-        }
+        employment: {},
+        sceneArchitecture: [
+          { scene: 1, description: 'She\'s in her routine but her mind is occupied with him. She\'s starting to give in.' },
+          { scene: 2, description: 'He invites her into his world. She accepts.' },
+          { scene: 3, description: 'She sees who he really is. The first kiss or the almost.' }
+        ]
       }
     }
   },
@@ -610,38 +491,12 @@ const CHAPTER_TREE = {
         endStates: {
           default: 'By the end, she believes the fall was the lie. Her original framework was right. The person she was becoming around him was built on nothing.'
         },
-        employment: {
-          secret: {
-            header: 'The Secret (what it is)',
-            showWhen: 'secret',
-            options: [
-              { id: 'manufactured', text: 'His approach to her was manufactured — someone arranged it, paid for it, or orchestrated it. The persistence wasn\'t real' },
-              { id: 'ulterior', text: 'He had an ulterior motive — what looked like genuine interest was strategic. He needed something from her' },
-              { id: 'used_intimacy', text: 'He used what he learned about her against her — the intimacy was intelligence gathering. The things she revealed became tools' }
-            ]
-          },
-          secretSurface: {
-            header: 'How the secret surfaces',
-            showWhen: 'secret',
-            options: [
-              { id: 'discovers_herself', text: 'She discovers it herself — stumbles onto evidence' },
-              { id: 'third_party', text: 'A third party reveals it innocently' },
-              { id: 'primary_confesses', text: 'He confesses — too late' },
-              { id: 'witnesses_motive', text: 'She witnesses him in a moment that exposes the motive' }
-            ]
-          },
-          trigger: {
-            header: 'What triggers the dark moment',
-            showWhen: '!secret',
-            options: [
-              { id: 'reverts', text: 'He reverts to type — does the exact thing she originally categorised him as. The framework snaps back into place' },
-              { id: 'sees_herself', text: 'She sees herself through someone else\'s eyes and doesn\'t recognise who she\'s become — the gap between her constructed self and her current self is horrifying' },
-              { id: 'pushes_too_far', text: 'He challenges the core of her identity directly — not by accident, deliberately. He pushes too far' },
-              { id: 'world_punishes', text: 'The world she built punishes her for changing — the people, the standing, the role she\'s been abandoning start to collapse' },
-              { id: 'self_sabotage', text: 'She sabotages it herself — the identity reasserts from inside. She can\'t tolerate who she\'s becoming and destroys what she built with him' }
-            ]
-          }
-        }
+        employment: {},
+        sceneArchitecture: [
+          { scene: 1, description: 'The high. The romance is alive. She\'s in her world but transformed by it.' },
+          { scene: 2, description: 'The secret detonates. Everything falls apart.' },
+          { scene: 3, description: 'Days later. She\'s back to who she was. It\'s hollow.' }
+        ]
       },
 
       // ─── CH.8: SAFETY — THE RETREAT ───────────────────────────────────────
@@ -665,25 +520,6 @@ const CHAPTER_TREE = {
         }
       },
 
-      // ─── CH.8: IDENTITY — THE RETREAT ────────────────────────────────────
-      ch8_identity: {
-        title: 'The Retreat',
-        conditions: { tension: 'identity' },
-        endStates: {
-          default: 'By the end, she has rebuilt the wall. She is who she was before the fall — but the reader sees it\'s a performance now. Something is dead inside her.'
-        },
-        employment: {
-          main: {
-            header: 'How she retreats',
-            options: [
-              { id: 'back_to_self', text: 'She goes back to exactly who she was — same sharpness, same framework, same posture. But it doesn\'t fit anymore. The reader sees the seams' },
-              { id: 'overcorrects', text: 'She overcorrects — becomes a harder version of her constructed self than she ever was before. The identity isn\'t natural anymore, it\'s armour' },
-              { id: 'cuts_everything', text: 'She cuts everything associated with the fall — avoids places, drops habits, removes anything that reminds her of who she was becoming' },
-              { id: 'public_recommit', text: 'She publicly recommits to her identity — makes a show of it. Takes a stand or makes a decision in front of others so she can\'t go back' }
-            ]
-          }
-        }
-      }
     }
   },
 
@@ -827,72 +663,19 @@ const CHAPTER_TREE = {
         }
       },
 
-      // ─── CH.9: IDENTITY — SECRET ON — THE FULL PICTURE ───────────────────
-      ch9_identity_secret: {
-        title: 'The Full Picture',
-        conditions: { tension: 'identity', secret: true },
-        endStates: {
-          default: 'By the end, she learns the fall was real. What she built with him was genuine. The framework was the lie, not the feelings.'
-        },
-        employment: {
-          main: {
-            header: 'How she learns the full picture',
-            options: [
-              { id: 'evidence_surfaces', text: 'Evidence surfaces that reveals the full context' },
-              { id: 'ally_tells_her', text: 'Someone from his world tells her what was real' },
-              { id: 'primary_acts', text: 'He acts to protect her at great cost — proving the motive changed' }
-            ]
-          }
-        }
-      },
-
-      // ─── CH.9: IDENTITY — SECRET OFF — THE GRAND GESTURE ─────────────────
-      ch9_identity_nosecret: {
-        title: 'The Grand Gesture',
-        conditions: { tension: 'identity', secret: false },
-        endStates: {
-          default: 'By the end, he has proven through action that the person she was becoming around him was the real one.'
-        },
-        employment: {
-          main: {
-            header: 'The grand gesture',
-            options: [
-              { id: 'shows_up_himself', text: 'He shows up as himself — no performance, no strategy, just vulnerable' },
-              { id: 'does_impossible', text: 'He does the thing her framework said he was incapable of — and it costs him' },
-              { id: 'lets_her_go', text: 'He lets her go — and that act of release is what breaks her framework permanently' },
-              { id: 'fights_for_her', text: 'He fights for her in a way that only makes sense if the fall was real' }
-            ]
-          }
-        }
-      },
-
-      // ─── CH.10: IDENTITY — REUNITED ──────────────────────────────────────
-      ch10_identity: {
+      // ─── CH.7: IDENTITY — REUNITED ─────────────────────────────────────
+      ch_reunited_identity: {
         title: 'Reunited',
-        conditions: { tension: 'identity' },
-        endStates: {
-          default: 'By the end, she chooses him knowing it means becoming someone new. She lets the constructed self go.'
-        },
-        employment: {
-          main: {
-            header: 'How they come back together',
-            options: [
-              { id: 'she_goes_to_him', text: 'She goes to him — she initiates' },
-              { id: 'he_comes_for_her', text: 'He comes for her' },
-              { id: 'forced_together_again', text: 'Circumstance forces them together — the choice happens in the moment' }
-            ]
-          }
-        }
-      },
-
-      // ─── CH.11: IDENTITY — HEA ──────────────────────────────────────────
-      ch_hea_identity: {
-        title: 'HEA',
         conditions: { tension: 'identity' },
         endStates: {
           default: 'By the end, she is someone new — not the constructed self, not a stranger. Her. The reader sees who she was always going to be.'
         },
-        employment: {}
+        employment: {},
+        sceneArchitecture: [
+          { scene: 1, description: 'The full picture arrives through revelation or grand gesture. The fall wasn\'t a lie.' },
+          { scene: 2, description: 'The reconciliation and the consummation. Honest, difficult, real.' },
+          { scene: 3, description: 'The new life. The identity is still there but it has room in it now. HEA.' }
+        ]
       }
     }
   },
@@ -1073,6 +856,7 @@ function resolveBlueprint(tension, ending, secret, triangle) {
   if (tension === 'identity') {
     ending = 'hea'
     triangle = false
+    secret = true  // LOCK: identity → secret always on
   }
 
   const phases = []
@@ -1143,13 +927,24 @@ function resolveBlueprint(tension, ending, secret, triangle) {
         if (cn.when === 'triangle' && triangle) notes.push(cn.text)
       }
     }
-    return {
+    const entry = {
       chapter: chapterNum,
       function: def.title,
       endState,
       employment,
       notes
     }
+    // Include scene architecture if present (identity chapters)
+    let sceneArch = null
+    if (Array.isArray(def.sceneArchitecture)) {
+      sceneArch = def.sceneArchitecture
+    } else if (def.sceneArchitecture && def.sceneArchitecture[tension]) {
+      sceneArch = def.sceneArchitecture[tension]
+    }
+    if (sceneArch) {
+      entry.sceneArchitecture = sceneArch
+    }
+    return entry
   }
 
   // ═══ ACT I ═══
@@ -1171,11 +966,8 @@ function resolveBlueprint(tension, ending, secret, triangle) {
     act1Chapters.push(makeChapter(act1.chapters.ch3_notriangle))
   }
 
-  // Ch.4 (identity gets persistence, safety gets escalation)
-  // Identity also gets ch4 — The Persistence
-  if (tension === 'identity') {
-    act1Chapters.push(makeChapter(act1.chapters.ch4_identity))
-  } else {
+  // Ch.4 (safety only — identity has no Ch.4 in Act I)
+  if (tension !== 'identity') {
     act1Chapters.push(makeChapter(act1.chapters.ch4_safety))
   }
 
@@ -1222,10 +1014,8 @@ function resolveBlueprint(tension, ending, secret, triangle) {
     act3Chapters.push(makeChapter(act3.chapters.ch7_safety))
   }
 
-  // Ch.8
-  if (tension === 'identity') {
-    act3Chapters.push(makeChapter(act3.chapters.ch8_identity))
-  } else {
+  // Ch.8 (safety only — identity has no retreat chapter)
+  if (tension !== 'identity') {
     act3Chapters.push(makeChapter(act3.chapters.ch8_safety))
   }
 
@@ -1307,21 +1097,9 @@ function resolveBlueprint(tension, ending, secret, triangle) {
     })
 
   } else if (tension === 'identity') {
-    // IDENTITY HEA PATH
+    // IDENTITY HEA PATH — single Reunited chapter
     const res = CHAPTER_TREE.act4_resolution
-
-    // Ch.9
-    if (secret) {
-      act4Chapters.push(makeChapter(res.chapters.ch9_identity_secret))
-    } else {
-      act4Chapters.push(makeChapter(res.chapters.ch9_identity_nosecret))
-    }
-
-    // Ch.10 — Reunited
-    act4Chapters.push(makeChapter(res.chapters.ch10_identity))
-
-    // Ch.11 — HEA
-    act4Chapters.push(makeChapter(res.chapters.ch_hea_identity))
+    act4Chapters.push(makeChapter(res.chapters.ch_reunited_identity))
 
     phases.push({
       phase: 4,
@@ -1448,9 +1226,8 @@ function populateRegistry() {
     { tension: 'safety', ending: 'tragic', secret: true, triangle: false },
     { tension: 'safety', ending: 'tragic', secret: false, triangle: true },
     { tension: 'safety', ending: 'tragic', secret: false, triangle: false },
-    // Identity: HEA only, no triangle, 2 secret options = 2
-    { tension: 'identity', ending: 'hea', secret: true, triangle: false },
-    { tension: 'identity', ending: 'hea', secret: false, triangle: false }
+    // Identity: HEA only, no triangle, secret locked true = 1
+    { tension: 'identity', ending: 'hea', secret: true, triangle: false }
   ]
   for (const c of combos) {
     const bp = resolveBlueprint(c.tension, c.ending, c.secret, c.triangle)
@@ -1674,12 +1451,14 @@ function rollSkeleton() {
   // 1. STRUCTURAL VARIABLES (rolled in order, with locks)
   // ═══════════════════════════════════════════════════════════════════════════
   const trope = 'enemies_to_lovers'
-  const tension = Math.random() < 0.5 ? 'safety' : 'identity'
+  // TESTING LOCK: identity tension only while we test the new scene architecture
+  const tension = 'identity'
 
-  let ending, triangle
+  let ending, triangle, secret
   if (tension === 'identity') {
     ending = 'HEA'       // LOCK: identity → HEA
     triangle = false      // LOCK: identity → no triangle
+    secret = true         // LOCK: identity → secret always on
   } else {
     ending = weightedPick([
       { value: 'HEA', weight: 60 },
@@ -1687,9 +1466,8 @@ function rollSkeleton() {
       { value: 'tragic', weight: 10 }
     ])
     triangle = Math.random() < 0.3
+    secret = Math.random() < 0.5
   }
-
-  const secret = Math.random() < 0.5
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 2. CHAPTER EMPLOYMENT OPTIONS (sequential, constraints enforced)
@@ -1705,19 +1483,82 @@ function rollSkeleton() {
   let rivalFlaw = { id: null, selectedIn: null }
   let ch9TragedySelection = null
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // IDENTITY PATH — 7 chapters, all scene architecture, no employment
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (tension === 'identity') {
+    const act1 = CHAPTER_TREE.act1.chapters
+    const act2 = CHAPTER_TREE.act2.chapters
+    const act3 = CHAPTER_TREE.act3.chapters
+    const act4 = CHAPTER_TREE.act4_resolution.chapters
+
+    // Helper for identity chapters — scene architecture, no employment
+    function addIdentityChapter(def) {
+      chapterNum++
+      const entry = {
+        chapter: chapterNum,
+        title: def.title,
+        endState: def.endStates.default || def.endStates.identity || Object.values(def.endStates)[0],
+        employmentSelections: []
+      }
+      // Include scene architecture
+      if (Array.isArray(def.sceneArchitecture)) {
+        entry.sceneArchitecture = def.sceneArchitecture
+      } else if (def.sceneArchitecture && def.sceneArchitecture.identity) {
+        entry.sceneArchitecture = def.sceneArchitecture.identity
+      }
+      chapters.push(entry)
+    }
+
+    // Ch.1 — Establish Her World
+    addIdentityChapter(act1.ch1)
+    // Ch.2 — The First Encounter
+    addIdentityChapter(act1.ch2)
+    // Ch.3 — The Escalation
+    addIdentityChapter(act1.ch3_identity)
+    // Ch.4 — The Crack
+    addIdentityChapter(act2.ch5_identity)
+    // Ch.5 — The Fall
+    addIdentityChapter(act2.ch6_identity)
+    // Ch.6 — The Dark Moment
+    addIdentityChapter(act3.ch7_identity)
+    // Ch.7 — Reunited
+    addIdentityChapter(act4.ch_reunited_identity)
+
+    // Build cast functions
+    const castFunctions = CAST[tension]
+      .map(c => ({
+        id: c.function.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+        name: c.function,
+        description: c.description,
+        employmentOptions: c.employmentOptions
+      }))
+
+    return {
+      trope,
+      tension,
+      ending,
+      triangle,
+      secret,
+      chapters,
+      rivalFlaw: { id: null, selectedIn: null },
+      castFunctions
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAFETY PATH — original logic with employment selections
+  // ═══════════════════════════════════════════════════════════════════════════
+
   // ── CH.1: ESTABLISH HER WORLD ──────────────────────────────────────────
   chapterNum++
   const ch1Def = CHAPTER_TREE.act1.chapters.ch1
-  const ch1Options = tension === 'safety'
-    ? ch1Def.employment.safety.options
-    : ch1Def.employment.identity.options
+  const ch1Options = ch1Def.employment.safety.options
   const ch1Pick = pick(ch1Options)
   ch1Selection = ch1Pick.id
 
   let ch1EndState
-  if (tension === 'identity') {
-    ch1EndState = ch1Def.endStates.identity
-  } else if (ch1Selection === 'safe_stable') {
+  if (ch1Selection === 'safe_stable') {
     ch1EndState = ch1Def.endStates.safety_safe_stable
   } else {
     ch1EndState = ch1Def.endStates.safety_default
@@ -1748,41 +1589,24 @@ function rollSkeleton() {
   ch2Selections.push({ group: 'How They Meet', id: ch2MeetPick.id, text: ch2MeetPick.text })
 
   // Why they're enemies
-  if (tension === 'safety') {
-    let enmityOptions = [...ch2Def.employment.enmity_safety.options]
-    if (ch1Selection === 'safe_stable') {
-      enmityOptions = enmityOptions.filter(o => o.id !== 'rivals' && o.id !== 'opposite_sides')
-    }
-    const enmityPick = pick(enmityOptions)
-    ch2EnmitySelection = enmityPick.id
-    ch2Selections.push({ group: "Why They're Enemies", id: enmityPick.id, text: enmityPick.text })
-  } else {
-    const enmityKey = `enmity_identity_${ch1Selection}`
-    const enmityGroup = ch2Def.employment[enmityKey]
-    const enmityPick = pick(enmityGroup.options)
-    ch2EnmitySelection = enmityPick.id
-    ch2Selections.push({ group: enmityGroup.header, id: enmityPick.id, text: enmityPick.text })
+  let enmityOptions = [...ch2Def.employment.enmity_safety.options]
+  if (ch1Selection === 'safe_stable') {
+    enmityOptions = enmityOptions.filter(o => o.id !== 'rivals' && o.id !== 'opposite_sides')
   }
+  const enmityPick = pick(enmityOptions)
+  ch2EnmitySelection = enmityPick.id
+  ch2Selections.push({ group: "Why They're Enemies", id: enmityPick.id, text: enmityPick.text })
 
   chapters.push({
     chapter: chapterNum,
     title: ch2Def.title,
-    endState: tension === 'safety' ? ch2Def.endStates.safety : ch2Def.endStates.identity,
+    endState: ch2Def.endStates.safety,
     employmentSelections: ch2Selections
   })
 
   // ── CH.3 ───────────────────────────────────────────────────────────────
   chapterNum++
-  if (tension === 'identity') {
-    const ch3Def = CHAPTER_TREE.act1.chapters.ch3_identity
-    const ch3Pick = pick(ch3Def.employment.main.options)
-    chapters.push({
-      chapter: chapterNum,
-      title: ch3Def.title,
-      endState: ch3Def.endStates.default,
-      employmentSelections: [{ group: 'Employment Options', id: ch3Pick.id, text: ch3Pick.text }]
-    })
-  } else if (triangle) {
+  if (triangle) {
     const ch3Def = CHAPTER_TREE.act1.chapters.ch3_triangle
     let ch3Options = [...ch3Def.employment.main.options]
     // CONSTRAINT: presents_solution disabled if ch2 enmity is opposite_sides or she_pursues
@@ -1825,8 +1649,7 @@ function rollSkeleton() {
 
   // ── CH.4 ───────────────────────────────────────────────────────────────
   chapterNum++
-  const ch4Key = tension === 'identity' ? 'ch4_identity' : 'ch4_safety'
-  const ch4Def = CHAPTER_TREE.act1.chapters[ch4Key]
+  const ch4Def = CHAPTER_TREE.act1.chapters.ch4_safety
   const ch4Pick = pick(ch4Def.employment.main.options)
   chapters.push({
     chapter: chapterNum,
@@ -1837,16 +1660,7 @@ function rollSkeleton() {
 
   // ── CH.5: THE CRACK ────────────────────────────────────────────────────
   chapterNum++
-  if (tension === 'identity') {
-    const ch5Def = CHAPTER_TREE.act2.chapters.ch5_identity
-    const ch5Pick = pick(ch5Def.employment.main.options)
-    chapters.push({
-      chapter: chapterNum,
-      title: ch5Def.title,
-      endState: ch5Def.endStates.default,
-      employmentSelections: [{ group: ch5Def.employment.main.header, id: ch5Pick.id, text: ch5Pick.text }]
-    })
-  } else {
+  {
     const ch5Def = CHAPTER_TREE.act2.chapters.ch5_safety
     const ch5Sels = []
     const ch5Pick = pick(ch5Def.employment.main.options)
@@ -1873,16 +1687,7 @@ function rollSkeleton() {
 
   // ── CH.6: THE FALL ─────────────────────────────────────────────────────
   chapterNum++
-  if (tension === 'identity') {
-    const ch6Def = CHAPTER_TREE.act2.chapters.ch6_identity
-    const ch6Pick = pick(ch6Def.employment.main.options)
-    chapters.push({
-      chapter: chapterNum,
-      title: ch6Def.title,
-      endState: ch6Def.endStates.default,
-      employmentSelections: [{ group: ch6Def.employment.main.header, id: ch6Pick.id, text: ch6Pick.text }]
-    })
-  } else {
+  {
     const ch6Def = CHAPTER_TREE.act2.chapters.ch6_safety
     const ch6Pick = pick(ch6Def.employment.main.options)
     const ch6Entry = {
@@ -1899,27 +1704,7 @@ function rollSkeleton() {
 
   // ── CH.7: THE DARK MOMENT ──────────────────────────────────────────────
   chapterNum++
-  if (tension === 'identity') {
-    const ch7Def = CHAPTER_TREE.act3.chapters.ch7_identity
-    const ch7Sels = []
-
-    if (secret) {
-      const secretPick = pick(ch7Def.employment.secret.options)
-      ch7Sels.push({ group: ch7Def.employment.secret.header, id: secretPick.id, text: secretPick.text })
-      const surfacePick = pick(ch7Def.employment.secretSurface.options)
-      ch7Sels.push({ group: ch7Def.employment.secretSurface.header, id: surfacePick.id, text: surfacePick.text })
-    } else {
-      const triggerPick = pick(ch7Def.employment.trigger.options)
-      ch7Sels.push({ group: ch7Def.employment.trigger.header, id: triggerPick.id, text: triggerPick.text })
-    }
-
-    chapters.push({
-      chapter: chapterNum,
-      title: ch7Def.title,
-      endState: ch7Def.endStates.default,
-      employmentSelections: ch7Sels
-    })
-  } else {
+  {
     const ch7Def = CHAPTER_TREE.act3.chapters.ch7_safety
     const ch7Sels = []
 
@@ -1970,16 +1755,9 @@ function rollSkeleton() {
 
   // ── CH.8: THE RETREAT ──────────────────────────────────────────────────
   chapterNum++
-  const ch8Key = tension === 'identity' ? 'ch8_identity' : 'ch8_safety'
-  const ch8Def = CHAPTER_TREE.act3.chapters[ch8Key]
+  const ch8Def = CHAPTER_TREE.act3.chapters.ch8_safety
   const ch8Pick = pick(ch8Def.employment.main.options)
-
-  let ch8EndState
-  if (tension === 'identity') {
-    ch8EndState = ch8Def.endStates.default
-  } else {
-    ch8EndState = triangle ? ch8Def.endStates.triangle : ch8Def.endStates.notriangle
-  }
+  const ch8EndState = triangle ? ch8Def.endStates.triangle : ch8Def.endStates.notriangle
 
   chapters.push({
     chapter: chapterNum,
@@ -2041,41 +1819,6 @@ function rollSkeleton() {
       employmentSelections: [{ group: consequenceVariant.employment.header, id: ch11Pick.id, text: ch11Pick.text }]
     })
     // No Ch.12 for tragedy
-
-  } else if (tension === 'identity') {
-    // ── IDENTITY HEA PATH ─────────────────────────────────────────────
-    const res = CHAPTER_TREE.act4_resolution.chapters
-
-    // Ch.9
-    chapterNum++
-    const ch9Def = secret ? res.ch9_identity_secret : res.ch9_identity_nosecret
-    const ch9Pick = pick(ch9Def.employment.main.options)
-    chapters.push({
-      chapter: chapterNum,
-      title: ch9Def.title,
-      endState: ch9Def.endStates.default,
-      employmentSelections: [{ group: ch9Def.employment.main.header, id: ch9Pick.id, text: ch9Pick.text }]
-    })
-
-    // Ch.10: Reunited
-    chapterNum++
-    const ch10Def = res.ch10_identity
-    const ch10Pick = pick(ch10Def.employment.main.options)
-    chapters.push({
-      chapter: chapterNum,
-      title: ch10Def.title,
-      endState: ch10Def.endStates.default,
-      employmentSelections: [{ group: ch10Def.employment.main.header, id: ch10Pick.id, text: ch10Pick.text }]
-    })
-
-    // Ch.11: HEA (no employment)
-    chapterNum++
-    chapters.push({
-      chapter: chapterNum,
-      title: res.ch_hea_identity.title,
-      endState: res.ch_hea_identity.endStates.default,
-      employmentSelections: []
-    })
 
   } else {
     // ── SAFETY HEA / BITTERSWEET PATH ─────────────────────────────────

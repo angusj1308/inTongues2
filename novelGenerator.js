@@ -759,24 +759,21 @@ IMPORTANT:
 - Every paragraph must be substantive — at least 3-4 sentences of concrete detail.
 - Do not produce generic characters. These people are specific to this setting, this time, this place.`
 
-const PHASE_1_CALL2_SYSTEM_PROMPT = `You are creating the secondary cast for an enemies-to-lovers romance. You receive the setting, tension type, the already-created protagonist and primary characters, and a list of cast functions with employment options.
+const PHASE_1_CALL2_SYSTEM_PROMPT = `You are creating the secondary cast for an enemies-to-lovers romance. You receive the setting, tension type, the already-created protagonist and primary characters, and a list of cast functions.
 
-For each cast function, you must:
-1. Select exactly ONE employment option from the provided list.
-2. Create a concrete character who fulfils that function in relationship to the protagonist.
+For each cast function, create a concrete character who fulfils that function in relationship to the protagonist. Use the setting and function description to determine who this person is — their role, occupation, and relationship to the protagonist should emerge naturally from the world.
 
 RULES:
-1. Each cast member has exactly six fields: functionId, employmentOption, backstory, psychology, voiceAndMannerisms, appearance.
+1. Each cast member has exactly five fields: functionId, backstory, psychology, voiceAndMannerisms, appearance.
 2. functionId must match the id provided in the cast function list exactly.
-3. employmentOption must be copied exactly from the provided options — the one you selected.
-4. No "name" field. Names appear naturally within the backstory paragraph.
-5. Every cast member must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
-6. Ground each character in the historical and social reality of the setting. A "widow" on the Argentine pampas is different from a "widow" in Regency England. Make the employment option real for this world.
-7. Traditional gender roles preferred. Avoid modernist feminist tropes. Build characters whose roles are plausible for the era and setting.
-8. Each cast member exists in relationship to the protagonist. The function description tells you what role they play in her story. Their backstory and psychology should make that relationship concrete and specific — build them knowing who she is.
-9. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
-10. Appearance must be specific and grounded.
-11. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
+3. No "name" field. Names appear naturally within the backstory paragraph.
+4. Every cast member must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
+5. Ground each character in the historical and social reality of the setting. A "widow" on the Argentine pampas is different from a "widow" in Regency England.
+6. Traditional gender roles preferred. Avoid modernist feminist tropes. Build characters whose roles are plausible for the era and setting.
+7. Each cast member exists in relationship to the protagonist. The function description tells you what role they play in her story. Their backstory and psychology should make that relationship concrete and specific — build them knowing who she is.
+8. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
+9. Appearance must be specific and grounded.
+10. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -784,7 +781,6 @@ Return a single JSON object:
   "cast": [
     {
       "functionId": "exact_id_from_list",
-      "employmentOption": "Exact option text you selected",
       "backstory": "One paragraph.",
       "psychology": "One paragraph.",
       "voiceAndMannerisms": "One paragraph.",
@@ -836,11 +832,8 @@ Create the protagonist (she), the primary (he)${triangle ? ', and the rival' : '
  */
 function buildCall2UserPrompt(setting, tension, protagonist, primary, castFunctions) {
   const castList = castFunctions.map(cf => {
-    const optionsStr = cf.employmentOptions.map((o, i) => `    ${i + 1}. ${o}`).join('\n')
     return `- Function: "${cf.name}" (id: ${cf.id})
-  Description: ${cf.description}
-  Employment options (pick exactly one):
-${optionsStr}`
+  Description: ${cf.description}`
   }).join('\n\n')
 
   return `=== SETTING ===
@@ -864,7 +857,7 @@ Appearance: ${primary.appearance}
 === CAST FUNCTIONS ===
 ${castList}
 
-Create one character for each cast function. Select one employment option per function. Return the JSON object only.`
+Create one character for each cast function. Return the JSON object only.`
 }
 
 /**
@@ -901,7 +894,7 @@ function validateCall1(data, triangle) {
 }
 
 /**
- * Validate Call 2 output: cast array with functionId, employmentOption, and character fields.
+ * Validate Call 2 output: cast array with functionId and character fields.
  */
 function validateCall2(data, filteredCastFunctions) {
   if (!Array.isArray(data.cast)) {
@@ -921,10 +914,6 @@ function validateCall2(data, filteredCastFunctions) {
       throw new Error(
         `Phase 1 Call 2: invalid or missing functionId "${member.functionId}". Expected one of: ${[...expectedIds].join(', ')}`
       )
-    }
-
-    if (!member.employmentOption || typeof member.employmentOption !== 'string' || member.employmentOption.trim().length === 0) {
-      throw new Error(`Phase 1 Call 2: cast member "${member.functionId}" missing employmentOption`)
     }
 
     validateCharacterFields(member, `cast member "${member.functionId}"`)
@@ -991,8 +980,7 @@ async function executePhase1(skeleton, setting) {
   const { protagonist, primary, rival } = call1Parsed.data
 
   // ── Call 2: Secondary Cast ──────────────────────────────────────────
-  // Filter out cast functions with empty employmentOptions (e.g., The Rival)
-  const filteredCastFunctions = skeleton.castFunctions.filter(cf => cf.employmentOptions.length > 0)
+  const filteredCastFunctions = skeleton.castFunctions
 
   console.log(`\n  Call 2: Generating ${filteredCastFunctions.length} secondary cast members...`)
 
@@ -1027,7 +1015,7 @@ async function executePhase1(skeleton, setting) {
     console.log(`  Rival backstory: ${rival.backstory.slice(0, 80)}...`)
   }
   for (const m of characters.cast) {
-    console.log(`  Cast [${m.functionId}] (${m.employmentOption}): ${m.backstory.slice(0, 60)}...`)
+    console.log(`  Cast [${m.functionId}]: ${m.backstory.slice(0, 60)}...`)
   }
 
   return { characters }
@@ -1138,7 +1126,7 @@ Voice and mannerisms: ${characters.rival.voiceAndMannerisms}`
     for (const member of characters.cast) {
       characterBlock += `
 
---- ${member.functionId} (${member.employmentOption}) ---
+--- ${member.functionId} ---
 Backstory: ${member.backstory}
 Psychology: ${member.psychology}`
     }
@@ -1558,7 +1546,7 @@ Appearance: ${characters.rival.appearance}`
     for (const member of characters.cast) {
       characterBlock += `
 
---- ${member.functionId} (${member.employmentOption}) ---
+--- ${member.functionId} ---
 Backstory: ${member.backstory}
 Psychology: ${member.psychology}
 Voice and mannerisms: ${member.voiceAndMannerisms}
@@ -1662,7 +1650,7 @@ Appearance: ${characters.rival.appearance}`
     for (const member of characters.cast) {
       characterBlock += `
 
---- ${member.functionId} (${member.employmentOption}) ---
+--- ${member.functionId} ---
 Backstory: ${member.backstory}
 Psychology: ${member.psychology}
 Voice and mannerisms: ${member.voiceAndMannerisms}

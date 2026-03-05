@@ -1174,15 +1174,16 @@ IMPORTANT:
 
 /**
  * Build the user prompt for Phase 2: a single chapter's scene generation.
- * Includes setting, characters, this chapter's blueprint, and previous chapters' scenes.
+ * Includes setting, characters, location palette, this chapter's blueprint, and previous chapters' scenes.
  *
  * @param {string} setting - The story setting
  * @param {Object} skeleton - The full skeleton
  * @param {Object} characters - Phase 1 character profiles
  * @param {Object} chapterBlueprint - This chapter's skeleton entry
  * @param {Array} previousChaptersScenes - Array of { chapter, title, scenes } for prior chapters
+ * @param {Object} [locations] - Location palette from Phase 2 (locations)
  */
-function buildPhase2UserPrompt(setting, skeleton, characters, chapterBlueprint, previousChaptersScenes) {
+function buildPhase2UserPrompt(setting, skeleton, characters, chapterBlueprint, previousChaptersScenes, locations) {
   // ── Setting ──
   const settingBlock = `=== SETTING ===
 ${setting}`
@@ -1274,6 +1275,31 @@ End state: ${chapterBlueprint.endState}`
     chapterBlock += '\nThese are the minimum required scenes. You may add scenes beyond these to accommodate secondary cast, world texture, or transitions.'
   }
 
+  // ── Location palette ──
+  let locationBlock = ''
+  if (locations && locations.locations && locations.locations.length > 0) {
+    let paletteLines = '=== LOCATION PALETTE ===\nThese locations are available. Pick the locations that serve each scene best. You do not need to use all of them.\n'
+    for (const loc of locations.locations) {
+      const firstSentence = loc.physicalDescription.split(/\.\s/)[0] + '.'
+      paletteLines += `\n- ${loc.name}: ${firstSentence}`
+    }
+
+    // Collect tertiary characters across all locations
+    const tertiaryLines = []
+    for (const loc of locations.locations) {
+      if (loc.tertiaryCharacters && loc.tertiaryCharacters.length > 0) {
+        for (const tc of loc.tertiaryCharacters) {
+          tertiaryLines.push(`- ${tc.name} (${loc.name}): ${tc.description}`)
+        }
+      }
+    }
+
+    locationBlock = '\n\n' + paletteLines
+    if (tertiaryLines.length > 0) {
+      locationBlock += `\n\n=== TERTIARY CHARACTERS ===\nThese characters exist at their locations. You may include them in scenes for texture.\n\n${tertiaryLines.join('\n')}`
+    }
+  }
+
   // ── Previous chapters' scenes ──
   let previousBlock = ''
   if (previousChaptersScenes.length > 0) {
@@ -1293,7 +1319,7 @@ End state: ${chapterBlueprint.endState}`
 
 ${structureBlock}
 
-${characterBlock}${secretBlock}
+${characterBlock}${secretBlock}${locationBlock}
 
 ${chapterBlock}${previousBlock}
 
@@ -1362,10 +1388,10 @@ function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapter
 /**
  * Phase 2: Generate scene summaries for all chapters.
  * One LLM call per chapter, sequential. Each call sees previous chapters' output.
- * Input: skeleton + Phase 1 characters + setting.
+ * Input: skeleton + Phase 1 characters + setting + locations.
  * Output: scenes per chapter with synopsis paragraphs.
  */
-async function executePhase2(skeleton, characters, setting) {
+async function executePhase2(skeleton, characters, setting, locations) {
   console.log('\nExecuting Phase 2: Scene Summaries...')
   console.log(`  Chapters: ${skeleton.chapters.length}`)
   console.log(`  Cast members: ${characters.cast.length}`)
@@ -1378,7 +1404,7 @@ async function executePhase2(skeleton, characters, setting) {
     console.log(`  Generating scenes for Chapter ${chapterBlueprint.chapter}: "${chapterBlueprint.title}"...`)
 
     const userPrompt = buildPhase2UserPrompt(
-      setting, skeleton, characters, chapterBlueprint, completedChapters
+      setting, skeleton, characters, chapterBlueprint, completedChapters, locations
     )
 
     const prevSceneCount = completedChapters.length > 0
@@ -1432,23 +1458,31 @@ async function executePhase2(skeleton, characters, setting) {
 // PHASE 3: LOCATIONS
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are describing locations for an enemies-to-lovers romance. You receive a setting and a list of location names extracted from scene summaries. Your job: describe each unique physical place once.
+const PHASE_3_SYSTEM_PROMPT = `You are describing locations for an enemies-to-lovers romance. You receive a setting and character profiles. Your job: generate a rich palette of locations where this story could take place.
 
 RULES:
 
-1. Consolidate duplicates. "The estancia kitchen at dawn" and "the estancia kitchen at night" are the same place. Time of day, weather, and lighting do not make a different location. Strip those qualifiers and produce one entry per physical place.
+1. Ground in the setting. Materials, construction, objects, and scale must be plausible for the era and place. An estancia kitchen on the Argentine pampas in the 1870s has an iron stove, packed earth or flagstone floors, whitewashed adobe walls — not stainless steel and tile.
 
-2. Ground in the setting. Materials, construction, objects, and scale must be plausible for the era and place. An estancia kitchen on the Argentine pampas in the 1870s has an iron stove, packed earth or flagstone floors, whitewashed adobe walls — not stainless steel and tile.
+2. Physical description is what's fixed. Layout, furniture, walls, floors, doors, windows, objects that are always there. Not what happens in the space. Not who is there. Not mood, not atmosphere.
 
-3. Physical description is what's fixed. Layout, furniture, walls, floors, doors, windows, objects that are always there. Not what happens in the space. Not who is there. Not mood, not atmosphere.
+3. Sensory environment is what's constant. The sounds, smells, textures that define this place regardless of time of day or who's present. The corral always smells of horses and dry manure. The chapel is always cool and quiet. The river crossing always has the sound of water over stones.
 
-4. Sensory environment is what's constant. The sounds, smells, textures that define this place regardless of time of day or who's present. The corral always smells of horses and dry manure. The chapel is always cool and quiet. The river crossing always has the sound of water over stones.
+4. No mood, no lighting, no weather, no time of day. Those change per scene and belong to the prose generator. You describe the container, not the moment.
 
-5. No mood, no lighting, no weather, no time of day. Those change per scene and belong to the prose generator. You describe the container, not the moment.
+5. Two fields per location. physicalDescription is one paragraph of substantial prose. sensoryEnvironment is one paragraph of substantial prose.
 
-6. Two fields per location. physicalDescription is one paragraph of substantial prose. sensoryEnvironment is one paragraph of substantial prose.
+6. Location names should be specific place names. Not "the town" but "the well at the edge of the plaza." Not "the estancia" but "the estancia kitchen."
 
-7. Location names should be the base place name, stripped of time or weather qualifiers. "The estancia kitchen" not "The estancia kitchen at dawn."
+7. When a location naturally has people who work or live there, include a tertiaryCharacters array. Each entry has a "name" (string) and "description" (one or two sentences — who they are and what they do at this location). Private spaces do not need tertiary characters. Do not force them where they do not belong.
+
+8. Generate a minimum of 25 distinct locations. Draw them from:
+- Her world: where she lives, works, and goes routinely. Include multiple distinct spaces within her primary location. 5-6 locations.
+- His world: where he lives, works, and goes. 4-5 locations.
+- Each secondary cast member's world: 1-3 locations each.
+- Shared public spaces: markets, plazas, streets, churches, harbours — places where any character might cross paths. 3-4 locations.
+
+Not every location will be used in the story. Abundance is the point.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -1457,48 +1491,47 @@ Return a single JSON object:
     {
       "name": "The estancia kitchen",
       "physicalDescription": "One paragraph. Layout, objects, materials, scale.",
-      "sensoryEnvironment": "One paragraph. What you always hear, smell, feel here."
+      "sensoryEnvironment": "One paragraph. What you always hear, smell, feel here.",
+      "tertiaryCharacters": [
+        {
+          "name": "Tomás",
+          "description": "Old fishmonger who has worked this stall for thirty years. Shouts prices in a hoarse voice."
+        }
+      ]
     }
   ]
 }
 
 IMPORTANT:
 - Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
-- Every unique physical place from the list must have an entry.
 - Each paragraph must be substantive — at least 3-4 sentences of concrete detail.
-- Do not invent locations that are not in the list.`
+- The tertiaryCharacters array is optional — only include it on locations that naturally have people working or living there.`
 
 /**
- * Extract all unique location strings from Phase 2 scene summaries.
+ * Build the user prompt for Phase 3 (locations): setting + character profiles.
  */
-function extractUniqueLocations(sceneSummaries) {
-  const seen = new Set()
-  const locations = []
-  for (const ch of sceneSummaries.chapters) {
-    for (const scene of ch.scenes) {
-      const key = scene.location.toLowerCase().trim()
-      if (!seen.has(key)) {
-        seen.add(key)
-        locations.push(scene.location)
-      }
-    }
-  }
-  return locations
-}
-
-/**
- * Build the user prompt for Phase 3: location descriptions.
- */
-function buildPhase3UserPrompt(locationNames, setting) {
-  const locationList = locationNames.map((name, i) => `${i + 1}. ${name}`).join('\n')
-
-  return `=== SETTING ===
+function buildPhase3UserPrompt(setting, characters) {
+  let prompt = `=== SETTING ===
 ${setting}
 
-=== LOCATIONS FROM SCENES ===
-${locationList}
+=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+Backstory: ${characters.protagonist.backstory}
 
-Describe each unique location. Consolidate duplicates that differ only by time of day or weather. Return the JSON object only.`
+=== PRIMARY ===
+Backstory: ${characters.primary.backstory}`
+
+  if (characters.cast && characters.cast.length > 0) {
+    prompt += '\n\n=== CAST ==='
+    for (const member of characters.cast) {
+      prompt += `\n\n--- ${member.functionId} ---\nBackstory: ${member.backstory}`
+    }
+  }
+
+  prompt += `
+
+Generate at least 25 distinct locations grounded in this setting and these characters' worlds. Return the JSON object only.`
+
+  return prompt
 }
 
 // ── Helpers for fuzzy location matching ──
@@ -1521,11 +1554,15 @@ function wordOverlap(a, b) {
 
 /**
  * Validate Phase 3 output: location descriptions.
- * Includes fuzzy matching to ensure every scene location is covered.
+ * Requires minimum 25 locations. Validates optional tertiaryCharacters.
  */
-function validatePhase3(data, locationNames) {
+function validatePhase3(data) {
   if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
     throw new Error('Phase 3: locations must be a non-empty array')
+  }
+
+  if (data.locations.length < 25) {
+    throw new Error(`Phase 3: minimum 25 locations required, got ${data.locations.length}`)
   }
 
   for (let i = 0; i < data.locations.length; i++) {
@@ -1542,51 +1579,39 @@ function validatePhase3(data, locationNames) {
     if (!loc.sensoryEnvironment || typeof loc.sensoryEnvironment !== 'string' || loc.sensoryEnvironment.trim().length === 0) {
       throw new Error(`Phase 3: location "${loc.name}" missing or empty sensoryEnvironment`)
     }
-  }
 
-  // Fuzzy coverage check: every scene location must match at least one output location
-  const outputNames = data.locations.map(l => stripTimeWeather(normalizeForMatch(l.name)))
-
-  for (const sceneLoc of locationNames) {
-    const sceneLocNorm = stripTimeWeather(normalizeForMatch(sceneLoc))
-    const matched = outputNames.some(outName =>
-      sceneLocNorm.includes(outName) || outName.includes(sceneLocNorm) ||
-      wordOverlap(sceneLocNorm, outName) >= 0.5 || wordOverlap(outName, sceneLocNorm) >= 0.5
-    )
-    if (!matched) {
-      throw new Error(`Phase 3: scene location "${sceneLoc}" has no matching entry in output`)
+    // Validate optional tertiaryCharacters
+    if (loc.tertiaryCharacters !== undefined && loc.tertiaryCharacters !== null) {
+      if (!Array.isArray(loc.tertiaryCharacters)) {
+        throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacters must be an array`)
+      }
+      for (let j = 0; j < loc.tertiaryCharacters.length; j++) {
+        const tc = loc.tertiaryCharacters[j]
+        if (!tc.name || typeof tc.name !== 'string' || tc.name.trim().length === 0) {
+          throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacter ${j + 1} missing or empty name`)
+        }
+        if (!tc.description || typeof tc.description !== 'string' || tc.description.trim().length === 0) {
+          throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacter ${j + 1} missing or empty description`)
+        }
+      }
     }
   }
 }
 
 /**
  * Phase 3: Generate location descriptions.
- * One LLM call. Input: Phase 2 scene summaries + setting.
- * Output: master list of unique locations with physical and sensory descriptions.
+ * One LLM call. Input: setting + character profiles.
+ * Output: master list of unique locations with physical, sensory, and optional tertiary character descriptions.
  */
-async function executePhase3(sceneSummaries, setting) {
+async function executePhase3(setting, characters) {
   console.log('\nExecuting Phase 3: Locations...')
 
-  const rawLocationNames = extractUniqueLocations(sceneSummaries)
-
-  // Strip time/weather qualifiers and deduplicate so the LLM gets clean base names
-  const seenNorm = new Set()
-  const cleanedNames = []
-  for (const name of rawLocationNames) {
-    const norm = stripTimeWeather(normalizeForMatch(name))
-    if (!seenNorm.has(norm)) {
-      seenNorm.add(norm)
-      cleanedNames.push(stripTimeWeather(name))
-    }
-  }
-  console.log(`  Unique location strings: ${cleanedNames.length} (from ${rawLocationNames.length} raw)`)
-
-  const userPrompt = buildPhase3UserPrompt(cleanedNames, setting)
+  const userPrompt = buildPhase3UserPrompt(setting, characters)
 
   const response = await callClaude(PHASE_3_SYSTEM_PROMPT, userPrompt, {
     model: 'claude-sonnet-4-20250514',
     temperature: 1.0,
-    maxTokens: 8192
+    maxTokens: 16384
   })
 
   const parsed = parseJSON(response)
@@ -1594,7 +1619,7 @@ async function executePhase3(sceneSummaries, setting) {
     throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
   }
 
-  validatePhase3(parsed.data, cleanedNames)
+  validatePhase3(parsed.data)
   console.log('  Phase 3 validated successfully.')
 
   for (const loc of parsed.data.locations) {
@@ -1903,22 +1928,22 @@ async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, l
 
 /**
  * Pipeline entry point.
- * Rolls a skeleton, generates characters (Phase 1), scene summaries (Phase 2),
- * and location descriptions (Phase 3).
+ * Rolls a skeleton, generates characters (Phase 1), locations (Phase 2),
+ * and scene summaries (Phase 3).
  *
  * @param {string} setting - User-provided setting string
- * @returns {Promise<Object>} Object with skeleton, characters, sceneSummaries, and locations
+ * @returns {Promise<Object>} Object with skeleton, characters, locations, and sceneSummaries
  */
 export async function generateStory(setting) {
   const skeleton = rollSkeleton()
   const phase1 = await executePhase1(skeleton, setting)
-  const phase2 = await executePhase2(skeleton, phase1.characters, setting)
-  const phase3 = await executePhase3(phase2.sceneSummaries, setting)
+  const phase2 = await executePhase3(setting, phase1.characters)              // locations
+  const phase3 = await executePhase2(skeleton, phase1.characters, setting, phase2.locations)  // scenes
 
   // Phase 4 is now caller-driven, one chapter at a time
   console.log('\n=== Phases 1-3 Complete. Use executePhase4Chapter for prose. ===')
 
-  return { skeleton, characters: phase1.characters, sceneSummaries: phase2.sceneSummaries, locations: phase3.locations }
+  return { skeleton, characters: phase1.characters, sceneSummaries: phase3.sceneSummaries, locations: phase2.locations }
 }
 
 export {

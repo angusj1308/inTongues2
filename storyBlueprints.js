@@ -22,81 +22,50 @@ const CAST = {
     {
       function: 'All Passion, No Fear',
       color: 'passion',
-      description: 'Believes passion is the whole answer. No caution, no consequences. Makes the protagonist\'s restraint look like cowardice.',
-      employmentOptions: [
-        'A younger sister or cousin',
-        'A best friend or close companion',
-        'A female colleague or peer in the same world',
-        'A servant or attendant with proximity to her private life'
-      ]
+      description: 'Believes passion is the whole answer. No caution, no consequences. Makes the protagonist\'s restraint look like cowardice.'
     },
     {
       function: 'Burned by Danger',
       color: 'caution',
-      description: 'Destroyed by danger and now lives inside walls. Her caution is earned. Represents the future if fear wins.',
-      employmentOptions: [
-        'A mother or grandmother who lost someone to danger',
-        'An older female relative — chose danger once and paid',
-        'A widow — her story is the cautionary tale',
-        'A female elder in the community — respected, protective',
-        'A former version of the protagonist\'s role'
-      ]
+      description: 'Destroyed by danger and now lives inside walls. Her caution is earned. Represents the future if fear wins.'
     },
     {
       function: 'Voice of the Dignified Life',
       color: 'dignity',
-      description: 'Chose safety and made it noble through effort and loyalty. Proves the safe path has real value.',
-      employmentOptions: [
-        'Her father',
-        'A senior figure in her profession — foreman, mentor, veteran',
-        'An elderly male relative — uncle, grandfather',
-        'A neighbour or community figure who built something through patience'
-      ]
+      description: 'Chose safety and made it noble through effort and loyalty. Proves the safe path has real value.'
     },
     {
       function: 'Someone the Primary Protects',
       color: 'tender',
-      description: 'Can\'t protect themselves. The primary protects them anyway. She sees him be tender and her framework breaks.',
-      employmentOptions: [
-        'A child he\'s responsible for — his own, an orphan, a ward',
-        'A younger sibling or relative he raised',
-        'An elderly parent or grandparent he cares for',
-        'A loyal subordinate who depends on him',
-        'A vulnerable person others abandoned but he hasn\'t'
-      ]
+      description: 'Can\'t protect themselves. The primary protects them anyway. She sees him be tender and her framework breaks.'
     },
     {
       function: 'The Rival',
       color: 'rival',
       description: 'The safe option personified. His flaw cascades from flicker to full exposure.',
-      requiresTriangle: true,
-      employmentOptions: []
+      requiresTriangle: true
     }
   ],
   identity: [
     {
       function: 'The Source',
       color: 'passion',
-      description: 'An older individual who had a significant influence over her as a formative figure. Their approval is what the core belief was built to earn.',
-      employmentOptions: []
+      description: 'An older individual who had a significant influence over her as a formative figure. Their approval is what the core belief was built to earn.'
     },
     {
       function: 'The Romantic Confidant',
       color: 'caution',
-      description: 'A female character of a similar age. Sees the romance before she does. Names the attraction before the protagonist will admit it. Plants the seed. Later, the person she confesses to. May have her own romantic resolution.',
-      employmentOptions: []
+      description: 'A female character of a similar age. Sees the romance before she does. Names the attraction before the protagonist will admit it. Plants the seed. Later, the person she confesses to. May have her own romantic resolution.'
     },
     {
       function: 'Her Opposite',
       color: 'dignity',
-      description: 'A younger woman or girl who does not share her core belief and lives in opposition to it.',
-      employmentOptions: []
+      description: 'A younger woman or girl who does not share her core belief and lives in opposition to it.'
     },
     {
       function: 'The Mirror',
       color: 'tender',
-      description: 'An older woman who shows her what a life looks like at the end of the road she\'s on. Either she chose romance and was burned, or she kept her identity and is alone.',
-      employmentOptions: []
+      description: 'An older woman who shows her what a life looks like at the end of the road she\'s on. Either she chose romance and was burned, or she kept her identity and is alone.'
     }
   ]
 }
@@ -1403,12 +1372,6 @@ function buildPhase1BlueprintPrompt(concept, blueprint) {
     for (const member of blueprint.cast) {
       if (member.requiresTriangle && !blueprint.modifier.includes('love_triangle') && blueprint.modifier !== 'both') continue
       castText += `\n${member.function}: ${member.description}`
-      if (member.employmentOptions.length > 0) {
-        castText += '\n  Employment options:'
-        for (const opt of member.employmentOptions) {
-          castText += `\n    - ${opt}`
-        }
-      }
     }
   }
 
@@ -1530,8 +1493,7 @@ function rollSkeleton() {
       .map(c => ({
         id: c.function.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
         name: c.function,
-        description: c.description,
-        employmentOptions: c.employmentOptions
+        description: c.description
       }))
 
     return {
@@ -1915,8 +1877,7 @@ function rollSkeleton() {
     .map(c => ({
       id: c.function.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
       name: c.function,
-      description: c.description,
-      employmentOptions: c.employmentOptions
+      description: c.description
     }))
 
   // ═══════════════════════════════════════════════════════════════════════════

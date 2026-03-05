@@ -1039,9 +1039,9 @@ async function executePhase1(skeleton, setting) {
 
 const PHASE_2_SYSTEM_PROMPT = `${CHAPTER_ARCHITECTURE_ESSAY}
 
-The essay above is your guide to chapter construction. Use it when deciding how many scenes this chapter needs, what each scene does, how they sequence, and where the employment option lands. The rules below govern your output format.
+The essay above is your guide to chapter construction. Use it when deciding how many scenes this chapter needs, what each scene does, and how they sequence. The rules below govern your output format.
 
-You are a story architect breaking a single chapter into scenes. You receive character profiles, a chapter blueprint (employment option and end state), the setting, and all previous chapters' scene summaries.
+You are a story architect breaking a single chapter into scenes. You receive character profiles, a chapter blueprint (scene architecture and/or employment selections, plus end state), the setting, and all previous chapters' scene summaries.
 
 Each scene has exactly three fields:
 - location: a place name only — not "the estancia" but "the estancia kitchen." No time of day, weather, light, or atmosphere
@@ -1055,17 +1055,17 @@ The synopsis is a dense paragraph — not a list of bullet points or labels. It 
 Write in present tense. Focus on specifics, not abstractions. "Marco confronts Elena about the missing ledger; she deflects by pointing out his own debts, and the argument ends with both aware the other is hiding something" — not "tension rises between the characters."
 
 The synopsis should make clear:
-1. What the employment option or end state achieves in this scene (if this is the scene that delivers it)
+1. What the scene achieves — whether it delivers a prescribed scene function, an employment option, or the end state
 2. What has changed by the scene's end — in relationships, knowledge, stakes, or character positions
 3. Enough concrete detail that a prose writer can dramatize the scene without inventing new plot
 
 RULES:
 
-1. Employment option is mandatory. This chapter has one. It must be delivered in exactly one scene's synopsis. But it is not the only thing happening — other scenes do other work.
+1. Scene architecture is the structural spine. When the blueprint provides a scene architecture, each prescribed scene must exist and deliver its described function. These are the minimum — you may add scenes beyond them to accommodate secondary cast members, world texture, or transitions. When employment selections are provided instead, they must be delivered in at least one scene's synopsis.
 
 2. Earn your place. Every scene must accomplish something. If you can't describe what a scene changes or establishes, it doesn't exist.
 
-3. No default scene count. Write as many scenes as the chapter requires. No more. Could be 1, could be 6. No uniform number.
+3. No default scene count. The scene architecture sets the floor, not the ceiling. Add scenes when needed. No uniform number.
 
 4. No padding scenes. "The protagonist reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene exists only for a character to think, fold that into the scene that triggered it.
 
@@ -1158,6 +1158,15 @@ End state: ${chapterBlueprint.endState}`
     chapterBlock += '\nEmployment selections: (none — this is a resolution chapter)'
   }
 
+  // ── Scene architecture (structural spine) ──
+  if (chapterBlueprint.sceneArchitecture && chapterBlueprint.sceneArchitecture.length > 0) {
+    chapterBlock += '\nScene architecture:'
+    for (const s of chapterBlueprint.sceneArchitecture) {
+      chapterBlock += `\n  Scene ${s.scene}: ${s.description}`
+    }
+    chapterBlock += '\nThese are the minimum required scenes. You may add scenes beyond these to accommodate secondary cast, world texture, or transitions.'
+  }
+
   // ── Previous chapters' scenes ──
   let previousBlock = ''
   if (previousChaptersScenes.length > 0) {
@@ -1221,6 +1230,16 @@ function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapter
     if (!scene.synopsis || typeof scene.synopsis !== 'string' || scene.synopsis.trim().length < 20) {
       throw new Error(
         `Phase 2: chapter ${chapterNum} scene ${j + 1} missing or too short synopsis (need at least 20 chars, got ${scene.synopsis?.length ?? 0})`
+      )
+    }
+  }
+
+  // ── Soft check: scene count meets scene architecture minimum ──
+  if (chapterBlueprint.sceneArchitecture && chapterBlueprint.sceneArchitecture.length > 0) {
+    const minScenes = chapterBlueprint.sceneArchitecture.length
+    if (scenes.length < minScenes) {
+      console.warn(
+        `  Warning: chapter ${chapterNum} has ${scenes.length} scenes but scene architecture prescribes ${minScenes}. Consider retrying.`
       )
     }
   }

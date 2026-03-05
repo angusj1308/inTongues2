@@ -741,6 +741,7 @@ Return a single JSON object:
 {
   "protagonist": {
     "coreBelief": "(IDENTITY TENSION ONLY) One sentence — the belief her identity is built around.",
+    "theCost": "(IDENTITY TENSION ONLY) One sentence — what this belief is secretly costing her.",
     "backstory": "One paragraph. Where she came from, what shaped her.",
     "psychology": "One paragraph. What she wants, fears, avoids. How the tension manifests in her thinking.",
     "voiceAndMannerisms": "One paragraph. How she speaks, moves, behaves. Speech patterns, habits, tells.",
@@ -803,7 +804,7 @@ IMPORTANT:
 /**
  * Build the user prompt for Call 1: protagonist, primary, and optionally rival.
  */
-function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, hasSecret) {
+function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, hasSecret, valueTension) {
   let prompt = `=== SETTING ===
 ${setting}
 
@@ -824,6 +825,21 @@ ${hasSecret ? 'YES — the primary must include a "secret" field.' : 'NO — no 
 
 === CHAPTER 1 STARTING CONDITION ===
 ${ch1StartingCondition}`
+  }
+
+  if (valueTension) {
+    prompt += `
+
+=== VALUE TENSION ===
+Direction: ${valueTension.direction === 'conforms' ? 'She conforms, he is free' : 'She rebels, he is rooted'}
+Her position: ${valueTension.herPosition}
+His position: ${valueTension.hisPosition}
+${valueTension.description}
+
+Select the flavour of this tension most natural to the setting. Then generate:
+- The protagonist's coreBelief from her position, grounded in this specific setting and era
+- The primary's character from his position — his way of being must expose the cost of her belief
+- theCost: one sentence describing what her belief is secretly costing her`
   }
 
   prompt += `
@@ -890,6 +906,9 @@ function validateCall1(data, triangle, tension, hasSecret) {
   if (tension === 'identity') {
     if (!data.protagonist.coreBelief || typeof data.protagonist.coreBelief !== 'string' || data.protagonist.coreBelief.trim().length === 0) {
       throw new Error('Phase 1 Call 1: protagonist missing coreBelief (required for identity tension)')
+    }
+    if (!data.protagonist.theCost || typeof data.protagonist.theCost !== 'string' || data.protagonist.theCost.trim().length === 0) {
+      throw new Error('Phase 1 Call 1: protagonist missing theCost (required for identity tension)')
     }
   }
 
@@ -981,7 +1000,7 @@ async function executePhase1(skeleton, setting) {
   // ── Call 1: Protagonist, Primary, and optionally Rival ──────────────
   console.log('\n  Call 1: Generating protagonist, primary' + (triangle ? ', and rival...' : '...'))
 
-  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, skeleton.secret)
+  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, skeleton.secret, skeleton.valueTension)
 
   const call1Response = await callClaude(PHASE_1_CALL1_SYSTEM_PROMPT, call1UserPrompt, {
     model: 'claude-sonnet-4-20250514',
@@ -1031,6 +1050,9 @@ async function executePhase1(skeleton, setting) {
   console.log('\nPhase 1 Character Generation complete.')
   if (protagonist.coreBelief) {
     console.log(`  Protagonist core belief: ${protagonist.coreBelief}`)
+    if (protagonist.theCost) {
+      console.log(`  Protagonist the cost: ${protagonist.theCost}`)
+    }
   }
   console.log(`  Protagonist backstory: ${protagonist.backstory.slice(0, 80)}...`)
   console.log(`  Primary backstory: ${primary.backstory.slice(0, 80)}...`)
@@ -1125,7 +1147,7 @@ Secret: ${skeleton.secret ? 'YES' : 'NO'}
 Total chapters: ${skeleton.chapters.length}`
 
   // ── Character profiles ──
-  let characterBlock = `=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+  let characterBlock = `=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
@@ -1562,7 +1584,7 @@ async function validateAndFixCoherence(prose, characters, locations, sceneSummar
   // ── Character block (same format as writing call) ──
   let characterBlock = `=== CHARACTER DOCUMENTS ===
 
---- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
@@ -1666,7 +1688,7 @@ function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locati
   // ── Block 1: Characters ──
   let characterBlock = `=== CHARACTERS ===
 
---- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}

@@ -90,6 +90,29 @@ const CAST = {
 //   ch3t: selection from ch3 triangle
 // =============================================================================
 
+// =============================================================================
+// VALUE TENSIONS (identity tension only)
+// The core conflict between protagonist and primary's worldviews.
+// =============================================================================
+const VALUE_TENSIONS = {
+  conforms: {
+    label: 'She conforms, he is free',
+    flavours: [
+      { id: 'prudence_instinct', her: 'Prudence', his: 'Instinct', description: 'She does what is proper and responsible. He follows his gut and is right.' },
+      { id: 'reputation_authenticity', her: 'Reputation', his: 'Authenticity', description: 'She curates herself for the world. He is the same person in every room.' },
+      { id: 'control_surrender', her: 'Control', his: 'Surrender', description: 'She manages everything. He trusts what comes and it works.' }
+    ]
+  },
+  rebels: {
+    label: 'She rebels, he is rooted',
+    flavours: [
+      { id: 'cynicism_sincerity', her: 'Cynicism', his: 'Sincerity', description: 'She assumes the worst and protects herself. He trusts openly and is not destroyed.' },
+      { id: 'defiance_rootedness', her: 'Defiance', his: 'Rootedness', description: 'She rejects tradition. He is grounded in it and whole.' },
+      { id: 'independence_belonging', her: 'Independence', his: 'Belonging', description: 'She needs no one. He is woven into community and stronger for it.' }
+    ]
+  }
+}
+
 const CHAPTER_TREE = {
   // ═══════════════════════════════════════════════════════════════════════════
   // ACT I — THE SETUP
@@ -1417,11 +1440,23 @@ function rollSkeleton() {
   // TESTING LOCK: identity tension only while we test the new scene architecture
   const tension = 'identity'
 
-  let ending, triangle, secret
+  let ending, triangle, secret, valueTension
   if (tension === 'identity') {
     ending = 'HEA'       // LOCK: identity → HEA
     triangle = false      // LOCK: identity → no triangle
     secret = true         // LOCK: identity → secret always on
+
+    // Select value tension
+    const tensionDirection = pick(['conforms', 'rebels'])
+    const tensionFlavours = VALUE_TENSIONS[tensionDirection].flavours
+    const selectedFlavour = pick(tensionFlavours)
+    valueTension = {
+      direction: tensionDirection,
+      flavourId: selectedFlavour.id,
+      herPosition: selectedFlavour.her,
+      hisPosition: selectedFlavour.his,
+      description: selectedFlavour.description
+    }
   } else {
     ending = weightedPick([
       { value: 'HEA', weight: 60 },
@@ -1502,6 +1537,7 @@ function rollSkeleton() {
       ending,
       triangle,
       secret,
+      valueTension,
       chapters,
       rivalFlaw: { id: null, selectedIn: null },
       castFunctions

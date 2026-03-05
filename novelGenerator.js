@@ -733,11 +733,13 @@ RULES:
 9. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
 10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
 11. The protagonist's backstory must be compatible with the Chapter 1 starting condition provided. Her world at the start of the story must match this condition. If it says her world is safe and stable, she is not in hiding, not in danger, not living a double life. Build backward from the starting condition — what kind of woman, in this setting, would have a world that looks like that?
+12. IDENTITY TENSION ONLY: The protagonist must include a "coreBelief" field — one sentence that captures the belief her identity is built around. This is the conviction the romance will challenge. It should be specific to her, not generic. Example: "A woman who teaches is worth more than a woman who marries." It must emerge from her backstory and setting.
 
 OUTPUT FORMAT:
 Return a single JSON object:
 {
   "protagonist": {
+    "coreBelief": "(IDENTITY TENSION ONLY) One sentence — the belief her identity is built around.",
     "backstory": "One paragraph. Where she came from, what shaped her.",
     "psychology": "One paragraph. What she wants, fears, avoids. How the tension manifests in her thinking.",
     "voiceAndMannerisms": "One paragraph. How she speaks, moves, behaves. Speech patterns, habits, tells.",
@@ -842,7 +844,7 @@ ${setting}
 === TENSION TYPE ===
 ${tension}
 
-=== PROTAGONIST (already created) ===
+=== PROTAGONIST (already created) ===${protagonist.coreBelief ? `\nCore belief: ${protagonist.coreBelief}` : ''}
 Backstory: ${protagonist.backstory}
 Psychology: ${protagonist.psychology}
 Voice and mannerisms: ${protagonist.voiceAndMannerisms}
@@ -877,8 +879,15 @@ function validateCharacterFields(obj, label) {
 /**
  * Validate Call 1 output: protagonist, primary, and optionally rival.
  */
-function validateCall1(data, triangle) {
+function validateCall1(data, triangle, tension) {
   validateCharacterFields(data.protagonist, 'protagonist')
+
+  if (tension === 'identity') {
+    if (!data.protagonist.coreBelief || typeof data.protagonist.coreBelief !== 'string' || data.protagonist.coreBelief.trim().length === 0) {
+      throw new Error('Phase 1 Call 1: protagonist missing coreBelief (required for identity tension)')
+    }
+  }
+
   validateCharacterFields(data.primary, 'primary')
 
   if (triangle) {
@@ -974,7 +983,7 @@ async function executePhase1(skeleton, setting) {
     throw new Error(`Phase 1 Call 1 JSON parse failed: ${call1Parsed.error}`)
   }
 
-  validateCall1(call1Parsed.data, triangle)
+  validateCall1(call1Parsed.data, triangle, tension)
   console.log('  Call 1 validated successfully.')
 
   const { protagonist, primary, rival } = call1Parsed.data
@@ -1009,6 +1018,9 @@ async function executePhase1(skeleton, setting) {
   }
 
   console.log('\nPhase 1 Character Generation complete.')
+  if (protagonist.coreBelief) {
+    console.log(`  Protagonist core belief: ${protagonist.coreBelief}`)
+  }
   console.log(`  Protagonist backstory: ${protagonist.backstory.slice(0, 80)}...`)
   console.log(`  Primary backstory: ${primary.backstory.slice(0, 80)}...`)
   if (rival) {
@@ -1102,7 +1114,7 @@ Secret: ${skeleton.secret ? 'YES' : 'NO'}
 Total chapters: ${skeleton.chapters.length}`
 
   // ── Character profiles ──
-  let characterBlock = `=== PROTAGONIST ===
+  let characterBlock = `=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
@@ -1520,7 +1532,7 @@ async function validateAndFixCoherence(prose, characters, locations, sceneSummar
   // ── Character block (same format as writing call) ──
   let characterBlock = `=== CHARACTER DOCUMENTS ===
 
---- PROTAGONIST ---
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
@@ -1624,7 +1636,7 @@ function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locati
   // ── Block 1: Characters ──
   let characterBlock = `=== CHARACTERS ===
 
---- PROTAGONIST ---
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
 Backstory: ${characters.protagonist.backstory}
 Psychology: ${characters.protagonist.psychology}
 Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}

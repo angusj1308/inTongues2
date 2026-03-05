@@ -734,7 +734,7 @@ RULES:
 10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
 11. The protagonist's backstory must be compatible with the Chapter 1 starting condition provided. Her world at the start of the story must match this condition. If it says her world is safe and stable, she is not in hiding, not in danger, not living a double life. Build backward from the starting condition — what kind of woman, in this setting, would have a world that looks like that?
 12. IDENTITY TENSION ONLY: The protagonist must include a "coreBelief" field — one sentence that captures the belief her identity is built around. This is the conviction the romance will challenge. It should be specific to her, not generic. Example: "A woman who teaches is worth more than a woman who marries." It must emerge from her backstory and setting.
-13. SECRET STORIES ONLY (when secret is YES): The primary must include a "secret" field — a single paragraph describing what he is concealing from the protagonist, why he originally entered her world (the real reason, not the apparent one), and how this secret, when revealed, will recontextualise every tender moment between them. The secret must pass this test: when the protagonist discovers it, she must learn something she genuinely DID NOT KNOW — not confirmation of a suspicion, not a detail she could have guessed, but information that changes the meaning of the romance itself. GOOD SECRETS: he was sent to gather information about her by someone she trusts; his presence was arranged by a third party with hostile intentions; he has a prior connection to someone who harmed her that he has concealed; he has already taken an action that damaged her interests before they met. BAD SECRETS: he is doing his job and she finds out (she already knew his job); he has feelings he hasn't expressed (withholding, not betrayal); he has a difficult past (backstory, not betrayal); he was once associated with bad people (too vague). The secret must make the protagonist feel that the intimacy was weaponised — that what she revealed about herself during the fall was used or could be used against her.
+13. SECRET STORIES ONLY: When a SECRET HOLDER section is provided, the character identified as the secret holder must include a "secret" field — a single paragraph. The secret must pass this test: when the protagonist discovers it, she must learn something she genuinely DID NOT KNOW — not confirmation of a suspicion, not a detail she could have guessed, but information that changes the meaning of the romance itself. Follow the SECRET HOLDER instructions for what the secret contains and which character carries it.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -745,14 +745,15 @@ Return a single JSON object:
     "backstory": "One paragraph. Where she came from, what shaped her.",
     "psychology": "One paragraph. What she wants, fears, avoids. How the tension manifests in her thinking.",
     "voiceAndMannerisms": "One paragraph. How she speaks, moves, behaves. Speech patterns, habits, tells.",
-    "appearance": "One paragraph. Physical description grounded in the setting."
+    "appearance": "One paragraph. Physical description grounded in the setting.",
+    "secret": "(Only when protagonist is the secret holder) One paragraph describing what she did and its consequences."
   },
   "primary": {
     "backstory": "One paragraph.",
     "psychology": "One paragraph. What he wants, fears. How he relates to her tension.",
     "voiceAndMannerisms": "One paragraph.",
     "appearance": "One paragraph.",
-    "secret": "(SECRET STORIES ONLY) One paragraph. What he is concealing, why he entered her world, and how discovery will recontextualise the romance."
+    "secret": "(Only when primary is the secret holder) One paragraph describing what he is concealing and how discovery will recontextualise the romance."
   },
   "rival": null
 }
@@ -804,7 +805,7 @@ IMPORTANT:
 /**
  * Build the user prompt for Call 1: protagonist, primary, and optionally rival.
  */
-function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, hasSecret, valueTension) {
+function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, hasSecret, valueTension, secretHolder) {
   let prompt = `=== SETTING ===
 ${setting}
 
@@ -818,7 +819,7 @@ ${tensionFramework}
 ${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}
 
 === SECRET ===
-${hasSecret ? 'YES — the primary must include a "secret" field.' : 'NO — no secret field needed.'}`
+${hasSecret ? 'YES' : 'NO'}`
 
   if (ch1StartingCondition) {
     prompt += `
@@ -842,6 +843,21 @@ Select the flavour of this tension most natural to the setting. Then generate:
 - theCost: one sentence describing what her belief is secretly costing her`
   }
 
+  if (hasSecret && secretHolder) {
+    prompt += `
+
+=== SECRET HOLDER ===
+Who holds the secret: ${secretHolder.label}
+${secretHolder.description}`
+    if (secretHolder.id === 'primary') {
+      prompt += `
+The primary must include a "secret" field — one paragraph describing what he is concealing, why he originally entered her world, and how discovery will recontextualise the romance.`
+    } else if (secretHolder.id === 'protagonist') {
+      prompt += `
+The protagonist must include a "secret" field — one paragraph describing what she did to damage him while she was hostile, what the consequences were, and how discovery of those consequences will devastate her.`
+    }
+  }
+
   prompt += `
 
 Create the protagonist (she), the primary (he)${triangle ? ', and the rival' : ''}. Return the JSON object only.`
@@ -853,13 +869,13 @@ Create the protagonist (she), the primary (he)${triangle ? ', and the rival' : '
  * Build the user prompt for Call 2: secondary cast.
  * Includes protagonist and primary from Call 1 so the LLM builds cast in relation to them.
  */
-function buildCall2UserPrompt(setting, tension, protagonist, primary, castFunctions) {
+function buildCall2UserPrompt(setting, tension, protagonist, primary, castFunctions, secretHolder) {
   const castList = castFunctions.map(cf => {
     return `- Function: "${cf.name}" (id: ${cf.id})
   Description: ${cf.description}`
   }).join('\n\n')
 
-  return `=== SETTING ===
+  let prompt = `=== SETTING ===
 ${setting}
 
 === TENSION TYPE ===
@@ -878,9 +894,26 @@ Voice and mannerisms: ${primary.voiceAndMannerisms}
 Appearance: ${primary.appearance}
 
 === CAST FUNCTIONS ===
-${castList}
+${castList}`
+
+  if (secretHolder && ['source_disapproves', 'source_complicit', 'confidant'].includes(secretHolder.id)) {
+    const targetFunction = secretHolder.id === 'confidant' ? 'the_romantic_confidant' : 'the_source'
+    prompt += `
+
+=== SECRET HOLDER ===
+The cast member with functionId "${targetFunction}" holds the secret.
+${secretHolder.description}
+This cast member must include a "secret" field — one paragraph describing what they are concealing from the protagonist and how its discovery will devastate her.`
+    if (secretHolder.id === 'source_complicit') {
+      prompt += ` The Source's secret is connected to the primary's presence in her world. The Source arranged or facilitated it. Both the romance and the foundation of her identity break simultaneously.`
+    }
+  }
+
+  prompt += `
 
 Create one character for each cast function. Return the JSON object only.`
+
+  return prompt
 }
 
 /**
@@ -900,7 +933,7 @@ function validateCharacterFields(obj, label) {
 /**
  * Validate Call 1 output: protagonist, primary, and optionally rival.
  */
-function validateCall1(data, triangle, tension, hasSecret) {
+function validateCall1(data, triangle, tension, hasSecret, secretHolder) {
   validateCharacterFields(data.protagonist, 'protagonist')
 
   if (tension === 'identity') {
@@ -914,10 +947,17 @@ function validateCall1(data, triangle, tension, hasSecret) {
 
   validateCharacterFields(data.primary, 'primary')
 
-  if (hasSecret) {
-    if (!data.primary.secret || typeof data.primary.secret !== 'string' || data.primary.secret.trim().length === 0) {
-      throw new Error('Phase 1 Call 1: primary must have a non-empty "secret" field when secret is YES')
+  if (hasSecret && secretHolder) {
+    if (secretHolder.id === 'primary') {
+      if (!data.primary.secret || typeof data.primary.secret !== 'string' || data.primary.secret.trim().length === 0) {
+        throw new Error('Phase 1 Call 1: primary must have a "secret" field when secret holder is primary')
+      }
+    } else if (secretHolder.id === 'protagonist') {
+      if (!data.protagonist.secret || typeof data.protagonist.secret !== 'string' || data.protagonist.secret.trim().length === 0) {
+        throw new Error('Phase 1 Call 1: protagonist must have a "secret" field when secret holder is protagonist')
+      }
     }
+    // source_disapproves, source_complicit, and confidant secrets are generated in Call 2
   }
 
   if (triangle) {
@@ -935,7 +975,7 @@ function validateCall1(data, triangle, tension, hasSecret) {
 /**
  * Validate Call 2 output: cast array with functionId and character fields.
  */
-function validateCall2(data, filteredCastFunctions) {
+function validateCall2(data, filteredCastFunctions, secretHolder) {
   if (!Array.isArray(data.cast)) {
     throw new Error('Phase 1 Call 2: cast must be an array')
   }
@@ -962,6 +1002,15 @@ function validateCall2(data, filteredCastFunctions) {
   for (const expectedId of expectedIds) {
     if (!returnedIds.has(expectedId)) {
       throw new Error(`Phase 1 Call 2: missing cast member for functionId "${expectedId}"`)
+    }
+  }
+
+  // Validate secret field on cast secret holders
+  if (secretHolder && ['source_disapproves', 'source_complicit', 'confidant'].includes(secretHolder.id)) {
+    const targetFunction = secretHolder.id === 'confidant' ? 'the_romantic_confidant' : 'the_source'
+    const holder = data.cast.find(m => m.functionId === targetFunction)
+    if (!holder || !holder.secret || typeof holder.secret !== 'string' || holder.secret.trim().length === 0) {
+      throw new Error(`Phase 1 Call 2: cast member "${targetFunction}" must have a "secret" field when they are the secret holder`)
     }
   }
 }
@@ -1000,7 +1049,7 @@ async function executePhase1(skeleton, setting) {
   // ── Call 1: Protagonist, Primary, and optionally Rival ──────────────
   console.log('\n  Call 1: Generating protagonist, primary' + (triangle ? ', and rival...' : '...'))
 
-  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, skeleton.secret, skeleton.valueTension)
+  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, skeleton.secret, skeleton.valueTension, skeleton.secretHolder)
 
   const call1Response = await callClaude(PHASE_1_CALL1_SYSTEM_PROMPT, call1UserPrompt, {
     model: 'claude-sonnet-4-20250514',
@@ -1013,7 +1062,7 @@ async function executePhase1(skeleton, setting) {
     throw new Error(`Phase 1 Call 1 JSON parse failed: ${call1Parsed.error}`)
   }
 
-  validateCall1(call1Parsed.data, triangle, tension, skeleton.secret)
+  validateCall1(call1Parsed.data, triangle, tension, skeleton.secret, skeleton.secretHolder)
   console.log('  Call 1 validated successfully.')
 
   const { protagonist, primary, rival } = call1Parsed.data
@@ -1023,7 +1072,7 @@ async function executePhase1(skeleton, setting) {
 
   console.log(`\n  Call 2: Generating ${filteredCastFunctions.length} secondary cast members...`)
 
-  const call2UserPrompt = buildCall2UserPrompt(setting, tension, protagonist, primary, filteredCastFunctions)
+  const call2UserPrompt = buildCall2UserPrompt(setting, tension, protagonist, primary, filteredCastFunctions, skeleton.secretHolder)
 
   const call2Response = await callClaude(PHASE_1_CALL2_SYSTEM_PROMPT, call2UserPrompt, {
     model: 'claude-sonnet-4-20250514',
@@ -1036,7 +1085,7 @@ async function executePhase1(skeleton, setting) {
     throw new Error(`Phase 1 Call 2 JSON parse failed: ${call2Parsed.error}`)
   }
 
-  validateCall2(call2Parsed.data, filteredCastFunctions)
+  validateCall2(call2Parsed.data, filteredCastFunctions, skeleton.secretHolder)
   console.log('  Call 2 validated successfully.')
 
   // ── Assemble output ─────────────────────────────────────────────────
@@ -1155,7 +1204,7 @@ Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
 === PRIMARY ===
 Backstory: ${characters.primary.backstory}
 Psychology: ${characters.primary.psychology}
-Voice and mannerisms: ${characters.primary.voiceAndMannerisms}${characters.primary.secret ? `\nSecret: ${characters.primary.secret}` : ''}`
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}`
 
   if (characters.rival) {
     characterBlock += `
@@ -1174,6 +1223,31 @@ Voice and mannerisms: ${characters.rival.voiceAndMannerisms}`
 --- ${member.functionId} ---
 Backstory: ${member.backstory}
 Psychology: ${member.psychology}`
+    }
+  }
+
+  // ── Secret holder ──
+  let secretBlock = ''
+  if (skeleton.secretHolder) {
+    let secretText = ''
+    if (skeleton.secretHolder.id === 'primary' && characters.primary.secret) {
+      secretText = characters.primary.secret
+    } else if (skeleton.secretHolder.id === 'protagonist' && characters.protagonist.secret) {
+      secretText = characters.protagonist.secret
+    } else {
+      const targetFunction = skeleton.secretHolder.id === 'confidant' ? 'the_romantic_confidant' : 'the_source'
+      const castMember = characters.cast && characters.cast.find(m => m.functionId === targetFunction)
+      if (castMember && castMember.secret) {
+        secretText = castMember.secret
+      }
+    }
+    if (secretText) {
+      secretBlock = `\n\n=== SECRET ===
+Secret holder: ${skeleton.secretHolder.label}
+${skeleton.secretHolder.description}
+The secret: ${secretText}
+Detonation: Chapter 6 (The Dark Moment)
+Plant seeds for this secret in earlier chapters. The protagonist must NOT learn the secret before Chapter 6. Details that seem innocent now must become devastating after the detonation.`
     }
   }
 
@@ -1219,7 +1293,7 @@ End state: ${chapterBlueprint.endState}`
 
 ${structureBlock}
 
-${characterBlock}
+${characterBlock}${secretBlock}
 
 ${chapterBlock}${previousBlock}
 

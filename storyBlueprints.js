@@ -113,6 +113,18 @@ const VALUE_TENSIONS = {
   }
 }
 
+// =============================================================================
+// SECRET HOLDERS (identity tension only)
+// Who holds the secret that detonates in the dark moment.
+// =============================================================================
+const SECRET_HOLDERS = [
+  { id: 'primary', label: 'The Primary', description: 'He entered her world with a hidden motive. The romance was real but the origin was manufactured.' },
+  { id: 'source_disapproves', label: 'The Source (disapproves)', description: 'The Source manufactured the dark moment to break them apart. Fabricated evidence, arranged a situation, or revealed something out of context.' },
+  { id: 'source_complicit', label: 'The Source (complicit)', description: 'The Source arranged his presence in her world. The detonation breaks the romance AND the foundation of her identity.' },
+  { id: 'confidant', label: 'The Confidant', description: 'She was with the primary before the protagonist fell for him. She listened to every confession knowing she had been there first.' },
+  { id: 'protagonist', label: 'The Protagonist', description: 'While hostile she took action that damaged him. He does not know. The dark moment is guilt and shame, not betrayal.' }
+]
+
 const CHAPTER_TREE = {
   // ═══════════════════════════════════════════════════════════════════════════
   // ACT I — THE SETUP
@@ -1440,7 +1452,7 @@ function rollSkeleton() {
   // TESTING LOCK: identity tension only while we test the new scene architecture
   const tension = 'identity'
 
-  let ending, triangle, secret, valueTension
+  let ending, triangle, secret, valueTension, secretHolder
   if (tension === 'identity') {
     ending = 'HEA'       // LOCK: identity → HEA
     triangle = false      // LOCK: identity → no triangle
@@ -1456,6 +1468,14 @@ function rollSkeleton() {
       herPosition: selectedFlavour.her,
       hisPosition: selectedFlavour.his,
       description: selectedFlavour.description
+    }
+
+    // Select secret holder
+    const selectedSecretHolder = pick(SECRET_HOLDERS)
+    secretHolder = {
+      id: selectedSecretHolder.id,
+      label: selectedSecretHolder.label,
+      description: selectedSecretHolder.description
     }
   } else {
     ending = weightedPick([
@@ -1538,6 +1558,7 @@ function rollSkeleton() {
       triangle,
       secret,
       valueTension,
+      secretHolder,
       chapters,
       rivalFlaw: { id: null, selectedIn: null },
       castFunctions

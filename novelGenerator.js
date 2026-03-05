@@ -1484,6 +1484,8 @@ RULES:
 
 Not every location will be used in the story. Abundance is the point.
 
+9. Every location must be a place the protagonist can plausibly visit. If she cannot go there, it does not exist.
+
 OUTPUT FORMAT:
 Return a single JSON object:
 {

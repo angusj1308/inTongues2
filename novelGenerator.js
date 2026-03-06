@@ -1488,7 +1488,7 @@ Not every location will be used in the story. Abundance is the point.
 
 10. A location is a room, building, or outdoor space where a scene takes place. Not an object or piece of furniture.
 
-11. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique.
+11. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique. The user prompt lists OFF-LIMITS NAMES — do not give any tertiary character any of those names, and do not reuse a tertiary name at a different location.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -1516,7 +1516,40 @@ IMPORTANT:
 /**
  * Build the user prompt for Phase 3 (locations): setting + character profiles.
  */
+/**
+ * Extract the first name from a backstory paragraph.
+ * Handles honorific prefixes (Doña, Don, Señora, Señor, Dona).
+ */
+function extractFirstNameFromBackstory(backstory) {
+  if (!backstory || typeof backstory !== 'string') return null
+  const words = backstory.trim().split(/\s+/)
+  if (words.length === 0) return null
+  const honorifics = new Set(['doña', 'don', 'señora', 'señor', 'dona', 'lady', 'sir', 'madame', 'monsieur'])
+  const first = words[0].replace(/[.,;:!?'"()]+$/g, '')
+  if (honorifics.has(first.toLowerCase()) && words.length > 1) {
+    return words[1].replace(/[.,;:!?'"()]+$/g, '')
+  }
+  return first
+}
+
 function buildPhase3UserPrompt(setting, characters) {
+  // Collect all main/secondary cast first names as off-limits
+  const offLimitsNames = []
+  const sources = [
+    characters.protagonist && characters.protagonist.backstory,
+    characters.primary && characters.primary.backstory,
+    characters.rival && characters.rival.backstory
+  ]
+  if (characters.cast) {
+    for (const member of characters.cast) {
+      sources.push(member.backstory)
+    }
+  }
+  for (const backstory of sources) {
+    const name = extractFirstNameFromBackstory(backstory)
+    if (name) offLimitsNames.push(name)
+  }
+
   let prompt = `=== SETTING ===
 ${setting}
 
@@ -1531,6 +1564,12 @@ Backstory: ${characters.primary.backstory}`
     for (const member of characters.cast) {
       prompt += `\n\n--- ${member.functionId} ---\nBackstory: ${member.backstory}`
     }
+  }
+
+  if (offLimitsNames.length > 0) {
+    prompt += `\n\n=== OFF-LIMITS NAMES ===
+The following first names are already used by main or secondary cast. No tertiary character may use any of these names:
+${offLimitsNames.join(', ')}`
   }
 
   prompt += `
@@ -1562,7 +1601,7 @@ function wordOverlap(a, b) {
  * Validate Phase 3 output: location descriptions.
  * Requires minimum 25 locations. Validates optional tertiaryCharacters.
  */
-function validatePhase3(data) {
+function validatePhase3(data, characters) {
   if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
     throw new Error('Phase 3: locations must be a non-empty array')
   }
@@ -1570,6 +1609,28 @@ function validatePhase3(data) {
   if (data.locations.length < 25) {
     throw new Error(`Phase 3: minimum 25 locations required, got ${data.locations.length}`)
   }
+
+  // Build set of main/secondary cast first names (lowercased) for collision checking
+  const castNames = new Set()
+  if (characters) {
+    const sources = [
+      characters.protagonist && characters.protagonist.backstory,
+      characters.primary && characters.primary.backstory,
+      characters.rival && characters.rival.backstory
+    ]
+    if (characters.cast) {
+      for (const member of characters.cast) {
+        sources.push(member.backstory)
+      }
+    }
+    for (const backstory of sources) {
+      const name = extractFirstNameFromBackstory(backstory)
+      if (name) castNames.add(name.toLowerCase())
+    }
+  }
+
+  // Track all tertiary first names to detect tertiary-to-tertiary collisions
+  const tertiaryNameMap = new Map() // lowercased name -> location where first seen
 
   for (let i = 0; i < data.locations.length; i++) {
     const loc = data.locations[i]
@@ -1599,6 +1660,18 @@ function validatePhase3(data) {
         if (!tc.description || typeof tc.description !== 'string' || tc.description.trim().length === 0) {
           throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacter ${j + 1} missing or empty description`)
         }
+
+        // Check tertiary name against main/secondary cast
+        const tcNameLower = tc.name.trim().toLowerCase()
+        if (castNames.has(tcNameLower)) {
+          throw new Error(`Phase 3: tertiary character "${tc.name}" at "${loc.name}" shares a name with a main/secondary cast member`)
+        }
+
+        // Check tertiary-to-tertiary collision
+        if (tertiaryNameMap.has(tcNameLower)) {
+          throw new Error(`Phase 3: tertiary character "${tc.name}" at "${loc.name}" shares a name with another tertiary character at "${tertiaryNameMap.get(tcNameLower)}"`)
+        }
+        tertiaryNameMap.set(tcNameLower, loc.name)
       }
     }
   }
@@ -1625,7 +1698,7 @@ async function executePhase3(setting, characters) {
     throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
   }
 
-  validatePhase3(parsed.data)
+  validatePhase3(parsed.data, characters)
   console.log('  Phase 3 validated successfully.')
 
   for (const loc of parsed.data.locations) {

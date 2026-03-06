@@ -1551,6 +1551,68 @@ function rollSkeleton() {
         description: c.description
       }))
 
+    // Attach presence and beats to each cast function
+    for (const cf of castFunctions) {
+      if (cf.id === 'the_source') {
+        if (valueTension.direction === 'conforms') {
+          cf.presence = "Part of the protagonist's routine. Appears naturally across her world — meals, conversations, passing moments. A recurring presence, not a guest star."
+          cf.beats = [
+            { by: 1, beat: 'The approval dynamic is visible.' },
+            { by: 3, beat: 'The Source has demonstrated approval in action.' },
+            { by: 6, beat: "The Source's role in the protagonist's crisis is felt — through failure, absence, or opposition." },
+            { by: 7, beat: "The Source's relationship to the protagonist has changed." }
+          ]
+        } else {
+          cf.presence = "A shadow over the protagonist's world. May be physically distant but present through letters, habits, objects, or other characters' references. The weight of their influence is felt even in absence."
+          cf.beats = [
+            { by: 1, beat: 'The reader understands who she is running from.' },
+            { by: 3, beat: "The Source's influence has reached into her current life." },
+            { by: 6, beat: 'The Source is connected to the crisis.' },
+            { by: 7, beat: "The protagonist's relationship to the Source has changed." }
+          ]
+        }
+        // Secret holder modifications for the Source
+        if (secretHolder.id === 'source_disapproves') {
+          cf.beats.push({ by: 4, beat: "The Source has witnessed the protagonist's shift toward the primary." })
+          const ch6Beat = cf.beats.find(b => b.by === 6)
+          if (ch6Beat) ch6Beat.beat = 'The Source manufactures or triggers the detonation.'
+        } else if (secretHolder.id === 'source_complicit') {
+          cf.beats.push({ by: 3, beat: "The Source's connection to the primary's presence is established but appears innocent." })
+          const ch6Beat = cf.beats.find(b => b.by === 6)
+          if (ch6Beat) ch6Beat.beat = "The truth about the Source's arrangement is revealed."
+        }
+      } else if (cf.id === 'the_romantic_confidant') {
+        cf.presence = "A regular companion. Appears in the protagonist's personal life — walks, visits, shared meals. The person she is most relaxed around."
+        cf.beats = [
+          { by: 1, beat: 'The reader sees she is romantically inclined.' },
+          { by: 3, beat: 'She has observed the attraction before the protagonist names it.' },
+          { by: 5, beat: 'The protagonist has processed the romance through her.' },
+          { by: 7, beat: 'The dynamic between them is tested.' }
+        ]
+        // Secret holder modification for the Confidant
+        if (secretHolder.id === 'confidant') {
+          cf.beats = cf.beats.map(b => {
+            if (b.by === 3) return { by: 3, beat: 'The reader has seen a moment between the Confidant and the primary that seems innocent but will recontextualise later.' }
+            if (b.by === 7) return { by: 6, beat: "The secret that detonates is the Confidant's — not an external discovery." }
+            return b
+          })
+          cf.beats.push({ by: 5, beat: "The Confidant's encouragement of the romance carries a note the reader may later recognise as guilt." })
+        }
+      } else if (cf.id === 'her_opposite') {
+        cf.presence = "Encountered in social settings. Not part of the protagonist's daily routine but present in her wider world — events, gatherings, through other characters."
+        cf.beats = [
+          { by: 2, beat: 'The reader sees her living in opposition to the core belief.' },
+          { by: 5, beat: "Her way of being has intersected with the protagonist's arc." }
+        ]
+      } else if (cf.id === 'the_mirror') {
+        cf.presence = "Encountered rarely but memorably. Each appearance carries weight. Not a daily presence but someone whose scenes leave a crater."
+        cf.beats = [
+          { by: 3, beat: "The reader has seen the Mirror's life." },
+          { by: 6, beat: "The Mirror's existence has intersected with the protagonist's emotional state." }
+        ]
+      }
+    }
+
     return {
       trope,
       tension,

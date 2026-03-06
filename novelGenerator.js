@@ -1157,6 +1157,9 @@ RULES:
 
 7. Chapter end state from the blueprint must be delivered. One scene's synopsis must show it happening.
 
+SCENE COUNT GUIDANCE:
+Each chapter should contain the prescribed architecture scenes PLUS scenes that establish the world beyond the romance. A chapter with 2 prescribed scenes will typically have 3-5 total. A chapter with 3 prescribed scenes will typically have 4-6 total. The additional scenes are where secondary cast lives, where the setting breathes, where the reader feels the world is larger than two people falling in love. Do not create chapters that contain only the prescribed scenes and nothing else.
+
 OUTPUT FORMAT:
 Return a JSON array of scenes for this chapter:
 [
@@ -1275,13 +1278,44 @@ End state: ${chapterBlueprint.endState}`
     chapterBlock += '\nThese are the minimum required scenes. You may add scenes beyond these to accommodate secondary cast, world texture, or transitions.'
   }
 
+  // ── Cast presence and beats ──
+  let castPresenceBlock = ''
+  if (skeleton.castFunctions && skeleton.castFunctions.some(cf => cf.presence)) {
+    let lines = `=== SECONDARY CAST — PRESENCE AND BEATS ===
+Each secondary cast member has a presence pattern and key beats. The presence pattern means they should appear in multiple scenes naturally — as part of the fabric, not as guest appearances for their beat. The beats are structural moments that must land within that presence. Do not create isolated scenes for beats. Weave them into scenes that are already happening.\n`
+    for (const cf of skeleton.castFunctions) {
+      if (!cf.presence) continue
+      // Try to find the character's name from the cast backstory
+      let charName = ''
+      if (characters.cast) {
+        const castMember = characters.cast.find(m => m.functionId === cf.id)
+        if (castMember) {
+          charName = extractFirstNameFromBackstory(castMember.backstory) || ''
+        }
+      }
+      const nameLabel = charName ? ` (${charName})` : ''
+      lines += `\n--- ${cf.name}${nameLabel} ---\nPresence: ${cf.presence}\nBeats:`
+      if (cf.beats) {
+        for (const b of cf.beats) {
+          lines += `\n  - By Ch.${b.by}: ${b.beat}`
+        }
+      }
+      lines += '\n'
+    }
+    castPresenceBlock = '\n\n' + lines
+  }
+
   // ── Location palette ──
   let locationBlock = ''
   if (locations && locations.locations && locations.locations.length > 0) {
-    let paletteLines = '=== LOCATION PALETTE ===\nThese locations are available. Pick the locations that serve each scene best. You do not need to use all of them.\n'
+    let paletteLines = `=== LOCATION PALETTE ===
+These locations are available. Pick locations that serve each scene. You do not need to use all of them. When selecting a location, note which characters are naturally present there — this helps you weave secondary cast into scenes without forcing them.\n`
     for (const loc of locations.locations) {
       const firstSentence = loc.physicalDescription.split(/\.\s/)[0] + '.'
-      paletteLines += `\n- ${loc.name}: ${firstSentence}`
+      const plausible = loc.plausibleCharacters && loc.plausibleCharacters.length > 0
+        ? ` (${loc.plausibleCharacters.join(', ')})`
+        : ''
+      paletteLines += `\n- ${loc.name}${plausible}: ${firstSentence}`
     }
 
     // Collect tertiary characters across all locations
@@ -1319,7 +1353,7 @@ End state: ${chapterBlueprint.endState}`
 
 ${structureBlock}
 
-${characterBlock}${secretBlock}${locationBlock}
+${characterBlock}${secretBlock}${castPresenceBlock}${locationBlock}
 
 ${chapterBlock}${previousBlock}
 
@@ -1490,6 +1524,8 @@ Not every location will be used in the story. Abundance is the point.
 
 11. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique. The user prompt lists OFF-LIMITS NAMES — do not give any tertiary character any of those names, and do not reuse a tertiary name at a different location.
 
+12. For each location, include a "plausibleCharacters" field — an array of first names from the main and secondary cast who would naturally be present at or visit this location. The protagonist will be present at most locations since the story is told from her perspective. Tag other characters based on their backstory and role — if a character works nearby, lives in the area, or has social reasons to visit, include them.
+
 OUTPUT FORMAT:
 Return a single JSON object:
 {
@@ -1503,7 +1539,8 @@ Return a single JSON object:
           "name": "Tomás",
           "description": "Old fishmonger who has worked this stall for thirty years. Shouts prices in a hoarse voice."
         }
-      ]
+      ],
+      "plausibleCharacters": ["Elena", "Marco", "Beatriz"]
     }
   ]
 }
@@ -1511,7 +1548,8 @@ Return a single JSON object:
 IMPORTANT:
 - Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
 - Each paragraph must be substantive — at least 3-4 sentences of concrete detail.
-- The tertiaryCharacters array is optional — only include it on locations that naturally have people working or living there.`
+- The tertiaryCharacters array is optional — only include it on locations that naturally have people working or living there.
+- The plausibleCharacters array is required on every location — at minimum, include the protagonist.`
 
 /**
  * Build the user prompt for Phase 3 (locations): setting + character profiles.
@@ -1672,6 +1710,16 @@ function validatePhase3(data, characters) {
           throw new Error(`Phase 3: tertiary character "${tc.name}" at "${loc.name}" shares a name with another tertiary character at "${tertiaryNameMap.get(tcNameLower)}"`)
         }
         tertiaryNameMap.set(tcNameLower, loc.name)
+      }
+    }
+
+    // Validate plausibleCharacters
+    if (!loc.plausibleCharacters || !Array.isArray(loc.plausibleCharacters) || loc.plausibleCharacters.length === 0) {
+      throw new Error(`Phase 3: location "${loc.name}" missing or empty plausibleCharacters array`)
+    }
+    for (const name of loc.plausibleCharacters) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error(`Phase 3: location "${loc.name}" has empty plausibleCharacters entry`)
       }
     }
   }

@@ -98,17 +98,53 @@ const VALUE_TENSIONS = {
   conforms: {
     label: 'She conforms, he is free',
     flavours: [
-      { id: 'prudence_instinct', her: 'Prudence', his: 'Instinct', description: 'She does what is proper and responsible. He follows his gut and is right.' },
-      { id: 'reputation_authenticity', her: 'Reputation', his: 'Authenticity', description: 'She curates herself for the world. He is the same person in every room.' },
-      { id: 'control_surrender', her: 'Control', his: 'Surrender', description: 'She manages everything. He trusts what comes and it works.' }
+      {
+        id: 'prudence_instinct', her: 'Prudence', his: 'Instinct',
+        description: 'She does what is proper and responsible. He follows his gut and is right.',
+        herBelief: 'Doing the right thing matters more than what I want.',
+        hisThreat: 'He follows what he feels and it turns out to be right. His moral compass is intuitive rather than principled.',
+        theCost: 'She has been obedient to a system that has never once asked what she actually wants.'
+      },
+      {
+        id: 'reputation_authenticity', her: 'Reputation', his: 'Authenticity',
+        description: 'She curates herself for the world. He is the same person in every room.',
+        herBelief: 'How others see me is the architecture of my worth.',
+        hisThreat: 'He is the same person in every room. People trust him because there is no gap between who he is publicly and who he is privately.',
+        theCost: 'She has no idea who she is when no one is watching. The reputation has replaced the person.'
+      },
+      {
+        id: 'control_surrender', her: 'Control', his: 'Surrender',
+        description: 'She manages everything. He trusts what comes and it works.',
+        herBelief: 'If I stop holding this together, everything falls apart.',
+        hisThreat: 'He moves through uncertainty without a system and thrives. His openness produces results her planning cannot.',
+        theCost: 'Her control has become a way of never fully living anything. She experiences events as checklists.'
+      }
     ]
   },
   rebels: {
     label: 'She rebels, he is rooted',
     flavours: [
-      { id: 'cynicism_sincerity', her: 'Cynicism', his: 'Sincerity', description: 'She assumes the worst and protects herself. He trusts openly and is not destroyed.' },
-      { id: 'defiance_rootedness', her: 'Defiance', his: 'Rootedness', description: 'She rejects tradition. He is grounded in it and whole.' },
-      { id: 'independence_belonging', her: 'Independence', his: 'Belonging', description: 'She needs no one. He is woven into community and stronger for it.' }
+      {
+        id: 'cynicism_sincerity', her: 'Cynicism', his: 'Sincerity',
+        description: 'She assumes the worst and protects herself. He trusts openly and is not destroyed.',
+        herBelief: 'The world punishes people who trust. I will not be one of them.',
+        hisThreat: 'He gives trust freely and people rise to meet it. His openness is not punished.',
+        theCost: 'Her suspicion has become invisible poverty. She is full of what she can produce and empty of what can only come from being known.'
+      },
+      {
+        id: 'defiance_rootedness', her: 'Defiance', his: 'Rootedness',
+        description: 'She rejects tradition. He is grounded in it and whole.',
+        herBelief: 'The old ways are a cage. I make my own rules.',
+        hisThreat: 'He lives inside tradition and it works. His rootedness is not limitation but foundation.',
+        theCost: 'She has no roots. Her freedom is real but it is also empty.'
+      },
+      {
+        id: 'independence_belonging', her: 'Independence', his: 'Belonging',
+        description: 'She needs no one. He is woven into community and stronger for it.',
+        herBelief: 'Needing people is a debt I refuse to carry.',
+        hisThreat: 'He asks for help without shame and gives it without keeping score. His relationships are dense and nourishing.',
+        theCost: 'She will never experience herself as enough. Every achievement resets to zero by morning because there is no one to witness it.'
+      }
     ]
   }
 }
@@ -1467,7 +1503,10 @@ function rollSkeleton() {
       flavourId: selectedFlavour.id,
       herPosition: selectedFlavour.her,
       hisPosition: selectedFlavour.his,
-      description: selectedFlavour.description
+      description: selectedFlavour.description,
+      herBelief: selectedFlavour.herBelief,
+      hisThreat: selectedFlavour.hisThreat,
+      theCost: selectedFlavour.theCost
     }
 
     // Select secret holder

@@ -1488,7 +1488,7 @@ Not every location will be used in the story. Abundance is the point.
 
 10. A location is a room, building, or outdoor space where a scene takes place. Not an object or piece of furniture.
 
-11. No tertiary character may share a first name with any character in the main or secondary cast.
+11. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique.
 
 OUTPUT FORMAT:
 Return a single JSON object:

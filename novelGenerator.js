@@ -1484,6 +1484,12 @@ RULES:
 
 Not every location will be used in the story. Abundance is the point.
 
+9. Every location must be a place the protagonist can plausibly visit. If she cannot go there, it does not exist.
+
+10. A location is a room, building, or outdoor space where a scene takes place. Not an object or piece of furniture.
+
+11. No tertiary character may share a first name with any character in the main or secondary cast.
+
 OUTPUT FORMAT:
 Return a single JSON object:
 {

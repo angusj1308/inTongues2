@@ -733,8 +733,8 @@ RULES:
 9. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
 10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
 11. The protagonist's backstory must be compatible with the Chapter 1 starting condition provided. Her world at the start of the story must match this condition. If it says her world is safe and stable, she is not in hiding, not in danger, not living a double life. Build backward from the starting condition — what kind of woman, in this setting, would have a world that looks like that?
-12. IDENTITY TENSION ONLY: The protagonist must include a "coreBelief" field — one sentence that captures the belief her identity is built around. This is the conviction the romance will challenge. It should be specific to her, not generic. Example: "A woman who teaches is worth more than a woman who marries." It must emerge from her backstory and setting.
-13. SECRET STORIES ONLY: When a SECRET HOLDER section is provided, the character identified as the secret holder must include a "secret" field — a single paragraph. The secret must pass this test: when the protagonist discovers it, she must learn something she genuinely DID NOT KNOW — not confirmation of a suspicion, not a detail she could have guessed, but information that changes the meaning of the romance itself. Follow the SECRET HOLDER instructions for what the secret contains and which character carries it.
+12. IDENTITY TENSION ONLY: The protagonist must include a "coreBelief" field — one sentence. The VALUE TENSION section provides a belief template. Ground that template in this specific setting and era — make it personal and concrete to this woman's circumstances. Do not change its meaning. Do not make it about gender. Do not invent a new belief from scratch.
+13. SECRET STORIES ONLY: When a SECRET HOLDER section is provided, the character identified as the secret holder must include a "secret" field — a single paragraph. The secret must pass this test: when the protagonist discovers it, she must learn something she genuinely DID NOT KNOW — not confirmation of a suspicion, not a detail she could have guessed, but information that changes the meaning of the romance itself. Follow the SECRET HOLDER instructions for what the secret contains and which character carries it. The secret must be ONE specific action or deception — not multiple. A single devastating truth is more powerful than a list of offenses. If the character did several harmful things, pick the worst one and make that the secret. The others do not exist.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -780,6 +780,7 @@ RULES:
 8. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
 9. Appearance must be specific and grounded.
 10. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
+11. Every cast member must be physically present and accessible in the story's primary setting. If the protagonist's backstory involves a different location, cast members from that past must have a plausible reason for being in the current setting. Do not place cast members in locations the protagonist has left.
 
 OUTPUT FORMAT:
 Return a single JSON object:
@@ -833,14 +834,13 @@ ${ch1StartingCondition}`
 
 === VALUE TENSION ===
 Direction: ${valueTension.direction === 'conforms' ? 'She conforms, he is free' : 'She rebels, he is rooted'}
-Her position: ${valueTension.herPosition}
-His position: ${valueTension.hisPosition}
-${valueTension.description}
+Her belief: ${valueTension.herBelief}
+His threat: ${valueTension.hisThreat}
+The cost: ${valueTension.theCost}
 
-Select the flavour of this tension most natural to the setting. Then generate:
-- The protagonist's coreBelief from her position, grounded in this specific setting and era
-- The primary's character from his position — his way of being must expose the cost of her belief
-- theCost: one sentence describing what her belief is secretly costing her`
+Generate the protagonist's coreBelief by grounding "${valueTension.herBelief}" in this specific setting and era. Do not change its meaning. Do not make it about gender. Make it personal and specific to this woman's circumstances.
+Generate the primary's character so that his way of being embodies "${valueTension.hisThreat}" naturally through who he is in this setting.
+Generate theCost by grounding "${valueTension.theCost}" in this specific protagonist's life.`
   }
 
   if (hasSecret && secretHolder) {

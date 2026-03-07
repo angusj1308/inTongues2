@@ -1745,29 +1745,55 @@ function validatePhase3(data, characters) {
 async function executePhase3(setting, characters) {
   console.log('\nExecuting Phase 3: Locations...')
 
-  const userPrompt = buildPhase3UserPrompt(setting, characters)
+  const basePrompt = buildPhase3UserPrompt(setting, characters)
+  const maxRetries = 3
+  const rejectedNames = []
 
-  const response = await callClaude(PHASE_3_SYSTEM_PROMPT, userPrompt, {
-    model: 'claude-sonnet-4-20250514',
-    temperature: 1.0,
-    maxTokens: 16384
-  })
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    let prompt = basePrompt
+    if (rejectedNames.length > 0) {
+      prompt += `\n\n=== REJECTED NAMES ===
+The following tertiary character names were rejected because they collide with existing characters. Do not use any of these names:
+${rejectedNames.join(', ')}`
+    }
 
-  const parsed = parseJSON(response)
-  if (!parsed.success) {
-    throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
+    const response = await callClaude(PHASE_3_SYSTEM_PROMPT, prompt, {
+      model: 'claude-sonnet-4-20250514',
+      temperature: 1.0,
+      maxTokens: 16384
+    })
+
+    const parsed = parseJSON(response)
+    if (!parsed.success) {
+      throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
+    }
+
+    try {
+      validatePhase3(parsed.data, characters)
+    } catch (err) {
+      // Extract colliding name from error message and retry
+      const nameMatch = err.message.match(/tertiary character "([^"]+)".*shares a name/)
+      if (nameMatch && attempt < maxRetries) {
+        const collidingName = nameMatch[1].trim().toLowerCase()
+        if (!rejectedNames.includes(collidingName)) {
+          rejectedNames.push(collidingName)
+        }
+        console.log(`  Attempt ${attempt}: name collision "${nameMatch[1]}" — retrying with rejection list`)
+        continue
+      }
+      throw err
+    }
+
+    console.log('  Phase 3 validated successfully.')
+
+    for (const loc of parsed.data.locations) {
+      console.log(`  Location: ${loc.name}`)
+    }
+
+    console.log(`\nPhase 3 Locations complete. ${parsed.data.locations.length} locations described.`)
+
+    return { locations: parsed.data }
   }
-
-  validatePhase3(parsed.data, characters)
-  console.log('  Phase 3 validated successfully.')
-
-  for (const loc of parsed.data.locations) {
-    console.log(`  Location: ${loc.name}`)
-  }
-
-  console.log(`\nPhase 3 Locations complete. ${parsed.data.locations.length} locations described.`)
-
-  return { locations: parsed.data }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

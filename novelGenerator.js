@@ -1492,7 +1492,17 @@ async function executePhase2(skeleton, characters, setting, locations) {
 // PHASE 3: LOCATIONS
 // =============================================================================
 
-const PHASE_3_SYSTEM_PROMPT = `You are describing locations for an enemies-to-lovers romance. You receive a setting and character profiles. Your job: generate a rich palette of locations where this story could take place.
+const PASS_LABELS = {
+  1: 'Protagonist',
+  2: 'Primary',
+  3: 'The Source',
+  4: 'The Romantic Confidant',
+  5: 'Her Opposite',
+  6: 'The Mirror',
+  7: 'Shared public spaces'
+}
+
+const PHASE_3_LOCATION_PASS_SYSTEM_PROMPT = `You are describing locations for an enemies-to-lovers romance. You receive a setting, character profiles, and (after the first pass) existing locations from previous passes. Your job: generate locations grounded in a specific character relationship.
 
 RULES:
 
@@ -1510,26 +1520,23 @@ RULES:
 
 7. When a location naturally has people who work or live there, include a tertiaryCharacters array. Each entry has a "name" (string) and "description" (one or two sentences — who they are and what they do at this location). Private spaces do not need tertiary characters. Do not force them where they do not belong.
 
-8. Generate a minimum of 25 distinct locations. Draw them from:
-- Her world: where she lives, works, and goes routinely. Include multiple distinct spaces within her primary location. 5-6 locations.
-- His world: where he lives, works, and goes. 4-5 locations.
-- Each secondary cast member's world: 1-3 locations each.
-- Shared public spaces: markets, plazas, streets, churches, harbours — places where any character might cross paths. 3-4 locations.
+8. Every location must be a place the protagonist can plausibly visit. If she cannot go there, it does not exist.
 
-Not every location will be used in the story. Abundance is the point.
+9. A location is a room, building, or outdoor space where a scene takes place. Not an object or piece of furniture.
 
-9. Every location must be a place the protagonist can plausibly visit. If she cannot go there, it does not exist.
+10. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique. The user prompt lists OFF-LIMITS NAMES — do not give any tertiary character any of those names, and do not reuse a tertiary name at a different location.
 
-10. A location is a room, building, or outdoor space where a scene takes place. Not an object or piece of furniture.
+11. For each new location, include a "plausibleCharacters" field — an array of first names from the main and secondary cast who would naturally be present at or visit this location. The protagonist will be present at most locations since the story is told from her perspective. Tag other characters based on their backstory and role.
 
-11. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique. The user prompt lists OFF-LIMITS NAMES — do not give any tertiary character any of those names, and do not reuse a tertiary name at a different location.
-
-12. For each location, include a "plausibleCharacters" field — an array of first names from the main and secondary cast who would naturally be present at or visit this location. The protagonist will be present at most locations since the story is told from her perspective. Tag other characters based on their backstory and role — if a character works nearby, lives in the area, or has social reasons to visit, include them.
+12. You may receive existing locations from previous passes. For each existing location where the current pass's character could plausibly be present, add that character's name to the location's plausibleCharacters by including it in the existingLocations array of your response. Then generate any NEW locations needed for this pass.
 
 OUTPUT FORMAT:
-Return a single JSON object:
+Return a single JSON object with two arrays:
 {
-  "locations": [
+  "existingLocations": [
+    { "name": "exact name from input", "addToPlausibleCharacters": ["CharName"] }
+  ],
+  "newLocations": [
     {
       "name": "The estancia kitchen",
       "physicalDescription": "One paragraph. Layout, objects, materials, scale.",
@@ -1549,7 +1556,9 @@ IMPORTANT:
 - Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
 - Each paragraph must be substantive — at least 3-4 sentences of concrete detail.
 - The tertiaryCharacters array is optional — only include it on locations that naturally have people working or living there.
-- The plausibleCharacters array is required on every location — at minimum, include the protagonist.`
+- The plausibleCharacters array is required on every NEW location — at minimum, include the protagonist.
+- The existingLocations array can be empty if no existing locations are relevant to this character.
+- The newLocations array can be empty if no new locations are needed for this pass.`
 
 /**
  * Build the user prompt for Phase 3 (locations): setting + character profiles.
@@ -1570,49 +1579,118 @@ function extractFirstNameFromBackstory(backstory) {
   return first
 }
 
-function buildPhase3UserPrompt(setting, characters) {
-  // Collect all main/secondary cast first names as off-limits
-  const offLimitsNames = []
-  const sources = [
-    characters.protagonist && characters.protagonist.backstory,
-    characters.primary && characters.primary.backstory,
-    characters.rival && characters.rival.backstory
-  ]
-  if (characters.cast) {
-    for (const member of characters.cast) {
-      sources.push(member.backstory)
-    }
-  }
-  for (const backstory of sources) {
-    const name = extractFirstNameFromBackstory(backstory)
-    if (name) offLimitsNames.push(name)
-  }
+function buildLocationPassUserPrompt(passNumber, setting, characters, existingLocations, offLimitsNames, existingTertiaryNames) {
+  const protagonistName = extractFirstNameFromBackstory(characters.protagonist.backstory) || 'the protagonist'
+  const primaryName = extractFirstNameFromBackstory(characters.primary.backstory) || 'the primary'
 
-  let prompt = `=== SETTING ===
-${setting}
+  // Find cast members by functionId
+  const findCast = (id) => characters.cast && characters.cast.find(m => m.functionId === id)
+  const source = findCast('the_source')
+  const confidant = findCast('the_romantic_confidant')
+  const opposite = findCast('her_opposite')
+  const mirror = findCast('the_mirror')
 
-=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+  let prompt = `=== SETTING ===\n${setting}\n`
+
+  // Pass-specific character profiles and instructions
+  if (passNumber === 1) {
+    prompt += `\n=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+
+=== INSTRUCTIONS ===
+Generate the locations where ${protagonistName} lives and moves through her daily routine. Include her home and its distinct spaces — not just "the house" but the rooms she inhabits. Generate household members — family, servants, anyone regularly present — as tertiary characters tagged to the locations they inhabit. A household member who exists in multiple rooms is tagged to all of them.`
+  } else if (passNumber === 2) {
+    prompt += `\n=== PROTAGONIST (for reference) ===
 Backstory: ${characters.protagonist.backstory}
 
 === PRIMARY ===
-Backstory: ${characters.primary.backstory}`
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
 
-  if (characters.cast && characters.cast.length > 0) {
-    prompt += '\n\n=== CAST ==='
-    for (const member of characters.cast) {
-      prompt += `\n\n--- ${member.functionId} ---\nBackstory: ${member.backstory}`
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${primaryName} could plausibly be present by adding his name to existingLocations. Then generate new locations where these two characters' worlds overlap or collide — boundary spaces, places where someone from her world might encounter someone from his. Include his home and its distinct spaces. Generate his household members as tertiary characters.`
+  } else if (passNumber === 3 && source) {
+    const sourceName = extractFirstNameFromBackstory(source.backstory) || 'the Source'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== THE SOURCE ===
+Backstory: ${source.backstory}
+Psychology: ${source.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${sourceName} could plausibly be present. Then generate new locations where this relationship lives — where ${protagonistName} goes to seek ${sourceName}'s approval, where ${sourceName} holds court, where they interact privately. Generate ${sourceName}'s household if applicable.`
+  } else if (passNumber === 4 && confidant) {
+    const confidantName = extractFirstNameFromBackstory(confidant.backstory) || 'the Confidant'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== THE ROMANTIC CONFIDANT ===
+Backstory: ${confidant.backstory}
+Psychology: ${confidant.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${confidantName} could plausibly be present. Then generate new locations where this friendship lives — where they are intimate, where they gossip, where they walk together. Generate ${confidantName}'s household if applicable.`
+  } else if (passNumber === 5 && opposite) {
+    const oppositeName = extractFirstNameFromBackstory(opposite.backstory) || 'the Opposite'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== HER OPPOSITE ===
+Backstory: ${opposite.backstory}
+Psychology: ${opposite.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${oppositeName} could plausibly be present. Then generate new locations only if needed — ${oppositeName} may already share locations with ${primaryName} or other characters. Generate ${oppositeName}'s household if not already covered.`
+  } else if (passNumber === 6 && mirror) {
+    const mirrorName = extractFirstNameFromBackstory(mirror.backstory) || 'the Mirror'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== THE MIRROR ===
+Backstory: ${mirror.backstory}
+Psychology: ${mirror.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${mirrorName} could plausibly be present. Then generate one or two locations where ${mirrorName} exists — her domain. The Mirror is sparse. She does not need many locations.`
+  } else if (passNumber === 7) {
+    // All character names with brief roles
+    prompt += `\n=== CHARACTERS ===
+- ${protagonistName}: protagonist
+- ${primaryName}: love interest`
+    if (source) prompt += `\n- ${extractFirstNameFromBackstory(source.backstory)}: the Source (authority figure)`
+    if (confidant) prompt += `\n- ${extractFirstNameFromBackstory(confidant.backstory)}: the Romantic Confidant (best friend)`
+    if (opposite) prompt += `\n- ${extractFirstNameFromBackstory(opposite.backstory)}: Her Opposite (foil/rival)`
+    if (mirror) prompt += `\n- ${extractFirstNameFromBackstory(mirror.backstory)}: the Mirror (dark reflection)`
+
+    prompt += `
+
+=== INSTRUCTIONS ===
+Review all locations generated so far. The city or town should feel present beyond private and semi-private spaces. Generate public locations — plazas, markets, streets, churches, ports, parks — that any character might pass through. Tag each with the characters who would plausibly be there. Generate tertiary characters attached to these public locations.`
+  }
+
+  // Add existing locations for passes 2-7
+  if (passNumber > 1 && existingLocations.length > 0) {
+    prompt += `\n\n=== EXISTING LOCATIONS (from previous passes) ===
+Review these and tag any where this pass's character could plausibly be present.\n`
+    for (const loc of existingLocations) {
+      prompt += `\n- "${loc.name}" (plausibleCharacters: ${loc.plausibleCharacters.join(', ')})`
     }
   }
 
+  // Off-limits names
   if (offLimitsNames.length > 0) {
+    const allOffLimits = [...offLimitsNames]
+    if (existingTertiaryNames.size > 0) {
+      allOffLimits.push(...existingTertiaryNames)
+    }
     prompt += `\n\n=== OFF-LIMITS NAMES ===
-The following first names are already used by main or secondary cast. No tertiary character may use any of these names:
-${offLimitsNames.join(', ')}`
+The following first names are already used. No tertiary character may use any of these names:
+${allOffLimits.join(', ')}`
   }
 
-  prompt += `
-
-Generate at least 25 distinct locations grounded in this setting and these characters' worlds. Return the JSON object only.`
+  prompt += `\n\nReturn the JSON object only.`
 
   return prompt
 }
@@ -1636,16 +1714,103 @@ function wordOverlap(a, b) {
 }
 
 /**
- * Validate Phase 3 output: location descriptions.
- * Requires minimum 25 locations. Validates optional tertiaryCharacters.
+ * Merge a single pass's result into the accumulated locations array.
+ * Updates plausibleCharacters on existing locations and appends new ones.
+ */
+function mergePassResult(existingLocations, passResult) {
+  const merged = existingLocations.map(loc => ({ ...loc, plausibleCharacters: [...loc.plausibleCharacters] }))
+
+  // Update existing locations with new plausibleCharacters tags
+  if (passResult.existingLocations && passResult.existingLocations.length > 0) {
+    for (const update of passResult.existingLocations) {
+      const match = merged.find(loc => loc.name === update.name)
+      if (match && update.addToPlausibleCharacters) {
+        for (const name of update.addToPlausibleCharacters) {
+          if (!match.plausibleCharacters.includes(name)) {
+            match.plausibleCharacters.push(name)
+          }
+        }
+      }
+    }
+  }
+
+  // Append new locations
+  if (passResult.newLocations && passResult.newLocations.length > 0) {
+    merged.push(...passResult.newLocations)
+  }
+
+  return merged
+}
+
+/**
+ * Validate a single location pass's output.
+ */
+function validateLocationPass(passResult, passNumber, existingLocations, castNames, existingTertiaryNames) {
+  if (!passResult || typeof passResult !== 'object') {
+    throw new Error(`Pass ${passNumber}: result must be an object`)
+  }
+
+  // Validate existingLocations references
+  if (passResult.existingLocations && passResult.existingLocations.length > 0) {
+    const existingNames = new Set(existingLocations.map(l => l.name))
+    for (const update of passResult.existingLocations) {
+      if (!update.name || !existingNames.has(update.name)) {
+        throw new Error(`Pass ${passNumber}: existingLocations references unknown location "${update.name}"`)
+      }
+      if (!update.addToPlausibleCharacters || !Array.isArray(update.addToPlausibleCharacters)) {
+        throw new Error(`Pass ${passNumber}: existingLocations entry "${update.name}" missing addToPlausibleCharacters array`)
+      }
+    }
+  }
+
+  // Validate new locations
+  const existingLocationNames = new Set(existingLocations.map(l => l.name.toLowerCase()))
+  if (passResult.newLocations && passResult.newLocations.length > 0) {
+    for (const loc of passResult.newLocations) {
+      if (!loc.name || typeof loc.name !== 'string' || loc.name.trim().length === 0) {
+        throw new Error(`Pass ${passNumber}: new location missing or empty name`)
+      }
+      if (!loc.physicalDescription || typeof loc.physicalDescription !== 'string') {
+        throw new Error(`Pass ${passNumber}: location "${loc.name}" missing physicalDescription`)
+      }
+      if (!loc.sensoryEnvironment || typeof loc.sensoryEnvironment !== 'string') {
+        throw new Error(`Pass ${passNumber}: location "${loc.name}" missing sensoryEnvironment`)
+      }
+      if (!loc.plausibleCharacters || !Array.isArray(loc.plausibleCharacters) || loc.plausibleCharacters.length === 0) {
+        throw new Error(`Pass ${passNumber}: location "${loc.name}" missing or empty plausibleCharacters`)
+      }
+
+      // Check duplicate location names
+      if (existingLocationNames.has(loc.name.toLowerCase())) {
+        throw new Error(`Pass ${passNumber}: duplicate location name "${loc.name}"`)
+      }
+      existingLocationNames.add(loc.name.toLowerCase())
+
+      // Check tertiary name collisions
+      if (loc.tertiaryCharacters && Array.isArray(loc.tertiaryCharacters)) {
+        for (const tc of loc.tertiaryCharacters) {
+          if (!tc.name || typeof tc.name !== 'string') {
+            throw new Error(`Pass ${passNumber}: tertiary character at "${loc.name}" missing name`)
+          }
+          const tcLower = tc.name.trim().toLowerCase()
+          if (castNames.has(tcLower)) {
+            throw new Error(`Pass ${passNumber}: tertiary "${tc.name}" at "${loc.name}" collides with cast name`)
+          }
+          if (existingTertiaryNames.has(tcLower)) {
+            throw new Error(`Pass ${passNumber}: tertiary "${tc.name}" at "${loc.name}" collides with existing tertiary name`)
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Validate Phase 3 final output: all accumulated locations.
  */
 function validatePhase3(data, characters) {
   if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
     throw new Error('Phase 3: locations must be a non-empty array')
-  }
-
-  if (data.locations.length < 25) {
-    throw new Error(`Phase 3: minimum 25 locations required, got ${data.locations.length}`)
   }
 
   // Build set of main/secondary cast first names (lowercased) for collision checking
@@ -1727,35 +1892,91 @@ function validatePhase3(data, characters) {
 
 /**
  * Phase 3: Generate location descriptions.
- * One LLM call. Input: setting + character profiles.
+ * 7 sequential LLM passes, each focused on a specific character relationship.
  * Output: master list of unique locations with physical, sensory, and optional tertiary character descriptions.
  */
 async function executePhase3(setting, characters) {
-  console.log('\nExecuting Phase 3: Locations...')
+  console.log('\nExecuting Phase 3: Locations (7 passes)...')
 
-  const userPrompt = buildPhase3UserPrompt(setting, characters)
-
-  const response = await callClaude(PHASE_3_SYSTEM_PROMPT, userPrompt, {
-    model: 'claude-sonnet-4-20250514',
-    temperature: 1.0,
-    maxTokens: 16384
-  })
-
-  const parsed = parseJSON(response)
-  if (!parsed.success) {
-    throw new Error(`Phase 3 JSON parse failed: ${parsed.error}`)
+  // Collect off-limits names from all main/secondary cast
+  const offLimitsNames = []
+  const backstorySources = [
+    characters.protagonist && characters.protagonist.backstory,
+    characters.primary && characters.primary.backstory,
+    characters.rival && characters.rival.backstory
+  ]
+  if (characters.cast) {
+    for (const member of characters.cast) {
+      backstorySources.push(member.backstory)
+    }
+  }
+  for (const backstory of backstorySources) {
+    const name = extractFirstNameFromBackstory(backstory)
+    if (name) offLimitsNames.push(name)
   }
 
-  validatePhase3(parsed.data, characters)
+  const castNames = new Set(offLimitsNames.map(n => n.toLowerCase()))
+  let accumulatedLocations = []
+  const existingTertiaryNames = new Set()
+
+  for (let pass = 1; pass <= 7; pass++) {
+    console.log(`  Pass ${pass}/7: ${PASS_LABELS[pass]}...`)
+
+    const userPrompt = buildLocationPassUserPrompt(
+      pass, setting, characters, accumulatedLocations, offLimitsNames, existingTertiaryNames
+    )
+
+    let passResult = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await callClaude(PHASE_3_LOCATION_PASS_SYSTEM_PROMPT, userPrompt, {
+        model: 'claude-sonnet-4-20250514',
+        temperature: 1.0,
+        maxTokens: 8192
+      })
+      const parsed = parseJSON(response)
+      if (!parsed.success) {
+        console.warn(`  Pass ${pass} attempt ${attempt + 1} JSON parse failed: ${parsed.error}`)
+        continue
+      }
+      try {
+        validateLocationPass(parsed.data, pass, accumulatedLocations, castNames, existingTertiaryNames)
+        passResult = parsed.data
+        break
+      } catch (e) {
+        console.warn(`  Pass ${pass} attempt ${attempt + 1} validation failed: ${e.message}`)
+      }
+    }
+    if (!passResult) {
+      throw new Error(`Phase 3 pass ${pass} (${PASS_LABELS[pass]}) failed after 3 attempts`)
+    }
+
+    // Merge and track tertiary names
+    accumulatedLocations = mergePassResult(accumulatedLocations, passResult)
+    if (passResult.newLocations) {
+      for (const loc of passResult.newLocations) {
+        if (loc.tertiaryCharacters && Array.isArray(loc.tertiaryCharacters)) {
+          for (const tc of loc.tertiaryCharacters) {
+            existingTertiaryNames.add(tc.name.trim().toLowerCase())
+          }
+        }
+      }
+    }
+
+    console.log(`  Pass ${pass}: ${passResult.newLocations?.length || 0} new, ${passResult.existingLocations?.length || 0} tagged`)
+  }
+
+  // Final validation
+  const finalData = { locations: accumulatedLocations }
+  validatePhase3(finalData, characters)
   console.log('  Phase 3 validated successfully.')
 
-  for (const loc of parsed.data.locations) {
-    console.log(`  Location: ${loc.name}`)
+  for (const loc of accumulatedLocations) {
+    console.log(`  Location: ${loc.name} (${loc.plausibleCharacters.join(', ')})`)
   }
 
-  console.log(`\nPhase 3 Locations complete. ${parsed.data.locations.length} locations described.`)
+  console.log(`\nPhase 3 complete. ${accumulatedLocations.length} locations.`)
 
-  return { locations: parsed.data }
+  return { locations: finalData }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

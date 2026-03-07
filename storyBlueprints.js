@@ -53,7 +53,7 @@ const CAST = {
       description: 'An older individual who had a significant influence over her as a formative figure. Their approval is what the core belief was built to earn.'
     },
     {
-      function: 'The Romantic Confidant',
+      function: 'The Best Friend',
       color: 'caution',
       description: 'A female character of a similar age. Sees the romance before she does. Names the attraction before the protagonist will admit it. Plants the seed. Later, the person she confesses to. May have her own romantic resolution.'
     },
@@ -1582,75 +1582,82 @@ function rollSkeleton() {
     // Ch.7 — Reunited
     addIdentityChapter(act4.ch_reunited_identity)
 
-    // Build cast functions
-    const castFunctions = CAST[tension]
-      .map(c => ({
-        id: c.function.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
-        name: c.function,
-        description: c.description
-      }))
+    // Build direction-aware cast descriptions
+    const direction = valueTension.direction // 'conforms' or 'rebels'
 
-    // Attach presence and beats to each cast function
-    for (const cf of castFunctions) {
-      if (cf.id === 'the_source') {
-        if (valueTension.direction === 'conforms') {
-          cf.presence = "Part of the protagonist's routine. Appears naturally across her world — meals, conversations, passing moments. A recurring presence, not a guest star."
-          cf.beats = [
-            { by: 1, beat: 'The approval dynamic is visible.' },
-            { by: 3, beat: 'The Source has demonstrated approval in action.' },
-            { by: 6, beat: "The Source's role in the protagonist's crisis is felt — through failure, absence, or opposition." },
-            { by: 7, beat: "The Source's relationship to the protagonist has changed." }
-          ]
-        } else {
-          cf.presence = "A shadow over the protagonist's world. May be physically distant but present through letters, habits, objects, or other characters' references. The weight of their influence is felt even in absence."
-          cf.beats = [
-            { by: 1, beat: 'The reader understands who she is running from.' },
-            { by: 3, beat: "The Source's influence has reached into her current life." },
-            { by: 6, beat: 'The Source is connected to the crisis.' },
-            { by: 7, beat: "The protagonist's relationship to the Source has changed." }
-          ]
+    const sourceDesc = direction === 'conforms'
+      ? "An older individual who had a significant influence over her as a formative figure. Their approval is what the core belief was built to earn."
+      : "An older individual whose influence she is running from. Their expectations are what the core belief was built in opposition to."
+
+    const bestFriendDesc = direction === 'conforms'
+      ? "A female character of a similar age. Warm, romantic, open to love. She sees the attraction before the protagonist will admit it and encourages it."
+      : "A female character of a similar age. Shares the protagonist's rejection of convention. When the protagonist begins to fall, this friend experiences it as a betrayal of their shared worldview."
+
+    const oppositeDesc = direction === 'conforms'
+      ? "A younger woman or girl who rejects the system the protagonist follows. She lives freely and doesn't care about the approval the protagonist depends on."
+      : "A younger woman or girl who is content within the tradition the protagonist rejects. She finds genuine happiness in the conventional path and doesn't understand why anyone would fight against it."
+
+    const mirrorDesc = "An older woman who shows her what a life looks like at the end of the road she's on. Either she chose romance and was burned, or she kept her identity and is alone."
+
+    // Build cast functions with per-chapter arcs
+    const castFunctions = [
+      {
+        id: 'the_source',
+        name: 'The Source',
+        description: sourceDesc,
+        arc: {
+          1: "Their influence shapes how the protagonist moves through her world.",
+          2: "Their perspective on the primary is implied or expressed.",
+          3: "Their perspective on the primary is implied or expressed.",
+          4: null,
+          5: "Her relationship to the Source is shifting.",
+          6: "Her original relationship with the Source reasserts itself.",
+          7: "The relationship has matured into mutual acceptance."
         }
-        // Secret holder modifications for the Source
-        if (secretHolder.id === 'source_disapproves') {
-          cf.beats.push({ by: 4, beat: "The Source has witnessed the protagonist's shift toward the primary." })
-          const ch6Beat = cf.beats.find(b => b.by === 6)
-          if (ch6Beat) ch6Beat.beat = 'The Source manufactures or triggers the detonation.'
-        } else if (secretHolder.id === 'source_complicit') {
-          cf.beats.push({ by: 3, beat: "The Source's connection to the primary's presence is established but appears innocent." })
-          const ch6Beat = cf.beats.find(b => b.by === 6)
-          if (ch6Beat) ch6Beat.beat = "The truth about the Source's arrangement is revealed."
+      },
+      {
+        id: 'the_romantic_confidant',
+        name: 'The Best Friend',
+        description: bestFriendDesc,
+        arc: {
+          1: "The reader sees her disposition toward romance.",
+          2: "She forms her own impression of the primary.",
+          3: "She has her own reading of the protagonist's conflict.",
+          4: "She witnesses the shift before the protagonist can name it.",
+          5: "She is present in the protagonist's emotional life as it changes.",
+          6: "She responds to the crisis.",
+          7: "She is part of the new world."
         }
-      } else if (cf.id === 'the_romantic_confidant') {
-        cf.presence = "A regular companion. Appears in the protagonist's personal life — walks, visits, shared meals. The person she is most relaxed around."
-        cf.beats = [
-          { by: 1, beat: 'The reader sees she is romantically inclined.' },
-          { by: 3, beat: 'She has observed the attraction before the protagonist names it.' },
-          { by: 5, beat: 'The protagonist has processed the romance through her.' },
-          { by: 7, beat: 'The dynamic between them is tested.' }
-        ]
-        // Secret holder modification for the Confidant
-        if (secretHolder.id === 'confidant') {
-          cf.beats = cf.beats.map(b => {
-            if (b.by === 3) return { by: 3, beat: 'The reader has seen a moment between the Confidant and the primary that seems innocent but will recontextualise later.' }
-            if (b.by === 7) return { by: 6, beat: "The secret that detonates is the Confidant's — not an external discovery." }
-            return b
-          })
-          cf.beats.push({ by: 5, beat: "The Confidant's encouragement of the romance carries a note the reader may later recognise as guilt." })
+      },
+      {
+        id: 'her_opposite',
+        name: 'Her Opposite',
+        description: oppositeDesc,
+        arc: {
+          1: "The reader sees her living the other way.",
+          2: "The reader sees her living the other way.",
+          3: "The reader sees her living the other way.",
+          4: "The reader sees her living the other way.",
+          5: "Her way of being intersects with the protagonist's situation.",
+          6: "The reader sees her living the other way.",
+          7: "The contrast resolves."
         }
-      } else if (cf.id === 'her_opposite') {
-        cf.presence = "Encountered in social settings. Not part of the protagonist's daily routine but present in her wider world — events, gatherings, through other characters."
-        cf.beats = [
-          { by: 2, beat: 'The reader sees her living in opposition to the core belief.' },
-          { by: 5, beat: "Her way of being has intersected with the protagonist's arc." }
-        ]
-      } else if (cf.id === 'the_mirror') {
-        cf.presence = "Encountered rarely but memorably. Each appearance carries weight. Not a daily presence but someone whose scenes leave a crater."
-        cf.beats = [
-          { by: 3, beat: "The reader has seen the Mirror's life." },
-          { by: 6, beat: "The Mirror's existence has intersected with the protagonist's emotional state." }
-        ]
+      },
+      {
+        id: 'the_mirror',
+        name: 'The Mirror',
+        description: mirrorDesc,
+        arc: {
+          1: null,
+          2: null,
+          3: "The reader sees her life.",
+          4: null,
+          5: null,
+          6: null,
+          7: null
+        }
       }
-    }
+    ]
 
     return {
       trope,

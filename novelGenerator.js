@@ -1157,9 +1157,6 @@ RULES:
 
 7. Chapter end state from the blueprint must be delivered. One scene's synopsis must show it happening.
 
-SCENE COUNT GUIDANCE:
-Each chapter should contain the prescribed architecture scenes PLUS scenes that establish the world beyond the romance. A chapter with 2 prescribed scenes will typically have 3-5 total. A chapter with 3 prescribed scenes will typically have 4-6 total. The additional scenes are where secondary cast lives, where the setting breathes, where the reader feels the world is larger than two people falling in love. Do not create chapters that contain only the prescribed scenes and nothing else.
-
 OUTPUT FORMAT:
 Return a JSON array of scenes for this chapter:
 [
@@ -1278,13 +1275,15 @@ End state: ${chapterBlueprint.endState}`
     chapterBlock += '\nThese are the minimum required scenes. You may add scenes beyond these to accommodate secondary cast, world texture, or transitions.'
   }
 
-  // ── Cast presence and beats ──
+  // ── Secondary arcs for this chapter ──
   let castPresenceBlock = ''
-  if (skeleton.castFunctions && skeleton.castFunctions.some(cf => cf.presence)) {
-    let lines = `=== SECONDARY CAST — PRESENCE AND BEATS ===
-Each secondary cast member has a presence pattern and key beats. The presence pattern means they should appear in multiple scenes naturally — as part of the fabric, not as guest appearances for their beat. The beats are structural moments that must land within that presence. Do not create isolated scenes for beats. Weave them into scenes that are already happening.\n`
+  if (skeleton.castFunctions && skeleton.castFunctions.some(cf => cf.arc)) {
+    const chNum = chapterBlueprint.chapter
+    let lines = `=== SECONDARY ARCS (CHAPTER ${chNum}) ===
+
+These are what each secondary character's arc is doing in this chapter. Fit them into existing scenes where possible. Create new scenes only when a secondary arc cannot fit into any prescribed scene. If a character's arc is inactive this chapter, they do not need to appear.\n`
     for (const cf of skeleton.castFunctions) {
-      if (!cf.presence) continue
+      if (!cf.arc) continue
       // Try to find the character's name from the cast backstory
       let charName = ''
       if (characters.cast) {
@@ -1294,13 +1293,8 @@ Each secondary cast member has a presence pattern and key beats. The presence pa
         }
       }
       const nameLabel = charName ? ` (${charName})` : ''
-      lines += `\n--- ${cf.name}${nameLabel} ---\nPresence: ${cf.presence}\nBeats:`
-      if (cf.beats) {
-        for (const b of cf.beats) {
-          lines += `\n  - By Ch.${b.by}: ${b.beat}`
-        }
-      }
-      lines += '\n'
+      const arcSentence = cf.arc[chNum] || 'Inactive'
+      lines += `\n${cf.name}${nameLabel}: ${arcSentence}`
     }
     castPresenceBlock = '\n\n' + lines
   }

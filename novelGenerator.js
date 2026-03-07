@@ -1299,6 +1299,24 @@ These are what each secondary character's arc is doing in this chapter. Fit them
     castPresenceBlock = '\n\n' + lines
   }
 
+  // ── Secret arc for this chapter ──
+  let secretArcBlock = ''
+  if (skeleton.secretArc && skeleton.secretHolder) {
+    const chNum = chapterBlueprint.chapter
+    const arcSentence = skeleton.secretArc[chNum] || 'Inactive'
+    let secretText = ''
+    if (skeleton.secretHolder.description) {
+      secretText = skeleton.secretHolder.description
+    }
+    secretArcBlock = `\n\n=== SECRET ARC (CHAPTER ${chNum}) ===
+${arcSentence}
+
+The secret text: ${secretText}
+The secret holder: ${skeleton.secretHolder.label}
+
+Plant details in earlier chapters that seem innocent now but will recontextualise after the detonation. The reader only knows what the protagonist knows. Seeds are not suspicious — they are invisible until reread.`
+  }
+
   // ── Location palette ──
   let locationBlock = ''
   if (locations && locations.locations && locations.locations.length > 0) {
@@ -1347,7 +1365,7 @@ These locations are available. Pick locations that serve each scene. You do not 
 
 ${structureBlock}
 
-${characterBlock}${secretBlock}${castPresenceBlock}${locationBlock}
+${characterBlock}${secretBlock}${castPresenceBlock}${secretArcBlock}${locationBlock}
 
 ${chapterBlock}${previousBlock}
 

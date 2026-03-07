@@ -161,6 +161,40 @@ const SECRET_HOLDERS = [
   { id: 'protagonist', label: 'The Protagonist', description: 'While hostile she took action that damaged him. He does not know. The dark moment is guilt and shame, not betrayal.' }
 ]
 
+// =============================================================================
+// SECRET ARCS (identity tension only)
+// Per-chapter arc for the secret, keyed by secret holder id.
+// =============================================================================
+const SECRET_ARCS = {
+  primary: {
+    1: null, 2: null, 3: null, 4: null, 5: null,
+    6: "The manufactured origin of his presence in her world is revealed.",
+    7: null
+  },
+  source_disapproves: {
+    1: null, 2: null, 3: null, 4: null, 5: null,
+    6: "The Source manufactures or triggers the detonation.",
+    7: null
+  },
+  source_complicit: {
+    1: null, 2: null, 3: null, 4: null, 5: null,
+    6: "The Source's role in arranging his presence is revealed.",
+    7: null
+  },
+  confidant: {
+    1: null, 2: null, 3: null, 4: null, 5: null,
+    6: "The Confidant's secret connection to the primary is revealed.",
+    7: null
+  },
+  protagonist: {
+    1: null, 2: null,
+    3: "She takes action against him. It feels justified.",
+    4: null, 5: null,
+    6: "She discovers the consequences of what she did.",
+    7: "She confesses."
+  }
+}
+
 const CHAPTER_TREE = {
   // ═══════════════════════════════════════════════════════════════════════════
   // ACT I — THE SETUP
@@ -1659,6 +1693,9 @@ function rollSkeleton() {
       }
     ]
 
+    // Attach secret arc for this holder
+    const secretArc = SECRET_ARCS[secretHolder.id]
+
     return {
       trope,
       tension,
@@ -1667,6 +1704,7 @@ function rollSkeleton() {
       secret,
       valueTension,
       secretHolder,
+      secretArc,
       chapters,
       rivalFlaw: { id: null, selectedIn: null },
       castFunctions
@@ -2066,6 +2104,7 @@ export {
   CAST,
   CONSTRAINTS,
   SECRET_GUIDANCE,
+  SECRET_ARCS,
   blueprintKey,
   getBlueprint,
   hasBlueprint,

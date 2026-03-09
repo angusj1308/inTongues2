@@ -20,6 +20,7 @@ import { createRequire } from 'module'
 import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
@@ -193,6 +194,13 @@ if (process.env.OPENAI_API_KEY) {
   client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 } else {
   console.warn('Warning: OPENAI_API_KEY not set. OpenAI features disabled.')
+}
+
+let anthropicClient = null
+if (process.env.ANTHROPIC_API_KEY) {
+  anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+} else {
+  console.warn('Warning: ANTHROPIC_API_KEY not set. Claude features disabled.')
 }
 
 const ADAPTATION_SYSTEM_PROMPT = `
@@ -8710,12 +8718,13 @@ app.post('/api/generate/concept', async (req, res) => {
     console.log('Prompt:', prompt)
     console.log('───────────────────────────────────────────────────────')
 
-    const response = await client.responses.create({
-      model: 'gpt-4.1',
-      input: prompt,
+    const response = await anthropicClient.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
     })
 
-    const conceptText = response.output_text.trim()
+    const conceptText = response.content[0].text.trim()
 
     // Extract title from the first line if it matches "Title: ..."
     let title = null
@@ -8778,12 +8787,13 @@ app.post('/api/generate/full-story', async (req, res) => {
     console.log('Prompt:', prompt)
     console.log('───────────────────────────────────────────────────────')
 
-    const response = await client.responses.create({
-      model: 'gpt-4.1',
-      input: prompt,
+    const response = await anthropicClient.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
     })
 
-    const storyText = response.output_text.trim()
+    const storyText = response.content[0].text.trim()
     if (!storyText) {
       return res.status(500).json({ error: 'No story text was generated.' })
     }

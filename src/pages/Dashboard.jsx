@@ -19,6 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
+import { regeneratePhases, executePhase, executeScene, resetGeneration, cancelGeneration } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -978,12 +979,222 @@ const Dashboard = () => {
     }
   }
 
-  // TODO: Wire to new pipeline
-  const handleNextPhase = (e) => { e.stopPropagation() }
-  const handleRegenerateCurrentPhase = (e) => { e.stopPropagation() }
-  const handleResetGeneration = (e) => { e.stopPropagation() }
-  const handleCancelGeneration = (e) => { e.stopPropagation() }
-  const handleRunSpecificPhase = (e) => { e.stopPropagation() }
+  // Execute next phase or next scene for a book
+  const handleNextPhase = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+
+    // Phase 4: generate one chapter at a time
+    if (currentPhase >= 4) {
+      const chaptersGenerated = book.chaptersGenerated || book.bible?.prose?.length || 0
+      const total = book.totalChapters || book.chapterCount || 0
+
+      if (total > 0 && chaptersGenerated >= total) {
+        alert('All chapters generated!')
+        return
+      }
+
+      try {
+        await executePhase({
+          uid: user.uid,
+          bookId: book.id,
+          phase: 4
+        })
+      } catch (err) {
+        console.error('Error generating chapter:', err)
+        alert(`Failed to generate chapter: ${err.message}`)
+      }
+      return
+    }
+
+    const nextPhase = currentPhase + 1
+
+    if (nextPhase > 4) {
+      alert('All phases complete!')
+      return
+    }
+
+    try {
+      await executePhase({
+        uid: user.uid,
+        bookId: book.id,
+        phase: nextPhase
+      })
+    } catch (err) {
+      console.error(`Error executing phase ${nextPhase}:`, err)
+      alert(`Failed to execute Phase ${nextPhase}: ${err.message}`)
+    }
+  }
+
+  // Re-run current phase or current scene
+  const handleRegenerateCurrentPhase = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+
+    // Phase 4: redo means regenerate the last generated chapter
+    if (currentPhase >= 4) {
+      const chaptersGenerated = book.chaptersGenerated || book.bible?.prose?.length || 0
+      if (chaptersGenerated < 1) {
+        alert('No chapter to redo. Click ▶ to generate the first chapter.')
+        return
+      }
+
+      const chapterToRedo = chaptersGenerated
+      const confirmed = window.confirm(
+        `Regenerate Chapter ${chapterToRedo}?\n\nThis will discard the current version and write it fresh.`
+      )
+      if (!confirmed) return
+
+      try {
+        await executePhase({
+          uid: user.uid,
+          bookId: book.id,
+          phase: 4,
+          chapterNumber: chapterToRedo
+        })
+      } catch (err) {
+        console.error(`Error regenerating chapter ${chapterToRedo}:`, err)
+        alert(`Failed to regenerate chapter: ${err.message}`)
+      }
+      return
+    }
+
+    if (currentPhase < 1) {
+      alert('No phase to regenerate. Click "Next Phase" to start.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Regenerate Phase ${currentPhase}?\n\nThis will re-run the phase with fresh generation.`
+    )
+    if (!confirmed) return
+
+    try {
+      await executePhase({
+        uid: user.uid,
+        bookId: book.id,
+        phase: currentPhase
+      })
+    } catch (err) {
+      console.error(`Error regenerating phase ${currentPhase}:`, err)
+      alert(`Failed to regenerate Phase ${currentPhase}: ${err.message}`)
+    }
+  }
+
+  // Reset to start fresh from Phase 1
+  const handleResetGeneration = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const confirmed = window.confirm(
+      'Reset generation?\n\nThis will clear all phase outputs and start fresh from Phase 1.'
+    )
+    if (!confirmed) return
+
+    try {
+      await resetGeneration({
+        uid: user.uid,
+        bookId: book.id
+      })
+    } catch (err) {
+      console.error('Error resetting generation:', err)
+      alert(`Failed to reset generation: ${err.message}`)
+    }
+  }
+
+  const handleCancelGeneration = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    try {
+      await cancelGeneration({
+        uid: user.uid,
+        bookId: book.id
+      })
+    } catch (err) {
+      console.error('Error cancelling generation:', err)
+    }
+  }
+
+  // Run a specific phase or jump to a specific scene
+  const handleRunSpecificPhase = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+
+    const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
+
+    // After Phase 4, allow jumping to a specific scene
+    if (currentPhase >= 4) {
+      const totalScenes = book.totalScenes || 0
+      const sceneInput = window.prompt(
+        `Enter scene number to generate (1-${totalScenes}):\n\nCurrent: Scene ${book.nextSceneIndex || 0}/${totalScenes}\n\nOr enter "p1"-"p4" to re-run a planning phase.`,
+        String((book.nextSceneIndex || 0) + 1)
+      )
+
+      if (!sceneInput) return
+
+      // Check if they want to run a phase instead
+      const phaseMatch = sceneInput.match(/^p(\d)$/i)
+      if (phaseMatch) {
+        const phase = parseInt(phaseMatch[1], 10)
+        if (phase < 1 || phase > 4) {
+          alert('Please enter a valid phase number (p1-p4)')
+          return
+        }
+        try {
+          await executePhase({ uid: user.uid, bookId: book.id, phase })
+        } catch (err) {
+          alert(`Failed to execute Phase ${phase}: ${err.message}`)
+        }
+        return
+      }
+
+      const sceneNum = parseInt(sceneInput, 10)
+      if (isNaN(sceneNum) || sceneNum < 1 || sceneNum > totalScenes) {
+        alert(`Please enter a valid scene number (1-${totalScenes})`)
+        return
+      }
+
+      try {
+        await executeScene({
+          uid: user.uid,
+          bookId: book.id,
+          sceneIndex: sceneNum - 1
+        })
+      } catch (err) {
+        alert(`Failed to generate scene ${sceneNum}: ${err.message}`)
+      }
+      return
+    }
+
+    const phaseInput = window.prompt(
+      `Enter phase number to run (1-4):\n\nCurrent phase: ${currentPhase}\n\nNote: Running an earlier phase will regenerate from that point.`,
+      String(currentPhase || 1)
+    )
+
+    if (!phaseInput) return
+
+    const phase = parseInt(phaseInput, 10)
+    if (isNaN(phase) || phase < 1 || phase > 4) {
+      alert('Please enter a valid phase number (1-4)')
+      return
+    }
+
+    try {
+      await executePhase({
+        uid: user.uid,
+        bookId: book.id,
+        phase
+      })
+    } catch (err) {
+      console.error(`Error executing phase ${phase}:`, err)
+      alert(`Failed to execute Phase ${phase}: ${err.message}`)
+    }
+  }
 
   const getStoryTitle = (item) => {
     // Show placeholder for generating books

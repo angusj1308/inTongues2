@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateConcept, generateStory } from '../../services/generator'
+import { generateConcept, generateFullStory } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES } from '../../services/Authors'
 
@@ -180,69 +180,67 @@ const GenerateStoryPanel = ({
       return
     }
 
-    // Original short story generation for 'short' preset
-    const params = {
-      level: LEVELS[levelIndex],
-      genre: GENRES.find((g) => g.id === genre)?.label || 'Romance',
-      lengthPreset,
-      minPages: currentPreset.minPages,
-      maxPages: currentPreset.maxPages,
-      description: concept || description.trim(),
-      language: activeLanguage,
-      generateAudio,
-      voiceGender: generateAudio ? voiceGender : null,
-      authorName: rolledAuthor,
+    // ── Call 2: Generate the complete story text ──
+    const selectedLevel = LEVELS[levelIndex]
+    let storyText = null
+    try {
+      const storyResult = await generateFullStory({
+        authorName: rolledAuthor,
+        format,
+        level: selectedLevel,
+        language: activeLanguage,
+        concept,
+      })
+      storyText = storyResult.storyText
+    } catch (storyError) {
+      setError(storyError?.message || 'Unable to generate story.')
+      setIsSubmitting(false)
+      return
     }
 
+    // Store as flat book (same shape as imported books) so Dashboard
+    // pagination picks it up and the Reader renders it identically.
     try {
-      const { pages, title, voiceId, voiceGender: resolvedVoiceGender } = await generateStory(params)
       const storiesRef = collection(db, 'users', user.uid, 'stories')
-
-      const resolvedTitle = (title || '').trim() || params.description || 'Untitled Story'
+      const genreLabel = GENRES.find((g) => g.id === genre)?.label || 'Romance'
 
       const storyRef = await addDoc(storiesRef, {
-        ...params,
-        title: resolvedTitle,
-        voiceGender: generateAudio ? resolvedVoiceGender : null,
-        voiceId: generateAudio ? voiceId : null,
+        title: `${genreLabel} ${format}`,
+        author: rolledAuthor,
+        language: activeLanguage,
+        level: selectedLevel,
+        genre: genreLabel,
+        description: description.trim(),
+        concept,
+        isFlat: true,
+        adaptedTextBlob: storyText,
+        status: 'paginating',
         createdAt: serverTimestamp(),
+        generateAudio,
+        voiceGender: generateAudio ? voiceGender : null,
         hasFullAudio: false,
         audioStatus: generateAudio ? 'pending' : 'none',
         fullAudioUrl: null,
+        voiceId: null,
       })
 
-      const pagesRef = collection(storyRef, 'pages')
-      const pageWrites = pages.map((text, index) =>
-        setDoc(doc(pagesRef, index.toString()), {
-          index,
-          text,
-        }),
-      )
-
-      await Promise.all(pageWrites)
-
-      // Only trigger audio book generation if audio was requested
+      // Trigger audio generation if requested
       if (generateAudio) {
         try {
           await fetch('http://localhost:4000/api/generate-audio-book', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              uid: user.uid,
-              storyId: storyRef.id,
-            }),
+            body: JSON.stringify({ uid: user.uid, storyId: storyRef.id }),
           })
         } catch (err) {
           console.error('Failed to trigger audio book generation:', err)
         }
       }
 
-      if (onClose) {
-        onClose()
-      }
+      if (onClose) onClose()
       navigate('/dashboard', { state: { initialTab: 'read' } })
     } catch (submissionError) {
-      setError(submissionError?.message || 'Unable to generate story.')
+      setError(submissionError?.message || 'Unable to save story.')
     } finally {
       setIsSubmitting(false)
     }

@@ -8787,13 +8787,18 @@ app.post('/api/generate/full-story', async (req, res) => {
     console.log('Prompt:', prompt)
     console.log('───────────────────────────────────────────────────────')
 
-    const response = await anthropicClient.messages.create({
+    let storyText = ''
+    const stream = anthropicClient.messages.stream({
       model: 'claude-opus-4-6',
       max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
     })
-
-    const storyText = response.content[0].text.trim()
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        storyText += event.delta.text
+      }
+    }
+    storyText = storyText.trim()
     if (!storyText) {
       return res.status(500).json({ error: 'No story text was generated.' })
     }

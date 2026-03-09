@@ -8698,7 +8698,7 @@ app.post('/api/generate/concept', async (req, res) => {
 
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
 
-    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.`
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 1 — CONCEPT GENERATION')
@@ -8717,7 +8717,16 @@ app.post('/api/generate/concept', async (req, res) => {
 
     const conceptText = response.output_text.trim()
 
+    // Extract title from the first line if it matches "Title: ..."
+    let title = null
+    const titleMatch = conceptText.match(/^Title:\s*(.+)/i)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+    }
+
     console.log('CALL 1 — CONCEPT RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Title:', title || '(none parsed)')
     console.log('───────────────────────────────────────────────────────')
     console.log(conceptText)
     console.log('═══════════════════════════════════════════════════════\n')
@@ -8725,6 +8734,7 @@ app.post('/api/generate/concept', async (req, res) => {
     return res.json({
       success: true,
       concept: conceptText,
+      title,
       authorName: authorName.trim(),
       format: format.trim(),
       timePlaceSetting: settingText,

@@ -174,6 +174,7 @@ const GenerateStoryPanel = ({
       })
       concept = conceptResult.concept
       rolledAuthor = conceptResult.authorName
+      var storyTitle = conceptResult.title
     } catch (conceptError) {
       setError(conceptError?.message || 'Unable to generate concept.')
       setIsSubmitting(false)
@@ -205,7 +206,7 @@ const GenerateStoryPanel = ({
       const genreLabel = GENRES.find((g) => g.id === genre)?.label || 'Romance'
 
       const storyRef = await addDoc(storiesRef, {
-        title: `${genreLabel} ${format}`,
+        title: storyTitle || `${genreLabel} ${format}`,
         author: rolledAuthor,
         language: activeLanguage,
         level: selectedLevel,

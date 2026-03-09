@@ -8,8 +8,9 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateStory } from '../../services/generator'
-import { PROSE_STYLES } from '../../services/novelApiClient'
+// TODO: Wire to new pipeline
+const generateStory = () => { throw new Error('Story generation pipeline not yet connected') }
+const PROSE_STYLES = [{ value: '', label: 'Default' }]
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 

@@ -14,7 +14,6 @@ import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
 import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } from '../services/vocab'
 import { incrementWordsRead } from '../services/stats'
-import { generateChapter } from '../services/novelApiClient'
 import WordToken from '../components/read/WordToken'
 import { readerModes } from '../constants/readerModes'
 import {
@@ -1310,106 +1309,9 @@ const Reader = ({ initialMode }) => {
     navigate('/dashboard', { state: { initialTab: 'read' } })
   }
 
-  // Handle generating the next chapter for generated books
-  const handleGenerateNextChapter = async () => {
-    if (!isGeneratedBook || !user?.uid || isGeneratingChapter) return
-
-    const nextChapterIndex = generatedChapterCount + 1
-
-    if (nextChapterIndex > totalChapters) {
-      console.log('All chapters already generated')
-      return
-    }
-
-    setIsGeneratingChapter(true)
-    setChapterGenerationError('')
-
-    try {
-      console.log(`Generating Chapter ${nextChapterIndex}...`)
-
-      const result = await generateChapter({
-        uid: user.uid,
-        bookId: id,
-        chapterIndex: nextChapterIndex,
-      })
-
-      if (result.success && result.chapter) {
-        // Add the new chapter to our local chapters array
-        const newChapter = {
-          id: String(nextChapterIndex),
-          index: nextChapterIndex - 1, // 0-based for consistency
-          title: result.chapter.title || `Chapter ${nextChapterIndex}`,
-          adaptedText: result.chapter.content || '',
-          adaptedChapterHeader: null,
-          adaptedChapterOutline: null,
-        }
-
-        setChapters(prev => [...prev, newChapter])
-        setGeneratedChapterCount(nextChapterIndex)
-
-        // Reset pagination to include new chapter
-        setPaginationReady(false)
-
-        console.log(`Chapter ${nextChapterIndex} generated successfully`)
-      } else {
-        throw new Error(result.error || 'Failed to generate chapter')
-      }
-    } catch (err) {
-      console.error('Chapter generation failed:', err)
-      setChapterGenerationError(err.message || 'Failed to generate chapter. Please try again.')
-    } finally {
-      setIsGeneratingChapter(false)
-    }
-  }
-
-  // Handle regenerating the current chapter (for testing)
-  const handleRegenerateChapter = async () => {
-    if (!isGeneratedBook || !user?.uid || isGeneratingChapter) return
-    if (generatedChapterCount < 1) return
-
-    const chapterToRegenerate = generatedChapterCount
-
-    setIsGeneratingChapter(true)
-    setChapterGenerationError('')
-
-    try {
-      console.log(`Regenerating Chapter ${chapterToRegenerate}...`)
-
-      const result = await generateChapter({
-        uid: user.uid,
-        bookId: id,
-        chapterIndex: chapterToRegenerate,
-      })
-
-      if (result.success && result.chapter) {
-        // Replace the chapter in our local chapters array
-        const updatedChapter = {
-          id: String(chapterToRegenerate),
-          index: chapterToRegenerate - 1,
-          title: result.chapter.title || `Chapter ${chapterToRegenerate}`,
-          adaptedText: result.chapter.content || '',
-          adaptedChapterHeader: null,
-          adaptedChapterOutline: null,
-        }
-
-        setChapters(prev => prev.map(ch =>
-          ch.index === chapterToRegenerate - 1 ? updatedChapter : ch
-        ))
-
-        // Reset pagination to reflect updated content
-        setPaginationReady(false)
-
-        console.log(`Chapter ${chapterToRegenerate} regenerated successfully`)
-      } else {
-        throw new Error(result.error || 'Failed to regenerate chapter')
-      }
-    } catch (err) {
-      console.error('Chapter regeneration failed:', err)
-      setChapterGenerationError(err.message || 'Failed to regenerate chapter. Please try again.')
-    } finally {
-      setIsGeneratingChapter(false)
-    }
-  }
+  // TODO: Wire to new pipeline
+  const handleGenerateNextChapter = () => {}
+  const handleRegenerateChapter = () => {}
 
   const isWordChar = (ch) => {
     if (!ch) return false

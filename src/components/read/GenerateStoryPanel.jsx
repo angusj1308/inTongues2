@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateStory } from '../../services/generator'
+import { generateConcept, generateStory } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES } from '../../services/Authors'
 
@@ -160,6 +160,26 @@ const GenerateStoryPanel = ({
       return
     }
 
+    // ── Call 1: Roll an author from the genre and generate a concept ──
+    const FORMAT_MAP = { short: 'short story', novella: 'novella', novel: 'novel' }
+    const format = FORMAT_MAP[lengthPreset] || 'short story'
+
+    let concept = null
+    let rolledAuthor = null
+    try {
+      const conceptResult = await generateConcept({
+        genre,
+        format,
+        timePlaceSetting: description.trim(),
+      })
+      concept = conceptResult.concept
+      rolledAuthor = conceptResult.authorName
+    } catch (conceptError) {
+      setError(conceptError?.message || 'Unable to generate concept.')
+      setIsSubmitting(false)
+      return
+    }
+
     // Original short story generation for 'short' preset
     const params = {
       level: LEVELS[levelIndex],
@@ -167,10 +187,11 @@ const GenerateStoryPanel = ({
       lengthPreset,
       minPages: currentPreset.minPages,
       maxPages: currentPreset.maxPages,
-      description: description.trim(),
+      description: concept || description.trim(),
       language: activeLanguage,
       generateAudio,
       voiceGender: generateAudio ? voiceGender : null,
+      authorName: rolledAuthor,
     }
 
     try {

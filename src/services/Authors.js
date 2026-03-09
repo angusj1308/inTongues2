@@ -82,6 +82,43 @@ export const SHORT_STORY_AUTHORS = {
   ],
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// rollAuthor(genre) — Select an author with equal probability from the genre.
+// Tracks selection counts so that over time every author is chosen evenly.
+// If genre has 5 authors each gets 20%, 8 authors each gets 12.5%, etc.
+// ─────────────────────────────────────────────────────────────────────────────
+const _authorCounts = {} // { genre: { authorName: count } }
+
+export function rollAuthor(genre) {
+  const authors = SHORT_STORY_AUTHORS[genre]
+  if (!authors || !authors.length) {
+    throw new Error(`No authors found for genre "${genre}"`)
+  }
+
+  // Initialise counts for this genre if needed
+  if (!_authorCounts[genre]) {
+    _authorCounts[genre] = {}
+    for (const name of authors) {
+      _authorCounts[genre][name] = 0
+    }
+  }
+
+  // Find the minimum selection count
+  const counts = _authorCounts[genre]
+  const minCount = Math.min(...authors.map((a) => counts[a] ?? 0))
+
+  // Filter to only authors at the minimum count (least-selected)
+  const eligible = authors.filter((a) => (counts[a] ?? 0) === minCount)
+
+  // Random pick among the least-selected authors
+  const selected = eligible[Math.floor(Math.random() * eligible.length)]
+
+  // Increment count
+  counts[selected] = (counts[selected] ?? 0) + 1
+
+  return selected
+}
+
 // Genre metadata for UI display
 export const GENRES = [
   { id: 'romance', label: 'Romance' },

@@ -8700,14 +8700,31 @@ app.post('/api/generate/concept', async (req, res) => {
 
     const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.`
 
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('CALL 1 — CONCEPT GENERATION')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Format:', format.trim())
+    console.log('Setting:', settingText)
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Prompt:', prompt)
+    console.log('───────────────────────────────────────────────────────')
+
     const response = await client.responses.create({
       model: 'gpt-4.1',
       input: prompt,
     })
 
+    const conceptText = response.output_text.trim()
+
+    console.log('CALL 1 — CONCEPT RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(conceptText)
+    console.log('═══════════════════════════════════════════════════════\n')
+
     return res.json({
       success: true,
-      concept: response.output_text.trim(),
+      concept: conceptText,
       authorName: authorName.trim(),
       format: format.trim(),
       timePlaceSetting: settingText,
@@ -8731,7 +8748,25 @@ app.post('/api/generate/full-story', async (req, res) => {
     if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
     if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
 
-    const prompt = `You are ${authorName.trim()}. You are writing a ${format.trim()} in ${level.trim()} ${language.trim()}.\nWrite the complete ${format.trim()}. No preamble, no commentary. Begin with the first sentence and end with the last.\nHere is the concept:\n${concept.trim()}`
+    // Expand short story format to include length guidance
+    const trimmedFormat = format.trim()
+    const formatForPrompt = trimmedFormat === 'short story'
+      ? '15-25 page short story approximately 5000 words long'
+      : trimmedFormat
+
+    const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nHere is the concept:\n${concept.trim()}`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('CALL 2 — FULL STORY GENERATION')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Format:', formatForPrompt)
+    console.log('Level:', level.trim())
+    console.log('Language:', language.trim())
+    console.log('Concept length:', concept.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Prompt:', prompt)
+    console.log('───────────────────────────────────────────────────────')
 
     const response = await client.responses.create({
       model: 'gpt-4.1',
@@ -8743,11 +8778,20 @@ app.post('/api/generate/full-story', async (req, res) => {
       return res.status(500).json({ error: 'No story text was generated.' })
     }
 
+    const wordCount = storyText.split(/\s+/).length
+    console.log('CALL 2 — STORY RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Word count:', wordCount)
+    console.log('First 500 chars:', storyText.slice(0, 500))
+    console.log('...')
+    console.log('Last 300 chars:', storyText.slice(-300))
+    console.log('═══════════════════════════════════════════════════════\n')
+
     return res.json({
       success: true,
       storyText,
       authorName: authorName.trim(),
-      format: format.trim(),
+      format: trimmedFormat,
     })
   } catch (error) {
     console.error('Generate full story error:', error)

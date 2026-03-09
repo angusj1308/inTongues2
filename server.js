@@ -8682,6 +8682,79 @@ app.post('/api/generate/different-prompt', async (req, res) => {
   }
 })
 
+// POST /api/generate/concept - Call 1: Author-driven concept generation
+// Receives authorName, format (short story | novella | novel), and timePlaceSetting
+// Returns a detailed concept for a new original work
+app.post('/api/generate/concept', async (req, res) => {
+  try {
+    const { authorName, format, timePlaceSetting } = req.body
+
+    if (!authorName || !authorName.trim()) {
+      return res.status(400).json({ error: 'authorName is required' })
+    }
+    if (!format || !format.trim()) {
+      return res.status(400).json({ error: 'format is required (short story, novella, or novel)' })
+    }
+
+    const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1',
+      input: prompt,
+    })
+
+    return res.json({
+      success: true,
+      concept: response.output_text.trim(),
+      authorName: authorName.trim(),
+      format: format.trim(),
+      timePlaceSetting: settingText,
+    })
+  } catch (error) {
+    console.error('Generate concept error:', error)
+    return res.status(500).json({ error: 'Failed to generate concept', details: error.message })
+  }
+})
+
+// POST /api/generate/full-story - Call 2: Generate the complete story text
+// Takes authorName, format, level, language, and concept from Call 1
+// Returns the full story as a single text blob
+app.post('/api/generate/full-story', async (req, res) => {
+  try {
+    const { authorName, format, level, language, concept } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!format?.trim()) return res.status(400).json({ error: 'format is required' })
+    if (!level?.trim()) return res.status(400).json({ error: 'level is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
+
+    const prompt = `You are ${authorName.trim()}. You are writing a ${format.trim()} in ${level.trim()} ${language.trim()}.\nWrite the complete ${format.trim()}. No preamble, no commentary. Begin with the first sentence and end with the last.\nHere is the concept:\n${concept.trim()}`
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1',
+      input: prompt,
+    })
+
+    const storyText = response.output_text.trim()
+    if (!storyText) {
+      return res.status(500).json({ error: 'No story text was generated.' })
+    }
+
+    return res.json({
+      success: true,
+      storyText,
+      authorName: authorName.trim(),
+      format: format.trim(),
+    })
+  } catch (error) {
+    console.error('Generate full story error:', error)
+    return res.status(500).json({ error: 'Failed to generate story', details: error.message })
+  }
+})
+
 // POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
 app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
   return res.status(501).json({ error: 'Chapter generation not yet reimplemented' })

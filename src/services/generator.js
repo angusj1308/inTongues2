@@ -1,4 +1,74 @@
 import { resolveSupportedLanguageLabel } from '../constants/languages'
+import { rollAuthor } from './Authors'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateConcept — Call 1: Roll an author from the genre, then ask the API
+// to produce a detailed concept as that author.
+// Params: { genre, format, timePlaceSetting }
+//   genre           — genre id (e.g. 'romance', 'scifi')
+//   format          — 'short story' | 'novella' | 'novel'
+//   timePlaceSetting — user-entered time & place string
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
+  const authorName = rollAuthor(genre)
+
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/concept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorName, format, timePlaceSetting }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate concept.')
+    }
+
+    const data = await response.json()
+
+    return {
+      concept: data.concept,
+      authorName: data.authorName,
+      format: data.format,
+      timePlaceSetting: data.timePlaceSetting,
+    }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate concept. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateFullStory — Call 2: Send the concept from Call 1 to the API and get
+// back the complete story text as a single blob.
+// Params: { authorName, format, level, language, concept }
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateFullStory = async ({ authorName, format, level, language, concept }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/full-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorName, format, level, language, concept }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate story.')
+    }
+
+    const data = await response.json()
+    if (!data?.storyText) {
+      throw new Error('No story text was returned.')
+    }
+
+    return {
+      storyText: data.storyText,
+      authorName: data.authorName,
+      format: data.format,
+    }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate story. Please try again.')
+  }
+}
 
 export const generateStory = async (params) => {
   const language = resolveSupportedLanguageLabel(params?.language)

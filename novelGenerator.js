@@ -1,0 +1,2337 @@
+// Novel Generator
+// Phase 1: Concept Generation (skeleton + setting → concept)
+// Subsequent phases will be added in follow-up tasks
+
+import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
+import { rollSkeleton } from './storyBlueprints.js'
+import { CHAPTER_ARCHITECTURE_ESSAY, STYLE_ESSAYS } from './craftEssays.js'
+
+// Lazy-initialized Anthropic client (deferred to avoid initialization without API key)
+let client = null
+
+function getAnthropicClient() {
+  if (!client) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY environment variable is not set')
+    }
+    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  }
+  return client
+}
+
+// Lazy-initialized OpenAI client
+let openaiClient = null
+
+function getOpenAIClient() {
+  if (!openaiClient) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is not set')
+    }
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return openaiClient
+}
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const CONFIG = {
+  model: 'claude-sonnet-4-20250514',
+  maxRetries: 3,
+  retryDelays: [2000, 4000, 8000],
+  timeoutMs: 120000, // Claude can take longer for complex creative tasks
+  temperature: 1.0, // Higher for creative writing
+  maxTokens: 8192,
+  // Chapter counts by length preset
+  chapterCounts: {
+    novella: 12,
+    novel: 35
+  }
+}
+
+// =============================================================================
+// CLAUDE API WRAPPER
+// =============================================================================
+
+async function callClaude(systemPrompt, userPrompt, options = {}) {
+  const { maxRetries = CONFIG.maxRetries, model = CONFIG.model } = options
+  const maxTokens = options.maxTokens ?? CONFIG.maxTokens
+
+  // Use streaming for large token requests (over 16384)
+  const useStreaming = maxTokens > 16384
+
+  let lastError = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      if (useStreaming) {
+        // Streaming request for large token counts
+        let fullText = ''
+        let charCount = 0
+        const stream = getAnthropicClient().messages.stream({
+          model: model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+          temperature: options.temperature ?? CONFIG.temperature
+        })
+
+        process.stdout.write('  Streaming response: ')
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta' && event.delta?.text) {
+            fullText += event.delta.text
+            charCount += event.delta.text.length
+            // Print a dot every 2000 characters
+            if (charCount >= 2000) {
+              process.stdout.write('.')
+              charCount = 0
+            }
+          }
+        }
+        console.log(` done (${fullText.length} chars)`)
+
+        if (!fullText) {
+          throw new Error('No text content in streaming response')
+        }
+        return fullText
+
+      } else {
+        // Non-streaming request (existing code)
+        const response = await getAnthropicClient().messages.create({
+          model: model,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: options.temperature ?? CONFIG.temperature
+        })
+
+        // Extract text content from response
+        const textContent = response.content.find(block => block.type === 'text')
+        if (!textContent) {
+          throw new Error('No text content in Claude response')
+        }
+        return textContent.text
+      }
+    } catch (error) {
+      lastError = error
+      console.error(`Claude call attempt ${attempt + 1} failed:`, error.message)
+
+      if (attempt < maxRetries - 1) {
+        // Check for rate limit error (429) - wait 60 seconds
+        if (error.status === 429) {
+          console.log(`  Rate limited. Waiting 60s before retry...`)
+          await new Promise(resolve => setTimeout(resolve, 60000))
+        } else {
+          // Normal retry delay for other errors
+          await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error('Claude call failed after all retries')
+}
+
+// Actual OpenAI ChatGPT API call
+async function callChatGPT(systemPrompt, userPrompt, options = {}) {
+  const { maxRetries = CONFIG.maxRetries, model = 'gpt-5', temperature = 1.0, noMaxTokens = false } = options
+  let lastError = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const requestParams = {
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: temperature
+      }
+
+      // Only add max_completion_tokens if not explicitly omitted
+      if (!noMaxTokens) {
+        requestParams.max_completion_tokens = options.maxTokens ?? 16384
+      }
+
+      const response = await getOpenAIClient().chat.completions.create(requestParams)
+
+      // Debug: log the full response structure
+      console.log('  DEBUG response.choices[0]:', JSON.stringify(response.choices[0], null, 2))
+
+      const message = response.choices[0].message
+      const content = message.content
+
+      // Check if there's a refusal
+      if (message.refusal) {
+        console.warn(`ChatGPT refused on attempt ${attempt + 1}: ${message.refusal}`)
+      }
+
+      // Check for empty response and retry
+      if (!content || content.trim() === '') {
+        console.warn(`ChatGPT returned empty response on attempt ${attempt + 1}, retrying...`)
+        console.warn('  finish_reason:', response.choices[0].finish_reason)
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+          continue
+        }
+        throw new Error('ChatGPT returned empty response after all retries')
+      }
+
+      return content
+    } catch (error) {
+      lastError = error
+      console.error(`ChatGPT call attempt ${attempt + 1} failed:`, error.message)
+
+      if (attempt < maxRetries - 1) {
+        if (error.status === 429) {
+          console.log(`  Rate limited. Waiting 60s before retry...`)
+          await new Promise(resolve => setTimeout(resolve, 60000))
+        } else {
+          await new Promise(resolve => setTimeout(resolve, CONFIG.retryDelays[attempt]))
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error('ChatGPT call failed after all retries')
+}
+
+// Alias for backward compatibility
+const callOpenAI = callClaude
+
+// =============================================================================
+// JSON PARSING
+// =============================================================================
+
+function parseJSON(content) {
+  try {
+    // Method 1: Try direct parse first (in case it's clean JSON)
+    try {
+      return { success: true, data: JSON.parse(content.trim()) }
+    } catch (e) {
+      // Not clean JSON, try extracting from markdown
+    }
+
+    // Method 2: Extract from markdown code blocks (```json ... ``` or ``` ... ```)
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonMatch) {
+      const extracted = jsonMatch[1].trim()
+      try {
+        return { success: true, data: JSON.parse(extracted) }
+      } catch (e) {
+        // Markdown extraction failed, continue to Method 3
+      }
+    }
+
+    // Method 3: Find JSON object/array by looking for { or [ at start
+    const jsonStartObj = content.indexOf('{')
+    const jsonStartArr = content.indexOf('[')
+    const jsonStart = jsonStartObj === -1 ? jsonStartArr :
+                      jsonStartArr === -1 ? jsonStartObj :
+                      Math.min(jsonStartObj, jsonStartArr)
+
+    if (jsonStart !== -1) {
+      // Find the matching closing bracket, accounting for strings
+      const isArray = content[jsonStart] === '['
+      const openBracket = isArray ? '[' : '{'
+      const closeBracket = isArray ? ']' : '}'
+
+      let depth = 0
+      let inString = false
+      let jsonEnd = -1
+
+      for (let i = jsonStart; i < content.length; i++) {
+        const char = content[i]
+        const prevChar = i > 0 ? content[i - 1] : ''
+
+        // Handle string boundaries (but not escaped quotes)
+        if (char === '"' && prevChar !== '\\') {
+          inString = !inString
+          continue
+        }
+
+        // Only count brackets outside of strings
+        if (!inString) {
+          if (char === openBracket) depth++
+          if (char === closeBracket) depth--
+          if (depth === 0) {
+            jsonEnd = i + 1
+            break
+          }
+        }
+      }
+
+      if (jsonEnd !== -1) {
+        const jsonStr = content.slice(jsonStart, jsonEnd)
+        return { success: true, data: JSON.parse(jsonStr) }
+      }
+    }
+
+    // Nothing worked
+    throw new Error('Could not find valid JSON in response')
+  } catch (error) {
+    return { success: false, error: error.message, raw: content.slice(0, 500) + '...' }
+  }
+}
+
+// =============================================================================
+// PRESCRIPTIVE LEVEL DEFINITIONS
+// =============================================================================
+// These definitions are the source of truth for all level-based generation.
+// They mirror the adaptation system but are tailored for original novel generation.
+
+const LEVEL_DEFINITIONS = {
+  Beginner: {
+    name: 'Beginner',
+    description: 'For absolute beginners and early learners (A1-A2 equivalent)',
+
+    // Sentence constraints
+    sentences: {
+      averageLength: { min: 6, max: 12 },
+      maxLength: 15,
+      structure: 'Simple sentences only. Subject-verb-object pattern. Avoid subordinate clauses.',
+      connectors: 'Use basic connectors only: and, but, so, because, then, when',
+    },
+
+    // Vocabulary constraints
+    vocabulary: {
+      scope: 'Top 1000-1500 most common words in target language only',
+      exceptions: 'Character names, place names, and story-critical terms (introduce with context)',
+      forbidden: [
+        'Literary vocabulary',
+        'Abstract nouns (use concrete equivalents)',
+        'Idioms and expressions (use literal language)',
+        'Metaphors and figurative language',
+        'Technical or specialized terms',
+        'Formal/archaic language',
+      ],
+      handling: 'If a concept requires a harder word, explain it immediately in simple terms',
+    },
+
+    // Meaning and clarity
+    meaning: {
+      explicitness: 'ALL meaning must be explicit. Nothing implied.',
+      subtext: 'NO SUBTEXT. Characters say what they mean. Narration states emotions directly.',
+      emotions: 'Name emotions explicitly: "She felt angry" not "Her jaw tightened"',
+      motivation: 'State character motivations directly: "He wanted to help because..."',
+    },
+
+    // Narrative technique
+    narrative: {
+      causeEffect: 'Simple, direct cause-and-effect. One cause, one effect per sentence.',
+      timeflow: 'Strictly chronological. No flashbacks, no flash-forwards.',
+      pov: 'Single, clear POV. No head-hopping within scenes.',
+      showing: 'TELL over show at this level. Clarity trumps literary technique.',
+    },
+
+    // Dialogue
+    dialogue: {
+      style: 'Direct and functional. Characters say what they mean.',
+      length: 'Short exchanges. 1-2 sentences per turn maximum.',
+      attribution: 'Always use "said" - avoid fancy dialogue tags',
+      subtext: 'NO dialogue subtext. No sarcasm, no implication.',
+    },
+
+    // Cultural and setting
+    cultural: {
+      references: 'Avoid cultural references that require background knowledge',
+      setting: 'Explain any setting-specific concepts in simple terms',
+      customs: 'If customs/traditions matter to plot, explain them explicitly',
+    },
+
+    // What to avoid
+    forbidden: [
+      'Complex sentence structures',
+      'Passive voice (use active)',
+      'Rhetorical questions',
+      'Irony or sarcasm',
+      'Unreliable narration',
+      'Stream of consciousness',
+      'Non-linear timeline',
+      'Multiple POVs in single scene',
+      'Metaphors and similes',
+      'Poetic or lyrical prose',
+      // Universal anti-exposition (applies to all levels)
+      'Backstory dumps or exposition paragraphs',
+      'Character description blocks',
+      'Setting lectures',
+      'Long internal monologue passages',
+      'Summarizing instead of dramatizing',
+    ],
+  },
+
+  Intermediate: {
+    name: 'Intermediate',
+    description: 'For learners with foundation knowledge (B1-B2 equivalent)',
+
+    // Sentence constraints - TIGHTENED
+    sentences: {
+      averageLength: { min: 10, max: 18 },
+      maxLength: 20, // HARD LIMIT - reduced from 25
+      structure: 'Mix of simple and compound sentences. Subordinate clauses allowed BUT total must stay under 20 words.',
+      connectors: 'Common connectors: aunque, sin embargo, por eso, mientras, cuando, porque, pero',
+    },
+
+    // Vocabulary constraints
+    vocabulary: {
+      scope: 'Common vocabulary plus topic-specific words with context clues',
+      exceptions: 'Can use less common words if meaning is clear from context',
+      forbidden: [
+        'Obscure literary terms',
+        'Archaic language (19th century formal Spanish)',
+        'Heavy slang or dialect',
+        'Untranslatable idioms without explanation',
+        'Anachronistic vocabulary (modern terms in historical settings)',
+      ],
+      handling: 'Context should make meaning inferable. No need for explicit definitions.',
+    },
+
+    // Meaning and clarity
+    meaning: {
+      explicitness: 'Key meaning explicit. Some inference allowed for non-critical details.',
+      subtext: 'LIGHT SUBTEXT allowed. But critical plot/emotional points still explicit.',
+      emotions: 'Mix of telling and showing. Can imply some emotions through action.',
+      motivation: 'Core motivations clear. Secondary motivations can be implied.',
+    },
+
+    // Narrative technique - TIGHTENED
+    narrative: {
+      causeEffect: 'Direct cause-effect preferred. Multi-step chains OK if clear.',
+      timeflow: 'Strictly chronological. No flashbacks or temporal jumps.',
+      pov: 'Clear single POV throughout scene. No head-hopping.',
+      showing: 'IMMEDIATE ACTION over reflection. Dramatize, do not summarize.',
+    },
+
+    // Dialogue
+    dialogue: {
+      style: 'More naturalistic. Characters can be indirect sometimes.',
+      length: 'Natural conversation length. Can have longer exchanges.',
+      attribution: 'Varied dialogue tags allowed, but not overly creative',
+      subtext: 'Some dialogue subtext allowed if body language makes meaning accessible.',
+    },
+
+    // Cultural and setting
+    cultural: {
+      references: 'Can include cultural references with brief in-story context',
+      setting: 'Setting details can be richer. Explain only truly foreign concepts.',
+      customs: 'Customs can be shown naturally if context makes them understandable',
+    },
+
+    // What to avoid - EXPANDED
+    forbidden: [
+      'Dense literary prose',
+      'Heavy use of passive voice',
+      'Unreliable narration',
+      'Experimental structure',
+      'Heavy dialect transcription',
+      'Obscure cultural references without context',
+      'Backstory dumps or exposition paragraphs',
+      'Character description blocks',
+      'Sentences over 20 words',
+      'Long internal monologue passages',
+      'Summarizing instead of dramatizing',
+    ],
+  },
+
+  Native: {
+    name: 'Native',
+    description: 'Natural language as native speakers use it (C1-C2 equivalent)',
+
+    // Sentence constraints
+    sentences: {
+      averageLength: { min: 10, max: 30 },
+      maxLength: null, // No hard limit
+      structure: 'Full range of sentence structures. Variety for rhythm and effect.',
+      connectors: 'Full linguistic toolkit available',
+    },
+
+    // Vocabulary constraints
+    vocabulary: {
+      scope: 'Full vocabulary range appropriate to genre and characters',
+      exceptions: 'None - use best word for the context',
+      forbidden: [], // Nothing forbidden
+      handling: 'Trust the reader. Context provides meaning.',
+    },
+
+    // Meaning and clarity
+    meaning: {
+      explicitness: 'Natural balance. Critical plot explicit, rest can be nuanced.',
+      subtext: 'FULL SUBTEXT available. Implication, suggestion, omission.',
+      emotions: 'Show over tell. Let readers feel through action and detail.',
+      motivation: 'Complex, layered motivations that emerge through story.',
+    },
+
+    // Narrative technique
+    narrative: {
+      causeEffect: 'Complex causality. Delayed payoffs. Interweaving threads.',
+      timeflow: 'Non-linear available. Flashbacks, flash-forwards, parallel timelines.',
+      pov: 'Multiple POVs, unreliable narration, all techniques available.',
+      showing: 'Primarily show. Tell only for pacing and transition.',
+    },
+
+    // Dialogue
+    dialogue: {
+      style: 'Authentic to character. Can be messy, interrupted, incomplete.',
+      length: 'Whatever serves the scene',
+      attribution: 'Full range including action beats and no attribution',
+      subtext: 'Full dialogue subtext. Characters can lie, deflect, imply.',
+    },
+
+    // Cultural and setting
+    cultural: {
+      references: 'Natural cultural references without explanation',
+      setting: 'Rich, immersive setting details',
+      customs: 'Shown naturally as characters would experience them',
+    },
+
+    // What to avoid - even at Native, avoid blatant prose sins
+    forbidden: [
+      'Blatant backstory dumps (weave backstory naturally instead)',
+      'Character description blocks (reveal through action)',
+      'Info-dump paragraphs (trust the reader)',
+    ],
+  },
+}
+
+// Language-specific adjustments to level definitions
+const LANGUAGE_LEVEL_ADJUSTMENTS = {
+  Spanish: {
+    Beginner: {
+      notes: [
+        'Avoid subjunctive mood - use indicative alternatives',
+        'Use ser/estar carefully - stick to clear-cut cases',
+        'Avoid complex pronoun combinations (se lo, te la)',
+        'Use simple past (pretérito) over imperfect when possible',
+        'Avoid regional vocabulary - use neutral Spanish',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on RAE frequency corpus - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Subjunctive in common expressions OK (quiero que, espero que)',
+        'Ser/estar distinctions can be shown naturally',
+        'Pronoun combinations allowed in common patterns',
+        'Mix of past tenses for natural narrative',
+      ],
+    },
+    Native: {
+      notes: [
+        'Full subjunctive usage',
+        'Regional flavor acceptable if consistent',
+        'All verb tenses and moods available',
+      ],
+    },
+  },
+  French: {
+    Beginner: {
+      notes: [
+        'Avoid subjunctive entirely',
+        'Use passé composé over passé simple',
+        'Avoid complex relative clauses (dont, lequel)',
+        'Stick to common prepositions',
+        'Avoid literary inversions',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on Lexique frequency data - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Common subjunctive triggers OK (il faut que, bien que)',
+        'Passé composé primary, imperfect for description',
+        'Basic relative pronouns (qui, que, où)',
+      ],
+    },
+    Native: {
+      notes: [
+        'Passé simple acceptable for literary style',
+        'Full range of literary French available',
+        'Complex grammatical structures OK',
+      ],
+    },
+  },
+  Italian: {
+    Beginner: {
+      notes: [
+        'Avoid subjunctive (congiuntivo)',
+        'Use passato prossimo over passato remoto',
+        'Avoid combined pronouns (glielo, ce lo)',
+        'Simple prepositions only',
+        'Avoid formal Lei where possible - use tu',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on CoLFIS frequency data - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Common subjunctive OK (penso che, credo che)',
+        'Mix of past tenses acceptable',
+        'Basic pronoun combinations allowed',
+      ],
+    },
+    Native: {
+      notes: [
+        'Passato remoto for literary style',
+        'Full grammatical range',
+        'Regional expressions acceptable if consistent',
+      ],
+    },
+  },
+  English: {
+    Beginner: {
+      notes: [
+        'Simple present and past tense only',
+        'Avoid perfect tenses where simple past works',
+        'Avoid conditional sentences beyond basic if/then',
+        'Avoid phrasal verbs - use single-word alternatives',
+        'Avoid idioms entirely',
+      ],
+      vocabulary: {
+        frequency_list: 'Based on Oxford 3000 - top 1500 words',
+      },
+    },
+    Intermediate: {
+      notes: [
+        'Perfect tenses allowed',
+        'Common conditionals OK',
+        'Common phrasal verbs allowed',
+        'Well-known idioms with clear meaning OK',
+      ],
+    },
+    Native: {
+      notes: [
+        'Full grammatical range',
+        'All idioms and expressions available',
+        'Regional variety acceptable',
+      ],
+    },
+  },
+}
+
+// Helper function to get complete level definition for a language
+function getLevelDefinition(level, language = 'English') {
+  const baseDefinition = LEVEL_DEFINITIONS[level]
+  if (!baseDefinition) {
+    throw new Error(`Invalid level: ${level}. Must be Beginner, Intermediate, or Native.`)
+  }
+
+  const languageAdjustments = LANGUAGE_LEVEL_ADJUSTMENTS[language]?.[level] || {}
+
+  return {
+    ...baseDefinition,
+    languageSpecific: languageAdjustments,
+  }
+}
+
+// Format level definition for inclusion in prompts
+function formatLevelDefinitionForPrompt(level, language = 'English') {
+  const def = getLevelDefinition(level, language)
+  const langAdj = def.languageSpecific
+
+  let prompt = `## READING LEVEL: ${def.name}
+${def.description}
+
+### SENTENCE RULES (MUST FOLLOW):
+- Average sentence length: ${def.sentences.averageLength.min}-${def.sentences.averageLength.max} words
+${def.sentences.maxLength ? `- Maximum sentence length: ${def.sentences.maxLength} words` : '- No hard maximum sentence length'}
+- Structure: ${def.sentences.structure}
+- Connectors: ${def.sentences.connectors}
+
+### VOCABULARY RULES (MUST FOLLOW):
+- Scope: ${def.vocabulary.scope}
+- Exceptions: ${def.vocabulary.exceptions}
+- Handling difficult concepts: ${def.vocabulary.handling}
+${def.vocabulary.forbidden.length > 0 ? `- FORBIDDEN:\n${def.vocabulary.forbidden.map(f => `  * ${f}`).join('\n')}` : ''}
+
+### MEANING & CLARITY (MUST FOLLOW):
+- Explicitness: ${def.meaning.explicitness}
+- Subtext: ${def.meaning.subtext}
+- Emotions: ${def.meaning.emotions}
+- Motivation: ${def.meaning.motivation}
+
+### NARRATIVE TECHNIQUE:
+- Cause/Effect: ${def.narrative.causeEffect}
+- Timeline: ${def.narrative.timeflow}
+- POV: ${def.narrative.pov}
+- Show vs Tell: ${def.narrative.showing}
+
+### DIALOGUE RULES:
+- Style: ${def.dialogue.style}
+- Length: ${def.dialogue.length}
+- Attribution: ${def.dialogue.attribution}
+- Subtext: ${def.dialogue.subtext}
+
+### CULTURAL ELEMENTS:
+- References: ${def.cultural.references}
+- Setting details: ${def.cultural.setting}
+- Customs: ${def.cultural.customs}
+
+${def.forbidden.length > 0 ? `### FORBIDDEN AT THIS LEVEL:\n${def.forbidden.map(f => `- ${f}`).join('\n')}` : ''}`
+
+  if (langAdj.notes && langAdj.notes.length > 0) {
+    prompt += `\n\n### ${language.toUpperCase()}-SPECIFIC RULES FOR ${def.name.toUpperCase()}:\n${langAdj.notes.map(n => `- ${n}`).join('\n')}`
+  }
+
+  return prompt
+}
+
+// =============================================================================
+// COHERENCE VALIDATION
+// =============================================================================
+
+function validateCoherence(coherenceCheck, requiredFields) {
+  if (!coherenceCheck) {
+    return { valid: false, missing: requiredFields, message: 'coherence_check missing from output' }
+  }
+
+  const missing = requiredFields.filter(field => {
+    const value = coherenceCheck[field]
+    return !value || (typeof value === 'string' && value.trim() === '')
+  })
+
+  return {
+    valid: missing.length === 0,
+    missing,
+    message: missing.length > 0 ? `Missing coherence fields: ${missing.join(', ')}` : 'All coherence checks passed'
+  }
+}
+
+// =============================================================================
+// PHASE 1: CHARACTER GENERATION
+// =============================================================================
+
+const TENSION_FRAMEWORK_DESCRIPTIONS = {
+  safety: 'She built a framework to protect something tangible — a livelihood, a family, a fragile stability. Danger is physical, material, real. The primary represents that danger. Her behaviour shows what she protects and why she cannot afford to let him close.',
+  identity: 'She built a framework that defines who she is — competence, principles, a role, a reputation. The primary threatens that constructed self. Her behaviour shows what framework she built and why losing it feels like losing herself.'
+}
+
+const CHARACTER_FIELDS = ['backstory', 'psychology', 'voiceAndMannerisms', 'appearance']
+
+const PHASE_1_CALL1_SYSTEM_PROMPT = `You are creating the core characters for an enemies-to-lovers romance. You receive a setting, a tension type with its framework description, and whether a love triangle exists.
+
+You will produce:
+- "protagonist" — She. The woman whose framework the story breaks.
+- "primary" — He. The man who represents danger to that framework.
+- If triangle is YES: "rival" — The safe option. The man who represents everything her framework endorses.
+
+RULES:
+1. Each character has exactly four fields: backstory, psychology, voiceAndMannerisms, appearance. Each field is one paragraph of substantial prose.
+2. No "name" field. Names appear naturally within the backstory paragraph — chosen to fit the setting, the culture, the time.
+3. Every character must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
+4. Ground each character in the historical and social reality of the setting. If the setting is a frontier during a military campaign, these people exist in that world — their clothes, their trades, their scars come from that reality.
+5. Traditional gender roles preferred. Avoid modernist feminist tropes. Build characters whose roles are plausible for the era and setting.
+6. Psychology must reflect the tension type without ever naming or declaring it. For safety tension: her psychology shows what she protects and why danger terrifies her. For identity tension: her psychology shows the constructed self and why it cannot bend. No theme lectures. No meta-commentary.
+7. The primary's psychology must make him genuinely dangerous to her framework — not a bad person, but someone whose nature or position makes her framework unsustainable.
+8. If triangle is YES, the rival is the safe option personified — stable, respectable, everything the framework endorses. But he has a latent flaw that will surface later. Plant it subtly in his psychology without declaring it.
+9. Voice and mannerisms must be distinct per character. How they speak, move, and occupy space should be different from each other.
+10. Appearance must be specific and grounded — no generic beauty. Physical details that come from the world they live in.
+11. The protagonist's backstory must be compatible with the Chapter 1 starting condition provided. Her world at the start of the story must match this condition. If it says her world is safe and stable, she is not in hiding, not in danger, not living a double life. Build backward from the starting condition — what kind of woman, in this setting, would have a world that looks like that?
+12. IDENTITY TENSION ONLY: The protagonist must include a "coreBelief" field — one sentence. The VALUE TENSION section provides a belief template. Ground that template in this specific setting and era — make it personal and concrete to this woman's circumstances. Do not change its meaning. Do not make it about gender. Do not invent a new belief from scratch.
+13. SECRET STORIES ONLY: When a SECRET HOLDER section is provided, the character identified as the secret holder must include a "secret" field — a single paragraph. The secret must pass this test: when the protagonist discovers it, she must learn something she genuinely DID NOT KNOW — not confirmation of a suspicion, not a detail she could have guessed, but information that changes the meaning of the romance itself. Follow the SECRET HOLDER instructions for what the secret contains and which character carries it. The secret must be ONE specific action or deception — not multiple. A single devastating truth is more powerful than a list of offenses. If the character did several harmful things, pick the worst one and make that the secret. The others do not exist.
+
+OUTPUT FORMAT:
+Return a single JSON object:
+{
+  "protagonist": {
+    "coreBelief": "(IDENTITY TENSION ONLY) One sentence — the belief her identity is built around.",
+    "theCost": "(IDENTITY TENSION ONLY) One sentence — what this belief is secretly costing her.",
+    "backstory": "One paragraph. Where she came from, what shaped her.",
+    "psychology": "One paragraph. What she wants, fears, avoids. How the tension manifests in her thinking.",
+    "voiceAndMannerisms": "One paragraph. How she speaks, moves, behaves. Speech patterns, habits, tells.",
+    "appearance": "One paragraph. Physical description grounded in the setting.",
+    "secret": "(Only when protagonist is the secret holder) One paragraph describing what she did and its consequences."
+  },
+  "primary": {
+    "backstory": "One paragraph.",
+    "psychology": "One paragraph. What he wants, fears. How he relates to her tension.",
+    "voiceAndMannerisms": "One paragraph.",
+    "appearance": "One paragraph.",
+    "secret": "(Only when primary is the secret holder) One paragraph describing what he is concealing and how discovery will recontextualise the romance."
+  },
+  "rival": null
+}
+
+When triangle is YES, rival follows the same four-field structure instead of null.
+
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Every paragraph must be substantive — at least 3-4 sentences of concrete detail.
+- Do not produce generic characters. These people are specific to this setting, this time, this place.`
+
+const PHASE_1_CALL2_SYSTEM_PROMPT = `You are creating the secondary cast for an enemies-to-lovers romance. You receive the setting, tension type, the already-created protagonist and primary characters, and a list of cast functions.
+
+For each cast function, create a concrete character who fulfils that function in relationship to the protagonist. Use the setting and function description to determine who this person is — their role, occupation, and relationship to the protagonist should emerge naturally from the world.
+
+RULES:
+1. Each cast member has exactly five fields: functionId, backstory, psychology, voiceAndMannerisms, appearance.
+2. functionId must match the id provided in the cast function list exactly.
+3. No "name" field. Names appear naturally within the backstory paragraph.
+4. Every cast member must be alive and physically present in the setting. No ghosts, no memories, no abstractions.
+5. Ground each character in the historical and social reality of the setting. A "widow" on the Argentine pampas is different from a "widow" in Regency England.
+6. Traditional gender roles preferred. Avoid modernist feminist tropes. Build characters whose roles are plausible for the era and setting.
+7. Each cast member exists in relationship to the protagonist. The function description tells you what role they play in her story. Their backstory and psychology should make that relationship concrete and specific — build them knowing who she is.
+8. Voice and mannerisms must be distinct from each other and from the protagonist and primary.
+9. Appearance must be specific and grounded.
+10. backstory, psychology, voiceAndMannerisms, and appearance are each one paragraph of substantial prose.
+11. Every cast member must be physically present and accessible in the story's primary setting. If the protagonist's backstory involves a different location, cast members from that past must have a plausible reason for being in the current setting. Do not place cast members in locations the protagonist has left.
+
+OUTPUT FORMAT:
+Return a single JSON object:
+{
+  "cast": [
+    {
+      "functionId": "exact_id_from_list",
+      "backstory": "One paragraph.",
+      "psychology": "One paragraph.",
+      "voiceAndMannerisms": "One paragraph.",
+      "appearance": "One paragraph."
+    }
+  ]
+}
+
+One entry per cast function. Do not skip any. Do not add extras.
+
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Every paragraph must be substantive — at least 3-4 sentences of concrete detail.
+- Do not produce generic characters. These people are specific to this setting, this protagonist, this world.`
+
+/**
+ * Build the user prompt for Call 1: protagonist, primary, and optionally rival.
+ */
+function buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, hasSecret, valueTension, secretHolder) {
+  let prompt = `=== SETTING ===
+${setting}
+
+=== TENSION TYPE ===
+${tension}
+
+=== TENSION FRAMEWORK ===
+${tensionFramework}
+
+=== TRIANGLE ===
+${triangle ? 'YES — create a rival character (the safe option).' : 'NO — rival must be null.'}
+
+=== SECRET ===
+${hasSecret ? 'YES' : 'NO'}`
+
+  if (ch1StartingCondition) {
+    prompt += `
+
+=== CHAPTER 1 STARTING CONDITION ===
+${ch1StartingCondition}`
+  }
+
+  if (valueTension) {
+    prompt += `
+
+=== VALUE TENSION ===
+Direction: ${valueTension.direction === 'conforms' ? 'She conforms, he is free' : 'She rebels, he is rooted'}
+Her belief: ${valueTension.herBelief}
+His threat: ${valueTension.hisThreat}
+The cost: ${valueTension.theCost}
+
+Generate the protagonist's coreBelief by grounding "${valueTension.herBelief}" in this specific setting and era. Do not change its meaning. Do not make it about gender. Make it personal and specific to this woman's circumstances.
+Generate the primary's character so that his way of being embodies "${valueTension.hisThreat}" naturally through who he is in this setting.
+Generate theCost by grounding "${valueTension.theCost}" in this specific protagonist's life.`
+  }
+
+  if (hasSecret && secretHolder) {
+    prompt += `
+
+=== SECRET HOLDER ===
+Who holds the secret: ${secretHolder.label}
+${secretHolder.description}`
+    if (secretHolder.id === 'primary') {
+      prompt += `
+The primary must include a "secret" field — one paragraph describing what he is concealing, why he originally entered her world, and how discovery will recontextualise the romance.`
+    } else if (secretHolder.id === 'protagonist') {
+      prompt += `
+The protagonist must include a "secret" field — one paragraph describing what she did to damage him while she was hostile, what the consequences were, and how discovery of those consequences will devastate her.`
+    }
+  }
+
+  prompt += `
+
+Create the protagonist (she), the primary (he)${triangle ? ', and the rival' : ''}. Return the JSON object only.`
+
+  return prompt
+}
+
+/**
+ * Build the user prompt for Call 2: secondary cast.
+ * Includes protagonist and primary from Call 1 so the LLM builds cast in relation to them.
+ */
+function buildCall2UserPrompt(setting, tension, protagonist, primary, castFunctions, secretHolder) {
+  const castList = castFunctions.map(cf => {
+    return `- Function: "${cf.name}" (id: ${cf.id})
+  Description: ${cf.description}`
+  }).join('\n\n')
+
+  let prompt = `=== SETTING ===
+${setting}
+
+=== TENSION TYPE ===
+${tension}
+
+=== PROTAGONIST (already created) ===${protagonist.coreBelief ? `\nCore belief: ${protagonist.coreBelief}` : ''}
+Backstory: ${protagonist.backstory}
+Psychology: ${protagonist.psychology}
+Voice and mannerisms: ${protagonist.voiceAndMannerisms}
+Appearance: ${protagonist.appearance}
+
+=== PRIMARY (already created) ===
+Backstory: ${primary.backstory}
+Psychology: ${primary.psychology}
+Voice and mannerisms: ${primary.voiceAndMannerisms}
+Appearance: ${primary.appearance}
+
+=== CAST FUNCTIONS ===
+${castList}`
+
+  if (secretHolder && ['source_disapproves', 'source_complicit', 'confidant'].includes(secretHolder.id)) {
+    const targetFunction = secretHolder.id === 'confidant' ? 'the_romantic_confidant' : 'the_source'
+    prompt += `
+
+=== SECRET HOLDER ===
+The cast member with functionId "${targetFunction}" holds the secret.
+${secretHolder.description}
+This cast member must include a "secret" field — one paragraph describing what they are concealing from the protagonist and how its discovery will devastate her.`
+    if (secretHolder.id === 'source_complicit') {
+      prompt += ` The Source's secret is connected to the primary's presence in her world. The Source arranged or facilitated it. Both the romance and the foundation of her identity break simultaneously.`
+    }
+  }
+
+  prompt += `
+
+Create one character for each cast function. Return the JSON object only.`
+
+  return prompt
+}
+
+/**
+ * Validate that a character object has all four required non-empty string fields.
+ */
+function validateCharacterFields(obj, label) {
+  if (!obj || typeof obj !== 'object') {
+    throw new Error(`Phase 1: ${label} is missing or not an object`)
+  }
+  for (const field of CHARACTER_FIELDS) {
+    if (!obj[field] || typeof obj[field] !== 'string' || obj[field].trim().length === 0) {
+      throw new Error(`Phase 1: ${label} missing or empty field "${field}"`)
+    }
+  }
+}
+
+/**
+ * Validate Call 1 output: protagonist, primary, and optionally rival.
+ */
+function validateCall1(data, triangle, tension, hasSecret, secretHolder) {
+  validateCharacterFields(data.protagonist, 'protagonist')
+
+  if (tension === 'identity') {
+    if (!data.protagonist.coreBelief || typeof data.protagonist.coreBelief !== 'string' || data.protagonist.coreBelief.trim().length === 0) {
+      throw new Error('Phase 1 Call 1: protagonist missing coreBelief (required for identity tension)')
+    }
+    if (!data.protagonist.theCost || typeof data.protagonist.theCost !== 'string' || data.protagonist.theCost.trim().length === 0) {
+      throw new Error('Phase 1 Call 1: protagonist missing theCost (required for identity tension)')
+    }
+  }
+
+  validateCharacterFields(data.primary, 'primary')
+
+  if (hasSecret && secretHolder) {
+    if (secretHolder.id === 'primary') {
+      if (!data.primary.secret || typeof data.primary.secret !== 'string' || data.primary.secret.trim().length === 0) {
+        throw new Error('Phase 1 Call 1: primary must have a "secret" field when secret holder is primary')
+      }
+    } else if (secretHolder.id === 'protagonist') {
+      if (!data.protagonist.secret || typeof data.protagonist.secret !== 'string' || data.protagonist.secret.trim().length === 0) {
+        throw new Error('Phase 1 Call 1: protagonist must have a "secret" field when secret holder is protagonist')
+      }
+    }
+    // source_disapproves, source_complicit, and confidant secrets are generated in Call 2
+  }
+
+  if (triangle) {
+    if (!data.rival) {
+      throw new Error('Phase 1 Call 1: rival must be present when triangle is true')
+    }
+    validateCharacterFields(data.rival, 'rival')
+  } else {
+    if (data.rival !== null && data.rival !== undefined) {
+      throw new Error('Phase 1 Call 1: rival must be null when triangle is false')
+    }
+  }
+}
+
+/**
+ * Validate Call 2 output: cast array with functionId and character fields.
+ */
+function validateCall2(data, filteredCastFunctions, secretHolder) {
+  if (!Array.isArray(data.cast)) {
+    throw new Error('Phase 1 Call 2: cast must be an array')
+  }
+
+  if (data.cast.length !== filteredCastFunctions.length) {
+    throw new Error(
+      `Phase 1 Call 2: expected ${filteredCastFunctions.length} cast members, got ${data.cast.length}`
+    )
+  }
+
+  const expectedIds = new Set(filteredCastFunctions.map(cf => cf.id))
+
+  for (const member of data.cast) {
+    if (!member.functionId || !expectedIds.has(member.functionId)) {
+      throw new Error(
+        `Phase 1 Call 2: invalid or missing functionId "${member.functionId}". Expected one of: ${[...expectedIds].join(', ')}`
+      )
+    }
+
+    validateCharacterFields(member, `cast member "${member.functionId}"`)
+  }
+
+  const returnedIds = new Set(data.cast.map(m => m.functionId))
+  for (const expectedId of expectedIds) {
+    if (!returnedIds.has(expectedId)) {
+      throw new Error(`Phase 1 Call 2: missing cast member for functionId "${expectedId}"`)
+    }
+  }
+
+  // Validate secret field on cast secret holders
+  if (secretHolder && ['source_disapproves', 'source_complicit', 'confidant'].includes(secretHolder.id)) {
+    const targetFunction = secretHolder.id === 'confidant' ? 'the_romantic_confidant' : 'the_source'
+    const holder = data.cast.find(m => m.functionId === targetFunction)
+    if (!holder || !holder.secret || typeof holder.secret !== 'string' || holder.secret.trim().length === 0) {
+      throw new Error(`Phase 1 Call 2: cast member "${targetFunction}" must have a "secret" field when they are the secret holder`)
+    }
+  }
+}
+
+/**
+ * Phase 1: Character Generation
+ * Takes a rolled skeleton and user setting, makes two LLM calls,
+ * and returns a characters object with protagonist, primary, rival, and cast.
+ *
+ * Call 1: Setting + tension → protagonist and primary (+ rival if triangle)
+ * Call 2: Setting + protagonist + primary + cast functions → secondary cast
+ *
+ * @param {Object} skeleton - Output of rollSkeleton() from storyBlueprints.js
+ * @param {string} setting - User-provided setting string
+ * @returns {Promise<Object>} Object with characters
+ */
+async function executePhase1(skeleton, setting) {
+  console.log('Executing Phase 1: Character Generation...')
+  console.log(`  Tension: ${skeleton.tension}`)
+  console.log(`  Ending: ${skeleton.ending}`)
+  console.log(`  Triangle: ${skeleton.triangle}`)
+  console.log(`  Secret: ${skeleton.secret}`)
+  console.log(`  Cast functions: ${skeleton.castFunctions.length}`)
+  console.log(`  Setting: ${setting}`)
+
+  const tension = skeleton.tension
+  const triangle = skeleton.triangle
+  const tensionFramework = TENSION_FRAMEWORK_DESCRIPTIONS[tension]
+
+  // ── Extract Ch.1 starting condition from the chapter blueprint ──────
+  const ch1StartingCondition = skeleton.chapters.length > 0
+    && skeleton.chapters[0].employmentSelections.length > 0
+    ? skeleton.chapters[0].employmentSelections[0].text
+    : null
+
+  // ── Call 1: Protagonist, Primary, and optionally Rival ──────────────
+  console.log('\n  Call 1: Generating protagonist, primary' + (triangle ? ', and rival...' : '...'))
+
+  const call1UserPrompt = buildCall1UserPrompt(setting, tension, tensionFramework, triangle, ch1StartingCondition, skeleton.secret, skeleton.valueTension, skeleton.secretHolder)
+
+  const call1Response = await callClaude(PHASE_1_CALL1_SYSTEM_PROMPT, call1UserPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 4096
+  })
+
+  const call1Parsed = parseJSON(call1Response)
+  if (!call1Parsed.success) {
+    throw new Error(`Phase 1 Call 1 JSON parse failed: ${call1Parsed.error}`)
+  }
+
+  validateCall1(call1Parsed.data, triangle, tension, skeleton.secret, skeleton.secretHolder)
+  console.log('  Call 1 validated successfully.')
+
+  const { protagonist, primary, rival } = call1Parsed.data
+
+  // ── Call 2: Secondary Cast ──────────────────────────────────────────
+  const filteredCastFunctions = skeleton.castFunctions
+
+  console.log(`\n  Call 2: Generating ${filteredCastFunctions.length} secondary cast members...`)
+
+  const call2UserPrompt = buildCall2UserPrompt(setting, tension, protagonist, primary, filteredCastFunctions, skeleton.secretHolder)
+
+  const call2Response = await callClaude(PHASE_1_CALL2_SYSTEM_PROMPT, call2UserPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 8192
+  })
+
+  const call2Parsed = parseJSON(call2Response)
+  if (!call2Parsed.success) {
+    throw new Error(`Phase 1 Call 2 JSON parse failed: ${call2Parsed.error}`)
+  }
+
+  validateCall2(call2Parsed.data, filteredCastFunctions, skeleton.secretHolder)
+  console.log('  Call 2 validated successfully.')
+
+  // ── Assemble output ─────────────────────────────────────────────────
+  const characters = {
+    protagonist,
+    primary,
+    rival: rival || null,
+    cast: call2Parsed.data.cast
+  }
+
+  console.log('\nPhase 1 Character Generation complete.')
+  if (protagonist.coreBelief) {
+    console.log(`  Protagonist core belief: ${protagonist.coreBelief}`)
+    if (protagonist.theCost) {
+      console.log(`  Protagonist the cost: ${protagonist.theCost}`)
+    }
+  }
+  console.log(`  Protagonist backstory: ${protagonist.backstory.slice(0, 80)}...`)
+  console.log(`  Primary backstory: ${primary.backstory.slice(0, 80)}...`)
+  if (rival) {
+    console.log(`  Rival backstory: ${rival.backstory.slice(0, 80)}...`)
+  }
+  for (const m of characters.cast) {
+    console.log(`  Cast [${m.functionId}]: ${m.backstory.slice(0, 60)}...`)
+  }
+
+  return { characters }
+}
+
+// =============================================================================
+// PHASE 2: SCENE SUMMARIES
+// =============================================================================
+
+const PHASE_2_SYSTEM_PROMPT = `${CHAPTER_ARCHITECTURE_ESSAY}
+
+The essay above is your guide to chapter construction. Use it when deciding how many scenes this chapter needs, what each scene does, and how they sequence. The rules below govern your output format.
+
+You are a story architect breaking a single chapter into scenes. You receive character profiles, a chapter blueprint (scene architecture and/or employment selections, plus end state), the setting, and all previous chapters' scene summaries.
+
+Each scene has exactly three fields:
+- location: a place name only — not "the estancia" but "the estancia kitchen." No time of day, weather, light, or atmosphere
+- characters: only characters physically present in this scene
+- synopsis: a paragraph describing what happens in the scene — who does what, what changes, and what is true by the end
+
+SYNOPSIS GUIDELINES:
+
+The synopsis is a dense paragraph — not a list of bullet points or labels. It describes the scene's dramatic action: what the characters do, what shifts between them, what information surfaces, what pressure builds or breaks, and what condition holds when the scene ends.
+
+Write in present tense. Focus on specifics, not abstractions. "Marco confronts Elena about the missing ledger; she deflects by pointing out his own debts, and the argument ends with both aware the other is hiding something" — not "tension rises between the characters."
+
+The synopsis should make clear:
+1. What the scene achieves — whether it delivers a prescribed scene function, an employment option, or the end state
+2. What has changed by the scene's end — in relationships, knowledge, stakes, or character positions
+3. Enough concrete detail that a prose writer can dramatize the scene without inventing new plot
+
+RULES:
+
+1. Scene architecture is the structural spine. When the blueprint provides a scene architecture, each prescribed scene must exist and deliver its described function. These are the minimum — you may add scenes beyond them to accommodate secondary cast members, world texture, or transitions. When employment selections are provided instead, they must be delivered in at least one scene's synopsis.
+
+2. Earn your place. Every scene must accomplish something. If you can't describe what a scene changes or establishes, it doesn't exist.
+
+3. No default scene count. The scene architecture sets the floor, not the ceiling. Add scenes when needed. No uniform number.
+
+4. No padding scenes. "The protagonist reflects on what happened" is not a scene. It's the tail end of the previous scene. If a scene exists only for a character to think, fold that into the scene that triggered it.
+
+5. Locations are specific place names. Not "the town" but "the well at the edge of the plaza." No time of day, weather, or atmosphere — just the place.
+
+6. Characters present means physically present. Not mentioned, not remembered — in the room.
+
+7. Chapter end state from the blueprint must be delivered. One scene's synopsis must show it happening.
+
+OUTPUT FORMAT:
+Return a JSON array of scenes for this chapter:
+[
+  {
+    "location": "the estancia kitchen",
+    "characters": ["FirstName", "FirstName"],
+    "synopsis": "A paragraph describing what happens in this scene, who does what, what changes, and what is true by the end."
+  }
+]
+
+IMPORTANT:
+- Return ONLY the JSON array. No preamble, no explanation, no markdown fences.
+- Use character names from the profiles. Read the backstory paragraphs of every character to find their names. Use those exact first names.
+- Cast members serve their function. When a cast member appears, they should be doing something consistent with their narrative function.`
+
+/**
+ * Build the user prompt for Phase 2: a single chapter's scene generation.
+ * Includes setting, characters, location palette, this chapter's blueprint, and previous chapters' scenes.
+ *
+ * @param {string} setting - The story setting
+ * @param {Object} skeleton - The full skeleton
+ * @param {Object} characters - Phase 1 character profiles
+ * @param {Object} chapterBlueprint - This chapter's skeleton entry
+ * @param {Array} previousChaptersScenes - Array of { chapter, title, scenes } for prior chapters
+ * @param {Object} [locations] - Location palette from Phase 2 (locations)
+ */
+function buildPhase2UserPrompt(setting, skeleton, characters, chapterBlueprint, previousChaptersScenes, locations) {
+  // ── Setting ──
+  const settingBlock = `=== SETTING ===
+${setting}`
+
+  // ── Story structure ──
+  const structureBlock = `=== STORY STRUCTURE ===
+Tension: ${skeleton.tension}
+Ending: ${skeleton.ending}
+Triangle: ${skeleton.triangle ? 'YES' : 'NO'}
+Secret: ${skeleton.secret ? 'YES' : 'NO'}
+Total chapters: ${skeleton.chapters.length}`
+
+  // ── Character profiles ──
+  let characterBlock = `=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
+
+=== PRIMARY ===
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}`
+
+  if (characters.rival) {
+    characterBlock += `
+
+=== RIVAL ===
+Backstory: ${characters.rival.backstory}
+Psychology: ${characters.rival.psychology}
+Voice and mannerisms: ${characters.rival.voiceAndMannerisms}`
+  }
+
+  if (characters.cast && characters.cast.length > 0) {
+    characterBlock += '\n\n=== CAST ==='
+    for (const member of characters.cast) {
+      characterBlock += `
+
+--- ${member.functionId} ---
+Backstory: ${member.backstory}
+Psychology: ${member.psychology}`
+    }
+  }
+
+  // ── Secret holder ──
+  let secretBlock = ''
+  if (skeleton.secretHolder) {
+    let secretText = ''
+    if (skeleton.secretHolder.id === 'primary' && characters.primary.secret) {
+      secretText = characters.primary.secret
+    } else if (skeleton.secretHolder.id === 'protagonist' && characters.protagonist.secret) {
+      secretText = characters.protagonist.secret
+    } else {
+      const targetFunction = skeleton.secretHolder.id === 'confidant' ? 'the_romantic_confidant' : 'the_source'
+      const castMember = characters.cast && characters.cast.find(m => m.functionId === targetFunction)
+      if (castMember && castMember.secret) {
+        secretText = castMember.secret
+      }
+    }
+    if (secretText) {
+      secretBlock = `\n\n=== SECRET ===
+Secret holder: ${skeleton.secretHolder.label}
+${skeleton.secretHolder.description}
+The secret: ${secretText}
+Detonation: Chapter 6 (The Dark Moment)
+Plant seeds for this secret in earlier chapters. The protagonist must NOT learn the secret before Chapter 6. Details that seem innocent now must become devastating after the detonation.`
+    }
+  }
+
+  // ── This chapter's blueprint ──
+  let chapterBlock = `=== THIS CHAPTER ===
+Chapter ${chapterBlueprint.chapter}: ${chapterBlueprint.title}
+End state: ${chapterBlueprint.endState}`
+
+  if (chapterBlueprint.employmentSelections.length > 0) {
+    chapterBlock += '\nEmployment selections:'
+    for (const sel of chapterBlueprint.employmentSelections) {
+      chapterBlock += `\n  - [${sel.group}] ${sel.text}`
+    }
+  } else {
+    chapterBlock += '\nEmployment selections: (none — this is a resolution chapter)'
+  }
+
+  // ── Scene architecture (structural spine) ──
+  if (chapterBlueprint.sceneArchitecture && chapterBlueprint.sceneArchitecture.length > 0) {
+    chapterBlock += '\nScene architecture:'
+    for (const s of chapterBlueprint.sceneArchitecture) {
+      chapterBlock += `\n  Scene ${s.scene}: ${s.description}`
+    }
+    chapterBlock += '\nThese are the minimum required scenes. You may add scenes beyond these to accommodate secondary cast, world texture, or transitions.'
+  }
+
+  // ── Secondary arcs for this chapter ──
+  let castPresenceBlock = ''
+  if (skeleton.castFunctions && skeleton.castFunctions.some(cf => cf.arc)) {
+    const chNum = chapterBlueprint.chapter
+    let lines = `=== SECONDARY ARCS (CHAPTER ${chNum}) ===
+
+These are what each secondary character's arc is doing in this chapter. Fit them into existing scenes where possible. Create new scenes only when a secondary arc cannot fit into any prescribed scene. If a character's arc is inactive this chapter, they do not need to appear.\n`
+    for (const cf of skeleton.castFunctions) {
+      if (!cf.arc) continue
+      // Try to find the character's name from the cast backstory
+      let charName = ''
+      if (characters.cast) {
+        const castMember = characters.cast.find(m => m.functionId === cf.id)
+        if (castMember) {
+          charName = extractFirstNameFromBackstory(castMember.backstory) || ''
+        }
+      }
+      const nameLabel = charName ? ` (${charName})` : ''
+      const arcSentence = cf.arc[chNum] || 'Inactive'
+      lines += `\n${cf.name}${nameLabel}: ${arcSentence}`
+    }
+    castPresenceBlock = '\n\n' + lines
+  }
+
+  // ── Secret arc for this chapter ──
+  let secretArcBlock = ''
+  if (skeleton.secretArc && skeleton.secretHolder) {
+    const chNum = chapterBlueprint.chapter
+    const arcSentence = skeleton.secretArc[chNum] || 'Inactive'
+    let secretText = ''
+    if (skeleton.secretHolder.description) {
+      secretText = skeleton.secretHolder.description
+    }
+    secretArcBlock = `\n\n=== SECRET ARC (CHAPTER ${chNum}) ===
+${arcSentence}
+
+The secret text: ${secretText}
+The secret holder: ${skeleton.secretHolder.label}
+
+Plant details in earlier chapters that seem innocent now but will recontextualise after the detonation. The reader only knows what the protagonist knows. Seeds are not suspicious — they are invisible until reread.`
+  }
+
+  // ── Location palette ──
+  let locationBlock = ''
+  if (locations && locations.locations && locations.locations.length > 0) {
+    let paletteLines = `=== LOCATION PALETTE ===
+These locations are available. Pick locations that serve each scene. You do not need to use all of them. When selecting a location, note which characters are naturally present there — this helps you weave secondary cast into scenes without forcing them.\n`
+    for (const loc of locations.locations) {
+      const firstSentence = loc.physicalDescription.split(/\.\s/)[0] + '.'
+      const plausible = loc.plausibleCharacters && loc.plausibleCharacters.length > 0
+        ? ` (${loc.plausibleCharacters.join(', ')})`
+        : ''
+      paletteLines += `\n- ${loc.name}${plausible}: ${firstSentence}`
+    }
+
+    // Collect tertiary characters across all locations
+    const tertiaryLines = []
+    for (const loc of locations.locations) {
+      if (loc.tertiaryCharacters && loc.tertiaryCharacters.length > 0) {
+        for (const tc of loc.tertiaryCharacters) {
+          tertiaryLines.push(`- ${tc.name} (${loc.name}): ${tc.description}`)
+        }
+      }
+    }
+
+    locationBlock = '\n\n' + paletteLines
+    if (tertiaryLines.length > 0) {
+      locationBlock += `\n\n=== TERTIARY CHARACTERS ===\nThese characters exist at their locations. You may include them in scenes for texture.\n\n${tertiaryLines.join('\n')}`
+    }
+  }
+
+  // ── Previous chapters' scenes ──
+  let previousBlock = ''
+  if (previousChaptersScenes.length > 0) {
+    previousBlock = '\n\n=== PREVIOUS CHAPTERS\' SCENES ===\n'
+    for (const prev of previousChaptersScenes) {
+      previousBlock += `\n--- Chapter ${prev.chapter}: ${prev.title} ---\n`
+      for (let i = 0; i < prev.scenes.length; i++) {
+        const scene = prev.scenes[i]
+        previousBlock += `Scene ${i + 1}: ${scene.location}\n`
+        previousBlock += `  Characters: ${scene.characters.join(', ')}\n`
+        previousBlock += `  Synopsis: ${scene.synopsis}\n`
+      }
+    }
+  }
+
+  return `${settingBlock}
+
+${structureBlock}
+
+${characterBlock}${secretBlock}${castPresenceBlock}${secretArcBlock}${locationBlock}
+
+${chapterBlock}${previousBlock}
+
+Break this chapter into scenes. Return the JSON array only.`
+}
+
+/**
+ * Validate a single chapter's Phase 2 output: array of scenes with synopsis.
+ *
+ * @param {Array} scenes - Array of scene objects from LLM response
+ * @param {number} chapterNum - Chapter number for error messages
+ * @param {Object} chapterBlueprint - This chapter's skeleton entry
+ * @param {number|null} prevChapterSceneCount - Previous chapter's scene count (for soft check)
+ */
+function validatePhase2Chapter(scenes, chapterNum, chapterBlueprint, prevChapterSceneCount) {
+  if (!Array.isArray(scenes) || scenes.length < 1) {
+    throw new Error(
+      `Phase 2: chapter ${chapterNum} must have at least 1 scene, got ${scenes?.length ?? 0}`
+    )
+  }
+
+  for (let j = 0; j < scenes.length; j++) {
+    const scene = scenes[j]
+
+    // ── location ──
+    if (!scene.location || typeof scene.location !== 'string' || scene.location.trim().length === 0) {
+      throw new Error(`Phase 2: chapter ${chapterNum} scene ${j + 1} missing or empty location`)
+    }
+
+    // ── characters ──
+    if (!Array.isArray(scene.characters) || scene.characters.length === 0) {
+      throw new Error(`Phase 2: chapter ${chapterNum} scene ${j + 1} must have at least one character`)
+    }
+    for (const name of scene.characters) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error(`Phase 2: chapter ${chapterNum} scene ${j + 1} has empty character name`)
+      }
+    }
+
+    // ── synopsis ──
+    if (!scene.synopsis || typeof scene.synopsis !== 'string' || scene.synopsis.trim().length < 20) {
+      throw new Error(
+        `Phase 2: chapter ${chapterNum} scene ${j + 1} missing or too short synopsis (need at least 20 chars, got ${scene.synopsis?.length ?? 0})`
+      )
+    }
+  }
+
+  // ── Soft check: scene count meets scene architecture minimum ──
+  if (chapterBlueprint.sceneArchitecture && chapterBlueprint.sceneArchitecture.length > 0) {
+    const minScenes = chapterBlueprint.sceneArchitecture.length
+    if (scenes.length < minScenes) {
+      console.warn(
+        `  Warning: chapter ${chapterNum} has ${scenes.length} scenes but scene architecture prescribes ${minScenes}. Consider retrying.`
+      )
+    }
+  }
+
+  // ── Soft check: no two consecutive chapters have the same scene count ──
+  if (prevChapterSceneCount !== null && scenes.length === prevChapterSceneCount) {
+    console.warn(
+      `  Warning: chapter ${chapterNum} has ${scenes.length} scenes, same as the previous chapter. Consider varying scene count.`
+    )
+  }
+}
+
+/**
+ * Phase 2: Generate scene summaries for all chapters.
+ * One LLM call per chapter, sequential. Each call sees previous chapters' output.
+ * Input: skeleton + Phase 1 characters + setting + locations.
+ * Output: scenes per chapter with synopsis paragraphs.
+ */
+async function executePhase2(skeleton, characters, setting, locations) {
+  console.log('\nExecuting Phase 2: Scene Summaries...')
+  console.log(`  Chapters: ${skeleton.chapters.length}`)
+  console.log(`  Cast members: ${characters.cast.length}`)
+  console.log(`  Triangle: ${skeleton.triangle}`)
+
+  const completedChapters = []
+
+  for (let i = 0; i < skeleton.chapters.length; i++) {
+    const chapterBlueprint = skeleton.chapters[i]
+    console.log(`  Generating scenes for Chapter ${chapterBlueprint.chapter}: "${chapterBlueprint.title}"...`)
+
+    const userPrompt = buildPhase2UserPrompt(
+      setting, skeleton, characters, chapterBlueprint, completedChapters, locations
+    )
+
+    const prevSceneCount = completedChapters.length > 0
+      ? completedChapters[completedChapters.length - 1].scenes.length
+      : null
+
+    let scenes = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await callClaude(PHASE_2_SYSTEM_PROMPT, userPrompt, {
+        model: 'claude-sonnet-4-20250514',
+        temperature: 1.0,
+        maxTokens: 4096
+      })
+
+      const parsed = parseJSON(response)
+      if (!parsed.success) {
+        console.warn(`  Chapter ${chapterBlueprint.chapter} attempt ${attempt + 1} JSON parse failed, retrying...`)
+        continue
+      }
+
+      try {
+        validatePhase2Chapter(parsed.data, chapterBlueprint.chapter, chapterBlueprint, prevSceneCount)
+        scenes = parsed.data
+        break
+      } catch (e) {
+        console.warn(`  Chapter ${chapterBlueprint.chapter} attempt ${attempt + 1} failed: ${e.message}`)
+      }
+    }
+
+    if (!scenes) {
+      throw new Error(`Phase 2: chapter ${chapterBlueprint.chapter} failed after 3 attempts`)
+    }
+
+    const chapterResult = {
+      chapter: chapterBlueprint.chapter,
+      title: chapterBlueprint.title,
+      scenes
+    }
+
+    completedChapters.push(chapterResult)
+    console.log(`  Chapter ${chapterBlueprint.chapter}: ${scenes.length} scenes`)
+  }
+
+  const sceneSummaries = { chapters: completedChapters }
+  console.log('\nPhase 2 Scene Summaries complete.')
+
+  return { sceneSummaries }
+}
+
+// =============================================================================
+// PHASE 3: LOCATIONS
+// =============================================================================
+
+const PASS_LABELS = {
+  1: 'Protagonist',
+  2: 'Primary',
+  3: 'The Source',
+  4: 'The Romantic Confidant',
+  5: 'Her Opposite',
+  6: 'The Mirror',
+  7: 'Shared public spaces'
+}
+
+const PHASE_3_LOCATION_PASS_SYSTEM_PROMPT = `You are describing locations for an enemies-to-lovers romance. You receive a setting, character profiles, and (after the first pass) existing locations from previous passes. Your job: generate locations grounded in a specific character relationship.
+
+RULES:
+
+1. Ground in the setting. Materials, construction, objects, and scale must be plausible for the era and place. An estancia kitchen on the Argentine pampas in the 1870s has an iron stove, packed earth or flagstone floors, whitewashed adobe walls — not stainless steel and tile.
+
+2. Physical description is what's fixed. Layout, furniture, walls, floors, doors, windows, objects that are always there. Not what happens in the space. Not who is there. Not mood, not atmosphere.
+
+3. Sensory environment is what's constant. The sounds, smells, textures that define this place regardless of time of day or who's present. The corral always smells of horses and dry manure. The chapel is always cool and quiet. The river crossing always has the sound of water over stones.
+
+4. No mood, no lighting, no weather, no time of day. Those change per scene and belong to the prose generator. You describe the container, not the moment.
+
+5. Two fields per location. physicalDescription is one paragraph of substantial prose. sensoryEnvironment is one paragraph of substantial prose.
+
+6. Location names should be specific place names. Not "the town" but "the well at the edge of the plaza." Not "the estancia" but "the estancia kitchen."
+
+7. When a location naturally has people who work or live there, include a tertiaryCharacters array. Each entry has a "name" (string) and "description" (one or two sentences — who they are and what they do at this location). Private spaces do not need tertiary characters. Do not force them where they do not belong.
+
+8. Every location must be a place the protagonist can plausibly visit. If she cannot go there, it does not exist.
+
+9. A location is a room, building, or outdoor space where a scene takes place. Not an object or piece of furniture.
+
+10. No two characters in the entire story may share a first name — main cast, secondary cast, or tertiary characters. Every first name must be unique. The user prompt lists OFF-LIMITS NAMES — do not give any tertiary character any of those names, and do not reuse a tertiary name at a different location.
+
+11. For each new location, include a "plausibleCharacters" field — an array of first names from the main and secondary cast who would naturally be present at or visit this location. The protagonist will be present at most locations since the story is told from her perspective. Tag other characters based on their backstory and role.
+
+12. You may receive existing locations from previous passes. For each existing location where the current pass's character could plausibly be present, add that character's name to the location's plausibleCharacters by including it in the existingLocations array of your response. Then generate any NEW locations needed for this pass.
+
+OUTPUT FORMAT:
+Return a single JSON object with two arrays:
+{
+  "existingLocations": [
+    { "name": "exact name from input", "addToPlausibleCharacters": ["CharName"] }
+  ],
+  "newLocations": [
+    {
+      "name": "The estancia kitchen",
+      "physicalDescription": "One paragraph. Layout, objects, materials, scale.",
+      "sensoryEnvironment": "One paragraph. What you always hear, smell, feel here.",
+      "tertiaryCharacters": [
+        {
+          "name": "Tomás",
+          "description": "Old fishmonger who has worked this stall for thirty years. Shouts prices in a hoarse voice."
+        }
+      ],
+      "plausibleCharacters": ["Elena", "Marco", "Beatriz"]
+    }
+  ]
+}
+
+IMPORTANT:
+- Return ONLY the JSON object. No preamble, no explanation, no markdown fences.
+- Each paragraph must be substantive — at least 3-4 sentences of concrete detail.
+- The tertiaryCharacters array is optional — only include it on locations that naturally have people working or living there.
+- The plausibleCharacters array is required on every NEW location — at minimum, include the protagonist.
+- The existingLocations array can be empty if no existing locations are relevant to this character.
+- The newLocations array can be empty if no new locations are needed for this pass.`
+
+/**
+ * Build the user prompt for Phase 3 (locations): setting + character profiles.
+ */
+/**
+ * Extract the first name from a backstory paragraph.
+ * Handles honorific prefixes (Doña, Don, Señora, Señor, Dona).
+ */
+function extractFirstNameFromBackstory(backstory) {
+  if (!backstory || typeof backstory !== 'string') return null
+  const words = backstory.trim().split(/\s+/)
+  if (words.length === 0) return null
+  const honorifics = new Set(['doña', 'don', 'señora', 'señor', 'dona', 'lady', 'sir', 'madame', 'monsieur'])
+  const first = words[0].replace(/[.,;:!?'"()]+$/g, '')
+  if (honorifics.has(first.toLowerCase()) && words.length > 1) {
+    return words[1].replace(/[.,;:!?'"()]+$/g, '')
+  }
+  return first
+}
+
+function buildLocationPassUserPrompt(passNumber, setting, characters, existingLocations, offLimitsNames, existingTertiaryNames) {
+  const protagonistName = extractFirstNameFromBackstory(characters.protagonist.backstory) || 'the protagonist'
+  const primaryName = extractFirstNameFromBackstory(characters.primary.backstory) || 'the primary'
+
+  // Find cast members by functionId
+  const findCast = (id) => characters.cast && characters.cast.find(m => m.functionId === id)
+  const source = findCast('the_source')
+  const confidant = findCast('the_romantic_confidant')
+  const opposite = findCast('her_opposite')
+  const mirror = findCast('the_mirror')
+
+  let prompt = `=== SETTING ===\n${setting}\n`
+
+  // Pass-specific character profiles and instructions
+  if (passNumber === 1) {
+    prompt += `\n=== PROTAGONIST ===${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+
+=== INSTRUCTIONS ===
+Generate the locations where ${protagonistName} lives and moves through her daily routine. Include her home and its distinct spaces — not just "the house" but the rooms she inhabits. Generate household members — family, servants, anyone regularly present — as tertiary characters tagged to the locations they inhabit. A household member who exists in multiple rooms is tagged to all of them.`
+  } else if (passNumber === 2) {
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== PRIMARY ===
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${primaryName} could plausibly be present by adding his name to existingLocations. Then generate new locations where these two characters' worlds overlap or collide — boundary spaces, places where someone from her world might encounter someone from his. Include his home and its distinct spaces. Generate his household members as tertiary characters.`
+  } else if (passNumber === 3 && source) {
+    const sourceName = extractFirstNameFromBackstory(source.backstory) || 'the Source'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== THE SOURCE ===
+Backstory: ${source.backstory}
+Psychology: ${source.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${sourceName} could plausibly be present. Then generate new locations where this relationship lives — where ${protagonistName} goes to seek ${sourceName}'s approval, where ${sourceName} holds court, where they interact privately. Generate ${sourceName}'s household if applicable.`
+  } else if (passNumber === 4 && confidant) {
+    const confidantName = extractFirstNameFromBackstory(confidant.backstory) || 'the Confidant'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== THE ROMANTIC CONFIDANT ===
+Backstory: ${confidant.backstory}
+Psychology: ${confidant.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${confidantName} could plausibly be present. Then generate new locations where this friendship lives — where they are intimate, where they gossip, where they walk together. Generate ${confidantName}'s household if applicable.`
+  } else if (passNumber === 5 && opposite) {
+    const oppositeName = extractFirstNameFromBackstory(opposite.backstory) || 'the Opposite'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== HER OPPOSITE ===
+Backstory: ${opposite.backstory}
+Psychology: ${opposite.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${oppositeName} could plausibly be present. Then generate new locations only if needed — ${oppositeName} may already share locations with ${primaryName} or other characters. Generate ${oppositeName}'s household if not already covered.`
+  } else if (passNumber === 6 && mirror) {
+    const mirrorName = extractFirstNameFromBackstory(mirror.backstory) || 'the Mirror'
+    prompt += `\n=== PROTAGONIST (for reference) ===
+Backstory: ${characters.protagonist.backstory}
+
+=== THE MIRROR ===
+Backstory: ${mirror.backstory}
+Psychology: ${mirror.psychology}
+
+=== INSTRUCTIONS ===
+Review existing locations. Tag any where ${mirrorName} could plausibly be present. Then generate one or two locations where ${mirrorName} exists — her domain. The Mirror is sparse. She does not need many locations.`
+  } else if (passNumber === 7) {
+    // All character names with brief roles
+    prompt += `\n=== CHARACTERS ===
+- ${protagonistName}: protagonist
+- ${primaryName}: love interest`
+    if (source) prompt += `\n- ${extractFirstNameFromBackstory(source.backstory)}: the Source (authority figure)`
+    if (confidant) prompt += `\n- ${extractFirstNameFromBackstory(confidant.backstory)}: the Romantic Confidant (best friend)`
+    if (opposite) prompt += `\n- ${extractFirstNameFromBackstory(opposite.backstory)}: Her Opposite (foil/rival)`
+    if (mirror) prompt += `\n- ${extractFirstNameFromBackstory(mirror.backstory)}: the Mirror (dark reflection)`
+
+    prompt += `
+
+=== INSTRUCTIONS ===
+Review all locations generated so far. The city or town should feel present beyond private and semi-private spaces. Generate public locations — plazas, markets, streets, churches, ports, parks — that any character might pass through. Tag each with the characters who would plausibly be there. Generate tertiary characters attached to these public locations.`
+  }
+
+  // Add existing locations for passes 2-7
+  if (passNumber > 1 && existingLocations.length > 0) {
+    prompt += `\n\n=== EXISTING LOCATIONS (from previous passes) ===
+Review these and tag any where this pass's character could plausibly be present.\n`
+    for (const loc of existingLocations) {
+      prompt += `\n- "${loc.name}" (plausibleCharacters: ${loc.plausibleCharacters.join(', ')})`
+    }
+  }
+
+  // Off-limits names
+  if (offLimitsNames.length > 0) {
+    const allOffLimits = [...offLimitsNames]
+    if (existingTertiaryNames.size > 0) {
+      allOffLimits.push(...existingTertiaryNames)
+    }
+    prompt += `\n\n=== OFF-LIMITS NAMES ===
+The following first names are already used. No tertiary character may use any of these names:
+${allOffLimits.join(', ')}`
+  }
+
+  prompt += `\n\nReturn the JSON object only.`
+
+  return prompt
+}
+
+// ── Helpers for fuzzy location matching ──
+function normalizeForMatch(str) {
+  return str.toLowerCase().trim().replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+}
+
+function stripTimeWeather(str) {
+  return str.replace(/\s+(at\s+(dawn|dusk|midday|noon|night|sunrise|sunset)|in\s+the\s+(morning|afternoon|evening|rain|dark|moonlight|sunlight))$/i, '')
+}
+
+function wordOverlap(a, b) {
+  const stopWords = new Set(['the', 'a', 'an', 'of', 'at', 'in', 'on', 'by'])
+  const wordsA = a.split(/\s+/).filter(w => !stopWords.has(w) && w.length > 1)
+  const wordsB = new Set(b.split(/\s+/).filter(w => !stopWords.has(w) && w.length > 1))
+  if (wordsA.length === 0) return 0
+  const matches = wordsA.filter(w => wordsB.has(w)).length
+  return matches / wordsA.length
+}
+
+/**
+ * Merge a single pass's result into the accumulated locations array.
+ * Updates plausibleCharacters on existing locations and appends new ones.
+ */
+function mergePassResult(existingLocations, passResult) {
+  const merged = existingLocations.map(loc => ({ ...loc, plausibleCharacters: [...loc.plausibleCharacters] }))
+
+  // Update existing locations with new plausibleCharacters tags
+  if (passResult.existingLocations && passResult.existingLocations.length > 0) {
+    for (const update of passResult.existingLocations) {
+      const match = merged.find(loc => loc.name === update.name)
+      if (match && update.addToPlausibleCharacters) {
+        for (const name of update.addToPlausibleCharacters) {
+          if (!match.plausibleCharacters.includes(name)) {
+            match.plausibleCharacters.push(name)
+          }
+        }
+      }
+    }
+  }
+
+  // Append new locations
+  if (passResult.newLocations && passResult.newLocations.length > 0) {
+    merged.push(...passResult.newLocations)
+  }
+
+  return merged
+}
+
+/**
+ * Validate a single location pass's output.
+ */
+function validateLocationPass(passResult, passNumber, existingLocations, castNames, existingTertiaryNames) {
+  if (!passResult || typeof passResult !== 'object') {
+    throw new Error(`Pass ${passNumber}: result must be an object`)
+  }
+
+  // Validate existingLocations references
+  if (passResult.existingLocations && passResult.existingLocations.length > 0) {
+    const existingNames = new Set(existingLocations.map(l => l.name))
+    for (const update of passResult.existingLocations) {
+      if (!update.name || !existingNames.has(update.name)) {
+        throw new Error(`Pass ${passNumber}: existingLocations references unknown location "${update.name}"`)
+      }
+      if (!update.addToPlausibleCharacters || !Array.isArray(update.addToPlausibleCharacters)) {
+        throw new Error(`Pass ${passNumber}: existingLocations entry "${update.name}" missing addToPlausibleCharacters array`)
+      }
+    }
+  }
+
+  // Validate new locations
+  const existingLocationNames = new Set(existingLocations.map(l => l.name.toLowerCase()))
+  if (passResult.newLocations && passResult.newLocations.length > 0) {
+    for (const loc of passResult.newLocations) {
+      if (!loc.name || typeof loc.name !== 'string' || loc.name.trim().length === 0) {
+        throw new Error(`Pass ${passNumber}: new location missing or empty name`)
+      }
+      if (!loc.physicalDescription || typeof loc.physicalDescription !== 'string') {
+        throw new Error(`Pass ${passNumber}: location "${loc.name}" missing physicalDescription`)
+      }
+      if (!loc.sensoryEnvironment || typeof loc.sensoryEnvironment !== 'string') {
+        throw new Error(`Pass ${passNumber}: location "${loc.name}" missing sensoryEnvironment`)
+      }
+      if (!loc.plausibleCharacters || !Array.isArray(loc.plausibleCharacters) || loc.plausibleCharacters.length === 0) {
+        throw new Error(`Pass ${passNumber}: location "${loc.name}" missing or empty plausibleCharacters`)
+      }
+
+      // Check duplicate location names
+      if (existingLocationNames.has(loc.name.toLowerCase())) {
+        throw new Error(`Pass ${passNumber}: duplicate location name "${loc.name}"`)
+      }
+      existingLocationNames.add(loc.name.toLowerCase())
+
+      // Check tertiary name collisions
+      if (loc.tertiaryCharacters && Array.isArray(loc.tertiaryCharacters)) {
+        for (const tc of loc.tertiaryCharacters) {
+          if (!tc.name || typeof tc.name !== 'string') {
+            throw new Error(`Pass ${passNumber}: tertiary character at "${loc.name}" missing name`)
+          }
+          const tcLower = tc.name.trim().toLowerCase()
+          if (castNames.has(tcLower)) {
+            throw new Error(`Pass ${passNumber}: tertiary "${tc.name}" at "${loc.name}" collides with cast name`)
+          }
+          if (existingTertiaryNames.has(tcLower)) {
+            throw new Error(`Pass ${passNumber}: tertiary "${tc.name}" at "${loc.name}" collides with existing tertiary name`)
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Validate Phase 3 final output: all accumulated locations.
+ */
+function validatePhase3(data, characters) {
+  if (!data.locations || !Array.isArray(data.locations) || data.locations.length === 0) {
+    throw new Error('Phase 3: locations must be a non-empty array')
+  }
+
+  // Build set of main/secondary cast first names (lowercased) for collision checking
+  const castNames = new Set()
+  if (characters) {
+    const sources = [
+      characters.protagonist && characters.protagonist.backstory,
+      characters.primary && characters.primary.backstory,
+      characters.rival && characters.rival.backstory
+    ]
+    if (characters.cast) {
+      for (const member of characters.cast) {
+        sources.push(member.backstory)
+      }
+    }
+    for (const backstory of sources) {
+      const name = extractFirstNameFromBackstory(backstory)
+      if (name) castNames.add(name.toLowerCase())
+    }
+  }
+
+  // Track all tertiary first names to detect tertiary-to-tertiary collisions
+  const tertiaryNameMap = new Map() // lowercased name -> location where first seen
+
+  for (let i = 0; i < data.locations.length; i++) {
+    const loc = data.locations[i]
+
+    if (!loc.name || typeof loc.name !== 'string' || loc.name.trim().length === 0) {
+      throw new Error(`Phase 3: location ${i + 1} missing or empty name`)
+    }
+
+    if (!loc.physicalDescription || typeof loc.physicalDescription !== 'string' || loc.physicalDescription.trim().length === 0) {
+      throw new Error(`Phase 3: location "${loc.name}" missing or empty physicalDescription`)
+    }
+
+    if (!loc.sensoryEnvironment || typeof loc.sensoryEnvironment !== 'string' || loc.sensoryEnvironment.trim().length === 0) {
+      throw new Error(`Phase 3: location "${loc.name}" missing or empty sensoryEnvironment`)
+    }
+
+    // Validate optional tertiaryCharacters
+    if (loc.tertiaryCharacters !== undefined && loc.tertiaryCharacters !== null) {
+      if (!Array.isArray(loc.tertiaryCharacters)) {
+        throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacters must be an array`)
+      }
+      for (let j = 0; j < loc.tertiaryCharacters.length; j++) {
+        const tc = loc.tertiaryCharacters[j]
+        if (!tc.name || typeof tc.name !== 'string' || tc.name.trim().length === 0) {
+          throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacter ${j + 1} missing or empty name`)
+        }
+        if (!tc.description || typeof tc.description !== 'string' || tc.description.trim().length === 0) {
+          throw new Error(`Phase 3: location "${loc.name}" tertiaryCharacter ${j + 1} missing or empty description`)
+        }
+
+        // Check tertiary name against main/secondary cast
+        const tcNameLower = tc.name.trim().toLowerCase()
+        if (castNames.has(tcNameLower)) {
+          throw new Error(`Phase 3: tertiary character "${tc.name}" at "${loc.name}" shares a name with a main/secondary cast member`)
+        }
+
+        // Check tertiary-to-tertiary collision
+        if (tertiaryNameMap.has(tcNameLower)) {
+          throw new Error(`Phase 3: tertiary character "${tc.name}" at "${loc.name}" shares a name with another tertiary character at "${tertiaryNameMap.get(tcNameLower)}"`)
+        }
+        tertiaryNameMap.set(tcNameLower, loc.name)
+      }
+    }
+
+    // Validate plausibleCharacters
+    if (!loc.plausibleCharacters || !Array.isArray(loc.plausibleCharacters) || loc.plausibleCharacters.length === 0) {
+      throw new Error(`Phase 3: location "${loc.name}" missing or empty plausibleCharacters array`)
+    }
+    for (const name of loc.plausibleCharacters) {
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error(`Phase 3: location "${loc.name}" has empty plausibleCharacters entry`)
+      }
+    }
+  }
+}
+
+/**
+ * Phase 3: Generate location descriptions.
+ * 7 sequential LLM passes, each focused on a specific character relationship.
+ * Output: master list of unique locations with physical, sensory, and optional tertiary character descriptions.
+ */
+async function executePhase3(setting, characters) {
+  console.log('\nExecuting Phase 3: Locations (7 passes)...')
+
+  // Collect off-limits names from all main/secondary cast
+  const offLimitsNames = []
+  const backstorySources = [
+    characters.protagonist && characters.protagonist.backstory,
+    characters.primary && characters.primary.backstory,
+    characters.rival && characters.rival.backstory
+  ]
+  if (characters.cast) {
+    for (const member of characters.cast) {
+      backstorySources.push(member.backstory)
+    }
+  }
+  for (const backstory of backstorySources) {
+    const name = extractFirstNameFromBackstory(backstory)
+    if (name) offLimitsNames.push(name)
+  }
+
+  const castNames = new Set(offLimitsNames.map(n => n.toLowerCase()))
+  let accumulatedLocations = []
+  const existingTertiaryNames = new Set()
+
+  for (let pass = 1; pass <= 7; pass++) {
+    console.log(`  Pass ${pass}/7: ${PASS_LABELS[pass]}...`)
+
+    const userPrompt = buildLocationPassUserPrompt(
+      pass, setting, characters, accumulatedLocations, offLimitsNames, existingTertiaryNames
+    )
+
+    let passResult = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await callClaude(PHASE_3_LOCATION_PASS_SYSTEM_PROMPT, userPrompt, {
+        model: 'claude-sonnet-4-20250514',
+        temperature: 1.0,
+        maxTokens: 8192
+      })
+      const parsed = parseJSON(response)
+      if (!parsed.success) {
+        console.warn(`  Pass ${pass} attempt ${attempt + 1} JSON parse failed: ${parsed.error}`)
+        continue
+      }
+      try {
+        validateLocationPass(parsed.data, pass, accumulatedLocations, castNames, existingTertiaryNames)
+        passResult = parsed.data
+        break
+      } catch (e) {
+        console.warn(`  Pass ${pass} attempt ${attempt + 1} validation failed: ${e.message}`)
+      }
+    }
+    if (!passResult) {
+      throw new Error(`Phase 3 pass ${pass} (${PASS_LABELS[pass]}) failed after 3 attempts`)
+    }
+
+    // Merge and track tertiary names
+    accumulatedLocations = mergePassResult(accumulatedLocations, passResult)
+    if (passResult.newLocations) {
+      for (const loc of passResult.newLocations) {
+        if (loc.tertiaryCharacters && Array.isArray(loc.tertiaryCharacters)) {
+          for (const tc of loc.tertiaryCharacters) {
+            existingTertiaryNames.add(tc.name.trim().toLowerCase())
+          }
+        }
+      }
+    }
+
+    console.log(`  Pass ${pass}: ${passResult.newLocations?.length || 0} new, ${passResult.existingLocations?.length || 0} tagged`)
+  }
+
+  // Final validation
+  const finalData = { locations: accumulatedLocations }
+  validatePhase3(finalData, characters)
+  console.log('  Phase 3 validated successfully.')
+
+  for (const loc of accumulatedLocations) {
+    console.log(`  Location: ${loc.name} (${loc.plausibleCharacters.join(', ')})`)
+  }
+
+  console.log(`\nPhase 3 complete. ${accumulatedLocations.length} locations.`)
+
+  return { locations: finalData }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase 4: Prose Generation
+// One LLM call per chapter, sequential. Each call writes one complete chapter.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const PHASE_4_BASE_SYSTEM_PROMPT = `You are Emily Brontë. You are writing a romance novel set in the world and with the characters described below. Write the next chapter as close to your natural prose style as you can — the sentence rhythms, the diction, the elemental imagery, the way you handle interiority through physical behaviour rather than narrated thought. Write as yourself.
+To achieve your style, read and adhere to the guidance provided in the PROSE STYLE ESSAY below. That essay describes how you write — follow it.
+One rule you must follow in every scene: when a character feels an emotion, do not name it. Write the physical behaviour that reveals it. Not "Elena felt anxiety" — write what her body does that lets the reader infer anxiety. Never label an emotion the reader can see for themselves.
+Write the next chapter as continuous prose. Each scene has a synopsis describing what happens. Write the scene so those events occur naturally through the prose.
+Write in third person limited from the protagonist's perspective. Scenes flow into each other within the chapter — use scene breaks (a blank line) only when location or time shifts.
+Every detail established in previous chapters is canon. This includes character facts (names, ages, appearances, relationships), world details (objects, locations, physical descriptions), and narrative events (promises, ultimatums, decisions, timelines, unresolved plot threads). Do not contradict, alter, or duplicate any established fact.`
+
+/**
+ * Build the Phase 4 system prompt, conditionally appending a style essay.
+ * Defaults to 'bronte' when no styleKey is provided (for testing).
+ */
+function buildPhase4SystemPrompt(styleKey) {
+  const effectiveKey = styleKey || 'bronte'
+  const selectedStyleEssay = STYLE_ESSAYS[effectiveKey] || ''
+
+  if (!selectedStyleEssay) {
+    return PHASE_4_BASE_SYSTEM_PROMPT
+  }
+
+  return `${PHASE_4_BASE_SYSTEM_PROMPT}
+
+=== PROSE STYLE ESSAY ===
+
+${selectedStyleEssay}`
+}
+
+const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your sole task is to find and fix contradictions in the new chapter.
+
+Check the new chapter against:
+- Character documents: names, ages, relationships, appearances, backstories, psychology, voice and mannerisms. Every fact in the character documents is authoritative. The prose must not contradict any of them.
+- Location documents: physical descriptions, sensory details. Every fact in the location documents is authoritative. The prose must not contradict any of them.
+- Scene summaries: planned events and character appearances.
+- Previous chapters' prose: any detail established in earlier chapters is canon. Ages, object descriptions, names, events, decisions, unresolved plot threads — all must remain consistent.
+
+Rules:
+- Only fix contradictions. Do not alter style, tone, pacing, word choice, or prose quality.
+- Do not add content. Do not remove content unless it directly contradicts established facts.
+- When fixing a contradiction, change the minimum number of words necessary to resolve it.
+- No newly introduced character may share a name (first or last) with any character in the character documents or any character previously named in the prose. If a duplicate name is found, replace it with a different name that fits the setting and time period.
+- If you find no contradictions, return the chapter unchanged.
+
+Return ONLY the complete chapter text. No analysis, no commentary, no preamble, no explanation, no headers. Your entire response must be the chapter prose and nothing else.`
+
+async function validateAndFixCoherence(prose, characters, locations, sceneSummaries, previousChaptersProse) {
+  // ── Character block (same format as writing call) ──
+  let characterBlock = `=== CHARACTER DOCUMENTS ===
+
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
+Appearance: ${characters.protagonist.appearance}
+
+--- PRIMARY ---
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}
+Appearance: ${characters.primary.appearance}`
+
+  if (characters.rival) {
+    characterBlock += `
+
+--- RIVAL ---
+Backstory: ${characters.rival.backstory}
+Psychology: ${characters.rival.psychology}
+Voice and mannerisms: ${characters.rival.voiceAndMannerisms}
+Appearance: ${characters.rival.appearance}`
+  }
+
+  if (characters.cast?.length > 0) {
+    for (const member of characters.cast) {
+      characterBlock += `
+
+--- ${member.functionId} ---
+Backstory: ${member.backstory}
+Psychology: ${member.psychology}
+Voice and mannerisms: ${member.voiceAndMannerisms}
+Appearance: ${member.appearance}`
+    }
+  }
+
+  // ── Location block (ALL locations, not filtered) ──
+  const locationArray = locations.locations || locations
+  let locationBlock = '=== LOCATION DOCUMENTS ==='
+  for (const loc of locationArray) {
+    locationBlock += `
+
+--- ${loc.name} ---
+Physical: ${loc.physicalDescription}
+Sensory: ${loc.sensoryEnvironment}`
+  }
+
+  // ── Scene summaries (ALL chapters) ──
+  let summariesBlock = '=== SCENE SUMMARIES ==='
+  for (const ch of sceneSummaries.chapters) {
+    summariesBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---`
+    for (let i = 0; i < ch.scenes.length; i++) {
+      const scene = ch.scenes[i]
+      summariesBlock += `\nScene ${i + 1}: ${scene.location}`
+      summariesBlock += `\n  Characters: ${scene.characters.join(', ')}`
+      summariesBlock += `\n  Synopsis: ${scene.synopsis}`
+    }
+  }
+
+  // ── Previous chapters' prose ──
+  let previousProseBlock = ''
+  if (previousChaptersProse?.length > 0) {
+    previousProseBlock = '=== PREVIOUS CHAPTERS PROSE ==='
+    for (const ch of previousChaptersProse) {
+      previousProseBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---\n${ch.prose}`
+    }
+  }
+
+  // ── New chapter ──
+  const newChapterBlock = `=== NEW CHAPTER TO VALIDATE ===
+
+${prose}`
+
+  // ── Assemble ──
+  const blocks = [characterBlock, locationBlock, summariesBlock]
+  if (previousProseBlock) blocks.push(previousProseBlock)
+  blocks.push(newChapterBlock)
+  const userPrompt = blocks.join('\n\n') + '\n\nFind and fix any contradictions in the new chapter. Return the complete corrected chapter text.'
+
+  let corrected = await callClaude(COHERENCE_VALIDATION_SYSTEM_PROMPT, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 0,
+    maxTokens: 16385
+  })
+
+  // Strip any commentary preamble the validator may have prepended.
+  // Find the first line of the original prose and discard everything before it.
+  const firstLine = prose.split('\n').find(l => l.trim().length > 0)
+  if (firstLine && !corrected.trimStart().startsWith(firstLine.trim())) {
+    const idx = corrected.indexOf(firstLine.trim())
+    if (idx > 0) {
+      console.log(`  Coherence validator prepended commentary (${idx} chars) — stripping.`)
+      corrected = corrected.slice(idx)
+    }
+  }
+
+  return corrected
+}
+
+function buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse) {
+  const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
+  const previousChapters = sceneSummaries.chapters.slice(0, chapterNumber - 1)
+
+  // ── Block 1: Characters ──
+  let characterBlock = `=== CHARACTERS ===
+
+--- PROTAGONIST ---${characters.protagonist.coreBelief ? `\nCore belief: ${characters.protagonist.coreBelief}` : ''}${characters.protagonist.theCost ? `\nThe cost: ${characters.protagonist.theCost}` : ''}
+Backstory: ${characters.protagonist.backstory}
+Psychology: ${characters.protagonist.psychology}
+Voice and mannerisms: ${characters.protagonist.voiceAndMannerisms}
+Appearance: ${characters.protagonist.appearance}
+
+--- PRIMARY ---
+Backstory: ${characters.primary.backstory}
+Psychology: ${characters.primary.psychology}
+Voice and mannerisms: ${characters.primary.voiceAndMannerisms}
+Appearance: ${characters.primary.appearance}`
+
+  if (characters.rival) {
+    characterBlock += `
+
+--- RIVAL ---
+Backstory: ${characters.rival.backstory}
+Psychology: ${characters.rival.psychology}
+Voice and mannerisms: ${characters.rival.voiceAndMannerisms}
+Appearance: ${characters.rival.appearance}`
+  }
+
+  if (characters.cast && characters.cast.length > 0) {
+    for (const member of characters.cast) {
+      characterBlock += `
+
+--- ${member.functionId} ---
+Backstory: ${member.backstory}
+Psychology: ${member.psychology}
+Voice and mannerisms: ${member.voiceAndMannerisms}
+Appearance: ${member.appearance}`
+    }
+  }
+
+  // ── Block 2: Locations (this chapter only) ──
+  const chapterLocationNames = new Set()
+  for (const scene of chapterSummary.scenes) {
+    chapterLocationNames.add(normalizeForMatch(scene.location))
+  }
+
+  const locationArray = locations.locations || locations
+  const relevantLocations = locationArray.filter(loc =>
+    chapterLocationNames.has(normalizeForMatch(loc.name)) ||
+    [...chapterLocationNames].some(sceneLoc =>
+      normalizeForMatch(loc.name).includes(sceneLoc) || sceneLoc.includes(normalizeForMatch(loc.name)) ||
+      wordOverlap(sceneLoc, normalizeForMatch(loc.name)) >= 0.5
+    )
+  )
+
+  let locationBlock = '=== LOCATIONS ==='
+  for (const loc of relevantLocations) {
+    locationBlock += `
+
+--- ${loc.name} ---
+Physical: ${loc.physicalDescription}
+Sensory: ${loc.sensoryEnvironment}`
+  }
+
+  // ── Block 3: Previous chapters' scene summaries (the ledger) ──
+  let ledgerBlock = ''
+  if (previousChapters.length > 0) {
+    ledgerBlock = '=== STORY SO FAR (scene summaries) ==='
+    for (const ch of previousChapters) {
+      ledgerBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---`
+      for (let i = 0; i < ch.scenes.length; i++) {
+        const scene = ch.scenes[i]
+        ledgerBlock += `\nScene ${i + 1}: ${scene.location}`
+        ledgerBlock += `\n  Characters: ${scene.characters.join(', ')}`
+        ledgerBlock += `\n  Synopsis: ${scene.synopsis}`
+      }
+    }
+  }
+
+  // ── Block 4: All previous chapters' prose ──
+  let previousProseBlock = ''
+  if (previousProse && previousProse.length > 0) {
+    previousProseBlock = '=== PREVIOUS CHAPTERS PROSE ==='
+    for (const ch of previousProse) {
+      previousProseBlock += `\n\n--- Chapter ${ch.chapter}: ${ch.title} ---\n${ch.prose}`
+    }
+  }
+
+  // ── Block 5: This chapter's scene summaries ──
+  let thisChapterBlock = `=== THIS CHAPTER: Chapter ${chapterSummary.chapter}: "${chapterSummary.title}" ===`
+  for (let i = 0; i < chapterSummary.scenes.length; i++) {
+    const scene = chapterSummary.scenes[i]
+    thisChapterBlock += `\n\nScene ${i + 1}: ${scene.location}`
+    thisChapterBlock += `\n  Characters: ${scene.characters.join(', ')}`
+    thisChapterBlock += `\n  Synopsis: ${scene.synopsis}`
+  }
+
+  // ── Assemble ──
+  const blocks = [characterBlock, locationBlock]
+  if (ledgerBlock) blocks.push(ledgerBlock)
+  if (previousProseBlock) blocks.push(previousProseBlock)
+  blocks.push(thisChapterBlock)
+
+  return blocks.join('\n\n') + `\n\nWrite Chapter ${chapterSummary.chapter}: "${chapterSummary.title}"`
+}
+
+function validatePhase4(prose, chapterNumber) {
+  if (!prose || typeof prose !== 'string') {
+    throw new Error(`Phase 4: chapter ${chapterNumber} returned empty or non-string response`)
+  }
+  if (prose.length < 500) {
+    throw new Error(`Phase 4: chapter ${chapterNumber} prose too short (${prose.length} chars, minimum 500)`)
+  }
+}
+
+async function executePhase4Chapter(chapterNumber, characters, sceneSummaries, locations, previousChaptersProse, styleKey) {
+  const chapterSummary = sceneSummaries.chapters[chapterNumber - 1]
+  const previousProse = previousChaptersProse || []
+
+  console.log(`\n  Writing Chapter ${chapterNumber}: "${chapterSummary.title}" (${chapterSummary.scenes.length} scenes)...`)
+  if (styleKey) console.log(`  Prose style: ${styleKey}`)
+
+  const systemPrompt = buildPhase4SystemPrompt(styleKey)
+  const userPrompt = buildPhase4UserPrompt(chapterNumber, characters, sceneSummaries, locations, previousProse)
+
+  const response = await callClaude(systemPrompt, userPrompt, {
+    model: 'claude-sonnet-4-20250514',
+    temperature: 1.0,
+    maxTokens: 16385
+  })
+
+  validatePhase4(response, chapterNumber)
+
+  console.log(`  Chapter ${chapterNumber} draft: ${response.length} chars — running coherence validation...`)
+  const correctedProse = await validateAndFixCoherence(response, characters, locations, sceneSummaries, previousProse)
+  validatePhase4(correctedProse, chapterNumber)
+  console.log(`  Chapter ${chapterNumber} validated: ${correctedProse.length} chars`)
+
+  return {
+    chapter: chapterSummary.chapter,
+    title: chapterSummary.title,
+    prose: correctedProse
+  }
+}
+
+/**
+ * Pipeline entry point.
+ * Rolls a skeleton, generates characters (Phase 1), locations (Phase 2),
+ * and scene summaries (Phase 3).
+ *
+ * @param {string} setting - User-provided setting string
+ * @returns {Promise<Object>} Object with skeleton, characters, locations, and sceneSummaries
+ */
+export async function generateStory(setting) {
+  const skeleton = rollSkeleton()
+  const phase1 = await executePhase1(skeleton, setting)
+  const phase2 = await executePhase3(setting, phase1.characters)              // locations
+  const phase3 = await executePhase2(skeleton, phase1.characters, setting, phase2.locations)  // scenes
+
+  // Phase 4 is now caller-driven, one chapter at a time
+  console.log('\n=== Phases 1-3 Complete. Use executePhase4Chapter for prose. ===')
+
+  return { skeleton, characters: phase1.characters, sceneSummaries: phase3.sceneSummaries, locations: phase2.locations }
+}
+
+export {
+  callClaude,
+  callChatGPT,
+  parseJSON,
+  getLevelDefinition,
+  formatLevelDefinitionForPrompt,
+  executePhase1,
+  executePhase2,
+  executePhase3,
+  executePhase4Chapter,
+  CONFIG,
+  LEVEL_DEFINITIONS,
+  LANGUAGE_LEVEL_ADJUSTMENTS
+}
+
+export default {
+  generateStory,
+  callClaude,
+  callChatGPT,
+  parseJSON,
+  executePhase1,
+  executePhase2,
+  executePhase3,
+  executePhase4Chapter,
+  CONFIG,
+  LEVEL_DEFINITIONS,
+  LANGUAGE_LEVEL_ADJUSTMENTS
+}
+

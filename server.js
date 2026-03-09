@@ -1,0 +1,11109 @@
+// Environment configuration: set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and SPOTIFY_REDIRECT_URI
+// in your .env file before running the server. Example for local dev:
+// SPOTIFY_CLIENT_ID=your_client_id
+// SPOTIFY_CLIENT_SECRET=your_client_secret
+// SPOTIFY_REDIRECT_URI=http://localhost:4000/api/spotify/callback
+import express from 'express'
+import dotenv from 'dotenv'
+import multer from 'multer'
+import os from 'os'
+import path from 'path'
+import fs from 'fs/promises'
+import { createReadStream } from 'fs'
+import pdfParse from 'pdf-parse'
+import admin from 'firebase-admin'
+import { Readable } from 'stream'
+import ffmpeg from 'fluent-ffmpeg'
+import ffmpegStatic from 'ffmpeg-static'
+import { spawn } from 'child_process'
+import { createRequire } from 'module'
+import ytdl from '@distube/ytdl-core'
+import { existsSync } from 'fs'
+import OpenAI from 'openai'
+import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
+import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
+import { rollSkeleton } from './storyBlueprints.js'
+import { WebSocketServer } from 'ws'
+import http from 'http'
+
+// Non-import statements must come after all imports
+const require = createRequire(import.meta.url)
+const { EPub } = require('epub2')
+dotenv.config()
+
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic)
+}
+
+// Initialize Firebase Admin conditionally
+let bucket = null
+let firestore = null
+const serviceAccountPath = new URL('./serviceAccountKey.json', import.meta.url).pathname
+if (existsSync(serviceAccountPath)) {
+  const serviceAccount = require('./serviceAccountKey.json')
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: 'intongues2.firebasestorage.app',
+    })
+  }
+  bucket = admin.storage().bucket()
+  firestore = admin.firestore()
+} else {
+  console.warn('Warning: serviceAccountKey.json not found. Firebase Admin features disabled.')
+}
+
+export { bucket }
+
+const SPOTIFY_SCOPES = [
+  'user-read-email',
+  'user-read-private',
+  'user-library-read',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+  'user-read-playback-state',
+  'user-modify-playback-state',
+  'streaming',
+].join(' ')
+
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173'
+const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
+
+const LANGUAGE_NAME_TO_CODE = {
+  English: 'en',
+  French: 'fr',
+  Spanish: 'es',
+  Italian: 'it',
+}
+
+const LANGUAGE_CODE_TO_NAME = Object.fromEntries(
+  Object.entries(LANGUAGE_NAME_TO_CODE).map(([label, code]) => [code, label]),
+)
+
+const ELEVENLABS_VOICE_MAP = {
+  English: {
+    male: 'NFG5qt843uXKj4pFvR7C',
+    female: 'ZF6FPAbjXT4488VcRRnw',
+  },
+  Spanish: {
+    male: 'kulszILr6ees0ArU8miO',
+    female: '1WXz8v08ntDcSTeVXMN2',
+  },
+  French: {
+    male: 'UBXZKOKbt62aLQHhc1Jm',
+    female: 'sANWqF1bCMzR6eyZbCGw',
+  },
+  Italian: {
+    male: 'W71zT1VwIFFx3mMGH2uZ',
+    female: 'gfKKsLN1k0oYYN9n2dXX',
+  },
+}
+
+const SUPPORTED_VOICE_GENDERS = new Set(['male', 'female'])
+
+const SUPPORTED_LANGUAGE_CODES = new Set(Object.values(LANGUAGE_NAME_TO_CODE))
+
+function normalizeLanguageLabel(language) {
+  const raw = String(language || '').trim()
+  if (!raw) return ''
+
+  if (LANGUAGE_NAME_TO_CODE[raw]) return raw
+
+  const lowered = raw.toLowerCase()
+  const matchedLabel = Object.keys(LANGUAGE_NAME_TO_CODE).find(
+    (label) => label.toLowerCase() === lowered,
+  )
+
+  if (matchedLabel) return matchedLabel
+
+  return LANGUAGE_CODE_TO_NAME[lowered] || ''
+}
+
+function normalizeBaseLanguageCode(language) {
+  const raw = String(language || '').trim()
+  if (!raw) return ''
+
+  return raw.toLowerCase()
+}
+
+function isValidLanguageCode(language) {
+  if (!language || typeof language !== 'string') return false
+
+  return /^[a-z]{2,3}(?:-[A-Za-z0-9]+)*$/.test(language.trim())
+}
+
+function resolveTargetCode(targetLang) {
+  if (!targetLang || targetLang === 'auto') return null  // Let Whisper auto-detect
+
+  // Case-insensitive lookup for language names
+  const lowered = targetLang.toLowerCase()
+  for (const [name, code] of Object.entries(LANGUAGE_NAME_TO_CODE)) {
+    if (name.toLowerCase() === lowered) {
+      return code
+    }
+  }
+
+  // Check if it's already a valid language code
+  if (SUPPORTED_LANGUAGE_CODES.has(targetLang)) return targetLang
+  if (SUPPORTED_LANGUAGE_CODES.has(lowered)) return lowered
+
+  return null  // Unknown language - let Whisper auto-detect
+}
+
+function resolveElevenLabsVoiceId(language, voiceGender) {
+  const normalizedLanguage = normalizeLanguageLabel(language)
+  if (!normalizedLanguage || !ELEVENLABS_VOICE_MAP[normalizedLanguage]) {
+    const message = `Unsupported language for voice selection: ${language || 'unknown'}`
+    console.error(message)
+    throw new Error(message)
+  }
+
+  const normalizedGender = String(voiceGender || '').trim().toLowerCase()
+  if (!SUPPORTED_VOICE_GENDERS.has(normalizedGender)) {
+    const message = `Invalid voice gender selection: ${voiceGender || 'unknown'}`
+    console.error(message)
+    throw new Error(message)
+  }
+
+  const voiceId = ELEVENLABS_VOICE_MAP[normalizedLanguage]?.[normalizedGender]
+  if (!voiceId) {
+    const message = `Missing ElevenLabs voiceId for ${normalizedLanguage} (${normalizedGender})`
+    console.error(message)
+    throw new Error(message)
+  }
+
+  return { voiceId, voiceGender: normalizedGender, language: normalizedLanguage }
+}
+
+function escapeForSsml(text) {
+  return (text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+let client = null
+if (process.env.OPENAI_API_KEY) {
+  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+} else {
+  console.warn('Warning: OPENAI_API_KEY not set. OpenAI features disabled.')
+}
+
+const ADAPTATION_SYSTEM_PROMPT = `
+You are adapting a book for language learners. Write only in the requested target language.
+
+LEVELS:
+
+NATIVE (Translation):
+- This is TRANSLATION, not adaptation—preserve full complexity
+- Maintain the author's sentence structure, vocabulary sophistication, and literary style
+- Preserve the author's deliberate choices: if they use Latin phrases (e.g., "sine qua non"), foreign words, or technical terms, keep them
+- Convert English idioms and expressions to natural equivalents in the target language (not literal word-for-word translations)
+- For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
+- Maintain the same register (formal, academic, literary, colloquial, etc.)
+
+INTERMEDIATE (Accessible):
+- Simplify vocabulary: replace rare/literary words with common equivalents
+- Shorter sentences: split complex sentences, but keep natural flow
+- The author's voice should still be recognizable—simplify HOW things are said, not WHAT is said
+- PRESERVE distinctive metaphors and imagery (simplify the language around them, but keep the image)
+  Example: "the demon of earthquake may shrug his shoulders" → keep the demon and the shrug, simplify other words
+- Replace Latin/foreign phrases with accessible equivalents (e.g., "sine qua non" → "essential requirement")
+- Clarify implicit meaning—if something is implied, make it slightly more explicit
+- CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
+
+BEGINNER (Easy):
+- Short sentences (8-12 words average), common everyday words, explicit meaning
+- Freely restructure and split complex ideas into simple statements
+- Prioritize clarity over style—this level must be accessible to absolute beginners
+- Author's voice is NOT a priority at this level; clarity comes first
+- Convert metaphors and figurative language to concrete, literal statements
+  Example: "the demon of earthquake may shrug his shoulders" → "earthquakes can destroy our cities"
+- Remove or replace all literary flourishes, idioms, and abstract imagery
+- Make all meaning obvious and direct—nothing should require inference
+
+FREEDOMS (for Intermediate and Beginner only):
+- Use any vocabulary that conveys the same meaning
+- Restructure sentences, split clauses, reorder ideas
+- Not bound by the author's syntax or word choices
+- Only bound by meaning and appropriate grading
+
+NEVER:
+- Skip sentences or omit concepts from the original
+- Summarize multiple sentences into one
+- Remove dialogue, descriptions, events, or character actions
+- Add content not present in the original
+- Omit names, places, or plot-critical details
+- Invert or change the author's meaning (simplify expression, not content)
+- For Intermediate: replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
+
+ALWAYS:
+- Represent every concept from the source
+- Preserve all proper nouns (use target language spelling where standard, e.g., London → Londres)
+- Maintain the same narrative beats
+- Use natural punctuation and full sentences
+- Preserve paragraph breaks from the original text (use blank lines between paragraphs)
+- Return only adapted text with no commentary or markup
+`
+
+// Map legacy CEFR levels to new simplified levels
+function mapLevelToSimplified(level) {
+  const normalized = (level || '').toUpperCase().trim()
+  if (['A1', 'A2'].includes(normalized) || normalized === 'BEGINNER') return 'Beginner'
+  if (['B1', 'B2'].includes(normalized) || normalized === 'INTERMEDIATE') return 'Intermediate'
+  if (['C1', 'C2'].includes(normalized) || normalized === 'NATIVE') return 'Native'
+  // Default to Intermediate if unrecognized
+  return 'Intermediate'
+}
+
+// ============================================================
+// CHAPTER STRUCTURE PARSING
+// ============================================================
+
+const CHAPTER_STRUCTURE_PROMPT = `
+You are analyzing the structure of a book chapter. Your task is to identify and separate:
+
+1. CHAPTER HEADER: The chapter number and title (e.g., "CHAPTER I The Conditions of Civilization")
+2. CHAPTER OUTLINE: Any table of contents, scope list, or topic outline that typically appears after the title, often separated by em-dashes (—) or similar punctuation (e.g., "Definition — Geographic Conditions — Economic Conditions — Racial Conditions")
+3. BODY TEXT: The actual prose content of the chapter
+
+RULES:
+- The header is typically at the very beginning, often in a distinctive format (CHAPTER/CAPÍTULO + number + title)
+- The outline often contains em-dashes (—) or semicolons separating topics
+- The body text is where the actual narrative/exposition begins - usually the first complete sentence that isn't part of a list
+- If there's no clear outline section, return an empty string for chapterOutline
+- If the chapter number/title is embedded in the text, still extract it
+
+Return a JSON object with exactly these three fields:
+{
+  "chapterHeader": "the chapter number and title",
+  "chapterOutline": "the topic outline if present, empty string if not",
+  "bodyText": "the main prose content"
+}
+
+Return ONLY valid JSON, no other text or explanation.
+`
+
+/**
+ * Parses chapter structure using AI to identify header, outline, and body
+ * @param {string} chapterText - The raw chapter text
+ * @returns {Promise<{chapterHeader: string, chapterOutline: string, bodyText: string}>}
+ */
+async function parseChapterStructure(chapterText) {
+  if (!chapterText || !chapterText.trim()) {
+    return { chapterHeader: '', chapterOutline: '', bodyText: '' }
+  }
+
+  try {
+    // Only send the first ~2000 chars for structure detection (header/outline are at the start)
+    const sampleText = chapterText.slice(0, 2000)
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
+      input: [
+        {
+          role: 'system',
+          content: CHAPTER_STRUCTURE_PROMPT,
+        },
+        {
+          role: 'user',
+          content: `Analyze the structure of this chapter text:\n\n${sampleText}`,
+        },
+      ],
+    })
+
+    const responseText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+    // Parse JSON response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.warn('Chapter structure parsing returned non-JSON, using fallback')
+      return { chapterHeader: '', chapterOutline: '', bodyText: chapterText }
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+
+    // Validate the parsed structure
+    const chapterHeader = (parsed.chapterHeader || '').trim()
+    const chapterOutline = (parsed.chapterOutline || '').trim()
+    let bodyText = (parsed.bodyText || '').trim()
+
+    // If body text was truncated (because we only sent 2000 chars), get the full body
+    if (bodyText && chapterText.length > 2000) {
+      // Find where the body starts in the original text
+      const bodyStartIndex = chapterText.indexOf(bodyText.slice(0, 100))
+      if (bodyStartIndex !== -1) {
+        bodyText = chapterText.slice(bodyStartIndex).trim()
+      } else {
+        // Fallback: remove header and outline from original text
+        let fullBodyText = chapterText
+        if (chapterHeader) {
+          fullBodyText = fullBodyText.replace(chapterHeader, '').trim()
+        }
+        if (chapterOutline) {
+          fullBodyText = fullBodyText.replace(chapterOutline, '').trim()
+        }
+        bodyText = fullBodyText
+      }
+    }
+
+    console.log(`Parsed chapter structure - Header: "${chapterHeader.slice(0, 50)}...", Outline: ${chapterOutline ? 'present' : 'none'}, Body: ${bodyText.length} chars`)
+
+    return { chapterHeader, chapterOutline, bodyText }
+  } catch (error) {
+    console.error('Error parsing chapter structure:', error)
+    // Fallback: return everything as body text
+    return { chapterHeader: '', chapterOutline: '', bodyText: chapterText }
+  }
+}
+
+// ============================================================
+// ADAPTATION REFINEMENT UTILITIES
+// ============================================================
+
+const ADAPTATION_WITH_CONTEXT_PROMPT = `
+You are adapting a book for language learners. Write only in the requested target language.
+
+LEVELS:
+
+NATIVE (Translation):
+- This is TRANSLATION, not adaptation—preserve full complexity
+- Maintain the author's sentence structure, vocabulary sophistication, and literary style
+- Preserve the author's deliberate choices: if they use Latin phrases (e.g., "sine qua non"), foreign words, or technical terms, keep them
+- Convert English idioms and expressions to natural equivalents in the target language (not literal word-for-word translations)
+- For wordplay or etymology-based arguments, find the closest natural equivalent that preserves the author's intent
+- Maintain the same register (formal, academic, literary, colloquial, etc.)
+
+INTERMEDIATE (Accessible):
+- Simplify vocabulary: replace rare/literary words with common equivalents
+- Shorter sentences: split complex sentences, but keep natural flow
+- The author's voice should still be recognizable—simplify HOW things are said, not WHAT is said
+- PRESERVE distinctive metaphors and imagery (simplify the language around them, but keep the image)
+  Example: "the demon of earthquake may shrug his shoulders" → keep the demon and the shrug, simplify other words
+- Replace Latin/foreign phrases with accessible equivalents (e.g., "sine qua non" → "essential requirement")
+- Clarify implicit meaning—if something is implied, make it slightly more explicit
+- CRITICAL: Preserve meaning accurately. Never invert or change what the author is saying, only how they say it
+
+BEGINNER (Easy):
+- Short sentences (8-12 words average), common everyday words, explicit meaning
+- Freely restructure and split complex ideas into simple statements
+- Prioritize clarity over style—this level must be accessible to absolute beginners
+- Author's voice is NOT a priority at this level; clarity comes first
+- Convert metaphors and figurative language to concrete, literal statements
+  Example: "the demon of earthquake may shrug his shoulders" → "earthquakes can destroy our cities"
+- Remove or replace all literary flourishes, idioms, and abstract imagery
+- Make all meaning obvious and direct—nothing should require inference
+
+FREEDOMS (for Intermediate and Beginner only):
+- Use any vocabulary that conveys the same meaning
+- Restructure sentences, split clauses, reorder ideas
+- Not bound by the author's syntax or word choices
+- Only bound by meaning and appropriate grading
+
+NEVER:
+- Skip sentences or omit concepts from the original
+- Summarize multiple sentences into one
+- Remove dialogue, descriptions, events, or character actions
+- Add content not present in the original
+- Omit names, places, or plot-critical details
+- Invert or change the author's meaning (simplify expression, not content)
+- For Intermediate: replace distinctive metaphors with plain statements (simplify the metaphor, keep the image)
+
+ALWAYS:
+- Represent every concept from the source
+- Preserve all proper nouns (use target language spelling where standard, e.g., London → Londres)
+- Maintain the same narrative beats
+- Use natural punctuation and full sentences
+- Preserve paragraph breaks from the original text (use blank lines between paragraphs)
+- Return only adapted text with no commentary or markup
+
+CONTEXT AWARENESS:
+- You will be given the last few sentences of previously adapted text for continuity
+- Maintain consistent character names, terminology, and style
+- Ensure smooth transitions from the previous text
+- Do NOT repeat the context - continue from where it left off
+`
+
+const REFINEMENT_PROMPT = `
+You are refining an adapted text for language learners. The previous adaptation had issues.
+
+TASK:
+- Review the ORIGINAL text and the PREVIOUS ADAPTATION
+- Apply the USER FEEDBACK to improve the adaptation
+- Produce a refined version that addresses the issues
+
+RULES:
+- Maintain the same target language and level
+- Address the specific feedback provided
+- Keep all content from the original - no omissions
+- Preserve proper nouns exactly as written
+- Return only the refined adapted text with no commentary
+`
+
+/**
+ * Validates adapted text quality
+ * Returns { valid: boolean, issues: string[] }
+ */
+function validateAdaptation(originalText, adaptedText, options = {}) {
+  const issues = []
+
+  if (!adaptedText || !adaptedText.trim()) {
+    return { valid: false, issues: ['Empty adaptation'] }
+  }
+
+  const originalLength = originalText.length
+  const adaptedLength = adaptedText.length
+  const ratio = adaptedLength / originalLength
+
+  // Check length ratio - adapted text should be roughly similar length
+  // Allow wider range for beginner level (may be longer due to simpler explanations)
+  const minRatio = options.level === 'Beginner' ? 0.3 : 0.4
+  const maxRatio = options.level === 'Beginner' ? 3.0 : 2.5
+
+  if (ratio < minRatio) {
+    issues.push(`Adaptation too short (${Math.round(ratio * 100)}% of original)`)
+  }
+  if (ratio > maxRatio) {
+    issues.push(`Adaptation too long (${Math.round(ratio * 100)}% of original)`)
+  }
+
+  // Check for incomplete sentences (ends with incomplete punctuation)
+  const trimmed = adaptedText.trim()
+  const lastChar = trimmed[trimmed.length - 1]
+  const validEndings = ['.', '!', '?', '"', "'", ')', '」', '。', '！', '？', '"']
+  if (!validEndings.includes(lastChar)) {
+    issues.push('Adaptation ends mid-sentence')
+  }
+
+  // Extract proper nouns from original (capitalized words not at sentence start)
+  const properNounPattern = /(?<=[.!?]\s+|\n)[A-Z][a-z]+|(?<=\s)[A-Z][a-z]+(?=\s)/g
+  const originalProperNouns = originalText.match(properNounPattern) || []
+  const uniqueProperNouns = [...new Set(originalProperNouns)]
+
+  // Check if major proper nouns are preserved (at least 70%)
+  if (uniqueProperNouns.length > 0) {
+    const preservedCount = uniqueProperNouns.filter(noun =>
+      adaptedText.includes(noun)
+    ).length
+    const preservationRate = preservedCount / uniqueProperNouns.length
+
+    if (preservationRate < 0.7) {
+      issues.push(`Only ${Math.round(preservationRate * 100)}% of proper nouns preserved`)
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues
+  }
+}
+
+/**
+ * Extracts a context window from previously adapted text
+ * Returns the last N characters, ending at a sentence boundary
+ */
+function extractContextWindow(previousText, maxChars = 500) {
+  if (!previousText || !previousText.trim()) {
+    return ''
+  }
+
+  const text = previousText.trim()
+
+  if (text.length <= maxChars) {
+    return text
+  }
+
+  // Get last maxChars characters
+  let context = text.slice(-maxChars)
+
+  // Find the first sentence boundary to start cleanly
+  const sentenceBreaks = ['. ', '! ', '? ', '.\n', '!\n', '?\n']
+  let firstBreak = -1
+
+  for (const brk of sentenceBreaks) {
+    const idx = context.indexOf(brk)
+    if (idx !== -1 && (firstBreak === -1 || idx < firstBreak)) {
+      firstBreak = idx + brk.length
+    }
+  }
+
+  if (firstBreak !== -1 && firstBreak < context.length - 50) {
+    context = context.slice(firstBreak)
+  }
+
+  return context.trim()
+}
+
+/**
+ * Adapts text with retry logic for quality validation
+ * Returns { text: string, attempts: number, issues: string[] }
+ */
+async function adaptWithRetry(pageText, options, maxRetries = 2) {
+  const { targetLanguage, level, context, client: apiClient } = options
+
+  let attempts = 0
+  let lastIssues = []
+  let lastAdapted = ''
+
+  while (attempts < maxRetries) {
+    attempts++
+
+    try {
+      // Build prompt based on whether we have context
+      let systemPrompt = context ? ADAPTATION_WITH_CONTEXT_PROMPT : ADAPTATION_SYSTEM_PROMPT
+
+      // Use "Translate" for Native level, "Adapt" for others
+      let userPrompt = level === 'Native'
+        ? `Translate the following text into ${targetLanguage} at Native level (full complexity, natural idioms):`
+        : `Adapt the following text to ${level} level in ${targetLanguage}:`
+
+      if (context) {
+        userPrompt = `PREVIOUS CONTEXT (do not repeat, continue from here):\n"${context}"\n\n${userPrompt}`
+      }
+
+      // Add feedback from previous failed attempt
+      if (attempts > 1 && lastIssues.length > 0) {
+        userPrompt = `PREVIOUS ISSUES TO FIX:\n${lastIssues.map(i => `- ${i}`).join('\n')}\n\n${userPrompt}`
+      }
+
+      userPrompt += `\n\n${pageText}`
+
+      const response = await apiClient.responses.create({
+        model: 'gpt-4.1',
+        input: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      })
+
+      const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+      lastAdapted = adaptedText
+
+      // Validate the adaptation
+      const validation = validateAdaptation(pageText, adaptedText, { level })
+
+      if (validation.valid) {
+        return { text: adaptedText, attempts, issues: [] }
+      }
+
+      lastIssues = validation.issues
+      console.log(`Adaptation attempt ${attempts} had issues:`, lastIssues)
+
+    } catch (error) {
+      console.error(`Adaptation attempt ${attempts} failed:`, error)
+      lastIssues = [`API error: ${error.message}`]
+    }
+  }
+
+  // Return best attempt even if not perfect
+  return { text: lastAdapted, attempts, issues: lastIssues }
+}
+
+const app = express()
+app.use(express.json({ limit: '50mb' }))
+
+const TTS_SUPPORTS_SSML = process.env.TTS_ALLOW_SSML !== '0'
+const TTS_SUPPORTS_LANGUAGE_PARAM = process.env.TTS_ALLOW_LANGUAGE_PARAM !== '0'
+
+const logTtsMethod = (method, lang) => {
+  if (process.env.TTS_DEBUG === '1') {
+    console.log(`TTS_LANG_LOCK_METHOD=${method} lang=${lang}`)
+  }
+}
+
+async function requestElevenLabsTts(text, voiceId) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+  if (!apiKey) {
+    throw new Error('Missing ELEVENLABS_API_KEY')
+  }
+
+  if (!voiceId) {
+    throw new Error('Missing ElevenLabs voiceId')
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  let response
+  try {
+    response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          text,
+        }),
+        signal: controller.signal,
+      },
+    )
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    const trimmedErrorText = errorText ? errorText.slice(0, 400) : ''
+    throw new Error(
+      `ElevenLabs request failed (${response.status}): ${trimmedErrorText || response.statusText}`,
+    )
+  }
+
+  return Buffer.from(await response.arrayBuffer())
+}
+
+// Default voice IDs for imported content (YouTube, Spotify, etc.)
+// Uses male voice as default per language
+const DEFAULT_IMPORT_VOICE_IDS = {
+  english: 'NFG5qt843uXKj4pFvR7C',
+  spanish: 'kulszILr6ees0ArU8miO',
+  french: 'UBXZKOKbt62aLQHhc1Jm',
+  italian: 'W71zT1VwIFFx3mMGH2uZ',
+}
+
+// Normalize word for use in Firestore document keys
+function normalizeWordForKey(word) {
+  if (!word || typeof word !== 'string') return ''
+  return word
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+}
+
+// Generate key for pronunciation document
+function getPronunciationKey(word, targetLanguage, voiceId) {
+  const normalizedWord = normalizeWordForKey(word)
+  const normalizedLang = (targetLanguage || '').toLowerCase().trim()
+  return `${normalizedLang}_${voiceId}_${normalizedWord}`
+}
+
+// Generate key for translation document
+function getTranslationKey(word, targetLanguage, nativeLanguage) {
+  const normalizedWord = normalizeWordForKey(word)
+  const normalizedTargetLang = (targetLanguage || '').toLowerCase().trim()
+  const normalizedNativeLang = (nativeLanguage || '').toLowerCase().trim()
+  return `${normalizedTargetLang}_${normalizedNativeLang}_${normalizedWord}`
+}
+
+// Get pronunciation from cache
+async function getPronunciation(word, targetLanguage, voiceId) {
+  const key = getPronunciationKey(word, targetLanguage, voiceId)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('pronunciations').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching pronunciation:', err)
+    return null
+  }
+}
+
+// Get translation from cache
+async function getTranslation(word, targetLanguage, nativeLanguage) {
+  const key = getTranslationKey(word, targetLanguage, nativeLanguage)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('translations').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching translation:', err)
+    return null
+  }
+}
+
+// Save pronunciation to Firestore + Cloud Storage
+async function savePronunciation(word, targetLanguage, voiceId, audioBuffer) {
+  const key = getPronunciationKey(word, targetLanguage, voiceId)
+  if (!key || !audioBuffer) return null
+
+  try {
+    // Upload to Cloud Storage
+    const storagePath = `pronunciations/${key}.mp3`
+    const file = bucket.file(storagePath)
+    await file.save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: { cacheControl: 'public, max-age=31536000' },
+    })
+    await file.makePublic()
+    const audioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+
+    // Save reference to Firestore
+    const docRef = firestore.collection('pronunciations').doc(key)
+    await docRef.set({
+      word: word.trim().toLowerCase(),
+      targetLanguage: targetLanguage.toLowerCase().trim(),
+      voiceId,
+      audioUrl,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    return audioUrl
+  } catch (err) {
+    console.error('Error saving pronunciation:', err)
+    return null
+  }
+}
+
+// Save translation to Firestore
+async function saveTranslation(word, targetLanguage, nativeLanguage, translationText) {
+  const key = getTranslationKey(word, targetLanguage, nativeLanguage)
+  if (!key || !translationText) return false
+
+  try {
+    const docRef = firestore.collection('translations').doc(key)
+    await docRef.set({
+      word: word.trim().toLowerCase(),
+      targetLanguage: targetLanguage.toLowerCase().trim(),
+      nativeLanguage: nativeLanguage.toLowerCase().trim(),
+      translation: translationText,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+    return true
+  } catch (err) {
+    console.error('Error saving translation:', err)
+    return false
+  }
+}
+
+// Batch check which pronunciations are missing from cache
+async function getMissingPronunciations(words, targetLanguage, voiceId) {
+  if (!words || !words.length) return []
+
+  const missing = []
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const checks = await Promise.all(
+      batch.map(async (word) => {
+        const exists = await getPronunciation(word, targetLanguage, voiceId)
+        return { word, exists: !!exists }
+      })
+    )
+    checks.forEach(({ word, exists }) => {
+      if (!exists) missing.push(word)
+    })
+  }
+
+  return missing
+}
+
+// =============================================
+// Library Summary Functions (for concept generation)
+// =============================================
+
+// Get all library summaries (one-line descriptions of completed books)
+async function getLibrarySummaries() {
+  try {
+    const snapshot = await firestore.collection('librarySummaries').get()
+    const summaries = []
+    snapshot.forEach(doc => {
+      const data = doc.data()
+      if (data.summary) {
+        summaries.push(data.summary)
+      }
+    })
+    console.log(`[Library] Fetched ${summaries.length} library summaries`)
+    return summaries
+  } catch (error) {
+    console.error('Error fetching library summaries:', error)
+    return []
+  }
+}
+
+// Save a library summary when a book is completed
+async function saveLibrarySummary(bookId, uid, bible) {
+  try {
+    // Extract key details from bible to create one-line summary
+    const storyDna = bible.story_dna || {}
+    const characters = bible.characters || {}
+
+    const era = storyDna.era || 'Unknown era'
+    const location = storyDna.primary_setting || storyDna.location || 'Unknown location'
+    const protagonist = characters.protagonist?.name || 'Unknown protagonist'
+    const protagonistDesc = characters.protagonist?.archetype || ''
+    const loveInterest = characters.love_interest?.name || 'Unknown love interest'
+    const conflict = storyDna.external_conflict || storyDna.conflict || ''
+
+    // Create one-line summary format: "Era, location, protagonist, love interest/conflict"
+    let summary = `${era}, ${location}, ${protagonist}`
+    if (protagonistDesc) summary += ` (${protagonistDesc})`
+    summary += ` and ${loveInterest}`
+    if (conflict) summary += ` - ${conflict}`
+
+    // Save to global collection
+    await firestore.collection('librarySummaries').doc(bookId).set({
+      bookId,
+      uid,
+      summary,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+
+    console.log(`[Library] Saved summary for book ${bookId}: ${summary}`)
+    return true
+  } catch (error) {
+    console.error('Error saving library summary:', error)
+    return false
+  }
+}
+
+// Batch check which translations are missing from cache
+async function getMissingTranslations(words, targetLanguage, nativeLanguage) {
+  if (!words || !words.length) return []
+
+  const missing = []
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const checks = await Promise.all(
+      batch.map(async (word) => {
+        const exists = await getTranslation(word, targetLanguage, nativeLanguage)
+        return { word, exists: !!exists }
+      })
+    )
+    checks.forEach(({ word, exists }) => {
+      if (!exists) missing.push(word)
+    })
+  }
+
+  return missing
+}
+
+// Batch fetch pronunciations from cache
+async function batchGetPronunciations(words, targetLanguage, voiceId) {
+  if (!words || !words.length) return {}
+
+  const results = {}
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const fetched = await Promise.all(
+      batch.map(async (word) => {
+        const data = await getPronunciation(word, targetLanguage, voiceId)
+        return { word: word.trim().toLowerCase(), data }
+      })
+    )
+    fetched.forEach(({ word, data }) => {
+      // Return just the audioUrl string, not the full object
+      if (data && data.audioUrl) results[word] = data.audioUrl
+    })
+  }
+
+  return results
+}
+
+// Batch fetch translations from cache
+async function batchGetTranslations(words, targetLanguage, nativeLanguage) {
+  if (!words || !words.length) return {}
+
+  const results = {}
+  const batchSize = 10
+
+  for (let i = 0; i < words.length; i += batchSize) {
+    const batch = words.slice(i, i + batchSize)
+    const fetched = await Promise.all(
+      batch.map(async (word) => {
+        const data = await getTranslation(word, targetLanguage, nativeLanguage)
+        return { word: word.trim().toLowerCase(), data }
+      })
+    )
+    fetched.forEach(({ word, data }) => {
+      // Return just the translation string, not the full object
+      if (data && data.translation) results[word] = data.translation
+    })
+  }
+
+  return results
+}
+
+// =====================================================
+// EXPRESSION DETECTION SYSTEM
+// Identifies idiomatic expressions in content
+// =====================================================
+
+// Generate a key for expression storage: language_normalized_expression
+function getExpressionKey(expression, language) {
+  if (!expression || !language) return null
+  const normalizedExpr = expression.trim().toLowerCase().replace(/\s+/g, '_')
+  const normalizedLang = language.trim().toLowerCase()
+  return `${normalizedLang}_${normalizedExpr}`
+}
+
+// Get expression from cache
+async function getExpression(expression, language) {
+  const key = getExpressionKey(expression, language)
+  if (!key) return null
+
+  try {
+    const docRef = firestore.collection('expressions').doc(key)
+    const docSnap = await docRef.get()
+    if (!docSnap.exists) return null
+    return docSnap.data()
+  } catch (err) {
+    console.error('Error fetching expression:', err)
+    return null
+  }
+}
+
+// Save expression to Firestore
+async function saveExpression(expression, language, meaning, literal = null) {
+  const key = getExpressionKey(expression, language)
+  if (!key || !meaning) return false
+
+  try {
+    const docRef = firestore.collection('expressions').doc(key)
+    await docRef.set({
+      text: expression.trim().toLowerCase(),
+      language: language.toLowerCase().trim(),
+      meaning: meaning,
+      literal: literal,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true })
+    return true
+  } catch (err) {
+    console.error('Error saving expression:', err)
+    return false
+  }
+}
+
+// Get all expressions for a language
+async function getExpressionsForLanguage(language) {
+  if (!language) return []
+
+  try {
+    const normalizedLang = language.trim().toLowerCase()
+    const snapshot = await firestore.collection('expressions')
+      .where('language', '==', normalizedLang)
+      .get()
+
+    return snapshot.docs.map(doc => doc.data())
+  } catch (err) {
+    console.error('Error fetching expressions for language:', err)
+    return []
+  }
+}
+
+// Batch fetch expressions that appear in text
+async function getExpressionsInText(text, language) {
+  if (!text || !language) return []
+
+  const expressions = await getExpressionsForLanguage(language)
+  const normalizedText = text.toLowerCase()
+
+  return expressions.filter(expr =>
+    normalizedText.includes(expr.text.toLowerCase())
+  )
+}
+
+// LLM-powered expression detection
+async function detectExpressionsWithLLM(text, language, nativeLanguage = 'english') {
+  if (!text || !language) return []
+
+  try {
+    const prompt = `Analyze this ${language} text and identify ALL multi-word combinations where the meaning differs from the literal sum of the individual words.
+
+A learner might know each word separately but still not understand the combination. Find these.
+
+TEXT:
+${text}
+
+For each expression found, provide:
+1. The exact expression as it appears in the text (lowercase)
+2. Its actual meaning in ${nativeLanguage}
+3. A literal word-by-word translation (to show the gap between literal and actual meaning)
+
+Return a JSON array of objects with keys: "expression", "meaning", "literal"
+
+Types to look for (works for any language):
+- Idioms: ES "dar en el clavo" = "get it right", FR "coûter les yeux de la tête" = "cost a fortune"
+- Phrasal verbs: EN "give up" = "surrender", "look after" = "care for"
+- Verb + preposition: ES "pensar en" = "think about", IT "contare su" = "rely on"
+- Verb + noun: ES "hacer caso" = "pay attention", FR "faire attention" = "be careful"
+- Fixed phrases: ES "sin embargo" = "however", IT "a proposito" = "by the way"
+- Collocations: ES "echar de menos" = "miss someone", FR "avoir envie de" = "want to"
+- Any word combination where the meaning ≠ sum of literal parts
+
+The key test: Would a learner who knows each word individually still fail to understand the combination?
+
+Return an empty array [] if no such expressions are found.
+Return ONLY valid JSON, no other text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+      text: { format: { type: 'json_object' } },
+    })
+
+    let expressions = []
+
+    // Try to parse the response
+    const contentBlocks = response?.output?.[0]?.content || []
+    const jsonBlock = contentBlocks.find((block) =>
+      block?.type === 'output_json' || block?.type === 'json'
+    )
+
+    let payload = jsonBlock?.output_json || jsonBlock?.json
+
+    if (!payload) {
+      const textBlock = contentBlocks.find((block) => typeof block?.text === 'string')
+      const candidateText = textBlock?.text || response?.output_text
+      if (candidateText) {
+        try {
+          payload = JSON.parse(candidateText)
+        } catch (err) {
+          console.error('Failed to parse expression detection response:', err)
+          return []
+        }
+      }
+    }
+
+    // Handle both array and object with expressions key
+    if (Array.isArray(payload)) {
+      expressions = payload
+    } else if (payload && Array.isArray(payload.expressions)) {
+      expressions = payload.expressions
+    }
+
+    // Validate and normalize
+    return expressions
+      .filter(e => e && e.expression && e.meaning)
+      .map(e => ({
+        expression: e.expression.trim().toLowerCase(),
+        meaning: e.meaning.trim(),
+        literal: e.literal ? e.literal.trim() : null,
+      }))
+  } catch (err) {
+    console.error('Error detecting expressions with LLM:', err)
+    return []
+  }
+}
+
+// Detect and save expressions from text content
+async function detectAndSaveExpressions(text, language, nativeLanguage = 'english') {
+  if (!text || !language) return []
+
+  console.log(`Detecting expressions in ${language} text (${text.length} chars)...`)
+
+  // Detect expressions using LLM
+  const detectedExpressions = await detectExpressionsWithLLM(text, language, nativeLanguage)
+
+  console.log(`Found ${detectedExpressions.length} expressions`)
+
+  // Save each expression to the database
+  const savedExpressions = []
+  for (const expr of detectedExpressions) {
+    const saved = await saveExpression(expr.expression, language, expr.meaning, expr.literal)
+    if (saved) {
+      savedExpressions.push(expr.expression)
+    }
+  }
+
+  return savedExpressions
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, os.tmpdir())
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`)
+  },
+})
+
+const upload = multer({ storage })
+
+app.use((req, res, next) => {
+  // Allow both common Vite dev ports
+  const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174']
+  const origin = req.headers.origin
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
+  next()
+})
+
+const getSpotifyTokenRef = (userId) => firestore.collection('spotifyTokens').doc(userId)
+
+const extractYouTubeId = (url) => {
+  if (!url) return ''
+
+  try {
+    const parsed = new URL(url)
+
+    if (parsed.hostname === 'youtu.be') {
+      return parsed.pathname.replace('/', '')
+    }
+
+    if (parsed.searchParams.get('v')) {
+      return parsed.searchParams.get('v')
+    }
+
+    const paths = parsed.pathname.split('/')
+    const embedIndex = paths.indexOf('embed')
+    if (embedIndex !== -1 && paths[embedIndex + 1]) {
+      return paths[embedIndex + 1]
+    }
+  } catch (err) {
+    return ''
+  }
+
+  return ''
+}
+
+const parseIsoDurationToSeconds = (duration) => {
+  if (!duration || typeof duration !== 'string') return null
+  const match = duration.match(
+    /P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?/,
+  )
+  if (!match) return null
+
+  const [, days, hours, minutes, seconds] = match.map((value) => Number(value) || 0)
+  return days * 86400 + hours * 3600 + minutes * 60 + seconds
+}
+
+const fetchYoutubeMetadata = async (videoId) => {
+  if (!videoId) return { channelTitle: null, durationSeconds: null }
+
+  if (!YOUTUBE_API_KEY) {
+    console.warn('YOUTUBE_API_KEY is not set; skipping YouTube metadata fetch')
+    return { channelTitle: null, durationSeconds: null }
+  }
+
+  const apiUrl = new URL('https://www.googleapis.com/youtube/v3/videos')
+  apiUrl.searchParams.set('part', 'snippet,contentDetails')
+  apiUrl.searchParams.set('id', videoId)
+  apiUrl.searchParams.set('key', YOUTUBE_API_KEY)
+
+  const response = await fetch(apiUrl.toString())
+  if (!response.ok) {
+    throw new Error(`YouTube API request failed: ${response.status} ${response.statusText}`)
+  }
+
+  const data = await response.json()
+  const item = Array.isArray(data?.items) ? data.items[0] : null
+
+  if (!item) return { channelTitle: null, durationSeconds: null }
+
+  const channelTitle = item?.snippet?.channelTitle || null
+  const durationSeconds = parseIsoDurationToSeconds(item?.contentDetails?.duration)
+
+  return { channelTitle, durationSeconds }
+}
+
+const decodeState = (state) => {
+  try {
+    const payload = Buffer.from(state || '', 'base64url').toString('utf8')
+    return JSON.parse(payload)
+  } catch (err) {
+    console.error('Failed to decode Spotify state', err)
+    return null
+  }
+}
+
+const encodeState = (payload) => Buffer.from(JSON.stringify(payload)).toString('base64url')
+
+const getSpotifyImage = (images = []) => {
+  if (!Array.isArray(images)) return null
+  return images[images.length - 1]?.url || images[0]?.url || null
+}
+
+async function refreshSpotifyAccessToken(userId) {
+  const doc = await getSpotifyTokenRef(userId).get()
+  if (!doc.exists) return null
+
+  const data = doc.data() || {}
+  const bufferMs = 60_000
+  const now = Date.now()
+
+  if (data.accessToken && data.expiresAt && data.expiresAt.toMillis) {
+    const expiresAtMs = data.expiresAt.toMillis()
+    if (expiresAtMs - bufferMs > now) {
+      return data.accessToken
+    }
+  }
+
+  if (!data.refreshToken) return null
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: data.refreshToken,
+  })
+
+  const authHeader = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  })
+
+  if (!response.ok) {
+    console.error('Spotify token refresh failed', response.status, await response.text())
+    return null
+  }
+
+  const json = await response.json()
+  const expiresAt = admin.firestore.Timestamp.fromMillis(now + (json.expires_in || 3600) * 1000)
+
+  await getSpotifyTokenRef(userId).set(
+    {
+      accessToken: json.access_token,
+      refreshToken: json.refresh_token || data.refreshToken,
+      expiresAt,
+      scopes: data.scopes || SPOTIFY_SCOPES,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  )
+
+  return json.access_token
+}
+
+async function ensureSpotifyAccessToken(userId) {
+  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !SPOTIFY_REDIRECT_URI) {
+    throw new Error('Spotify environment variables are not configured')
+  }
+
+  return refreshSpotifyAccessToken(userId)
+}
+
+const mapTrackItem = (item) => ({
+  spotifyId: item?.track?.id,
+  spotifyUri: item?.track?.uri,
+  type: 'track',
+  title: item?.track?.name,
+  subtitle: (item?.track?.artists || []).map((a) => a.name).join(', '),
+  imageUrl: getSpotifyImage(item?.track?.album?.images),
+  durationMs: item?.track?.duration_ms,
+  isrc: item?.track?.external_ids?.isrc || null,
+})
+
+const mapPlaylistItem = (item) => ({
+  spotifyId: item?.id,
+  spotifyUri: item?.uri,
+  type: 'playlist',
+  title: item?.name,
+  subtitle: item?.owner?.display_name || `${item?.tracks?.total || 0} tracks`,
+  imageUrl: getSpotifyImage(item?.images),
+})
+
+const mapShowItem = (item) => ({
+  spotifyId: item?.show?.id,
+  spotifyUri: item?.show?.uri,
+  type: 'show',
+  title: item?.show?.name,
+  subtitle: item?.show?.publisher,
+  imageUrl: getSpotifyImage(item?.show?.images),
+})
+
+const mapSearchTrack = (track) => ({
+  spotifyId: track?.id,
+  spotifyUri: track?.uri,
+  type: 'track',
+  title: track?.name,
+  subtitle: (track?.artists || []).map((a) => a.name).join(', '),
+  imageUrl: getSpotifyImage(track?.album?.images),
+  durationMs: track?.duration_ms,
+  isrc: track?.external_ids?.isrc || null,
+})
+
+const mapSearchPlaylist = (playlist) => ({
+  spotifyId: playlist?.id,
+  spotifyUri: playlist?.uri,
+  type: 'playlist',
+  title: playlist?.name,
+  subtitle: playlist?.owner?.display_name || `${playlist?.tracks?.total || 0} tracks`,
+  imageUrl: getSpotifyImage(playlist?.images),
+})
+
+const mapSearchShow = (show) => ({
+  spotifyId: show?.id,
+  spotifyUri: show?.uri,
+  type: 'show',
+  title: show?.name,
+  subtitle: show?.publisher,
+  imageUrl: getSpotifyImage(show?.images),
+})
+
+const mapSearchArtist = (artist) => ({
+  spotifyId: artist?.id,
+  spotifyUri: artist?.uri,
+  type: 'artist',
+  title: artist?.name,
+  subtitle: `${artist?.followers?.total?.toLocaleString?.() || '0'} followers`,
+  imageUrl: getSpotifyImage(artist?.images),
+})
+
+const mapSearchAlbum = (album) => ({
+  spotifyId: album?.id,
+  spotifyUri: album?.uri,
+  type: 'album',
+  title: album?.name,
+  subtitle: (album?.artists || []).map((a) => a.name).join(', '),
+  imageUrl: getSpotifyImage(album?.images),
+})
+
+async function fetchSpotifyTrackIsrc(userId, spotifyId) {
+  if (!userId || !spotifyId) return null
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return null
+
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${encodeURIComponent(spotifyId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify track lookup failed', response.status, await response.text())
+      return null
+    }
+
+    const data = await response.json()
+    return data?.external_ids?.isrc || null
+  } catch (error) {
+    console.error('Spotify track lookup error', error)
+    return null
+  }
+}
+
+const mapEpisodeItem = (episode) => {
+  const minutes = episode?.duration_ms ? Math.round(episode.duration_ms / 60000) : null
+  const durationLabel = minutes ? `${minutes} min` : null
+  const releaseLabel = episode?.release_date || ''
+  const subtitle = [releaseLabel, durationLabel].filter(Boolean).join(' · ')
+
+  return {
+    spotifyId: episode?.id,
+    spotifyUri: episode?.uri,
+    type: 'episode',
+    title: episode?.name,
+    subtitle,
+    imageUrl: getSpotifyImage(episode?.images),
+    media_type: episode?.media_type,
+    hasVideo: episode?.media_type === 'video',
+  }
+}
+
+const MUSIXMATCH_BASE_URL = 'https://api.musixmatch.com/ws/1.1'
+const MUSIXMATCH_DEBUG = process.env.MUSIXMATCH_DEBUG === 'true'
+
+const logMusixmatchDebug = (...args) => {
+  if (!MUSIXMATCH_DEBUG) return
+  console.log('[musixmatch]', ...args)
+}
+
+const cleanMusixmatchLyrics = (text = '') => {
+  if (!text) return ''
+  const withoutDisclaimer = text.split('\n\n*******')[0] || text
+  return withoutDisclaimer.trim()
+}
+
+const chunkLyricsToPages = (lyrics = '', maxLength = 900) => {
+  if (!lyrics) return []
+
+  const lines = lyrics
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const pages = []
+  let buffer = []
+
+  lines.forEach((line) => {
+    const next = [...buffer, line].join('\n')
+    if (next.length > maxLength && buffer.length) {
+      pages.push(buffer.join('\n'))
+      buffer = [line]
+    } else {
+      buffer = [...buffer, line]
+    }
+  })
+
+  if (buffer.length) {
+    pages.push(buffer.join('\n'))
+  }
+
+  return pages
+}
+
+async function searchMusixmatchTrackId(trackTitle, artistName) {
+  if (!MUSIXMATCH_API_KEY) return null
+  const params = new URLSearchParams({
+    q_track: trackTitle || '',
+    q_artist: artistName || '',
+    f_has_lyrics: '1',
+    page_size: '1',
+    page: '1',
+    apikey: MUSIXMATCH_API_KEY,
+  })
+
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.search?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.search failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const trackList = data?.message?.body?.track_list || []
+  const firstTrack = trackList[0]?.track
+
+  if (!firstTrack?.track_id) return null
+  return {
+    trackId: firstTrack.track_id,
+    commontrackId: firstTrack.commontrack_id || null,
+  }
+}
+
+async function fetchMusixmatchLyrics(trackId) {
+  if (!MUSIXMATCH_API_KEY || !trackId) return null
+
+  const params = new URLSearchParams({ track_id: String(trackId), apikey: MUSIXMATCH_API_KEY })
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.lyrics.get?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.lyrics.get failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const lyricsBody = data?.message?.body?.lyrics?.lyrics_body
+  const language = data?.message?.body?.lyrics?.lyrics_language || null
+
+  if (!lyricsBody) return null
+
+  const cleaned = cleanMusixmatchLyrics(lyricsBody)
+  return { lyrics: cleaned, language }
+}
+
+const parseRichsyncSegments = (richsyncBody) => {
+  if (!richsyncBody) return []
+
+  try {
+    const parsed = JSON.parse(richsyncBody)
+    if (!Array.isArray(parsed)) return []
+
+    const entries = parsed
+      .map((entry) => ({
+        start: Number(entry?.ts),
+        end: Number(entry?.te),
+        text: (entry?.x || '').trim(),
+      }))
+      .filter((entry) => Number.isFinite(entry.start) && entry.text)
+      .sort((a, b) => a.start - b.start)
+
+    if (!entries.length) return []
+
+    return entries.map((entry, index) => {
+      const next = entries[index + 1]
+      const inferredEnd =
+        Number.isFinite(entry.end) && entry.end > entry.start
+          ? entry.end
+          : next && next.start > entry.start
+            ? next.start
+            : entry.start
+
+      return {
+        start: entry.start,
+        end: inferredEnd,
+        text: entry.text,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to parse Musixmatch richsync body', error)
+    return []
+  }
+}
+
+async function fetchMusixmatchRichsync({ trackId, commontrackId, isrc }) {
+  if (!MUSIXMATCH_API_KEY) return null
+
+  const params = new URLSearchParams({ apikey: MUSIXMATCH_API_KEY })
+
+  if (isrc) {
+    params.set('track_isrc', isrc)
+  } else if (trackId) {
+    params.set('track_id', String(trackId))
+  } else if (commontrackId) {
+    params.set('commontrack_id', String(commontrackId))
+  } else {
+    return null
+  }
+
+  const response = await fetch(`${MUSIXMATCH_BASE_URL}/track.richsync.get?${params.toString()}`)
+
+  if (!response.ok) {
+    console.error('Musixmatch track.richsync.get failed', response.status, await response.text())
+    return null
+  }
+
+  const data = await response.json()
+  const richsync = data?.message?.body?.richsync
+
+  if (!richsync || richsync?.restricted || richsync?.instrumental) {
+    logMusixmatchDebug('richsync restricted/unavailable', {
+      restricted: richsync?.restricted,
+      instrumental: richsync?.instrumental,
+    })
+    return null
+  }
+
+  const richsyncBody = richsync?.richsync_body
+  const segments = parseRichsyncSegments(richsyncBody)
+
+  if (!segments.length) {
+    logMusixmatchDebug('richsync empty', { isrc, trackId, commontrackId })
+    return null
+  }
+
+  logMusixmatchDebug('richsync parsed', {
+    count: segments.length,
+    first: segments[0]?.start,
+    last: segments[segments.length - 1]?.start,
+  })
+
+  return { segments }
+}
+
+async function getSpotifyTrackLyrics({ title, subtitle, isrc }) {
+  if (!MUSIXMATCH_API_KEY) {
+    console.warn('MUSIXMATCH_API_KEY not configured; skipping lyrics fetch')
+    return null
+  }
+
+  const primaryArtist = subtitle?.split(',')?.[0]?.trim() || ''
+  const trackMatch = await searchMusixmatchTrackId(title, primaryArtist)
+
+  const trackId = trackMatch?.trackId || null
+  const commontrackId = trackMatch?.commontrackId || null
+  if (!trackId && !commontrackId && !isrc) return null
+
+  const [result, richsync] = await Promise.all([
+    trackId ? fetchMusixmatchLyrics(trackId) : null,
+    fetchMusixmatchRichsync({ trackId, commontrackId, isrc }),
+  ])
+
+  const lyricsText = result?.lyrics || ''
+  const pages = lyricsText ? chunkLyricsToPages(lyricsText) : []
+
+  if (!lyricsText && !richsync?.segments?.length) return null
+  return {
+    lyrics: lyricsText,
+    pages,
+    language: resolveTargetCode(result?.language || 'en'),
+    richsyncSegments: richsync?.segments || [],
+    provider: 'musixmatch',
+  }
+}
+
+const normaliseTranscriptSegments = (segments = []) =>
+  (Array.isArray(segments) ? segments : [])
+    .map((segment) => {
+      const start = Number.isFinite(segment.start)
+        ? Number(segment.start)
+        : Number(segment.startMs) / 1000 || 0
+      const end = Number.isFinite(segment.end)
+        ? Number(segment.end)
+        : Number(segment.endMs) / 1000 || start
+
+      const result = {
+        start,
+        end: end > start ? end : start,
+        text: (segment.text || '').trim(),
+      }
+
+      // Preserve word-level timing if present
+      if (Array.isArray(segment.words) && segment.words.length > 0) {
+        result.words = segment.words.map((w) => ({
+          text: (w.text || '').trim(),
+          start: Number(w.start) || start,
+          end: Number(w.end) || end,
+        }))
+      }
+
+      return result
+    })
+  .filter((segment) => segment.text)
+
+app.get('/api/spotify/status', async (req, res) => {
+  const userId = req.query.uid
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const tokenDoc = await getSpotifyTokenRef(userId).get()
+    const connected = tokenDoc.exists
+    res.json({ connected })
+  } catch (err) {
+    console.error('Spotify status error', err)
+    res.status(500).json({ error: 'Unable to check Spotify connection' })
+  }
+})
+
+app.get('/api/spotify/playerToken', async (req, res) => {
+  const userId = req.query.uid
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    res.json({ accessToken: token })
+  } catch (err) {
+    console.error('Spotify player token error', err)
+    res.status(500).json({ error: 'Unable to generate player token' })
+  }
+})
+
+app.post('/api/spotify/transfer-playback', async (req, res) => {
+  const { uid, deviceId, play } = req.body || {}
+
+  if (!uid || !deviceId) {
+    return res.status(400).json({ error: 'uid and deviceId are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(uid)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ device_ids: [deviceId], play: Boolean(play) }),
+    })
+
+    if (!response.ok) {
+      console.error('Spotify transfer playback error', response.status, await response.text())
+      return res.status(response.status).json({ error: 'Unable to transfer playback' })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify transfer playback failure', err)
+    res.status(500).json({ error: 'Unable to transfer playback' })
+  }
+})
+
+app.post('/api/spotify/start-playback', async (req, res) => {
+  const { uid, deviceId, spotifyUri } = req.body || {}
+
+  if (!uid || !deviceId || !spotifyUri) {
+    return res.status(400).json({ error: 'uid, deviceId, and spotifyUri are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(uid)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uris: [spotifyUri] }),
+      },
+    )
+
+    if (!response.ok) {
+      console.error('Spotify start playback error', response.status, await response.text())
+      return res.status(response.status).json({ error: 'Unable to start playback' })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify start playback failure', err)
+    res.status(500).json({ error: 'Unable to start playback' })
+  }
+})
+
+app.put('/api/spotify/player/activate', async (req, res) => {
+  const { deviceId, uid } = req.body || {}
+
+  if (!deviceId || !uid) {
+    return res.status(400).json({ error: 'deviceId and uid are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(uid)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/player', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ device_ids: [deviceId], play: false }),
+    })
+
+    if (!response.ok) {
+      console.error('Spotify activate device error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to activate playback device' })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify activate failure', err)
+    res.status(500).json({ error: 'Unable to activate playback device' })
+  }
+})
+
+app.get('/api/spotify/login', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_REDIRECT_URI) {
+    return res.status(500).json({ error: 'Spotify is not configured on the server' })
+  }
+
+  const state = encodeState({ uid: userId })
+
+  const params = new URLSearchParams({
+    client_id: SPOTIFY_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: SPOTIFY_REDIRECT_URI,
+    scope: SPOTIFY_SCOPES,
+    state,
+  })
+
+  const url = `https://accounts.spotify.com/authorize?${params.toString()}`
+  res.json({ url })
+})
+
+app.get('/api/spotify/callback', async (req, res) => {
+  const { code, state } = req.query
+  const decoded = decodeState(state)
+  const userId = decoded?.uid
+
+  if (!code || !userId) {
+    return res.status(400).send('Missing code or state')
+  }
+
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: SPOTIFY_REDIRECT_URI,
+      client_id: SPOTIFY_CLIENT_ID,
+      client_secret: SPOTIFY_CLIENT_SECRET,
+    })
+
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    })
+
+    if (!response.ok) {
+      console.error('Spotify callback token error', response.status, await response.text())
+      return res.status(500).send('Unable to complete Spotify authentication')
+    }
+
+    const json = await response.json()
+    const expiresAt = admin.firestore.Timestamp.fromMillis(
+      Date.now() + (json.expires_in || 3600) * 1000,
+    )
+
+    await getSpotifyTokenRef(userId).set(
+      {
+        accessToken: json.access_token,
+        refreshToken: json.refresh_token,
+        expiresAt,
+        scopes: SPOTIFY_SCOPES,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+    return res.redirect(`${FRONTEND_BASE_URL}/listening-library?spotify=connected`)
+  } catch (err) {
+    console.error('Spotify callback error', err)
+    return res.status(500).send('Spotify authentication failed')
+  }
+})
+
+app.get('/api/spotify/access-token', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    res.json({ accessToken: token })
+  } catch (err) {
+    console.error('Spotify access token error', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify access token' })
+  }
+})
+
+app.get('/api/spotify/me/tracks', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify tracks error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch Spotify tracks' })
+    }
+
+    const json = await response.json()
+    const items = (json.items || []).map(mapTrackItem).filter((item) => item.spotifyId)
+    res.json({ items })
+  } catch (err) {
+    console.error('Spotify tracks failure', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify tracks' })
+  }
+})
+
+app.get('/api/spotify/me/playlists', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify playlists error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch Spotify playlists' })
+    }
+
+    const json = await response.json()
+    const items = (json.items || []).map(mapPlaylistItem).filter((item) => item.spotifyId)
+    res.json({ items })
+  } catch (err) {
+    console.error('Spotify playlists failure', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify playlists' })
+  }
+})
+
+app.get('/api/spotify/me/shows', async (req, res) => {
+  const userId = req.query.uid
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch('https://api.spotify.com/v1/me/shows?limit=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify shows error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch Spotify shows' })
+    }
+
+    const json = await response.json()
+    const items = (json.items || []).map(mapShowItem).filter((item) => item.spotifyId)
+    res.json({ items })
+  } catch (err) {
+    console.error('Spotify shows failure', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify shows' })
+  }
+})
+
+app.get('/api/spotify/search', async (req, res) => {
+  const userId = req.query.uid
+  const queryText = req.query.q || ''
+  const typeParam = req.query.type || 'track'
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+  if (!queryText) return res.status(400).json({ error: 'q is required' })
+
+  const allowedTypes = new Set(['track', 'artist', 'album', 'playlist', 'show'])
+  const types = String(typeParam)
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => allowedTypes.has(t))
+
+  if (!types.length) {
+    return res.status(400).json({ error: 'type must include at least one supported category' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const params = new URLSearchParams({
+      q: queryText,
+      type: types.join(','),
+      limit: '20',
+    })
+
+    const response = await fetch(`https://api.spotify.com/v1/search?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Spotify search error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to perform Spotify search' })
+    }
+
+    const json = await response.json()
+    const results = {}
+
+    if (types.includes('track')) {
+      results.tracks = (json?.tracks?.items || [])
+        .map(mapSearchTrack)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('playlist')) {
+      results.playlists = (json?.playlists?.items || [])
+        .map(mapSearchPlaylist)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('show')) {
+      results.shows = (json?.shows?.items || [])
+        .map(mapSearchShow)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('artist')) {
+      results.artists = (json?.artists?.items || [])
+        .map(mapSearchArtist)
+        .filter((item) => item.spotifyId)
+    }
+
+    if (types.includes('album')) {
+      results.albums = (json?.albums?.items || [])
+        .map(mapSearchAlbum)
+        .filter((item) => item.spotifyId)
+    }
+
+    res.json({ results })
+  } catch (err) {
+    console.error('Spotify search failure', err)
+    res.status(500).json({ error: 'Unable to perform Spotify search' })
+  }
+})
+
+app.get('/api/spotify/show/:id/episodes', async (req, res) => {
+  const userId = req.query.uid
+  const showId = req.params.id
+
+  if (!userId || !showId) {
+    return res.status(400).json({ error: 'uid and show id are required' })
+  }
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/shows/${encodeURIComponent(showId)}/episodes?limit=50`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
+
+    if (!response.ok) {
+      console.error('Spotify episodes error', response.status, await response.text())
+      return res.status(500).json({ error: 'Unable to fetch show episodes' })
+    }
+
+    const json = await response.json()
+    const episodes = (json?.items || []).map(mapEpisodeItem).filter((item) => item.spotifyId)
+    res.json({ episodes })
+  } catch (err) {
+    console.error('Spotify episodes failure', err)
+    res.status(500).json({ error: 'Unable to fetch show episodes' })
+  }
+})
+
+app.post('/api/spotify/library/add', async (req, res) => {
+  const {
+    uid,
+    spotifyId,
+    spotifyUri,
+    type,
+    title,
+    subtitle,
+    imageUrl,
+    media_type: mediaTypeRaw,
+    isrc: isrcRaw,
+  } = req.body || {}
+
+  if (!uid || !spotifyId) {
+    return res.status(400).json({ error: 'uid and spotifyId are required' })
+  }
+
+  try {
+    const mediaType = mediaTypeRaw || 'audio'
+    const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
+    const existingSnap = await itemRef.get()
+    const existingData = existingSnap.exists ? existingSnap.data() || {} : {}
+    const cachedSegments = normaliseTranscriptSegments(existingData.transcriptSegments || [])
+    const hasCachedSegments = cachedSegments.length > 0
+    const shouldFetchLyrics = !existingData?.lyricsProvider && !hasCachedSegments
+    const existingIsrc = existingData?.isrc || null
+    const isrc = isrcRaw || existingIsrc || null
+    const basePayload = {
+      spotifyId,
+      spotifyUri: spotifyUri || '',
+      type: type || 'track',
+      title: title || 'Untitled',
+      subtitle: subtitle || '',
+      imageUrl: imageUrl || '',
+      mediaType,
+      hasVideo: mediaType === 'video',
+      addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      source: 'spotify',
+      transcriptStatus: existingData?.transcriptStatus || (hasCachedSegments ? 'ready' : 'pending'),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+
+    let lyricsPages = []
+    let resolvedIsrc = isrc
+
+    if ((type || 'track') === 'track' && !resolvedIsrc) {
+      resolvedIsrc = await fetchSpotifyTrackIsrc(uid, spotifyId)
+    }
+
+    if (resolvedIsrc) {
+      basePayload.isrc = resolvedIsrc
+    }
+
+    if ((type || 'track') === 'track' && shouldFetchLyrics) {
+      try {
+        const lyrics = await getSpotifyTrackLyrics({ title, subtitle, isrc: resolvedIsrc })
+        if (lyrics?.pages?.length) {
+          lyricsPages = lyrics.pages
+          basePayload.transcriptLanguage = lyrics.language || null
+          basePayload.lyricsProvider = lyrics.provider
+          basePayload.language = lyrics.language || null
+        }
+
+        if (lyrics?.richsyncSegments?.length) {
+          basePayload.transcriptSegments = lyrics.richsyncSegments
+          basePayload.transcriptStatus = 'ready'
+          basePayload.transcriptProvider = 'musixmatch-richsync'
+          logMusixmatchDebug('richsync available', {
+            spotifyId,
+            count: lyrics.richsyncSegments.length,
+          })
+        } else if (lyrics?.pages?.length) {
+          basePayload.transcriptStatus = 'ready'
+        }
+      } catch (lyricsErr) {
+        console.error('Failed to fetch Musixmatch lyrics for Spotify track', lyricsErr)
+      }
+    } else if (hasCachedSegments) {
+      logMusixmatchDebug('richsync cached', { spotifyId, count: cachedSegments.length })
+    }
+
+    await itemRef.set(basePayload, { merge: true })
+
+    if (lyricsPages.length) {
+      const pagesRef = itemRef.collection('pages')
+      const batch = firestore.batch()
+
+      lyricsPages.forEach((text, index) => {
+        const pageDoc = pagesRef.doc(String(index))
+        batch.set(pageDoc, {
+          index,
+          text,
+          originalText: text,
+          adaptedText: null,
+          status: 'ready',
+          audioUrl: null,
+          audioStatus: 'none',
+        })
+      })
+
+      await batch.commit()
+    }
+
+    // Trigger content preparation (pronunciation caching) if we have lyrics and language
+    const transcriptLang = basePayload.transcriptLanguage || basePayload.language
+    const normalizedLang = transcriptLang ? normalizeLanguageLabel(transcriptLang)?.toLowerCase() : null
+    const hasContent = basePayload.transcriptStatus === 'ready' || lyricsPages.length > 0
+
+    if (hasContent && normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      try {
+        // Set initial preparation status
+        await itemRef.update({
+          preparationStatus: 'pending',
+          preparationProgress: 0,
+        })
+
+        // Trigger preparation asynchronously (don't await)
+        prepareContentPronunciations(uid, spotifyId, 'spotify', normalizedLang, null)
+          .catch((prepErr) => {
+            console.error('Background Spotify preparation failed:', prepErr)
+          })
+      } catch (prepInitError) {
+        console.error('Failed to initialize Spotify preparation:', prepInitError)
+      }
+    }
+
+    res.json({ ok: true, lyricsFetched: lyricsPages.length > 0 })
+  } catch (err) {
+    console.error('Spotify library add error', err)
+    res.status(500).json({ error: 'Unable to save Spotify item' })
+  }
+})
+
+app.get('/api/spotify/transcript/:spotifyId', async (req, res) => {
+  const userId = req.query.uid
+  const { spotifyId } = req.params
+
+  if (!userId || !spotifyId) {
+    return res.status(400).json({ error: 'uid and spotifyId are required' })
+  }
+
+  try {
+    const doc = await firestore
+      .collection('users')
+      .doc(userId)
+      .collection('spotifyItems')
+      .doc(spotifyId)
+      .get()
+
+    if (!doc.exists) return res.status(404).json({ error: 'Spotify item not found' })
+
+    const data = doc.data()
+    res.json({
+      transcriptStatus: data.transcriptStatus || 'none',
+      transcriptSegments: normaliseTranscriptSegments(data.transcriptSegments || []),
+      errorMessage: data.errorMessage || null,
+    })
+  } catch (err) {
+    console.error('Spotify transcript fetch error', err)
+    res.status(500).json({ error: 'Unable to fetch Spotify transcript' })
+  }
+})
+
+app.post('/api/spotify/transcript/generate', async (req, res) => {
+  const { uid, spotifyId } = req.body || {}
+  if (!uid || !spotifyId) {
+    return res.status(400).json({ error: 'uid and spotifyId are required' })
+  }
+
+  try {
+    const placeholderSegments = [
+      { start: 0, end: 5, text: 'Placeholder transcript line 1.' },
+      { start: 5, end: 10, text: 'Placeholder transcript line 2.' },
+    ]
+
+    const itemRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(spotifyId)
+
+    await itemRef.set(
+      {
+        transcriptSegments: placeholderSegments,
+        transcriptStatus: 'whisperReady',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('Spotify transcript generate error', err)
+    res.status(500).json({ error: 'Unable to generate transcript' })
+  }
+})
+
+async function fetchYoutubeCaptionSegments(videoId, languageCode) {
+  // Fetch the YouTube video page directly to get caption data
+  const videoPageUrl = `https://www.youtube.com/watch?v=${videoId}`
+  console.log('Fetching YouTube page for captions:', videoId)
+
+  const pageResponse = await fetch(videoPageUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  })
+
+  if (!pageResponse.ok) {
+    throw new Error(`Failed to fetch YouTube page: ${pageResponse.status}`)
+  }
+
+  const pageHtml = await pageResponse.text()
+
+  // Extract ytInitialPlayerResponse from the page - need greedy match for full JSON
+  const startMarker = 'ytInitialPlayerResponse = '
+  const startIndex = pageHtml.indexOf(startMarker)
+  if (startIndex === -1) {
+    throw new Error('Could not find player response in YouTube page')
+  }
+
+  // Find the JSON object by matching braces
+  const jsonStart = startIndex + startMarker.length
+  let braceCount = 0
+  let jsonEnd = jsonStart
+  let inString = false
+  let escapeNext = false
+
+  for (let i = jsonStart; i < pageHtml.length; i++) {
+    const char = pageHtml[i]
+
+    if (escapeNext) {
+      escapeNext = false
+      continue
+    }
+
+    if (char === '\\') {
+      escapeNext = true
+      continue
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString
+      continue
+    }
+
+    if (!inString) {
+      if (char === '{') braceCount++
+      if (char === '}') {
+        braceCount--
+        if (braceCount === 0) {
+          jsonEnd = i + 1
+          break
+        }
+      }
+    }
+  }
+
+  const jsonStr = pageHtml.substring(jsonStart, jsonEnd)
+
+  let playerResponse
+  try {
+    playerResponse = JSON.parse(jsonStr)
+  } catch (e) {
+    console.error('JSON parse error at position:', e.message)
+    throw new Error('Failed to parse player response JSON')
+  }
+
+  const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || []
+  console.log('Found', tracks.length, 'caption tracks')
+
+  if (!tracks.length) return []
+
+  // Convert language name to code
+  const requestedLang = (languageCode || '').trim().toLowerCase()
+  let langCode = null
+  for (const [name, code] of Object.entries(LANGUAGE_NAME_TO_CODE)) {
+    if (name.toLowerCase() === requestedLang) {
+      langCode = code
+      break
+    }
+  }
+  langCode = langCode || requestedLang
+
+  console.log('REQUESTED LANGUAGE:', languageCode, '→ CODE:', langCode)
+
+  // Find best matching track
+  const manualTrackForLang = tracks.find((track) =>
+    track.languageCode?.toLowerCase() === langCode && track.kind !== 'asr'
+  )
+  const matchByLangCode = tracks.find((track) => track.languageCode?.toLowerCase() === langCode)
+  const asrTrackForLang = tracks.find((track) =>
+    track.languageCode?.toLowerCase() === langCode && track.kind === 'asr'
+  )
+  const anyAsrTrack = tracks.find((track) => track.kind === 'asr')
+  const fallbackTrack = tracks[0]
+
+  const selectedTrack = manualTrackForLang || matchByLangCode || asrTrackForLang || anyAsrTrack || fallbackTrack
+
+  console.log('SELECTED TRACK:', selectedTrack?.languageCode, selectedTrack?.kind)
+
+  if (!selectedTrack?.baseUrl) return []
+
+  // Fetch the caption XML with full browser headers
+  const trackUrl = selectedTrack.baseUrl
+  console.log('Fetching caption URL:', trackUrl.substring(0, 100) + '...')
+
+  const captionResponse = await fetch(trackUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://www.youtube.com/',
+    },
+  })
+
+  console.log('Caption response status:', captionResponse.status, captionResponse.statusText)
+
+  if (!captionResponse.ok) {
+    throw new Error(`Failed to fetch captions: ${captionResponse.status}`)
+  }
+
+  const captionXml = await captionResponse.text()
+  console.log('Caption response length:', captionXml.length, 'First 200 chars:', captionXml.substring(0, 200))
+
+  if (!captionXml || captionXml.length === 0) {
+    throw new Error('Empty caption response')
+  }
+
+  // Parse XML: <text start="0" dur="2.5">Hello world</text>
+  const segments = []
+  const textRegex = /<text\s+start="([^"]+)"\s+dur="([^"]+)"[^>]*>([^<]*)<\/text>/g
+  let match
+
+  while ((match = textRegex.exec(captionXml)) !== null) {
+    const start = parseFloat(match[1])
+    const duration = parseFloat(match[2])
+    const text = match[3]
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n/g, ' ')
+      .trim()
+
+    if (text) {
+      segments.push({
+        start,
+        end: start + duration,
+        text,
+        words: [{ text, start, end: start + duration }],
+      })
+    }
+  }
+
+  console.log('Parsed', segments.length, 'caption segments')
+  return segments
+}
+
+// Use yt-dlp to download subtitles directly (doesn't require ffmpeg)
+async function downloadYoutubeSubtitles(videoId, languageCode = 'en') {
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+  const tempBase = path.join(os.tmpdir(), `yt-subs-${videoId}-${Date.now()}`)
+
+  console.log('Downloading YouTube subtitles via yt-dlp:', videoId)
+
+  return new Promise((resolve, reject) => {
+    const ytProcess = spawn('yt-dlp', [
+      '--write-auto-subs',
+      '--write-subs',
+      '--sub-langs', languageCode,
+      '--skip-download',
+      '-o', tempBase,
+      videoUrl
+    ])
+
+    let stderr = ''
+    ytProcess.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    ytProcess.on('error', (err) => {
+      console.error('yt-dlp subtitle spawn error:', err)
+      reject(err)
+    })
+
+    ytProcess.on('close', async (code) => {
+      // yt-dlp returns 0 even if no subs found, so we check for file existence
+      try {
+        const downloadDir = path.dirname(tempBase)
+        const baseName = path.basename(tempBase)
+        const entries = await fs.readdir(downloadDir)
+
+        // Look for .vtt or .srt files
+        const subFiles = entries.filter((name) =>
+          name.startsWith(baseName) && (name.endsWith('.vtt') || name.endsWith('.srt'))
+        )
+
+        if (subFiles.length === 0) {
+          console.log('No subtitle files found for video')
+          return resolve([])
+        }
+
+        const subPath = path.join(downloadDir, subFiles[0])
+        console.log('Found subtitle file:', subPath)
+
+        const subContent = await fs.readFile(subPath, 'utf-8')
+
+        // Clean up
+        await fs.unlink(subPath).catch(() => {})
+
+        // Parse VTT/SRT format
+        const segments = parseSubtitleFile(subContent)
+        console.log('Parsed', segments.length, 'subtitle segments from yt-dlp')
+
+        resolve(segments)
+      } catch (fileError) {
+        console.error('Subtitle file error:', fileError)
+        resolve([])
+      }
+    })
+  })
+}
+
+function parseSubtitleFile(content) {
+  const segments = []
+
+  // VTT format: 00:00:00.000 --> 00:00:02.500
+  // SRT format: 00:00:00,000 --> 00:00:02,500
+  const timeRegex = /(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/g
+  const lines = content.split('\n')
+
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    const timeMatch = line.match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/)
+
+    if (timeMatch) {
+      const start = parseTimestamp(timeMatch[1])
+      const end = parseTimestamp(timeMatch[2])
+
+      // Collect text lines until empty line or next timestamp
+      const textLines = []
+      i++
+      while (i < lines.length && lines[i].trim() && !lines[i].match(/^\d{2}:\d{2}:\d{2}/)) {
+        // Skip VTT positioning tags like <c> or alignment tags
+        const cleanedLine = lines[i]
+          .replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim()
+        if (cleanedLine) {
+          textLines.push(cleanedLine)
+        }
+        i++
+      }
+
+      const text = textLines.join(' ').trim()
+      if (text) {
+        segments.push({
+          start,
+          end,
+          text,
+          words: [{ text, start, end }]
+        })
+      }
+    } else {
+      i++
+    }
+  }
+
+  return segments
+}
+
+function parseTimestamp(ts) {
+  // Handle both 00:00:00.000 (VTT) and 00:00:00,000 (SRT)
+  const normalized = ts.replace(',', '.')
+  const parts = normalized.split(':')
+  const hours = parseInt(parts[0], 10)
+  const minutes = parseInt(parts[1], 10)
+  const secondsParts = parts[2].split('.')
+  const seconds = parseInt(secondsParts[0], 10)
+  const ms = parseInt(secondsParts[1], 10)
+
+  return hours * 3600 + minutes * 60 + seconds + ms / 1000
+}
+
+async function downloadYoutubeAudio(videoId) {
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
+  const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
+  const downloadPath = `${tempBase}.mp3`
+  const compressedPath = `${tempBase}-compressed.mp3`
+
+  console.log('Downloading YouTube audio:', videoId, '→', downloadPath)
+
+  // Step 1: Download audio with yt-dlp
+  await new Promise((resolve, reject) => {
+    const ytProcess = spawn('yt-dlp', [
+      '-x',
+      '--audio-format', 'mp3',
+      '-o', downloadPath,
+      videoUrl
+    ])
+
+    let stderr = ''
+    ytProcess.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+
+    ytProcess.on('error', (err) => {
+      console.error('yt-dlp spawn error:', err)
+      reject(err)
+    })
+
+    ytProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('yt-dlp stderr:', stderr)
+        return reject(new Error(`yt-dlp exited with code ${code}`))
+      }
+      resolve()
+    })
+  })
+
+  // Step 2: Check file size
+  const stat = await fs.stat(downloadPath)
+  console.log('Downloaded audio:', `${(stat.size / 1024 / 1024).toFixed(1)}MB`)
+
+  // Step 3: If over 24MB, compress with ffmpeg for Whisper's 25MB limit
+  const MAX_SIZE = 24 * 1024 * 1024 // 24MB
+  if (stat.size > MAX_SIZE) {
+    console.log('File too large for Whisper API, compressing...')
+
+    await new Promise((resolve, reject) => {
+      // Compress to 16kbps mono 16kHz - optimized for speech, ensures under 25MB
+      const ffmpeg = spawn('ffmpeg', [
+        '-i', downloadPath,
+        '-ac', '1',           // mono
+        '-ar', '16000',       // 16kHz sample rate
+        '-b:a', '16k',        // 16kbps bitrate (halved for long videos)
+        '-y',                 // overwrite output
+        compressedPath
+      ])
+
+      ffmpeg.on('error', reject)
+      ffmpeg.on('close', (code) => {
+        if (code !== 0) reject(new Error(`ffmpeg exited with code ${code}`))
+        else resolve()
+      })
+    })
+
+    const compressedStat = await fs.stat(compressedPath)
+    console.log('Compressed audio:', `${(compressedStat.size / 1024 / 1024).toFixed(1)}MB`)
+
+    // Clean up original, return compressed
+    await fs.unlink(downloadPath).catch(() => {})
+    return compressedPath
+  }
+
+  return downloadPath
+}
+
+async function downloadAudioUrlToTempFile(audioUrl) {
+  if (!audioUrl) return null
+
+  const response = await fetch(audioUrl)
+
+  if (!response.ok) {
+    throw new Error(`Failed to download audio: ${response.status} ${response.statusText}`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  const tempPath = path.join(os.tmpdir(), `audio-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`)
+
+  await fs.writeFile(tempPath, Buffer.from(arrayBuffer))
+
+  return tempPath
+}
+
+const MIN_SEGMENT_WORDS = 10
+const MAX_SEGMENT_WORDS = 25
+
+function countWords(text) {
+  if (!text?.trim()) return 0
+  return text.trim().split(/\s+/).length
+}
+
+/**
+ * Split a long sentence at natural break points (commas, semicolons, conjunctions)
+ */
+function splitLongSentence(text, minWords, maxWords) {
+  const words = text.split(/\s+/)
+  if (words.length <= maxWords) return [text]
+
+  const result = []
+  let current = []
+
+  for (let i = 0; i < words.length; i++) {
+    current.push(words[i])
+
+    // Check if we're at a natural break point and have enough words
+    const isNaturalBreak = /[,;:]$/.test(words[i]) ||
+      /^(and|but|or|so|yet|because|although|while|when|if|then|however|therefore|moreover|furthermore|additionally|consequently|thus|hence|meanwhile|otherwise|instead|rather|indeed|y|pero|o|porque|aunque|cuando|si|entonces|sin embargo|por lo tanto|además|por consiguiente|mientras|de lo contrario|en cambio|de hecho)$/i.test(words[i + 1] || '')
+
+    if (current.length >= minWords && (current.length >= maxWords || (isNaturalBreak && current.length >= minWords))) {
+      result.push(current.join(' '))
+      current = []
+    }
+  }
+
+  // Handle remaining words
+  if (current.length > 0) {
+    if (result.length > 0 && current.length < minWords) {
+      // Combine with previous if too short
+      result[result.length - 1] = `${result[result.length - 1]} ${current.join(' ')}`
+    } else {
+      result.push(current.join(' '))
+    }
+  }
+
+  return result
+}
+
+/**
+ * Split text into sentences with min/max word constraints
+ * - Minimum 10 words: if a sentence is too short, combine with next
+ * - Maximum 25 words: if a sentence is too long, split at natural breaks
+ */
+function splitIntoSentences(text) {
+  if (!text?.trim()) return []
+
+  // First, split on sentence-ending punctuation followed by space or end
+  const rawSentences = (text || '')
+    .split(/(?<=[.!?¡¿…])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const result = []
+  let buffer = ''
+
+  for (let i = 0; i < rawSentences.length; i++) {
+    const sentence = rawSentences[i]
+    const combined = buffer ? `${buffer} ${sentence}` : sentence
+    const wordCount = countWords(combined)
+
+    if (wordCount <= MAX_SEGMENT_WORDS) {
+      // Combined is within max limit
+      if (wordCount >= MIN_SEGMENT_WORDS) {
+        // Meets minimum, add to result
+        result.push(combined)
+        buffer = ''
+      } else {
+        // Still under minimum, keep buffering
+        buffer = combined
+      }
+    } else {
+      // Combined exceeds max
+      if (buffer) {
+        // First, flush the buffer if it meets minimum
+        if (countWords(buffer) >= MIN_SEGMENT_WORDS) {
+          result.push(buffer)
+          buffer = ''
+        }
+      }
+
+      // Now handle the current sentence
+      const currentWords = countWords(buffer ? `${buffer} ${sentence}` : sentence)
+      if (currentWords > MAX_SEGMENT_WORDS) {
+        // Need to split this sentence
+        const textToSplit = buffer ? `${buffer} ${sentence}` : sentence
+        const splitParts = splitLongSentence(textToSplit, MIN_SEGMENT_WORDS, MAX_SEGMENT_WORDS)
+        result.push(...splitParts)
+        buffer = ''
+      } else {
+        buffer = buffer ? `${buffer} ${sentence}` : sentence
+      }
+    }
+  }
+
+  // Handle remaining buffer
+  if (buffer) {
+    if (result.length > 0 && countWords(buffer) < MIN_SEGMENT_WORDS) {
+      // Combine with last result if buffer is too short
+      const lastWordCount = countWords(result[result.length - 1])
+      if (lastWordCount + countWords(buffer) <= MAX_SEGMENT_WORDS) {
+        result[result.length - 1] = `${result[result.length - 1]} ${buffer}`
+      } else {
+        // Just add it even if short - last sentence exception
+        result.push(buffer)
+      }
+    } else {
+      result.push(buffer)
+    }
+  }
+
+  return result
+}
+
+// Check if text has adequate punctuation for sentence splitting
+function hasAdequatePunctuation(text) {
+  if (!text || text.length < 100) return true
+  const punctuationCount = (text.match(/[.!?]/g) || []).length
+  const wordCount = text.split(/\s+/).length
+  // Expect roughly 1 sentence-ending punctuation per 15-25 words
+  const expectedPunctuation = wordCount / 20
+  return punctuationCount >= expectedPunctuation * 0.5
+}
+
+// Use AI to segment unpunctuated transcript into proper sentences
+async function segmentWithAI(text) {
+  if (!text || text.length < 50) return [text]
+
+  // Check if already has adequate punctuation - if so, use standard splitting
+  if (hasAdequatePunctuation(text)) {
+    console.log('Text already has adequate punctuation, using standard split')
+    return splitIntoSentences(text)
+  }
+
+  console.log('Segmenting with AI for', text.length, 'characters')
+
+  // Process in chunks if text is very long (GPT has token limits)
+  const MAX_CHUNK = 8000 // characters per chunk
+  const chunks = []
+  for (let i = 0; i < text.length; i += MAX_CHUNK) {
+    chunks.push(text.slice(i, i + MAX_CHUNK))
+  }
+
+  const allSentences = []
+
+  for (const chunk of chunks) {
+    try {
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: `Segment this transcript into individual sentences. Output ONE SENTENCE PER LINE.
+
+Rules:
+- Each line should be a complete, natural sentence
+- Aim for sentences of 10-25 words each
+- Keep the exact same words, just add line breaks between sentences
+- Add periods at the end of each sentence
+
+Transcript:
+${chunk}
+
+Output each sentence on its own line:`,
+      })
+
+      const segmentedText = response.output_text?.trim()
+      if (segmentedText) {
+        const sentences = segmentedText
+          .split('\n')
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
+        allSentences.push(...sentences)
+        console.log(`AI segmented chunk into ${sentences.length} sentences`)
+      }
+    } catch (error) {
+      console.error('AI segmentation error:', error.message)
+      // Fallback: split by length
+      const fallbackSentences = splitByLength(chunk, 150)
+      allSentences.push(...fallbackSentences)
+    }
+  }
+
+  return allSentences.length > 0 ? allSentences : [text]
+}
+
+// Fallback: split long text by word count
+function splitByLength(text, maxWords = 150) {
+  const words = text.split(/\s+/)
+  const sentences = []
+
+  for (let i = 0; i < words.length; i += maxWords) {
+    const chunk = words.slice(i, i + maxWords).join(' ')
+    if (chunk.trim()) {
+      sentences.push(chunk.trim() + (chunk.endsWith('.') ? '' : '.'))
+    }
+  }
+
+  return sentences
+}
+
+function buildSentenceSegmentsFromWhisper(whisperSegments = []) {
+  const sentenceSegments = []
+  const segments = Array.isArray(whisperSegments) ? whisperSegments : []
+
+  segments.forEach((seg) => {
+    const rawStart = Number(seg?.start)
+    const rawEnd = Number(seg?.end)
+    const segmentStart = Number.isFinite(rawStart) ? Math.max(0, rawStart) : 0
+    const segmentEnd = Number.isFinite(rawEnd) ? Math.max(segmentStart, rawEnd) : segmentStart
+    const duration = Math.max(0, segmentEnd - segmentStart)
+
+    const normalisedText = (seg?.text || '').replace(/\s+/g, ' ').trim()
+    if (!normalisedText) return
+
+    const subSentences = splitIntoSentences(normalisedText)
+    const parts = subSentences.length ? subSentences : [normalisedText]
+    const totalChars = parts.reduce((sum, sentence) => sum + sentence.length, 0)
+
+    let cursor = segmentStart
+    parts.forEach((sentence, index) => {
+      const defaultWeight = parts.length > 0 ? 1 / parts.length : 1
+      const weight = totalChars > 0 ? sentence.length / totalChars : defaultWeight
+      const subDuration = duration * (Number.isFinite(weight) && weight > 0 ? weight : defaultWeight)
+      const sentenceEnd = index === parts.length - 1 ? segmentEnd : Math.max(cursor, cursor + subDuration)
+
+      sentenceSegments.push({ start: cursor, end: sentenceEnd, text: sentence })
+      cursor = sentenceEnd
+    })
+  })
+
+  return sentenceSegments
+}
+
+async function transcribeWithWhisper({ videoId, audioUrl, languageCode }) {
+  let audioPath = null
+  const chunkPaths = []
+
+  try {
+    if (videoId) {
+      audioPath = await downloadYoutubeAudio(videoId)
+    } else if (audioUrl) {
+      audioPath = await downloadAudioUrlToTempFile(audioUrl)
+    }
+
+    if (!audioPath) {
+      throw new Error('No audio source provided for Whisper transcription')
+    }
+
+    // Get audio duration
+    const duration = await getAudioDuration(audioPath)
+    console.log(`Audio duration: ${(duration / 60).toFixed(1)} minutes`)
+
+    // Convert language name to code for Whisper
+    const whisperLanguage = resolveTargetCode(languageCode)
+    console.log('WHISPER LANGUAGE:', languageCode, '→', whisperLanguage || 'auto-detect')
+
+    const CHUNK_DURATION = 20 * 60 // 20 minutes in seconds
+    let allSegments = []
+    let fullText = ''
+
+    if (duration > CHUNK_DURATION) {
+      // Split into chunks for long audio
+      const numChunks = Math.ceil(duration / CHUNK_DURATION)
+      console.log(`Splitting into ${numChunks} chunks of ~20 minutes each`)
+
+      for (let i = 0; i < numChunks; i++) {
+        const startTime = i * CHUNK_DURATION
+        const chunkPath = audioPath.replace('.mp3', `-chunk${i}.mp3`)
+        chunkPaths.push(chunkPath)
+
+        // Extract chunk with ffmpeg
+        await new Promise((resolve, reject) => {
+          const ffmpeg = spawn('ffmpeg', [
+            '-i', audioPath,
+            '-ss', String(startTime),
+            '-t', String(CHUNK_DURATION),
+            '-c', 'copy',
+            '-y',
+            chunkPath
+          ])
+          ffmpeg.on('error', reject)
+          ffmpeg.on('close', (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg chunk failed`)))
+        })
+
+        console.log(`Transcribing chunk ${i + 1}/${numChunks}...`)
+
+        const transcription = await client.audio.transcriptions.create({
+          file: createReadStream(chunkPath),
+          model: 'whisper-1',
+          response_format: 'verbose_json',
+          timestamp_granularities: ['word'],
+          ...(whisperLanguage ? { language: whisperLanguage } : {}),
+        })
+
+        // Adjust timestamps for chunk offset
+        const chunkSegments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
+        const offsetSegments = chunkSegments.map(seg => ({
+          ...seg,
+          start: seg.start + startTime,
+          end: seg.end + startTime
+        }))
+
+        allSegments.push(...offsetSegments)
+        fullText += (fullText ? ' ' : '') + (transcription?.text || '')
+
+        console.log(`Chunk ${i + 1} complete: ${chunkSegments.length} segments`)
+      }
+    } else {
+      // Single transcription for short audio
+      console.log('Sending audio to Whisper API:', audioPath)
+
+      const transcription = await client.audio.transcriptions.create({
+        file: createReadStream(audioPath),
+        model: 'whisper-1',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['word'],
+        ...(whisperLanguage ? { language: whisperLanguage } : {}),
+      })
+
+      // Debug: log Whisper response structure
+      console.log('Whisper response keys:', Object.keys(transcription || {}))
+      console.log('Whisper words count:', transcription?.words?.length || 0)
+      if (transcription?.words?.length > 0) {
+        console.log('Sample word:', JSON.stringify(transcription.words[0]))
+      }
+
+      allSegments = buildSentencesFromWords(transcription?.words || [], transcription?.text || '')
+      fullText = transcription?.text || ''
+
+      // Debug: check if segments have words
+      if (allSegments.length > 0) {
+        console.log('Sample segment words count:', allSegments[0]?.words?.length || 0)
+      }
+    }
+
+    console.log('Total segments:', allSegments.length)
+    return { text: fullText, segments: allSegments, sentenceSegments: allSegments }
+  } catch (error) {
+    console.error('Whisper API error:', error.message)
+    console.error('Whisper API error details:', JSON.stringify(error, null, 2))
+    throw error
+  } finally {
+    // Clean up all temp files
+    const filesToClean = [audioPath, ...chunkPaths].filter(Boolean)
+    for (const filePath of filesToClean) {
+      try {
+        await fs.unlink(filePath)
+      } catch (e) {
+        if (e?.code !== 'ENOENT') console.error('Cleanup error:', e)
+      }
+    }
+  }
+}
+
+// Get audio duration in seconds using ffprobe
+async function getAudioDuration(audioPath) {
+  return new Promise((resolve, reject) => {
+    const ffprobe = spawn('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      audioPath
+    ])
+
+    let output = ''
+    ffprobe.stdout.on('data', (data) => { output += data.toString() })
+    ffprobe.on('error', reject)
+    ffprobe.on('close', (code) => {
+      if (code === 0) {
+        resolve(parseFloat(output.trim()) || 0)
+      } else {
+        reject(new Error('ffprobe failed'))
+      }
+    })
+  })
+}
+
+// Align punctuation from full text to word-level timestamps
+// Whisper's words[] don't include punctuation, but text does
+function alignPunctuationToWords(fullText = '', words = []) {
+  if (!words.length || !fullText) return words
+
+  const enrichedWords = []
+  let textPos = 0
+
+  for (const word of words) {
+    const rawWord = word.word || ''
+
+    // Skip whitespace and leading punctuation in text
+    let leadingPunct = ''
+    while (textPos < fullText.length && /[\s¿¡"'«([—]/.test(fullText[textPos])) {
+      const char = fullText[textPos]
+      // Only add non-whitespace, and avoid duplicates of ¿ or ¡
+      if (!/\s/.test(char)) {
+        if ((char === '¿' || char === '¡') && leadingPunct.includes(char)) {
+          // Skip duplicate opening punctuation
+        } else {
+          leadingPunct += char
+        }
+      }
+      textPos++
+    }
+
+    // Find the word in text (case-insensitive match)
+    const wordStart = fullText.toLowerCase().indexOf(rawWord.toLowerCase(), textPos)
+    if (wordStart !== -1 && wordStart - textPos < 10) {
+      textPos = wordStart + rawWord.length
+    } else {
+      textPos += rawWord.length
+    }
+
+    // Capture trailing punctuation
+    let trailingPunct = ''
+    while (textPos < fullText.length && /[.,;:!?)"'\]»—]/.test(fullText[textPos])) {
+      trailingPunct += fullText[textPos]
+      textPos++
+    }
+
+    // Clean up any duplicate opening punctuation (¿¿ → ¿, ¡¡ → ¡)
+    const cleanedWord = (leadingPunct + rawWord + trailingPunct)
+      .replace(/¿+/g, '¿')
+      .replace(/¡+/g, '¡')
+
+    enrichedWords.push({
+      ...word,
+      word: cleanedWord,
+    })
+  }
+
+  return enrichedWords
+}
+
+// Build sentences from Whisper word-level timestamps
+// Sentence breaks only on punctuation (. ? !)
+function buildSentencesFromWords(words = [], fullText = '') {
+  if (!words.length) return []
+
+  // Enrich words with punctuation from full text
+  const enrichedWords = alignPunctuationToWords(fullText, words)
+
+  const sentences = []
+  let currentWords = []
+
+  for (let i = 0; i < enrichedWords.length; i++) {
+    const word = enrichedWords[i]
+    const nextWord = enrichedWords[i + 1]
+
+    // Add word to current sentence
+    currentWords.push({
+      text: word.word || '',
+      start: word.start || 0,
+      end: word.end || 0,
+    })
+
+    // Check for sentence break conditions - only punctuation based
+    const hasSentenceEnd = /[.?!]$/.test(word.word || '')
+
+    // Break only on: sentence end punctuation or end of text
+    const shouldBreak = hasSentenceEnd || !nextWord
+
+    if (shouldBreak && currentWords.length > 0) {
+      const text = currentWords.map(w => w.text).join(' ')
+      sentences.push({
+        start: currentWords[0].start,
+        end: currentWords[currentWords.length - 1].end,
+        text,
+        words: currentWords,
+      })
+      currentWords = []
+    }
+  }
+
+  return sentences
+}
+
+app.post('/api/youtube/transcript', async (req, res) => {
+  const { videoId, language, uid, videoDocId } = req.body || {}
+
+  if (!videoId || !uid || !videoDocId) {
+    return res.status(400).json({ error: 'videoId, uid, and videoDocId are required' })
+  }
+
+  const languageCode = (language || 'auto').toLowerCase()
+
+  try {
+    const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
+    const videoDoc = await videoRef.get()
+    if (!videoDoc.exists) {
+      return res.status(404).json({ error: 'YouTube video not found for this user' })
+    }
+
+    const transcriptRef = videoRef.collection('transcripts').doc(languageCode)
+    const existing = await transcriptRef.get()
+    const existingData = existing.exists ? existing.data() || {} : {}
+    if (existing.exists) {
+      const cachedSegments = normaliseTranscriptSegments(existingData.segments)
+      const cachedSentenceSegments = normaliseTranscriptSegments(existingData.sentenceSegments)
+
+      if (cachedSegments.length > 0 || cachedSentenceSegments.length > 0) {
+        const resolvedSentenceSegments =
+          cachedSentenceSegments.length > 0
+            ? cachedSentenceSegments
+            : buildSentenceSegmentsFromWhisper(cachedSegments)
+
+        return res.json({
+          text: existingData.text || cachedSegments.map((segment) => segment.text).join(' '),
+          segments: cachedSegments,
+          sentenceSegments: resolvedSentenceSegments,
+        })
+      }
+    }
+    let transcriptResult = { text: '', segments: [], sentenceSegments: [] }
+
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+      transcriptResult = { text: captionSegments.map((seg) => seg.text).join(' '), segments: captionSegments }
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback', captionError)
+    }
+
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      try {
+        const whisperResult = await transcribeWithWhisper({ videoId, languageCode })
+        transcriptResult = {
+          text: whisperResult?.text || '',
+          segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+          sentenceSegments: Array.isArray(whisperResult?.sentenceSegments)
+            ? whisperResult.sentenceSegments
+            : [],
+        }
+      } catch (transcriptionError) {
+        console.error('Failed to transcribe audio with Whisper', transcriptionError)
+        return res.status(500).json({ error: 'Failed to generate subtitles' })
+      }
+    }
+
+    const normalisedSegments = normaliseTranscriptSegments(transcriptResult.segments)
+    const resolvedSentenceSegments = (() => {
+      const cached = normaliseTranscriptSegments(transcriptResult.sentenceSegments)
+      if (cached.length) return cached
+      return buildSentenceSegmentsFromWhisper(normalisedSegments)
+    })()
+    const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
+
+    const transcriptPayload = {
+      videoId,
+      language: languageCode,
+      segments: normalisedSegments,
+      text: transcriptText,
+      sentenceSegments: resolvedSentenceSegments,
+      createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+    }
+
+    await transcriptRef.set(transcriptPayload, { merge: true })
+
+    // Trigger content preparation (pronunciation caching) for known languages
+    const normalizedLang = normalizeLanguageLabel(languageCode)?.toLowerCase()
+    if (normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      try {
+        // Set initial preparation status
+        await videoRef.update({
+          preparationStatus: 'pending',
+          preparationProgress: 0,
+          language: normalizedLang,
+        })
+
+        // Trigger preparation asynchronously (don't await)
+        prepareContentPronunciations(uid, videoDocId, 'youtube', normalizedLang, null)
+          .catch((prepErr) => {
+            console.error('Background YouTube preparation failed:', prepErr)
+          })
+      } catch (prepInitError) {
+        console.error('Failed to initialize YouTube preparation:', prepInitError)
+      }
+    }
+
+    return res.json({
+      text: transcriptPayload.text,
+      segments: transcriptPayload.segments,
+      sentenceSegments: transcriptPayload.sentenceSegments,
+    })
+  } catch (error) {
+    console.error('Failed to transcribe YouTube audio', error)
+    return res.status(500).json({ error: 'Failed to transcribe YouTube audio' })
+  }
+})
+
+// Lightweight transcript endpoint for Translation Practice feature
+// Returns transcript without requiring user authentication or Firestore storage
+app.post('/api/transcribe', async (req, res) => {
+  const { url } = req.body || {}
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' })
+  }
+
+  const videoId = extractYouTubeId(url)
+  if (!videoId) {
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  try {
+    // Get video info for title
+    let title = null
+    try {
+      const info = await ytdl.getInfo(videoId)
+      title = info?.videoDetails?.title || null
+    } catch (infoErr) {
+      console.error('Failed to fetch video info for title:', infoErr.message)
+    }
+
+    // Try YouTube captions first
+    let transcriptResult = { text: '', segments: [] }
+
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, 'en')
+      if (captionSegments.length > 0) {
+        transcriptResult = {
+          text: captionSegments.map((seg) => seg.text).join(' '),
+          segments: captionSegments,
+        }
+      }
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback:', captionError.message)
+    }
+
+    // Fallback to Whisper if no captions
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      try {
+        const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+        transcriptResult = {
+          text: whisperResult?.text || '',
+          segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        }
+      } catch (whisperError) {
+        console.error('Failed to transcribe with Whisper:', whisperError.message)
+        return res.status(500).json({ error: 'Failed to fetch transcript from video' })
+      }
+    }
+
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      return res.status(500).json({ error: 'No transcript available for this video' })
+    }
+
+    return res.json({
+      text: transcriptResult.text,
+      segments: transcriptResult.segments,
+      title,
+    })
+  } catch (error) {
+    console.error('Transcribe endpoint error:', error)
+    return res.status(500).json({ error: 'Failed to process video' })
+  }
+})
+
+// Background transcript processing for Translation Practice YouTube imports
+// Creates lesson immediately, then fetches transcript and updates the lesson
+app.post('/api/transcribe/background', async (req, res) => {
+  const { url, lessonId, uid } = req.body || {}
+
+  if (!url || !lessonId || !uid) {
+    return res.status(400).json({ error: 'url, lessonId, and uid are required' })
+  }
+
+  const videoId = extractYouTubeId(url)
+  if (!videoId) {
+    // Update lesson to failed status
+    try {
+      await firestore.collection('users').doc(uid).collection('practiceLessons').doc(lessonId).update({
+        status: 'import_failed',
+        importError: 'Invalid YouTube URL',
+      })
+    } catch (e) {
+      console.error('Failed to update lesson status:', e)
+    }
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  // Respond immediately - processing happens in background
+  res.json({ status: 'processing', lessonId })
+
+  // Background processing
+  const lessonRef = firestore.collection('users').doc(uid).collection('practiceLessons').doc(lessonId)
+
+  try {
+    console.log(`Background import starting for lesson ${lessonId}, video ${videoId}`)
+
+    // Use Whisper for transcription (returns punctuated text - fast and accurate)
+    let segments = []
+    try {
+      console.log('Starting Whisper transcription...')
+      const whisperResult = await transcribeWithWhisper({ videoId, languageCode: 'en' })
+      segments = Array.isArray(whisperResult?.segments) ? whisperResult.segments : []
+      console.log(`Whisper transcription complete: ${segments.length} segments`)
+    } catch (whisperError) {
+      console.error('Whisper transcription failed:', whisperError.message)
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: `Transcription failed: ${whisperError.message}. Ensure ffmpeg is installed.`,
+      })
+      return
+    }
+
+    if (segments.length === 0) {
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: 'No transcript available for this video',
+      })
+      return
+    }
+
+    // Combine all segment text into full transcript
+    const fullTranscript = segments
+      .map((seg) => seg.text?.trim())
+      .filter((s) => s && s.length > 0)
+      .join(' ')
+
+    // Whisper returns punctuated text - use standard sentence splitting (instant)
+    const sentenceTexts = splitIntoSentences(fullTranscript)
+    const sentences = sentenceTexts.map((text, index) => ({
+      index,
+      text,
+      status: 'pending',
+    }))
+
+    // Generate context summary for tutor feedback (AI analyzes and extracts relevant context)
+    let contextSummary = ''
+    try {
+      console.log('Generating context summary...')
+      const summaryResponse = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: `Analyze this transcript and write a brief context summary (150-200 words) that would help a language tutor provide accurate translations. The tutor needs to understand the context to give appropriate feedback.
+
+Extract and describe whatever you find relevant - this might include:
+- What type of content this is and the setting
+- Who is speaking and who they're addressing
+- The subject matter and any specialized terminology
+- Time periods, cultural references, or proper nouns mentioned
+- The tone and register being used
+- Any other contextually important details
+
+Transcript (first 8000 characters):
+${fullTranscript.slice(0, 8000)}
+
+Write the summary in a natural paragraph format:`,
+      })
+      contextSummary = summaryResponse.output_text?.trim() || ''
+      console.log('Context summary generated:', contextSummary.slice(0, 100) + '...')
+    } catch (summaryError) {
+      console.error('Failed to generate context summary:', summaryError.message)
+    }
+
+    // Update the lesson with sentences, fullTranscript, contextSummary, and change status
+    await lessonRef.update({
+      sentences,
+      fullTranscript,
+      contextSummary,
+      status: 'in_progress',
+      importError: null,
+    })
+
+    console.log(`Background import complete for lesson ${lessonId}: ${sentences.length} sentences`)
+  } catch (error) {
+    console.error('Background transcript processing error:', error)
+    try {
+      await lessonRef.update({
+        status: 'import_failed',
+        importError: error.message || 'Failed to process video',
+      })
+    } catch (e) {
+      console.error('Failed to update lesson status:', e)
+    }
+  }
+})
+
+// Background processor for YouTube transcript generation
+// Called from import to prepare video before user opens it
+async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode = 'auto') {
+  const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
+
+  try {
+    const transcriptRef = videoRef.collection('transcripts').doc(languageCode.toLowerCase())
+
+    let transcriptResult = { text: '', segments: [], sentenceSegments: [] }
+
+    // Try YouTube captions first
+    try {
+      const captionSegments = await fetchYoutubeCaptionSegments(videoId, languageCode)
+      transcriptResult = { text: captionSegments.map((seg) => seg.text).join(' '), segments: captionSegments }
+    } catch (captionError) {
+      console.error('Failed to fetch YouTube captions, will attempt Whisper fallback', captionError)
+    }
+
+    // Fall back to Whisper if no captions
+    if (!transcriptResult.segments || transcriptResult.segments.length === 0) {
+      const whisperResult = await transcribeWithWhisper({ videoId, languageCode })
+      transcriptResult = {
+        text: whisperResult?.text || '',
+        segments: Array.isArray(whisperResult?.segments) ? whisperResult.segments : [],
+        sentenceSegments: Array.isArray(whisperResult?.sentenceSegments) ? whisperResult.sentenceSegments : [],
+      }
+    }
+
+    const normalisedSegments = normaliseTranscriptSegments(transcriptResult.segments)
+    const resolvedSentenceSegments = (() => {
+      const cached = normaliseTranscriptSegments(transcriptResult.sentenceSegments)
+      if (cached.length) return cached
+      return buildSentenceSegmentsFromWhisper(normalisedSegments)
+    })()
+    const transcriptText = transcriptResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
+
+    const transcriptPayload = {
+      videoId,
+      language: languageCode.toLowerCase(),
+      segments: normalisedSegments,
+      text: transcriptText,
+      sentenceSegments: resolvedSentenceSegments,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+
+    await transcriptRef.set(transcriptPayload, { merge: true })
+
+    // Trigger pronunciation preparation if language supports it
+    const normalizedLang = normalizeLanguageLabel(languageCode)?.toLowerCase()
+    if (normalizedLang && DEFAULT_IMPORT_VOICE_IDS[normalizedLang]) {
+      await videoRef.update({
+        preparationStatus: 'pending',
+        preparationProgress: 0,
+        language: normalizedLang,
+      })
+
+      prepareContentPronunciations(uid, videoDocId, 'youtube', normalizedLang, null)
+        .catch((prepErr) => {
+          console.error('Background YouTube preparation failed:', prepErr)
+        })
+    }
+
+    // Mark video as ready
+    await videoRef.update({ status: 'ready' })
+  } catch (error) {
+    console.error('processYouTubeTranscript failed:', error)
+    // Mark as failed so user knows something went wrong
+    await videoRef.update({ status: 'failed' }).catch(() => {})
+    throw error
+  }
+}
+
+app.post('/api/youtube/import', async (req, res) => {
+  const { title, youtubeUrl, uid, language } = req.body || {}
+  const trimmedTitle = (title || '').trim()
+  const trimmedUrl = (youtubeUrl || '').trim()
+  const trimmedLanguage = (language || '').trim()
+
+  if (!trimmedTitle || !trimmedUrl || !uid) {
+    return res.status(400).json({ error: 'title, youtubeUrl, and uid are required' })
+  }
+
+  const videoId = extractYouTubeId(trimmedUrl)
+  if (!videoId) {
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  let metadata = { channelTitle: null, durationSeconds: null }
+  try {
+    metadata = await fetchYoutubeMetadata(videoId)
+  } catch (metadataError) {
+    console.error('Failed to fetch YouTube metadata', metadataError)
+  }
+
+  const payload = {
+    title: trimmedTitle,
+    youtubeUrl: trimmedUrl,
+    videoId,
+    channelTitle: metadata.channelTitle || 'Unknown channel',
+    ...(Number.isFinite(metadata.durationSeconds) && { durationSeconds: metadata.durationSeconds }),
+    ...(trimmedLanguage && { language: trimmedLanguage }),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    source: 'youtube',
+    status: 'importing',
+  }
+
+  try {
+    const videoRef = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('youtubeVideos')
+      .add(payload)
+
+    const videoDocId = videoRef.id
+
+    // Trigger background transcription (don't await - let it run async)
+    processYouTubeTranscript(uid, videoDocId, videoId, trimmedLanguage || 'auto')
+      .then(() => {
+        console.log(`YouTube import ready: ${videoDocId}`)
+      })
+      .catch((err) => {
+        console.error(`YouTube import failed: ${videoDocId}`, err)
+      })
+
+    return res.json({ id: videoDocId, ...payload })
+  } catch (error) {
+    console.error('Failed to save YouTube import', error)
+    return res.status(500).json({ error: 'Failed to import YouTube video' })
+  }
+})
+
+app.post('/api/audio-url', async (req, res) => {
+  const { audioPath } = req.body || {}
+
+  if (!audioPath || typeof audioPath !== 'string') {
+    return res.status(400).json({ error: 'audioPath is required' })
+  }
+
+  try {
+    const file = bucket.file(audioPath)
+    const [exists] = await file.exists()
+
+    if (!exists) {
+      return res.status(404).json({ error: 'Audio file not found' })
+    }
+
+    const [signedUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000,
+    })
+
+    return res.json({ signedUrl })
+  } catch (error) {
+    console.error('Failed to generate signed audio URL', { audioPath, error })
+    return res.status(500).json({ error: 'Failed to generate signed audio URL' })
+  }
+})
+
+app.post('/api/generate', async (req, res) => {
+  try {
+    const { level, genre, length, description, language, pageCount, voiceGender } = req.body
+    const totalPages = Math.max(5, Number(pageCount || length || 1) || 1)
+    const trimmedDescription = description?.trim() || 'Use your creativity to craft the plot.'
+
+    let resolvedVoiceId = ''
+    let resolvedVoiceGender = ''
+
+    // Only resolve voice settings if voiceGender is provided (audio generation requested)
+    if (voiceGender) {
+      try {
+        const voiceSelection = resolveElevenLabsVoiceId(language, voiceGender)
+        resolvedVoiceId = voiceSelection.voiceId
+        resolvedVoiceGender = voiceSelection.voiceGender
+      } catch (voiceError) {
+        return res.status(400).json({ error: voiceError?.message || 'Invalid voice selection' })
+      }
+    }
+
+    let title = 'Untitled Story'
+    let pagePlans = new Array(totalPages).fill(null)
+
+    try {
+      const planningPrompt = `You are planning a ${genre} story in ${language} for a reader at ${level} level. Use this idea: ${trimmedDescription}. Create a concise outline for ${totalPages} pages. Provide a JSON object with a short, compelling story title in the requested language and an array of page-level beats that loosely guide the narrative (do not force scene endings to align to page breaks). Return only JSON with keys "title" and "pagePlans" (array length ${totalPages}, each entry 1-3 sentences).`
+
+      const planningResponse = await client.responses.create({
+        model: "gpt-4.1",
+        input: planningPrompt,
+        text: { format: { type: 'json_object' } },
+      })
+
+      const contentBlocks = planningResponse?.output?.[0]?.content || []
+      const jsonBlock = contentBlocks.find((block) =>
+        block?.type === 'output_json' || block?.type === 'json'
+      )
+
+      let planningPayload = jsonBlock?.output_json || jsonBlock?.json
+
+      if (!planningPayload) {
+        const textBlock = contentBlocks.find((block) => typeof block?.text === 'string')
+        const candidateText = textBlock?.text || planningResponse?.output_text
+        if (candidateText) {
+          try {
+            planningPayload = JSON.parse(candidateText)
+          } catch (err) {
+            planningPayload = null
+          }
+        }
+      }
+
+      if (planningPayload) {
+        if (typeof planningPayload.title === 'string' && planningPayload.title.trim()) {
+          title = planningPayload.title.trim()
+        }
+
+        if (Array.isArray(planningPayload.pagePlans)) {
+          const normalizedPlans = Array.from({ length: totalPages }, (_, index) =>
+            planningPayload.pagePlans[index] ?? null,
+          )
+          pagePlans = normalizedPlans
+        }
+      }
+    } catch (planningError) {
+      console.error('Planning step failed:', planningError)
+    }
+
+    const pages = []
+
+    for (let index = 0; index < totalPages; index += 1) {
+      const pageNumber = index + 1
+
+      const isFirstPage = pageNumber === 1
+
+      const plannedBeat = pagePlans[index] || 'Continue following the planned narrative and pacing.'
+
+      const baseInstructions = `You are writing page ${pageNumber} of ${totalPages} of a ${genre} story in ${language} at ${level} level. Story title: ${title}. Planned beat for this page: ${plannedBeat}. Each page must be approximately 250 words (between 230 and 260 words). A page is just a layout boundary, not a unit of the story. Scenes, ideas, paragraphs, and sentences can start on one page and continue onto the next.`
+
+      const input = isFirstPage
+        ? `${baseInstructions} Continue the same story from any previous pages, keeping characters and tone consistent. Story description: ${trimmedDescription}. Provide only the full text for page ${pageNumber} with no headings, titles, or page labels.`
+        : (() => {
+            const previousPage = pages[pageNumber - 2] || ''
+            const previousTail = previousPage.slice(Math.max(previousPage.length - 1000, 0))
+
+            return `${baseInstructions} Continue directly from the previous page. Previous page ending (context only, do not repeat): "${previousTail}". Use the previous page ending only as context and do not repeat those sentences. Keep characters and tone consistent. Scenes, ideas, paragraphs, and sentences can cross page boundaries. Do not try to start or wrap up a scene just because the page is ending. Stop after about 250 words (between 230 and 260) even if in the middle of a paragraph or scene. Story description: ${trimmedDescription}. Provide only the full text for page ${pageNumber} with no headings, titles, or page labels.`
+          })()
+
+      const response = await client.responses.create({
+        model: "gpt-4.1",
+        input,
+      })
+
+      pages.push(response.output_text.trim())
+    }
+
+    res.json({ title, pages, voiceId: resolvedVoiceId, voiceGender: resolvedVoiceGender })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: "OpenAI generation failed" })
+  }
+})
+
+app.post('/api/translatePhrase', async (req, res) => {
+  try {
+    const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender, unknownWords, voiceId: requestedVoiceId, context } = req.body || {}
+
+    if (!phrase || typeof phrase !== 'string') {
+      return res.status(400).json({ error: 'phrase is required' })
+    }
+
+    if (!targetLang) {
+      return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    if (!sourceLang) {
+      return res.status(400).json({ error: 'sourceLang is required' })
+    }
+
+    const sourceLabel = sourceLang || 'auto-detected'
+    const targetLabel = targetLang || 'English'
+    const normalizedSourceLang = sourceLang.toLowerCase().trim()
+    const normalizedTargetLang = targetLang.toLowerCase().trim()
+
+    // Resolve voice ID early for cache lookups
+    const resolvedGender = voiceGender || 'male'
+    let voiceId = requestedVoiceId
+    if (!voiceId) {
+      try {
+        const resolved = resolveElevenLabsVoiceId(sourceLang, resolvedGender)
+        voiceId = resolved.voiceId
+      } catch (voiceErr) {
+        console.error('Error resolving ElevenLabs voice:', voiceErr)
+      }
+    }
+
+    // Check if this is a single word (for cache lookup)
+    const isSingleWord = !phrase.includes(' ') && phrase.length < 50
+
+    // Build prompt - if unknownWords provided, ask for word pairs too
+    const hasUnknownWords = Array.isArray(unknownWords) && unknownWords.length > 0
+
+    // Try to get cached translation for single words (skip cache if context provided for disambiguation)
+    let cachedTranslation = null
+    if (isSingleWord && !hasUnknownWords && !context) {
+      cachedTranslation = await getTranslation(phrase, normalizedSourceLang, normalizedTargetLang)
+    }
+
+    // Try to get cached pronunciation for single words
+    let cachedPronunciation = null
+    if (isSingleWord && !skipAudio && voiceId) {
+      cachedPronunciation = await getPronunciation(phrase, normalizedSourceLang, voiceId)
+    }
+
+    // If we have both cached, return immediately
+    if (cachedTranslation && (skipAudio || cachedPronunciation)) {
+      return res.json({
+        phrase,
+        translation: cachedTranslation.translation,
+        targetText: cachedTranslation.translation,
+        audioBase64: null,
+        audioUrl: cachedPronunciation?.audioUrl || null,
+        wordPairs: []
+      })
+    }
+
+    // Build translation prompt
+    let prompt
+    if (hasUnknownWords) {
+      prompt = `
+Translate the following sentence from ${sourceLabel} to ${targetLabel}.
+Also provide translations for these specific words: ${unknownWords.join(', ')}
+
+Return JSON in this exact format:
+{
+  "translation": "the full sentence translation",
+  "wordPairs": [
+    {"source": "word1", "target": "translation1"},
+    {"source": "word2", "target": "translation2"}
+  ]
+}
+
+Sentence: ${phrase}
+`.trim()
+    } else {
+      // If context provided, use it for disambiguation (e.g., "haya" as verb vs noun)
+      const contextHint = context
+        ? `\nCONTEXT: This word appears in the following context: "${context}"\nUse this context to determine the correct meaning if the word has multiple meanings.`
+        : ''
+      prompt = `
+Translate the following phrase from ${sourceLabel} to ${targetLabel}.
+Return only the translated phrase, with no extra commentary.${contextHint}
+
+${phrase}
+`.trim()
+    }
+
+    // Get translation (from cache or API)
+    let translation = cachedTranslation?.translation || phrase
+    let targetText = translation
+    let wordPairs = []
+
+    if (!cachedTranslation) {
+      try {
+        const response = await client.responses.create({
+          model: 'gpt-4o-mini',
+          input: prompt,
+        })
+
+        if (hasUnknownWords) {
+          try {
+            const jsonStr = response.output_text?.trim() || '{}'
+            const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, jsonStr]
+            const parsed = JSON.parse(jsonMatch[1] || jsonStr)
+            translation = parsed.translation || translation
+            targetText = translation
+            wordPairs = parsed.wordPairs || []
+          } catch (parseErr) {
+            console.error('Error parsing word pairs JSON:', parseErr)
+            translation = response.output_text?.trim() || translation
+            targetText = translation
+          }
+        } else {
+          translation = response.output_text?.trim() || translation
+          targetText = translation
+        }
+
+        // Cache the translation for single words
+        if (isSingleWord && !hasUnknownWords && translation !== phrase) {
+          saveTranslation(phrase, normalizedSourceLang, normalizedTargetLang, translation).catch((err) => {
+            console.error('Failed to cache translation:', err)
+          })
+        }
+      } catch (innerErr) {
+        console.error('Error translating phrase with OpenAI:', innerErr)
+      }
+    }
+
+    // Skip audio generation if requested
+    if (skipAudio) {
+      return res.json({ phrase, translation, targetText, audioBase64: null, wordPairs })
+    }
+
+    // Get pronunciation (from cache or API)
+    let audioBase64 = null
+    let audioUrl = cachedPronunciation?.audioUrl || null
+
+    const phraseForAudio = phrase?.trim() || targetText?.trim() || translation?.trim()
+    if (phraseForAudio && voiceId && !cachedPronunciation) {
+      const phraseForAudioSafe = phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
+      try {
+        const audioBuffer = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
+        audioBase64 = audioBuffer.toString('base64')
+
+        // Cache pronunciation for single words
+        if (isSingleWord) {
+          savePronunciation(phrase, normalizedSourceLang, voiceId, audioBuffer)
+            .then((url) => {
+              if (url) console.log(`Cached pronunciation for "${phrase}"`)
+            })
+            .catch((err) => {
+              console.error('Failed to cache pronunciation:', err)
+            })
+        }
+      } catch (ttsError) {
+        console.error('Error generating pronunciation audio (ElevenLabs):', ttsError)
+      }
+    }
+
+    // Generate audio for each word pair (check cache first)
+    const wordPairsWithAudio = []
+    if (wordPairs && wordPairs.length > 0 && voiceId) {
+      for (const pair of wordPairs) {
+        let wordAudio = null
+        let wordAudioUrl = null
+
+        // Check cache first
+        const cachedWordPronunciation = await getPronunciation(pair.source, normalizedSourceLang, voiceId)
+        if (cachedWordPronunciation?.audioUrl) {
+          wordAudioUrl = cachedWordPronunciation.audioUrl
+        } else {
+          // Fetch from ElevenLabs and cache
+          try {
+            const audioBuffer = await requestElevenLabsTts(pair.source, voiceId)
+            wordAudio = audioBuffer.toString('base64')
+            // Cache in background
+            savePronunciation(pair.source, normalizedSourceLang, voiceId, audioBuffer).catch((err) => {
+              console.error(`Failed to cache pronunciation for "${pair.source}":`, err)
+            })
+          } catch (wordTtsErr) {
+            console.error(`Error generating audio for word "${pair.source}":`, wordTtsErr)
+          }
+        }
+
+        // Also cache the translation for word pairs
+        if (pair.source && pair.target) {
+          saveTranslation(pair.source, normalizedSourceLang, normalizedTargetLang, pair.target).catch((err) => {
+            console.error(`Failed to cache translation for "${pair.source}":`, err)
+          })
+        }
+
+        wordPairsWithAudio.push({
+          source: pair.source,
+          target: pair.target,
+          audioBase64: wordAudio,
+          audioUrl: wordAudioUrl
+        })
+      }
+    } else if (wordPairs && wordPairs.length > 0) {
+      wordPairs.forEach(pair => {
+        wordPairsWithAudio.push({ source: pair.source, target: pair.target, audioBase64: null, audioUrl: null })
+      })
+    }
+
+    return res.json({
+      phrase,
+      translation,
+      targetText,
+      audioBase64,
+      audioUrl,
+      wordPairs: wordPairsWithAudio.length > 0 ? wordPairsWithAudio : wordPairs
+    })
+  } catch (error) {
+    console.error('Error translating phrase:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Batch prefetch translations for multiple words (no audio, text only)
+app.post('/api/prefetchTranslations', async (req, res) => {
+  try {
+    const { languageCode, targetLang, words } = req.body || {}
+
+    if (!Array.isArray(words) || words.length === 0) {
+      return res.json({ translations: {} })
+    }
+
+    if (!targetLang) {
+      return res.status(400).json({ error: 'targetLang is required' })
+    }
+
+    const sourceLabel = languageCode || 'auto-detected'
+    const targetLabel = targetLang || 'English'
+
+    // Deduplicate and limit words to prevent token overflow
+    const uniqueWords = [...new Set(words.map(w => w.toLowerCase().trim()).filter(Boolean))]
+    const maxWords = 200 // Limit batch size
+    const wordsToTranslate = uniqueWords.slice(0, maxWords)
+
+    if (wordsToTranslate.length === 0) {
+      return res.json({ translations: {} })
+    }
+
+    const prompt = `
+Translate the following words from ${sourceLabel} to ${targetLabel}.
+Return a JSON object where each key is the original word (lowercase) and the value is its translation.
+Only return the JSON object, no other text.
+
+Words: ${wordsToTranslate.join(', ')}
+`.trim()
+
+    let translations = {}
+
+    try {
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: prompt,
+      })
+
+      const outputText = response.output_text?.trim() || '{}'
+      // Extract JSON from markdown code blocks if present
+      const jsonMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, outputText]
+      const parsed = JSON.parse(jsonMatch[1] || outputText)
+
+      // Convert to expected format: { word: { translation: "..." } }
+      for (const [word, translation] of Object.entries(parsed)) {
+        if (typeof translation === 'string') {
+          translations[word.toLowerCase()] = { translation }
+        } else if (translation && typeof translation === 'object') {
+          translations[word.toLowerCase()] = translation
+        }
+      }
+    } catch (parseErr) {
+      console.error('Error parsing prefetch translations:', parseErr)
+    }
+
+    return res.json({ translations })
+  } catch (error) {
+    console.error('Error prefetching translations:', error)
+    return res.status(500).json({ error: 'Internal server error', translations: {} })
+  }
+})
+
+function detectFileType(originalName = '') {
+  const lower = originalName.toLowerCase()
+  if (lower.endsWith('.txt')) return 'txt'
+  if (lower.endsWith('.pdf')) return 'pdf'
+  if (lower.endsWith('.epub')) return 'epub'
+  return 'unknown'
+}
+
+async function extractTxt(filePath) {
+  const raw = await fs.readFile(filePath, 'utf8')
+  // Normalize text while preserving paragraph structure
+  const cleanText = normalizeTextWithParagraphs(raw)
+  // Return as single adaptation chunk
+  return splitTextIntoAdaptationChunks(cleanText)
+}
+
+/**
+ * Normalize plain text while preserving paragraph structure.
+ * Blank lines (double newlines) become paragraph breaks (\n\n).
+ * @param {string} text - The raw text to normalize
+ * @returns {string} Normalized text with preserved paragraph breaks
+ */
+function normalizeTextWithParagraphs(text) {
+  if (!text) return ''
+
+  return text
+    .replace(/\r\n/g, '\n')           // Normalize line endings
+    .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to paragraph break
+    .replace(/\n\n/g, '\u0000PARA\u0000')  // Protect paragraph breaks
+    .replace(/\s+/g, ' ')              // Normalize other whitespace to single space
+    .replace(/\u0000PARA\u0000/g, '\n\n')  // Restore paragraph breaks
+    .trim()
+}
+
+/**
+ * Strip Project Gutenberg boilerplate header and footer.
+ */
+function stripGutenbergBoilerplate(text) {
+  // Common Gutenberg markers
+  const startMarkers = [
+    '*** START OF THE PROJECT GUTENBERG EBOOK',
+    '*** START OF THIS PROJECT GUTENBERG EBOOK',
+    '*END*THE SMALL PRINT',
+    '***START OF THE PROJECT GUTENBERG EBOOK',
+  ]
+  const endMarkers = [
+    '*** END OF THE PROJECT GUTENBERG EBOOK',
+    '*** END OF THIS PROJECT GUTENBERG EBOOK',
+    '***END OF THE PROJECT GUTENBERG EBOOK',
+    'End of the Project Gutenberg EBook',
+    'End of Project Gutenberg',
+  ]
+
+  let result = text
+
+  // Find and strip header
+  for (const marker of startMarkers) {
+    const idx = result.indexOf(marker)
+    if (idx !== -1) {
+      // Find the end of this line
+      const lineEnd = result.indexOf('\n', idx)
+      if (lineEnd !== -1) {
+        result = result.slice(lineEnd + 1)
+      }
+      break
+    }
+  }
+
+  // Find and strip footer
+  for (const marker of endMarkers) {
+    const idx = result.indexOf(marker)
+    if (idx !== -1) {
+      result = result.slice(0, idx)
+      break
+    }
+  }
+
+  return result.trim()
+}
+
+/**
+ * Detect chapter markers using structural patterns (language-agnostic).
+ * Looks for short lines with numbers/roman numerals that appear multiple times.
+ */
+function detectChapterMarkers(text) {
+  const lines = text.split('\n')
+  const candidates = []
+
+  // Roman numeral pattern
+  const romanPattern = /^[IVXLCDM]+$/i
+  // Number pattern (including with dots/colons)
+  const numberPattern = /\d+/
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    const prevLine = i > 0 ? lines[i - 1].trim() : ''
+    const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : ''
+
+    // Skip empty lines
+    if (!line) continue
+
+    // Check if this looks like a chapter heading:
+    // 1. Short line (< 80 chars)
+    // 2. Has blank line before OR after (or both)
+    // 3. Contains number or roman numeral
+    const isShort = line.length < 80
+    const hasBlankBefore = prevLine === ''
+    const hasBlankAfter = nextLine === ''
+    const hasBlankAround = hasBlankBefore || hasBlankAfter
+
+    if (!isShort || !hasBlankAround) continue
+
+    // Check for numbers or roman numerals
+    const words = line.split(/\s+/)
+    const hasNumber = numberPattern.test(line)
+    const hasRoman = words.some(w => romanPattern.test(w) && w.length <= 6)
+
+    // Check if it's mostly uppercase or title case
+    const isUpperCase = line === line.toUpperCase() && /[A-Z]/.test(line)
+    const isTitleCase = words.length > 0 && words.every(w =>
+      !w || /^[A-Z0-9]/.test(w) || w.length <= 2
+    )
+
+    if (hasNumber || hasRoman) {
+      // Extract a "signature" to group similar patterns
+      // e.g., "CHAPTER 5" and "CHAPTER 12" have same signature "CHAPTER #"
+      const signature = line
+        .replace(/\d+/g, '#')
+        .replace(/[IVXLCDM]+/gi, (match) => romanPattern.test(match) ? 'R' : match)
+        .toUpperCase()
+        .trim()
+
+      candidates.push({
+        lineIndex: i,
+        line,
+        signature,
+        hasNumber,
+        hasRoman,
+        isUpperCase,
+        position: i / lines.length, // relative position in document
+      })
+    }
+  }
+
+  // Group candidates by signature
+  const signatureGroups = {}
+  for (const c of candidates) {
+    if (!signatureGroups[c.signature]) {
+      signatureGroups[c.signature] = []
+    }
+    signatureGroups[c.signature].push(c)
+  }
+
+  // Find the best pattern (most matches, spread throughout document)
+  let bestPattern = null
+  let bestScore = 0
+
+  for (const [signature, matches] of Object.entries(signatureGroups)) {
+    if (matches.length < 2) continue // Need at least 2 chapters
+
+    // Score based on count and distribution
+    const count = matches.length
+    const positions = matches.map(m => m.position)
+    const spread = Math.max(...positions) - Math.min(...positions)
+
+    // Good chapters should be spread throughout the book
+    const score = count * (spread > 0.5 ? 2 : 1)
+
+    if (score > bestScore) {
+      bestScore = score
+      bestPattern = { signature, matches }
+    }
+  }
+
+  if (!bestPattern || bestPattern.matches.length < 2) {
+    return null // No chapter pattern detected
+  }
+
+  return bestPattern.matches.map(m => ({
+    lineIndex: m.lineIndex,
+    title: m.line,
+  }))
+}
+
+/**
+ * Strip RTF (Rich Text Format) markup and return plain text.
+ * RTF files from macOS TextEdit often get saved with .txt extension.
+ */
+function stripRtfMarkup(text) {
+  // Check if this is RTF content
+  if (!text.startsWith('{\\rtf')) {
+    return text
+  }
+
+  console.log('Detected RTF content, stripping markup...')
+
+  // Remove RTF header and control words
+  let result = text
+
+  // Remove the RTF header block
+  result = result.replace(/^\{\\rtf[^}]*\}?/, '')
+
+  // Remove font table
+  result = result.replace(/\{\\fonttbl[^}]*\}/g, '')
+
+  // Remove color table
+  result = result.replace(/\{\\colortbl[^}]*\}/g, '')
+
+  // Remove expanded color table
+  result = result.replace(/\{\\\*\\expandedcolortbl[^}]*\}/g, '')
+
+  // Remove other control groups
+  result = result.replace(/\{\\[a-z]+[^}]*\}/g, '')
+
+  // Decode RTF escape sequences
+  result = result.replace(/\\'([0-9a-fA-F]{2})/g, (match, hex) => {
+    const code = parseInt(hex, 16)
+    // Handle common Mac OS Roman characters
+    if (code === 0x93) return '"' // Left double quote
+    if (code === 0x94) return '"' // Right double quote
+    if (code === 0x91) return "'" // Left single quote
+    if (code === 0x92) return "'" // Right single quote
+    if (code === 0x97) return '—' // Em dash
+    if (code === 0x96) return '–' // En dash
+    if (code === 0x85) return '...' // Ellipsis
+    return String.fromCharCode(code)
+  })
+
+  // Remove RTF control words (backslash followed by letters and optional number)
+  result = result.replace(/\\[a-z]+\d*\s?/gi, '')
+
+  // Remove remaining braces
+  result = result.replace(/[{}]/g, '')
+
+  // Clean up multiple spaces and normalize whitespace
+  result = result.replace(/\s+/g, ' ').trim()
+
+  // Restore paragraph breaks (RTF uses \par)
+  result = result.replace(/\\par\s*/g, '\n\n')
+
+  console.log('RTF stripped, first 200 chars:', result.slice(0, 200))
+
+  return result
+}
+
+/**
+ * Extract TXT file with chapter structure (language-agnostic).
+ * Uses structural pattern detection for chapters.
+ */
+async function extractTxtWithChapters(filePath) {
+  let raw = await fs.readFile(filePath, 'utf8')
+
+  // Strip RTF markup if present (macOS TextEdit often saves as RTF with .txt extension)
+  raw = stripRtfMarkup(raw)
+
+  // Strip Gutenberg boilerplate
+  const text = stripGutenbergBoilerplate(raw)
+  const lines = text.split('\n')
+
+  // Detect chapter markers
+  const chapterMarkers = detectChapterMarkers(text)
+
+  // If no chapters detected, return flat structure (not chapter-based)
+  if (!chapterMarkers || chapterMarkers.length === 0) {
+    console.log('No chapter pattern detected, using flat adaptation')
+    const cleanText = normalizeTextWithParagraphs(text)
+    const words = cleanText.split(/\s+/)
+
+    // Parse structure to separate header/outline from body BEFORE chunking
+    const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(cleanText)
+
+    // Only chunk the body text for adaptation (header/outline will be translated separately)
+    const textToChunk = bodyText || cleanText
+    const adaptationChunks = splitTextIntoAdaptationChunks(textToChunk)
+
+    console.log(`Flat book structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
+
+    // Return flat structure with flag
+    return {
+      isFlat: true,
+      originalText: cleanText,
+      adaptationChunks,
+      chapterHeader: chapterHeader || '',
+      chapterOutline: chapterOutline || '',
+      wordCount: words.length,
+    }
+  }
+
+  console.log(`Detected ${chapterMarkers.length} chapters`)
+
+  // Split text at chapter boundaries
+  const chapters = []
+
+  for (let i = 0; i < chapterMarkers.length; i++) {
+    const marker = chapterMarkers[i]
+    const nextMarker = chapterMarkers[i + 1]
+
+    const startLine = marker.lineIndex
+    const endLine = nextMarker ? nextMarker.lineIndex : lines.length
+
+    // Extract chapter content (skip the chapter heading line itself)
+    const chapterLines = lines.slice(startLine + 1, endLine)
+    const chapterText = normalizeTextWithParagraphs(chapterLines.join('\n'))
+
+    // Skip very short chapters (likely just headers)
+    if (chapterText.length < 100) {
+      console.log(`Skipping short chapter: "${marker.title}"`)
+      continue
+    }
+
+    const words = chapterText.split(/\s+/)
+
+    // Return chapter as single adaptation chunk
+    const adaptationPages = splitTextIntoAdaptationChunks(chapterText)
+
+    chapters.push({
+      index: chapters.length,
+      title: marker.title,
+      originalText: chapterText,
+      adaptationPages,
+      wordCount: words.length,
+    })
+  }
+
+  // Handle any text before the first chapter marker
+  if (chapterMarkers[0].lineIndex > 10) {
+    const preambleLines = lines.slice(0, chapterMarkers[0].lineIndex)
+    const preambleText = normalizeTextWithParagraphs(preambleLines.join('\n'))
+
+    if (preambleText.length > 200) {
+      const words = preambleText.split(/\s+/)
+
+      // Return preamble as single adaptation chunk
+      const adaptationPages = splitTextIntoAdaptationChunks(preambleText)
+
+      // Insert at beginning
+      chapters.unshift({
+        index: 0,
+        title: 'Preface',
+        originalText: preambleText,
+        adaptationPages,
+        wordCount: words.length,
+      })
+
+      // Re-index other chapters
+      for (let i = 1; i < chapters.length; i++) {
+        chapters[i].index = i
+      }
+    }
+  }
+
+  return chapters
+}
+
+async function extractPdf(filePath) {
+  const data = await fs.readFile(filePath)
+  const pdf = await pdfParse(data)
+  const fullText = pdf.text || ''
+  const trimmed = fullText.trim()
+
+  if (trimmed.length < 100) {
+    const err = new Error('SCANNED_PDF_NOT_SUPPORTED')
+    err.code = 'SCANNED_PDF_NOT_SUPPORTED'
+    throw err
+  }
+
+  // Normalize text while preserving paragraph structure
+  const cleanText = normalizeTextWithParagraphs(fullText)
+  const words = cleanText.split(/\s+/)
+
+  // PDF doesn't have chapter headers/outlines like TXT, so we use empty strings
+  const adaptationChunks = splitTextIntoAdaptationChunks(cleanText)
+
+  console.log(`PDF extracted: ${words.length} words, ${adaptationChunks.length} chunks`)
+
+  // Return flat structure (same as flat TXT) for client-side pagination
+  return {
+    isFlat: true,
+    originalText: cleanText,
+    adaptationChunks,
+    chapterHeader: '',
+    chapterOutline: '',
+    wordCount: words.length,
+  }
+}
+
+/**
+ * Convert HTML to plain text while preserving paragraph structure.
+ * Block-level elements become paragraph breaks (\n\n).
+ * @param {string} html - The HTML content to convert
+ * @returns {string} Plain text with preserved paragraph breaks
+ */
+function htmlToTextWithParagraphs(html) {
+  if (!html) return ''
+
+  let text = html
+    // Normalize line endings
+    .replace(/\r\n/g, '\n')
+    // Add paragraph breaks BEFORE block-level opening tags
+    .replace(/<(p|div|h[1-6]|li|tr|blockquote|section|article)(\s[^>]*)?>/gi, '\n\n')
+    // Add paragraph breaks AFTER block-level closing tags
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section|article)>/gi, '\n\n')
+    // Convert <br> to single newline
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Remove all remaining HTML tags
+    .replace(/<[^>]+>/g, ' ')
+    // Decode common HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&hellip;/g, '…')
+    // Normalize multiple spaces (but not newlines) to single space
+    .replace(/[^\S\n]+/g, ' ')
+    // Normalize multiple newlines to paragraph break (max 2)
+    .replace(/\n{3,}/g, '\n\n')
+    // Clean up spaces around newlines
+    .replace(/ *\n */g, '\n')
+    .trim()
+
+  return text
+}
+
+function parseEpub(filePath) {
+  return new Promise((resolve, reject) => {
+    const epub = new EPub(filePath)
+
+    epub.on('error', (err) => {
+      console.error('EPUB parse error:', err)
+      reject(err)
+    })
+
+    epub.on('end', () => {
+      resolve(epub)
+    })
+
+    epub.parse()
+  })
+}
+
+/**
+ * Extract cover image from EPUB file
+ * @param {Object} epub - Parsed epub object from parseEpub
+ * @returns {Promise<{buffer: Buffer, mimeType: string}|null>} Cover image data or null
+ */
+async function extractEpubCover(epub) {
+  try {
+    // Method 1: Check metadata for cover reference
+    let coverId = epub.metadata?.cover
+
+    // Method 2: Search manifest for cover image by properties or id patterns
+    if (!coverId && epub.manifest) {
+      for (const [id, item] of Object.entries(epub.manifest)) {
+        // Check for cover property (EPUB3) or common cover id patterns
+        if (
+          item.properties === 'cover-image' ||
+          id === 'cover' ||
+          id === 'cover-image' ||
+          id.toLowerCase().includes('cover') ||
+          (item.href && item.href.toLowerCase().includes('cover'))
+        ) {
+          // Verify it's an image type
+          if (item['media-type']?.startsWith('image/')) {
+            coverId = id
+            break
+          }
+        }
+      }
+    }
+
+    // Method 3: Look for cover in guide section (older EPUBs)
+    if (!coverId && epub.guide) {
+      for (const item of epub.guide) {
+        if (item.type === 'cover' && item.href) {
+          // The href might point to an HTML page containing the cover
+          // Try to find the corresponding manifest item
+          const hrefBase = item.href.split('#')[0]
+          for (const [id, manifestItem] of Object.entries(epub.manifest)) {
+            if (manifestItem.href === hrefBase && manifestItem['media-type']?.startsWith('image/')) {
+              coverId = id
+              break
+            }
+          }
+        }
+      }
+    }
+
+    if (!coverId) {
+      console.log('No cover image found in EPUB metadata or manifest')
+      return null
+    }
+
+    // Get the image using epub2's getImage method
+    return new Promise((resolve) => {
+      epub.getImage(coverId, (err, data, mimeType) => {
+        if (err || !data) {
+          console.log('Failed to extract cover image:', err?.message || 'No data')
+          resolve(null)
+        } else {
+          console.log(`Extracted EPUB cover: ${coverId}, type: ${mimeType}, size: ${data.length} bytes`)
+          resolve({ buffer: data, mimeType: mimeType || 'image/jpeg' })
+        }
+      })
+    })
+  } catch (error) {
+    console.error('Error extracting EPUB cover:', error)
+    return null
+  }
+}
+
+/**
+ * Upload cover image to Firebase Storage
+ * @param {Buffer} imageBuffer - Image data
+ * @param {string} mimeType - Image MIME type
+ * @param {string} userId - User ID for storage path
+ * @param {string} bookId - Book ID for storage path
+ * @returns {Promise<string|null>} Public URL of uploaded cover or null
+ */
+async function uploadCoverToStorage(imageBuffer, mimeType, userId, bookId) {
+  if (!bucket || !imageBuffer) return null
+
+  try {
+    const extension = mimeType.includes('png') ? 'png' : mimeType.includes('gif') ? 'gif' : 'jpg'
+    const storagePath = `covers/${userId}/${bookId}.${extension}`
+
+    const file = bucket.file(storagePath)
+    await file.save(imageBuffer, {
+      contentType: mimeType,
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+      },
+    })
+    await file.makePublic()
+
+    const coverUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+    console.log('Cover uploaded to:', coverUrl)
+    return coverUrl
+  } catch (error) {
+    console.error('Failed to upload cover to storage:', error)
+    return null
+  }
+}
+
+/**
+ * Search Google Books for a book cover by title and author
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchGoogleBooksCover(title, author) {
+  if (!title && !author) return null
+
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY
+  if (!apiKey) {
+    console.log('Google Books API key not configured, skipping')
+    return null
+  }
+
+  try {
+    // Build search query
+    let query = ''
+    if (title) query += `intitle:${title}`
+    if (author) query += (query ? '+' : '') + `inauthor:${author}`
+
+    const params = new URLSearchParams({
+      q: query,
+      key: apiKey,
+      maxResults: '5',
+      fields: 'items(volumeInfo(imageLinks))',
+    })
+
+    const url = `https://www.googleapis.com/books/v1/volumes?${params.toString()}`
+    console.log('Searching Google Books for cover...')
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.error(`Google Books API error: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const items = data.items || []
+
+    // Find first result with a cover image
+    for (const item of items) {
+      const imageLinks = item.volumeInfo?.imageLinks
+      if (imageLinks) {
+        // Prefer larger images: extraLarge > large > medium > small > thumbnail
+        const coverUrl =
+          imageLinks.extraLarge ||
+          imageLinks.large ||
+          imageLinks.medium ||
+          imageLinks.small ||
+          imageLinks.thumbnail
+
+        if (coverUrl) {
+          // Google Books URLs use http, upgrade to https and remove edge=curl for cleaner image
+          const cleanUrl = coverUrl
+            .replace('http://', 'https://')
+            .replace('&edge=curl', '')
+            .replace('zoom=1', 'zoom=2') // Get larger image
+          console.log('Found Google Books cover:', cleanUrl)
+          return cleanUrl
+        }
+      }
+    }
+
+    console.log('No cover found on Google Books')
+    return null
+  } catch (error) {
+    console.error('Google Books search failed:', error)
+    return null
+  }
+}
+
+/**
+ * Search for a book cover - tries Google Books first, then Open Library
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchBookCover(title, author) {
+  if (!title && !author) return null
+
+  // Try Google Books first
+  let coverUrl = await searchGoogleBooksCover(title, author)
+  if (coverUrl) return coverUrl
+
+  // Fall back to Open Library
+  coverUrl = await searchOpenLibraryCover(title, author)
+  return coverUrl
+}
+
+/**
+ * Search Open Library for a book cover by title and author
+ * @param {string} title - Book title
+ * @param {string} author - Author name
+ * @returns {Promise<string|null>} Cover image URL or null
+ */
+async function searchOpenLibraryCover(title, author) {
+  if (!title && !author) return null
+
+  const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'
+  const OPEN_LIBRARY_COVERS_URL = 'https://covers.openlibrary.org/b'
+
+  try {
+    const params = new URLSearchParams()
+    if (title) params.append('title', title)
+    if (author) params.append('author', author)
+    params.append('limit', '3')
+    params.append('fields', 'cover_i')
+
+    const url = `${OPEN_LIBRARY_SEARCH_URL}?${params.toString()}`
+    console.log('Searching Open Library for cover:', url)
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.error(`Open Library API error: ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const docs = data.docs || []
+
+    // Find first result with a cover
+    for (const doc of docs) {
+      if (doc.cover_i) {
+        const coverUrl = `${OPEN_LIBRARY_COVERS_URL}/id/${doc.cover_i}-L.jpg`
+        console.log('Found Open Library cover:', coverUrl)
+        return coverUrl
+      }
+    }
+
+    console.log('No cover found on Open Library')
+    return null
+  } catch (error) {
+    console.error('Open Library search failed:', error)
+    return null
+  }
+}
+
+function getChapterAsync(epub, id) {
+  return new Promise((resolve, reject) => {
+    epub.getChapter(id, (err, text) => {
+      if (err) {
+        console.error('EPUB getChapter error:', err)
+        reject(err)
+      } else {
+        resolve(text || '')
+      }
+    })
+  })
+}
+
+async function extractEpub(filePath) {
+  const epub = await parseEpub(filePath)
+
+  let fullText = ''
+
+  // epub.flow is an array describing the reading order
+  for (const item of epub.flow) {
+    const content = await getChapterAsync(epub, item.id)
+    fullText += htmlToTextWithParagraphs(content) + '\n\n'
+  }
+
+  // Return as single adaptation chunk
+  return splitTextIntoAdaptationChunks(fullText)
+}
+
+/**
+ * Extract EPUB with chapter structure preserved from a pre-parsed epub object.
+ * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ * @param {Object} epub - Already parsed epub object from parseEpub()
+ */
+async function extractEpubWithChaptersFromParsed(epub) {
+  const chapters = []
+
+  // epub.flow is the reading order, epub.toc has chapter titles
+  const tocMap = new Map()
+  if (epub.toc && Array.isArray(epub.toc)) {
+    for (const tocItem of epub.toc) {
+      if (tocItem.id) {
+        tocMap.set(tocItem.id, tocItem.title || tocItem.label || '')
+      }
+      // Handle href-based matching (some EPUBs use href instead of id)
+      if (tocItem.href) {
+        const hrefId = tocItem.href.split('#')[0]
+        tocMap.set(hrefId, tocItem.title || tocItem.label || '')
+      }
+    }
+  }
+
+  let chapterIndex = 0
+  for (const item of epub.flow) {
+    const content = await getChapterAsync(epub, item.id)
+    // Convert HTML to text while preserving paragraph structure
+    const cleanText = htmlToTextWithParagraphs(content)
+
+    // Skip empty chapters (front matter, etc.)
+    if (!cleanText || cleanText.length < 50) {
+      continue
+    }
+
+    // Try to get chapter title from TOC
+    let title = tocMap.get(item.id) || tocMap.get(item.href) || ''
+    if (!title) {
+      // Try to extract title from content (first heading)
+      const headingMatch = content.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/i)
+      if (headingMatch) {
+        title = headingMatch[1].trim()
+      }
+    }
+    if (!title) {
+      title = `Chapter ${chapterIndex + 1}`
+    }
+
+    // Return chapter as single adaptation chunk
+    const words = cleanText.split(/\s+/)
+    const adaptationPages = splitTextIntoAdaptationChunks(cleanText)
+
+    chapters.push({
+      index: chapterIndex,
+      title,
+      originalText: cleanText,
+      adaptationPages, // Chapter text for adaptation
+      wordCount: words.length,
+    })
+
+    chapterIndex++
+  }
+
+  return chapters
+}
+
+/**
+ * Extract EPUB with chapter structure preserved.
+ * Returns array of chapters, each with title, originalText, and pages for adaptation.
+ * @param {string} filePath - Path to EPUB file
+ */
+async function extractEpubWithChapters(filePath) {
+  const epub = await parseEpub(filePath)
+  return extractEpubWithChaptersFromParsed(epub)
+}
+
+/**
+ * Split text into pages of approximately targetWordCount words.
+ * Tries to break at sentence boundaries when possible.
+ */
+function splitTextIntoPages(text, targetWordCount = 250) {
+  if (!text || !text.trim()) return []
+
+  const words = text.split(/\s+/)
+  const pages = []
+  let buffer = []
+
+  for (let i = 0; i < words.length; i++) {
+    buffer.push(words[i])
+
+    // Check if we've reached target word count
+    if (buffer.length >= targetWordCount) {
+      // Try to find a sentence boundary in the last ~20 words
+      const bufferText = buffer.join(' ')
+      const lastSentenceEnd = Math.max(
+        bufferText.lastIndexOf('. '),
+        bufferText.lastIndexOf('? '),
+        bufferText.lastIndexOf('! '),
+        bufferText.lastIndexOf('." '),
+        bufferText.lastIndexOf('?" '),
+        bufferText.lastIndexOf('!" ')
+      )
+
+      // If we found a sentence boundary in a reasonable position, break there
+      if (lastSentenceEnd > bufferText.length * 0.7) {
+        const pageText = bufferText.slice(0, lastSentenceEnd + 1).trim()
+        const remainder = bufferText.slice(lastSentenceEnd + 1).trim()
+        pages.push(pageText)
+        buffer = remainder ? remainder.split(/\s+/) : []
+      } else {
+        // No good sentence boundary, just break at word count
+        pages.push(bufferText)
+        buffer = []
+      }
+    }
+  }
+
+  // Don't forget remaining text
+  if (buffer.length > 0) {
+    pages.push(buffer.join(' '))
+  }
+
+  return pages
+}
+
+/**
+ * Split chapter into paragraphs for individual adaptation.
+ * Each paragraph is adapted separately, giving the LLM smaller chunks to focus on.
+ * @param {string} text - The text to prepare for adaptation
+ * @returns {string[]} Array of paragraphs for individual adaptation
+ */
+function splitTextIntoAdaptationChunks(text) {
+  if (!text || !text.trim()) return []
+
+  // Normalize whitespace while identifying paragraph breaks
+  let normalizedText = text
+    .replace(/\r\n/g, '\n')           // Normalize line endings
+    .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to paragraph break
+    .trim()
+
+  // Split into paragraphs for individual adaptation
+  const paragraphs = normalizedText.split('\n\n').filter(p => p.trim())
+
+  return paragraphs
+}
+
+/**
+ * Split text into pages by finding the punctuation break closest to target character count.
+ * Uses sentence endings (. ! ?) and clause punctuation (, ; : —) for natural breaks.
+ * @param {string} text - The text to split
+ * @param {number} targetCharCount - Target characters per page (default ~1400, roughly 250 words)
+ * @returns {string[]} Array of page texts with preserved paragraph markers
+ */
+function splitTextIntoPagesCharBased(text, targetCharCount = 1400) {
+  if (!text || !text.trim()) return []
+
+  // Normalize paragraph breaks to consistent double newline
+  const normalizedText = text.replace(/\n{3,}/g, '\n\n').trim()
+
+  const pages = []
+  let remaining = normalizedText
+
+  while (remaining.length > 0) {
+    if (remaining.length <= targetCharCount * 1.3) {
+      // Remaining text is close enough to one page - take it all
+      pages.push(remaining.trim())
+      break
+    }
+
+    // Find the punctuation break closest to target
+    // Search within 50% to 150% of target to avoid tiny or huge pages
+    const minSearch = Math.floor(targetCharCount * 0.5)
+    const maxSearch = Math.min(remaining.length, Math.floor(targetCharCount * 1.5))
+
+    let closestEnd = -1
+    let closestDistance = Infinity
+
+    // Look for any punctuation followed by space or newline
+    // Includes sentence endings (. ! ?) and clause punctuation (, ; : —)
+    for (let i = minSearch; i < maxSearch; i++) {
+      const char = remaining[i]
+      const nextChar = remaining[i + 1]
+
+      const isSentenceEnd = (char === '.' || char === '!' || char === '?')
+      const isClausePunct = (char === ',' || char === ';' || char === ':' || char === '—')
+
+      if ((isSentenceEnd || isClausePunct) &&
+          (nextChar === ' ' || nextChar === '\n' || nextChar === undefined)) {
+        const distance = Math.abs(i + 1 - targetCharCount)
+        if (distance < closestDistance) {
+          closestDistance = distance
+          closestEnd = i + 1 // Include the punctuation
+        }
+      }
+    }
+
+    let breakPoint
+    if (closestEnd !== -1) {
+      breakPoint = closestEnd
+    } else {
+      // No punctuation found - fall back to word boundary near target
+      const lastSpace = remaining.lastIndexOf(' ', targetCharCount)
+      breakPoint = lastSpace > minSearch ? lastSpace + 1 : targetCharCount
+    }
+
+    const pageText = remaining.slice(0, breakPoint).trim()
+    if (pageText) {
+      pages.push(pageText)
+    }
+    remaining = remaining.slice(breakPoint).trim()
+  }
+
+  return pages
+}
+
+async function extractPagesForFile(file) {
+  if (!file || !file.path) {
+    return []
+  }
+
+  const fileType = detectFileType(file.originalname)
+  console.log('Detected import file type:', fileType, 'for', file.originalname)
+
+  if (fileType === 'txt') return extractTxt(file.path)
+  if (fileType === 'pdf') return extractPdf(file.path)
+  if (fileType === 'epub') return extractEpub(file.path)
+
+  // Unknown type for now
+  return [`[STUB] Unknown file type for: ${file.originalname}`]
+}
+
+async function saveImportedBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  pages,
+  voiceGender,
+  coverImageUrl = null,
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID for the imported book
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    // Fall back to default import voice
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    pageCount: pages.length,
+    adaptedPages: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
+  })
+
+  const batch = firestore.batch()
+  const pagesRef = storyRef.collection('pages')
+
+  pages.forEach((text, index) => {
+    const pageDoc = pagesRef.doc(String(index))
+    batch.set(pageDoc, {
+      index,
+      text: text,
+      originalText: text,
+      adaptedText: null,
+      status: 'pending',
+      audioUrl: null,
+      audioStatus: 'pending',
+    })
+  })
+
+  await batch.commit()
+
+  return storyRef.id
+}
+
+/**
+ * Save imported flat book (no chapters detected) to Firestore.
+ * Stores adaptation chunks and accumulates adapted text in one blob.
+ * Final 250-word pages are created after all chunks are adapted.
+ */
+async function saveImportedFlatBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  originalText,
+  adaptationChunks,
+  chapterHeader,
+  chapterOutline,
+  wordCount,
+  voiceGender,
+  sourceType = 'txt',
+  coverImageUrl = null,
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Flat book fields
+    sourceType,
+    isFlat: true,
+    originalText,
+    adaptedTextBlob: '', // Will accumulate adapted text
+    adaptationChunks, // Text chunks to adapt (body paragraphs only)
+    adaptedChunkCount: 0,
+    totalChunks: adaptationChunks.length,
+    totalWords: wordCount,
+    // Pre-parsed structure (header/outline separated from body at import time)
+    chapterHeader: chapterHeader || '',
+    chapterOutline: chapterOutline || '',
+    structureParsed: true, // Structure was parsed at import, not after adaptation
+    // Page count will be set after re-chunking
+    pageCount: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
+  })
+
+  return storyRef.id
+}
+
+/**
+ * Save imported book with chapter structure to Firestore.
+ * Works for EPUB, TXT, or any format with detected chapters.
+ * Chapters are stored separately with their originalText and adaptationPages.
+ * Final 250-word pages are created after adaptation completes.
+ */
+async function saveImportedChapterBookToFirestore({
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  chapters,
+  voiceGender,
+  sourceType = 'epub', // 'epub', 'txt', etc.
+  coverImageUrl = null,
+}) {
+  if (!userId) {
+    throw new Error('userId is required to import a book')
+  }
+
+  // Resolve voice ID for the imported book
+  let voiceId = null
+  let resolvedVoiceGender = voiceGender || 'male'
+  try {
+    const voiceResult = resolveElevenLabsVoiceId(outputLanguage, resolvedVoiceGender)
+    voiceId = voiceResult.voiceId
+    resolvedVoiceGender = voiceResult.voiceGender
+  } catch (voiceErr) {
+    console.error('Failed to resolve voice ID for imported book:', voiceErr.message)
+    const normalizedLang = normalizeLanguageLabel(outputLanguage)?.toLowerCase()
+    voiceId = normalizedLang ? DEFAULT_IMPORT_VOICE_IDS[normalizedLang] : null
+  }
+
+  // Calculate totals
+  const totalChapters = chapters.length
+  const totalAdaptationPages = chapters.reduce((sum, ch) => sum + ch.adaptationPages.length, 0)
+  const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0)
+
+  const storyRef = firestore
+    .collection('users')
+    .doc(userId)
+    .collection('stories')
+    .doc()
+
+  await storyRef.set({
+    userId,
+    language: outputLanguage,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level: translationMode === 'graded' ? level : null,
+    isPublicDomain: isPublicDomain === 'true',
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Chapter-based book fields
+    sourceType,
+    chapterCount: totalChapters,
+    totalAdaptationPages,
+    adaptedChapters: 0,
+    totalWords,
+    // Page count will be set after re-chunking
+    pageCount: 0,
+    status: 'pending',
+    hasFullAudio: false,
+    audioStatus: 'none',
+    fullAudioUrl: null,
+    voiceId,
+    voiceGender: resolvedVoiceGender,
+    description: `Imported: ${title || 'Untitled book'}`,
+    coverImageUrl,
+  })
+
+  // Save chapters
+  const chaptersRef = storyRef.collection('chapters')
+  for (const chapter of chapters) {
+    await chaptersRef.doc(String(chapter.index)).set({
+      index: chapter.index,
+      title: chapter.title,
+      originalText: chapter.originalText,
+      adaptedText: '', // Will be built up during adaptation
+      wordCount: chapter.wordCount,
+      adaptationPages: chapter.adaptationPages,
+      adaptedPageCount: 0,
+      totalAdaptationPages: chapter.adaptationPages.length,
+      status: 'pending',
+      pageOffset: 0, // Will be calculated after all chapters are adapted
+    })
+  }
+
+  return storyRef.id
+}
+
+async function adaptPageText({
+  originalText,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+}) {
+  const targetLabel = outputLanguage || 'target language'
+  const simplifiedLevel = mapLevelToSimplified(level)
+
+  // For literal translation mode, use Native level (no simplification)
+  const effectiveLevel = translationMode === 'graded' ? simplifiedLevel : 'Native'
+
+  const response = await client.responses.create({
+    model: 'gpt-4o-mini',
+    input: [
+      {
+        role: 'system',
+        content: ADAPTATION_SYSTEM_PROMPT,
+      },
+      {
+        role: 'user',
+        content: `Adapt the following text to ${effectiveLevel} level in ${targetLabel}:\n\n${originalText}`,
+      },
+    ],
+  })
+
+  const adapted = response?.output?.[0]?.content?.[0]?.text?.trim() || response.output_text?.trim() || ''
+  return adapted
+}
+
+async function runAdaptationForBook(bookId) {
+  const bookRef = firestore.collection('books').doc(bookId)
+  const bookSnap = await bookRef.get()
+
+  if (!bookSnap.exists) {
+    throw new Error(`Book not found: ${bookId}`)
+  }
+
+  const bookData = bookSnap.data() || {}
+  const {
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level,
+    totalPages,
+  } = bookData
+
+  console.log('Starting adaptation for book:', bookId, {
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level,
+    totalPages,
+  })
+
+  // Mark book as adapting
+  await bookRef.update({
+    status: 'adapting',
+  })
+
+  const pagesRef = bookRef.collection('pages')
+  const pendingSnap = await pagesRef.where('status', '==', 'pending').orderBy('index').get()
+
+  let adaptedCount = bookData.adaptedPages || 0
+
+  for (const doc of pendingSnap.docs) {
+    const pageData = doc.data()
+    const { originalText, index } = pageData
+
+    if (!originalText || typeof originalText !== 'string' || !originalText.trim()) {
+      console.warn(`Skipping empty page ${index} for book ${bookId}`)
+      await doc.ref.update({ status: 'skipped' })
+      continue
+    }
+
+    console.log(`Adapting page ${index} of book ${bookId}`)
+
+    try {
+      const adaptedText = await adaptPageText({
+        originalText,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+      })
+
+      await doc.ref.update({
+        adaptedText,
+        status: 'done',
+      })
+
+      adaptedCount += 1
+      await bookRef.update({
+        adaptedPages: adaptedCount,
+      })
+    } catch (err) {
+      console.error(`Failed to adapt page ${index} of book ${bookId}:`, err)
+      await doc.ref.update({
+        status: 'error',
+        errorMessage: err.message || 'Adaptation failed',
+      })
+    }
+  }
+
+  // If every page is done/skipped, mark book as ready
+  if (adaptedCount >= (totalPages || adaptedCount)) {
+    await bookRef.update({
+      status: 'ready',
+    })
+  }
+
+  console.log('Finished adaptation for book:', bookId, 'adaptedPages:', adaptedCount)
+}
+
+app.post('/api/import-upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'File is required' })
+    }
+
+    const {
+      originalLanguage,
+      outputLanguage,
+      translationMode,
+      level,
+      author,
+      title,
+      isPublicDomain,
+      userId,
+      voiceGender,
+      generateAudio,
+    } = req.body || {}
+
+    const metadata = {
+      originalLanguage,
+      outputLanguage,
+      translationMode,
+      level,
+      author,
+      title,
+      isPublicDomain,
+      userId,
+      voiceGender,
+      generateAudio,
+    }
+
+    console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
+
+    const fileType = detectFileType(req.file.originalname)
+
+    // Handle EPUB with chapter-based flow
+    if (fileType === 'epub') {
+      // Parse EPUB to extract both chapters and cover
+      const epub = await parseEpub(req.file.path)
+      const chapters = await extractEpubWithChaptersFromParsed(epub)
+      console.log('Extracted EPUB chapters:', chapters.length)
+
+      // Try to extract cover from EPUB
+      let coverImageUrl = null
+      const epubCover = await extractEpubCover(epub)
+
+      if (epubCover) {
+        // Generate a temporary book ID for the cover path
+        const tempBookId = `epub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        coverImageUrl = await uploadCoverToStorage(
+          epubCover.buffer,
+          epubCover.mimeType,
+          userId,
+          tempBookId
+        )
+        console.log('EPUB cover extracted and uploaded:', coverImageUrl)
+      }
+
+      // If no cover in EPUB, search Open Library
+      if (!coverImageUrl && (title || author)) {
+        console.log('No EPUB cover found, searching Open Library...')
+        coverImageUrl = await searchBookCover(title, author)
+      }
+
+      const bookId = await saveImportedChapterBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        chapters,
+        voiceGender,
+        sourceType: 'epub',
+        coverImageUrl,
+      })
+
+      // Fire-and-forget EPUB adaptation trigger
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt EPUB trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'EPUB import processed successfully',
+        bookId,
+        chapterCount: chapters.length,
+        sourceType: 'epub',
+        coverImageUrl,
+      })
+    }
+
+    // Handle TXT with structural chapter detection
+    if (fileType === 'txt') {
+      const extracted = await extractTxtWithChapters(req.file.path)
+
+      // TXT files don't have embedded covers, so search Open Library
+      let coverImageUrl = null
+      if (title || author) {
+        console.log('Searching Open Library for TXT cover...')
+        coverImageUrl = await searchBookCover(title, author)
+      }
+
+      // Check if chapters were detected or if it's a flat book
+      if (extracted.isFlat) {
+        console.log('TXT has no chapters, using flat adaptation flow')
+
+        const bookId = await saveImportedFlatBookToFirestore({
+          userId,
+          title,
+          author,
+          originalLanguage,
+          outputLanguage,
+          translationMode,
+          level,
+          isPublicDomain,
+          originalText: extracted.originalText,
+          adaptationChunks: extracted.adaptationChunks,
+          chapterHeader: extracted.chapterHeader,
+          chapterOutline: extracted.chapterOutline,
+          wordCount: extracted.wordCount,
+          voiceGender,
+          sourceType: 'txt',
+          coverImageUrl,
+        })
+
+        // Fire-and-forget flat adaptation trigger
+        const adaptPayload = {
+          uid: userId,
+          storyId: bookId,
+          targetLanguage: outputLanguage,
+          level,
+          generateAudio: generateAudio === 'true',
+        }
+
+        fetch('http://localhost:4000/api/adapt-flat-book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adaptPayload),
+        }).catch((err) => console.error('Auto-adapt flat TXT trigger failed:', err))
+
+        return res.json({
+          success: true,
+          message: 'TXT import processed successfully (no chapters detected)',
+          bookId,
+          chunkCount: extracted.adaptationChunks.length,
+          sourceType: 'txt',
+          isFlat: true,
+          coverImageUrl,
+        })
+      }
+
+      // Chapters detected - use chapter-based flow
+      const chapters = extracted
+      console.log('Extracted TXT chapters:', chapters.length)
+
+      const bookId = await saveImportedChapterBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        chapters,
+        voiceGender,
+        sourceType: 'txt',
+        coverImageUrl,
+      })
+
+      // Fire-and-forget adaptation trigger (same endpoint as EPUB)
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt TXT trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'TXT import processed successfully',
+        bookId,
+        chapterCount: chapters.length,
+        sourceType: 'txt',
+        coverImageUrl,
+      })
+    }
+
+    // Handle PDF with flat book flow (same as flat TXT for client-side pagination)
+    if (fileType === 'pdf') {
+      const extracted = await extractPdf(req.file.path)
+      console.log('PDF using flat adaptation flow')
+
+      // PDF files don't have embedded covers we can easily extract, so search Open Library
+      let coverImageUrl = null
+      if (title || author) {
+        console.log('Searching Open Library for PDF cover...')
+        coverImageUrl = await searchBookCover(title, author)
+      }
+
+      const bookId = await saveImportedFlatBookToFirestore({
+        userId,
+        title,
+        author,
+        originalLanguage,
+        outputLanguage,
+        translationMode,
+        level,
+        isPublicDomain,
+        originalText: extracted.originalText,
+        adaptationChunks: extracted.adaptationChunks,
+        chapterHeader: extracted.chapterHeader,
+        chapterOutline: extracted.chapterOutline,
+        wordCount: extracted.wordCount,
+        voiceGender,
+        sourceType: 'pdf',
+        coverImageUrl,
+      })
+
+      // Fire-and-forget flat adaptation trigger
+      const adaptPayload = {
+        uid: userId,
+        storyId: bookId,
+        targetLanguage: outputLanguage,
+        level,
+        generateAudio: generateAudio === 'true',
+      }
+
+      fetch('http://localhost:4000/api/adapt-flat-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adaptPayload),
+      }).catch((err) => console.error('Auto-adapt PDF trigger failed:', err))
+
+      return res.json({
+        success: true,
+        message: 'PDF import processed successfully',
+        bookId,
+        chunkCount: extracted.adaptationChunks.length,
+        sourceType: 'pdf',
+        isFlat: true,
+        coverImageUrl,
+      })
+    }
+
+    // Fallback for unknown file types
+    return res.status(400).json({
+      error: 'UNSUPPORTED_FILE_TYPE',
+      message: 'Only .txt, .pdf, and .epub files are supported.',
+    })
+  } catch (error) {
+    console.error('Error handling import upload:', error)
+    if (error.code === 'SCANNED_PDF_NOT_SUPPORTED' || error.message === 'SCANNED_PDF_NOT_SUPPORTED') {
+      return res.status(400).json({
+        error: 'SCANNED_PDF_NOT_SUPPORTED',
+        message:
+          'This file appears to be a scanned PDF with no real text inside. Scanned PDFs contain images instead of words, and we cannot ensure accurate or high-quality adaptations from them. To guarantee reliability, inTongues only accepts pure/text PDFs, EPUB, or TXT files. Please upload a clean digital version of the book.',
+      })
+    }
+    return res.status(500).json({ error: 'Failed to handle import upload' })
+  }
+})
+
+app.post('/api/start-adaptation/:bookId', async (req, res) => {
+  const { bookId } = req.params || {}
+
+  if (!bookId) {
+    return res.status(400).json({ error: 'bookId is required' })
+  }
+
+  try {
+    console.log('Received request to start adaptation for book:', bookId)
+
+    // Fire and forget for now; we don't await full completion before responding
+    runAdaptationForBook(bookId)
+      .then(() => {
+        console.log('Adaptation completed for book:', bookId)
+      })
+      .catch((err) => {
+        console.error('Adaptation worker failed for book:', bookId, err)
+      })
+
+    return res.json({
+      success: true,
+      message: `Adaptation started for book ${bookId}`,
+    })
+  } catch (error) {
+    console.error('Error starting adaptation for book:', bookId, error)
+    return res.status(500).json({ error: 'Failed to start adaptation' })
+  }
+})
+
+app.post('/api/adapt-imported-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    // Map legacy CEFR levels to simplified levels
+    const simplifiedLevel = mapLevelToSimplified(level)
+
+    console.log('Received adapt-imported-book request:', { uid, storyId, targetLanguage, level, simplifiedLevel, generateAudio })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const pagesRef = storyRef.collection('pages')
+    const pagesSnap = await pagesRef.orderBy('index').get()
+
+    if (pagesSnap.empty) {
+      return res.status(404).json({ error: 'No pages found for this story' })
+    }
+
+    await storyRef.update({ status: 'adapting' })
+
+    console.log('Found pages for adaptation:', pagesSnap.size)
+
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    let processedCount = 0
+
+    for (const doc of pagesSnap.docs) {
+      const data = doc.data() || {}
+      const sourceText = data.originalText || data.text || ''
+      const pageIndex = data.index ?? doc.id
+
+      if (!sourceText || !sourceText.trim()) {
+        console.warn(`Skipping empty page ${pageIndex} for story ${storyId}`)
+        await doc.ref.update({ status: 'error', errorMessage: 'Empty page content' })
+        continue
+      }
+
+      console.log(`Adapting page ${pageIndex} for story ${storyId}`)
+
+      try {
+        const response = await client.responses.create({
+          model: "gpt-4.1",
+          input: [
+            {
+              role: "system",
+              content: ADAPTATION_SYSTEM_PROMPT
+            },
+            {
+              role: "user",
+              content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${sourceText}`
+            }
+          ]
+        })
+
+        const adaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+        await doc.ref.update({
+          adaptedText,
+          status: 'done',
+        })
+
+        processedCount += 1
+        console.log(`Finished adapting page ${pageIndex} for story ${storyId}`)
+      } catch (adaptError) {
+        console.error(`Error adapting page ${pageIndex} for story ${storyId}:`, adaptError)
+        await doc.ref.update({
+          status: 'error',
+          errorMessage: adaptError.message || 'Adaptation failed',
+        })
+      }
+    }
+
+    await storyRef.update({
+      status: 'ready',
+      adaptedPages: processedCount,
+    })
+
+    // Only trigger audio generation if explicitly requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    console.log('Adaptation completed for story:', storyId, 'pages processed:', processedCount)
+
+    return res.json({ success: true, storyId, pageCount: processedCount })
+  } catch (error) {
+    console.error('Error adapting imported book:', error)
+    return res.status(500).json({ error: 'Failed to adapt imported book' })
+  }
+})
+
+/**
+ * Chapter-Based Book Adaptation Endpoint
+ * Adapts EPUB and TXT books chapter by chapter, page by page.
+ * Appends adapted text to chapter blobs, then re-chunks into 250-word pages.
+ */
+app.post('/api/adapt-chapter-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Starting EPUB adaptation:', { uid, storyId, targetLanguage, simplifiedLevel })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    const validSourceTypes = ['epub', 'txt']
+    if (!validSourceTypes.includes(storyData.sourceType)) {
+      return res.status(400).json({ error: 'This endpoint is only for chapter-based books (EPUB, TXT)' })
+    }
+
+    // Mark story as adapting
+    await storyRef.update({ status: 'adapting' })
+
+    // Get all chapters
+    const chaptersRef = storyRef.collection('chapters')
+    const chaptersSnap = await chaptersRef.orderBy('index').get()
+
+    if (chaptersSnap.empty) {
+      return res.status(404).json({ error: 'No chapters found for this story' })
+    }
+
+    console.log(`Found ${chaptersSnap.size} chapters for EPUB adaptation`)
+
+    let totalAdaptedPages = 0
+    let completedChapters = 0
+
+    // Process each chapter
+    for (const chapterDoc of chaptersSnap.docs) {
+      const chapterData = chapterDoc.data() || {}
+      const { adaptationPages, index: chapterIndex, title: chapterTitle } = chapterData
+
+      if (!adaptationPages || adaptationPages.length === 0) {
+        console.warn(`Chapter ${chapterIndex} has no adaptation pages, skipping`)
+        await chapterDoc.ref.update({ status: 'skipped' })
+        continue
+      }
+
+      console.log(`Adapting chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+      await chapterDoc.ref.update({ status: 'adapting' })
+
+      let chapterAdaptedText = chapterData.adaptedText || ''
+      let adaptedPageCount = chapterData.adaptedPageCount || 0
+
+      // For TXT files, parse chapter structure from first page to extract header/outline
+      let adaptedChapterHeader = chapterData.adaptedChapterHeader || ''
+      let adaptedChapterOutline = chapterData.adaptedChapterOutline || ''
+      let structureParsed = chapterData.structureParsed || false
+
+      // Handle structure parsing for TXT files
+      if (storyData.sourceType === 'txt' && !structureParsed) {
+        // Check if chapter is already adapted - if so, parse from adapted text
+        const existingAdaptedText = chapterData.adaptedText || ''
+
+        if (existingAdaptedText && adaptedPageCount >= adaptationPages.length) {
+          // Already adapted - parse structure from the ADAPTED text
+          console.log(`Chapter ${chapterIndex} already adapted, parsing structure from adapted text...`)
+          const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(existingAdaptedText)
+
+          if (chapterHeader || chapterOutline) {
+            adaptedChapterHeader = chapterHeader
+            adaptedChapterOutline = chapterOutline
+
+            // Update chapter with parsed structure and body-only adapted text
+            await chapterDoc.ref.update({
+              adaptedChapterHeader: chapterHeader,
+              adaptedChapterOutline: chapterOutline,
+              adaptedText: bodyText, // Replace with body-only text
+              structureParsed: true,
+            })
+            // Update local variable for page creation
+            chapterAdaptedText = bodyText
+          } else {
+            await chapterDoc.ref.update({ structureParsed: true })
+          }
+          structureParsed = true
+
+        } else if (adaptationPages.length > 0) {
+          // Not yet adapted - parse from original text and prepare for adaptation
+          console.log(`Parsing chapter structure for TXT chapter ${chapterIndex}...`)
+          const fullChapterText = adaptationPages.join('\n\n')
+          const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(fullChapterText)
+
+          // If structure was found, adapt header/outline and update adaptationPages to contain only body text
+          if (chapterHeader || chapterOutline) {
+            // Adapt the header to target language
+            if (chapterHeader) {
+              console.log(`Adapting chapter header: "${chapterHeader.slice(0, 50)}..."`)
+              const headerResponse = await client.responses.create({
+                model: 'gpt-4.1-mini',
+                input: [
+                  {
+                    role: 'system',
+                    content: 'Translate the following chapter title to the target language. Keep it concise. Return ONLY the translated text, no explanation.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterHeader}`,
+                  },
+                ],
+              })
+              adaptedChapterHeader = headerResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterHeader
+            }
+
+            // Adapt the outline to target language
+            if (chapterOutline) {
+              console.log(`Adapting chapter outline: "${chapterOutline.slice(0, 50)}..."`)
+              const outlineResponse = await client.responses.create({
+                model: 'gpt-4.1-mini',
+                input: [
+                  {
+                    role: 'system',
+                    content: 'Translate the following chapter outline/table of contents to the target language. Preserve the em-dash (—) separators. Return ONLY the translated text, no explanation.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterOutline}`,
+                  },
+                ],
+              })
+              adaptedChapterOutline = outlineResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterOutline
+            }
+
+            // Re-chunk the body text into pages (only body will be adapted)
+            const bodyPages = splitTextIntoPages(bodyText, 500)
+            await chapterDoc.ref.update({
+              originalChapterHeader: chapterHeader,
+              originalChapterOutline: chapterOutline,
+              adaptedChapterHeader,
+              adaptedChapterOutline,
+              adaptationPages: bodyPages,
+              structureParsed: true,
+            })
+            // Update local reference
+            adaptationPages.length = 0
+            adaptationPages.push(...bodyPages)
+          } else {
+            await chapterDoc.ref.update({ structureParsed: true })
+          }
+          structureParsed = true
+        }
+      }
+
+      // Adapt each page in the chapter
+      for (let pageIdx = adaptedPageCount; pageIdx < adaptationPages.length; pageIdx++) {
+        const pageText = adaptationPages[pageIdx]
+
+        if (!pageText || !pageText.trim()) {
+          console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+          continue
+        }
+
+        console.log(`Adapting chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+        try {
+          const response = await client.responses.create({
+            model: 'gpt-4.1',
+            input: [
+              {
+                role: 'system',
+                content: ADAPTATION_SYSTEM_PROMPT,
+              },
+              {
+                role: 'user',
+                content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${pageText}`,
+              },
+            ],
+          })
+
+          const rawAdaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+          // Normalize: each adapted chunk should be ONE paragraph
+          // Remove any internal paragraph breaks the LLM might have added
+          const adaptedText = rawAdaptedText.replace(/\n\n+/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+
+          // Append to chapter blob with paragraph separator
+          if (chapterAdaptedText && adaptedText) {
+            chapterAdaptedText += '\n\n' + adaptedText
+          } else if (adaptedText) {
+            chapterAdaptedText = adaptedText
+          }
+
+          adaptedPageCount += 1
+          totalAdaptedPages += 1
+
+          // Update chapter with progress
+          await chapterDoc.ref.update({
+            adaptedText: chapterAdaptedText,
+            adaptedPageCount,
+          })
+
+          console.log(`Completed chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+        } catch (adaptError) {
+          console.error(`Error adapting chapter ${chapterIndex}, page ${pageIdx}:`, adaptError)
+          // Continue with next page rather than failing entire chapter
+        }
+      }
+
+      // Mark chapter as complete
+      await chapterDoc.ref.update({ status: 'ready' })
+      completedChapters += 1
+
+      console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
+    }
+
+    // All chapters adapted - pagination will be computed client-side on Dashboard
+    console.log('All chapters adapted. Waiting for client-side pagination.')
+
+    // Update story status to 'paginating' - client will compute pages and set 'ready'
+    await storyRef.update({
+      status: 'paginating',
+      adaptedChapters: completedChapters,
+    })
+
+    console.log(`Adaptation complete: ${completedChapters} chapters`)
+
+    // Trigger audio generation if requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    return res.json({
+      success: true,
+      storyId,
+      chapterCount: completedChapters,
+    })
+  } catch (error) {
+    console.error('Error adapting chapter book:', error)
+    return res.status(500).json({ error: 'Failed to adapt chapter book' })
+  }
+})
+
+/**
+ * Flat Book Adaptation Endpoint
+ * For books with no detected chapters - adapts chunk by chunk,
+ * accumulates into one blob, then re-chunks into 250-word pages.
+ */
+app.post('/api/adapt-flat-book', async (req, res) => {
+  try {
+    const { uid, storyId, targetLanguage, level, generateAudio } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Starting flat book adaptation:', { uid, storyId, targetLanguage, simplifiedLevel })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    if (!storyData.isFlat) {
+      return res.status(400).json({ error: 'This endpoint is only for flat (no-chapter) books' })
+    }
+
+    // Mark story as adapting
+    await storyRef.update({ status: 'adapting' })
+
+    const { adaptationChunks } = storyData
+    if (!adaptationChunks || adaptationChunks.length === 0) {
+      return res.status(400).json({ error: 'No adaptation chunks found' })
+    }
+
+    console.log(`Found ${adaptationChunks.length} chunks for flat adaptation`)
+
+    let adaptedTextBlob = storyData.adaptedTextBlob || ''
+    let adaptedChunkCount = storyData.adaptedChunkCount || 0
+
+    // Get pre-parsed structure from import (header/outline already separated from body)
+    const { chapterHeader, chapterOutline } = storyData
+    let adaptedChapterHeader = storyData.adaptedChapterHeader || ''
+    let adaptedChapterOutline = storyData.adaptedChapterOutline || ''
+
+    // Translate header/outline at the START (before body adaptation) if not already done
+    if ((chapterHeader || chapterOutline) && !adaptedChapterHeader && !adaptedChapterOutline && adaptedChunkCount === 0) {
+      console.log('Translating chapter header/outline before body adaptation...')
+
+      // Translate header
+      if (chapterHeader) {
+        console.log(`Translating chapter header: "${chapterHeader.slice(0, 50)}..."`)
+        try {
+          const headerResponse = await client.responses.create({
+            model: 'gpt-4.1-mini',
+            input: [
+              {
+                role: 'system',
+                content: 'Translate the following chapter title to the target language. Keep it concise. Return ONLY the translated text, no explanation.',
+              },
+              {
+                role: 'user',
+                content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterHeader}`,
+              },
+            ],
+          })
+          adaptedChapterHeader = headerResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterHeader
+        } catch (headerErr) {
+          console.error('Error translating header:', headerErr)
+          adaptedChapterHeader = chapterHeader // Fall back to original
+        }
+      }
+
+      // Translate outline
+      if (chapterOutline) {
+        console.log(`Translating chapter outline: "${chapterOutline.slice(0, 50)}..."`)
+        try {
+          const outlineResponse = await client.responses.create({
+            model: 'gpt-4.1-mini',
+            input: [
+              {
+                role: 'system',
+                content: 'Translate the following chapter outline/table of contents to the target language. Preserve the em-dash (—) separators. Return ONLY the translated text, no explanation.',
+              },
+              {
+                role: 'user',
+                content: `Translate to ${resolvedTargetLanguage}:\n\n${chapterOutline}`,
+              },
+            ],
+          })
+          adaptedChapterOutline = outlineResponse?.output?.[0]?.content?.[0]?.text?.trim() || chapterOutline
+        } catch (outlineErr) {
+          console.error('Error translating outline:', outlineErr)
+          adaptedChapterOutline = chapterOutline // Fall back to original
+        }
+      }
+
+      // Save translated header/outline to Firestore (stored separately, NOT in blob)
+      // The blob will only contain body paragraphs
+      await storyRef.update({
+        adaptedChapterHeader,
+        adaptedChapterOutline,
+      })
+
+      console.log(`Translated header/outline stored separately. Header: "${adaptedChapterHeader.slice(0, 50)}...")`)
+    }
+
+    // Adapt each chunk (body paragraphs only - header/outline already translated above)
+    for (let i = adaptedChunkCount; i < adaptationChunks.length; i++) {
+      const chunkText = adaptationChunks[i]
+
+      if (!chunkText || !chunkText.trim()) {
+        console.warn(`Empty chunk ${i}, skipping`)
+        continue
+      }
+
+      console.log(`Adapting chunk ${i + 1}/${adaptationChunks.length}`)
+
+      try {
+        const response = await client.responses.create({
+          model: 'gpt-4.1',
+          input: [
+            {
+              role: 'system',
+              content: ADAPTATION_SYSTEM_PROMPT,
+            },
+            {
+              role: 'user',
+              content: `Adapt the following text to ${simplifiedLevel} level in ${resolvedTargetLanguage}:\n\n${chunkText}`,
+            },
+          ],
+        })
+
+        const rawAdaptedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+        // Normalize: each adapted chunk should be ONE paragraph
+        // Remove any internal paragraph breaks the LLM might have added
+        const adaptedText = rawAdaptedText.replace(/\n\n+/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+
+        // Append to blob with paragraph separator
+        if (adaptedTextBlob && adaptedText) {
+          adaptedTextBlob += '\n\n' + adaptedText
+        } else if (adaptedText) {
+          adaptedTextBlob = adaptedText
+        }
+
+        adaptedChunkCount += 1
+
+        // Update progress
+        await storyRef.update({
+          adaptedTextBlob,
+          adaptedChunkCount,
+        })
+
+        console.log(`Completed chunk ${i + 1}/${adaptationChunks.length}`)
+      } catch (adaptError) {
+        console.error(`Error adapting chunk ${i}:`, adaptError)
+        // Continue with next chunk
+      }
+    }
+
+    // All chunks adapted - structure was already parsed at import time
+    // Header/outline were translated at the start, body paragraphs were adapted above
+    console.log('Flat book adaptation complete. Waiting for client-side pagination.')
+
+    // Update story status to 'paginating' - client will compute pages and set 'ready'
+    await storyRef.update({
+      status: 'paginating',
+    })
+
+    // Trigger audio generation if requested
+    if (generateAudio) {
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, storyId }),
+      }).catch((err) => {
+        console.error('Auto audio generation trigger failed:', err)
+      })
+    }
+
+    return res.json({
+      success: true,
+      storyId,
+      isFlat: true,
+    })
+  } catch (error) {
+    console.error('Error adapting flat book:', error)
+    return res.status(500).json({ error: 'Failed to adapt flat book' })
+  }
+})
+
+/**
+ * Refine Page Endpoint
+ * Re-adapts a single page with user feedback for improvement
+ */
+app.post('/api/refine-page', async (req, res) => {
+  try {
+    const { uid, storyId, pageIndex, feedback, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId || pageIndex === undefined) {
+      return res.status(400).json({ error: 'uid, storyId, and pageIndex are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Refining page:', { uid, storyId, pageIndex, feedback })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const pagesRef = storyRef.collection('pages')
+    const pageRef = pagesRef.doc(String(pageIndex))
+
+    const pageSnap = await pageRef.get()
+    if (!pageSnap.exists) {
+      return res.status(404).json({ error: 'Page not found' })
+    }
+
+    const pageData = pageSnap.data() || {}
+    const { originalText, adaptedText, chapterIndex } = pageData
+
+    // Get context from previous page if available
+    let context = ''
+    if (pageIndex > 0) {
+      const prevPageSnap = await pagesRef.doc(String(pageIndex - 1)).get()
+      if (prevPageSnap.exists) {
+        const prevPageData = prevPageSnap.data() || {}
+        context = extractContextWindow(prevPageData.adaptedText || prevPageData.text, 300)
+      }
+    }
+
+    // Build refinement prompt
+    let userPrompt = `ORIGINAL TEXT:\n${originalText}\n\nPREVIOUS ADAPTATION:\n${adaptedText}`
+
+    if (feedback) {
+      userPrompt += `\n\nUSER FEEDBACK:\n${feedback}`
+    }
+
+    if (context) {
+      userPrompt += `\n\nPREVIOUS CONTEXT (for continuity):\n"${context}"`
+    }
+
+    userPrompt += `\n\nPlease refine the adaptation to ${simplifiedLevel} level in ${resolvedTargetLanguage}, addressing the feedback.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4.1',
+      input: [
+        { role: 'system', content: REFINEMENT_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+    })
+
+    const refinedText = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+
+    if (!refinedText) {
+      return res.status(500).json({ error: 'Failed to generate refined text' })
+    }
+
+    // Validate the refinement
+    const validation = validateAdaptation(originalText, refinedText, { level: simplifiedLevel })
+
+    // Update the page with refined text
+    await pageRef.update({
+      text: refinedText,
+      adaptedText: refinedText,
+      refinedAt: new Date().toISOString(),
+      refinementFeedback: feedback || null,
+      refinementIssues: validation.issues,
+    })
+
+    console.log(`Page ${pageIndex} refined successfully`)
+
+    return res.json({
+      success: true,
+      pageIndex,
+      refinedText,
+      validation,
+    })
+
+  } catch (error) {
+    console.error('Error refining page:', error)
+    return res.status(500).json({ error: 'Failed to refine page' })
+  }
+})
+
+/**
+ * Refine Chapter Endpoint
+ * Re-adapts an entire chapter with improved context awareness and quality validation
+ */
+app.post('/api/refine-chapter', async (req, res) => {
+  try {
+    const { uid, storyId, chapterIndex, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId || chapterIndex === undefined) {
+      return res.status(400).json({ error: 'uid, storyId, and chapterIndex are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Refining chapter:', { uid, storyId, chapterIndex })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const chaptersRef = storyRef.collection('chapters')
+    const chapterRef = chaptersRef.doc(String(chapterIndex))
+
+    const chapterSnap = await chapterRef.get()
+    if (!chapterSnap.exists) {
+      return res.status(404).json({ error: 'Chapter not found' })
+    }
+
+    const chapterData = chapterSnap.data() || {}
+    const { adaptationPages, title: chapterTitle } = chapterData
+
+    if (!adaptationPages || adaptationPages.length === 0) {
+      return res.status(400).json({ error: 'Chapter has no content to refine' })
+    }
+
+    // Mark chapter as refining
+    await chapterRef.update({ status: 'refining' })
+
+    console.log(`Refining chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+
+    // Get context from previous chapter if available
+    let previousChapterContext = ''
+    if (chapterIndex > 0) {
+      const prevChapterSnap = await chaptersRef.doc(String(chapterIndex - 1)).get()
+      if (prevChapterSnap.exists) {
+        const prevChapterData = prevChapterSnap.data() || {}
+        previousChapterContext = extractContextWindow(prevChapterData.adaptedText, 500)
+      }
+    }
+
+    let refinedChapterText = ''
+    let pageIssues = []
+    let totalAttempts = 0
+
+    // Re-adapt each page with context awareness and retry logic
+    for (let pageIdx = 0; pageIdx < adaptationPages.length; pageIdx++) {
+      const pageText = adaptationPages[pageIdx]
+
+      if (!pageText || !pageText.trim()) {
+        console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+        continue
+      }
+
+      // Build context from previous chapter + current chapter progress
+      let context = previousChapterContext
+      if (refinedChapterText) {
+        const currentChapterContext = extractContextWindow(refinedChapterText, 400)
+        context = currentChapterContext // Prioritize current chapter context
+      }
+
+      console.log(`Refining chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+      const result = await adaptWithRetry(pageText, {
+        targetLanguage: resolvedTargetLanguage,
+        level: simplifiedLevel,
+        context,
+        client,
+      })
+
+      totalAttempts += result.attempts
+
+      if (result.issues.length > 0) {
+        pageIssues.push({ page: pageIdx, issues: result.issues })
+      }
+
+      // Append to chapter text
+      if (refinedChapterText && result.text) {
+        refinedChapterText += '\n\n' + result.text
+      } else if (result.text) {
+        refinedChapterText = result.text
+      }
+    }
+
+    // Update chapter with refined text
+    await chapterRef.update({
+      adaptedText: refinedChapterText,
+      status: 'ready',
+      refinedAt: new Date().toISOString(),
+      refinementAttempts: totalAttempts,
+      refinementIssues: pageIssues,
+    })
+
+    console.log(`Chapter ${chapterIndex} refined: ${totalAttempts} total attempts, ${pageIssues.length} pages with issues`)
+
+    return res.json({
+      success: true,
+      chapterIndex,
+      chapterTitle,
+      totalAttempts,
+      issueCount: pageIssues.length,
+      pageIssues,
+    })
+
+  } catch (error) {
+    console.error('Error refining chapter:', error)
+    return res.status(500).json({ error: 'Failed to refine chapter' })
+  }
+})
+
+/**
+ * Enhanced Chapter Adaptation Endpoint
+ * Adapts a chapter with context awareness and quality validation
+ */
+app.post('/api/adapt-chapter-refined', async (req, res) => {
+  try {
+    const { uid, storyId, chapterIndex, targetLanguage, level } = req.body || {}
+
+    if (!uid || !storyId || chapterIndex === undefined) {
+      return res.status(400).json({ error: 'uid, storyId, and chapterIndex are required' })
+    }
+
+    const simplifiedLevel = mapLevelToSimplified(level)
+    const resolvedTargetLanguage = resolveTargetCode(targetLanguage)
+
+    console.log('Adapting chapter with refinement:', { uid, storyId, chapterIndex })
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const chaptersRef = storyRef.collection('chapters')
+    const chapterRef = chaptersRef.doc(String(chapterIndex))
+
+    const chapterSnap = await chapterRef.get()
+    if (!chapterSnap.exists) {
+      return res.status(404).json({ error: 'Chapter not found' })
+    }
+
+    const chapterData = chapterSnap.data() || {}
+    const { adaptationPages, title: chapterTitle } = chapterData
+
+    if (!adaptationPages || adaptationPages.length === 0) {
+      return res.status(400).json({ error: 'Chapter has no content to adapt' })
+    }
+
+    // Mark chapter as adapting
+    await chapterRef.update({ status: 'adapting' })
+
+    console.log(`Adapting chapter ${chapterIndex}: "${chapterTitle}" (${adaptationPages.length} pages)`)
+
+    // Get context from previous chapter if available
+    let previousChapterContext = ''
+    if (chapterIndex > 0) {
+      const prevChapterSnap = await chaptersRef.doc(String(chapterIndex - 1)).get()
+      if (prevChapterSnap.exists) {
+        const prevChapterData = prevChapterSnap.data() || {}
+        previousChapterContext = extractContextWindow(prevChapterData.adaptedText, 500)
+      }
+    }
+
+    let adaptedChapterText = ''
+    let qualityReport = {
+      totalPages: adaptationPages.length,
+      successfulPages: 0,
+      pagesWithIssues: 0,
+      totalAttempts: 0,
+      issues: [],
+    }
+
+    // Adapt each page with context awareness and retry logic
+    for (let pageIdx = 0; pageIdx < adaptationPages.length; pageIdx++) {
+      const pageText = adaptationPages[pageIdx]
+
+      if (!pageText || !pageText.trim()) {
+        console.warn(`Empty page ${pageIdx} in chapter ${chapterIndex}, skipping`)
+        continue
+      }
+
+      // Build context from previous chapter + current chapter progress
+      let context = previousChapterContext
+      if (adaptedChapterText) {
+        const currentChapterContext = extractContextWindow(adaptedChapterText, 400)
+        context = currentChapterContext
+      }
+
+      console.log(`Adapting chapter ${chapterIndex}, page ${pageIdx + 1}/${adaptationPages.length}`)
+
+      const result = await adaptWithRetry(pageText, {
+        targetLanguage: resolvedTargetLanguage,
+        level: simplifiedLevel,
+        context,
+        client,
+      })
+
+      qualityReport.totalAttempts += result.attempts
+
+      if (result.issues.length > 0) {
+        qualityReport.pagesWithIssues += 1
+        qualityReport.issues.push({ page: pageIdx, issues: result.issues })
+      } else {
+        qualityReport.successfulPages += 1
+      }
+
+      // Append to chapter text
+      if (adaptedChapterText && result.text) {
+        adaptedChapterText += '\n\n' + result.text
+      } else if (result.text) {
+        adaptedChapterText = result.text
+      }
+
+      // Update progress
+      await chapterRef.update({
+        adaptedText: adaptedChapterText,
+        adaptedPageCount: pageIdx + 1,
+      })
+    }
+
+    // Mark chapter as complete
+    await chapterRef.update({
+      status: 'ready',
+      qualityReport,
+    })
+
+    console.log(`Chapter ${chapterIndex} adapted: ${qualityReport.successfulPages}/${qualityReport.totalPages} pages successful`)
+
+    return res.json({
+      success: true,
+      chapterIndex,
+      chapterTitle,
+      qualityReport,
+      adaptedTextLength: adaptedChapterText.length,
+    })
+
+  } catch (error) {
+    console.error('Error adapting chapter:', error)
+    return res.status(500).json({ error: 'Failed to adapt chapter' })
+  }
+})
+
+async function saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer) {
+  const filePath = `guidebooks/${bookId}/page_${pageIndex}.mp3`
+  const file = bucket.file(filePath)
+
+  await file.save(audioBuffer, { contentType: 'audio/mpeg' })
+  await file.makePublic()
+
+  return file.publicUrl()
+}
+
+async function saveFullAudioForStory(uid, storyId, audioBuffer) {
+  const filePath = `audio/full/${uid}/${storyId}.mp3`
+  const file = bucket.file(filePath)
+
+  await file.save(audioBuffer, { contentType: 'audio/mpeg' })
+  await file.makePublic()
+
+  return file.publicUrl()
+}
+
+function bufferToStream(buffer) {
+  return Readable.from(buffer)
+}
+
+async function transcodeBufferToFormat(inputBuffer, configureCommand) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    const baseCommand = inputBuffer ? ffmpeg(bufferToStream(inputBuffer)) : ffmpeg()
+    const command = configureCommand(baseCommand)
+
+    const outputStream = command.on('error', reject).pipe()
+
+    outputStream.on('data', (chunk) => chunks.push(chunk))
+    outputStream.on('end', () => resolve(Buffer.concat(chunks)))
+    outputStream.on('error', reject)
+  })
+}
+
+async function downloadPageAudioAsWav(bucketPath) {
+  const [mp3Buffer] = await bucket.file(bucketPath).download()
+
+  return transcodeBufferToFormat(mp3Buffer, (command) =>
+    command.inputFormat('mp3').audioChannels(2).audioFrequency(24000).format('wav')
+  )
+}
+
+async function mergeWavBuffers(wavBuffers) {
+  if (!Array.isArray(wavBuffers) || wavBuffers.length === 0) return null
+
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audiomerge-'))
+  const wavPaths = []
+
+  try {
+    for (let i = 0; i < wavBuffers.length; i += 1) {
+      const wavPath = path.join(tmpDir, `part-${i}.wav`)
+      await fs.writeFile(wavPath, wavBuffers[i])
+      wavPaths.push(wavPath)
+    }
+
+    const listFilePath = path.join(tmpDir, 'inputs.txt')
+    const listFileContents = wavPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n')
+    await fs.writeFile(listFilePath, listFileContents, 'utf8')
+
+    return await transcodeBufferToFormat(null, (command) =>
+      command
+        .input(listFilePath)
+        .inputOptions(['-f', 'concat', '-safe', '0'])
+        .outputOptions(['-acodec', 'pcm_s16le'])
+        .format('wav')
+    )
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  }
+}
+
+async function encodeMergedWavToMp3(wavBuffer) {
+  return transcodeBufferToFormat(wavBuffer, (command) =>
+    command.inputFormat('wav').audioChannels(2).audioFrequency(24000).format('mp3')
+  )
+}
+
+async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLabel) {
+  if (!text || !text.trim()) return null
+
+  const MAX_CHARS = 6000
+  const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
+  const audioBuffer = await requestElevenLabsTts(safeText, voiceId)
+  const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
+  logTtsMethod('elevenlabs', languageLabel || 'unknown')
+
+  return audioUrl
+}
+
+app.post('/api/generate-audio-book', async (req, res) => {
+  let storyRef
+
+  try {
+    const { uid, storyId } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    const storyLanguage = normalizeLanguageLabel(storyData?.language || storyData?.outputLanguage)
+    const storyVoiceGender = String(storyData?.voiceGender || '').trim().toLowerCase()
+    const storyVoiceId = storyData?.voiceId
+
+    if (!storyLanguage || !ELEVENLABS_VOICE_MAP[storyLanguage]) {
+      const message = `Unsupported language for audio generation: ${storyData?.language || storyData?.outputLanguage || 'unknown'}`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    if (!SUPPORTED_VOICE_GENDERS.has(storyVoiceGender)) {
+      const message = `Invalid voice gender for audio generation: ${storyData?.voiceGender || 'unknown'}`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    if (!storyVoiceId) {
+      const message = 'Missing ElevenLabs voiceId for audio generation'
+      console.error(message)
+      throw new Error(message)
+    }
+
+    const expectedVoiceId =
+      ELEVENLABS_VOICE_MAP[storyLanguage]?.[storyVoiceGender]
+
+    if (!expectedVoiceId) {
+      const message = `Missing voiceId mapping for ${storyLanguage} (${storyVoiceGender})`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    if (storyVoiceId !== expectedVoiceId) {
+      const message = `VoiceId mismatch for ${storyLanguage} (${storyVoiceGender})`
+      console.error(message)
+      throw new Error(message)
+    }
+
+    await storyRef.update({
+      audioStatus: 'processing',
+      hasFullAudio: false,
+      fullAudioUrl: null,
+    })
+
+    const pagesRef = storyRef.collection('pages')
+    const pagesSnap = await pagesRef.orderBy('index').get()
+
+    if (pagesSnap.empty) {
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
+      return res.status(404).json({ error: 'No pages found for this story' })
+    }
+
+    let pagesProcessed = 0
+    let pagesSucceeded = 0
+    const storyTextParts = []
+
+    for (const doc of pagesSnap.docs) {
+      const data = doc.data() || {}
+      const pageIndex = data.index ?? Number(doc.id) ?? 0
+      const readyAudio = data.audioStatus === 'ready' && data.audioUrl
+      const pageText =
+        (data.adaptedText && data.adaptedText.trim()) ||
+        (data.originalText && data.originalText.trim()) ||
+        (data.text && data.text.trim()) ||
+        ''
+
+      storyTextParts.push(pageText)
+
+      if (readyAudio) {
+        pagesSucceeded += 1
+        continue
+      }
+
+      if (!pageText) {
+        await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+        pagesProcessed += 1
+        continue
+      }
+
+      pagesProcessed += 1
+
+      try {
+        const audioUrl = await generateAudioForPage(
+          storyId,
+          pageIndex,
+          pageText,
+          storyVoiceId,
+          storyLanguage,
+        )
+        if (audioUrl) {
+          await doc.ref.update({ audioUrl, audioStatus: 'ready' })
+          pagesSucceeded += 1
+        } else {
+          await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+        }
+      } catch (pageError) {
+        console.error(`Error generating audio for page ${pageIndex} in story ${storyId}:`, pageError)
+        await doc.ref.update({
+          audioStatus: 'error',
+          audioUrl: null,
+          audioError: pageError?.message || 'Audio generation failed',
+        })
+      }
+    }
+
+    const finalStatus = pagesSucceeded === pagesSnap.size ? 'ready' : 'error'
+    if (finalStatus !== 'ready') {
+      await storyRef.update({
+        hasFullAudio: false,
+        audioStatus: finalStatus,
+        fullAudioUrl: null,
+      })
+
+      return res.json({
+        success: true,
+        audioStatus: finalStatus,
+        pagesProcessed,
+        pagesSucceeded,
+      })
+    }
+
+    try {
+      await storyRef.update({
+        hasFullAudio: false,
+        audioStatus: 'processing',
+        fullAudioUrl: null,
+      })
+
+      const wavBuffers = []
+
+      for (const doc of pagesSnap.docs) {
+        const data = doc.data() || {}
+        const pageIndex = data.index ?? Number(doc.id) ?? 0
+        const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
+        const wavBuffer = await downloadPageAudioAsWav(bucketPath)
+        wavBuffers.push(wavBuffer)
+      }
+
+      const mergedWavBuffer = await mergeWavBuffers(wavBuffers)
+
+      if (!mergedWavBuffer) {
+        throw new Error('No audio buffers available to merge')
+      }
+
+      const fullAudioBuffer = await encodeMergedWavToMp3(mergedWavBuffer)
+      const fullAudioUrl = await saveFullAudioForStory(uid, storyId, fullAudioBuffer)
+
+      await storyRef.update({
+        hasFullAudio: true,
+        audioStatus: 'ready',
+        fullAudioUrl,
+      })
+
+      try {
+        const transcriptResult = await transcribeWithWhisper({
+          audioUrl: fullAudioUrl,
+          languageCode: storyData?.language || storyData?.outputLanguage,
+        })
+
+        const transcriptRef = storyRef.collection('transcripts').doc('intensive')
+        const timestamp = admin.firestore.FieldValue.serverTimestamp()
+
+        await transcriptRef.set(
+          {
+            text: transcriptResult?.text || '',
+            segments: Array.isArray(transcriptResult?.segments)
+              ? transcriptResult.segments
+              : [],
+            sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
+              ? transcriptResult.sentenceSegments
+              : buildSentenceSegmentsFromWhisper(
+                  normaliseTranscriptSegments(transcriptResult?.segments || []),
+                ),
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          { merge: true },
+        )
+      } catch (transcriptError) {
+        console.error('Failed to generate Whisper transcript for story', transcriptError)
+      }
+
+      // Trigger content preparation (pronunciation caching) - runs in background
+      try {
+        // Set initial preparation status
+        await storyRef.update({
+          preparationStatus: 'pending',
+          preparationProgress: 0,
+        })
+
+        // Trigger preparation asynchronously (don't await)
+        prepareContentPronunciations(uid, storyId, 'story', storyLanguage, storyVoiceId)
+          .catch((prepErr) => {
+            console.error('Background preparation failed:', prepErr)
+          })
+      } catch (prepInitError) {
+        console.error('Failed to initialize preparation:', prepInitError)
+        // Don't fail the whole request if preparation init fails
+      }
+
+      return res.json({
+        success: true,
+        audioStatus: 'ready',
+        pagesProcessed,
+        pagesSucceeded,
+        fullAudioUrl,
+      })
+    } catch (mergeError) {
+      console.error('Error merging full audiobook:', mergeError)
+
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
+
+      return res.status(500).json({ error: 'Failed to merge full audiobook' })
+    }
+  } catch (error) {
+    console.error('Error generating full audiobook:', error)
+    if (storyRef) {
+      await storyRef.update({
+        audioStatus: 'error',
+        hasFullAudio: false,
+        fullAudioUrl: null,
+      })
+    }
+    return res.status(500).json({ error: 'Failed to generate audiobook' })
+  }
+})
+
+// Extract unique words from text content
+function extractUniqueWords(text) {
+  if (!text || typeof text !== 'string') return []
+  const words = text.match(/[\p{L}]+/gu) || []
+  const uniqueWords = [...new Set(words.map((w) => w.toLowerCase().trim()).filter((w) => w.length > 0))]
+  return uniqueWords
+}
+
+// Internal function to prepare content pronunciations AND translations (can be called from other endpoints)
+async function prepareContentPronunciations(uid, contentId, contentType, targetLanguage, voiceId) {
+  const normalizedLang = targetLanguage.toLowerCase().trim()
+
+  // Get user's native language from their profile (default to english)
+  let nativeLanguage = 'english'
+  try {
+    const userDoc = await firestore.collection('users').doc(uid).get()
+    if (userDoc.exists) {
+      const userData = userDoc.data() || {}
+      nativeLanguage = (userData.nativeLanguage || 'english').toLowerCase().trim()
+    }
+  } catch (err) {
+    console.error('Failed to fetch user native language, defaulting to english:', err)
+  }
+
+  // Determine voice ID if not provided
+  let finalVoiceId = voiceId
+  if (!finalVoiceId) {
+    finalVoiceId = DEFAULT_IMPORT_VOICE_IDS[normalizedLang]
+    if (!finalVoiceId) {
+      throw new Error(`No default voice available for language: ${targetLanguage}`)
+    }
+  }
+
+  // Get content reference based on type
+  let contentRef
+  if (contentType === 'story') {
+    contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+  } else if (contentType === 'youtube') {
+    contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+  } else if (contentType === 'spotify') {
+    contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+  } else {
+    throw new Error(`Unknown content type: ${contentType}`)
+  }
+
+  // Check content exists
+  const contentSnap = await contentRef.get()
+  if (!contentSnap.exists) {
+    throw new Error('Content not found')
+  }
+
+  // Update status to preparing
+  await contentRef.update({
+    preparationStatus: 'preparing',
+    preparationProgress: 0,
+  })
+
+  // Extract all text from content
+  let allText = ''
+
+  if (contentType === 'story') {
+    const pagesSnap = await contentRef.collection('pages').get()
+    pagesSnap.docs.forEach((doc) => {
+      const data = doc.data() || {}
+      allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
+    })
+  } else if (contentType === 'youtube') {
+    const transcriptsSnap = await contentRef.collection('transcripts').get()
+    transcriptsSnap.docs.forEach((doc) => {
+      const data = doc.data() || {}
+      allText += ' ' + (data.text || '')
+      if (Array.isArray(data.segments)) {
+        data.segments.forEach((seg) => {
+          allText += ' ' + (seg.text || '')
+        })
+      }
+    })
+  } else if (contentType === 'spotify') {
+    const contentData = contentSnap.data() || {}
+    if (Array.isArray(contentData.transcriptSegments)) {
+      contentData.transcriptSegments.forEach((seg) => {
+        allText += ' ' + (seg.text || seg.words || '')
+      })
+    }
+    const pagesSnap = await contentRef.collection('pages').get()
+    pagesSnap.docs.forEach((doc) => {
+      const data = doc.data() || {}
+      allText += ' ' + (data.text || data.originalText || '')
+    })
+  }
+
+  // Detect and save expressions from the text
+  let detectedExpressions = []
+  try {
+    console.log(`Detecting expressions for ${contentType} ${contentId}...`)
+    detectedExpressions = await detectAndSaveExpressions(allText, normalizedLang, nativeLanguage)
+    console.log(`Detected ${detectedExpressions.length} expressions`)
+
+    // Save expressions list on content document
+    if (detectedExpressions.length > 0) {
+      await contentRef.update({
+        expressions: detectedExpressions,
+      })
+    }
+  } catch (exprError) {
+    console.error('Error detecting expressions:', exprError)
+    // Continue - expression detection failures shouldn't block content preparation
+  }
+
+  // Extract unique words
+  const uniqueWords = extractUniqueWords(allText)
+
+  if (uniqueWords.length === 0) {
+    await contentRef.update({
+      preparationStatus: 'ready',
+      preparationProgress: 100,
+      voiceId: finalVoiceId,
+    })
+    return { success: true, wordsProcessed: 0, wordsFetched: 0 }
+  }
+
+  // Load user's vocab to identify non-KNOWN words
+  const vocabSnap = await firestore
+    .collection('users')
+    .doc(uid)
+    .collection('vocab')
+    .where('language', '==', normalizedLang)
+    .get()
+
+  const knownWords = new Set()
+  vocabSnap.docs.forEach((doc) => {
+    const data = doc.data() || {}
+    if (data.status === 'known') {
+      knownWords.add((data.text || '').toLowerCase().trim())
+    }
+  })
+
+  // Filter to non-KNOWN words (new, unknown, recognised, familiar)
+  const wordsToProcess = uniqueWords.filter((word) => !knownWords.has(word))
+
+  if (wordsToProcess.length === 0) {
+    await contentRef.update({
+      preparationStatus: 'ready',
+      preparationProgress: 100,
+      voiceId: finalVoiceId,
+    })
+    return { success: true, wordsProcessed: 0, wordsFetched: 0 }
+  }
+
+  // Check which pronunciations and translations are missing
+  const [missingPronunciations, missingTranslations] = await Promise.all([
+    getMissingPronunciations(wordsToProcess, normalizedLang, finalVoiceId),
+    getMissingTranslations(wordsToProcess, normalizedLang, nativeLanguage),
+  ])
+
+  // Also check for missing expression pronunciations
+  const missingExpressionPronunciations = await getMissingPronunciations(
+    detectedExpressions,
+    normalizedLang,
+    finalVoiceId
+  )
+
+  // Combine into unique set of words that need fetching
+  const allMissingWords = [...new Set([...missingPronunciations, ...missingTranslations])]
+  const missingPronunciationsSet = new Set([...missingPronunciations, ...missingExpressionPronunciations])
+  const missingTranslationsSet = new Set(missingTranslations)
+
+  // Add expressions to the processing queue (for pronunciations only)
+  const allMissingItems = [...new Set([...allMissingWords, ...missingExpressionPronunciations])]
+
+  if (allMissingItems.length === 0) {
+    await contentRef.update({
+      preparationStatus: 'ready',
+      preparationProgress: 100,
+      voiceId: finalVoiceId,
+    })
+    return { success: true, wordsProcessed: wordsToProcess.length, expressionsDetected: detectedExpressions.length, pronunciationsFetched: 0, translationsFetched: 0 }
+  }
+
+  // Fetch missing pronunciations AND translations (with rate limiting)
+  let pronunciationsFetched = 0
+  let translationsFetched = 0
+  const concurrencyLimit = 3
+  const totalMissing = allMissingItems.length
+
+  for (let i = 0; i < allMissingItems.length; i += concurrencyLimit) {
+    const batch = allMissingItems.slice(i, i + concurrencyLimit)
+
+    await Promise.all(
+      batch.map(async (word) => {
+        // Fetch pronunciation if missing
+        if (missingPronunciationsSet.has(word)) {
+          try {
+            const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
+            if (audioBuffer) {
+              await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
+              pronunciationsFetched++
+            }
+          } catch (ttsError) {
+            console.error(`Failed to fetch pronunciation for "${word}":`, ttsError.message)
+            // Continue - pronunciation failures shouldn't block content
+          }
+        }
+
+        // Fetch translation if missing
+        if (missingTranslationsSet.has(word)) {
+          try {
+            const prompt = `Translate the following word from ${normalizedLang} to ${nativeLanguage}. Return only the translated word or short phrase, with no extra commentary.\n\n${word}`
+            const response = await client.responses.create({
+              model: 'gpt-4o-mini',
+              input: prompt,
+            })
+            const translation = response.output_text?.trim()
+            if (translation && translation !== word) {
+              await saveTranslation(word, normalizedLang, nativeLanguage, translation)
+              translationsFetched++
+            }
+          } catch (translateError) {
+            console.error(`Failed to fetch translation for "${word}":`, translateError.message)
+            // Continue - translation failures shouldn't block content
+          }
+        }
+      })
+    )
+
+    // Update progress
+    const progress = Math.round(((i + batch.length) / totalMissing) * 100)
+    await contentRef.update({ preparationProgress: progress })
+
+    // Small delay between batches to avoid rate limiting
+    if (i + concurrencyLimit < allMissingWords.length) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+  }
+
+  // Mark as ready
+  await contentRef.update({
+    preparationStatus: 'ready',
+    preparationProgress: 100,
+    voiceId: finalVoiceId,
+  })
+
+  return {
+    success: true,
+    wordsProcessed: wordsToProcess.length,
+    expressionsDetected: detectedExpressions.length,
+    pronunciationsFetched,
+    translationsFetched,
+    totalMissing: allMissingItems.length,
+  }
+}
+
+// Prepare content pronunciations - API endpoint wrapper
+app.post('/api/prepare-content', async (req, res) => {
+  const { uid, contentId, contentType, targetLanguage, voiceId } = req.body || {}
+
+  if (!uid || !contentId || !contentType || !targetLanguage) {
+    return res.status(400).json({
+      error: 'uid, contentId, contentType, and targetLanguage are required',
+    })
+  }
+
+  try {
+    const result = await prepareContentPronunciations(uid, contentId, contentType, targetLanguage, voiceId)
+    return res.json(result)
+  } catch (error) {
+    console.error('Error preparing content:', error)
+    return res.status(500).json({ error: error.message || 'Failed to prepare content' })
+  }
+})
+
+// Get all expressions for a language
+app.get('/api/expressions/:language', async (req, res) => {
+  const { language } = req.params
+
+  if (!language) {
+    return res.status(400).json({ error: 'language is required' })
+  }
+
+  try {
+    const expressions = await getExpressionsForLanguage(language)
+    return res.json({ expressions })
+  } catch (error) {
+    console.error('Error fetching expressions:', error)
+    return res.status(500).json({ error: 'Failed to fetch expressions' })
+  }
+})
+
+// Get expressions for specific content
+app.post('/api/content/expressions', async (req, res) => {
+  const { uid, contentId, contentType, language } = req.body || {}
+
+  if (!uid || !contentId || !contentType) {
+    return res.status(400).json({ error: 'uid, contentId, and contentType are required' })
+  }
+
+  try {
+    // Get content reference based on type
+    let contentRef
+    if (contentType === 'story') {
+      contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+    } else if (contentType === 'youtube') {
+      contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+    } else if (contentType === 'spotify') {
+      contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+    } else {
+      return res.status(400).json({ error: `Unknown content type: ${contentType}` })
+    }
+
+    const contentSnap = await contentRef.get()
+    if (!contentSnap.exists) {
+      return res.status(404).json({ error: 'Content not found' })
+    }
+
+    const contentData = contentSnap.data() || {}
+    const expressionsList = contentData.expressions || []
+
+    // Fetch full expression data for each expression in the content
+    const normalizedLang = (language || contentData.language || contentData.outputLanguage || '').toLowerCase().trim()
+
+    const expressionDetails = await Promise.all(
+      expressionsList.map(async (exprText) => {
+        const expr = await getExpression(exprText, normalizedLang)
+        return expr || { text: exprText, meaning: null, literal: null }
+      })
+    )
+
+    return res.json({ expressions: expressionDetails })
+  } catch (error) {
+    console.error('Error fetching content expressions:', error)
+    return res.status(500).json({ error: 'Failed to fetch content expressions' })
+  }
+})
+
+// Preload cached translations and pronunciations for content
+app.post('/api/content/preload', async (req, res) => {
+  const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId: requestedVoiceId } = req.body || {}
+
+  if (!uid || !contentId || !contentType || !targetLanguage) {
+    return res.status(400).json({
+      error: 'uid, contentId, contentType, and targetLanguage are required',
+    })
+  }
+
+  const normalizedTargetLang = targetLanguage.toLowerCase().trim()
+  const normalizedNativeLang = (nativeLanguage || 'english').toLowerCase().trim()
+
+  // Use provided voiceId or default for the language
+  const voiceId = requestedVoiceId || DEFAULT_IMPORT_VOICE_IDS[normalizedTargetLang]
+  if (!voiceId) {
+    // No voice available, return translations only (no pronunciations)
+    console.log(`No voice ID available for language ${targetLanguage}, returning translations only`)
+  }
+
+  try {
+    // Get content reference based on type
+    let contentRef
+    if (contentType === 'story') {
+      contentRef = firestore.collection('users').doc(uid).collection('stories').doc(contentId)
+    } else if (contentType === 'youtube') {
+      contentRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(contentId)
+    } else if (contentType === 'spotify') {
+      contentRef = firestore.collection('users').doc(uid).collection('spotifyItems').doc(contentId)
+    } else {
+      return res.status(400).json({ error: `Unknown content type: ${contentType}` })
+    }
+
+    // Extract all text from content (same as prepare-content)
+    let allText = ''
+    const contentSnap = await contentRef.get()
+    if (!contentSnap.exists) {
+      return res.status(404).json({ error: 'Content not found' })
+    }
+
+    if (contentType === 'story') {
+      const pagesSnap = await contentRef.collection('pages').get()
+      pagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
+      })
+    } else if (contentType === 'youtube') {
+      const transcriptsSnap = await contentRef.collection('transcripts').get()
+      transcriptsSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || '')
+        if (Array.isArray(data.segments)) {
+          data.segments.forEach((seg) => {
+            allText += ' ' + (seg.text || '')
+          })
+        }
+      })
+    } else if (contentType === 'spotify') {
+      const contentData = contentSnap.data() || {}
+      if (Array.isArray(contentData.transcriptSegments)) {
+        contentData.transcriptSegments.forEach((seg) => {
+          allText += ' ' + (seg.text || seg.words || '')
+        })
+      }
+      const pagesSnap = await contentRef.collection('pages').get()
+      pagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || data.originalText || '')
+      })
+    }
+
+    // Extract unique words
+    const uniqueWords = extractUniqueWords(allText)
+
+    if (uniqueWords.length === 0) {
+      return res.json({ translations: {}, pronunciations: {} })
+    }
+
+    // Batch fetch cached data
+    const [translations, pronunciations] = await Promise.all([
+      batchGetTranslations(uniqueWords, normalizedTargetLang, normalizedNativeLang),
+      voiceId ? batchGetPronunciations(uniqueWords, normalizedTargetLang, voiceId) : Promise.resolve({}),
+    ])
+
+    return res.json({ translations, pronunciations })
+  } catch (error) {
+    console.error('Error preloading content data:', error)
+    return res.status(500).json({ error: 'Failed to preload content data' })
+  }
+})
+
+app.post('/api/delete-story', async (req, res) => {
+  let storyRef
+
+  try {
+    const { uid, storyId, collectionType } = req.body || {}
+
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    // Determine which collection to delete from
+    // collectionType can be 'generatedBooks' or 'stories' (default)
+    const collectionName = collectionType === 'generatedBooks' ? 'generatedBooks' : 'stories'
+
+    storyRef = firestore.collection('users').doc(uid).collection(collectionName).doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      // If not found in specified collection, try the other one
+      const alternateCollection = collectionName === 'stories' ? 'generatedBooks' : 'stories'
+      const alternateRef = firestore.collection('users').doc(uid).collection(alternateCollection).doc(storyId)
+      const alternateSnap = await alternateRef.get()
+
+      if (!alternateSnap.exists) {
+        return res.status(404).json({ error: 'Story not found in either collection' })
+      }
+
+      // Found in alternate collection
+      storyRef = alternateRef
+      console.log(`Story ${storyId} found in ${alternateCollection} instead of ${collectionName}`)
+    }
+
+    // Helper function to delete all docs in a subcollection
+    const deleteSubcollection = async (subcollectionRef) => {
+      const snap = await subcollectionRef.get()
+      if (snap.empty) return 0
+
+      let batch = firestore.batch()
+      let counter = 0
+      let totalDeleted = 0
+
+      for (const docSnap of snap.docs) {
+        batch.delete(docSnap.ref)
+        counter++
+        totalDeleted++
+
+        // Firestore only allows 500 operations per batch
+        if (counter === 500) {
+          await batch.commit()
+          batch = firestore.batch()
+          counter = 0
+        }
+      }
+
+      // Commit any remaining deletes
+      if (counter > 0) {
+        await batch.commit()
+      }
+
+      return totalDeleted
+    }
+
+    // Delete all subcollections
+    const pagesDeleted = await deleteSubcollection(storyRef.collection('pages'))
+    const chaptersDeleted = await deleteSubcollection(storyRef.collection('chapters'))
+    const transcriptsDeleted = await deleteSubcollection(storyRef.collection('transcripts'))
+
+    console.log(`Deleted story ${storyId}: ${pagesDeleted} pages, ${chaptersDeleted} chapters, ${transcriptsDeleted} transcripts`)
+
+    // Delete audio file (ignore if missing or bucket not available)
+    if (bucket) {
+      const audioFilePath = `audio/full/${uid}/${storyId}.mp3`
+      try {
+        const audioFile = bucket.file(audioFilePath)
+        await audioFile.delete({ ignoreNotFound: true })
+      } catch (audioErr) {
+        console.error('Error deleting audio file (ignored):', {
+          message: audioErr?.message,
+          code: audioErr?.code,
+        })
+      }
+    }
+
+    // Delete the story doc itself
+    await storyRef.delete()
+
+    return res.json({ success: true, deleted: { pages: pagesDeleted, chapters: chaptersDeleted, transcripts: transcriptsDeleted } })
+  } catch (error) {
+    console.error('Error deleting story:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    })
+
+    return res.status(500).json({
+      error: error?.message || 'Failed to delete story',
+      code: error?.code || null,
+    })
+  }
+})
+
+// Cleanup orphaned subcollections from deleted stories
+app.post('/api/cleanup-orphaned-stories', async (req, res) => {
+  try {
+    const { uid } = req.body || {}
+
+    if (!uid) {
+      return res.status(400).json({ error: 'uid is required' })
+    }
+
+    const storiesRef = firestore.collection('users').doc(uid).collection('stories')
+
+    // Get all story IDs that have chapters subcollection
+    const chaptersQuery = await firestore.collectionGroup('chapters').where('__name__', '>=', `users/${uid}/stories/`).where('__name__', '<', `users/${uid}/stories/~`).get()
+
+    const orphanedStoryIds = new Set()
+
+    for (const chapterDoc of chaptersQuery.docs) {
+      // Extract story ID from path: users/{uid}/stories/{storyId}/chapters/{chapterId}
+      const pathParts = chapterDoc.ref.path.split('/')
+      const storyIdIndex = pathParts.indexOf('stories') + 1
+      if (storyIdIndex > 0 && storyIdIndex < pathParts.length) {
+        const storyId = pathParts[storyIdIndex]
+        // Check if parent story doc exists
+        const storyDoc = await storiesRef.doc(storyId).get()
+        if (!storyDoc.exists) {
+          orphanedStoryIds.add(storyId)
+        }
+      }
+    }
+
+    console.log(`Found ${orphanedStoryIds.size} orphaned stories for user ${uid}`)
+
+    let totalDeleted = { pages: 0, chapters: 0, transcripts: 0 }
+
+    // Delete orphaned subcollections
+    for (const storyId of orphanedStoryIds) {
+      const storyRef = storiesRef.doc(storyId)
+
+      // Delete subcollections
+      for (const subcollection of ['pages', 'chapters', 'transcripts']) {
+        const subcollectionRef = storyRef.collection(subcollection)
+        const snap = await subcollectionRef.get()
+
+        if (!snap.empty) {
+          let batch = firestore.batch()
+          let counter = 0
+
+          for (const docSnap of snap.docs) {
+            batch.delete(docSnap.ref)
+            counter++
+            totalDeleted[subcollection]++
+
+            if (counter === 500) {
+              await batch.commit()
+              batch = firestore.batch()
+              counter = 0
+            }
+          }
+
+          if (counter > 0) {
+            await batch.commit()
+          }
+        }
+      }
+
+      console.log(`Cleaned up orphaned story: ${storyId}`)
+    }
+
+    return res.json({
+      success: true,
+      orphanedStoriesFound: orphanedStoryIds.size,
+      deleted: totalDeleted,
+    })
+  } catch (error) {
+    console.error('Error cleaning up orphaned stories:', error)
+    return res.status(500).json({ error: 'Failed to cleanup orphaned stories' })
+  }
+})
+
+// Practice Mode: Get AI feedback on user's translation attempt
+app.post('/api/practice/feedback', async (req, res) => {
+  try {
+    const { nativeSentence, userAttempt, targetLanguage, sourceLanguage, adaptationLevel, contextSummary, feedbackInTarget } = req.body || {}
+
+    if (!nativeSentence || !userAttempt || !targetLanguage) {
+      return res.status(400).json({ error: 'nativeSentence, userAttempt, and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const level = adaptationLevel || 'native'
+    const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
+
+    // Build context section if context summary is available
+    const contextSection = contextSummary
+      ? `
+IMPORTANT CONTEXT:
+${contextSummary}
+
+Your feedback and model sentence MUST be consistent with this context.
+`
+      : ''
+
+    // Check if user has words in parentheses (asking for help with unknown words)
+    const parenthesesPattern = /\(([^)]+)\)/g
+    const unknownWords = [...userAttempt.matchAll(parenthesesPattern)].map(m => m[1])
+    const hasUnknownWords = unknownWords.length > 0
+
+    // Build unknown words section for the prompt
+    const unknownWordsSection = hasUnknownWords
+      ? `
+IMPORTANT - Unknown Words:
+The student has indicated they don't know how to express certain words/phrases by putting them in parentheses in ${sourceLang}. These are: ${unknownWords.map(w => `"${w}"`).join(', ')}.
+In your feedback explanation, provide the ${targetLanguage} translations for each of these words/phrases.
+In the model sentence, replace these parenthetical expressions with the correct ${targetLanguage} translations.
+`
+      : ''
+
+    // Build the prompt for the tutor
+    const prompt = `You are a strict but fair ${targetLanguage} language tutor. Analyze the student's translation attempt.
+${contextSection}${unknownWordsSection}
+Original sentence (${sourceLang}): "${nativeSentence}"
+Student's attempt (${targetLanguage}): "${userAttempt}"
+Adaptation level: ${level}
+
+YOUR TASK: Find ALL errors in the student's attempt. Be thorough but fair.
+
+WHAT TO FLAG AS ERRORS (you MUST catch these):
+1. SPELLING ERRORS - Wrong letters, missing/extra letters, missing accents
+   Examples: "difficil" → "difícil", "extramadamente" → "extremadamente", "esta" → "está" (when verb)
+2. GRAMMAR ERRORS - Wrong verb conjugation, wrong gender/number agreement, wrong word order that breaks grammar
+   Examples: "la problema" → "el problema", "ellos tiene" → "ellos tienen"
+3. ACCURACY ERRORS - Wrong word that changes the meaning, missing key information
+   Examples: Using "always" when original said "never"
+
+WHAT IS NOT AN ERROR (do NOT flag these):
+- Valid synonyms: "necesitar" vs "deber", "muy" vs "bastante"
+- Valid alternatives: "¿no?" vs "¿verdad?", "es que" vs "porque"
+- Style preferences: Different but grammatically correct word order
+- If you would say "more natural" or "I prefer" - it's NOT an error, don't flag it
+
+Return JSON:
+{
+  "modelSentence": "A natural ${targetLanguage} translation (as exemplar, not the only correct answer)",
+  "feedback": {
+    "correctness": <1-5, where 5 = no errors>,
+    "accuracy": <1-5, where 5 = meaning fully preserved>,
+    "corrections": [
+      {
+        "category": "spelling" | "grammar" | "accuracy",
+        "original": "exact text from student's attempt",
+        "correction": "corrected text",
+        "explanation": "Brief explanation in ${feedbackLang}"
+      }
+    ]${hasUnknownWords ? `,
+    "unknownWordTranslations": { "word": "translation", ... }` : ''}
+  }
+}
+
+CRITICAL RULES:
+- "original" must contain ONLY the specific word(s) with errors, NOT surrounding correct words
+- "original" must EXACTLY match text in student's attempt (for highlighting)
+- Flag EVERY spelling error including missing accents (á, é, í, ó, ú, ñ, ü)
+- Flag EVERY grammar error (conjugation, agreement, syntax)
+- Do NOT flag valid alternative phrasings
+- Empty corrections [] only if attempt has zero errors
+
+Return ONLY valid JSON.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let result
+    try {
+      // Extract JSON from the response
+      const text = response.output_text || ''
+      console.log('AI response:', text.slice(0, 500))
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0])
+        console.log('Parsed feedback:', JSON.stringify(result.feedback, null, 2))
+
+        // Calculate positions for each correction
+        if (result.feedback?.corrections) {
+          result.feedback.corrections = result.feedback.corrections.map(correction => {
+            const startIndex = userAttempt.indexOf(correction.original)
+            if (startIndex !== -1) {
+              return {
+                ...correction,
+                startIndex,
+                endIndex: startIndex + correction.original.length
+              }
+            }
+            // If exact match not found, try case-insensitive search
+            const lowerAttempt = userAttempt.toLowerCase()
+            const lowerOriginal = correction.original.toLowerCase()
+            const caseInsensitiveStart = lowerAttempt.indexOf(lowerOriginal)
+            if (caseInsensitiveStart !== -1) {
+              return {
+                ...correction,
+                original: userAttempt.slice(caseInsensitiveStart, caseInsensitiveStart + correction.original.length),
+                startIndex: caseInsensitiveStart,
+                endIndex: caseInsensitiveStart + correction.original.length
+              }
+            }
+            // Return without position if not found
+            return correction
+          })
+        }
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (parseErr) {
+      console.error('Parse error:', parseErr)
+      // Return a basic response if parsing fails
+      result = {
+        modelSentence: userAttempt,
+        feedback: {
+          naturalness: 3,
+          accuracy: 3,
+          correctness: 3,
+          corrections: [],
+        },
+      }
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Practice feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get feedback' })
+  }
+})
+
+// Practice Mode: Handle follow-up questions from the user
+app.post('/api/practice/followup', async (req, res) => {
+  try {
+    const { question, context } = req.body || {}
+
+    if (!question) {
+      return res.status(400).json({ error: 'question is required' })
+    }
+
+    const { sourceSentence, userAttempt, modelSentence, feedback, targetLanguage, sourceLanguage, contextSummary, currentCorrections, fullDocument } = context || {}
+
+    // Detect if user is clarifying their intent (e.g., "no, I meant X", "I was trying to say Y")
+    const clarificationPatterns = [
+      /no,?\s*(i|I)\s*(was|meant|wanted|tried)/i,
+      /actually,?\s*(i|I)\s*(was|meant|wanted|tried)/i,
+      /(i|I)\s*(was|meant|wanted|tried)\s*to\s*say/i,
+      /what\s*(i|I)\s*(meant|wanted)/i,
+      /i\s*didn'?t\s*mean/i,
+    ]
+    const isClarification = clarificationPatterns.some(p => p.test(question))
+
+    // Build context section if context summary is available
+    const contextSection = contextSummary
+      ? `
+Context: ${contextSummary}
+`
+      : ''
+
+    let prompt
+    let returnUpdatedFeedback = false
+
+    if (isClarification && currentCorrections?.length > 0) {
+      // User is clarifying what they meant - re-analyze with this info
+      returnUpdatedFeedback = true
+      prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}.
+
+The student wrote: "${userAttempt || fullDocument || 'N/A'}"
+
+Your previous corrections were:
+${currentCorrections.map(c => `- "${c.original}" → "${c.correction}" (${c.category})`).join('\n')}
+
+The student is now clarifying: "${question}"
+
+Based on this clarification, you need to:
+1. Understand what the student actually meant to express
+2. Provide the correct way to say it in ${targetLanguage}
+3. Update any corrections that were based on misunderstanding their intent
+
+Return JSON:
+{
+  "response": "Your helpful response acknowledging their clarification and teaching them the correct expression",
+  "updatedCorrections": [
+    {
+      "originalText": "the text that was incorrectly corrected",
+      "newCategory": "spelling" | "grammar" | "accuracy" | "naturalness",
+      "newCorrection": "the correct form based on what they meant",
+      "newExplanation": "explanation of the correct form",
+      "exampleSentence": "example sentence using the correct form"
+    }
+  ],
+  "removedCorrections": ["original text of any corrections that should be removed"]
+}
+
+Only include updatedCorrections for corrections that need to change based on the clarification.
+Only include removedCorrections for corrections that were wrong and should be removed entirely.`
+
+      const response = await client.responses.create({
+        model: 'gpt-4o-mini',
+        input: prompt,
+        text: { format: { type: 'json_object' } },
+      })
+
+      let result
+      try {
+        let text = response.output_text || ''
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        result = JSON.parse(text)
+      } catch (parseErr) {
+        console.error('Failed to parse clarification response:', parseErr)
+        return res.json({ response: response.output_text || 'I understand. Let me help you with that.' })
+      }
+
+      return res.json({
+        response: result.response || 'I understand what you meant now.',
+        updatedCorrections: result.updatedCorrections || [],
+        removedCorrections: result.removedCorrections || [],
+      })
+    }
+
+    // Regular follow-up question (not a clarification)
+    prompt = `You are a language tutor helping a student learn ${targetLanguage || 'the target language'}. The student has a follow-up question.
+${contextSection}
+Current exercise context:
+- Source sentence (${sourceLanguage || 'source language'}): "${sourceSentence || 'N/A'}"
+- Student's attempt: "${userAttempt || 'N/A'}"
+- Model sentence: "${modelSentence || 'N/A'}"
+- Previous feedback: ${feedback?.explanation || 'N/A'}
+
+Student's question: "${question}"
+
+Provide a helpful, encouraging response in ${sourceLanguage || 'English'}. Be concise but thorough. If they're asking about grammar, vocabulary, or cultural aspects, explain clearly with examples.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    return res.json({ response: response.output_text || 'I couldn\'t generate a response.' })
+  } catch (error) {
+    console.error('Practice follow-up error:', error)
+    return res.status(500).json({ error: 'Failed to process follow-up question' })
+  }
+})
+
+// Practice Save Beacon - for saving draft on page unload
+app.post('/api/practice/save-beacon', async (req, res) => {
+  try {
+    const { userId, lessonId, sentenceIndex, userText, status } = req.body || {}
+
+    if (!userId || !lessonId || sentenceIndex === undefined) {
+      return res.status(400).json({ error: 'userId, lessonId, and sentenceIndex are required' })
+    }
+
+    // Get the lesson and update or add the attempt
+    const lessonRef = admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('practiceLessons')
+      .doc(lessonId)
+
+    const lessonDoc = await lessonRef.get()
+    if (!lessonDoc.exists) {
+      return res.status(404).json({ error: 'Lesson not found' })
+    }
+
+    const lessonData = lessonDoc.data()
+    let attempts = lessonData.attempts || []
+
+    // Find existing attempt for this sentence
+    const existingIndex = attempts.findIndex(a => a.sentenceIndex === sentenceIndex)
+    const attemptData = {
+      sentenceIndex,
+      userText: userText || '',
+      status: status || 'draft',
+      updatedAt: new Date().toISOString(),
+    }
+
+    if (existingIndex >= 0) {
+      // Preserve existing feedback/modelSentence if just saving draft
+      attempts[existingIndex] = {
+        ...attempts[existingIndex],
+        ...attemptData,
+      }
+    } else {
+      attempts.push(attemptData)
+    }
+
+    await lessonRef.update({
+      attempts,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    return res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Practice save beacon error:', error)
+    return res.status(500).json({ error: 'Failed to save' })
+  }
+})
+
+// Free Writing Save Beacon - for saving on page unload
+app.post('/api/freewriting/save-beacon', async (req, res) => {
+  try {
+    const { userId, lessonId, content, wordCount, corrections } = req.body || {}
+
+    console.log('=== BEACON SAVE REQUEST ===')
+    console.log('User ID:', userId)
+    console.log('Lesson ID:', lessonId)
+    console.log('Content length:', content?.length || 0, 'chars')
+    console.log('Word count:', wordCount)
+    console.log('Corrections:', corrections?.length || 0)
+
+    if (!userId || !lessonId) {
+      console.error('Beacon save failed: missing userId or lessonId')
+      return res.status(400).json({ error: 'userId and lessonId are required' })
+    }
+
+    // Update the lesson in Firestore
+    const lessonRef = admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .collection('freeWritingLessons')
+      .doc(lessonId)
+
+    await lessonRef.update({
+      content: content || '',
+      wordCount: wordCount || 0,
+      corrections: corrections || [],
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+
+    console.log('Beacon save successful for lesson:', lessonId)
+    return res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Save beacon error:', error)
+    return res.status(500).json({ error: 'Failed to save' })
+  }
+})
+
+// Free Writing Feedback Endpoint
+// =============================================================================
+// NOVEL GENERATOR API
+// =============================================================================
+
+// OpenAI wrapper with retry, timeout, and streaming support
+// Per planning doc Section 11.5: 3 attempts, exponential backoff (2s, 4s, 8s), 90s timeout
+async function callOpenAIWithRetry(options, { maxRetries = 3, timeoutMs = 90000, stream = false } = {}) {
+  const delays = [2000, 4000, 8000]
+  let lastError = null
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+      try {
+        if (stream) {
+          // Streaming mode for chapter generation
+          const response = await client.chat.completions.create({
+            ...options,
+            stream: true,
+          })
+          clearTimeout(timeoutId)
+          return response
+        } else {
+          // Non-streaming mode for bible phases
+          const response = await client.chat.completions.create({
+            ...options,
+            stream: false,
+          })
+          clearTimeout(timeoutId)
+          return response
+        }
+      } finally {
+        clearTimeout(timeoutId)
+      }
+    } catch (error) {
+      lastError = error
+      console.error(`OpenAI call attempt ${attempt + 1} failed:`, error.message)
+
+      // Don't retry on abort (timeout)
+      if (error.name === 'AbortError') {
+        throw new Error(`OpenAI call timed out after ${timeoutMs}ms`)
+      }
+
+      // Wait before retrying (unless last attempt)
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]))
+      }
+    }
+  }
+
+  throw lastError || new Error('OpenAI call failed after all retries')
+}
+
+// Parse JSON from LLM response, with retry instruction if parsing fails
+function parseJSONResponse(content) {
+  try {
+    // Try to extract JSON from markdown code blocks if present
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
+    const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim()
+    return { success: true, data: JSON.parse(jsonStr) }
+  } catch (error) {
+    return { success: false, error: error.message, raw: content }
+  }
+}
+
+// Validate coherence check fields are non-empty
+function validateCoherenceCheck(coherenceCheck, requiredFields) {
+  if (!coherenceCheck) return { valid: false, missing: requiredFields }
+  const missing = requiredFields.filter(field => !coherenceCheck[field] || coherenceCheck[field].trim() === '')
+  return { valid: missing.length === 0, missing }
+}
+
+// POST /api/generate/bible - Phase 1 concept generation via generateStory()
+app.post('/api/generate/bible', async (req, res) => {
+  console.log('=== /api/generate/bible endpoint hit ===')
+  try {
+    const { concept } = req.body
+
+    if (!concept || !concept.trim()) {
+      return res.status(400).json({ error: 'concept (setting) is required' })
+    }
+
+    const setting = concept.trim()
+    console.log(`Starting Phase 1 generation with setting: "${setting}"`)
+
+    const result = await generateStory(setting)
+
+    console.log('=== Phase 1 Complete ===')
+    console.log('Skeleton:', JSON.stringify(result.skeleton, null, 2))
+    console.log('Concept:', JSON.stringify(result.concept, null, 2))
+
+    return res.status(200).json({ success: true, skeleton: result.skeleton, concept: result.concept })
+  } catch (error) {
+    console.error('Generate story error:', error)
+    return res.status(500).json({ error: 'Failed to generate story', details: error.message })
+  }
+})
+
+// POST /api/generate/reset-status - Reset a stuck book status back to bible_complete
+app.post('/api/generate/reset-status', async (req, res) => {
+  try {
+    const { uid, bookId } = req.body
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    await bookRef.update({ status: 'phase_complete' })
+    console.log(`Reset status to phase_complete for book ${bookId}`)
+
+    res.json({ success: true, message: 'Status reset to phase_complete' })
+  } catch (error) {
+    console.error('Reset status error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// POST /api/generate/execute-phase - Execute a single phase for a book
+app.post('/api/generate/execute-phase', async (req, res) => {
+  try {
+    const { uid, bookId, phase } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+    if (phase === undefined) return res.status(400).json({ error: 'phase is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Recursively remove undefined values (Firestore can't handle them)
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) return obj.map(item => sanitizeForFirestore(item))
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) cleaned[key] = sanitizeForFirestore(value)
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    const maxAttempts = 3
+
+    if (phase === 1) {
+      const setting = bookData.concept || ''
+
+      console.log(`Executing Phase 1 for book ${bookId}`)
+      console.log(`  Setting: "${setting}"`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 1 })
+
+      // Retry up to 3 times — LLM occasionally returns malformed JSON
+      const skeleton = rollSkeleton()
+      let concept
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          concept = await executePhase1(skeleton, setting)
+          break
+        } catch (err) {
+          console.error(`Phase 1 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+          if (attempt === maxAttempts) throw err
+          console.log(`Retrying Phase 1...`)
+        }
+      }
+
+      console.log('=== Phase 1 Complete ===')
+      console.log('Skeleton:', JSON.stringify(skeleton, null, 2))
+      console.log('Concept:', JSON.stringify(concept, null, 2))
+
+      const updatedBible = { skeleton: sanitizeForFirestore(skeleton), concept: sanitizeForFirestore(concept) }
+
+      await bookRef.update({
+        bible: updatedBible,
+        currentPhase: 1,
+        status: 'phase_complete',
+        lastPhaseCompleted: 1,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 1 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 1, phaseComplete: true })
+
+    } else if (phase === 2) {
+      const bible = bookData.bible || {}
+      if (!bible.skeleton || !bible.concept) {
+        return res.status(400).json({ error: 'Phase 1 must be completed before Phase 2' })
+      }
+
+      console.log(`Executing Phase 2 (Locations) for book ${bookId}`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 2 })
+
+      const characters = bible.concept.characters
+      const setting = bookData.concept || ''
+
+      let phase2Result
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          phase2Result = await executePhase3(setting, characters)
+          break
+        } catch (err) {
+          console.error(`Phase 2 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+          if (attempt === maxAttempts) throw err
+          console.log(`Retrying Phase 2...`)
+        }
+      }
+
+      console.log('=== Phase 2 Complete ===')
+      console.log('Locations:', JSON.stringify(phase2Result.locations, null, 2))
+
+      await bookRef.update({
+        'bible.locations': sanitizeForFirestore(phase2Result.locations),
+        currentPhase: 2,
+        status: 'phase_complete',
+        lastPhaseCompleted: 2,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 2 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 2, phaseComplete: true })
+
+    } else if (phase === 3) {
+      const bible = bookData.bible || {}
+      if (!bible.locations) {
+        return res.status(400).json({ error: 'Phase 2 must be completed before Phase 3' })
+      }
+
+      console.log(`Executing Phase 3 (Scene Summaries) for book ${bookId}`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 3 })
+
+      const skeleton = bible.skeleton
+      const characters = bible.concept.characters
+      const setting = bookData.concept || ''
+      const locations = bible.locations
+
+      let phase3Result
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          phase3Result = await executePhase2(skeleton, characters, setting, locations)
+          break
+        } catch (err) {
+          console.error(`Phase 3 attempt ${attempt}/${maxAttempts} failed: ${err.message}`)
+          if (attempt === maxAttempts) throw err
+          console.log(`Retrying Phase 3...`)
+        }
+      }
+
+      console.log('=== Phase 3 Complete ===')
+      console.log('Scene Summaries:', JSON.stringify(phase3Result.sceneSummaries, null, 2))
+
+      await bookRef.update({
+        'bible.sceneSummaries': sanitizeForFirestore(phase3Result.sceneSummaries),
+        currentPhase: 3,
+        status: 'phase_complete',
+        lastPhaseCompleted: 3,
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+
+      console.log(`Phase 3 saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({ success: true, bookId, phase: 3, phaseComplete: true })
+
+    } else if (phase === 4) {
+      const bible = bookData.bible || {}
+      if (!bible.locations) {
+        return res.status(400).json({ error: 'Phase 3 must be completed before Phase 4' })
+      }
+      if (!bible.sceneSummaries) {
+        return res.status(400).json({ error: 'Phase 2 must be completed before Phase 4' })
+      }
+      if (!bible.concept?.characters) {
+        return res.status(400).json({ error: 'Phase 1 must be completed before Phase 4' })
+      }
+
+      const totalChapters = bible.sceneSummaries.chapters.length
+      const existingProse = bible.prose || []
+
+      // Determine which chapter to generate
+      const requestedChapter = req.body.chapterNumber
+      const chapterNumber = requestedChapter !== undefined
+        ? Number(requestedChapter)
+        : existingProse.length + 1
+
+      if (!Number.isInteger(chapterNumber) || chapterNumber < 1) {
+        return res.status(400).json({ error: `Invalid chapterNumber: ${chapterNumber}. Must be a positive integer.` })
+      }
+      if (chapterNumber > totalChapters) {
+        return res.status(400).json({ error: `chapterNumber ${chapterNumber} exceeds totalChapters (${totalChapters}).` })
+      }
+
+      // If chapter was explicitly requested and already exists, remove it (redo)
+      const alreadyGenerated = existingProse.find(p => p.chapter === chapterNumber)
+      if (alreadyGenerated && requestedChapter !== undefined) {
+        console.log(`Redo: removing existing chapter ${chapterNumber} before regenerating`)
+        existingProse.splice(existingProse.indexOf(alreadyGenerated), 1)
+      } else if (alreadyGenerated) {
+        return res.status(409).json({ error: `Chapter ${chapterNumber} has already been generated.`, chapter: alreadyGenerated })
+      }
+
+      const expectedNext = existingProse.length + 1
+      if (chapterNumber !== expectedNext) {
+        console.warn(`Warning: generating chapter ${chapterNumber} out of order (expected ${expectedNext})`)
+      }
+
+      console.log(`Executing Phase 4 for book ${bookId}: chapter ${chapterNumber}/${totalChapters}`)
+
+      await bookRef.update({ status: 'generating', currentPhase: 4 })
+
+      const characters = bible.concept.characters
+      const sceneSummaries = bible.sceneSummaries
+      const locations = bible.locations
+      const previousChaptersProse = existingProse.filter(p => p.chapter < chapterNumber)
+      const styleKey = bookData.styleKey || null
+
+      const chapterResult = await executePhase4Chapter(
+        chapterNumber,
+        characters,
+        sceneSummaries,
+        locations,
+        previousChaptersProse,
+        styleKey
+      )
+
+      const updatedProse = [...existingProse, sanitizeForFirestore(chapterResult)]
+      updatedProse.sort((a, b) => a.chapter - b.chapter)
+
+      const isLastChapter = updatedProse.length === totalChapters
+
+      console.log(`\n=== Chapter ${chapterNumber}: "${chapterResult.title}" ===`)
+      console.log(chapterResult.prose)
+
+      await bookRef.update({
+        'bible.prose': sanitizeForFirestore(updatedProse),
+        currentPhase: 4,
+        status: 'phase_complete',
+        lastPhaseCompleted: isLastChapter ? 4 : (bookData.lastPhaseCompleted || 3),
+        lastPhaseCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
+        chaptersGenerated: updatedProse.length,
+        totalChapters,
+      })
+
+      console.log(`Phase 4 chapter ${chapterNumber} saved to Firestore for book ${bookId}`)
+
+      return res.status(200).json({
+        success: true,
+        bookId,
+        phase: 4,
+        chapterNumber,
+        totalChapters,
+        chaptersGenerated: updatedProse.length,
+        phaseComplete: isLastChapter,
+        chapter: { chapter: chapterResult.chapter, title: chapterResult.title, prose: chapterResult.prose }
+      })
+
+    } else {
+      return res.status(501).json({ error: `Phase ${phase} not yet implemented` })
+    }
+
+  } catch (error) {
+    console.error('Execute phase error:', error)
+
+    try {
+      const { uid, bookId } = req.body
+      if (uid && bookId) {
+        const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+        await bookRef.update({ status: 'phase_complete', lastError: error.message })
+      }
+    } catch (resetError) {
+      console.error('Failed to reset book status:', resetError.message)
+    }
+
+    return res.status(500).json({ error: 'Failed to execute phase', details: error.message })
+  }
+})
+
+// POST /api/generate/execute-scene - Generate prose for next (or specific) scene
+app.post('/api/generate/execute-scene', async (req, res) => {
+  return res.status(501).json({ error: 'Scene execution not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
+  try {
+    const { uid, bookId, sceneIndex: requestedIndex } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const bible = bookData.bible || {}
+
+    if (!bible.sceneAssembly) {
+      return res.status(400).json({ error: 'Scene generation requires Phase 4 (sceneAssembly) to be complete' })
+    }
+
+    // Determine scene index
+    const allScenes = flattenScenes(bible.sceneAssembly)
+    const totalScenes = allScenes.length
+    const sceneIndex = requestedIndex !== undefined ? requestedIndex : (bookData.nextSceneIndex || 0)
+
+    if (sceneIndex < 0 || sceneIndex >= totalScenes) {
+      return res.status(400).json({ error: `Scene index ${sceneIndex} out of range (0-${totalScenes - 1})` })
+    }
+
+    console.log(`Generating scene ${sceneIndex + 1}/${totalScenes} for book ${bookId}`)
+
+    // Update status
+    await bookRef.update({
+      status: 'generating_prose',
+      currentSceneIndex: sceneIndex
+    })
+
+    // Get previous scene prose for context
+    let previousSceneProse = null
+    if (sceneIndex > 0) {
+      const prevSceneDoc = await bookRef.collection('scenes').doc(String(sceneIndex - 1)).get()
+      if (prevSceneDoc.exists) {
+        previousSceneProse = prevSceneDoc.data().prose
+      }
+    }
+
+    // Generate the scene
+    const result = await generateProseScene(bible, sceneIndex, previousSceneProse)
+
+    // Sanitize for Firestore
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) return obj.map(item => sanitizeForFirestore(item))
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) cleaned[key] = sanitizeForFirestore(value)
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    // Store scene in Firestore
+    await bookRef.collection('scenes').doc(String(sceneIndex)).set(sanitizeForFirestore({
+      ...result,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }))
+
+    // Update book tracking
+    const isLastScene = sceneIndex >= totalScenes - 1
+    await bookRef.update({
+      status: isLastScene ? 'prose_complete' : 'prose_in_progress',
+      nextSceneIndex: sceneIndex + 1,
+      totalScenes,
+      lastSceneGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+
+    console.log(`Scene ${sceneIndex + 1}/${totalScenes} complete (${result.word_count} words)`)
+    console.log('')
+    console.log('='.repeat(60))
+    console.log(`SCENE PROSE — Act ${result.act} Part ${result.part} Chapter ${result.chapter_number} Scene ${result.scene_number}`)
+    console.log('='.repeat(60))
+    console.log(result.prose)
+    console.log('='.repeat(60))
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      sceneIndex,
+      totalScenes,
+      isLastScene,
+      result
+    })
+
+  } catch (error) {
+    console.error('Execute scene error:', error)
+
+    try {
+      const { uid, bookId } = req.body
+      if (uid && bookId) {
+        const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+        await bookRef.update({
+          status: 'prose_in_progress',
+          lastError: error.message
+        })
+      }
+    } catch (resetError) {
+      console.error('Failed to reset book status:', resetError.message)
+    }
+
+    return res.status(500).json({ error: 'Failed to generate scene', details: error.message })
+  }
+  */
+})
+
+// POST /api/generate/reset-generation - Reset a book to start fresh from Phase 1
+app.post('/api/generate/reset-generation', async (req, res) => {
+  try {
+    const { uid, bookId } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    // Keep the concept and settings, clear all phase outputs
+    await bookRef.update({
+      bible: {},
+      currentPhase: 0,
+      status: 'ready',
+      lastPhaseCompleted: null,
+      lastPhaseCompletedAt: null,
+      lastError: null
+    })
+
+    console.log(`Reset generation for book ${bookId} - ready to start from Phase 1`)
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      message: 'Generation reset - ready to start from Phase 1'
+    })
+
+  } catch (error) {
+    console.error('Reset generation error:', error)
+    return res.status(500).json({ error: 'Failed to reset generation', details: error.message })
+  }
+})
+
+// POST /api/generate/regenerate-phases - Regenerate specific phases for an existing book
+app.post('/api/generate/regenerate-phases', async (req, res) => {
+  return res.status(501).json({ error: 'Phase regeneration not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
+  try {
+    const { uid, bookId, phases = [6] } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    // Get the existing book
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const bible = bookData.bible || {}
+
+    // Debug: log what's in the bible
+    console.log(`Regenerate request for book ${bookId}`)
+    console.log(`  Bible keys: ${Object.keys(bible).join(', ') || 'EMPTY'}`)
+    console.log(`  Has coreFoundation: ${!!bible.coreFoundation}`)
+    console.log(`  Has supportingScenes: ${!!bible.supportingScenes}`)
+
+    // Validate we have the required earlier phases
+    if (!bible.coreFoundation) {
+      return res.status(400).json({ error: 'Book is missing Phase 1 (coreFoundation) data', bibleKeys: Object.keys(bible) })
+    }
+    if (!bible.characters) {
+      return res.status(400).json({ error: 'Book is missing Phase 2 (characters) data' })
+    }
+    if (!bible.plot) {
+      return res.status(400).json({ error: 'Book is missing Phase 3 (plot) data' })
+    }
+    if (phases.includes(5) && !phases.includes(4) && !bible.subplots) {
+      return res.status(400).json({ error: 'Phase 5 regeneration requires Phase 4 (subplots) data' })
+    }
+    if (phases.includes(6) && !bible.masterTimeline) {
+      return res.status(400).json({ error: 'Phase 6 regeneration requires Phase 5 (masterTimeline) data' })
+    }
+    if (phases.includes(7) && !bible.eventsAndLocations) {
+      return res.status(400).json({ error: 'Phase 7 regeneration requires Phase 6 (eventsAndLocations) data' })
+    }
+    if (phases.includes(8) && !bible.eventDevelopment) {
+      return res.status(400).json({ error: 'Phase 8 regeneration requires Phase 7 (eventDevelopment) data' })
+    }
+    if (phases.includes(9) && !bible.supportingScenes) {
+      return res.status(400).json({ error: 'Phase 9 regeneration requires Phase 8 (supportingScenes) data' })
+    }
+
+    // Update status to regenerating
+    await bookRef.update({ status: 'regenerating' })
+
+    console.log(`Starting phase regeneration for book ${bookId}...`)
+    console.log(`  Regenerating phases: ${phases.join(', ')}`)
+
+    const concept = bookData.concept
+    const lengthPreset = bookData.lengthPreset || 'novella'
+    const updatedBible = { ...bible }
+
+    // Regenerate Phase 4 if requested
+    if (phases.includes(4)) {
+      console.log('  Regenerating Phase 4: Subplots & Supporting Cast...')
+      updatedBible.subplots = await executePhase4(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        bible.plot,
+        lengthPreset
+      )
+      console.log('  Phase 4 complete')
+    }
+
+    // Regenerate Phase 5 if requested (requires Phase 4)
+    if (phases.includes(5)) {
+      console.log('  Regenerating Phase 5: Master Timeline...')
+      const phase4Data = updatedBible.subplots || bible.subplots
+      if (!phase4Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 5 requires Phase 4 data' })
+      }
+      updatedBible.masterTimeline = await executePhase5(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        bible.plot,
+        phase4Data,
+        lengthPreset
+      )
+      console.log('  Phase 5 complete')
+    }
+
+    // Regenerate Phase 6 if requested (requires Phase 5)
+    if (phases.includes(6)) {
+      console.log('  Regenerating Phase 6: Major Events & Locations...')
+      const phase5Data = updatedBible.masterTimeline || bible.masterTimeline
+      if (!phase5Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 6 requires Phase 5 (masterTimeline) data' })
+      }
+      updatedBible.eventsAndLocations = await executePhase6(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        updatedBible.subplots || bible.subplots,
+        phase5Data
+      )
+      console.log('  Phase 6 complete')
+    }
+
+    // Regenerate Phase 7 if requested (requires Phase 6)
+    if (phases.includes(7)) {
+      console.log('  Regenerating Phase 7: Event Development...')
+      const phase6Data = updatedBible.eventsAndLocations || bible.eventsAndLocations
+      if (!phase6Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 7 requires Phase 6 (eventsAndLocations) data' })
+      }
+      updatedBible.eventDevelopment = await executePhase7(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        updatedBible.subplots || bible.subplots,
+        updatedBible.masterTimeline || bible.masterTimeline,
+        phase6Data
+      )
+      console.log('  Phase 7 complete')
+    }
+
+    // Regenerate Phase 8 if requested (requires Phase 7)
+    if (phases.includes(8)) {
+      console.log('  Regenerating Phase 8: Supporting Scenes...')
+      const phase7Data = updatedBible.eventDevelopment || bible.eventDevelopment
+      if (!phase7Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 8 requires Phase 7 (eventDevelopment) data' })
+      }
+      updatedBible.supportingScenes = await executePhase8(
+        concept,
+        bible.coreFoundation,
+        bible.characters,
+        updatedBible.subplots || bible.subplots,
+        updatedBible.masterTimeline || bible.masterTimeline,
+        updatedBible.eventsAndLocations || bible.eventsAndLocations,
+        phase7Data
+      )
+      console.log('  Phase 8 complete')
+    }
+
+    // Regenerate Phase 9 if requested (requires Phase 8)
+    if (phases.includes(9)) {
+      console.log('  Regenerating Phase 9: Scene Sequencing & Chapter Assembly...')
+      const phase8Data = updatedBible.supportingScenes || bible.supportingScenes
+      if (!phase8Data) {
+        await bookRef.update({ status: 'bible_complete' })
+        return res.status(400).json({ error: 'Phase 9 requires Phase 8 (supportingScenes) data' })
+      }
+      updatedBible.chapterAssembly = await executePhase9(
+        concept,
+        bible.characters,
+        updatedBible.masterTimeline || bible.masterTimeline,
+        updatedBible.eventsAndLocations || bible.eventsAndLocations,
+        updatedBible.eventDevelopment || bible.eventDevelopment,
+        phase8Data,
+        lengthPreset
+      )
+      console.log('  Phase 9 complete')
+    }
+
+    // Validate master_timeline - ensure all characters_present have arc_state
+    if (updatedBible.masterTimeline?.master_timeline) {
+      updatedBible.masterTimeline.master_timeline.forEach(moment => {
+        if (moment.characters_present) {
+          moment.characters_present.forEach(char => {
+            if (char.arc_state === undefined) {
+              char.arc_state = 'present'
+            }
+          })
+        }
+      })
+    }
+
+    // Recursively remove undefined values (Firestore can't handle them)
+    function sanitizeForFirestore(obj) {
+      if (obj === null || obj === undefined) return null
+      if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeForFirestore(item))
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = sanitizeForFirestore(value)
+          }
+        }
+        return cleaned
+      }
+      return obj
+    }
+
+    const sanitizedBible = sanitizeForFirestore(updatedBible)
+
+    // Update book with regenerated phases
+    try {
+      await bookRef.update({
+        bible: sanitizedBible,
+        status: 'bible_complete',
+        regeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+        regeneratedPhases: phases
+      })
+      console.log('Bible saved successfully after regeneration')
+    } catch (saveError) {
+      console.error('Bible save failed after regeneration:', saveError.message)
+      throw saveError
+    }
+
+    console.log(`Phase regeneration complete for book ${bookId}`)
+
+    return res.status(200).json({
+      success: true,
+      bookId,
+      regeneratedPhases: phases,
+      bible: updatedBible
+    })
+
+  } catch (error) {
+    console.error('Regenerate phases error:', error)
+
+    // Reset status so book doesn't stay stuck on 'regenerating'
+    try {
+      const { uid, bookId } = req.body
+      if (uid && bookId) {
+        const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+        await bookRef.update({ status: 'bible_complete' })
+        console.log('Reset book status to bible_complete after regeneration error')
+      }
+    } catch (resetError) {
+      console.error('Failed to reset book status:', resetError.message)
+    }
+
+    return res.status(500).json({ error: 'Failed to regenerate phases', details: error.message })
+  }
+  */
+})
+
+// POST /api/generate/prompt - Roll a skeleton and return structural variables
+app.post('/api/generate/prompt', async (req, res) => {
+  try {
+    const skeleton = rollSkeleton()
+
+    return res.json({
+      success: true,
+      skeleton,
+      tension: skeleton.tension,
+      ending: skeleton.ending,
+      triangle: skeleton.triangle,
+      secret: skeleton.secret,
+      chapters: skeleton.chapters.length
+    })
+  } catch (error) {
+    console.error('Generate prompt error:', error)
+    return res.status(500).json({ error: 'Failed to generate prompt', details: error.message })
+  }
+})
+
+// POST /api/generate/expand-prompt - Roll a skeleton for a given setting (no expansion needed)
+app.post('/api/generate/expand-prompt', async (req, res) => {
+  try {
+    const { concept } = req.body
+
+    if (!concept || !concept.trim()) {
+      return res.status(400).json({ error: 'concept is required' })
+    }
+
+    const skeleton = rollSkeleton()
+
+    return res.json({
+      success: true,
+      skeleton,
+      setting: concept.trim(),
+      tension: skeleton.tension,
+      ending: skeleton.ending,
+      triangle: skeleton.triangle,
+      secret: skeleton.secret,
+      chapters: skeleton.chapters.length
+    })
+  } catch (error) {
+    console.error('Expand prompt error:', error)
+    return res.status(500).json({ error: 'Failed to expand prompt', details: error.message })
+  }
+})
+
+// POST /api/generate/different-prompt - Roll a fresh skeleton (different structural variables)
+app.post('/api/generate/different-prompt', async (req, res) => {
+  try {
+    const skeleton = rollSkeleton()
+
+    return res.json({
+      success: true,
+      skeleton,
+      tension: skeleton.tension,
+      ending: skeleton.ending,
+      triangle: skeleton.triangle,
+      secret: skeleton.secret,
+      chapters: skeleton.chapters.length
+    })
+  } catch (error) {
+    console.error('Generate different prompt error:', error)
+    return res.status(500).json({ error: 'Failed to generate different prompt', details: error.message })
+  }
+})
+
+// POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
+app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
+  return res.status(501).json({ error: 'Chapter generation not yet reimplemented' })
+  /* TODO: Reimplement with new pipeline
+  try {
+    const { bookId, chapterIndex } = req.params
+    const { uid } = req.body
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const chapterNum = parseInt(chapterIndex, 10)
+    if (isNaN(chapterNum) || chapterNum < 1) {
+      return res.status(400).json({ error: 'chapterIndex must be a positive integer' })
+    }
+
+    // Get book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Validate chapter index
+    if (chapterNum > bookData.chapterCount) {
+      return res.status(400).json({
+        error: `Chapter ${chapterNum} exceeds book chapter count (${bookData.chapterCount})`
+      })
+    }
+
+    // Check if bible is complete
+    const validBibleStatuses = ['bible_complete', 'in_progress', 'complete']
+    if (!validBibleStatuses.includes(bookData.status)) {
+      return res.status(400).json({
+        error: 'Bible generation must be complete before generating chapters',
+        currentStatus: bookData.status
+      })
+    }
+
+    // Get previous chapter summaries for context
+    const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const previousSummaries = chaptersSnapshot.docs
+      .filter(doc => doc.data().index < chapterNum)
+      .map(doc => {
+        const data = doc.data()
+        return {
+          number: data.index,
+          pov: data.pov,
+          summary: data.summary,
+          compressedSummary: data.compressedSummary,
+          ultraSummary: data.ultraSummary
+        }
+      })
+
+    // Build context with appropriate compression
+    console.log(`Building context for Chapter ${chapterNum}...`)
+    const contextSummaries = await buildPreviousContext(chapterNum, previousSummaries)
+
+    // Generate the chapter
+    console.log(`Generating Chapter ${chapterNum}...`)
+    const result = await generateChapterWithValidation(
+      bookData.bible,
+      chapterNum,
+      contextSummaries,
+      bookData.language
+    )
+
+    // Get chapter info from bible
+    const bibleChapter = bookData.bible.chapters?.chapters?.[chapterNum - 1] || {}
+
+    // Build chapter document
+    const chapterDoc = {
+      index: chapterNum,
+      title: result.chapter?.chapter?.title || bibleChapter.title || `Chapter ${chapterNum}`,
+      pov: bibleChapter.pov || 'Unknown',
+      content: result.chapter?.chapter?.content || '',
+      wordCount: result.chapter?.validation?.wordCount || 0,
+      tensionRating: bibleChapter.tension_rating || 5,
+      summary: result.chapter?.summary || {},
+      compressedSummary: null,
+      ultraSummary: null,
+      audioUrl: null,
+      audioStatus: 'none',
+      validationPassed: result.success,
+      regenerationCount: result.attempts - 1,
+      needsReview: result.needsReview || false,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    // Save chapter to Firestore
+    const chapterRef = bookRef.collection('chapters').doc(String(chapterNum))
+    await chapterRef.set(chapterDoc)
+
+    // Update book status
+    if (bookData.status === 'bible_complete') {
+      await bookRef.update({ status: 'in_progress' })
+    }
+
+    // Check if this is the last chapter
+    if (chapterNum === bookData.chapterCount) {
+      await bookRef.update({ status: 'complete' })
+      // Save library summary for concept generation diversity
+      await saveLibrarySummary(bookId, uid, bookData.bible)
+    }
+
+    return res.status(201).json({
+      success: result.success,
+      bookId,
+      chapterIndex: chapterNum,
+      attempts: result.attempts,
+      needsReview: result.needsReview || false,
+      chapter: {
+        ...chapterDoc,
+        generatedAt: new Date().toISOString()
+      }
+    })
+
+  } catch (error) {
+    console.error('Generate chapter error:', error)
+    return res.status(500).json({ error: 'Failed to generate chapter', details: error.message })
+  }
+  */
+})
+
+// GET /api/generate/book/:bookId - Get book status and bible
+app.get('/api/generate/book/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params
+    const { uid } = req.query
+
+    // Validate required fields
+    if (!uid) return res.status(400).json({ error: 'uid query parameter is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    // Get book document
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+
+    // Get chapter summaries
+    const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const chapters = chaptersSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        index: data.index,
+        title: data.title,
+        pov: data.pov,
+        wordCount: data.wordCount,
+        validationPassed: data.validationPassed,
+        generatedAt: data.generatedAt
+      }
+    })
+
+    return res.json({
+      success: true,
+      book: {
+        id: bookId,
+        concept: bookData.concept,
+        language: bookData.language,
+        level: bookData.level,
+        genre: bookData.genre,
+        lengthPreset: bookData.lengthPreset,
+        chapterCount: bookData.chapterCount,
+        generateAudio: bookData.generateAudio,
+        status: bookData.status,
+        createdAt: bookData.createdAt,
+        bible: bookData.bible
+      },
+      chapters,
+      generatedChapterCount: chapters.length
+    })
+
+  } catch (error) {
+    console.error('Get book error:', error)
+    return res.status(500).json({ error: 'Failed to get book', details: error.message })
+  }
+})
+
+// GET /api/generate/books - List all generated books for a user
+app.get('/api/generate/books', async (req, res) => {
+  try {
+    const { uid } = req.query
+
+    if (!uid) return res.status(400).json({ error: 'uid query parameter is required' })
+
+    const booksSnapshot = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('generatedBooks')
+      .orderBy('createdAt', 'desc')
+      .get()
+
+    const books = booksSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        concept: data.concept,
+        language: data.language,
+        level: data.level,
+        genre: data.genre,
+        lengthPreset: data.lengthPreset,
+        chapterCount: data.chapterCount,
+        status: data.status,
+        createdAt: data.createdAt
+      }
+    })
+
+    return res.json({
+      success: true,
+      books,
+      count: books.length
+    })
+
+  } catch (error) {
+    console.error('List books error:', error)
+    return res.status(500).json({ error: 'Failed to list books', details: error.message })
+  }
+})
+
+// DELETE /api/generate/book/:bookId - Delete a generated book
+app.delete('/api/generate/book/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params
+    const { uid } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    // Delete all chapters first
+    const chaptersSnapshot = await bookRef.collection('chapters').get()
+    const batch = firestore.batch()
+    chaptersSnapshot.docs.forEach(doc => batch.delete(doc.ref))
+    await batch.commit()
+
+    // Delete the book document
+    await bookRef.delete()
+
+    return res.json({
+      success: true,
+      message: 'Book and all chapters deleted'
+    })
+
+  } catch (error) {
+    console.error('Delete book error:', error)
+    return res.status(500).json({ error: 'Failed to delete book', details: error.message })
+  }
+})
+
+// Free Writing Feedback Endpoint (line-by-line)
+app.post('/api/freewriting/feedback', async (req, res) => {
+  try {
+    const { userText, targetLanguage, sourceLanguage, textType, previousLines, feedbackInTarget, helpExpressions, fullDocument } = req.body || {}
+
+    if (!userText || !targetLanguage) {
+      return res.status(400).json({ error: 'userText and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const feedbackLang = feedbackInTarget ? targetLanguage : sourceLang
+    const type = textType || 'general writing'
+
+    // Check if user has bracketed expressions they need help with
+    const hasHelpRequests = helpExpressions && helpExpressions.length > 0
+
+    // Build context from full document or previous lines
+    let contextSection = ''
+    if (fullDocument && fullDocument.trim() !== userText.trim()) {
+      contextSection = `
+CONTEXT (from the student's document):
+"${fullDocument.slice(0, 500)}${fullDocument.length > 500 ? '...' : ''}"
+
+The student is writing a ${type}. Consider this context when providing feedback.
+`
+    } else if (previousLines?.length > 0) {
+      contextSection = `
+CONTEXT (previous sentences in this ${type}):
+${previousLines.map((line, i) => `${i + 1}. ${line}`).join('\n')}
+
+The student is continuing this ${type}. Consider the context when evaluating naturalness and coherence.
+`
+    }
+
+    // Build special section for help expressions (bracketed text user needs help with)
+    const helpSection = hasHelpRequests
+      ? `
+HELP REQUESTED: The student has placed text in brackets to indicate they don't know how to express these ideas in ${targetLanguage}:
+${helpExpressions.map((expr) => `- "${expr}" (in ${sourceLang})`).join('\n')}
+
+YOUR PRIMARY TASK: Show the student how to express these bracketed ideas naturally in ${targetLanguage}.
+- Replace the bracketed ${sourceLang} text with natural ${targetLanguage} equivalents in modelSentence
+- In your explanation, help them understand HOW to express each bracketed idea
+- Use a warm, helpful tone like a tutor saying "Here's how you'd say that..."
+`
+      : ''
+
+    const prompt = `You are a supportive ${targetLanguage} language tutor helping a student with free writing practice. The student is writing a ${type}.
+${contextSection}
+Student's text: "${userText}"
+${helpSection}
+YOUR TASK: ${hasHelpRequests ? 'Help the student express the bracketed ideas in ' + targetLanguage + ', and also check for any errors in the non-bracketed parts.' : 'Analyze the student\'s writing for errors and naturalness. Be encouraging but thorough.'}
+
+WHAT TO FLAG AS ERRORS (in the non-bracketed parts):
+1. SPELLING ERRORS - Wrong letters, missing letters, extra letters, OR missing/wrong accents
+2. GRAMMAR ERRORS - ACTUAL MISTAKES like wrong verb conjugation, wrong gender/number agreement, incorrect word forms
+3. PUNCTUATION - Missing or incorrect punctuation marks (commas, periods, question marks, etc.)
+4. NATURALNESS - When the text is grammatically CORRECT but a native speaker would phrase it differently
+   * Example: "caso hay" is grammatically valid but unnatural → should be "en caso de que haya" (category: "naturalness")
+   * This is NOT a grammar error because nothing was conjugated/spelled wrong
+
+IMPORTANT CATEGORY DISTINCTION:
+- "grammar" = the student made a MISTAKE (wrong conjugation, wrong agreement, etc.)
+- "naturalness" = the student wrote something grammatically CORRECT but UNNATURAL
+
+Return JSON:
+{
+  "modelSentence": "${hasHelpRequests ? 'The complete sentence with bracketed expressions replaced by natural ' + targetLanguage : 'A more natural way to express this in ' + targetLanguage + ' (if needed, or the same sentence if perfect)'}",
+  "feedback": {
+    "correctness": <1-5, where 5 = no errors>,
+    "naturalness": <1-5, where 5 = sounds completely native>,
+    "explanation": "${hasHelpRequests ? 'A friendly explanation of how to express the bracketed ideas. Start with something like: Here\'s how you can say that in ' + targetLanguage + '... Then explain each expression naturally.' : 'Optional brief overall feedback'}",
+    "corrections": [
+      {
+        "category": "spelling" | "grammar" | "punctuation" | "naturalness"${hasHelpRequests ? ' | "expression"' : ''},
+        "severity": "minor" | "major",
+        "original": "ONLY the specific word(s) with the error - NOT the entire sentence",
+        "correction": "corrected version of ONLY those word(s)",
+        "explanation": "Brief explanation in ${feedbackLang}",
+        "exampleSentence": "A natural example sentence using the correction in context"
+      }
+    ]
+  }
+}
+
+CRITICAL RULES:
+- "original" must contain ONLY the specific word(s) with errors, NOT surrounding correct words. Example: if "hechu" is misspelled in "no hemos hechu nada", original should be "hechu" NOT the whole phrase
+- "original" must EXACTLY match text in student's writing (for highlighting)
+- SEVERITY IS IMPORTANT:
+  * "minor": Missing/wrong ACCENTS ONLY (e.g., "pagina" → "página", "esta" → "está", "Todavia" → "Todavía"), punctuation errors, naturalness suggestions
+  * "major": Wrong letters, missing letters, extra letters, grammar errors (conjugation, agreement, word order)
+- If the ONLY issue is a missing accent mark, severity MUST be "minor"
+${hasHelpRequests ? '- For each bracketed expression, add a correction with category "expression" showing the ' + targetLanguage + ' equivalent' : ''}
+${hasHelpRequests ? '- The feedback.explanation should feel like a helpful tutor explaining how to express the ideas' : ''}
+- If the sentence is perfect (and no help requests), return empty corrections array
+- Be encouraging - acknowledge what they did well
+- Only return valid JSON, no other text`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+      text: { format: { type: 'json_object' } },
+    })
+
+    let result
+    try {
+      let text = response.output_text || ''
+      // Clean up markdown code blocks if present
+      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      result = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Failed to parse feedback response:', parseErr)
+      return res.status(500).json({ error: 'Failed to parse feedback response' })
+    }
+
+    // Add position indices for corrections and fix severity based on error type
+    if (result.feedback?.corrections) {
+      result.feedback.corrections = result.feedback.corrections.map(c => {
+        const startIndex = userText.indexOf(c.original)
+
+        // Determine severity based on actual error type, not just what the model says
+        let severity = c.severity || 'major'
+        if (c.original && c.correction) {
+          const normalizeAccents = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+          const originalNorm = normalizeAccents(c.original)
+          const correctionNorm = normalizeAccents(c.correction)
+
+          // If removing accents makes them equal, it's an accent-only error → minor
+          if (originalNorm === correctionNorm) {
+            severity = 'minor'
+            console.log(`Accent-only error detected: "${c.original}" → "${c.correction}", setting severity to minor`)
+          }
+          // If they differ after removing accents AND it's spelling/grammar → major (real mistake)
+          else if ((c.category === 'spelling' || c.category === 'grammar') && originalNorm !== correctionNorm) {
+            severity = 'major'
+            console.log(`Real spelling/grammar error: "${c.original}" → "${c.correction}", setting severity to major`)
+          }
+          // Punctuation stays as-is (usually minor)
+          // Naturalness stays as-is (usually minor)
+        }
+
+        return {
+          ...c,
+          severity,
+          startIndex: startIndex >= 0 ? startIndex : 0,
+          endIndex: startIndex >= 0 ? startIndex + c.original.length : 0,
+        }
+      })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Free writing feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get feedback' })
+  }
+})
+
+// Free Writing Document Feedback Endpoint (full document review)
+app.post('/api/freewriting/document-feedback', async (req, res) => {
+  try {
+    const { document, targetLanguage, sourceLanguage, textType } = req.body || {}
+
+    if (!document || !targetLanguage) {
+      return res.status(400).json({ error: 'document and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const type = textType || 'general writing'
+
+    const prompt = `You are a supportive ${targetLanguage} language tutor reviewing a student's complete ${type}.
+
+STUDENT'S DOCUMENT (${targetLanguage}):
+"""
+${document}
+"""
+
+YOUR TASK: Provide comprehensive feedback on the entire document.
+
+Analyze:
+1. Overall grammar and spelling accuracy
+2. Vocabulary usage and variety
+3. Sentence structure and flow
+4. Coherence and organization
+5. Naturalness - does it sound like a native speaker wrote it?
+
+Return JSON:
+{
+  "overallFeedback": {
+    "overallScore": <1-5, overall quality>,
+    "grammarScore": <1-5>,
+    "vocabularyScore": <1-5>,
+    "coherenceScore": <1-5>,
+    "naturalnessScore": <1-5>,
+    "summary": "2-3 sentence summary of the writing quality in ${sourceLang}",
+    "strengths": ["strength 1", "strength 2", ...],
+    "suggestions": ["suggestion 1", "suggestion 2", ...]
+  },
+  "lineByLineFeedback": [
+    {
+      "lineIndex": 0,
+      "original": "first sentence",
+      "modelSentence": "improved version if needed",
+      "feedback": {
+        "corrections": [
+          {
+            "category": "spelling" | "grammar" | "naturalness",
+            "original": "text",
+            "correction": "fixed text",
+            "explanation": "brief explanation"
+          }
+        ]
+      }
+    }
+  ]
+}
+
+Be encouraging while being thorough. Highlight what the student did well.
+Only return valid JSON, no other text.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let result
+    try {
+      let text = response.output_text || ''
+      text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      result = JSON.parse(text)
+    } catch (parseErr) {
+      console.error('Failed to parse document feedback response:', parseErr)
+      return res.status(500).json({ error: 'Failed to parse feedback response' })
+    }
+
+    return res.json(result)
+  } catch (error) {
+    console.error('Document feedback error:', error)
+    return res.status(500).json({ error: 'Failed to get document feedback' })
+  }
+})
+
+// ============================================
+// TUTOR CHAT API
+// ============================================
+
+/**
+ * Start a new tutor conversation or continue existing
+ */
+app.post('/api/tutor/start', async (req, res) => {
+  try {
+    const { targetLanguage, sourceLanguage, memory, voiceCall, userName } = req.body || {}
+
+    if (!targetLanguage) {
+      return res.status(400).json({ error: 'targetLanguage is required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+    const isReturning = memory && (memory.userFacts?.length > 0 || memory.lastConversationSummary)
+
+    // Build memory context for returning users
+    let memoryContext = ''
+    if (isReturning) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const lastSummary = memory.lastConversationSummary || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      memoryContext = `
+WHAT YOU REMEMBER ABOUT THIS PERSON:
+${userName ? `- Their name: ${userName}` : ''}
+${facts ? `- Facts: ${facts}` : ''}
+${lastSummary ? `- Last conversation: ${lastSummary}` : ''}
+${mistakes ? `- Common mistakes they make: ${mistakes}` : ''}
+`
+    }
+
+    // Different prompts for voice call vs text chat
+    const voiceCallInstructions = voiceCall ? `
+THIS IS A PHONE CALL - speak like you just answered the phone:
+- Say something like "Hey!" or "Hi ${userName || 'there'}!"
+- Ask how they are, what's up, what's going on - normal phone conversation openers
+- Keep it very short (1 sentence, maybe 2)
+- Sound natural and casual, like calling a friend
+- Examples: "Hey, how's it going?", "Hi! What's up?", "Hey ${userName || ''}! How are you today?"
+` : `
+- ${isReturning ? 'Reference something from your past conversations naturally' : 'Introduce yourself briefly and ask something to get to know them'}
+- Keep it short and conversational (1-3 sentences max)
+`
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person, warm and genuine
+- Write primarily in ${targetLanguage}
+- Match your vocabulary to their level (${memory?.observedLevel || 'beginner'})
+${voiceCallInstructions}
+Generate a natural, friendly opening message.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: systemPrompt,
+    })
+
+    const greeting = response.output_text?.trim() || `¡Hola! ¿Cómo estás hoy?`
+
+    return res.json({
+      greeting,
+      isReturningUser: isReturning,
+    })
+  } catch (error) {
+    console.error('Tutor start error:', error)
+    return res.status(500).json({ error: 'Failed to start tutor conversation' })
+  }
+})
+
+/**
+ * Send a message to the tutor and get a response
+ */
+app.post('/api/tutor/message', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, memory } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    // Build memory context
+    let memoryContext = ''
+    if (memory) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+
+      if (facts || mistakes) {
+        memoryContext = `
+WHAT YOU KNOW ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${mistakes ? `- Mistakes they often make: ${mistakes}` : ''}
+`
+      }
+    }
+
+    // Build conversation history
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'tutor' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Ask about their life, remember details they share
+- Keep the conversation flowing naturally
+- Correct mistakes NATURALLY within your response - don't make it a lesson
+- Write primarily in ${targetLanguage}, with ${sourceLang} only when explaining corrections
+- Keep responses conversational length (1-4 sentences typically)
+- Match vocabulary to their level (${memory?.observedLevel || 'beginner'})
+- Don't be overly encouraging or teacherly - just be real
+
+VOICE MESSAGES:
+- Students can send you voice messages which are automatically transcribed to text
+- You CAN hear/understand their voice messages - they appear as text in the conversation
+- Never say you can't listen to audio - their speech is transcribed for you
+- If they ask you to listen to something, respond to what they said
+
+CORRECTION STYLE:
+When they make a mistake, work the correction into your natural response.
+Example: If they say "Yo soy hambre", you might respond:
+"Jaja yo también tengo hambre! (btw it's 'tengo hambre' not 'soy' - hunger uses tener in Spanish) ¿Qué vas a comer?"
+
+NOT like this:
+"Great try! Just a small correction: in Spanish we use 'tener' for hunger, so it should be 'tengo hambre'. Keep up the good work!"
+
+Respond naturally to the student's message.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.8,
+    })
+
+    const tutorResponse = response.choices?.[0]?.message?.content?.trim() || 'Lo siento, no entendí. ¿Puedes repetir?'
+
+    return res.json({
+      response: tutorResponse,
+    })
+  } catch (error) {
+    console.error('Tutor message error:', error)
+    return res.status(500).json({ error: 'Failed to get tutor response' })
+  }
+})
+
+/**
+ * Generate TTS audio for tutor response
+ */
+app.post('/api/tutor/tts', async (req, res) => {
+  try {
+    const { text, language, voiceGender } = req.body || {}
+
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' })
+    }
+
+    const lang = language || 'Spanish'
+    const gender = voiceGender || 'male'
+
+    // Resolve voice ID
+    let voiceId
+    try {
+      const resolved = resolveElevenLabsVoiceId(lang, gender)
+      voiceId = resolved.voiceId
+    } catch (voiceErr) {
+      console.error('Failed to resolve voice:', voiceErr)
+      return res.status(400).json({ error: 'Unsupported language or voice' })
+    }
+
+    // Generate TTS audio
+    const audioBuffer = await requestElevenLabsTts(text, voiceId)
+
+    // Return audio as base64
+    res.json({
+      audioBase64: audioBuffer.toString('base64'),
+      contentType: 'audio/mpeg'
+    })
+  } catch (error) {
+    console.error('Tutor TTS error:', error)
+    return res.status(500).json({ error: 'Failed to generate audio' })
+  }
+})
+
+/**
+ * Streaming tutor response with real-time TTS
+ * Streams LLM response and immediately starts TTS for faster playback
+ */
+app.post('/api/tutor/stream', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, memory, settings } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    // Resolve voice ID upfront
+    let voiceId
+    try {
+      const resolved = resolveElevenLabsVoiceId(targetLanguage, 'female')
+      voiceId = resolved.voiceId
+    } catch (voiceErr) {
+      console.error('Failed to resolve voice:', voiceErr)
+      return res.status(400).json({ error: 'Unsupported language' })
+    }
+
+    // Build memory context
+    let memoryContext = ''
+    if (memory) {
+      const facts = memory.userFacts?.slice(-5).join(', ') || ''
+      const mistakes = memory.recurringMistakes?.slice(-3).join(', ') || ''
+      if (facts || mistakes) {
+        memoryContext = `
+WHAT YOU KNOW ABOUT THIS PERSON:
+${facts ? `- Facts: ${facts}` : ''}
+${mistakes ? `- Mistakes they often make: ${mistakes}` : ''}`
+      }
+    }
+
+    // Build conversation history
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'tutor' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a friendly language tutor chatting naturally with a student learning ${targetLanguage}.
+Their native language is ${sourceLang}.
+${memoryContext}
+HOW TO BE:
+- Talk like a real person texting a friend
+- Be warm, curious, genuine
+- Keep responses SHORT - 1-2 sentences max for voice chat
+- Correct mistakes NATURALLY within your response
+- Write primarily in ${targetLanguage}
+- Match vocabulary to their level (${memory?.observedLevel || 'beginner'})
+
+VOICE CHAT: This is a real-time voice conversation. Keep it snappy and natural.
+
+CORRECTION STYLE:
+Work corrections into your natural response briefly.
+Example: "Ah sí, *tengo* hambre también! ¿Qué comemos?"
+
+Respond naturally to the student's message.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    // Set up SSE for streaming
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+
+    // Stream LLM response
+    const stream = await client.chat.completions.create({
+      model: 'gpt-4o-mini', // Faster model for voice
+      messages,
+      temperature: 0.8,
+      stream: true,
+    })
+
+    let fullText = ''
+    let sentenceBuffer = ''
+    const sentenceEnders = /[.!?。！？¿¡]/
+
+    // Helper to send TTS for a chunk
+    const sendTTSChunk = async (text) => {
+      if (!text.trim()) return
+
+      try {
+        const apiKey = process.env.ELEVENLABS_API_KEY
+        const ttsResponse = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'xi-api-key': apiKey,
+            },
+            body: JSON.stringify({
+              text,
+              model_id: 'eleven_turbo_v2_5', // Fastest model
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.75,
+              },
+            }),
+          }
+        )
+
+        if (ttsResponse.ok) {
+          const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+          const audioBase64 = audioBuffer.toString('base64')
+          res.write(`data: ${JSON.stringify({ type: 'audio', audio: audioBase64 })}\n\n`)
+        }
+      } catch (ttsErr) {
+        console.error('Streaming TTS error:', ttsErr)
+      }
+    }
+
+    // Process stream
+    for await (const chunk of stream) {
+      const content = chunk.choices?.[0]?.delta?.content || ''
+      if (content) {
+        fullText += content
+        sentenceBuffer += content
+
+        // Send text chunk for display
+        res.write(`data: ${JSON.stringify({ type: 'text', text: content })}\n\n`)
+
+        // Check for sentence boundary
+        if (sentenceEnders.test(content)) {
+          await sendTTSChunk(sentenceBuffer.trim())
+          sentenceBuffer = ''
+        }
+      }
+    }
+
+    // Send any remaining text
+    if (sentenceBuffer.trim()) {
+      await sendTTSChunk(sentenceBuffer.trim())
+    }
+
+    // Send completion
+    res.write(`data: ${JSON.stringify({ type: 'done', fullText })}\n\n`)
+    res.end()
+
+  } catch (error) {
+    console.error('Tutor stream error:', error)
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Stream failed' })
+    }
+    res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
+    res.end()
+  }
+})
+
+/**
+ * Generate a chat title based on conversation content
+ */
+app.post('/api/tutor/generate-title', async (req, res) => {
+  try {
+    const { messages, language } = req.body || {}
+
+    if (!messages || messages.length < 2) {
+      return res.json({ title: null })
+    }
+
+    // Take first few messages for context
+    const contextMessages = messages.slice(0, 4)
+    const conversationText = contextMessages
+      .map((m) => `${m.role === 'user' ? 'User' : 'Tutor'}: ${m.content}`)
+      .join('\n')
+
+    const prompt = `Generate a short, descriptive title (3-6 words) for this ${language || 'language learning'} conversation. The title should capture the main topic or theme.
+
+CONVERSATION:
+${conversationText}
+
+Return ONLY the title, nothing else. No quotes, no punctuation at the end.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    const title = (response.output_text || '').trim().replace(/^["']|["']$/g, '')
+
+    res.json({ title: title || null })
+  } catch (error) {
+    console.error('Generate title error:', error)
+    res.json({ title: null })
+  }
+})
+
+/**
+ * End a session and extract memory updates
+ */
+app.post('/api/tutor/end-session', async (req, res) => {
+  try {
+    const { conversationHistory, targetLanguage, sourceLanguage } = req.body || {}
+
+    if (!conversationHistory || conversationHistory.length === 0) {
+      return res.json({ memoryUpdates: null })
+    }
+
+    const conversationText = conversationHistory
+      .map((m) => `${m.role === 'tutor' ? 'Tutor' : 'Student'}: ${m.content}`)
+      .join('\n')
+
+    const prompt = `Analyze this conversation between a language tutor and a student learning ${targetLanguage}.
+Extract information to remember for future conversations.
+
+CONVERSATION:
+${conversationText}
+
+Return JSON with:
+{
+  "userFacts": ["fact1", "fact2"], // New things learned about the student (interests, job, life events)
+  "recurringMistakes": ["mistake1"], // Language mistakes they made (patterns, not one-offs)
+  "topicsDiscussed": ["topic1", "topic2"], // Main topics in this conversation
+  "summary": "2-3 sentence summary of what was discussed",
+  "observedLevel": "beginner" | "intermediate" | "advanced" // Your assessment of their level
+}
+
+Only include facts that would be useful to remember. Return ONLY valid JSON.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    let memoryUpdates
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        memoryUpdates = JSON.parse(jsonMatch[0])
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse memory updates:', parseErr)
+      memoryUpdates = null
+    }
+
+    return res.json({ memoryUpdates })
+  } catch (error) {
+    console.error('Tutor end-session error:', error)
+    return res.status(500).json({ error: 'Failed to extract memory updates' })
+  }
+})
+
+/**
+ * Speaking practice follow-up questions - contextual tutor help
+ * Allows users to ask questions about feedback they received during speaking practice
+ */
+app.post('/api/tutor/speak-followup', async (req, res) => {
+  try {
+    const { question, nativeSentence, exemplar, feedback, targetLanguage, sourceLanguage } = req.body || {}
+
+    if (!question) {
+      return res.status(400).json({ error: 'Question is required' })
+    }
+
+    // Build context from the speaking practice session
+    let context = `The student is practicing ${targetLanguage} speaking (native language: ${sourceLanguage}).
+
+ORIGINAL PROMPT (${sourceLanguage}):
+"${nativeSentence || 'Not provided'}"
+`
+
+    if (exemplar) {
+      context += `
+EXAMPLE TRANSLATION (${targetLanguage}):
+"${exemplar}"
+`
+    }
+
+    if (feedback?.corrections?.length > 0) {
+      context += `
+FEEDBACK ON THEIR ATTEMPT:
+${feedback.corrections.map(c => `- ${c.category}: "${c.original}" → "${c.correction}" (${c.explanation || 'no explanation'})`).join('\n')}
+`
+    }
+
+    const prompt = `You are a helpful ${targetLanguage} language tutor. A student just completed a speaking practice exercise and has a follow-up question.
+
+${context}
+
+STUDENT'S QUESTION:
+"${question}"
+
+Provide a helpful, concise response that:
+1. Answers their specific question clearly
+2. Uses simple language they can understand
+3. Gives examples in ${targetLanguage} when helpful (with ${sourceLanguage} translations)
+4. Stays focused on the question - don't overwhelm with extra information
+
+Keep your response under 150 words. Be encouraging but honest.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: prompt,
+    })
+
+    const tutorResponse = response.output_text || 'I apologize, I could not generate a response. Please try again.'
+
+    return res.json({ response: tutorResponse })
+  } catch (error) {
+    console.error('Tutor speak-followup error:', error)
+    return res.status(500).json({ error: 'Failed to get tutor response' })
+  }
+})
+
+// ============================================================================
+// SPEECH ENDPOINTS
+// ============================================================================
+
+// Language code mapping for Whisper
+const SPEECH_LANGUAGE_CODES = {
+  'English': 'en',
+  'Spanish': 'es',
+  'French': 'fr',
+  'Italian': 'it',
+  'German': 'de',
+  'Portuguese': 'pt',
+  'Japanese': 'ja',
+  'Chinese': 'zh',
+  'Korean': 'ko'
+}
+
+/**
+ * Simple audio transcription endpoint for tutor voice messages
+ */
+app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
+  let tempFilePath = null
+  try {
+    const audioFile = req.file
+    const language = req.body.language || 'en'
+
+    if (!audioFile) {
+      return res.status(400).json({ error: 'No audio file provided' })
+    }
+
+    console.log('Transcribe request received:', {
+      size: audioFile.size,
+      mimetype: audioFile.mimetype,
+      language: language
+    })
+
+    // Get language code
+    const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
+
+    // Save buffer to temporary file (OpenAI SDK needs a file stream in Node.js)
+    const tempDir = os.tmpdir()
+    tempFilePath = path.join(tempDir, `tutor-audio-${Date.now()}.webm`)
+    await fs.writeFile(tempFilePath, audioFile.buffer)
+
+    console.log('Temp file saved:', tempFilePath, 'Size:', audioFile.buffer.length)
+
+    // Transcribe using Whisper with file stream
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(tempFilePath),
+      model: 'whisper-1',
+      language: languageCode
+    })
+
+    console.log('Transcription result:', transcription.text)
+
+    res.json({
+      text: transcription.text || '',
+      language: languageCode
+    })
+  } catch (error) {
+    console.error('Transcription error:', error)
+    res.status(500).json({ error: 'Failed to transcribe audio' })
+  } finally {
+    // Clean up temp file
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath)
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+  }
+})
+
+/**
+ * Upload speech recording to Firebase Storage
+ */
+app.post('/api/speech/upload', upload.single('audio'), async (req, res) => {
+  try {
+    const { userId, language } = req.body
+    const audioFile = req.file
+
+    if (!audioFile) {
+      return res.status(400).json({ error: 'No audio file provided' })
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID required' })
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now()
+    const filename = `speech_${timestamp}.webm`
+    const storagePath = `audio/speech/${userId}/${filename}`
+
+    // Upload to Firebase Storage
+    const file = bucket.file(storagePath)
+    await file.save(audioFile.buffer, {
+      contentType: audioFile.mimetype || 'audio/webm',
+      metadata: {
+        cacheControl: 'public, max-age=31536000'
+      }
+    })
+    await file.makePublic()
+
+    const audioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+
+    res.json({ audioUrl, storagePath })
+  } catch (error) {
+    console.error('Speech upload error:', error)
+    res.status(500).json({ error: 'Failed to upload recording' })
+  }
+})
+
+/**
+ * Convert audio from webm/ogg to wav format for Azure Speech Services
+ * Uses ffmpeg for reliable conversion - 16kHz mono PCM required
+ */
+async function convertWebmToWav(audioBuffer) {
+  const tmpDir = os.tmpdir()
+  const inputPath = path.join(tmpDir, `input-${Date.now()}.webm`)
+  const outputPath = path.join(tmpDir, `output-${Date.now()}.wav`)
+
+  try {
+    // Write input file
+    await fs.writeFile(inputPath, audioBuffer)
+
+    // Convert using ffmpeg - Azure requires 16kHz mono PCM
+    await new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputOptions([
+          '-acodec pcm_s16le',
+          '-ar 16000',
+          '-ac 1'
+        ])
+        .output(outputPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run()
+    })
+
+    // Read output file and return paths for cleanup
+    const wavBuffer = await fs.readFile(outputPath)
+    return { wavBuffer, wavPath: outputPath, inputPath }
+  } catch (err) {
+    // Cleanup on error
+    try { await fs.unlink(inputPath) } catch {}
+    try { await fs.unlink(outputPath) } catch {}
+    throw err
+  }
+}
+
+/**
+ * Azure Speech Services Pronunciation Assessment
+ * Provides real acoustic phoneme-level analysis
+ */
+async function assessPronunciationWithAzure(wavPath, referenceText, language) {
+  const speechKey = process.env.AZURE_SPEECH_KEY
+  const speechRegion = process.env.AZURE_SPEECH_REGION
+
+  if (!speechKey || !speechRegion) {
+    throw new Error('Azure Speech credentials not configured')
+  }
+
+  // Map language names to Azure locale codes
+  const localeMap = {
+    'French': 'fr-FR',
+    'Spanish': 'es-ES',
+    'Italian': 'it-IT',
+    'German': 'de-DE',
+    'Portuguese': 'pt-BR',
+    'Japanese': 'ja-JP',
+    'Chinese': 'zh-CN',
+    'Korean': 'ko-KR',
+    'Russian': 'ru-RU',
+    'English': 'en-US'
+  }
+  const locale = localeMap[language] || 'en-US'
+
+  return new Promise((resolve, reject) => {
+    const speechConfig = sdk.SpeechConfig.fromSubscription(speechKey, speechRegion)
+    speechConfig.speechRecognitionLanguage = locale
+
+    // Configure pronunciation assessment with all metrics
+    const pronConfig = new sdk.PronunciationAssessmentConfig(
+      referenceText,
+      sdk.PronunciationAssessmentGradingSystem.HundredMark,
+      sdk.PronunciationAssessmentGranularity.Phoneme,
+      true // Enable miscue detection
+    )
+    pronConfig.enableProsodyAssessment = true
+
+    // Create audio config from file
+    const audioConfig = sdk.AudioConfig.fromWavFileInput(
+      require('fs').readFileSync(wavPath)
+    )
+
+    const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig)
+    pronConfig.applyTo(recognizer)
+
+    recognizer.recognizeOnceAsync(
+      (result) => {
+        if (result.reason === sdk.ResultReason.RecognizedSpeech) {
+          const pronResult = sdk.PronunciationAssessmentResult.fromResult(result)
+
+          // Extract detailed scores
+          const detailedResult = {
+            recognizedText: result.text,
+            pronunciationScore: pronResult.pronunciationScore,
+            accuracyScore: pronResult.accuracyScore,
+            fluencyScore: pronResult.fluencyScore,
+            completenessScore: pronResult.completenessScore,
+            prosodyScore: pronResult.prosodyScore,
+            words: []
+          }
+
+          // Get word-level and phoneme-level details from JSON
+          const jsonResult = result.properties.getProperty(
+            sdk.PropertyId.SpeechServiceResponse_JsonResult
+          )
+
+          if (jsonResult) {
+            try {
+              const parsed = JSON.parse(jsonResult)
+              // Log raw structure to debug phoneme extraction
+              console.log('Raw Azure JSON (first word):', JSON.stringify(parsed.NBest?.[0]?.Words?.[0], null, 2))
+              const nBest = parsed.NBest?.[0]
+
+              if (nBest?.Words) {
+                detailedResult.words = nBest.Words.map(word => ({
+                  word: word.Word,
+                  accuracyScore: word.PronunciationAssessment?.AccuracyScore || 0,
+                  errorType: word.PronunciationAssessment?.ErrorType || 'None',
+                  phonemes: (word.Phonemes || []).map(p => ({
+                    phoneme: p.Phoneme,
+                    accuracyScore: p.PronunciationAssessment?.AccuracyScore || 0
+                  }))
+                }))
+              }
+
+              if (nBest?.PronunciationAssessment?.Prosody) {
+                detailedResult.prosodyDetails = nBest.PronunciationAssessment.Prosody
+              }
+            } catch (parseErr) {
+              console.error('Error parsing Azure JSON result:', parseErr)
+            }
+          }
+
+          recognizer.close()
+          resolve(detailedResult)
+        } else if (result.reason === sdk.ResultReason.NoMatch) {
+          recognizer.close()
+          reject(new Error('No speech could be recognized'))
+        } else {
+          recognizer.close()
+          reject(new Error(`Recognition failed: ${result.reason}`))
+        }
+      },
+      (err) => {
+        recognizer.close()
+        reject(err)
+      }
+    )
+  })
+}
+
+/**
+ * Generate accent analysis summary from Azure results
+ */
+function generateAccentAnalysis(result, language) {
+  const score = result.pronunciationScore || 0
+  const accuracy = result.accuracyScore || 0
+  const fluency = result.fluencyScore || 0
+  const prosody = result.prosodyScore || 0
+
+  const errors = result.words?.filter(w => w.errorType !== 'None') || []
+
+  let analysis = ''
+
+  if (score >= 90) {
+    analysis = `Excellent ${language} pronunciation. `
+  } else if (score >= 80) {
+    analysis = `Very good ${language} pronunciation with minor areas for improvement. `
+  } else if (score >= 70) {
+    analysis = `Good ${language} pronunciation. Clear accent but fully comprehensible. `
+  } else if (score >= 60) {
+    analysis = `Developing ${language} pronunciation. Some sounds need attention. `
+  } else {
+    analysis = `${language} pronunciation needs practice. Focus on individual sounds. `
+  }
+
+  if (accuracy < fluency - 10) {
+    analysis += 'Individual sounds need more work than overall flow. '
+  } else if (fluency < accuracy - 10) {
+    analysis += 'Good sounds but work on smoother delivery. '
+  }
+
+  if (prosody && prosody < 70) {
+    analysis += 'Pay attention to intonation and rhythm patterns. '
+  }
+
+  if (errors.length > 0) {
+    const omissions = errors.filter(e => e.errorType === 'Omission').length
+    const mispron = errors.filter(e => e.errorType === 'Mispronunciation').length
+    if (omissions > 0) analysis += `${omissions} word(s) were missed. `
+    if (mispron > 0) analysis += `${mispron} word(s) had pronunciation errors. `
+  }
+
+  return analysis.trim()
+}
+
+/**
+ * Get articulatory advice for a phoneme
+ */
+function getPhonemeAdvice(phoneme, language) {
+  // Language-specific detailed articulatory instructions
+  const spanishPhonemes = {
+    // Vowels - Spanish has pure monophthongs, English speakers add glides
+    'a': {
+      error: "You're using English 'ah' which drifts. Spanish /a/ is pure and front.",
+      fix: "Open mouth wide, tongue low and forward, NO movement during the vowel. Hold steady."
+    },
+    'e': {
+      error: "You're saying English 'ay' with a glide to 'ee'. Spanish /e/ is a pure monophthong.",
+      fix: "Mid-front vowel, tongue halfway up. NO glide - freeze your tongue throughout."
+    },
+    'i': {
+      error: "English 'ee' has tongue movement. Spanish /i/ is tense and pure.",
+      fix: "Tongue high and front, touching side teeth. Keep it absolutely still. Short and crisp."
+    },
+    'o': {
+      error: "You're saying English 'oh' which glides to 'oo'. Spanish /o/ is pure.",
+      fix: "Mid-back rounded vowel. Lips rounded, tongue mid-height at back. NO movement."
+    },
+    'u': {
+      error: "English 'oo' often starts with a 'y' sound. Spanish /u/ is pure.",
+      fix: "Lips tightly rounded, tongue high and back. No glide. Start and stay back."
+    },
+    // The R sounds - biggest English speaker problem
+    'ɾ': {
+      error: "You're using English R (tongue curled back, never touches). Spanish uses alveolar tap.",
+      fix: "Single quick flick: tongue tip taps ONCE against alveolar ridge (bump behind upper teeth). Like 't' in American 'butter'. Very fast touch-and-release."
+    },
+    'r': {
+      error: "English R doesn't touch anything. Spanish trilled R requires tongue vibration.",
+      fix: "Tongue tip loosely against alveolar ridge. Push air to make tongue flutter. Practice 'butter' fast, sustain the middle. Keep tongue relaxed, not tense."
+    },
+    // Dental vs alveolar consonants
+    't': {
+      error: "English T is alveolar with aspiration (puff of air). Spanish T is dental, no aspiration.",
+      fix: "Tongue tip AGAINST back of upper front teeth (not the ridge). NO puff of air. Like T in 'stop'."
+    },
+    'd': {
+      error: "English D is alveolar. Spanish D is dental, and becomes fricative between vowels.",
+      fix: "Tongue tip touches back of upper front teeth. Between vowels, don't fully close - like 'th' in 'this'."
+    },
+    // Fricative allophones
+    'β': {
+      error: "Between vowels, Spanish B is a fricative - lips don't fully close.",
+      fix: "Lips come CLOSE but don't touch. Air flows continuously. Like blowing gently while saying 'b'."
+    },
+    'ð': {
+      error: "Between vowels, Spanish D becomes like 'th' in 'this'.",
+      fix: "Tongue tip between teeth, light contact. Air flows around tongue. NOT a full stop."
+    },
+    'ɣ': {
+      error: "Between vowels, Spanish G is a fricative - tongue doesn't touch.",
+      fix: "Back tongue approaches soft palate but doesn't touch. Air flows through. Like gentle gargling."
+    },
+    'x': {
+      error: "This is Spanish 'j' (jota). Not English 'h'.",
+      fix: "Back of tongue close to soft palate, strong friction. Like Scottish 'loch'. Much more friction than English H."
+    },
+    'ɲ': {
+      error: "This is 'ñ'. Not 'ny' as two sounds.",
+      fix: "Middle of tongue presses flat against hard palate. Single sound. Like 'canyon' but one gesture."
+    },
+    's': {
+      error: "Spanish S is crisp and high-frequency.",
+      fix: "Tongue tip behind lower teeth, blade creates narrow channel at alveolar ridge. Crisp, sharp hiss."
+    },
+    'l': {
+      error: "English has 'dark L' (back of tongue raised). Spanish L is always 'clear'.",
+      fix: "Tongue tip at ridge, but keep BACK of tongue LOW. Never use dark L like in 'full'."
+    },
+    'p': {
+      error: "English P has aspiration. Spanish P does not.",
+      fix: "NO puff of air. Like P in 'spin' (after S), not P in 'pin'."
+    },
+    'k': {
+      error: "English K has aspiration. Spanish K does not.",
+      fix: "NO puff of air. Like K in 'skin', not 'kin'."
+    }
+  }
+
+  const frenchPhonemes = {
+    'ʁ': {
+      error: "You're using tongue-tip R. French uses uvular R from throat.",
+      fix: "Constrict back of throat where you'd gargle. Tongue tip stays DOWN. Friction from uvula/back tongue."
+    },
+    'y': {
+      error: "This doesn't exist in English. It's /i/ lips with /u/ tongue position.",
+      fix: "Say 'ee' (tongue high front), then round lips like 'oo' WITHOUT moving tongue. Keep tongue front."
+    },
+    'ø': {
+      error: "English doesn't have this rounded front vowel.",
+      fix: "Say 'ay', then round lips WITHOUT moving tongue back. 'Ay' through an 'o' lip shape."
+    },
+    'œ': {
+      error: "Like /ø/ but more open.",
+      fix: "Say 'eh', round your lips. Tongue front and low-mid. More open than /ø/."
+    },
+    'ɑ̃': {
+      error: "This is nasal. Not 'ah' + 'n'.",
+      fix: "Say 'ah' while lowering soft palate for air through nose. NO tongue contact for N."
+    },
+    'ɛ̃': {
+      error: "Not 'eh' + 'n'. Single nasal vowel.",
+      fix: "Say 'eh' with air through nose. Soft palate down. No N consonant."
+    },
+    'ɔ̃': {
+      error: "Not 'oh' + 'n'. Single nasal vowel.",
+      fix: "Say 'oh' with air through nose. No N closure."
+    }
+  }
+
+  let tips = language === 'Spanish' ? spanishPhonemes : language === 'French' ? frenchPhonemes : {}
+  const advice = tips[phoneme]
+  if (advice) {
+    return `ERROR: ${advice.error} → FIX: ${advice.fix}`
+  }
+  return `Phoneme /${phoneme}/ not matching target. Listen to native audio and match exact mouth position.`
+}
+
+/**
+ * Pronunciation assessment endpoint
+ * Uses Azure Speech Services for real acoustic phoneme-level analysis
+ */
+app.post('/api/speech/assess-pronunciation', async (req, res) => {
+  let wavPath = null
+  let inputPath = null
+
+  try {
+    const { audioBase64, referenceText, language } = req.body
+
+    if (!audioBase64 || !referenceText) {
+      return res.status(400).json({ error: 'Audio and reference text required' })
+    }
+
+    // Check Azure credentials
+    if (!process.env.AZURE_SPEECH_KEY || !process.env.AZURE_SPEECH_REGION) {
+      console.error('Azure Speech credentials not found in environment')
+      return res.status(500).json({ error: 'Speech service not configured' })
+    }
+
+    // Convert webm from browser to wav for Azure
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const conversion = await convertWebmToWav(audioBuffer)
+    wavPath = conversion.wavPath
+    inputPath = conversion.inputPath
+
+    console.log('Converted audio to WAV:', conversion.wavBuffer.length, 'bytes')
+    console.log('Assessing pronunciation with Azure Speech Services...')
+
+    // Get Azure pronunciation assessment
+    const azureResult = await assessPronunciationWithAzure(wavPath, referenceText, language)
+
+    console.log('Azure assessment complete:', {
+      pronunciation: azureResult.pronunciationScore,
+      accuracy: azureResult.accuracyScore,
+      fluency: azureResult.fluencyScore,
+      completeness: azureResult.completenessScore,
+      prosody: azureResult.prosodyScore
+    })
+
+    // Log detailed phoneme analysis to understand what Azure is assessing
+    console.log('=== PHONEME BREAKDOWN ===')
+    azureResult.words?.forEach(word => {
+      console.log(`Word: "${word.word}" - Accuracy: ${word.accuracyScore}, Error: ${word.errorType}`)
+      word.phonemes?.forEach(p => {
+        console.log(`  Phoneme: /${p.phoneme}/ - Accuracy: ${p.accuracyScore}`)
+      })
+    })
+    console.log('=========================')
+
+    // BRUTAL SCORING: Your weakest phoneme defines your score
+    // This is for advanced learners refining their accent - no mercy
+    const brutalWordScores = azureResult.words?.map(w => {
+      const phonemeScores = w.phonemes?.map(p => p.accuracyScore) || []
+      const minPhoneme = phonemeScores.length > 0 ? Math.min(...phonemeScores) : w.accuracyScore
+      const avgPhoneme = phonemeScores.length > 0
+        ? phonemeScores.reduce((a, b) => a + b, 0) / phonemeScores.length
+        : w.accuracyScore
+
+      // Brutal score: 70% weight on worst phoneme, 30% on average
+      let brutalScore = (minPhoneme * 0.7) + (avgPhoneme * 0.3)
+
+      // Error type penalties
+      if (w.errorType === 'Mispronunciation') {
+        brutalScore = Math.min(brutalScore, 35) // Hard cap
+      }
+      if (w.errorType === 'Omission') {
+        brutalScore = 0
+      }
+
+      console.log(`Brutal score for "${w.word}": ${Math.round(brutalScore)} (min phoneme: ${minPhoneme}, avg: ${Math.round(avgPhoneme)}, error: ${w.errorType})`)
+
+      return { word: w.word, brutalScore, minPhoneme, avgPhoneme, errorType: w.errorType }
+    }) || []
+
+    const brutalOverall = brutalWordScores.length > 0
+      ? brutalWordScores.reduce((a, b) => a + b.brutalScore, 0) / brutalWordScores.length
+      : 0
+
+    console.log(`BRUTAL OVERALL SCORE: ${Math.round(brutalOverall)} (Azure gave: ${Math.round(azureResult.pronunciationScore)})`)
+
+    // Format response for frontend
+    const response = {
+      referenceText,
+      transcription: azureResult.recognizedText,
+      // Use brutal score, not Azure's lenient one
+      pronunciationScore: Math.round(brutalOverall),
+      accuracyScore: Math.round(brutalOverall), // Override with brutal
+      fluencyScore: Math.round(azureResult.fluencyScore || 0),
+      completenessScore: Math.round(azureResult.completenessScore || 0),
+      prosodyScore: Math.round(azureResult.prosodyScore || 0),
+
+      // Keep Azure's original for reference
+      azureOriginalScore: Math.round(azureResult.pronunciationScore || 0),
+
+      // Map to dimension scores format for UI - using brutal calculations
+      dimensionScores: {
+        segmental: {
+          vowels: Math.round(brutalOverall * 0.2),
+          consonants: Math.round(brutalOverall * 0.2),
+          notes: brutalWordScores
+            .filter(w => w.brutalScore < 60)
+            .map(w => `"${w.word}": ${Math.round(w.brutalScore)}% (weakest phoneme: ${w.minPhoneme})`)
+            .join(', ') || 'Good segmental accuracy'
+        },
+        prosody: {
+          stress: Math.round((azureResult.prosodyScore || 50) * 0.12),
+          rhythm: Math.round((azureResult.prosodyScore || 50) * 0.12),
+          intonation: Math.round((azureResult.prosodyScore || 50) * 0.11),
+          notes: `Prosody: ${Math.round(azureResult.prosodyScore || 0)}%`
+        },
+        connectedSpeech: {
+          liaison: Math.round((azureResult.fluencyScore || 50) * 0.08),
+          elision: Math.round((azureResult.fluencyScore || 50) * 0.07),
+          notes: 'Based on fluency metrics'
+        },
+        fluency: {
+          smoothness: Math.round((azureResult.fluencyScore || 50) * 0.05),
+          pace: Math.round((azureResult.fluencyScore || 50) * 0.05),
+          notes: `Fluency: ${Math.round(azureResult.fluencyScore || 0)}%`
+        }
+      },
+
+      // Word-level details with brutal scores
+      words: brutalWordScores.map(w => {
+        const original = azureResult.words?.find(aw => aw.word === w.word)
+        return {
+          word: w.word,
+          score: Math.round(w.brutalScore), // Brutal score
+          accuracyScore: Math.round(w.brutalScore),
+          minPhoneme: w.minPhoneme,
+          errorType: w.errorType,
+          phonemes: original?.phonemes?.map(p => ({
+            phoneme: p.phoneme,
+            accuracyScore: Math.round(p.accuracyScore || 0)
+          })) || []
+        }
+      }),
+
+      // Generate issues from brutal scoring - be harsh
+      majorIssues: brutalWordScores
+        .filter(w => w.brutalScore < 70) // Anything below 70 is an issue
+        .map(w => {
+          if (w.errorType === 'Omission') return `"${w.word}" - not pronounced`
+          if (w.errorType === 'Mispronunciation') return `"${w.word}" - mispronounced (${Math.round(w.brutalScore)}%)`
+          return `"${w.word}" - ${Math.round(w.brutalScore)}% (weakest: ${w.minPhoneme}%)`
+        })
+        .slice(0, 5),
+
+      // Generate articulatory tips from low-scoring phonemes
+      articulatoryTips: azureResult.words
+        ?.flatMap(w =>
+          (w.phonemes || [])
+            .filter(p => p.accuracyScore < 70)
+            .map(p => ({
+              phoneme: p.phoneme,
+              issue: `Low accuracy in "${w.word}"`,
+              tip: getPhonemeAdvice(p.phoneme, language)
+            }))
+        )
+        .slice(0, 4) || [],
+
+      accentAnalysis: generateAccentAnalysis(azureResult, language)
+    }
+
+    res.json(response)
+
+  } catch (error) {
+    console.error('Pronunciation assessment error:', error)
+    res.status(500).json({
+      error: 'Failed to assess pronunciation',
+      details: error.message
+    })
+  } finally {
+    // Cleanup temp files
+    if (wavPath) try { await fs.unlink(wavPath) } catch {}
+    if (inputPath) try { await fs.unlink(inputPath) } catch {}
+  }
+})
+
+/**
+ * GPT-4o Audio Pronunciation Comparison
+ * Compares user recording directly against native speaker recording
+ * For advanced learners - brutal, specific articulatory feedback
+ */
+app.post('/api/speech/compare-pronunciation', async (req, res) => {
+  let wavPath = null
+  let inputPath = null
+
+  try {
+    const { userAudioBase64, targetAudioUrl, targetStart, targetEnd, referenceText, language } = req.body
+
+    if (!userAudioBase64 || !targetAudioUrl || !referenceText) {
+      return res.status(400).json({ error: 'User audio, target audio URL, and reference text required' })
+    }
+
+    console.log('Comparing pronunciation with GPT-4o audio...')
+    console.log('Target:', targetAudioUrl, `${targetStart}s - ${targetEnd}s`)
+
+    // Convert user's webm to wav (GPT-4o only accepts wav/mp3)
+    const userAudioBuffer = Buffer.from(userAudioBase64, 'base64')
+    const conversion = await convertWebmToWav(userAudioBuffer)
+    wavPath = conversion.wavPath
+    inputPath = conversion.inputPath
+    const userWavBase64 = conversion.wavBuffer.toString('base64')
+    console.log('Converted user audio to WAV:', conversion.wavBuffer.length, 'bytes')
+
+    // Fetch target audio (already mp3)
+    const targetResponse = await fetch(targetAudioUrl)
+    const targetBuffer = Buffer.from(await targetResponse.arrayBuffer())
+    const targetBase64 = targetBuffer.toString('base64')
+    console.log('Fetched target audio:', targetBuffer.length, 'bytes')
+
+    // The prompt - brutal and specific
+    const comparisonPrompt = `You are an expert phonetician and pronunciation coach for advanced ${language} learners. You will hear TWO audio recordings:
+
+1. FIRST: A native ${language} speaker saying: "${referenceText}"
+2. SECOND: A learner attempting the same phrase
+
+Your job is to be BRUTALLY SPECIFIC about pronunciation errors. This is for advanced learners refining their accent - they don't need encouragement, they need precision.
+
+ANALYZE EACH WORD and identify:
+
+For EACH error, you MUST specify:
+1. THE WORD containing the error
+2. THE SPECIFIC SOUND that's wrong (use IPA if helpful)
+3. WHAT THE LEARNER IS DOING (e.g., "using English retroflex R", "diphthongizing the vowel", "aspirating the consonant")
+4. EXACTLY HOW TO FIX IT with articulatory instructions (tongue position, lip shape, airflow)
+
+FOCUS ON:
+- Vowel quality (pure vs diphthongized, front/back position, rounding)
+- Consonant place/manner (dental vs alveolar, tapped vs approximant R, aspiration)
+- Prosody (stress placement, rhythm, intonation contour)
+- Connected speech (liaison, elision, assimilation)
+
+DO NOT say things like "try to match the native speaker" or "practice more". Give SPECIFIC PHYSICAL INSTRUCTIONS.
+
+Example good feedback:
+"WORD: 'pero' - Your /r/ is wrong. You're using an English approximant (tongue curled back, not touching anything). Spanish uses an alveolar tap: flick tongue tip ONCE against the ridge behind your upper teeth. Quick touch-and-release, like the 't' in American 'butter'."
+
+Example bad feedback:
+"Your R sounds a bit off. Try to make it more Spanish-like." (TOO VAGUE)
+
+Give me a JSON response with this structure:
+{
+  "overallScore": <0-100, be harsh>,
+  "errors": [
+    {
+      "word": "<the word>",
+      "sound": "<the problematic sound>",
+      "issue": "<what they're doing wrong>",
+      "fix": "<specific articulatory instruction>"
+    }
+  ],
+  "prosodyNotes": "<comments on stress, rhythm, intonation>",
+  "summary": "<one sentence brutal summary>"
+}`
+
+    // Call GPT-4o with both audio files
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-audio-preview',
+      modalities: ['text'],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: comparisonPrompt },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: targetBase64,
+                format: 'mp3'
+              }
+            },
+            { type: 'text', text: 'That was the native speaker. Now here is the learner:' },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: userWavBase64,
+                format: 'wav'
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 2000
+    })
+
+    const responseText = response.choices[0]?.message?.content || ''
+    console.log('GPT-4o comparison response:', responseText)
+
+    // Parse JSON from response
+    let result
+    try {
+      // Extract JSON from response (might be wrapped in markdown code blocks)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found in response')
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse GPT response:', parseErr)
+      result = {
+        overallScore: 50,
+        errors: [{ word: 'unknown', sound: 'unknown', issue: responseText, fix: 'See full response' }],
+        prosodyNotes: '',
+        summary: 'Could not parse structured response'
+      }
+    }
+
+    res.json({
+      ...result,
+      rawResponse: responseText
+    })
+
+  } catch (error) {
+    console.error('GPT-4o comparison error:', error)
+    res.status(500).json({
+      error: 'Failed to compare pronunciation',
+      details: error.message
+    })
+  } finally {
+    // Cleanup temp files
+    if (wavPath) try { await fs.unlink(wavPath) } catch {}
+    if (inputPath) try { await fs.unlink(inputPath) } catch {}
+  }
+})
+
+/**
+ * Speaking Practice Assessment Endpoint
+ * For translation practice: user sees native text, speaks target language translation
+ * Transcribes audio, compares to exemplar, returns feedback
+ */
+app.post('/api/speech/speaking-practice', async (req, res) => {
+  try {
+    const { audioBase64, nativeSentence, targetLanguage, sourceLanguage, skipRecording, exemplar: preloadedExemplar, contextSummary } = req.body
+
+    if (!nativeSentence) {
+      return res.status(400).json({ error: 'Native sentence required' })
+    }
+
+    const targetLangCode = SPEECH_LANGUAGE_CODES[targetLanguage] || 'es'
+
+    // Build context section if available
+    const contextSection = contextSummary
+      ? `\n\nIMPORTANT CONTEXT about this content:\n${contextSummary}\n\nUse this context to understand appropriate register, who is being addressed (e.g., singular vs plural "you"), and subject matter.`
+      : ''
+
+    // If user skipped recording, just return the exemplar
+    if (skipRecording) {
+      // Generate exemplar translation
+      const exemplarResponse = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a translation assistant. Translate the given ${sourceLanguage || 'English'} sentence into natural, conversational ${targetLanguage}. Return ONLY the translated sentence, nothing else.${contextSection}`
+          },
+          {
+            role: 'user',
+            content: nativeSentence
+          }
+        ],
+        temperature: 0.3
+      })
+
+      const exemplar = exemplarResponse.choices[0]?.message?.content?.trim() || ''
+
+      return res.json({
+        exemplar,
+        vocab: []
+      })
+    }
+
+    // User recorded audio - transcribe and assess
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'Audio required when not skipping recording' })
+    }
+
+    // Transcribe the audio
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
+    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+
+    const transcription = await client.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      language: targetLangCode
+    })
+
+    const userTranscription = transcription.text || ''
+
+    // Use preloaded exemplar if available, otherwise generate one
+    let exemplar = preloadedExemplar
+    if (!exemplar) {
+      const exemplarResponse = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Translate this ${sourceLanguage || 'English'} sentence into natural ${targetLanguage}. Return ONLY the translation.`
+          },
+          { role: 'user', content: nativeSentence }
+        ],
+        temperature: 0.3
+      })
+      exemplar = exemplarResponse.choices[0]?.message?.content?.trim() || ''
+    }
+
+    // Detailed assessment - compare user transcription to exemplar with corrections
+    const assessmentResponse = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a ${targetLanguage} language tutor assessing a spoken translation attempt.
+Compare the student's translation to the original meaning and provide detailed feedback.
+${contextSection}
+
+CRITICAL RULES:
+1. DO NOT correct valid alternative translations. There are MANY ways to say the same thing correctly.
+2. The "expected" translation is just ONE possible translation - the student's version may be equally correct.
+3. Only mark something as an error if it is ACTUALLY WRONG (grammatically incorrect, changes the meaning, or is not natural ${targetLanguage}).
+4. Different word choice is NOT an error if the meaning is preserved and the grammar is correct.
+5. Use the context to understand appropriate register (formal/informal, singular/plural "you", etc.).
+
+Return JSON with this exact structure:
+{
+  "corrections": [
+    {
+      "category": "grammar" | "spelling" | "accuracy" | "naturalness",
+      "original": "what they said wrong",
+      "correction": "what they should have said",
+      "explanation": "brief explanation of the error",
+      "severity": "major" | "minor"
+    }
+  ],
+  "vocab": [
+    {"text": "word in ${targetLanguage}", "translation": "${sourceLanguage} meaning"}
+  ]
+}
+
+Categories (only use when there's an ACTUAL error):
+- "grammar": verb conjugation errors, gender agreement errors, word order errors
+- "spelling": pronunciation errors that would be spelling errors if written (wrong sound)
+- "accuracy": ONLY if meaning is actually wrong or key words are missing
+- "naturalness": ONLY if it sounds genuinely awkward to native speakers (not just different)
+
+Severity:
+- "major": changes meaning or is clearly wrong
+- "minor": understandable but genuinely unnatural
+
+Include 1-3 useful vocab items from the sentence. Return EMPTY corrections array if the translation is valid.`
+        },
+        {
+          role: 'user',
+          content: `Original (${sourceLanguage}): "${nativeSentence}"
+One possible translation (${targetLanguage}): "${exemplar}"
+Student said: "${userTranscription}"
+
+Remember: The student's translation may be a valid alternative. Only correct actual errors.`
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    })
+
+    const assessment = JSON.parse(assessmentResponse.choices[0]?.message?.content || '{}')
+    const corrections = assessment.corrections || []
+
+    // Calculate accuracy from corrections
+    const majorErrors = corrections.filter(c => c.severity === 'major').length
+    const minorErrors = corrections.filter(c => c.severity === 'minor').length
+    const accuracy = Math.max(0, Math.min(100, 100 - (majorErrors * 20) - (minorErrors * 5)))
+
+    res.json({
+      feedback: {
+        accuracy,
+        corrections,
+        userTranscription
+      },
+      exemplar,
+      vocab: assessment.vocab || []
+    })
+
+  } catch (error) {
+    console.error('Speaking practice error:', error)
+    res.status(500).json({ error: 'Assessment failed', details: error.message })
+  }
+})
+
+/**
+ * Batch Exemplar Prefetch Endpoint
+ * Fetches translations for multiple sentences at once
+ */
+app.post('/api/speech/exemplars', async (req, res) => {
+  try {
+    const { sentences, targetLanguage, sourceLanguage } = req.body
+
+    if (!sentences || !Array.isArray(sentences) || sentences.length === 0) {
+      return res.status(400).json({ error: 'Sentences array required' })
+    }
+
+    // Batch translate all sentences
+    const translationResponse = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a translation assistant. Translate each ${sourceLanguage || 'English'} sentence into natural, conversational ${targetLanguage}.
+Return a JSON array with translations in the same order:
+{"translations": ["translation1", "translation2", ...]}`
+        },
+        {
+          role: 'user',
+          content: JSON.stringify(sentences)
+        }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    })
+
+    const result = JSON.parse(translationResponse.choices[0]?.message?.content || '{"translations":[]}')
+
+    res.json({
+      exemplars: result.translations || []
+    })
+
+  } catch (error) {
+    console.error('Exemplar prefetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch exemplars', details: error.message })
+  }
+})
+
+/**
+ * Full speech analysis endpoint
+ * Transcribes audio and provides comprehensive feedback on correctness, accuracy, fluency
+ */
+app.post('/api/speech/analyze', async (req, res) => {
+  try {
+    const { audioBase64, referenceText, language, nativeLanguage, type, topic } = req.body
+
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'Audio required' })
+    }
+
+    const languageCode = SPEECH_LANGUAGE_CODES[language] || 'en'
+
+    // Convert base64 to buffer and transcribe
+    const audioBuffer = Buffer.from(audioBase64, 'base64')
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/webm' })
+    const audioFile = new File([audioBlob], 'speech.webm', { type: 'audio/webm' })
+
+    const transcription = await client.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['word', 'segment'],
+      language: languageCode
+    })
+
+    const spokenText = transcription.text || ''
+    const segments = transcription.segments || []
+    const duration = transcription.duration || 0
+
+    // Calculate basic fluency metrics
+    const wordCount = spokenText.split(/\s+/).filter(w => w.length > 0).length
+    const wordsPerMinute = duration > 0 ? Math.round((wordCount / duration) * 60) : 0
+
+    // Estimate pause count from segments
+    let pauseCount = 0
+    for (let i = 1; i < segments.length; i++) {
+      const gap = segments[i].start - segments[i - 1].end
+      if (gap > 0.5) pauseCount++
+    }
+
+    // Build analysis prompt based on type
+    let analysisPrompt
+    if (type === 'spontaneous') {
+      analysisPrompt = `You are a ${language} language tutor analyzing spontaneous speech from a student whose native language is ${nativeLanguage || 'English'}.
+
+${topic ? `TOPIC: ${topic}` : ''}
+
+TRANSCRIPTION OF STUDENT'S SPEECH:
+"${spokenText}"
+
+DURATION: ${Math.round(duration)} seconds
+WORDS PER MINUTE: ${wordsPerMinute}
+
+Analyze their speech and provide comprehensive feedback. Return JSON:
+{
+  "scores": {
+    "overall": 0-100,
+    "correctness": 0-100,
+    "accuracy": 0-100,
+    "fluency": 0-100
+  },
+  "corrections": [
+    {
+      "type": "grammar" | "vocabulary" | "pronunciation",
+      "original": "what they said",
+      "corrected": "better way to say it",
+      "explanation": "brief explanation"
+    }
+  ],
+  "fluencyAnalysis": {
+    "wordsPerMinute": ${wordsPerMinute},
+    "pauseCount": ${pauseCount},
+    "fillerWords": count of um/uh/etc,
+    "notes": ["note about fluency"]
+  },
+  "suggestions": ["focus area 1", "focus area 2"],
+  "encouragement": "encouraging message about their speaking"
+}
+
+Be constructive and encouraging. Focus on the most impactful improvements.
+Return ONLY valid JSON.`
+    } else {
+      // Reading analysis
+      analysisPrompt = `You are a ${language} language tutor analyzing a student reading aloud. Their native language is ${nativeLanguage || 'English'}.
+
+REFERENCE TEXT (what they were reading):
+"${referenceText || 'Not provided'}"
+
+TRANSCRIPTION OF STUDENT'S READING:
+"${spokenText}"
+
+DURATION: ${Math.round(duration)} seconds
+WORDS PER MINUTE: ${wordsPerMinute}
+
+Analyze their reading and provide comprehensive feedback. Return JSON:
+{
+  "scores": {
+    "overall": 0-100,
+    "correctness": 0-100,
+    "accuracy": 0-100,
+    "fluency": 0-100
+  },
+  "corrections": [
+    {
+      "type": "grammar" | "vocabulary" | "pronunciation",
+      "original": "what they said wrong",
+      "corrected": "correct version",
+      "explanation": "brief explanation"
+    }
+  ],
+  "fluencyAnalysis": {
+    "wordsPerMinute": ${wordsPerMinute},
+    "pauseCount": ${pauseCount},
+    "notes": ["note about reading fluency"]
+  },
+  "suggestions": ["focus area 1", "focus area 2"],
+  "encouragement": "encouraging message"
+}
+
+Compare the transcription to the reference text. Note mispronunciations, skipped words, and added words.
+Be constructive and encouraging.
+Return ONLY valid JSON.`
+    }
+
+    const response = await client.responses.create({
+      model: 'gpt-4o',
+      input: analysisPrompt
+    })
+
+    let analysis
+    try {
+      const text = response.output_text || ''
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('No JSON found')
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse speech analysis:', parseErr)
+      analysis = {
+        scores: {
+          overall: 70,
+          correctness: 70,
+          accuracy: 70,
+          fluency: 70
+        },
+        corrections: [],
+        fluencyAnalysis: {
+          wordsPerMinute,
+          pauseCount,
+          notes: []
+        },
+        suggestions: ['Keep practicing regularly'],
+        encouragement: 'Good effort! Keep practicing to improve your fluency.'
+      }
+    }
+
+    res.json({
+      transcription: spokenText,
+      duration,
+      ...analysis
+    })
+  } catch (error) {
+    console.error('Speech analysis error:', error)
+    res.status(500).json({ error: 'Failed to analyze speech' })
+  }
+})
+
+// Transcribe story audio with Whisper to get word-level timestamps
+// Used for pronunciation practice to sync audio segments precisely
+app.post('/api/story/transcribe', async (req, res) => {
+  const { uid, storyId, sessionId } = req.body || {}
+
+  if (!uid || !storyId) {
+    return res.status(400).json({ error: 'uid and storyId are required' })
+  }
+
+  try {
+    // Get story document
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storyDoc = await storyRef.get()
+
+    if (!storyDoc.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storyDoc.data()
+    const { fullAudioUrl, language, outputLanguage } = storyData
+
+    if (!fullAudioUrl) {
+      return res.status(400).json({ error: 'Story does not have audio generated yet' })
+    }
+
+    // Check if transcript already exists
+    const transcriptLang = (outputLanguage || language || 'en').toLowerCase()
+    const transcriptRef = storyRef.collection('transcripts').doc(transcriptLang)
+    const existingTranscript = await transcriptRef.get()
+
+    if (existingTranscript.exists) {
+      const data = existingTranscript.data()
+      if (data.sentenceSegments && data.sentenceSegments.length > 0) {
+        console.log(`Story ${storyId} already has transcript, returning cached`)
+
+        // Update session if provided
+        if (sessionId) {
+          await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+            status: 'ready',
+            updatedAt: new Date()
+          })
+        }
+
+        return res.json({
+          status: 'ready',
+          cached: true,
+          segmentCount: data.sentenceSegments.length
+        })
+      }
+    }
+
+    // Update session status to processing if provided
+    if (sessionId) {
+      await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+        status: 'processing',
+        updatedAt: new Date()
+      })
+    }
+
+    console.log(`Starting Whisper transcription for story ${storyId}`)
+    console.log(`Audio URL: ${fullAudioUrl}`)
+    console.log(`Language: ${transcriptLang}`)
+
+    // Transcribe with Whisper - this returns segments with word-level timestamps
+    const result = await transcribeWithWhisper({
+      audioUrl: fullAudioUrl,
+      languageCode: transcriptLang
+    })
+
+    // Store transcript with word-level timestamps
+    await transcriptRef.set({
+      storyId,
+      language: transcriptLang,
+      text: result.text || '',
+      sentenceSegments: result.sentenceSegments || result.segments || [],
+      createdAt: new Date()
+    })
+
+    // Update story to indicate transcript is available
+    await storyRef.update({
+      hasWordTimestamps: true,
+      transcriptLanguage: transcriptLang
+    })
+
+    // Update session status if provided
+    if (sessionId) {
+      await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+        status: 'ready',
+        updatedAt: new Date()
+      })
+    }
+
+    console.log(`Story ${storyId} transcription complete: ${(result.sentenceSegments || result.segments || []).length} segments`)
+
+    res.json({
+      status: 'ready',
+      cached: false,
+      segmentCount: (result.sentenceSegments || result.segments || []).length
+    })
+  } catch (error) {
+    console.error('Story transcription error:', error)
+
+    // Update session status to error if provided
+    if (sessionId) {
+      try {
+        await firestore.collection('users').doc(uid).collection('pronunciationSessions').doc(sessionId).update({
+          status: 'error',
+          error: error.message,
+          updatedAt: new Date()
+        })
+      } catch (e) {
+        console.error('Failed to update session status:', e)
+      }
+    }
+
+    res.status(500).json({ error: 'Failed to transcribe story audio' })
+  }
+})
+
+// ============================================
+// REAL-TIME TRANSCRIPTION WEBSOCKET SERVER
+// ============================================
+const server = http.createServer(app)
+const wss = new WebSocketServer({ server, path: '/ws/transcribe' })
+
+wss.on('connection', (ws) => {
+  console.log('WebSocket client connected for real-time transcription')
+
+  let audioChunks = []
+  let language = 'en'
+  let transcriptionInterval = null
+  let isProcessing = false
+  let lastTranscription = ''
+
+  // Process accumulated audio chunks every 1.5 seconds
+  const processAudioChunks = async () => {
+    if (isProcessing || audioChunks.length === 0) return
+
+    isProcessing = true
+    const chunksToProcess = [...audioChunks]
+
+    try {
+      // Combine audio chunks into a single buffer
+      const totalLength = chunksToProcess.reduce((acc, chunk) => acc + chunk.length, 0)
+      const combinedBuffer = Buffer.concat(chunksToProcess, totalLength)
+
+      if (combinedBuffer.length < 1000) {
+        // Too small, wait for more data
+        isProcessing = false
+        return
+      }
+
+      // Save to temp file
+      const tempDir = os.tmpdir()
+      const tempFilePath = path.join(tempDir, `realtime-audio-${Date.now()}.webm`)
+      await fs.writeFile(tempFilePath, combinedBuffer)
+
+      // Transcribe with Whisper
+      const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
+
+      const transcription = await client.audio.transcriptions.create({
+        file: createReadStream(tempFilePath),
+        model: 'whisper-1',
+        language: languageCode
+      })
+
+      // Clean up temp file
+      await fs.unlink(tempFilePath).catch(() => {})
+
+      const text = transcription.text || ''
+
+      // Only send if transcription changed
+      if (text && text !== lastTranscription) {
+        lastTranscription = text
+        ws.send(JSON.stringify({
+          type: 'transcription',
+          text: text,
+          isFinal: false
+        }))
+      }
+    } catch (error) {
+      console.error('Real-time transcription error:', error.message)
+    } finally {
+      isProcessing = false
+    }
+  }
+
+  ws.on('message', async (data) => {
+    try {
+      // Check if it's a control message (JSON) or audio data (binary)
+      if (typeof data === 'string' || (data instanceof Buffer && data[0] === 0x7b)) {
+        const message = JSON.parse(data.toString())
+
+        if (message.type === 'config') {
+          language = message.language || 'en'
+          console.log('Transcription config set:', { language })
+          ws.send(JSON.stringify({ type: 'ready' }))
+
+          // Start periodic transcription
+          transcriptionInterval = setInterval(processAudioChunks, 1500)
+        }
+
+        if (message.type === 'stop') {
+          // Process any remaining audio and send final transcription
+          if (transcriptionInterval) {
+            clearInterval(transcriptionInterval)
+            transcriptionInterval = null
+          }
+
+          // Final transcription with all audio
+          if (audioChunks.length > 0) {
+            const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0)
+            const combinedBuffer = Buffer.concat(audioChunks, totalLength)
+
+            const tempDir = os.tmpdir()
+            const tempFilePath = path.join(tempDir, `final-audio-${Date.now()}.webm`)
+            await fs.writeFile(tempFilePath, combinedBuffer)
+
+            const languageCode = SPEECH_LANGUAGE_CODES[language] || language.toLowerCase().slice(0, 2) || 'en'
+
+            const transcription = await client.audio.transcriptions.create({
+              file: createReadStream(tempFilePath),
+              model: 'whisper-1',
+              language: languageCode
+            })
+
+            await fs.unlink(tempFilePath).catch(() => {})
+
+            ws.send(JSON.stringify({
+              type: 'transcription',
+              text: transcription.text || '',
+              isFinal: true
+            }))
+          }
+
+          audioChunks = []
+          lastTranscription = ''
+        }
+      } else {
+        // Binary audio data
+        audioChunks.push(Buffer.from(data))
+      }
+    } catch (error) {
+      console.error('WebSocket message error:', error)
+    }
+  })
+
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected')
+    if (transcriptionInterval) {
+      clearInterval(transcriptionInterval)
+    }
+    audioChunks = []
+  })
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error)
+    if (transcriptionInterval) {
+      clearInterval(transcriptionInterval)
+    }
+  })
+})
+
+server.listen(4000, () => {
+  console.log('Server running on http://localhost:4000')
+  console.log('WebSocket available at ws://localhost:4000/ws/transcribe')
+})

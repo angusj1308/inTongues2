@@ -8782,9 +8782,8 @@ app.post('/api/generate/full-story', async (req, res) => {
     console.log('CALL 2 — STORY RECEIVED:')
     console.log('───────────────────────────────────────────────────────')
     console.log('Word count:', wordCount)
-    console.log('First 500 chars:', storyText.slice(0, 500))
-    console.log('...')
-    console.log('Last 300 chars:', storyText.slice(-300))
+    console.log('───────────────────────────────────────────────────────')
+    console.log(storyText)
     console.log('═══════════════════════════════════════════════════════\n')
 
     return res.json({

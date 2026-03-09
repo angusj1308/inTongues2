@@ -198,7 +198,7 @@ if (process.env.OPENAI_API_KEY) {
 
 let anthropicClient = null
 if (process.env.ANTHROPIC_API_KEY) {
-  anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 15 * 60 * 1000 })
 } else {
   console.warn('Warning: ANTHROPIC_API_KEY not set. Claude features disabled.')
 }

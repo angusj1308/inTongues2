@@ -8761,7 +8761,7 @@ app.post('/api/generate/full-story', async (req, res) => {
     // Expand short story format to include length guidance
     const trimmedFormat = format.trim()
     const formatForPrompt = trimmedFormat === 'short story'
-      ? '15-25 page short story approximately 5000 words long'
+      ? 'short story of at least 5000 words'
       : trimmedFormat
 
     const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nHere is the concept:\n${concept.trim()}`

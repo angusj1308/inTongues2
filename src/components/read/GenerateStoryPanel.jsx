@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateStory } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
+import { GENRES } from '../../services/Authors'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -20,10 +21,6 @@ const GENERATE_TITLES = {
   Italian: 'Generare',
   English: 'Generate',
 }
-
-const GENRES = [
-  { id: 'romance', label: 'Romance' },
-]
 
 // Length presets with page ranges
 const LENGTH_PRESETS = [

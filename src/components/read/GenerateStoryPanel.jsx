@@ -8,6 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
+import { GENRES } from '../../services/Authors'
 // TODO: Wire to new pipeline
 const generateStory = () => { throw new Error('Story generation pipeline not yet connected') }
 const PROSE_STYLES = [{ value: '', label: 'Default' }]
@@ -21,10 +22,6 @@ const GENERATE_TITLES = {
   Italian: 'Generare',
   English: 'Generate',
 }
-
-const GENRES = [
-  { id: 'romance', label: 'Romance' },
-]
 
 // Length presets with page ranges
 const LENGTH_PRESETS = [

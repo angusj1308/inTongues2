@@ -8950,7 +8950,7 @@ ${concept.trim()}`
     let summariesText = ''
     const stream = anthropicClient.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 16384,
+      max_tokens: 32768,
       messages: [{ role: 'user', content: prompt }],
     })
     for await (const event of stream) {

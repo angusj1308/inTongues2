@@ -8943,7 +8943,8 @@ ${concept.trim()}`
     console.log('Language:', language.trim())
     console.log('Concept length:', concept.trim().length, 'chars')
     console.log('───────────────────────────────────────────────────────')
-    console.log('Prompt:', prompt)
+    const promptForDisplay = prompt.replace(concept.trim(), `[CONCEPT — ${concept.trim().length} chars]`)
+    console.log('Prompt:', promptForDisplay)
     console.log('───────────────────────────────────────────────────────')
 
     let summariesText = ''
@@ -9026,7 +9027,13 @@ ${chapterSummaries.trim()}${previousSection}`
     console.log('Language:', language.trim())
     console.log('Previous prose length:', prevProse.length, 'chars')
     console.log('───────────────────────────────────────────────────────')
-    console.log('Prompt:', prompt)
+    let promptDisplay = prompt
+      .replace(concept.trim(), `[CONCEPT — ${concept.trim().length} chars]`)
+      .replace(chapterSummaries.trim(), `[CHAPTER SUMMARIES — ${chapterSummaries.trim().length} chars]`)
+    if (prevProse) {
+      promptDisplay = promptDisplay.replace(prevProse, `[PREVIOUS CHAPTERS — ${prevProse.length} chars]`)
+    }
+    console.log('Prompt:', promptDisplay)
     console.log('───────────────────────────────────────────────────────')
 
     let chapterText = ''
@@ -9182,6 +9189,15 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
       console.log(`Resuming from Chapter ${startFrom} (${startFrom - 1} chapters already written)`)
     }
 
+    // Print concept and chapter summaries once before the loop
+    console.log('───────────────────────────────────────────────────────')
+    console.log('CONCEPT:')
+    console.log(concept)
+    console.log('───────────────────────────────────────────────────────')
+    console.log('CHAPTER SUMMARIES:')
+    console.log(chapterSummaries)
+    console.log('═══════════════════════════════════════════════════════')
+
     const results = []
 
     for (let i = startFrom; i <= totalChapters; i++) {
@@ -9196,7 +9212,13 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
       let chapterText = ''
       const chapterPrompt = buildChapterPrompt(author, language, i, chapterTitle, concept, chapterSummaries, previousProse)
 
-      console.log('Prompt:', chapterPrompt)
+      let promptDisplay = chapterPrompt
+        .replace(concept, `[CONCEPT — ${concept.length} chars]`)
+        .replace(chapterSummaries, `[CHAPTER SUMMARIES — ${chapterSummaries.length} chars]`)
+      if (previousProse) {
+        promptDisplay = promptDisplay.replace(previousProse, `[PREVIOUS CHAPTERS — ${previousProse.length} chars]`)
+      }
+      console.log('Prompt:', promptDisplay)
       console.log('───────────────────────────────────────────────────────')
 
       const stream = anthropicClient.messages.stream({
@@ -9437,7 +9459,13 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     console.log('Language:', language)
     console.log('Previous prose length:', previousProse.length, 'chars')
     console.log('───────────────────────────────────────────────────────')
-    console.log('Prompt:', chapterPrompt)
+    let promptDisplay = chapterPrompt
+      .replace(concept, `[CONCEPT — ${concept.length} chars]`)
+      .replace(chapterSummaries, `[CHAPTER SUMMARIES — ${chapterSummaries.length} chars]`)
+    if (previousProse) {
+      promptDisplay = promptDisplay.replace(previousProse, `[PREVIOUS CHAPTERS — ${previousProse.length} chars]`)
+    }
+    console.log('Prompt:', promptDisplay)
     console.log('───────────────────────────────────────────────────────')
 
     await bookRef.update({ status: 'writing_chapters', currentChapter: chapterNum, totalChapters })

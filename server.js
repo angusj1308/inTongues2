@@ -8754,6 +8754,21 @@ app.post('/api/generate/concept', async (req, res) => {
   }
 })
 
+// Sanitize generated story text by stripping markdown artifacts
+function cleanStoryText(text) {
+  return text
+    // Remove markdown headings (# Title, ## I, ### Section, etc.)
+    .replace(/^#{1,6}\s+.*$/gm, '')
+    // Remove horizontal rules (---, ***, ===, ___ with optional spaces)
+    .replace(/^[\s]*[-*=_]{3,}[\s]*$/gm, '')
+    // Strip bold/italic markdown wrappers but keep inner text
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    .replace(/_{1,3}([^_]+)_{1,3}/g, '$1')
+    // Collapse 3+ consecutive blank lines into 2 (clean section breaks)
+    .replace(/\n{4,}/g, '\n\n\n')
+    .trim()
+}
+
 // POST /api/generate/full-story - Call 2: Generate the complete story text
 // Takes authorName, format, level, language, and concept from Call 1
 // Returns the full story as a single text blob
@@ -8773,7 +8788,7 @@ app.post('/api/generate/full-story', async (req, res) => {
       ? 'short story of at least 5000 words'
       : trimmedFormat
 
-    const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nHere is the concept:\n${concept.trim()}`
+    const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section or chapter breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 2 — FULL STORY GENERATION')
@@ -8798,7 +8813,7 @@ app.post('/api/generate/full-story', async (req, res) => {
         storyText += event.delta.text
       }
     }
-    storyText = storyText.trim()
+    storyText = cleanStoryText(storyText)
     if (!storyText) {
       return res.status(500).json({ error: 'No story text was generated.' })
     }

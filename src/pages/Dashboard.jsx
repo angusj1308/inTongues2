@@ -1598,7 +1598,7 @@ const Dashboard = () => {
                                     const inChapterMode = newPipe || (book.currentPhase || book.lastPhaseCompleted || 0) >= 4
                                     const chaptersGenerated = book.chaptersGenerated || (newPipe ? 0 : (book.bible?.prose?.length || 0))
                                     const totalChapters = book.totalChapters || book.chapterCount || 0
-                                    const hasMore = chaptersGenerated < totalChapters
+                                    const hasMore = totalChapters === 0 ? newPipe : chaptersGenerated < totalChapters
                                     return (<>
                                       <span className="book-phase-indicator">
                                         {inChapterMode
@@ -1757,7 +1757,7 @@ const Dashboard = () => {
                                     const inChapterMode = newPipe || (book.currentPhase || book.lastPhaseCompleted || 0) >= 4
                                     const chaptersGenerated = book.chaptersGenerated || (newPipe ? 0 : (book.bible?.prose?.length || 0))
                                     const totalChapters = book.totalChapters || book.chapterCount || 0
-                                    const hasMore = chaptersGenerated < totalChapters
+                                    const hasMore = totalChapters === 0 ? newPipe : chaptersGenerated < totalChapters
                                     return (<>
                                       <span className="book-phase-indicator">
                                         {inChapterMode

@@ -8927,6 +8927,8 @@ app.post('/api/generate/novel/chapter-summaries', async (req, res) => {
 
 Below is the complete concept for the novel. Expand it into a detailed chapter-by-chapter outline. For each chapter provide: a title, a summary of what happens scene by scene, which characters are present, and how the chapter ends. Every chapter must advance both the central narrative and at least one secondary character's arc. The outline must cover the entire novel from first page to last.
 
+IMPORTANT: Each chapter heading MUST use the format "Chapter N: Title" (e.g. "Chapter 1: The River", "Chapter 2: A Stranger Arrives"). Do not use any other heading format.
+
 Do not write prose. Write summaries only. Be specific — name the actions, the locations, the turning points. "They argue" is not enough. What do they argue about, where, and what changes because of it.
 
 Here is the concept:
@@ -9310,9 +9312,34 @@ function parseChapterHeaders(outlineText) {
   const headers = []
   const lines = outlineText.split('\n')
   for (const line of lines) {
-    const match = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Chapter\s+(\d+)\s*[:\-–—.]\s*(.+?)(?:\*{0,2})?\s*$/i)
-    if (match) {
-      headers.push({ number: parseInt(match[1], 10), title: match[2].trim() })
+    // Match: "Chapter 1: Title", "## Chapter 1 - Title", "**Chapter 1: Title**", "Chapter 1 — Title"
+    const chapterMatch = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Chapter\s+(\d+)\s*[:\-–—.]\s*(.+?)(?:\*{0,2})?\s*$/i)
+    if (chapterMatch) {
+      headers.push({ number: parseInt(chapterMatch[1], 10), title: chapterMatch[2].trim() })
+      continue
+    }
+    // Match: "1. Title", "**1. Title**", "## 1. Title"
+    const numberedMatch = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*(\d+)\.\s+(.+?)(?:\*{0,2})?\s*$/i)
+    if (numberedMatch) {
+      headers.push({ number: parseInt(numberedMatch[1], 10), title: numberedMatch[2].trim() })
+      continue
+    }
+    // Match: "Capítulo 1: Título" (Spanish)
+    const capituloMatch = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Cap[ií]tulo\s+(\d+)\s*[:\-–—.]\s*(.+?)(?:\*{0,2})?\s*$/i)
+    if (capituloMatch) {
+      headers.push({ number: parseInt(capituloMatch[1], 10), title: capituloMatch[2].trim() })
+      continue
+    }
+    // Match: "Chapitre 1: Titre" (French)
+    const chapitreMatch = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Chapitre\s+(\d+)\s*[:\-–—.]\s*(.+?)(?:\*{0,2})?\s*$/i)
+    if (chapitreMatch) {
+      headers.push({ number: parseInt(chapitreMatch[1], 10), title: chapitreMatch[2].trim() })
+      continue
+    }
+    // Match: "Kapitel 1: Titel" (German)
+    const kapitelMatch = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Kapitel\s+(\d+)\s*[:\-–—.]\s*(.+?)(?:\*{0,2})?\s*$/i)
+    if (kapitelMatch) {
+      headers.push({ number: parseInt(kapitelMatch[1], 10), title: kapitelMatch[2].trim() })
     }
   }
   return headers

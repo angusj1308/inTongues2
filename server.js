@@ -8859,7 +8859,7 @@ app.post('/api/generate/novel/concept', async (req, res) => {
 
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
 
-    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original novel set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('NOVEL CALL 1 — CONCEPT GENERATION')
@@ -8999,6 +8999,8 @@ You are writing Chapter ${chapterNumber}: ${chapterTitle.trim()}.
 CRITICAL: You must not contradict any detail from previous chapters. Character names, locations, physical descriptions, established facts, timeline — everything must remain consistent with what has already been written. If a character's eyes were brown in Chapter 2, they are brown now. If it was raining when they arrived, it was raining. The reader will notice. Do not invent new backstory that conflicts with backstory already established in prose.
 
 Write the complete chapter. No preamble, no commentary. Begin with the first sentence of the chapter and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks within the chapter, simply use three blank lines.
 
 === CONCEPT ===
 
@@ -9306,6 +9308,8 @@ You are writing Chapter ${chapterNumber}: ${chapterTitle}.
 CRITICAL: You must not contradict any detail from previous chapters. Character names, locations, physical descriptions, established facts, timeline — everything must remain consistent with what has already been written. If a character's eyes were brown in Chapter 2, they are brown now. If it was raining when they arrived, it was raining. The reader will notice. Do not invent new backstory that conflicts with backstory already established in prose.
 
 Write the complete chapter. No preamble, no commentary. Begin with the first sentence of the chapter and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks within the chapter, simply use three blank lines.
 
 === CONCEPT ===
 

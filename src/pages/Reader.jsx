@@ -617,7 +617,7 @@ const Reader = ({ initialMode }) => {
 
         setIsGeneratedBook(true)
         setGeneratedBookData(bookData)
-        setTotalChapters(bookData.chapterCount || 12)
+        setTotalChapters(bookData.totalChapters || bookData.chapterCount || 12)
 
         // Load generated chapters
         const chaptersRef = collection(db, 'users', user.uid, 'generatedBooks', id, 'chapters')

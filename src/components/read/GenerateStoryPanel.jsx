@@ -162,6 +162,10 @@ const GenerateStoryPanel = ({
         return
       }
 
+      // Count chapters from the outline headers
+      const chapterHeaderMatches = chapterSummaries.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Chapter\s+\d+\s*[:\-–—.]/gim) || []
+      const parsedTotalChapters = chapterHeaderMatches.length
+
       // Store book with concept + chapter summaries, ready for Call 3 (per-chapter writing)
       try {
         const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
@@ -172,6 +176,8 @@ const GenerateStoryPanel = ({
           genre: genreLabel,
           concept: novelConcept,
           chapterSummaries,
+          totalChapters: parsedTotalChapters,
+          chaptersGenerated: 0,
           level: LEVELS[levelIndex],
           lengthPreset,
           language: activeLanguage,

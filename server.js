@@ -9345,15 +9345,14 @@ ${concept}
 ${chapterSummaries}${previousSection}`
 }
 
-// POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
+// POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter (new pipeline)
+// Reads concept + chapterSummaries from generatedBooks, loads previous chapters,
+// generates one chapter, and saves it to the chapters subcollection.
 app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
-  return res.status(501).json({ error: 'Chapter generation not yet reimplemented' })
-  /* TODO: Reimplement with new pipeline
   try {
     const { bookId, chapterIndex } = req.params
     const { uid } = req.body
 
-    // Validate required fields
     if (!uid) return res.status(400).json({ error: 'uid is required' })
     if (!bookId) return res.status(400).json({ error: 'bookId is required' })
 
@@ -9362,7 +9361,6 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       return res.status(400).json({ error: 'chapterIndex must be a positive integer' })
     }
 
-    // Get book document
     const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
     const bookDoc = await bookRef.get()
 
@@ -9371,106 +9369,120 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     }
 
     const bookData = bookDoc.data()
+    const { concept, chapterSummaries, author, language } = bookData
 
-    // Validate chapter index
-    if (chapterNum > bookData.chapterCount) {
-      return res.status(400).json({
-        error: `Chapter ${chapterNum} exceeds book chapter count (${bookData.chapterCount})`
-      })
+    if (!concept?.trim() || !chapterSummaries?.trim()) {
+      return res.status(400).json({ error: 'Book must have concept and chapterSummaries (Call 1 + Call 2 complete)' })
     }
 
-    // Check if bible is complete
-    const validBibleStatuses = ['bible_complete', 'in_progress', 'complete']
-    if (!validBibleStatuses.includes(bookData.status)) {
-      return res.status(400).json({
-        error: 'Bible generation must be complete before generating chapters',
-        currentStatus: bookData.status
-      })
+    // Parse chapter headers from the outline
+    const chapterHeaders = parseChapterHeaders(chapterSummaries)
+    const totalChapters = chapterHeaders.length
+
+    if (totalChapters === 0) {
+      return res.status(400).json({ error: 'Could not parse any chapter headers from the outline' })
+    }
+    if (chapterNum > totalChapters) {
+      return res.status(400).json({ error: `Chapter ${chapterNum} exceeds total chapters (${totalChapters})` })
     }
 
-    // Get previous chapter summaries for context
+    const chapterTitle = chapterHeaders[chapterNum - 1].title
+
+    // Load existing chapters to build previous prose context
     const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
-    const previousSummaries = chaptersSnapshot.docs
-      .filter(doc => doc.data().index < chapterNum)
-      .map(doc => {
-        const data = doc.data()
-        return {
-          number: data.index,
-          pov: data.pov,
-          summary: data.summary,
-          compressedSummary: data.compressedSummary,
-          ultraSummary: data.ultraSummary
-        }
-      })
+    let previousProse = ''
+    for (const docSnap of chaptersSnapshot.docs) {
+      const ch = docSnap.data()
+      if (ch.content && ch.index < chapterNum) {
+        previousProse += `\n\n=== CHAPTER ${ch.index}: ${ch.title} ===\n\n` + ch.content
+      }
+    }
 
-    // Build context with appropriate compression
-    console.log(`Building context for Chapter ${chapterNum}...`)
-    const contextSummaries = await buildPreviousContext(chapterNum, previousSummaries)
+    // Build and send chapter prompt
+    const chapterPrompt = buildChapterPrompt(author, language, chapterNum, chapterTitle, concept, chapterSummaries, previousProse)
 
-    // Generate the chapter
-    console.log(`Generating Chapter ${chapterNum}...`)
-    const result = await generateChapterWithValidation(
-      bookData.bible,
-      chapterNum,
-      contextSummaries,
-      bookData.language
-    )
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log(`CHAPTER ${chapterNum}/${totalChapters}: ${chapterTitle}`)
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', author)
+    console.log('Language:', language)
+    console.log('Previous prose length:', previousProse.length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Prompt:', chapterPrompt)
+    console.log('───────────────────────────────────────────────────────')
 
-    // Get chapter info from bible
-    const bibleChapter = bookData.bible.chapters?.chapters?.[chapterNum - 1] || {}
+    await bookRef.update({ status: 'writing_chapters', currentChapter: chapterNum, totalChapters })
 
-    // Build chapter document
+    let chapterText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: chapterPrompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        chapterText += event.delta.text
+      }
+    }
+    chapterText = stripPreamble(chapterText)
+    chapterText = cleanStoryText(chapterText)
+
+    if (!chapterText) {
+      await bookRef.update({ status: 'error', errorMessage: `Chapter ${chapterNum} produced no text` })
+      return res.status(500).json({ error: `Chapter ${chapterNum} produced no text` })
+    }
+
+    const wordCount = chapterText.split(/\s+/).length
+
+    console.log(`CHAPTER ${chapterNum} RECEIVED:`)
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Word count:', wordCount)
+    console.log('───────────────────────────────────────────────────────')
+    console.log(chapterText)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    // Save chapter to subcollection
     const chapterDoc = {
       index: chapterNum,
-      title: result.chapter?.chapter?.title || bibleChapter.title || `Chapter ${chapterNum}`,
-      pov: bibleChapter.pov || 'Unknown',
-      content: result.chapter?.chapter?.content || '',
-      wordCount: result.chapter?.validation?.wordCount || 0,
-      tensionRating: bibleChapter.tension_rating || 5,
-      summary: result.chapter?.summary || {},
-      compressedSummary: null,
-      ultraSummary: null,
-      audioUrl: null,
-      audioStatus: 'none',
-      validationPassed: result.success,
-      regenerationCount: result.attempts - 1,
-      needsReview: result.needsReview || false,
-      generatedAt: admin.firestore.FieldValue.serverTimestamp()
+      title: chapterTitle,
+      content: chapterText,
+      wordCount,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }
+    await bookRef.collection('chapters').doc(String(chapterNum)).set(chapterDoc)
 
-    // Save chapter to Firestore
-    const chapterRef = bookRef.collection('chapters').doc(String(chapterNum))
-    await chapterRef.set(chapterDoc)
+    // Count how many chapters now exist
+    const updatedSnap = await bookRef.collection('chapters').get()
+    const chaptersGenerated = updatedSnap.size
+    const isComplete = chaptersGenerated >= totalChapters
 
-    // Update book status
-    if (bookData.status === 'bible_complete') {
-      await bookRef.update({ status: 'in_progress' })
-    }
-
-    // Check if this is the last chapter
-    if (chapterNum === bookData.chapterCount) {
-      await bookRef.update({ status: 'complete' })
-      // Save library summary for concept generation diversity
-      await saveLibrarySummary(bookId, uid, bookData.bible)
-    }
-
-    return res.status(201).json({
-      success: result.success,
-      bookId,
-      chapterIndex: chapterNum,
-      attempts: result.attempts,
-      needsReview: result.needsReview || false,
-      chapter: {
-        ...chapterDoc,
-        generatedAt: new Date().toISOString()
-      }
+    await bookRef.update({
+      status: isComplete ? 'complete' : 'outline_complete',
+      chaptersGenerated,
+      totalChapters,
+      ...(isComplete ? { completedAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
     })
 
+    console.log(`Chapter ${chapterNum} saved. ${chaptersGenerated}/${totalChapters} complete.`)
+
+    return res.status(201).json({
+      success: true,
+      bookId,
+      chapterIndex: chapterNum,
+      chaptersGenerated,
+      totalChapters,
+      chapter: {
+        index: chapterNum,
+        title: chapterTitle,
+        content: chapterText,
+        wordCount,
+        generatedAt: new Date().toISOString(),
+      },
+    })
   } catch (error) {
     console.error('Generate chapter error:', error)
     return res.status(500).json({ error: 'Failed to generate chapter', details: error.message })
   }
-  */
 })
 
 // GET /api/generate/book/:bookId - Get book status and bible

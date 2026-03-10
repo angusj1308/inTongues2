@@ -1,5 +1,5 @@
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import { rollAuthor } from './Authors'
+import { rollAuthor, rollNovelAuthor } from './Authors'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generateConcept — Call 1: Roll an author from the genre, then ask the API
@@ -10,7 +10,8 @@ import { rollAuthor } from './Authors'
 //   timePlaceSetting — user-entered time & place string
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
-  const authorName = rollAuthor(genre)
+  const isNovel = format === 'novel' || format === 'novella'
+  const authorName = isNovel ? rollNovelAuthor(genre) : rollAuthor(genre)
 
   try {
     const response = await fetch('http://localhost:4000/api/generate/concept', {

@@ -72,6 +72,72 @@ export const generateFullStory = async ({ authorName, format, level, language, c
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Novel Pipeline — Call 1: Roll a novel author and generate a concept.
+// Same shape as generateConcept but hits the novel-specific endpoint which
+// strips conversational preamble and uses streaming.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateNovelConcept = async ({ genre, format, timePlaceSetting }) => {
+  const authorName = rollNovelAuthor(genre)
+
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/novel/concept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorName, format, timePlaceSetting }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate novel concept.')
+    }
+
+    const data = await response.json()
+
+    return {
+      concept: data.concept,
+      title: data.title,
+      authorName: data.authorName,
+      format: data.format,
+      timePlaceSetting: data.timePlaceSetting,
+    }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate novel concept. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Novel Pipeline — Call 2: Generate chapter-by-chapter summaries.
+// Takes the concept from Call 1 and returns a detailed chapter outline.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateChapterSummaries = async ({ authorName, format, language, concept }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/novel/chapter-summaries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorName, format, language, concept }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate chapter summaries.')
+    }
+
+    const data = await response.json()
+    if (!data?.chapterSummaries) {
+      throw new Error('No chapter summaries were returned.')
+    }
+
+    return {
+      chapterSummaries: data.chapterSummaries,
+      authorName: data.authorName,
+      format: data.format,
+    }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate chapter summaries. Please try again.')
+  }
+}
+
 export const generateStory = async (params) => {
   const language = resolveSupportedLanguageLabel(params?.language)
   try {

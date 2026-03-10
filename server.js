@@ -8838,6 +8838,139 @@ app.post('/api/generate/full-story', async (req, res) => {
   }
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NOVEL PIPELINE — Call 1 & Call 2
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Strip conversational preamble ("Certainly...", "Here's a concept...", etc.)
+function stripPreamble(text) {
+  // Remove common LLM pleasantries before the actual content
+  return text.replace(/^(Certainly[.!]?\s*|Sure[.!]?\s*|Here(?:'s| is)[^.]*\.\s*)/i, '').trim()
+}
+
+// POST /api/generate/novel/concept - Novel Call 1: Author-driven concept generation
+// Returns a detailed concept for a novel, with preamble stripped.
+app.post('/api/generate/novel/concept', async (req, res) => {
+  try {
+    const { authorName, format, timePlaceSetting } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!format?.trim()) return res.status(400).json({ error: 'format is required (novella or novel)' })
+
+    const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original novel set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('NOVEL CALL 1 — CONCEPT GENERATION')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Format:', format.trim())
+    console.log('Setting:', settingText)
+    console.log('───────────────────────────────────────────────────────')
+
+    let conceptText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        conceptText += event.delta.text
+      }
+    }
+    conceptText = stripPreamble(conceptText)
+
+    // Extract title from the first line if it matches "Title: ..."
+    let title = null
+    const titleMatch = conceptText.match(/^Title:\s*(.+)/i)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+    }
+
+    console.log('NOVEL CALL 1 — CONCEPT RECEIVED:')
+    console.log('Title:', title || '(none parsed)')
+    console.log('Length:', conceptText.length, 'chars')
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({
+      success: true,
+      concept: conceptText,
+      title,
+      authorName: authorName.trim(),
+      format: format.trim(),
+      timePlaceSetting: settingText,
+    })
+  } catch (error) {
+    console.error('Novel concept generation error:', error)
+    return res.status(500).json({ error: 'Failed to generate novel concept', details: error.message })
+  }
+})
+
+// POST /api/generate/novel/chapter-summaries - Novel Call 2: Chapter-by-chapter outline
+// Takes the concept from Call 1 and expands it into detailed chapter summaries.
+app.post('/api/generate/novel/chapter-summaries', async (req, res) => {
+  try {
+    const { authorName, format, language, concept } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!format?.trim()) return res.status(400).json({ error: 'format is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
+
+    const prompt = `You are ${authorName.trim()}. You are writing a ${format.trim()} in ${language.trim()}.
+
+Below is the complete concept for the novel. Expand it into a detailed chapter-by-chapter outline. For each chapter provide: a title, a summary of what happens scene by scene, which characters are present, and how the chapter ends. Every chapter must advance both the central narrative and at least one secondary character's arc. The outline must cover the entire novel from first page to last.
+
+Do not write prose. Write summaries only. Be specific — name the actions, the locations, the turning points. "They argue" is not enough. What do they argue about, where, and what changes because of it.
+
+Here is the concept:
+
+${concept.trim()}`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('NOVEL CALL 2 — CHAPTER SUMMARIES')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Format:', format.trim())
+    console.log('Language:', language.trim())
+    console.log('Concept length:', concept.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    let summariesText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        summariesText += event.delta.text
+      }
+    }
+    summariesText = stripPreamble(summariesText)
+
+    if (!summariesText) {
+      return res.status(500).json({ error: 'No chapter summaries were generated.' })
+    }
+
+    console.log('NOVEL CALL 2 — SUMMARIES RECEIVED:')
+    console.log('Length:', summariesText.length, 'chars')
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({
+      success: true,
+      chapterSummaries: summariesText,
+      authorName: authorName.trim(),
+      format: format.trim(),
+    })
+  } catch (error) {
+    console.error('Chapter summaries generation error:', error)
+    return res.status(500).json({ error: 'Failed to generate chapter summaries', details: error.message })
+  }
+})
+
 // POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
 app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
   return res.status(501).json({ error: 'Chapter generation not yet reimplemented' })

@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateConcept, generateFullStory } from '../../services/generator'
+import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES } from '../../services/Authors'
 
@@ -119,42 +119,75 @@ const GenerateStoryPanel = ({
     setError('')
     setIsSubmitting(true)
 
-    // Use bible generation pipeline for novella/novel length
-    const useBiblePipeline = lengthPreset === 'novella' || lengthPreset === 'novel'
+    // ── Novel pipeline: Call 1 (concept) → Call 2 (chapter summaries) ──
+    const isNovelPipeline = lengthPreset === 'novella' || lengthPreset === 'novel'
 
-    if (useBiblePipeline) {
-      // Create placeholder document immediately so user sees it in library
-      const placeholderConcept = description.trim() || 'A compelling romance story'
-      const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
+    if (isNovelPipeline) {
+      const FORMAT_MAP = { novella: 'novella', novel: 'novel' }
+      const novelFormat = FORMAT_MAP[lengthPreset]
+      const genreLabel = GENRES.find((g) => g.id === genre)?.label || 'Romance'
 
+      // Call 1 — Concept
+      let novelConcept = null
+      let novelAuthor = null
+      let novelTitle = null
       try {
-        // Create book document ready for phase-by-phase generation
-        const placeholderRef = await addDoc(generatedBooksRef, {
-          status: 'ready',
-          currentPhase: 0,
-          lastPhaseCompleted: null,
-          concept: placeholderConcept,
+        const conceptResult = await generateNovelConcept({
+          genre,
+          format: novelFormat,
+          timePlaceSetting: description.trim(),
+        })
+        novelConcept = conceptResult.concept
+        novelAuthor = conceptResult.authorName
+        novelTitle = conceptResult.title
+      } catch (conceptError) {
+        setError(conceptError?.message || 'Unable to generate novel concept.')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Call 2 — Chapter summaries
+      let chapterSummaries = null
+      try {
+        const summariesResult = await generateChapterSummaries({
+          authorName: novelAuthor,
+          format: novelFormat,
+          language: activeLanguage,
+          concept: novelConcept,
+        })
+        chapterSummaries = summariesResult.chapterSummaries
+      } catch (summariesError) {
+        setError(summariesError?.message || 'Unable to generate chapter summaries.')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Store book with concept + chapter summaries, ready for Call 3 (per-chapter writing)
+      try {
+        const generatedBooksRef = collection(db, 'users', user.uid, 'generatedBooks')
+        const bookRef = await addDoc(generatedBooksRef, {
+          status: 'outline_complete',
+          title: novelTitle || `${genreLabel} ${novelFormat}`,
+          author: novelAuthor,
+          genre: genreLabel,
+          concept: novelConcept,
+          chapterSummaries,
           level: LEVELS[levelIndex],
-          lengthPreset: lengthPreset,
+          lengthPreset,
           language: activeLanguage,
           generateAudio,
           styleKey: styleKey || null,
+          description: description.trim(),
           createdAt: serverTimestamp(),
-          bible: {},
         })
 
-        // Close panel immediately and navigate to dashboard
-        if (onClose) {
-          onClose()
-        }
+        console.log(`Novel ${bookRef.id} created — concept + chapter summaries stored`)
+
+        if (onClose) onClose()
         setIsSubmitting(false)
         navigate('/dashboard', { state: { initialTab: 'read' } })
-
-        // User will use phase controls to run phases manually
-        console.log(`Book ${placeholderRef.id} created - ready for phase-by-phase generation`)
-
-      } catch (placeholderError) {
-        setError(placeholderError?.message || 'Unable to start novel generation.')
+      } catch (storeError) {
+        setError(storeError?.message || 'Unable to save novel.')
         setIsSubmitting(false)
       }
       return

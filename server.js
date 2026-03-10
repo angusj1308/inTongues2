@@ -8868,6 +8868,8 @@ app.post('/api/generate/novel/concept', async (req, res) => {
     console.log('Format:', format.trim())
     console.log('Setting:', settingText)
     console.log('───────────────────────────────────────────────────────')
+    console.log('Prompt:', prompt)
+    console.log('───────────────────────────────────────────────────────')
 
     let conceptText = ''
     const stream = anthropicClient.messages.stream({
@@ -8890,8 +8892,10 @@ app.post('/api/generate/novel/concept', async (req, res) => {
     }
 
     console.log('NOVEL CALL 1 — CONCEPT RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
     console.log('Title:', title || '(none parsed)')
-    console.log('Length:', conceptText.length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(conceptText)
     console.log('═══════════════════════════════════════════════════════\n')
 
     return res.json({
@@ -8937,6 +8941,8 @@ ${concept.trim()}`
     console.log('Language:', language.trim())
     console.log('Concept length:', concept.trim().length, 'chars')
     console.log('───────────────────────────────────────────────────────')
+    console.log('Prompt:', prompt)
+    console.log('───────────────────────────────────────────────────────')
 
     let summariesText = ''
     const stream = anthropicClient.messages.stream({
@@ -8956,7 +8962,8 @@ ${concept.trim()}`
     }
 
     console.log('NOVEL CALL 2 — SUMMARIES RECEIVED:')
-    console.log('Length:', summariesText.length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(summariesText)
     console.log('═══════════════════════════════════════════════════════\n')
 
     return res.json({
@@ -9017,6 +9024,8 @@ ${chapterSummaries.trim()}${previousSection}`
     console.log('Language:', language.trim())
     console.log('Previous prose length:', prevProse.length, 'chars')
     console.log('───────────────────────────────────────────────────────')
+    console.log('Prompt:', prompt)
+    console.log('───────────────────────────────────────────────────────')
 
     let chapterText = ''
     const stream = anthropicClient.messages.stream({
@@ -9038,7 +9047,10 @@ ${chapterSummaries.trim()}${previousSection}`
 
     const wordCount = chapterText.split(/\s+/).length
     console.log(`NOVEL CALL 3 — CHAPTER ${chapterNumber} RECEIVED:`)
+    console.log('───────────────────────────────────────────────────────')
     console.log('Word count:', wordCount)
+    console.log('───────────────────────────────────────────────────────')
+    console.log(chapterText)
     console.log('═══════════════════════════════════════════════════════\n')
 
     return res.json({
@@ -9173,12 +9185,17 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
     for (let i = startFrom; i <= totalChapters; i++) {
       const chapterTitle = chapterHeaders[i - 1].title
 
-      console.log(`\nWriting Chapter ${i}/${totalChapters}: ${chapterTitle}`)
+      console.log(`\n═══════════════════════════════════════════════════════`)
+      console.log(`NOVEL CALL 3 — CHAPTER ${i}/${totalChapters}: ${chapterTitle}`)
+      console.log('═══════════════════════════════════════════════════════')
       await bookRef.update({ currentChapter: i })
 
       // Generate chapter prose
       let chapterText = ''
       const chapterPrompt = buildChapterPrompt(author, language, i, chapterTitle, concept, chapterSummaries, previousProse)
+
+      console.log('Prompt:', chapterPrompt)
+      console.log('───────────────────────────────────────────────────────')
 
       const stream = anthropicClient.messages.stream({
         model: 'claude-opus-4-6',
@@ -9200,7 +9217,12 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
       }
 
       const wordCount = chapterText.split(/\s+/).length
-      console.log(`Chapter ${i} complete — ${wordCount} words`)
+      console.log(`NOVEL CALL 3 — CHAPTER ${i} RECEIVED:`)
+      console.log('───────────────────────────────────────────────────────')
+      console.log('Word count:', wordCount)
+      console.log('───────────────────────────────────────────────────────')
+      console.log(chapterText)
+      console.log('───────────────────────────────────────────────────────')
 
       // Validate against previous chapters (skip Chapter 1)
       let validationResult = { valid: true, contradictions: null }
@@ -9229,6 +9251,9 @@ ${previousProse}`
           validationResult.valid = /no contradictions found/i.test(valText)
           validationResult.contradictions = validationResult.valid ? null : valText
           console.log(`Validation: ${validationResult.valid ? 'PASS' : 'CONTRADICTIONS FOUND'}`)
+          if (!validationResult.valid) {
+            console.log(valText)
+          }
         } catch (valError) {
           console.error(`Validation failed for Chapter ${i} (continuing):`, valError.message)
         }

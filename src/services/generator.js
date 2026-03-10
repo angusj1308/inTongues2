@@ -138,6 +138,92 @@ export const generateChapterSummaries = async ({ authorName, format, language, c
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Novel Pipeline — Call 3: Write a single chapter.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateNovelChapter = async ({ authorName, language, chapterNumber, chapterTitle, concept, chapterSummaries, previousProse }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/novel/chapter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorName, language, chapterNumber, chapterTitle, concept, chapterSummaries, previousProse }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || `Failed to generate Chapter ${chapterNumber}.`)
+    }
+
+    const data = await response.json()
+    if (!data?.chapterText) {
+      throw new Error(`No prose was returned for Chapter ${chapterNumber}.`)
+    }
+
+    return {
+      chapterNumber: data.chapterNumber,
+      chapterTitle: data.chapterTitle,
+      chapterText: data.chapterText,
+      wordCount: data.wordCount,
+    }
+  } catch (error) {
+    throw new Error(error?.message || `Unable to generate Chapter ${chapterNumber}. Please try again.`)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Novel Pipeline — Validate a chapter against previous prose (Sonnet).
+// ─────────────────────────────────────────────────────────────────────────────
+export const validateNovelChapter = async ({ chapterNumber, chapterText, previousProse }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/novel/validate-chapter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chapterNumber, chapterText, previousProse }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to validate chapter.')
+    }
+
+    const data = await response.json()
+    return { valid: data.valid, contradictions: data.contradictions }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to validate chapter.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Novel Pipeline — Write all chapters (server-side loop).
+// Triggers the server to write every chapter sequentially, storing each in
+// Firestore as it completes. Can resume from the last completed chapter.
+// ─────────────────────────────────────────────────────────────────────────────
+export const writeAllNovelChapters = async ({ uid, bookId }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/novel/write-all-chapters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, bookId }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to write novel chapters.')
+    }
+
+    const data = await response.json()
+    return {
+      success: data.success,
+      bookId: data.bookId,
+      totalChapters: data.totalChapters,
+      totalWords: data.totalWords,
+      chapters: data.chapters,
+    }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to write novel chapters. Please try again.')
+  }
+}
+
 export const generateStory = async (params) => {
   const language = resolveSupportedLanguageLabel(params?.language)
   try {

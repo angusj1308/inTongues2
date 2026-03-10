@@ -19,7 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
-import { regeneratePhases, executePhase, executeScene, resetGeneration, cancelGeneration } from '../services/novelApiClient'
+import { regeneratePhases, executePhase, resetGeneration, cancelGeneration } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -335,7 +335,7 @@ const BookGrid = ({
                           e.stopPropagation()
                           onRegeneratePhase(e, book)
                         }}
-                        title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                        title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Regenerate last chapter` : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                       >
                         ↻
                       </button>
@@ -359,7 +359,7 @@ const BookGrid = ({
                           e.stopPropagation()
                           onRunSpecificPhase(e, book)
                         }}
-                        title="Go to specific phase"
+                        title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? 'Go to specific chapter' : 'Go to specific phase'}
                       >
                         #
                       </button>
@@ -1127,22 +1127,23 @@ const Dashboard = () => {
 
     const currentPhase = book.currentPhase || book.lastPhaseCompleted || 0
 
-    // After Phase 4, allow jumping to a specific scene
+    // After Phase 4, allow jumping to a specific chapter
     if (currentPhase >= 4) {
-      const totalScenes = book.totalScenes || 0
-      const sceneInput = window.prompt(
-        `Enter scene number to generate (1-${totalScenes}):\n\nCurrent: Scene ${book.nextSceneIndex || 0}/${totalScenes}\n\nOr enter "p1"-"p4" to re-run a planning phase.`,
-        String((book.nextSceneIndex || 0) + 1)
+      const chaptersGenerated = book.chaptersGenerated || book.bible?.prose?.length || 0
+      const totalChapters = book.totalChapters || book.chapterCount || 0
+      const chapterInput = window.prompt(
+        `Enter chapter number to go back to (1-${chaptersGenerated}):\n\nChapters written: ${chaptersGenerated}/${totalChapters}\n\nThis will regenerate from that chapter onward.\nOr enter "p1"-"p3" to re-run a planning phase.`,
+        String(chaptersGenerated)
       )
 
-      if (!sceneInput) return
+      if (!chapterInput) return
 
       // Check if they want to run a phase instead
-      const phaseMatch = sceneInput.match(/^p(\d)$/i)
+      const phaseMatch = chapterInput.match(/^p(\d)$/i)
       if (phaseMatch) {
         const phase = parseInt(phaseMatch[1], 10)
-        if (phase < 1 || phase > 4) {
-          alert('Please enter a valid phase number (p1-p4)')
+        if (phase < 1 || phase > 3) {
+          alert('Please enter a valid phase number (p1-p3)')
           return
         }
         try {
@@ -1153,20 +1154,26 @@ const Dashboard = () => {
         return
       }
 
-      const sceneNum = parseInt(sceneInput, 10)
-      if (isNaN(sceneNum) || sceneNum < 1 || sceneNum > totalScenes) {
-        alert(`Please enter a valid scene number (1-${totalScenes})`)
+      const chapterNum = parseInt(chapterInput, 10)
+      if (isNaN(chapterNum) || chapterNum < 1 || chapterNum > totalChapters) {
+        alert(`Please enter a valid chapter number (1-${totalChapters})`)
         return
       }
 
+      const confirmed = window.confirm(
+        `Regenerate Chapter ${chapterNum}?\n\nThis will discard the current version and write it fresh.`
+      )
+      if (!confirmed) return
+
       try {
-        await executeScene({
+        await executePhase({
           uid: user.uid,
           bookId: book.id,
-          sceneIndex: sceneNum - 1
+          phase: 4,
+          chapterNumber: chapterNum
         })
       } catch (err) {
-        alert(`Failed to generate scene ${sceneNum}: ${err.message}`)
+        alert(`Failed to regenerate Chapter ${chapterNum}: ${err.message}`)
       }
       return
     }
@@ -1482,15 +1489,15 @@ const Dashboard = () => {
                                 <div className="book-phase-controls">
                                   <span className="book-phase-indicator">
                                     {(book.currentPhase || book.lastPhaseCompleted || 0) >= 4
-                                      ? `Scene ${book.nextSceneIndex || 0}/${book.totalScenes || '?'}`
+                                      ? `Ch ${book.chaptersGenerated || book.bible?.prose?.length || 0}/${book.totalChapters || book.chapterCount || '?'}`
                                       : `Phase ${book.currentPhase || book.lastPhaseCompleted || 0}/4`
                                     }
                                   </span>
-                                  {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.nextSceneIndex || 0) < (book.totalScenes || 0)) || (book.currentPhase || book.lastPhaseCompleted || 0) === 4) && (
+                                  {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.currentPhase || book.lastPhaseCompleted || 0) >= 4 && (book.chaptersGenerated || book.bible?.prose?.length || 0) < (book.totalChapters || book.chapterCount || Infinity))) && (
                                     <button
                                       className="book-phase-btn book-phase-next"
                                       onClick={(e) => handleNextPhase(e, book)}
-                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Scene ${(book.nextSceneIndex || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Chapter ${(book.chaptersGenerated || book.bible?.prose?.length || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
                                     >
                                       ▶
                                     </button>
@@ -1499,7 +1506,7 @@ const Dashboard = () => {
                                     <button
                                       className="book-phase-btn book-phase-redo"
                                       onClick={(e) => handleRegenerateCurrentPhase(e, book)}
-                                      title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Regenerate last chapter` : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                                     >
                                       ↻
                                     </button>
@@ -1514,7 +1521,7 @@ const Dashboard = () => {
                                   <button
                                     className="book-phase-btn book-phase-goto"
                                     onClick={(e) => handleRunSpecificPhase(e, book)}
-                                    title="Go to specific phase"
+                                    title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? 'Go to specific chapter' : 'Go to specific phase'}
                                   >
                                     #
                                   </button>
@@ -1619,15 +1626,15 @@ const Dashboard = () => {
                                 <div className="book-phase-controls">
                                   <span className="book-phase-indicator">
                                     {(book.currentPhase || book.lastPhaseCompleted || 0) >= 4
-                                      ? `Scene ${book.nextSceneIndex || 0}/${book.totalScenes || '?'}`
+                                      ? `Ch ${book.chaptersGenerated || book.bible?.prose?.length || 0}/${book.totalChapters || book.chapterCount || '?'}`
                                       : `Phase ${book.currentPhase || book.lastPhaseCompleted || 0}/4`
                                     }
                                   </span>
-                                  {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.nextSceneIndex || 0) < (book.totalScenes || 0)) || (book.currentPhase || book.lastPhaseCompleted || 0) === 4) && (
+                                  {((book.currentPhase || book.lastPhaseCompleted || 0) < 4 || ((book.currentPhase || book.lastPhaseCompleted || 0) >= 4 && (book.chaptersGenerated || book.bible?.prose?.length || 0) < (book.totalChapters || book.chapterCount || Infinity))) && (
                                     <button
                                       className="book-phase-btn book-phase-next"
                                       onClick={(e) => handleNextPhase(e, book)}
-                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Scene ${(book.nextSceneIndex || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Generate Chapter ${(book.chaptersGenerated || book.bible?.prose?.length || 0) + 1}` : `Run Phase ${(book.currentPhase || book.lastPhaseCompleted || 0) + 1}`}
                                     >
                                       ▶
                                     </button>
@@ -1636,7 +1643,7 @@ const Dashboard = () => {
                                     <button
                                       className="book-phase-btn book-phase-redo"
                                       onClick={(e) => handleRegenerateCurrentPhase(e, book)}
-                                      title={`Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
+                                      title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? `Regenerate last chapter` : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                                     >
                                       ↻
                                     </button>
@@ -1651,7 +1658,7 @@ const Dashboard = () => {
                                   <button
                                     className="book-phase-btn book-phase-goto"
                                     onClick={(e) => handleRunSpecificPhase(e, book)}
-                                    title="Go to specific phase"
+                                    title={(book.currentPhase || book.lastPhaseCompleted || 0) >= 4 ? 'Go to specific chapter' : 'Go to specific phase'}
                                   >
                                     #
                                   </button>

@@ -9194,7 +9194,7 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
 
       // Generate chapter prose
       let chapterText = ''
-      const chapterPrompt = buildChapterPrompt(author, language, i, concept, chapterSummaries, previousProse)
+      const chapterPrompt = buildChapterPrompt(author, language, i, chapterTitle, concept, chapterSummaries, previousProse)
 
       console.log('Prompt:', chapterPrompt)
       console.log('───────────────────────────────────────────────────────')
@@ -9346,16 +9346,18 @@ function parseChapterHeaders(outlineText) {
 }
 
 // Build the Call 3 prompt for a single chapter
-function buildChapterPrompt(authorName, language, chapterNumber, concept, chapterSummaries, previousProse) {
+function buildChapterPrompt(authorName, language, chapterNumber, chapterTitle, concept, chapterSummaries, previousProse) {
   const previousSection = previousProse
     ? `\n\n=== PREVIOUS CHAPTERS ===\n\n${previousProse}`
     : '\n\n=== PREVIOUS CHAPTERS ===\n\n(This is Chapter 1 — no previous chapters yet.)'
+
+  const titleLine = chapterTitle ? ` ("${chapterTitle}")` : ''
 
   return `You are ${authorName}. You are writing a novel in ${language}.
 
 Below is the complete concept, the full chapter-by-chapter outline, and all chapters written so far. You must keep the entire novel in mind as you write. Every detail you introduce must serve the whole. Every sentence must know where the story is going and where it has been.
 
-You are writing Chapter ${chapterNumber}. Find Chapter ${chapterNumber} in the outline below and write it.
+You are writing Chapter ${chapterNumber}${titleLine}. Find Chapter ${chapterNumber} in the outline below and write it.
 
 CRITICAL: You must not contradict any detail from previous chapters. Character names, locations, physical descriptions, established facts, timeline — everything must remain consistent with what has already been written. If a character's eyes were brown in Chapter 2, they are brown now. If it was raining when they arrived, it was raining. The reader will notice. Do not invent new backstory that conflicts with backstory already established in prose.
 
@@ -9413,6 +9415,8 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       return res.status(400).json({ error: `Chapter ${chapterNum} exceeds total chapters (${totalChapters})` })
     }
 
+    const chapterTitle = chapterHeaders[chapterNum - 1]?.title || null
+
     // Load existing chapters to build previous prose context
     const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
     let previousProse = ''
@@ -9423,11 +9427,11 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       }
     }
 
-    // Build and send chapter prompt — no extracted title, model finds the chapter in the outline
-    const chapterPrompt = buildChapterPrompt(author, language, chapterNum, concept, chapterSummaries, previousProse)
+    // Build chapter prompt — title is a hint in parentheses, model finds the chapter in the outline
+    const chapterPrompt = buildChapterPrompt(author, language, chapterNum, chapterTitle, concept, chapterSummaries, previousProse)
 
     console.log('\n═══════════════════════════════════════════════════════')
-    console.log(`CHAPTER ${chapterNum}/${totalChapters}`)
+    console.log(`CHAPTER ${chapterNum}/${totalChapters}: ${chapterTitle || '(no title parsed)'}`)
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', author)
     console.log('Language:', language)
@@ -9469,7 +9473,7 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     // Save chapter to subcollection
     const chapterDoc = {
       index: chapterNum,
-      title: `Chapter ${chapterNum}`,
+      title: chapterTitle || `Chapter ${chapterNum}`,
       content: chapterText,
       wordCount,
       generatedAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -28,6 +28,7 @@ export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
 
     return {
       concept: data.concept,
+      title: data.title,
       authorName: data.authorName,
       format: data.format,
       timePlaceSetting: data.timePlaceSetting,

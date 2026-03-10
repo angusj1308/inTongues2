@@ -222,6 +222,7 @@ const BookGrid = ({
   onResetGeneration,
   onRunSpecificPhase,
   onCancelGeneration,
+  generatingBookId,
 }) => (
   <section className="read-section read-slab">
     <div className="read-section-header">
@@ -246,7 +247,7 @@ const BookGrid = ({
           const isGenerating = book.status === 'generating' || book.status === 'planning' || book.status === 'generating_prose' || book.status === 'writing_chapters'
           const isRegenerating = book.status === 'regenerating'
           const isFailed = book.status === 'failed' || book.status === 'error'
-          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating || isRegenerating
+          const isProcessing = book.status === 'adapting' || book.status === 'paginating' || book.status === 'pending' || isGenerating || isRegenerating || generatingBookId === book.id
           // Clickable if not processing and not failed
           const canClick = !isProcessing && !isFailed && onBookClick
           // Show phase controls for generated books
@@ -423,6 +424,7 @@ const Dashboard = () => {
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showGutenbergModal, setShowGutenbergModal] = useState(false)
+  const [generatingBookId, setGeneratingBookId] = useState(null)
 
   // Review tab state
   const [deckCounts, setDeckCounts] = useState({})
@@ -1008,6 +1010,8 @@ const Dashboard = () => {
 
     // New pipeline: generate next chapter directly
     if (isNewPipeline(book)) {
+      if (generatingBookId) return
+
       const chaptersGenerated = book.chaptersGenerated || 0
       const total = book.totalChapters || 0
 
@@ -1016,6 +1020,7 @@ const Dashboard = () => {
         return
       }
 
+      setGeneratingBookId(book.id)
       try {
         await generateChapter({
           uid: user.uid,
@@ -1025,6 +1030,8 @@ const Dashboard = () => {
       } catch (err) {
         console.error('Error generating chapter:', err)
         alert(`Failed to generate chapter: ${err.message}`)
+      } finally {
+        setGeneratingBookId(null)
       }
       return
     }
@@ -1080,6 +1087,8 @@ const Dashboard = () => {
 
     // New pipeline: regenerate last chapter
     if (isNewPipeline(book)) {
+      if (generatingBookId) return
+
       const chaptersGenerated = book.chaptersGenerated || 0
       if (chaptersGenerated < 1) {
         alert('No chapter to redo. Click ▶ to generate the first chapter.')
@@ -1092,6 +1101,7 @@ const Dashboard = () => {
       )
       if (!confirmed) return
 
+      setGeneratingBookId(book.id)
       try {
         await generateChapter({
           uid: user.uid,
@@ -1101,6 +1111,8 @@ const Dashboard = () => {
       } catch (err) {
         console.error(`Error regenerating chapter ${chapterToRedo}:`, err)
         alert(`Failed to regenerate chapter: ${err.message}`)
+      } finally {
+        setGeneratingBookId(null)
       }
       return
     }
@@ -1199,6 +1211,8 @@ const Dashboard = () => {
 
     // New pipeline: go to specific chapter
     if (isNewPipeline(book)) {
+      if (generatingBookId) return
+
       const chaptersGenerated = book.chaptersGenerated || 0
       const totalChapters = book.totalChapters || 0
       const chapterInput = window.prompt(
@@ -1219,6 +1233,7 @@ const Dashboard = () => {
       )
       if (!confirmed) return
 
+      setGeneratingBookId(book.id)
       try {
         await generateChapter({
           uid: user.uid,
@@ -1227,6 +1242,8 @@ const Dashboard = () => {
         })
       } catch (err) {
         alert(`Failed to regenerate Chapter ${chapterNum}: ${err.message}`)
+      } finally {
+        setGeneratingBookId(null)
       }
       return
     }
@@ -1577,7 +1594,7 @@ const Dashboard = () => {
                           const isGenerating = book.status === 'generating' || book.status === 'planning' || book.status === 'generating_prose' || book.status === 'writing_chapters'
                           const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
-                          const isProcessing = isGenerating || isRegenerating
+                          const isProcessing = isGenerating || isRegenerating || generatingBookId === book.id
                           // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
                           const isClickable = !isProcessing && !isFailed
                           // Can regenerate if it's a generated book with bible data and not currently processing
@@ -1736,7 +1753,7 @@ const Dashboard = () => {
                           const isGenerating = book.status === 'generating' || book.status === 'planning' || book.status === 'generating_prose' || book.status === 'writing_chapters'
                           const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
-                          const isProcessing = isGenerating || isRegenerating
+                          const isProcessing = isGenerating || isRegenerating || generatingBookId === book.id
                           // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
                           const isClickable = !isProcessing && !isFailed
                           // Can regenerate if it's a generated book with bible data and not currently processing

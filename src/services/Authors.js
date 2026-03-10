@@ -80,31 +80,127 @@ export const SHORT_STORY_AUTHORS = {
     'Hilary Mantel',
     'Umberto Eco',
   ],
+  fairytale: [
+    'Brothers Grimm',
+    'Hans Christian Andersen',
+    'Charles Perrault',
+    'Oscar Wilde',
+    'Italo Calvino',
+  ],
+}
+
+// Novel authors by genre — used to drive novel/novella concept generation
+export const NOVEL_AUTHORS = {
+  romance: [
+    'Nora Roberts',
+    'Julia Quinn',
+    'Beverly Jenkins',
+    'Judith McNaught',
+    'Lisa Kleypas',
+  ],
+  thriller: [
+    'Patricia Highsmith',
+    'Daphne du Maurier',
+    'Thomas Harris',
+    'Gillian Flynn',
+    'John le Carré',
+  ],
+  scifi: [
+    'Isaac Asimov',
+    'Arthur C. Clarke',
+    'Ursula K. Le Guin',
+    'Philip K. Dick',
+    'Frank Herbert',
+    'Octavia Butler',
+    'Ray Bradbury',
+    'H.G. Wells',
+    'Stanis\u0142aw Lem',
+  ],
+  mystery: [
+    'Agatha Christie',
+    'Arthur Conan Doyle',
+    'Raymond Chandler',
+    'Georges Simenon',
+    'Dashiell Hammett',
+  ],
+  adventure: [
+    'Alexandre Dumas',
+    'Robert Louis Stevenson',
+    'Jack London',
+    'Joseph Conrad',
+    'Rudyard Kipling',
+    'Jules Verne',
+  ],
+  comedy: [
+    'P.G. Wodehouse',
+    'Mark Twain',
+    'Terry Pratchett',
+    'Douglas Adams',
+    'Dorothy Parker',
+  ],
+  horror: [
+    'Stephen King',
+    'Shirley Jackson',
+    'H.P. Lovecraft',
+    'Mary Shelley',
+    'Bram Stoker',
+  ],
+  fantasy: [
+    'J.R.R. Tolkien',
+    'Ursula K. Le Guin',
+    'Neil Gaiman',
+    'George R.R. Martin',
+    'Terry Pratchett',
+    'C.S. Lewis',
+    'J.K. Rowling',
+  ],
+  literary: [
+    'James Joyce',
+    'Franz Kafka',
+    'Ernest Hemingway',
+    'Gabriel García Márquez',
+    'Fyodor Dostoevsky',
+    'Leo Tolstoy',
+    'Virginia Woolf',
+    'William Faulkner',
+    'Julio Cortázar',
+    'Jane Austen',
+    'Charles Dickens',
+    'Cormac McCarthy',
+    'John Steinbeck',
+  ],
+  historical: [
+    'Hilary Mantel',
+    'Umberto Eco',
+    'Arturo Pérez-Reverte',
+    'Ken Follett',
+    'Isaac Bashevis Singer',
+  ],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// rollAuthor(genre) — Select an author with equal probability from the genre.
-// Tracks selection counts so that over time every author is chosen evenly.
-// If genre has 5 authors each gets 20%, 8 authors each gets 12.5%, etc.
+// _rollFromPool(pool, countsStore, genre) — shared logic for even-distribution
+// author selection. Both rollAuthor and rollNovelAuthor delegate here.
 // ─────────────────────────────────────────────────────────────────────────────
-const _authorCounts = {} // { genre: { authorName: count } }
+const _shortStoryCounts = {} // { genre: { authorName: count } }
+const _novelCounts = {}     // { genre: { authorName: count } }
 
-export function rollAuthor(genre) {
-  const authors = SHORT_STORY_AUTHORS[genre]
+function _rollFromPool(pool, countsStore, genre) {
+  const authors = pool[genre]
   if (!authors || !authors.length) {
     throw new Error(`No authors found for genre "${genre}"`)
   }
 
   // Initialise counts for this genre if needed
-  if (!_authorCounts[genre]) {
-    _authorCounts[genre] = {}
+  if (!countsStore[genre]) {
+    countsStore[genre] = {}
     for (const name of authors) {
-      _authorCounts[genre][name] = 0
+      countsStore[genre][name] = 0
     }
   }
 
   // Find the minimum selection count
-  const counts = _authorCounts[genre]
+  const counts = countsStore[genre]
   const minCount = Math.min(...authors.map((a) => counts[a] ?? 0))
 
   // Filter to only authors at the minimum count (least-selected)
@@ -119,6 +215,20 @@ export function rollAuthor(genre) {
   return selected
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// rollAuthor(genre) — Select a short-story author with even distribution.
+// ─────────────────────────────────────────────────────────────────────────────
+export function rollAuthor(genre) {
+  return _rollFromPool(SHORT_STORY_AUTHORS, _shortStoryCounts, genre)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// rollNovelAuthor(genre) — Select a novel author with even distribution.
+// ─────────────────────────────────────────────────────────────────────────────
+export function rollNovelAuthor(genre) {
+  return _rollFromPool(NOVEL_AUTHORS, _novelCounts, genre)
+}
+
 // Genre metadata for UI display
 export const GENRES = [
   { id: 'romance', label: 'Romance' },
@@ -131,4 +241,5 @@ export const GENRES = [
   { id: 'fantasy', label: 'Fantasy' },
   { id: 'literary', label: 'Literary' },
   { id: 'historical', label: 'Historical Fiction' },
+  { id: 'fairytale', label: 'Fairy Tale' },
 ]

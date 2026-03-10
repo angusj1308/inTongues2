@@ -8754,6 +8754,21 @@ app.post('/api/generate/concept', async (req, res) => {
   }
 })
 
+// Sanitize generated story text by stripping markdown artifacts
+function cleanStoryText(text) {
+  return text
+    // Remove markdown headings (# Title, ## I, ### Section, etc.)
+    .replace(/^#{1,6}\s+.*$/gm, '')
+    // Remove horizontal rules (---, ***, ===, ___ with optional spaces)
+    .replace(/^[\s]*[-*=_]{3,}[\s]*$/gm, '')
+    // Strip bold/italic markdown wrappers but keep inner text
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    .replace(/_{1,3}([^_]+)_{1,3}/g, '$1')
+    // Collapse 3+ consecutive blank lines into 2 (clean section breaks)
+    .replace(/\n{4,}/g, '\n\n\n')
+    .trim()
+}
+
 // POST /api/generate/full-story - Call 2: Generate the complete story text
 // Takes authorName, format, level, language, and concept from Call 1
 // Returns the full story as a single text blob
@@ -8773,7 +8788,7 @@ app.post('/api/generate/full-story', async (req, res) => {
       ? 'short story of at least 5000 words'
       : trimmedFormat
 
-    const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nHere is the concept:\n${concept.trim()}`
+    const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section or chapter breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 2 — FULL STORY GENERATION')
@@ -8798,7 +8813,7 @@ app.post('/api/generate/full-story', async (req, res) => {
         storyText += event.delta.text
       }
     }
-    storyText = storyText.trim()
+    storyText = cleanStoryText(storyText)
     if (!storyText) {
       return res.status(500).json({ error: 'No story text was generated.' })
     }
@@ -8822,6 +8837,488 @@ app.post('/api/generate/full-story', async (req, res) => {
     return res.status(500).json({ error: 'Failed to generate story', details: error.message })
   }
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOVEL PIPELINE — Call 1 & Call 2
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Strip conversational preamble ("Certainly...", "Here's a concept...", etc.)
+function stripPreamble(text) {
+  // Remove common LLM pleasantries before the actual content
+  return text.replace(/^(Certainly[.!]?\s*|Sure[.!]?\s*|Here(?:'s| is)[^.]*\.\s*)/i, '').trim()
+}
+
+// POST /api/generate/novel/concept - Novel Call 1: Author-driven concept generation
+// Returns a detailed concept for a novel, with preamble stripped.
+app.post('/api/generate/novel/concept', async (req, res) => {
+  try {
+    const { authorName, format, timePlaceSetting } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!format?.trim()) return res.status(400).json({ error: 'format is required (novella or novel)' })
+
+    const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('NOVEL CALL 1 — CONCEPT GENERATION')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Format:', format.trim())
+    console.log('Setting:', settingText)
+    console.log('───────────────────────────────────────────────────────')
+
+    let conceptText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        conceptText += event.delta.text
+      }
+    }
+    conceptText = stripPreamble(conceptText)
+
+    // Extract title from the first line if it matches "Title: ..."
+    let title = null
+    const titleMatch = conceptText.match(/^Title:\s*(.+)/i)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+    }
+
+    console.log('NOVEL CALL 1 — CONCEPT RECEIVED:')
+    console.log('Title:', title || '(none parsed)')
+    console.log('Length:', conceptText.length, 'chars')
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({
+      success: true,
+      concept: conceptText,
+      title,
+      authorName: authorName.trim(),
+      format: format.trim(),
+      timePlaceSetting: settingText,
+    })
+  } catch (error) {
+    console.error('Novel concept generation error:', error)
+    return res.status(500).json({ error: 'Failed to generate novel concept', details: error.message })
+  }
+})
+
+// POST /api/generate/novel/chapter-summaries - Novel Call 2: Chapter-by-chapter outline
+// Takes the concept from Call 1 and expands it into detailed chapter summaries.
+app.post('/api/generate/novel/chapter-summaries', async (req, res) => {
+  try {
+    const { authorName, format, language, concept } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!format?.trim()) return res.status(400).json({ error: 'format is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
+
+    const prompt = `You are ${authorName.trim()}. You are writing a ${format.trim()} in ${language.trim()}.
+
+Below is the complete concept for the novel. Expand it into a detailed chapter-by-chapter outline. For each chapter provide: a title, a summary of what happens scene by scene, which characters are present, and how the chapter ends. Every chapter must advance both the central narrative and at least one secondary character's arc. The outline must cover the entire novel from first page to last.
+
+Do not write prose. Write summaries only. Be specific — name the actions, the locations, the turning points. "They argue" is not enough. What do they argue about, where, and what changes because of it.
+
+Here is the concept:
+
+${concept.trim()}`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('NOVEL CALL 2 — CHAPTER SUMMARIES')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Format:', format.trim())
+    console.log('Language:', language.trim())
+    console.log('Concept length:', concept.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    let summariesText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        summariesText += event.delta.text
+      }
+    }
+    summariesText = stripPreamble(summariesText)
+
+    if (!summariesText) {
+      return res.status(500).json({ error: 'No chapter summaries were generated.' })
+    }
+
+    console.log('NOVEL CALL 2 — SUMMARIES RECEIVED:')
+    console.log('Length:', summariesText.length, 'chars')
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({
+      success: true,
+      chapterSummaries: summariesText,
+      authorName: authorName.trim(),
+      format: format.trim(),
+    })
+  } catch (error) {
+    console.error('Chapter summaries generation error:', error)
+    return res.status(500).json({ error: 'Failed to generate chapter summaries', details: error.message })
+  }
+})
+
+// POST /api/generate/novel/chapter - Novel Call 3: Write a single chapter
+// Receives concept, outline, previous prose, and writes one chapter.
+app.post('/api/generate/novel/chapter', async (req, res) => {
+  try {
+    const { authorName, language, chapterNumber, chapterTitle, concept, chapterSummaries, previousProse } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+    if (!chapterNumber) return res.status(400).json({ error: 'chapterNumber is required' })
+    if (!chapterTitle?.trim()) return res.status(400).json({ error: 'chapterTitle is required' })
+    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
+    if (!chapterSummaries?.trim()) return res.status(400).json({ error: 'chapterSummaries is required' })
+
+    const prevProse = previousProse || ''
+
+    const previousSection = prevProse
+      ? `\n\n=== PREVIOUS CHAPTERS ===\n\n${prevProse}`
+      : '\n\n=== PREVIOUS CHAPTERS ===\n\n(This is Chapter 1 — no previous chapters yet.)'
+
+    const prompt = `You are ${authorName.trim()}. You are writing a novel in ${language.trim()}.
+
+Below is the complete concept, the full chapter-by-chapter outline, and all chapters written so far. You must keep the entire novel in mind as you write. Every detail you introduce must serve the whole. Every sentence must know where the story is going and where it has been.
+
+You are writing Chapter ${chapterNumber}: ${chapterTitle.trim()}.
+
+CRITICAL: You must not contradict any detail from previous chapters. Character names, locations, physical descriptions, established facts, timeline — everything must remain consistent with what has already been written. If a character's eyes were brown in Chapter 2, they are brown now. If it was raining when they arrived, it was raining. The reader will notice. Do not invent new backstory that conflicts with backstory already established in prose.
+
+Write the complete chapter. No preamble, no commentary. Begin with the first sentence of the chapter and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks within the chapter, simply use three blank lines.
+
+=== CONCEPT ===
+
+${concept.trim()}
+
+=== CHAPTER OUTLINE ===
+
+${chapterSummaries.trim()}${previousSection}`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log(`NOVEL CALL 3 — CHAPTER ${chapterNumber}: ${chapterTitle.trim()}`)
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Language:', language.trim())
+    console.log('Previous prose length:', prevProse.length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    let chapterText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        chapterText += event.delta.text
+      }
+    }
+    chapterText = stripPreamble(chapterText)
+    chapterText = cleanStoryText(chapterText)
+
+    if (!chapterText) {
+      return res.status(500).json({ error: `No prose was generated for Chapter ${chapterNumber}.` })
+    }
+
+    const wordCount = chapterText.split(/\s+/).length
+    console.log(`NOVEL CALL 3 — CHAPTER ${chapterNumber} RECEIVED:`)
+    console.log('Word count:', wordCount)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({
+      success: true,
+      chapterNumber,
+      chapterTitle: chapterTitle.trim(),
+      chapterText,
+      wordCount,
+      authorName: authorName.trim(),
+    })
+  } catch (error) {
+    console.error(`Novel chapter generation error:`, error)
+    return res.status(500).json({ error: 'Failed to generate chapter', details: error.message })
+  }
+})
+
+// POST /api/generate/novel/validate-chapter - Contradiction check (Sonnet)
+// Compares a newly written chapter against all previous prose.
+app.post('/api/generate/novel/validate-chapter', async (req, res) => {
+  try {
+    const { chapterNumber, chapterText, previousProse } = req.body
+
+    if (!chapterNumber) return res.status(400).json({ error: 'chapterNumber is required' })
+    if (!chapterText?.trim()) return res.status(400).json({ error: 'chapterText is required' })
+
+    // No validation needed for Chapter 1 — nothing to contradict
+    if (!previousProse?.trim()) {
+      return res.json({ success: true, valid: true, contradictions: null })
+    }
+
+    const prompt = `Read the following chapter and compare it against all previous chapters. Flag any contradictions in: character names, physical descriptions, locations, established facts, timeline, or backstory. List each contradiction with the specific detail from the previous chapter and the conflicting detail from the new chapter. If there are no contradictions, respond with "No contradictions found."
+
+=== NEW CHAPTER ===
+${chapterText.trim()}
+
+=== PREVIOUS CHAPTERS ===
+${previousProse.trim()}`
+
+    console.log(`\nVALIDATION — Chapter ${chapterNumber}`)
+
+    let validationText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        validationText += event.delta.text
+      }
+    }
+    validationText = validationText.trim()
+
+    const isValid = /no contradictions found/i.test(validationText)
+
+    console.log(`Validation result: ${isValid ? 'PASS' : 'CONTRADICTIONS FOUND'}`)
+    if (!isValid) console.log(validationText)
+
+    return res.json({
+      success: true,
+      valid: isValid,
+      contradictions: isValid ? null : validationText,
+    })
+  } catch (error) {
+    console.error('Chapter validation error:', error)
+    return res.status(500).json({ error: 'Failed to validate chapter', details: error.message })
+  }
+})
+
+// POST /api/generate/novel/write-all-chapters - Invocation loop: write every chapter sequentially
+// Reads book data from Firestore, writes chapters one by one, validates each, stores results.
+app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
+  try {
+    const { uid, bookId } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const { concept, chapterSummaries, author, language } = bookData
+
+    if (!concept?.trim() || !chapterSummaries?.trim()) {
+      return res.status(400).json({ error: 'Book must have concept and chapterSummaries (Call 1 + Call 2 complete)' })
+    }
+    if (bookData.status !== 'outline_complete' && bookData.status !== 'writing_chapters') {
+      return res.status(400).json({ error: `Book status must be outline_complete or writing_chapters, got: ${bookData.status}` })
+    }
+
+    // Parse chapter titles from the outline
+    const chapterHeaders = parseChapterHeaders(chapterSummaries)
+    const totalChapters = chapterHeaders.length
+
+    if (totalChapters === 0) {
+      return res.status(400).json({ error: 'Could not parse any chapter headers from the outline' })
+    }
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('NOVEL CALL 3 — WRITING ALL CHAPTERS')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Book:', bookId)
+    console.log('Author:', author)
+    console.log('Total chapters:', totalChapters)
+    console.log('═══════════════════════════════════════════════════════')
+
+    await bookRef.update({ status: 'writing_chapters', totalChapters })
+
+    // Reconstruct previousProse from already-written chapters (for resume)
+    const existingChaptersSnap = await bookRef.collection('chapters').orderBy('index').get()
+    let previousProse = ''
+    let startFrom = 1
+    for (const doc of existingChaptersSnap.docs) {
+      const ch = doc.data()
+      if (ch.content) {
+        previousProse += `\n\n=== CHAPTER ${ch.index}: ${ch.title} ===\n\n` + ch.content
+        startFrom = ch.index + 1
+      }
+    }
+
+    if (startFrom > 1) {
+      console.log(`Resuming from Chapter ${startFrom} (${startFrom - 1} chapters already written)`)
+    }
+
+    const results = []
+
+    for (let i = startFrom; i <= totalChapters; i++) {
+      const chapterTitle = chapterHeaders[i - 1].title
+
+      console.log(`\nWriting Chapter ${i}/${totalChapters}: ${chapterTitle}`)
+      await bookRef.update({ currentChapter: i })
+
+      // Generate chapter prose
+      let chapterText = ''
+      const chapterPrompt = buildChapterPrompt(author, language, i, chapterTitle, concept, chapterSummaries, previousProse)
+
+      const stream = anthropicClient.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: 16384,
+        messages: [{ role: 'user', content: chapterPrompt }],
+      })
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          chapterText += event.delta.text
+        }
+      }
+      chapterText = stripPreamble(chapterText)
+      chapterText = cleanStoryText(chapterText)
+
+      if (!chapterText) {
+        console.error(`Chapter ${i} produced no text — stopping`)
+        await bookRef.update({ status: 'error', errorMessage: `Chapter ${i} produced no text` })
+        return res.status(500).json({ error: `Chapter ${i} produced no text`, completedChapters: i - 1 })
+      }
+
+      const wordCount = chapterText.split(/\s+/).length
+      console.log(`Chapter ${i} complete — ${wordCount} words`)
+
+      // Validate against previous chapters (skip Chapter 1)
+      let validationResult = { valid: true, contradictions: null }
+      if (previousProse) {
+        try {
+          const valPrompt = `Read the following chapter and compare it against all previous chapters. Flag any contradictions in: character names, physical descriptions, locations, established facts, timeline, or backstory. List each contradiction with the specific detail from the previous chapter and the conflicting detail from the new chapter. If there are no contradictions, respond with "No contradictions found."
+
+=== NEW CHAPTER ===
+${chapterText}
+
+=== PREVIOUS CHAPTERS ===
+${previousProse}`
+
+          let valText = ''
+          const valStream = anthropicClient.messages.stream({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: valPrompt }],
+          })
+          for await (const event of valStream) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              valText += event.delta.text
+            }
+          }
+          valText = valText.trim()
+          validationResult.valid = /no contradictions found/i.test(valText)
+          validationResult.contradictions = validationResult.valid ? null : valText
+          console.log(`Validation: ${validationResult.valid ? 'PASS' : 'CONTRADICTIONS FOUND'}`)
+        } catch (valError) {
+          console.error(`Validation failed for Chapter ${i} (continuing):`, valError.message)
+        }
+      }
+
+      // Store chapter in Firestore
+      const chapterDoc = {
+        index: i,
+        title: chapterTitle,
+        content: chapterText,
+        wordCount,
+        validationPassed: validationResult.valid,
+        contradictions: validationResult.contradictions,
+        generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }
+      await bookRef.collection('chapters').doc(String(i)).set(chapterDoc)
+
+      results.push({ chapterNumber: i, title: chapterTitle, wordCount, valid: validationResult.valid })
+
+      // Accumulate prose for next chapter
+      previousProse += `\n\n=== CHAPTER ${i}: ${chapterTitle} ===\n\n` + chapterText
+
+      // Log context window usage estimate
+      const estimatedTokens = Math.ceil(previousProse.length / 4)
+      if (estimatedTokens > 800000) {
+        console.warn(`WARNING: Accumulated prose ~${estimatedTokens} tokens — approaching context limit`)
+      }
+    }
+
+    await bookRef.update({ status: 'complete', completedAt: admin.firestore.FieldValue.serverTimestamp() })
+
+    const totalWords = results.reduce((sum, r) => sum + r.wordCount, 0)
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('NOVEL COMPLETE')
+    console.log(`${totalChapters} chapters, ${totalWords} words total`)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({
+      success: true,
+      bookId,
+      totalChapters,
+      totalWords,
+      chapters: results,
+    })
+  } catch (error) {
+    console.error('Write all chapters error:', error)
+    return res.status(500).json({ error: 'Failed to write chapters', details: error.message })
+  }
+})
+
+// Parse chapter headers from the Call 2 outline text
+// Looks for patterns like "Chapter 1: Title", "Chapter 1 — Title", "Chapter 1. Title", etc.
+function parseChapterHeaders(outlineText) {
+  const headers = []
+  const lines = outlineText.split('\n')
+  for (const line of lines) {
+    const match = line.match(/^(?:#{1,3}\s*)?(?:\*{0,2})?\s*Chapter\s+(\d+)\s*[:\-–—.]\s*(.+?)(?:\*{0,2})?\s*$/i)
+    if (match) {
+      headers.push({ number: parseInt(match[1], 10), title: match[2].trim() })
+    }
+  }
+  return headers
+}
+
+// Build the Call 3 prompt for a single chapter
+function buildChapterPrompt(authorName, language, chapterNumber, chapterTitle, concept, chapterSummaries, previousProse) {
+  const previousSection = previousProse
+    ? `\n\n=== PREVIOUS CHAPTERS ===\n\n${previousProse}`
+    : '\n\n=== PREVIOUS CHAPTERS ===\n\n(This is Chapter 1 — no previous chapters yet.)'
+
+  return `You are ${authorName}. You are writing a novel in ${language}.
+
+Below is the complete concept, the full chapter-by-chapter outline, and all chapters written so far. You must keep the entire novel in mind as you write. Every detail you introduce must serve the whole. Every sentence must know where the story is going and where it has been.
+
+You are writing Chapter ${chapterNumber}: ${chapterTitle}.
+
+CRITICAL: You must not contradict any detail from previous chapters. Character names, locations, physical descriptions, established facts, timeline — everything must remain consistent with what has already been written. If a character's eyes were brown in Chapter 2, they are brown now. If it was raining when they arrived, it was raining. The reader will notice. Do not invent new backstory that conflicts with backstory already established in prose.
+
+Write the complete chapter. No preamble, no commentary. Begin with the first sentence of the chapter and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks within the chapter, simply use three blank lines.
+
+=== CONCEPT ===
+
+${concept}
+
+=== CHAPTER OUTLINE ===
+
+${chapterSummaries}${previousSection}`
+}
 
 // POST /api/generate/chapter/:bookId/:chapterIndex - Generate single chapter
 app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {

@@ -80,6 +80,13 @@ export const SHORT_STORY_AUTHORS = {
     'Hilary Mantel',
     'Umberto Eco',
   ],
+  fairytale: [
+    'Brothers Grimm',
+    'Hans Christian Andersen',
+    'Charles Perrault',
+    'Oscar Wilde',
+    'Italo Calvino',
+  ],
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,4 +138,5 @@ export const GENRES = [
   { id: 'fantasy', label: 'Fantasy' },
   { id: 'literary', label: 'Literary' },
   { id: 'historical', label: 'Historical Fiction' },
+  { id: 'fairytale', label: 'Fairy Tale' },
 ]

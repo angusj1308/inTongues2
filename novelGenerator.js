@@ -75,7 +75,8 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
           max_tokens: maxTokens,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
-          temperature: options.temperature ?? CONFIG.temperature
+          temperature: options.temperature ?? CONFIG.temperature,
+          betas: ['context-1m-2025-08-07']
         })
 
         process.stdout.write('  Streaming response: ')
@@ -106,7 +107,8 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
           messages: [
             { role: 'user', content: userPrompt }
           ],
-          temperature: options.temperature ?? CONFIG.temperature
+          temperature: options.temperature ?? CONFIG.temperature,
+          betas: ['context-1m-2025-08-07']
         })
 
         // Extract text content from response

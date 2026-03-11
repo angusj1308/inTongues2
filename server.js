@@ -9176,14 +9176,16 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
 
     await bookRef.update({ status: 'writing_chapters', totalChapters })
 
-    // Reconstruct previousProse from already-written chapters (for resume)
+    // Reconstruct previousProse and chapter docs from already-written chapters (for resume)
     const existingChaptersSnap = await bookRef.collection('chapters').orderBy('index').get()
     let previousProse = ''
+    const previousChapterDocs = []
     let startFrom = 1
     for (const doc of existingChaptersSnap.docs) {
       const ch = doc.data()
       if (ch.content) {
         previousProse += `\n\n=== CHAPTER ${ch.index}: ${ch.title} ===\n\n` + ch.content
+        previousChapterDocs.push({ index: ch.index, content: ch.content })
         startFrom = ch.index + 1
       }
     }
@@ -9202,6 +9204,7 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
     console.log('═══════════════════════════════════════════════════════')
 
     const results = []
+    let lastCachePrimeTime = 0 // Track when we last primed the cache
 
     for (let i = startFrom; i <= totalChapters; i++) {
       const chapterTitle = chapterHeaders[i - 1].title
@@ -9214,6 +9217,10 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
       // Generate chapter prose
       let chapterText = ''
       const chapterPrompt = buildChapterPrompt(author, language, i, chapterTitle, concept, chapterSummaries, previousProse)
+      const estimatedTokens = Math.ceil(chapterPrompt.length / 4)
+
+      // Decide whether to use cache-primed generation
+      const useCachePriming = i > CACHE_CHAPTER_COUNT && estimatedTokens > CACHE_TOKEN_THRESHOLD
 
       let promptDisplay = chapterPrompt
         .replace(concept, `[CONCEPT — ${concept.length} chars]`)
@@ -9222,18 +9229,52 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
         promptDisplay = promptDisplay.replace(previousProse, `[PREVIOUS CHAPTERS — ${previousProse.length} chars]`)
       }
       console.log('Prompt:', promptDisplay)
+      console.log('Estimated tokens:', estimatedTokens)
+      console.log('Cache priming:', useCachePriming ? 'YES' : 'no (below threshold)')
       console.log('───────────────────────────────────────────────────────')
 
-      const stream = anthropicClient.messages.stream({
-        model: 'claude-opus-4-6',
-        max_tokens: 16384,
-        messages: [{ role: 'user', content: chapterPrompt }],
-      })
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          chapterText += event.delta.text
+      if (useCachePriming) {
+        const stablePrefix = buildStableCachePrefix(author, language, concept, chapterSummaries, previousChapterDocs)
+
+        // Re-prime if cache may have expired (>4 min since last prime)
+        const timeSinceLastPrime = Date.now() - lastCachePrimeTime
+        if (lastCachePrimeTime === 0 || timeSinceLastPrime > 4 * 60 * 1000) {
+          await primeCacheIfNeeded(anthropicClient, stablePrefix)
+          lastCachePrimeTime = Date.now()
+        } else {
+          console.log(`Cache still warm (${Math.round(timeSinceLastPrime / 1000)}s since last prime), skipping re-prime`)
+        }
+
+        const remainingPrompt = buildRemainingPrompt(i, chapterTitle, previousChapterDocs)
+        const stream = anthropicClient.messages.stream({
+          model: 'claude-opus-4-6',
+          max_tokens: 16384,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: stablePrefix, cache_control: { type: 'ephemeral' } },
+              { type: 'text', text: remainingPrompt }
+            ]
+          }],
+        })
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            chapterText += event.delta.text
+          }
+        }
+      } else {
+        const stream = anthropicClient.messages.stream({
+          model: 'claude-opus-4-6',
+          max_tokens: 16384,
+          messages: [{ role: 'user', content: chapterPrompt }],
+        })
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            chapterText += event.delta.text
+          }
         }
       }
+
       chapterText = stripPreamble(chapterText)
       chapterText = cleanStoryText(chapterText)
 
@@ -9300,13 +9341,14 @@ ${previousProse}`
 
       results.push({ chapterNumber: i, title: chapterTitle, wordCount, valid: validationResult.valid })
 
-      // Accumulate prose for next chapter
+      // Accumulate prose and chapter docs for next chapter
       previousProse += `\n\n=== CHAPTER ${i}: ${chapterTitle} ===\n\n` + chapterText
+      previousChapterDocs.push({ index: i, content: chapterText })
 
       // Log context window usage estimate
-      const estimatedTokens = Math.ceil(previousProse.length / 4)
-      if (estimatedTokens > 800000) {
-        console.warn(`WARNING: Accumulated prose ~${estimatedTokens} tokens — approaching context limit`)
+      const estimatedTokens2 = Math.ceil(previousProse.length / 4)
+      if (estimatedTokens2 > 800000) {
+        console.warn(`WARNING: Accumulated prose ~${estimatedTokens2} tokens — approaching context limit`)
       }
     }
 
@@ -9370,7 +9412,76 @@ function parseChapterHeaders(outlineText) {
   return headers
 }
 
-// Build the Call 3 prompt for a single chapter
+// Number of early chapters to cache as a stable prefix for rate-limit splitting
+const CACHE_CHAPTER_COUNT = 10
+// Minimum estimated tokens before we bother with cache priming
+const CACHE_TOKEN_THRESHOLD = 200000
+
+// Build the stable cache prefix from concept + outline + first N chapters.
+// This must produce byte-identical output for cache hits.
+function buildStableCachePrefix(authorName, language, concept, chapterSummaries, allChapterDocs) {
+  const stableChapters = allChapterDocs.filter(ch => ch.index <= CACHE_CHAPTER_COUNT)
+  let stableProse = ''
+  for (const ch of stableChapters) {
+    stableProse += `\n\n=== CHAPTER ${ch.index} ===\n\n` + ch.content
+  }
+
+  return `You are ${authorName}. You are writing a novel in ${language}.
+
+Below is the complete concept, the full chapter-by-chapter outline, and all chapters written so far. You must keep the entire novel in mind as you write. Every detail you introduce must serve the whole. Every sentence must know where the story is going and where it has been.
+
+CRITICAL: You must not contradict any detail from previous chapters. Character names, locations, physical descriptions, established facts, timeline — everything must remain consistent with what has already been written. If a character's eyes were brown in Chapter 2, they are brown now. If it was raining when they arrived, it was raining. The reader will notice. Do not invent new backstory that conflicts with backstory already established in prose.
+
+Write the complete chapter. No preamble, no commentary. Begin with the first sentence of the chapter and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks within the chapter, simply use three blank lines.
+
+=== CONCEPT ===
+
+${concept}
+
+=== CHAPTER OUTLINE ===
+
+${chapterSummaries}
+
+=== PREVIOUS CHAPTERS ===
+${stableProse}`
+}
+
+// Build the remaining (uncached) portion of the prompt: chapters after the cache boundary + writing instruction
+function buildRemainingPrompt(chapterNumber, chapterTitle, allChapterDocs) {
+  const laterChapters = allChapterDocs.filter(ch => ch.index > CACHE_CHAPTER_COUNT && ch.index < chapterNumber)
+  let laterProse = ''
+  for (const ch of laterChapters) {
+    laterProse += `\n\n=== CHAPTER ${ch.index} ===\n\n` + ch.content
+  }
+
+  const titleLine = chapterTitle ? ` ("${chapterTitle}")` : ''
+  return `${laterProse}
+
+You are writing Chapter ${chapterNumber}${titleLine}. Find Chapter ${chapterNumber} in the outline below and write it.`
+}
+
+// Prime the cache with the stable prefix, then wait for rate limit reset
+async function primeCacheIfNeeded(client, stablePrefix) {
+  console.log(`Priming cache with stable prefix (${stablePrefix.length} chars)...`)
+  const primeResponse = await client.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 1,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: stablePrefix, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: 'Acknowledge.' }
+      ]
+    }]
+  })
+  const cacheCreated = primeResponse.usage?.cache_creation_input_tokens || 0
+  console.log(`Cache primed (${cacheCreated} tokens written to cache). Waiting 60s for rate limit reset...`)
+  await new Promise(resolve => setTimeout(resolve, 60000))
+}
+
+// Build the Call 3 prompt for a single chapter (flat string, used when caching is not needed)
 function buildChapterPrompt(authorName, language, chapterNumber, chapterTitle, concept, chapterSummaries, previousProse) {
   const previousSection = previousProse
     ? `\n\n=== PREVIOUS CHAPTERS ===\n\n${previousProse}`
@@ -9442,18 +9553,24 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
 
     const chapterTitle = chapterHeaders[chapterNum - 1]?.title || null
 
-    // Load existing chapters to build previous prose context
+    // Load existing chapters as structured docs for cache splitting
     const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+    const previousChapterDocs = []
     let previousProse = ''
     for (const docSnap of chaptersSnapshot.docs) {
       const ch = docSnap.data()
       if (ch.content && ch.index < chapterNum) {
+        previousChapterDocs.push({ index: ch.index, content: ch.content })
         previousProse += `\n\n=== CHAPTER ${ch.index} ===\n\n` + ch.content
       }
     }
 
-    // Build chapter prompt — title is a hint in parentheses, model finds the chapter in the outline
+    // Build chapter prompt (flat string for logging and non-cached path)
     const chapterPrompt = buildChapterPrompt(author, language, chapterNum, chapterTitle, concept, chapterSummaries, previousProse)
+    const estimatedTokens = Math.ceil(chapterPrompt.length / 4)
+
+    // Decide whether to use cache-primed generation
+    const useCachePriming = chapterNum > CACHE_CHAPTER_COUNT && estimatedTokens > CACHE_TOKEN_THRESHOLD
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log(`CHAPTER ${chapterNum}/${totalChapters}: ${chapterTitle || '(no title parsed)'}`)
@@ -9461,6 +9578,8 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     console.log('Author:', author)
     console.log('Language:', language)
     console.log('Previous prose length:', previousProse.length, 'chars')
+    console.log('Estimated tokens:', estimatedTokens)
+    console.log('Cache priming:', useCachePriming ? 'YES' : 'no (below threshold)')
     console.log('───────────────────────────────────────────────────────')
     let promptDisplay = chapterPrompt
       .replace(concept, `[CONCEPT — ${concept.length} chars]`)
@@ -9474,14 +9593,40 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     await bookRef.update({ status: 'writing_chapters', currentChapter: chapterNum, totalChapters })
 
     let chapterText = ''
-    const stream = anthropicClient.messages.stream({
-      model: 'claude-opus-4-6',
-      max_tokens: 16384,
-      messages: [{ role: 'user', content: chapterPrompt }],
-    })
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        chapterText += event.delta.text
+
+    if (useCachePriming) {
+      // Cache-primed two-call strategy
+      const stablePrefix = buildStableCachePrefix(author, language, concept, chapterSummaries, previousChapterDocs)
+      await primeCacheIfNeeded(anthropicClient, stablePrefix)
+
+      const remainingPrompt = buildRemainingPrompt(chapterNum, chapterTitle, previousChapterDocs)
+      const stream = anthropicClient.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: 16384,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: stablePrefix, cache_control: { type: 'ephemeral' } },
+            { type: 'text', text: remainingPrompt }
+          ]
+        }],
+      })
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          chapterText += event.delta.text
+        }
+      }
+    } else {
+      // Standard single-call path
+      const stream = anthropicClient.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: 16384,
+        messages: [{ role: 'user', content: chapterPrompt }],
+      })
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          chapterText += event.delta.text
+        }
       }
     }
     chapterText = stripPreamble(chapterText)

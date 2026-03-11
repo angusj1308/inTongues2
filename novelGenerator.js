@@ -15,7 +15,10 @@ function getAnthropicClient() {
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY environment variable is not set')
     }
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      defaultHeaders: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,extended-context-2025-05-07' }
+    })
   }
   return client
 }
@@ -75,8 +78,7 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
           max_tokens: maxTokens,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
-          temperature: options.temperature ?? CONFIG.temperature,
-          betas: ['context-1m-2025-08-07']
+          temperature: options.temperature ?? CONFIG.temperature
         })
 
         process.stdout.write('  Streaming response: ')
@@ -107,8 +109,7 @@ async function callClaude(systemPrompt, userPrompt, options = {}) {
           messages: [
             { role: 'user', content: userPrompt }
           ],
-          temperature: options.temperature ?? CONFIG.temperature,
-          betas: ['context-1m-2025-08-07']
+          temperature: options.temperature ?? CONFIG.temperature
         })
 
         // Extract text content from response

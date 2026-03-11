@@ -202,10 +202,7 @@ const GenerateStoryPanel = ({
 
     // ── Call 1: Roll an author from the genre and generate a concept ──
     const FORMAT_MAP = { short: 'short story', novella: 'novella', novel: 'novel' }
-    // Fairy tales are their own literary form, not just a "short story"
-    const format = genre === 'fairytale' && lengthPreset === 'short'
-      ? 'fairy tale'
-      : (FORMAT_MAP[lengthPreset] || 'short story')
+    const format = FORMAT_MAP[lengthPreset] || 'short story'
 
     let concept = null
     let rolledAuthor = null

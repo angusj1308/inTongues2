@@ -9217,10 +9217,10 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
       // Generate chapter prose
       let chapterText = ''
       const chapterPrompt = buildChapterPrompt(author, language, i, chapterTitle, concept, chapterSummaries, previousProse)
-      const estimatedTokens = Math.ceil(chapterPrompt.length / 4)
 
-      // Decide whether to use cache-primed generation
-      const useCachePriming = i > CACHE_CHAPTER_COUNT && estimatedTokens > CACHE_TOKEN_THRESHOLD
+      // Cache priming: always activate after 10 chapters, cache half the written chapters
+      const useCachePriming = previousChapterDocs.length > 10
+      const cacheCount = useCachePriming ? Math.floor(previousChapterDocs.length / 2) : 0
 
       let promptDisplay = chapterPrompt
         .replace(concept, `[CONCEPT — ${concept.length} chars]`)
@@ -9229,14 +9229,13 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
         promptDisplay = promptDisplay.replace(previousProse, `[PREVIOUS CHAPTERS — ${previousProse.length} chars]`)
       }
       console.log('Prompt:', promptDisplay)
-      console.log('Estimated tokens:', estimatedTokens)
-      console.log('Cache priming:', useCachePriming ? 'YES' : 'no (below threshold)')
+      console.log('Cache priming:', useCachePriming ? `YES (caching ${cacheCount} of ${previousChapterDocs.length} chapters)` : `no (${previousChapterDocs.length} chapters written)`)
       console.log('───────────────────────────────────────────────────────')
 
       if (useCachePriming) {
-        const stablePrefix = buildStableCachePrefix(author, language, concept, chapterSummaries, previousChapterDocs)
+        const stablePrefix = buildStableCachePrefix(author, language, concept, chapterSummaries, previousChapterDocs, cacheCount)
 
-        // Re-prime if cache may have expired (>4 min since last prime)
+        // Re-prime if cache may have expired (>4 min since last prime) or cache count changed
         const timeSinceLastPrime = Date.now() - lastCachePrimeTime
         if (lastCachePrimeTime === 0 || timeSinceLastPrime > 4 * 60 * 1000) {
           await primeCacheIfNeeded(anthropicClient, stablePrefix)
@@ -9245,7 +9244,7 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
           console.log(`Cache still warm (${Math.round(timeSinceLastPrime / 1000)}s since last prime), skipping re-prime`)
         }
 
-        const remainingPrompt = buildRemainingPrompt(i, chapterTitle, previousChapterDocs)
+        const remainingPrompt = buildRemainingPrompt(i, chapterTitle, previousChapterDocs, cacheCount)
         const stream = anthropicClient.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 16384,
@@ -9412,15 +9411,10 @@ function parseChapterHeaders(outlineText) {
   return headers
 }
 
-// Number of early chapters to cache as a stable prefix for rate-limit splitting
-const CACHE_CHAPTER_COUNT = 10
-// Minimum estimated tokens before we bother with cache priming
-const CACHE_TOKEN_THRESHOLD = 200000
-
 // Build the stable cache prefix from concept + outline + first N chapters.
 // This must produce byte-identical output for cache hits.
-function buildStableCachePrefix(authorName, language, concept, chapterSummaries, allChapterDocs) {
-  const stableChapters = allChapterDocs.filter(ch => ch.index <= CACHE_CHAPTER_COUNT)
+function buildStableCachePrefix(authorName, language, concept, chapterSummaries, allChapterDocs, cacheCount) {
+  const stableChapters = allChapterDocs.filter(ch => ch.index <= cacheCount)
   let stableProse = ''
   for (const ch of stableChapters) {
     stableProse += `\n\n=== CHAPTER ${ch.index} ===\n\n` + ch.content
@@ -9449,8 +9443,8 @@ ${stableProse}`
 }
 
 // Build the remaining (uncached) portion of the prompt: chapters after the cache boundary + writing instruction
-function buildRemainingPrompt(chapterNumber, chapterTitle, allChapterDocs) {
-  const laterChapters = allChapterDocs.filter(ch => ch.index > CACHE_CHAPTER_COUNT && ch.index < chapterNumber)
+function buildRemainingPrompt(chapterNumber, chapterTitle, allChapterDocs, cacheCount) {
+  const laterChapters = allChapterDocs.filter(ch => ch.index > cacheCount && ch.index < chapterNumber)
   let laterProse = ''
   for (const ch of laterChapters) {
     laterProse += `\n\n=== CHAPTER ${ch.index} ===\n\n` + ch.content
@@ -9567,10 +9561,10 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
 
     // Build chapter prompt (flat string for logging and non-cached path)
     const chapterPrompt = buildChapterPrompt(author, language, chapterNum, chapterTitle, concept, chapterSummaries, previousProse)
-    const estimatedTokens = Math.ceil(chapterPrompt.length / 4)
 
-    // Decide whether to use cache-primed generation
-    const useCachePriming = chapterNum > CACHE_CHAPTER_COUNT && estimatedTokens > CACHE_TOKEN_THRESHOLD
+    // Cache priming: always activate after 10 chapters, cache half the written chapters
+    const useCachePriming = previousChapterDocs.length > 10
+    const cacheCount = useCachePriming ? Math.floor(previousChapterDocs.length / 2) : 0
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log(`CHAPTER ${chapterNum}/${totalChapters}: ${chapterTitle || '(no title parsed)'}`)
@@ -9578,8 +9572,7 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
     console.log('Author:', author)
     console.log('Language:', language)
     console.log('Previous prose length:', previousProse.length, 'chars')
-    console.log('Estimated tokens:', estimatedTokens)
-    console.log('Cache priming:', useCachePriming ? 'YES' : 'no (below threshold)')
+    console.log('Cache priming:', useCachePriming ? `YES (caching ${cacheCount} of ${previousChapterDocs.length} chapters)` : `no (${previousChapterDocs.length} chapters written)`)
     console.log('───────────────────────────────────────────────────────')
     let promptDisplay = chapterPrompt
       .replace(concept, `[CONCEPT — ${concept.length} chars]`)
@@ -9596,10 +9589,10 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
 
     if (useCachePriming) {
       // Cache-primed two-call strategy
-      const stablePrefix = buildStableCachePrefix(author, language, concept, chapterSummaries, previousChapterDocs)
+      const stablePrefix = buildStableCachePrefix(author, language, concept, chapterSummaries, previousChapterDocs, cacheCount)
       await primeCacheIfNeeded(anthropicClient, stablePrefix)
 
-      const remainingPrompt = buildRemainingPrompt(chapterNum, chapterTitle, previousChapterDocs)
+      const remainingPrompt = buildRemainingPrompt(chapterNum, chapterTitle, previousChapterDocs, cacheCount)
       const stream = anthropicClient.messages.stream({
         model: 'claude-opus-4-6',
         max_tokens: 16384,

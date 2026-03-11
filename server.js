@@ -200,7 +200,7 @@ let anthropicClient = null
 if (process.env.ANTHROPIC_API_KEY) {
   anthropicClient = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
-    defaultHeaders: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,extended-context-2025-05-07' }
+    defaultHeaders: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,context-1m-2025-08-07' }
   })
 } else {
   console.warn('Warning: ANTHROPIC_API_KEY not set. Claude features disabled.')

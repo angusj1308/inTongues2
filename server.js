@@ -198,7 +198,10 @@ if (process.env.OPENAI_API_KEY) {
 
 let anthropicClient = null
 if (process.env.ANTHROPIC_API_KEY) {
-  anthropicClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  anthropicClient = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultHeaders: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,extended-context-2025-05-07' }
+  })
 } else {
   console.warn('Warning: ANTHROPIC_API_KEY not set. Claude features disabled.')
 }
@@ -8722,7 +8725,6 @@ app.post('/api/generate/concept', async (req, res) => {
       model: 'claude-opus-4-6',
       max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
-      betas: ['context-1m-2025-08-07'],
     })
 
     const conceptText = response.content[0].text.trim()
@@ -8808,7 +8810,6 @@ app.post('/api/generate/full-story', async (req, res) => {
       model: 'claude-opus-4-6',
       max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
-      betas: ['context-1m-2025-08-07'],
     })
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -8878,7 +8879,6 @@ app.post('/api/generate/novel/concept', async (req, res) => {
       model: 'claude-opus-4-6',
       max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
-      betas: ['context-1m-2025-08-07'],
     })
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -8955,7 +8955,6 @@ ${concept.trim()}`
       model: 'claude-opus-4-6',
       max_tokens: 32768,
       messages: [{ role: 'user', content: prompt }],
-      betas: ['context-1m-2025-08-07'],
     })
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -9045,7 +9044,6 @@ ${chapterSummaries.trim()}${previousSection}`
       model: 'claude-opus-4-6',
       max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
-      betas: ['context-1m-2025-08-07'],
     })
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -9110,7 +9108,6 @@ ${previousProse.trim()}`
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
-      betas: ['context-1m-2025-08-07'],
     })
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -9231,7 +9228,6 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
         model: 'claude-opus-4-6',
         max_tokens: 16384,
         messages: [{ role: 'user', content: chapterPrompt }],
-        betas: ['context-1m-2025-08-07'],
       })
       for await (const event of stream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -9272,7 +9268,6 @@ ${previousProse}`
             model: 'claude-sonnet-4-6',
             max_tokens: 4096,
             messages: [{ role: 'user', content: valPrompt }],
-            betas: ['context-1m-2025-08-07'],
           })
           for await (const event of valStream) {
             if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
@@ -9483,7 +9478,6 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       model: 'claude-opus-4-6',
       max_tokens: 16384,
       messages: [{ role: 'user', content: chapterPrompt }],
-      betas: ['context-1m-2025-08-07'],
     })
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {

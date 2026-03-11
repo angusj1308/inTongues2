@@ -31,6 +31,7 @@ export const SHORT_STORY_AUTHORS = {
     'G.K. Chesterton',
     'Raymond Chandler',
     'Georges Simenon',
+    'Freida McFadden',
   ],
   adventure: [
     'Jack London',
@@ -122,6 +123,7 @@ export const NOVEL_AUTHORS = {
     'Raymond Chandler',
     'Georges Simenon',
     'Dashiell Hammett',
+    'Freida McFadden',
   ],
   adventure: [
     'Alexandre Dumas',
@@ -179,6 +181,16 @@ export const NOVEL_AUTHORS = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Test mode — lock author selection to a single author 100% of the time.
+// Set authorOverride to a name string to force every roll to return that author.
+// Set to null/'' to resume normal even-distribution selection.
+// ─────────────────────────────────────────────────────────────────────────────
+let _authorOverride = 'Freida McFadden' // ← set to null to disable
+
+export function setAuthorOverride(name) { _authorOverride = name || null }
+export function getAuthorOverride() { return _authorOverride }
+
+// ─────────────────────────────────────────────────────────────────────────────
 // _rollFromPool(pool, countsStore, genre) — shared logic for even-distribution
 // author selection. Both rollAuthor and rollNovelAuthor delegate here.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,6 +198,9 @@ const _shortStoryCounts = {} // { genre: { authorName: count } }
 const _novelCounts = {}     // { genre: { authorName: count } }
 
 function _rollFromPool(pool, countsStore, genre) {
+  // Test mode: return the override author immediately
+  if (_authorOverride) return _authorOverride
+
   const authors = pool[genre]
   if (!authors || !authors.length) {
     throw new Error(`No authors found for genre "${genre}"`)

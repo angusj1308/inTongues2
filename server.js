@@ -9415,7 +9415,7 @@ function parseChapterHeaders(outlineText) {
 // Number of early chapters to cache as a stable prefix for rate-limit splitting
 const CACHE_CHAPTER_COUNT = 10
 // Minimum estimated tokens before we bother with cache priming
-const CACHE_TOKEN_THRESHOLD = 200000
+const CACHE_TOKEN_THRESHOLD = 150000
 
 // Build the stable cache prefix from concept + outline + first N chapters.
 // This must produce byte-identical output for cache hits.

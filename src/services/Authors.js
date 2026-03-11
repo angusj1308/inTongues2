@@ -198,8 +198,8 @@ const _shortStoryCounts = {} // { genre: { authorName: count } }
 const _novelCounts = {}     // { genre: { authorName: count } }
 
 function _rollFromPool(pool, countsStore, genre) {
-  // Test mode: return the override author immediately
-  if (_authorOverride) return _authorOverride
+  // Test mode: return the override author only for the matching genre
+  if (_authorOverride && genre === 'mystery') return _authorOverride
 
   const authors = pool[genre]
   if (!authors || !authors.length) {

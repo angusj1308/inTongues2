@@ -17,7 +17,7 @@ function getAnthropicClient() {
     }
     client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
-      defaultHeaders: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,extended-context-2025-05-07' }
+      defaultHeaders: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,context-1m-2025-08-07' }
     })
   }
   return client

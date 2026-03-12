@@ -172,11 +172,11 @@ export const NOVEL_AUTHORS = {
     'John Steinbeck',
   ],
   historical: [
-    'Hilary Mantel',
-    'Umberto Eco',
+    'Patrick O\'Brian',
+    'Bernard Cornwell',
     'Arturo Pérez-Reverte',
-    'Ken Follett',
-    'Isaac Bashevis Singer',
+    'Tracy Chevalier',
+    'Colleen McCullough',
   ],
 }
 

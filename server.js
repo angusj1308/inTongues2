@@ -9685,6 +9685,114 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
   }
 })
 
+// POST /api/generate/novel/regenerate-summaries - Regenerate chapter summaries (Call 2) for a book
+// Keeps the concept but re-generates the chapter outline, deletes all existing chapters, resets status.
+app.post('/api/generate/novel/regenerate-summaries', async (req, res) => {
+  try {
+    const { uid, bookId } = req.body
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!bookId) return res.status(400).json({ error: 'bookId is required' })
+
+    const bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+    const bookDoc = await bookRef.get()
+
+    if (!bookDoc.exists) {
+      return res.status(404).json({ error: 'Book not found' })
+    }
+
+    const bookData = bookDoc.data()
+    const { concept, author, language, lengthPreset } = bookData
+
+    if (!concept?.trim()) {
+      return res.status(400).json({ error: 'Book must have a concept (Call 1 complete)' })
+    }
+
+    const format = lengthPreset || 'novel'
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('REGENERATE CHAPTER SUMMARIES (Call 2 redo)')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Book ID:', bookId)
+    console.log('Author:', author)
+    console.log('Format:', format)
+    console.log('Language:', language)
+    console.log('Concept length:', concept.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    await bookRef.update({ status: 'regenerating_summaries' })
+
+    const prompt = `You are ${author}. You are writing a ${format} in ${language}.
+
+Below is the complete concept for the novel. Expand it into a detailed chapter-by-chapter outline. For each chapter provide: a title, a summary of what happens scene by scene, which characters are present, and how the chapter ends. Every chapter must advance both the central narrative and at least one secondary character's arc. The outline must cover the entire novel from first page to last.
+
+IMPORTANT: Each chapter heading MUST use the format "Chapter N: Title" (e.g. "Chapter 1: The River", "Chapter 2: A Stranger Arrives"). Do not use any other heading format.
+
+Do not write prose. Write summaries only. Be specific — name the actions, the locations, the turning points. "They argue" is not enough. What do they argue about, where, and what changes because of it.
+
+Here is the concept:
+
+${concept.trim()}`
+
+    let summariesText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 32768,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        summariesText += event.delta.text
+      }
+    }
+    summariesText = stripPreamble(summariesText)
+
+    if (!summariesText) {
+      await bookRef.update({ status: 'error', errorMessage: 'Regenerated chapter summaries produced no text' })
+      return res.status(500).json({ error: 'No chapter summaries were generated.' })
+    }
+
+    console.log('REGENERATED SUMMARIES RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(summariesText)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    // Parse new chapter count
+    const chapterHeaders = parseChapterHeaders(summariesText)
+    const totalChapters = chapterHeaders.length
+
+    // Delete all existing chapters
+    const chaptersSnapshot = await bookRef.collection('chapters').get()
+    if (!chaptersSnapshot.empty) {
+      const batch = firestore.batch()
+      chaptersSnapshot.docs.forEach((doc) => batch.delete(doc.ref))
+      await batch.commit()
+      console.log(`Deleted ${chaptersSnapshot.size} existing chapters`)
+    }
+
+    // Update book with new summaries and reset chapter progress
+    await bookRef.update({
+      chapterSummaries: summariesText,
+      totalChapters,
+      chaptersGenerated: 0,
+      currentChapter: null,
+      status: 'outline_complete',
+    })
+
+    console.log(`Chapter summaries regenerated. ${totalChapters} chapters in new outline.`)
+
+    return res.json({
+      success: true,
+      bookId,
+      chapterSummaries: summariesText,
+      totalChapters,
+    })
+  } catch (error) {
+    console.error('Regenerate chapter summaries error:', error)
+    return res.status(500).json({ error: 'Failed to regenerate chapter summaries', details: error.message })
+  }
+})
+
 // GET /api/generate/book/:bookId - Get book status and bible
 app.get('/api/generate/book/:bookId', async (req, res) => {
   try {

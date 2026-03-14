@@ -8877,7 +8877,8 @@ app.post('/api/generate/novel/concept', async (req, res) => {
     let conceptText = ''
     const stream = anthropicClient.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 16384,
+      max_tokens: 32000,
+      thinking: { type: 'enabled', budget_tokens: 16000 },
       messages: [{ role: 'user', content: prompt }],
     })
     for await (const event of stream) {
@@ -8953,7 +8954,8 @@ ${concept.trim()}`
     let summariesText = ''
     const stream = anthropicClient.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 32768,
+      max_tokens: 48000,
+      thinking: { type: 'enabled', budget_tokens: 16000 },
       messages: [{ role: 'user', content: prompt }],
     })
     for await (const event of stream) {
@@ -9737,7 +9739,8 @@ ${concept.trim()}`
     let summariesText = ''
     const stream = anthropicClient.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 32768,
+      max_tokens: 48000,
+      thinking: { type: 'enabled', budget_tokens: 16000 },
       messages: [{ role: 'user', content: prompt }],
     })
     for await (const event of stream) {

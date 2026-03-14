@@ -8972,6 +8972,55 @@ ${concept.trim()}`
     console.log(summariesText)
     console.log('═══════════════════════════════════════════════════════\n')
 
+    // ── Validation call: check concept + summaries for inconsistencies ──
+    console.log('NOVEL CALL 2.5 — VALIDATING OUTLINE CONSISTENCY…')
+    console.log('───────────────────────────────────────────────────────')
+
+    const validationPrompt = `You are a continuity and logic validator for prose fiction outlines. Your task is to read the novel concept and chapter-by-chapter outline below and identify every instance of the following four categories of error:
+
+1. OBJECT STATE CONTRADICTION — the same object appears in two incompatible states at the same point in the story. Track every named object through every mention. If it is in one place or condition in one passage and an incompatible place or condition in another, flag it.
+
+2. PHYSICAL IMPOSSIBILITY — something described happening that cannot happen given the laws of the physical world. Test every claim. Can the described action actually occur given the described conditions, distances, materials, and circumstances?
+
+3. TIMELINE CONTRADICTION — event A is described as happening before event B, but details elsewhere make that sequence impossible. Track who is where when, and verify that every account of the same event is consistent.
+
+4. CHARACTER NAMING COLLISION — the same name or near-identical name is used for two distinct characters who appear in proximity to each other in the story.
+
+For every issue found, you must:
+- State the category
+- Quote the two conflicting passages exactly
+- Explain in plain language why they cannot both be true
+
+Do not summarise the story. Do not assess its quality. Do not suggest improvements beyond the logical errors. Only report confirmed errors. If you find nothing in a category, say so.
+
+If you find no issues in any category, report: "No issues found. The outline is internally consistent." Do not flag uncertainties or possibilities — only confirmed errors. If you are not certain something is an error, do not report it.
+
+=== NOVEL CONCEPT ===
+
+${concept.trim()}
+
+=== CHAPTER-BY-CHAPTER OUTLINE ===
+
+${summariesText}`
+
+    let validationText = ''
+    const validationStream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 32000,
+      thinking: { type: 'enabled', budget_tokens: 16000 },
+      messages: [{ role: 'user', content: validationPrompt }],
+    })
+    for await (const event of validationStream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        validationText += event.delta.text
+      }
+    }
+
+    console.log('NOVEL CALL 2.5 — VALIDATION RESULT:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(validationText)
+    console.log('═══════════════════════════════════════════════════════\n')
+
     return res.json({
       success: true,
       chapterSummaries: summariesText,

@@ -239,6 +239,30 @@ export async function cancelGeneration(params) {
   return response.json()
 }
 
+/**
+ * Regenerate chapter summaries (Call 2) — keeps concept, re-generates outline, deletes chapters.
+ * @param {Object} params
+ * @param {string} params.uid - User ID
+ * @param {string} params.bookId - Book ID
+ * @returns {Promise<Object>} Result with new chapterSummaries and totalChapters
+ */
+export async function regenerateChapterSummaries(params) {
+  const { uid, bookId } = params
+
+  const response = await fetch(`${API_BASE}/api/generate/novel/regenerate-summaries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, bookId }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to regenerate chapter summaries')
+  }
+
+  return response.json()
+}
+
 // Level mapping for display
 export const NOVEL_LEVELS = [
   { value: 'Beginner', label: 'Beginner', description: 'Simple vocabulary and short sentences' },

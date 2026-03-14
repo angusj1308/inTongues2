@@ -19,7 +19,7 @@ import { db } from '../firebase'
 import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
-import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration } from '../services/novelApiClient'
+import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1169,6 +1169,31 @@ const Dashboard = () => {
     }
   }
 
+  // Regenerate chapter summaries (keep concept, redo outline, delete chapters)
+  const handleRegenerateSummaries = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+    if (generatingBookId) return
+
+    const confirmed = window.confirm(
+      'Regenerate chapter summaries?\n\nThis will keep the concept but create a new chapter outline and delete all written chapters.'
+    )
+    if (!confirmed) return
+
+    setGeneratingBookId(book.id)
+    try {
+      await regenerateChapterSummaries({
+        uid: user.uid,
+        bookId: book.id,
+      })
+    } catch (err) {
+      console.error('Error regenerating chapter summaries:', err)
+      alert(`Failed to regenerate chapter summaries: ${err.message}`)
+    } finally {
+      setGeneratingBookId(null)
+    }
+  }
+
   // Reset to start fresh from Phase 1
   const handleResetGeneration = async (e, book) => {
     e.stopPropagation()
@@ -1641,6 +1666,15 @@ const Dashboard = () => {
                                           ↻
                                         </button>
                                       )}
+                                      {newPipe && (
+                                        <button
+                                          className="book-phase-btn book-phase-reset"
+                                          onClick={(e) => handleRegenerateSummaries(e, book)}
+                                          title="Regenerate chapter summaries"
+                                        >
+                                          ⟲
+                                        </button>
+                                      )}
                                       {!newPipe && (
                                         <button
                                           className="book-phase-btn book-phase-reset"
@@ -1798,6 +1832,15 @@ const Dashboard = () => {
                                           title={inChapterMode ? 'Regenerate last chapter' : `Redo Phase ${book.currentPhase || book.lastPhaseCompleted}`}
                                         >
                                           ↻
+                                        </button>
+                                      )}
+                                      {newPipe && (
+                                        <button
+                                          className="book-phase-btn book-phase-reset"
+                                          onClick={(e) => handleRegenerateSummaries(e, book)}
+                                          title="Regenerate chapter summaries"
+                                        >
+                                          ⟲
                                         </button>
                                       )}
                                       {!newPipe && (

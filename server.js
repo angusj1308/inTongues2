@@ -9595,7 +9595,8 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       const remainingPrompt = buildRemainingPrompt(chapterNum, chapterTitle, previousChapterDocs, cacheCount)
       const stream = anthropicClient.messages.stream({
         model: 'claude-opus-4-6',
-        max_tokens: 16384,
+        max_tokens: 32000,
+        thinking: { type: 'enabled', budget_tokens: 16000 },
         messages: [{
           role: 'user',
           content: [
@@ -9613,7 +9614,8 @@ app.post('/api/generate/chapter/:bookId/:chapterIndex', async (req, res) => {
       // Standard single-call path
       const stream = anthropicClient.messages.stream({
         model: 'claude-opus-4-6',
-        max_tokens: 16384,
+        max_tokens: 32000,
+        thinking: { type: 'enabled', budget_tokens: 16000 },
         messages: [{ role: 'user', content: chapterPrompt }],
       })
       for await (const event of stream) {

@@ -1,18 +1,10 @@
 // Short story authors by genre — used to drive story concept generation
 export const SHORT_STORY_AUTHORS = {
-  romance: [
-    'Nora Roberts',
-    'Julia Quinn',
-    'Beverly Jenkins',
-    'Judith McNaught',
-    'Lisa Kleypas',
-  ],
   thriller: [
     'Patricia Highsmith',
     'Roald Dahl',
     'Cornell Woolrich',
     'Daphne du Maurier',
-    'Patricia Cornwell',
   ],
   scifi: [
     'Ray Bradbury',
@@ -31,14 +23,12 @@ export const SHORT_STORY_AUTHORS = {
     'G.K. Chesterton',
     'Raymond Chandler',
     'Georges Simenon',
-    'Freida McFadden',
   ],
   adventure: [
     'Jack London',
     'Rudyard Kipling',
     'Joseph Conrad',
     'Robert Louis Stevenson',
-    'Alexandre Dumas',
   ],
   comedy: [
     'P.G. Wodehouse',
@@ -60,7 +50,6 @@ export const SHORT_STORY_AUTHORS = {
     'Neil Gaiman',
     'Robert E. Howard',
     'Lord Dunsany',
-    'J.R.R. Tolkien',
   ],
   literary: [
     'Anton Chekhov',
@@ -77,9 +66,6 @@ export const SHORT_STORY_AUTHORS = {
   historical: [
     'Isaac Bashevis Singer',
     'Isak Dinesen',
-    'Arturo Pérez-Reverte',
-    'Hilary Mantel',
-    'Umberto Eco',
   ],
   fairytale: [
     'Brothers Grimm',
@@ -185,7 +171,7 @@ export const NOVEL_AUTHORS = {
 // Set authorOverride to a name string to force every roll to return that author.
 // Set to null/'' to resume normal even-distribution selection.
 // ─────────────────────────────────────────────────────────────────────────────
-let _authorOverride = 'Freida McFadden' // ← set to null to disable
+let _authorOverride = null // ← set to an author name string to force that author
 
 export function setAuthorOverride(name) { _authorOverride = name || null }
 export function getAuthorOverride() { return _authorOverride }
@@ -245,8 +231,8 @@ export function rollNovelAuthor(genre) {
   return _rollFromPool(NOVEL_AUTHORS, _novelCounts, genre)
 }
 
-// Genre metadata for UI display
-export const GENRES = [
+// Genre metadata — master list with display labels
+const ALL_GENRES = [
   { id: 'romance', label: 'Romance' },
   { id: 'thriller', label: 'Thriller' },
   { id: 'scifi', label: 'Science Fiction' },
@@ -259,3 +245,10 @@ export const GENRES = [
   { id: 'historical', label: 'Historical Fiction' },
   { id: 'fairytale', label: 'Fairy Tale' },
 ]
+
+// Derived genre lists — only genres that have authors in the corresponding pool
+export const SHORT_STORY_GENRES = ALL_GENRES.filter((g) => SHORT_STORY_AUTHORS[g.id])
+export const NOVEL_GENRES = ALL_GENRES.filter((g) => NOVEL_AUTHORS[g.id])
+
+// Default export for backwards compat — includes all genres
+export const GENRES = ALL_GENRES

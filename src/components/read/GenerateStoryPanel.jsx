@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
 import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
-import { GENRES } from '../../services/Authors'
+import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
 
 const LEVELS = ['Beginner', 'Intermediate', 'Native']
 
@@ -42,7 +42,7 @@ const GenerateStoryPanel = ({
 
   const [levelIndex, setLevelIndex] = useState(0)
   const [lengthPreset, setLengthPreset] = useState('short')
-  const [genre, setGenre] = useState('romance')
+  const [genre, setGenre] = useState('thriller')
   const [description, setDescription] = useState('')
   const [generateAudio, setGenerateAudio] = useState(false)
   const [voiceGender, setVoiceGender] = useState('male')
@@ -125,7 +125,7 @@ const GenerateStoryPanel = ({
     if (isNovelPipeline) {
       const FORMAT_MAP = { novella: 'novella', novel: 'novel' }
       const novelFormat = FORMAT_MAP[lengthPreset]
-      const genreLabel = GENRES.find((g) => g.id === genre)?.label || 'Romance'
+      const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
 
       // Call 1 — Concept
       let novelConcept = null
@@ -243,7 +243,7 @@ const GenerateStoryPanel = ({
     // pagination picks it up and the Reader renders it identically.
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
-      const genreLabel = GENRES.find((g) => g.id === genre)?.label || 'Romance'
+      const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
 
       const storyRef = await addDoc(storiesRef, {
         title: storyTitle || `${genreLabel} ${format}`,
@@ -368,7 +368,14 @@ const GenerateStoryPanel = ({
                 key={preset.id}
                 type="button"
                 className={`length-preset-option${lengthPreset === preset.id ? ' is-active' : ''}`}
-                onClick={() => setLengthPreset(preset.id)}
+                onClick={() => {
+                  setLengthPreset(preset.id)
+                  // Reset genre if current selection isn't available in the new pool
+                  const pool = preset.id === 'short' ? SHORT_STORY_GENRES : NOVEL_GENRES
+                  if (!pool.some((g) => g.id === genre)) {
+                    setGenre(pool[0].id)
+                  }
+                }}
               >
                 <span className="preset-label">{preset.label}</span>
                 <span className="preset-range">{preset.minPages}–{preset.maxPages} pages</span>
@@ -384,7 +391,7 @@ const GenerateStoryPanel = ({
             value={genre}
             onChange={(event) => setGenre(event.target.value)}
           >
-            {GENRES.map((g) => (
+            {(lengthPreset === 'short' ? SHORT_STORY_GENRES : NOVEL_GENRES).map((g) => (
               <option key={g.id} value={g.id}>
                 {g.label}
               </option>

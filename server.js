@@ -8712,7 +8712,7 @@ app.post('/api/generate/concept', async (req, res) => {
     // Expand short story format to include length guidance
     const trimmedFormat = format.trim()
     const formatForPrompt = trimmedFormat === 'short story'
-      ? 'short story between 5,000-10,000 words'
+      ? 'short story of approximately 5,000 words'
       : trimmedFormat
 
     const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
@@ -8794,7 +8794,7 @@ app.post('/api/generate/full-story', async (req, res) => {
     // Expand short story format to include length guidance
     const trimmedFormat = format.trim()
     const formatForPrompt = trimmedFormat === 'short story'
-      ? 'short story between 5,000-10,000 words'
+      ? 'short story of approximately 5,000 words'
       : trimmedFormat
 
     const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section or chapter breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`

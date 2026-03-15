@@ -8709,7 +8709,13 @@ app.post('/api/generate/concept', async (req, res) => {
 
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
 
-    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+    // Expand short story format to include length guidance
+    const trimmedFormat = format.trim()
+    const formatForPrompt = trimmedFormat === 'short story'
+      ? 'short story between 5,000-10,000 words'
+      : trimmedFormat
+
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 1 — CONCEPT GENERATION')

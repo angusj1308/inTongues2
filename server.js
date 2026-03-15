@@ -8808,7 +8808,7 @@ app.post('/api/generate/full-story', async (req, res) => {
     let storyText = ''
     const stream = anthropicClient.messages.stream({
       model: 'claude-opus-4-6',
-      max_tokens: 16384,
+      max_tokens: 32768,
       messages: [{ role: 'user', content: prompt }],
     })
     for await (const event of stream) {

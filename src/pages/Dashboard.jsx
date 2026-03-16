@@ -1093,6 +1093,30 @@ const Dashboard = () => {
     }
   }
 
+  // Run coherence validation on a short story
+  const handleValidateStory = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid || !book.adaptedTextBlob) return
+    if (generatingBookId) return
+
+    setGeneratingBookId(book.id)
+    try {
+      const valResponse = await validateCoherence({ storyText: book.adaptedTextBlob })
+      const result = valResponse.validationResult
+      console.log('Coherence validation:', result)
+      if (!result.clean) {
+        alert(`Coherence check found ${result.error_count} issue(s). Check console for details.`)
+      } else {
+        alert('Coherence check passed — no issues found.')
+      }
+    } catch (err) {
+      console.error('Validation failed:', err)
+      alert(`Validation failed: ${err.message}`)
+    } finally {
+      setGeneratingBookId(null)
+    }
+  }
+
   // Re-run current phase or regenerate last chapter
   const handleRegenerateCurrentPhase = async (e, book) => {
     e.stopPropagation()
@@ -1645,6 +1669,18 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
+                              {/* Validation button for short stories */}
+                              {!book.isGeneratedBook && !isProcessing && book.adaptedTextBlob && (
+                                <div className="book-phase-controls">
+                                  <button
+                                    className="book-phase-btn book-phase-next"
+                                    onClick={(e) => handleValidateStory(e, book)}
+                                    title="Run coherence validation"
+                                  >
+                                    ▶
+                                  </button>
+                                </div>
+                              )}
                               {/* Phase controls for generated books */}
                               {book.isGeneratedBook && !isProcessing && (
                                 <div className="book-phase-controls">
@@ -1813,6 +1849,18 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
+                              {/* Validation button for short stories */}
+                              {!book.isGeneratedBook && !isProcessing && book.adaptedTextBlob && (
+                                <div className="book-phase-controls">
+                                  <button
+                                    className="book-phase-btn book-phase-next"
+                                    onClick={(e) => handleValidateStory(e, book)}
+                                    title="Run coherence validation"
+                                  >
+                                    ▶
+                                  </button>
+                                </div>
+                              )}
                               {/* Phase controls for generated books */}
                               {book.isGeneratedBook && !isProcessing && (
                                 <div className="book-phase-controls">

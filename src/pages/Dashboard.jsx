@@ -1169,6 +1169,51 @@ const Dashboard = () => {
     }
   }
 
+  // Run a specific step on a short story (purple # button)
+  const handleRunStep = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid || !book.adaptedTextBlob) return
+    if (generatingBookId) return
+
+    const stepInput = window.prompt(
+      'Enter step to run:\n\n' +
+      '  1  Prose Rewrite\n' +
+      '  2  Validate Coherence\n' +
+      '  3  Repair Coherence\n',
+      '1'
+    )
+    if (!stepInput) return
+
+    const step = stepInput.trim()
+
+    if (step === '1' || /^prose/i.test(step)) {
+      if (!book.author) {
+        alert('No author found on this story — cannot run prose rewrite.')
+        return
+      }
+      setGeneratingBookId(book.id)
+      try {
+        const proseResult = await rewriteProse({ storyText: book.adaptedTextBlob, authorName: book.author })
+        if (proseResult.rewrittenText) {
+          const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
+          await updateDoc(storyRef, { adaptedTextBlob: proseResult.rewrittenText })
+          alert(`Prose rewrite complete — ${proseResult.wordCount} words.`)
+        }
+      } catch (err) {
+        console.error('Prose rewrite failed:', err)
+        alert(`Prose rewrite failed: ${err.message}`)
+      } finally {
+        setGeneratingBookId(null)
+      }
+    } else if (step === '2' || /^valid/i.test(step)) {
+      handleValidateStory(e, book)
+    } else if (step === '3' || /^repair/i.test(step)) {
+      handleRepairStory(e, book)
+    } else {
+      alert('Unknown step. Enter 1, 2, or 3.')
+    }
+  }
+
   // Re-run current phase or regenerate last chapter
   const handleRegenerateCurrentPhase = async (e, book) => {
     e.stopPropagation()
@@ -1750,6 +1795,13 @@ const Dashboard = () => {
                                       ▶
                                     </button>
                                   )}
+                                  <button
+                                    className="book-phase-btn book-phase-goto"
+                                    onClick={(e) => handleRunStep(e, book)}
+                                    title="Run specific step (prose rewrite, validate, repair)"
+                                  >
+                                    #
+                                  </button>
                                 </div>
                               )}
                               {/* Phase controls for generated books */}
@@ -1949,6 +2001,13 @@ const Dashboard = () => {
                                       ▶
                                     </button>
                                   )}
+                                  <button
+                                    className="book-phase-btn book-phase-goto"
+                                    onClick={(e) => handleRunStep(e, book)}
+                                    title="Run specific step (prose rewrite, validate, repair)"
+                                  >
+                                    #
+                                  </button>
                                 </div>
                               )}
                               {/* Phase controls for generated books */}

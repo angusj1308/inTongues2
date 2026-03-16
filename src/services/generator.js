@@ -219,7 +219,7 @@ export const validateCoherence = async ({ storyText, uid, bookId }) => {
     }
 
     const data = await response.json()
-    return { validationResult: data.validationResult }
+    return { validationResult: data.validationResult, correctedStory: data.correctedStory || null }
   } catch (error) {
     throw new Error(error?.message || 'Unable to validate coherence.')
   }

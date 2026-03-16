@@ -274,54 +274,19 @@ function mapLevelToSimplified(level) {
 }
 
 // ============================================================
-// COHERENCE VALIDATION SWEEP
+// COHERENCE VALIDATION — THREE-PASS SYSTEM
 // ============================================================
 
-const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your job is to find genuine logical errors in fiction — not to critique prose quality, style, pacing, or narrative choices. You are looking for things that are broken, not things that are bad.
-
-Categories
-
-Search the text for the following specific categories of error. Do not invent categories beyond these.
-
-1. Arithmetic and Timeline Errors
-Dates, ages, durations, and counts that contradict each other when you do the math. If the text states A happened in year X and B happened in year Y and claims Z years passed between them, check the subtraction. Check ages against birth years. Check durations against stated start and end points.
-
-2. World-Rule Violations
-Rules the story establishes about how its world works that are then contradicted by events or other stated rules. If the text says X cannot happen, check whether X or something functionally equivalent to X happens elsewhere. Pay close attention to rules stated about magic, technology, physics, or any system the story invents.
-
-3. Spatial and Geographic Errors
-Distances, locations, and physical relationships between places that contradict each other or contradict real-world geography when the story is set in real places. If a distance is reused as a motif, check whether it is accurate each time it is applied.
-
-4. Character State Tracking
-Characters described as being in a state (alive/dead, present/absent, knowing/not knowing something, possessing/not possessing an object) that contradicts an earlier or later passage. If a character learns something in chapter 3, they should not be ignorant of it in chapter 5 without explanation.
-
-5. Object and Detail Continuity
-Physical objects, descriptions, and concrete details that change between passages without explanation. Eye color, clothing, possessions, names, weather within a single continuous scene, number of people present.
-
-6. Causal Chain Errors
-Events presented as consequences of other events where the cause-effect link is logically impossible or contradicts the story's own established sequence. A character cannot react to something that has not yet happened in the story's timeline unless the story has established a mechanism for this.
-
-Instructions
-
-* Read the full text.
-* For each error found, identify the category, quote the conflicting passages, and explain the contradiction in one or two sentences.
-* If a passage is ambiguous but has a reasonable interpretation under which it is not an error, it is not an error. Only flag things that are broken under any reasonable reading.
-* Do not flag stylistic choices, rhetorical devices, metaphors, or intentional ambiguity.
-* Do not flag speculative or subjective issues. Every flagged issue must be demonstrably wrong by the text's own internal logic.
-* If you find zero errors, return an empty array. Do not invent errors to appear thorough.
-
-Output Format
-
-Return only valid JSON. No preamble. No explanation outside the JSON.
+const COHERENCE_VALIDATION_OUTPUT_SCHEMA = `Return only valid JSON. No preamble. No explanation outside the JSON.
 
 {
+  "pass": "PASS_NAME",
   "errors": [
     {
-      "category": "arithmetic_timeline | world_rule | spatial_geographic | character_state | object_continuity | causal_chain",
       "severity": "definite | probable",
       "passages": [
-        "First conflicting passage quoted verbatim",
-        "Second conflicting passage quoted verbatim"
+        "First conflicting passage quoted verbatim from the story",
+        "Second conflicting passage quoted verbatim from the story"
       ],
       "explanation": "One or two sentences explaining why these passages contradict each other."
     }
@@ -330,11 +295,107 @@ Return only valid JSON. No preamble. No explanation outside the JSON.
   "clean": true
 }
 
-Field notes
+Field definitions:
+* severity: definite = inarguable contradiction. probable = requires inference but has no reasonable alternative reading.
+* passages: Minimum two quotes. The error exists in the relationship between them. Quote the minimum text needed.
+* clean: true if error_count is 0, false otherwise.
+* If the pass finds no errors, return error_count: 0 and clean: true. Do not invent errors. A clean pass is a valid result.`
 
-* severity: Use definite when the error is inarguable arithmetic or direct contradiction. Use probable when the error requires a small inference but has no reasonable alternative reading.
-* passages: Quote the minimum text needed to show the contradiction. Two passages minimum — the error only exists in the relationship between them.
-* clean: true if error_count is 0, false otherwise.`
+// --- Pass 1: Cross-Reference Arithmetic ---
+const PASS1_SYSTEM_PROMPT = `You are a continuity editor performing a single focused check. You are looking only for arithmetic and timeline errors caused by cross-referencing numbers stated in different parts of the text. Ignore all other types of error.`
+
+const PASS1_USER_PROMPT = (storyText) => `Read the following story. Then:
+1. Extract every concrete number: years, ages, durations, distances, counts of people or objects, any stated quantity.
+2. Group them by relationship. Which numbers refer to the same event, the same person, the same span of time, the same measurement? Build every possible pair.
+3. For every pair, do the arithmetic. Subtract the dates. Add the durations. Check the count against what is described. Show your working in your thinking.
+4. Flag any pair where the arithmetic does not resolve.
+5. Do not flag approximations, rounding, or vague language ("many years," "a long time"). Only flag cases where specific numbers contradict specific numbers.
+
+<story>
+${storyText}
+</story>
+
+${COHERENCE_VALIDATION_OUTPUT_SCHEMA.replace('PASS_NAME', 'cross_reference_arithmetic')}
+Set pass to "cross_reference_arithmetic".`
+
+// --- Pass 2: Rule Self-Application ---
+const PASS2_SYSTEM_PROMPT = `You are a continuity editor performing a single focused check. You are looking only for cases where the story states a rule about its world and then violates that rule elsewhere. Ignore all other types of error.`
+
+const PASS2_USER_PROMPT = (storyText) => `Read the following story. Then:
+1. Find every universal or absolute claim the story makes about what is or is not possible in its world. These include: stated laws of physics or technology, stated limitations on characters or systems, stated impossibilities ("X cannot," "X never," "nothing can"), stated conditions ("X only works when," "X requires"). Write each rule down explicitly in your thinking.
+2. For each rule, start with the most obvious test: does the protagonist violate it? Does the scene the rule appears in violate it? Does the thing the rule is about violate it?
+3. Then expand outward. Does anything else in the story violate it? Is there an established exception that would explain an apparent violation?
+4. Flag any rule that is contradicted by something the story treats as unremarkable — something that is not framed as an exception or surprise but simply happens as if the rule does not exist.
+
+<story>
+${storyText}
+</story>
+
+${COHERENCE_VALIDATION_OUTPUT_SCHEMA.replace('PASS_NAME', 'rule_self_application')}
+Set pass to "rule_self_application".`
+
+// --- Pass 3: World-Fact Verification ---
+const PASS3_SYSTEM_PROMPT = `You are a continuity editor performing a single focused check. You are verifying whether concrete claims the story makes about its physical and geographic world are actually true in the specific context where they appear. Ignore all other types of error.`
+
+const PASS3_USER_PROMPT = (storyText) => `Read the following story. Then:
+1. Extract every concrete claim the story makes about its world:
+   * Distances between characters or locations
+   * Which city, country, or region a character is in
+   * How locations relate to each other spatially
+   * What is physically present or absent in a scene
+   * Relationships stated as spatial or geographic fact
+   * Physical or geographic realities invoked by the setting (real-world or fictional)
+2. For each claim, verify it against the rest of the text. Ask:
+   * Is this distance accurate given where these two entities actually are in the story right now?
+   * Is this location correct given what the story has established about where this character lives or is?
+   * Is this spatial relationship true given the geography the story is using?
+   * If the story uses real-world places, is the claim plausible for those actual places?
+3. Flag any claim that is not true in the specific context where it appears, even if it would be true in a different context elsewhere in the story.
+4. Do not flag metaphors, similes, or figurative language. Only flag claims the text presents as literal fact.
+5. Do not flag vague language ("far away," "a great distance"). Only flag specific claims that can be verified.
+
+<story>
+${storyText}
+</story>
+
+${COHERENCE_VALIDATION_OUTPUT_SCHEMA.replace('PASS_NAME', 'world_fact_verification')}
+Set pass to "world_fact_verification".`
+
+// --- Surgical Repair ---
+const REPAIR_SYSTEM_PROMPT = `You are a continuity repair editor. You receive a story and a set of identified coherence errors. Your job is to fix each error with the smallest possible change to the text. You are a surgeon, not a rewriter. You do not improve prose. You do not rephrase for style. You do not touch anything that is not broken.`
+
+const REPAIR_USER_PROMPT = (storyText, errorsJson) => `Fix the errors listed below. Follow these principles:
+1. Smallest edit wins. If changing one word fixes it, do not change a sentence.
+2. Preserve the author's voice. Your fix must sound like the surrounding text wrote it.
+3. Preserve downstream references. Before editing a passage, check whether it is referenced or echoed elsewhere. If so, fix all dependent passages too.
+4. Do not fix what is not in the error list. You fix only what you are given.
+5. When multiple fixes are possible, choose the one that changes the least total text — including downstream consequences.
+
+<story>
+${storyText}
+</story>
+<errors>
+${errorsJson}
+</errors>
+
+Return only valid JSON. No preamble. No explanation outside the JSON.
+
+{
+  "repairs": [
+    {
+      "error_index": 0,
+      "edits": [
+        {
+          "original": "Exact text being replaced, quoted verbatim from the story",
+          "replacement": "The corrected text",
+          "rationale": "One sentence explaining why this change resolves the error."
+        }
+      ]
+    }
+  ],
+  "repair_count": 0,
+  "corrected_story": "The full story text with all repairs applied."
+}`
 
 // ============================================================
 // CHAPTER STRUCTURE PARSING
@@ -9251,7 +9312,32 @@ ${previousProse.trim()}`
   }
 })
 
-// POST /api/generate/validate-coherence - Coherence validation sweep
+// Helper: run a single coherence validation pass
+async function runValidationPass(systemPrompt, userPrompt, passName) {
+  let responseText = ''
+  const stream = anthropicClient.messages.stream({
+    model: 'claude-opus-4-6',
+    max_tokens: 8192,
+    thinking: { type: 'enabled', budget_tokens: 32000 },
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+  })
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      responseText += event.delta.text
+    }
+  }
+  responseText = responseText.trim().replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '')
+
+  try {
+    return JSON.parse(responseText)
+  } catch (parseErr) {
+    console.warn(`[${passName}] JSON parse failed, returning raw text`)
+    return { pass: passName, errors: [{ severity: 'probable', passages: [], explanation: responseText }], error_count: 1, clean: false }
+  }
+}
+
+// POST /api/generate/validate-coherence - Three-pass coherence validation with surgical repair
 // Two modes: { storyText } for short stories, { uid, bookId } for novels (reads chapters from Firestore)
 app.post('/api/generate/validate-coherence', async (req, res) => {
   try {
@@ -9289,55 +9375,97 @@ app.post('/api/generate/validate-coherence', async (req, res) => {
     }
 
     console.log('\n═══════════════════════════════════════════════════════')
-    console.log('COHERENCE VALIDATION SWEEP')
+    console.log('COHERENCE VALIDATION — THREE-PASS SWEEP')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Text length:', textToValidate.length, 'chars')
     console.log('Mode:', bookId ? `novel (bookId: ${bookId})` : 'short story')
     console.log('───────────────────────────────────────────────────────')
 
-    const userMessage = `<story>\n${textToValidate}\n</story>`
+    // Run all three validation passes in parallel
+    console.log('Running 3 validation passes in parallel...')
+    const [pass1Result, pass2Result, pass3Result] = await Promise.all([
+      runValidationPass(PASS1_SYSTEM_PROMPT, PASS1_USER_PROMPT(textToValidate), 'cross_reference_arithmetic'),
+      runValidationPass(PASS2_SYSTEM_PROMPT, PASS2_USER_PROMPT(textToValidate), 'rule_self_application'),
+      runValidationPass(PASS3_SYSTEM_PROMPT, PASS3_USER_PROMPT(textToValidate), 'world_fact_verification'),
+    ])
 
-    let responseText = ''
-    const stream = anthropicClient.messages.stream({
-      model: 'claude-opus-4-6',
-      max_tokens: 40000,
-      thinking: { type: 'enabled', budget_tokens: 32000 },
-      system: COHERENCE_VALIDATION_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userMessage }],
-    })
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        responseText += event.delta.text
+    console.log(`  Pass 1 (arithmetic): ${pass1Result.clean ? 'CLEAN' : `${pass1Result.error_count} error(s)`}`)
+    console.log(`  Pass 2 (rules):      ${pass2Result.clean ? 'CLEAN' : `${pass2Result.error_count} error(s)`}`)
+    console.log(`  Pass 3 (world-fact): ${pass3Result.clean ? 'CLEAN' : `${pass3Result.error_count} error(s)`}`)
+
+    // Merge results from all three passes
+    const mergedErrors = [
+      ...(pass1Result.errors || []),
+      ...(pass2Result.errors || []),
+      ...(pass3Result.errors || []),
+    ]
+    const mergedResult = {
+      errors: mergedErrors,
+      error_count: (pass1Result.error_count || 0) + (pass2Result.error_count || 0) + (pass3Result.error_count || 0),
+      clean: (pass1Result.clean !== false) && (pass2Result.clean !== false) && (pass3Result.clean !== false),
+      passes: { pass1: pass1Result, pass2: pass2Result, pass3: pass3Result },
+    }
+
+    let correctedStory = null
+
+    // Surgical repair step — only if errors were found
+    if (!mergedResult.clean) {
+      console.log('───────────────────────────────────────────────────────')
+      console.log(`Merged: ${mergedResult.error_count} error(s) found. Running surgical repair...`)
+
+      const errorsJson = JSON.stringify(mergedResult.errors, null, 2)
+      // max_tokens = story length in tokens (estimate ~4 chars/token) + 4096 for repair metadata
+      const estimatedStoryTokens = Math.ceil(textToValidate.length / 4)
+      const repairMaxTokens = Math.min(estimatedStoryTokens + 4096, 128000)
+
+      let repairText = ''
+      const repairStream = anthropicClient.messages.stream({
+        model: 'claude-opus-4-6',
+        max_tokens: repairMaxTokens,
+        thinking: { type: 'enabled', budget_tokens: 32000 },
+        system: REPAIR_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: REPAIR_USER_PROMPT(textToValidate, errorsJson) }],
+      })
+      for await (const event of repairStream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          repairText += event.delta.text
+        }
+      }
+      repairText = repairText.trim().replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '')
+
+      try {
+        const repairResult = JSON.parse(repairText)
+        correctedStory = repairResult.corrected_story || null
+        mergedResult.repairs = repairResult.repairs || []
+        mergedResult.repair_count = repairResult.repair_count || repairResult.repairs?.length || 0
+        console.log(`Repair complete: ${mergedResult.repair_count} repair(s) applied`)
+      } catch (parseErr) {
+        console.warn('Repair JSON parse failed:', parseErr.message)
+        mergedResult.repairs = []
+        mergedResult.repair_count = 0
+        mergedResult.repair_error = 'Failed to parse repair response'
       }
     }
-    responseText = responseText.trim()
 
-    // Strip markdown code fences if present
-    responseText = responseText.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '')
-
-    let validationResult
-    try {
-      validationResult = JSON.parse(responseText)
-    } catch (parseErr) {
-      console.warn('Coherence validation JSON parse failed, returning raw text')
-      validationResult = { errors: [{ category: 'parse_error', explanation: responseText }], error_count: 1, clean: false }
-    }
-
-    console.log('Validation result:', validationResult.clean ? 'CLEAN' : `${validationResult.error_count} error(s) found`)
-    if (!validationResult.clean) {
-      console.log(JSON.stringify(validationResult.errors, null, 2))
+    console.log('Final result:', mergedResult.clean ? 'CLEAN' : `${mergedResult.error_count} error(s), ${mergedResult.repair_count || 0} repair(s)`)
+    if (!mergedResult.clean) {
+      console.log(JSON.stringify(mergedResult.errors, null, 2))
     }
     console.log('═══════════════════════════════════════════════════════\n')
 
     // Store validation result in Firestore
     if (bookRef) {
-      await bookRef.update({
-        validationResult,
+      const updateData = {
+        validationResult: mergedResult,
         lastValidatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      })
+      }
+      if (correctedStory) {
+        updateData.correctedStory = correctedStory
+      }
+      await bookRef.update(updateData)
     }
 
-    return res.json({ success: true, validationResult })
+    return res.json({ success: true, validationResult: mergedResult, correctedStory })
   } catch (error) {
     console.error('Coherence validation error:', error)
     return res.status(500).json({ error: 'Failed to validate coherence', details: error.message })

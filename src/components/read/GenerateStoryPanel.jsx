@@ -244,8 +244,14 @@ const GenerateStoryPanel = ({
     try {
       const valResponse = await validateCoherence({ storyText, title: storyTitle })
       validationResult = valResponse.validationResult
+      const correctedStory = valResponse.correctedStory
       console.log('Coherence validation:', validationResult)
-      if (!validationResult.clean) {
+      if (!validationResult.clean && correctedStory) {
+        // Repair was applied — use the corrected story text going forward
+        storyText = correctedStory
+        console.log(`Applied ${validationResult.repair_count || 0} repair(s) to story`)
+        alert(`Coherence check found ${validationResult.error_count} issue(s) and applied ${validationResult.repair_count || 0} repair(s).`)
+      } else if (!validationResult.clean) {
         alert(`Coherence check found ${validationResult.error_count} issue(s). Check console for details.`)
       }
     } catch (valErr) {

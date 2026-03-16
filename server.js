@@ -274,6 +274,69 @@ function mapLevelToSimplified(level) {
 }
 
 // ============================================================
+// COHERENCE VALIDATION SWEEP
+// ============================================================
+
+const COHERENCE_VALIDATION_SYSTEM_PROMPT = `You are a continuity editor. Your job is to find genuine logical errors in fiction — not to critique prose quality, style, pacing, or narrative choices. You are looking for things that are broken, not things that are bad.
+
+Categories
+
+Search the text for the following specific categories of error. Do not invent categories beyond these.
+
+1. Arithmetic and Timeline Errors
+Dates, ages, durations, and counts that contradict each other when you do the math. If the text states A happened in year X and B happened in year Y and claims Z years passed between them, check the subtraction. Check ages against birth years. Check durations against stated start and end points.
+
+2. World-Rule Violations
+Rules the story establishes about how its world works that are then contradicted by events or other stated rules. If the text says X cannot happen, check whether X or something functionally equivalent to X happens elsewhere. Pay close attention to rules stated about magic, technology, physics, or any system the story invents.
+
+3. Spatial and Geographic Errors
+Distances, locations, and physical relationships between places that contradict each other or contradict real-world geography when the story is set in real places. If a distance is reused as a motif, check whether it is accurate each time it is applied.
+
+4. Character State Tracking
+Characters described as being in a state (alive/dead, present/absent, knowing/not knowing something, possessing/not possessing an object) that contradicts an earlier or later passage. If a character learns something in chapter 3, they should not be ignorant of it in chapter 5 without explanation.
+
+5. Object and Detail Continuity
+Physical objects, descriptions, and concrete details that change between passages without explanation. Eye color, clothing, possessions, names, weather within a single continuous scene, number of people present.
+
+6. Causal Chain Errors
+Events presented as consequences of other events where the cause-effect link is logically impossible or contradicts the story's own established sequence. A character cannot react to something that has not yet happened in the story's timeline unless the story has established a mechanism for this.
+
+Instructions
+
+* Read the full text.
+* For each error found, identify the category, quote the conflicting passages, and explain the contradiction in one or two sentences.
+* If a passage is ambiguous but has a reasonable interpretation under which it is not an error, it is not an error. Only flag things that are broken under any reasonable reading.
+* Do not flag stylistic choices, rhetorical devices, metaphors, or intentional ambiguity.
+* Do not flag speculative or subjective issues. Every flagged issue must be demonstrably wrong by the text's own internal logic.
+* If you find zero errors, return an empty array. Do not invent errors to appear thorough.
+
+Output Format
+
+Return only valid JSON. No preamble. No explanation outside the JSON.
+
+{
+  "errors": [
+    {
+      "category": "arithmetic_timeline | world_rule | spatial_geographic | character_state | object_continuity | causal_chain",
+      "severity": "definite | probable",
+      "passages": [
+        "First conflicting passage quoted verbatim",
+        "Second conflicting passage quoted verbatim"
+      ],
+      "explanation": "One or two sentences explaining why these passages contradict each other."
+    }
+  ],
+  "error_count": 0,
+  "clean": true
+}
+
+Field notes
+
+* severity: Use definite when the error is inarguable arithmetic or direct contradiction. Use probable when the error requires a small inference but has no reasonable alternative reading.
+* passages: Quote the minimum text needed to show the contradiction. Two passages minimum — the error only exists in the relationship between them.
+* clean: true if error_count is 0, false otherwise.`
+
+// ============================================================
 // CHAPTER STRUCTURE PARSING
 // ============================================================
 
@@ -9185,6 +9248,98 @@ ${previousProse.trim()}`
   } catch (error) {
     console.error('Chapter validation error:', error)
     return res.status(500).json({ error: 'Failed to validate chapter', details: error.message })
+  }
+})
+
+// POST /api/generate/validate-coherence - Coherence validation sweep
+// Two modes: { storyText } for short stories, { uid, bookId } for novels (reads chapters from Firestore)
+app.post('/api/generate/validate-coherence', async (req, res) => {
+  try {
+    const { storyText, uid, bookId } = req.body
+
+    let textToValidate = ''
+    let bookRef = null
+
+    if (uid && bookId) {
+      // Novel mode: read all chapters from Firestore and concatenate
+      bookRef = firestore.collection('users').doc(uid).collection('generatedBooks').doc(bookId)
+      const bookDoc = await bookRef.get()
+      if (!bookDoc.exists) {
+        return res.status(404).json({ error: 'Book not found' })
+      }
+
+      const chaptersSnapshot = await bookRef.collection('chapters').orderBy('index').get()
+      if (chaptersSnapshot.empty) {
+        return res.status(400).json({ error: 'No chapters found to validate' })
+      }
+
+      const parts = []
+      for (const docSnap of chaptersSnapshot.docs) {
+        const ch = docSnap.data()
+        if (ch.content) {
+          parts.push(ch.content)
+        }
+      }
+      textToValidate = parts.join('\n\n')
+    } else if (storyText?.trim()) {
+      // Short story mode: use provided text directly
+      textToValidate = storyText.trim()
+    } else {
+      return res.status(400).json({ error: 'Provide either storyText or uid + bookId' })
+    }
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('COHERENCE VALIDATION SWEEP')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Text length:', textToValidate.length, 'chars')
+    console.log('Mode:', bookId ? `novel (bookId: ${bookId})` : 'short story')
+    console.log('───────────────────────────────────────────────────────')
+
+    const userMessage = `<story>\n${textToValidate}\n</story>`
+
+    let responseText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8192,
+      system: COHERENCE_VALIDATION_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMessage }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        responseText += event.delta.text
+      }
+    }
+    responseText = responseText.trim()
+
+    // Strip markdown code fences if present
+    responseText = responseText.replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '')
+
+    let validationResult
+    try {
+      validationResult = JSON.parse(responseText)
+    } catch (parseErr) {
+      console.warn('Coherence validation JSON parse failed, returning raw text')
+      validationResult = { errors: [{ category: 'parse_error', explanation: responseText }], error_count: 1, clean: false }
+    }
+
+    console.log('Validation result:', validationResult.clean ? 'CLEAN' : `${validationResult.error_count} error(s) found`)
+    if (!validationResult.clean) {
+      console.log(JSON.stringify(validationResult.errors, null, 2))
+    }
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    // Store validation result in Firestore
+    if (bookRef) {
+      await bookRef.update({
+        validationResult,
+        lastValidatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+
+    return res.json({ success: true, validationResult })
+  } catch (error) {
+    console.error('Coherence validation error:', error)
+    return res.status(500).json({ error: 'Failed to validate coherence', details: error.message })
   }
 })
 

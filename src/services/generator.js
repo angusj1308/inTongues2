@@ -194,6 +194,38 @@ export const validateNovelChapter = async ({ chapterNumber, chapterText, previou
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Coherence Validation Sweep — validates story text for continuity errors.
+// Two modes: { storyText } for short stories, { uid, bookId } for novels.
+// ─────────────────────────────────────────────────────────────────────────────
+export const validateCoherence = async ({ storyText, uid, bookId }) => {
+  try {
+    const body = {}
+    if (uid && bookId) {
+      body.uid = uid
+      body.bookId = bookId
+    } else if (storyText) {
+      body.storyText = storyText
+    }
+
+    const response = await fetch('http://localhost:4000/api/generate/validate-coherence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to validate coherence.')
+    }
+
+    const data = await response.json()
+    return { validationResult: data.validationResult }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to validate coherence.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Novel Pipeline — Write all chapters (server-side loop).
 // Triggers the server to write every chapter sequentially, storing each in
 // Firestore as it completes. Can resume from the last completed chapter.

@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
+import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries, validateCoherence } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
 
@@ -239,6 +239,19 @@ const GenerateStoryPanel = ({
       return
     }
 
+    // ── Coherence Validation Sweep ──
+    let validationResult = null
+    try {
+      const valResponse = await validateCoherence({ storyText, title: storyTitle })
+      validationResult = valResponse.validationResult
+      console.log('Coherence validation:', validationResult)
+      if (!validationResult.clean) {
+        alert(`Coherence check found ${validationResult.error_count} issue(s). Check console for details.`)
+      }
+    } catch (valErr) {
+      console.warn('Coherence validation failed (non-blocking):', valErr.message)
+    }
+
     // Store as flat book (same shape as imported books) so Dashboard
     // pagination picks it up and the Reader renders it identically.
     try {
@@ -263,6 +276,7 @@ const GenerateStoryPanel = ({
         audioStatus: generateAudio ? 'pending' : 'none',
         fullAudioUrl: null,
         voiceId: null,
+        validationResult: validationResult || null,
       })
 
       // Trigger audio generation if requested

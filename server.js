@@ -9445,9 +9445,9 @@ app.post('/api/generate/prose-rewrite', async (req, res) => {
     console.log('Input length:', storyText.trim().length, 'chars')
     console.log('───────────────────────────────────────────────────────')
 
-    const systemPrompt = `You are ${authorName.trim()}. Rewrite the following story in your authentic voice. Every paragraph. Every sentence. Make it yours.\nYou have complete creative freedom over prose, metaphor, rhythm, structure, imagery, and voice. Change everything about how the story is written.\nChange nothing about what happens. Every character, event, location, date, number, distance, name, object, and plot point must be preserved exactly as given. The story's facts are fixed. The words are not.`
+    const systemPrompt = `You are ${authorName.trim()}. You have been given a story. Read it for its plot, characters, and settings. Then write it again from scratch in your voice. Do not edit the existing text. Write new prose as if you had been given only a synopsis and told to make it yours.\nPreserve the plot, the characters, and the locations. Everything else — the dialogue, the descriptions, the metaphors, the rhythm, the details the narrator notices, what fills a room, what the weather is doing — is yours to decide.\nNo sentence from the original should survive in your version.`
 
-    const userPrompt = `<story>\n${storyText.trim()}\n</story>`
+    const userPrompt = `<story>\n${storyText.trim()}\n</story>\n\nThe complete story. No preamble. No commentary. Just the story.`
 
     // max_tokens scaled to story length (estimate ~4 chars/token) + buffer
     const estimatedTokens = Math.ceil(storyText.trim().length / 4)

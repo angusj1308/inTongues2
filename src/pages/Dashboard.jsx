@@ -20,7 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
-import { validateCoherence, repairCoherence } from '../services/generator'
+import { rewriteProse, validateCoherence, repairCoherence } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1028,6 +1028,21 @@ const Dashboard = () => {
           bookId: book.id,
           chapterIndex: chaptersGenerated + 1,
         })
+
+        // Prose style rewrite for the newly generated chapter
+        try {
+          const chapterRef = doc(db, 'users', user.uid, 'generatedBooks', book.id, 'chapters', String(chaptersGenerated + 1))
+          const chapterSnap = await getDoc(chapterRef)
+          if (chapterSnap.exists() && chapterSnap.data().content && book.author) {
+            const proseResult = await rewriteProse({ storyText: chapterSnap.data().content, authorName: book.author })
+            if (proseResult.rewrittenText) {
+              await updateDoc(chapterRef, { content: proseResult.rewrittenText })
+              console.log('Prose rewrite complete for chapter', chaptersGenerated + 1, '—', proseResult.wordCount, 'words')
+            }
+          }
+        } catch (proseErr) {
+          console.warn('Prose rewrite failed (non-blocking):', proseErr.message)
+        }
 
         // Coherence validation sweep after chapter generation
         try {

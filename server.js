@@ -9427,6 +9427,65 @@ app.post('/api/generate/validate-coherence', async (req, res) => {
   }
 })
 
+// POST /api/generate/prose-rewrite - Prose Style Rewrite
+// Rewrites the story in the rolled author's authentic voice while preserving every
+// plot detail. Runs AFTER generation and BEFORE the validation sweep.
+// Accepts { storyText, authorName }
+app.post('/api/generate/prose-rewrite', async (req, res) => {
+  try {
+    const { storyText, authorName } = req.body
+
+    if (!storyText?.trim()) return res.status(400).json({ error: 'storyText is required' })
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('PROSE STYLE REWRITE')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Input length:', storyText.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    const systemPrompt = `You are ${authorName.trim()}. Rewrite the following story in your authentic voice. Every paragraph. Every sentence. Make it yours.\nYou have complete creative freedom over prose, metaphor, rhythm, structure, imagery, and voice. Change everything about how the story is written.\nChange nothing about what happens. Every character, event, location, date, number, distance, name, object, and plot point must be preserved exactly as given. The story's facts are fixed. The words are not.`
+
+    const userPrompt = `<story>\n${storyText.trim()}\n</story>`
+
+    // max_tokens scaled to story length (estimate ~4 chars/token) + buffer
+    const estimatedTokens = Math.ceil(storyText.trim().length / 4)
+    const maxTokens = Math.min(Math.max(estimatedTokens + 4096, 16384), 128000)
+
+    let rewrittenText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        rewrittenText += event.delta.text
+      }
+    }
+    rewrittenText = cleanStoryText(rewrittenText)
+
+    if (!rewrittenText) {
+      return res.status(500).json({ error: 'No rewritten text was produced.' })
+    }
+
+    const wordCount = rewrittenText.split(/\s+/).length
+    console.log('PROSE REWRITE RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Word count:', wordCount)
+    console.log('───────────────────────────────────────────────────────')
+    console.log(rewrittenText)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({ success: true, rewrittenText, authorName: authorName.trim(), wordCount })
+  } catch (error) {
+    console.error('Prose rewrite error:', error)
+    return res.status(500).json({ error: 'Failed to rewrite prose', details: error.message })
+  }
+})
+
 // POST /api/generate/repair-coherence - Surgical repair step (manual trigger)
 // Accepts { storyText, errors } where errors is the merged validation errors array
 app.post('/api/generate/repair-coherence', async (req, res) => {
@@ -9636,6 +9695,37 @@ app.post('/api/generate/novel/write-all-chapters', async (req, res) => {
         console.error(`Chapter ${i} produced no text — stopping`)
         await bookRef.update({ status: 'error', errorMessage: `Chapter ${i} produced no text` })
         return res.status(500).json({ error: `Chapter ${i} produced no text`, completedChapters: i - 1 })
+      }
+
+      // ── Prose Style Rewrite ──
+      try {
+        console.log(`  Prose rewrite for Chapter ${i}...`)
+        const proseSystemPrompt = `You are ${author.trim()}. Rewrite the following story in your authentic voice. Every paragraph. Every sentence. Make it yours.\nYou have complete creative freedom over prose, metaphor, rhythm, structure, imagery, and voice. Change everything about how the story is written.\nChange nothing about what happens. Every character, event, location, date, number, distance, name, object, and plot point must be preserved exactly as given. The story's facts are fixed. The words are not.`
+        const proseUserPrompt = `<story>\n${chapterText}\n</story>`
+        const proseEstTokens = Math.ceil(chapterText.length / 4)
+        const proseMaxTokens = Math.min(Math.max(proseEstTokens + 4096, 16384), 128000)
+
+        let rewrittenChapter = ''
+        const proseStream = anthropicClient.messages.stream({
+          model: 'claude-opus-4-6',
+          max_tokens: proseMaxTokens,
+          system: proseSystemPrompt,
+          messages: [{ role: 'user', content: proseUserPrompt }],
+        })
+        for await (const event of proseStream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            rewrittenChapter += event.delta.text
+          }
+        }
+        rewrittenChapter = cleanStoryText(rewrittenChapter)
+        if (rewrittenChapter) {
+          console.log(`  Prose rewrite complete — ${rewrittenChapter.split(/\s+/).length} words`)
+          chapterText = rewrittenChapter
+        } else {
+          console.warn(`  Prose rewrite returned empty — keeping original`)
+        }
+      } catch (proseErr) {
+        console.warn(`  Prose rewrite failed for Chapter ${i} (non-blocking):`, proseErr.message)
       }
 
       const wordCount = chapterText.split(/\s+/).length

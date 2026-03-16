@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries, validateCoherence } from '../../services/generator'
+import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries, rewriteProse, validateCoherence } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
 
@@ -237,6 +237,15 @@ const GenerateStoryPanel = ({
       setError(storyError?.message || 'Unable to generate story.')
       setIsSubmitting(false)
       return
+    }
+
+    // ── Prose Style Rewrite ──
+    try {
+      const proseResult = await rewriteProse({ storyText, authorName: rolledAuthor })
+      storyText = proseResult.rewrittenText
+      console.log('Prose rewrite complete:', proseResult.wordCount, 'words')
+    } catch (proseErr) {
+      console.warn('Prose rewrite failed (non-blocking):', proseErr.message)
     }
 
     // ── Coherence Validation Sweep ──

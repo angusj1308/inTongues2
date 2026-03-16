@@ -194,6 +194,35 @@ export const validateNovelChapter = async ({ chapterNumber, chapterText, previou
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Prose Style Rewrite — rewrites the story in the author's authentic voice.
+// Preserves all plot facts; rewrites prose, metaphor, rhythm, structure.
+// Params: { storyText, authorName }
+// ─────────────────────────────────────────────────────────────────────────────
+export const rewriteProse = async ({ storyText, authorName }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/prose-rewrite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storyText, authorName }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to rewrite prose.')
+    }
+
+    const data = await response.json()
+    if (!data?.rewrittenText) {
+      throw new Error('No rewritten text was returned.')
+    }
+
+    return { rewrittenText: data.rewrittenText, authorName: data.authorName, wordCount: data.wordCount }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to rewrite prose. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Coherence Validation Sweep — validates story text for continuity errors.
 // Two modes: { storyText } for short stories, { uid, bookId } for novels.
 // ─────────────────────────────────────────────────────────────────────────────

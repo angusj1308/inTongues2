@@ -20,7 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
-import { validateCoherence } from '../services/generator'
+import { validateCoherence, repairCoherence } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1034,10 +1034,8 @@ const Dashboard = () => {
           const valResponse = await validateCoherence({ uid: user.uid, bookId: book.id })
           const result = valResponse.validationResult
           console.log('Coherence validation:', result)
-          if (!result.clean && valResponse.correctedStory) {
-            alert(`Coherence check found ${result.error_count} issue(s) and applied ${result.repair_count || 0} repair(s).`)
-          } else if (!result.clean) {
-            alert(`Coherence check found ${result.error_count} issue(s). Check console for details.`)
+          if (!result.clean) {
+            alert(`Coherence check found ${result.error_count} issue(s). Use the repair button to fix.`)
           }
         } catch (valErr) {
           console.warn('Coherence validation failed (non-blocking):', valErr.message)
@@ -1105,25 +1103,52 @@ const Dashboard = () => {
     try {
       const valResponse = await validateCoherence({ storyText: book.adaptedTextBlob })
       const result = valResponse.validationResult
-      const correctedStory = valResponse.correctedStory
       console.log('Coherence validation:', result)
 
-      if (!result.clean && correctedStory) {
-        // Repair was applied — update the story in Firestore
-        const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
-        await updateDoc(storyRef, {
-          adaptedTextBlob: correctedStory,
-          validationResult: result,
-        })
-        alert(`Coherence check found ${result.error_count} issue(s) and applied ${result.repair_count || 0} repair(s). Story has been updated.`)
-      } else if (!result.clean) {
-        alert(`Coherence check found ${result.error_count} issue(s) but repair failed. Check console for details.`)
+      // Store validation result on the story doc
+      const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
+      await updateDoc(storyRef, { validationResult: result })
+
+      if (!result.clean) {
+        alert(`Coherence check found ${result.error_count} issue(s). Hit ▶ to repair or ⟲ to re-validate.`)
       } else {
         alert('Coherence check passed — no issues found.')
       }
     } catch (err) {
       console.error('Validation failed:', err)
       alert(`Validation failed: ${err.message}`)
+    } finally {
+      setGeneratingBookId(null)
+    }
+  }
+
+  const handleRepairStory = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid || !book.adaptedTextBlob) return
+    if (!book.validationResult?.errors?.length) return
+    if (generatingBookId) return
+
+    setGeneratingBookId(book.id)
+    try {
+      const repairResponse = await repairCoherence({
+        storyText: book.adaptedTextBlob,
+        errors: book.validationResult.errors,
+      })
+      console.log('Coherence repair:', repairResponse)
+
+      if (repairResponse.correctedStory) {
+        const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
+        await updateDoc(storyRef, {
+          adaptedTextBlob: repairResponse.correctedStory,
+          validationResult: { ...book.validationResult, repaired: true, repair_count: repairResponse.repair_count },
+        })
+        alert(`Applied ${repairResponse.repair_count} repair(s). Story has been updated.`)
+      } else {
+        alert('Repair completed but no corrected story was returned. Check console.')
+      }
+    } catch (err) {
+      console.error('Repair failed:', err)
+      alert(`Repair failed: ${err.message}`)
     } finally {
       setGeneratingBookId(null)
     }
@@ -1681,16 +1706,35 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
-                              {/* Validation button for short stories */}
+                              {/* Validation / Repair buttons for short stories */}
                               {!book.isGeneratedBook && !isProcessing && book.adaptedTextBlob && (
                                 <div className="book-phase-controls">
-                                  <button
-                                    className="book-phase-btn book-phase-next"
-                                    onClick={(e) => handleValidateStory(e, book)}
-                                    title="Run coherence validation"
-                                  >
-                                    ▶
-                                  </button>
+                                  {book.validationResult && !book.validationResult.clean && !book.validationResult.repaired ? (
+                                    <>
+                                      <button
+                                        className="book-phase-btn book-phase-redo"
+                                        onClick={(e) => handleValidateStory(e, book)}
+                                        title="Re-run coherence validation"
+                                      >
+                                        ⟲
+                                      </button>
+                                      <button
+                                        className="book-phase-btn book-phase-next"
+                                        onClick={(e) => handleRepairStory(e, book)}
+                                        title="Run surgical repair"
+                                      >
+                                        ▶
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      className="book-phase-btn book-phase-next"
+                                      onClick={(e) => handleValidateStory(e, book)}
+                                      title="Run coherence validation"
+                                    >
+                                      ▶
+                                    </button>
+                                  )}
                                 </div>
                               )}
                               {/* Phase controls for generated books */}
@@ -1861,16 +1905,35 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
-                              {/* Validation button for short stories */}
+                              {/* Validation / Repair buttons for short stories */}
                               {!book.isGeneratedBook && !isProcessing && book.adaptedTextBlob && (
                                 <div className="book-phase-controls">
-                                  <button
-                                    className="book-phase-btn book-phase-next"
-                                    onClick={(e) => handleValidateStory(e, book)}
-                                    title="Run coherence validation"
-                                  >
-                                    ▶
-                                  </button>
+                                  {book.validationResult && !book.validationResult.clean && !book.validationResult.repaired ? (
+                                    <>
+                                      <button
+                                        className="book-phase-btn book-phase-redo"
+                                        onClick={(e) => handleValidateStory(e, book)}
+                                        title="Re-run coherence validation"
+                                      >
+                                        ⟲
+                                      </button>
+                                      <button
+                                        className="book-phase-btn book-phase-next"
+                                        onClick={(e) => handleRepairStory(e, book)}
+                                        title="Run surgical repair"
+                                      >
+                                        ▶
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      className="book-phase-btn book-phase-next"
+                                      onClick={(e) => handleValidateStory(e, book)}
+                                      title="Run coherence validation"
+                                    >
+                                      ▶
+                                    </button>
+                                  )}
                                 </div>
                               )}
                               {/* Phase controls for generated books */}

@@ -9406,48 +9406,7 @@ app.post('/api/generate/validate-coherence', async (req, res) => {
       passes: { pass1: pass1Result, pass2: pass2Result, pass3: pass3Result },
     }
 
-    let correctedStory = null
-
-    // Surgical repair step — only if errors were found
-    if (!mergedResult.clean) {
-      console.log('───────────────────────────────────────────────────────')
-      console.log(`Merged: ${mergedResult.error_count} error(s) found. Running surgical repair...`)
-
-      const errorsJson = JSON.stringify(mergedResult.errors, null, 2)
-      // max_tokens = story length in tokens (estimate ~4 chars/token) + 4096 for repair metadata
-      const estimatedStoryTokens = Math.ceil(textToValidate.length / 4)
-      const repairMaxTokens = Math.min(estimatedStoryTokens + 4096, 128000)
-
-      let repairText = ''
-      const repairStream = anthropicClient.messages.stream({
-        model: 'claude-opus-4-6',
-        max_tokens: repairMaxTokens,
-        thinking: { type: 'enabled', budget_tokens: 32000 },
-        system: REPAIR_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: REPAIR_USER_PROMPT(textToValidate, errorsJson) }],
-      })
-      for await (const event of repairStream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          repairText += event.delta.text
-        }
-      }
-      repairText = repairText.trim().replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '')
-
-      try {
-        const repairResult = JSON.parse(repairText)
-        correctedStory = repairResult.corrected_story || null
-        mergedResult.repairs = repairResult.repairs || []
-        mergedResult.repair_count = repairResult.repair_count || repairResult.repairs?.length || 0
-        console.log(`Repair complete: ${mergedResult.repair_count} repair(s) applied`)
-      } catch (parseErr) {
-        console.warn('Repair JSON parse failed:', parseErr.message)
-        mergedResult.repairs = []
-        mergedResult.repair_count = 0
-        mergedResult.repair_error = 'Failed to parse repair response'
-      }
-    }
-
-    console.log('Final result:', mergedResult.clean ? 'CLEAN' : `${mergedResult.error_count} error(s), ${mergedResult.repair_count || 0} repair(s)`)
+    console.log('Result:', mergedResult.clean ? 'CLEAN' : `${mergedResult.error_count} error(s) found`)
     if (!mergedResult.clean) {
       console.log(JSON.stringify(mergedResult.errors, null, 2))
     }
@@ -9455,20 +9414,76 @@ app.post('/api/generate/validate-coherence', async (req, res) => {
 
     // Store validation result in Firestore
     if (bookRef) {
-      const updateData = {
+      await bookRef.update({
         validationResult: mergedResult,
         lastValidatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }
-      if (correctedStory) {
-        updateData.correctedStory = correctedStory
-      }
-      await bookRef.update(updateData)
+      })
     }
 
-    return res.json({ success: true, validationResult: mergedResult, correctedStory })
+    return res.json({ success: true, validationResult: mergedResult })
   } catch (error) {
     console.error('Coherence validation error:', error)
     return res.status(500).json({ error: 'Failed to validate coherence', details: error.message })
+  }
+})
+
+// POST /api/generate/repair-coherence - Surgical repair step (manual trigger)
+// Accepts { storyText, errors } where errors is the merged validation errors array
+app.post('/api/generate/repair-coherence', async (req, res) => {
+  try {
+    const { storyText, errors } = req.body
+
+    if (!storyText?.trim()) {
+      return res.status(400).json({ error: 'storyText is required' })
+    }
+    if (!errors?.length) {
+      return res.status(400).json({ error: 'errors array is required' })
+    }
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('SURGICAL REPAIR')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Text length:', storyText.length, 'chars')
+    console.log('Errors to fix:', errors.length)
+    console.log('───────────────────────────────────────────────────────')
+
+    const errorsJson = JSON.stringify(errors, null, 2)
+    // max_tokens = story length in tokens (estimate ~4 chars/token) + 4096 for repair metadata + 32000 thinking
+    const estimatedStoryTokens = Math.ceil(storyText.length / 4)
+    const repairMaxTokens = Math.min(Math.max(estimatedStoryTokens + 4096, 33000), 128000)
+
+    let repairText = ''
+    const repairStream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: repairMaxTokens,
+      thinking: { type: 'enabled', budget_tokens: 32000 },
+      system: REPAIR_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: REPAIR_USER_PROMPT(storyText, errorsJson) }],
+    })
+    for await (const event of repairStream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        repairText += event.delta.text
+      }
+    }
+    repairText = repairText.trim().replace(/^```json\s*/i, '').replace(/\s*```\s*$/i, '')
+
+    let repairResult
+    try {
+      repairResult = JSON.parse(repairText)
+    } catch (parseErr) {
+      console.warn('Repair JSON parse failed:', parseErr.message)
+      return res.status(500).json({ error: 'Failed to parse repair response', details: parseErr.message })
+    }
+
+    const correctedStory = repairResult.corrected_story || null
+    const repairCount = repairResult.repair_count || repairResult.repairs?.length || 0
+    console.log(`Repair complete: ${repairCount} repair(s) applied`)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({ success: true, repairs: repairResult.repairs || [], repair_count: repairCount, correctedStory })
+  } catch (error) {
+    console.error('Coherence repair error:', error)
+    return res.status(500).json({ error: 'Failed to repair coherence errors', details: error.message })
   }
 })
 

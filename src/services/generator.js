@@ -219,9 +219,29 @@ export const validateCoherence = async ({ storyText, uid, bookId }) => {
     }
 
     const data = await response.json()
-    return { validationResult: data.validationResult, correctedStory: data.correctedStory || null }
+    return { validationResult: data.validationResult }
   } catch (error) {
     throw new Error(error?.message || 'Unable to validate coherence.')
+  }
+}
+
+export const repairCoherence = async ({ storyText, errors }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/repair-coherence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storyText, errors }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to repair coherence errors.')
+    }
+
+    const data = await response.json()
+    return { repairs: data.repairs, repair_count: data.repair_count, correctedStory: data.correctedStory }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to repair coherence errors.')
   }
 }
 

@@ -9299,8 +9299,9 @@ app.post('/api/generate/validate-coherence', async (req, res) => {
 
     let responseText = ''
     const stream = anthropicClient.messages.stream({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
+      model: 'claude-opus-4-6',
+      max_tokens: 40000,
+      thinking: { type: 'enabled', budget_tokens: 32000 },
       system: COHERENCE_VALIDATION_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
     })

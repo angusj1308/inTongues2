@@ -20,6 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
+import { validateCoherence } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1027,6 +1028,18 @@ const Dashboard = () => {
           bookId: book.id,
           chapterIndex: chaptersGenerated + 1,
         })
+
+        // Coherence validation sweep after chapter generation
+        try {
+          const valResponse = await validateCoherence({ uid: user.uid, bookId: book.id })
+          const result = valResponse.validationResult
+          console.log('Coherence validation:', result)
+          if (!result.clean) {
+            alert(`Coherence check found ${result.error_count} issue(s). Check console for details.`)
+          }
+        } catch (valErr) {
+          console.warn('Coherence validation failed (non-blocking):', valErr.message)
+        }
       } catch (err) {
         console.error('Error generating chapter:', err)
         alert(`Failed to generate chapter: ${err.message}`)

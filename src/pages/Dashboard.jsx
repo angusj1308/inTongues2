@@ -1034,7 +1034,9 @@ const Dashboard = () => {
           const valResponse = await validateCoherence({ uid: user.uid, bookId: book.id })
           const result = valResponse.validationResult
           console.log('Coherence validation:', result)
-          if (!result.clean) {
+          if (!result.clean && valResponse.correctedStory) {
+            alert(`Coherence check found ${result.error_count} issue(s) and applied ${result.repair_count || 0} repair(s).`)
+          } else if (!result.clean) {
             alert(`Coherence check found ${result.error_count} issue(s). Check console for details.`)
           }
         } catch (valErr) {
@@ -1103,9 +1105,19 @@ const Dashboard = () => {
     try {
       const valResponse = await validateCoherence({ storyText: book.adaptedTextBlob })
       const result = valResponse.validationResult
+      const correctedStory = valResponse.correctedStory
       console.log('Coherence validation:', result)
-      if (!result.clean) {
-        alert(`Coherence check found ${result.error_count} issue(s). Check console for details.`)
+
+      if (!result.clean && correctedStory) {
+        // Repair was applied — update the story in Firestore
+        const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
+        await updateDoc(storyRef, {
+          adaptedTextBlob: correctedStory,
+          validationResult: result,
+        })
+        alert(`Coherence check found ${result.error_count} issue(s) and applied ${result.repair_count || 0} repair(s). Story has been updated.`)
+      } else if (!result.clean) {
+        alert(`Coherence check found ${result.error_count} issue(s) but repair failed. Check console for details.`)
       } else {
         alert('Coherence check passed — no issues found.')
       }

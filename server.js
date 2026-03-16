@@ -9317,7 +9317,7 @@ async function runValidationPass(systemPrompt, userPrompt, passName) {
   let responseText = ''
   const stream = anthropicClient.messages.stream({
     model: 'claude-opus-4-6',
-    max_tokens: 8192,
+    max_tokens: 40000,
     thinking: { type: 'enabled', budget_tokens: 32000 },
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],

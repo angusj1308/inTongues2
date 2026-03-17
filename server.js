@@ -8927,7 +8927,7 @@ function cleanStoryText(text) {
 // Returns the full story as a single text blob
 app.post('/api/generate/full-story', async (req, res) => {
   try {
-    const { authorName, format, level, language, concept } = req.body
+    const { authorName, genre, format, level, language, concept, timePlaceSetting } = req.body
 
     if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
     if (!format?.trim()) return res.status(400).json({ error: 'format is required' })
@@ -8935,19 +8935,26 @@ app.post('/api/generate/full-story', async (req, res) => {
     if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
     if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
 
-    // Expand short story format to include length guidance
     const trimmedFormat = format.trim()
-    const formatForPrompt = trimmedFormat === 'short story'
-      ? 'short story of approximately 5,000 words'
-      : trimmedFormat
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
+    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
+    const settingText = timePlaceSetting?.trim() || ''
 
-    const prompt = `You are ${authorName.trim()}. You are writing a ${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section or chapter breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
+    let prompt
+    if (trimmedFormat === 'short story') {
+      const settingClause = settingText ? ` set in ${settingText}` : ''
+      prompt = `You are ${authorName.trim()}. Write this 3,000–5,000 word ${genreQualifier}short story${settingClause} in ${level.trim()} ${language.trim()}, true to your own distinct voice and style of prose.\nNo preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
+    } else {
+      const formatForPrompt = trimmedFormat
+      prompt = `You are ${authorName.trim()}. You are writing a ${genreQualifier}${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${genreQualifier}${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section or chapter breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
+    }
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 2 — FULL STORY GENERATION')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', authorName.trim())
-    console.log('Format:', formatForPrompt)
+    console.log('Genre:', genreLabel || '(none)')
+    console.log('Format:', trimmedFormat)
     console.log('Level:', level.trim())
     console.log('Language:', language.trim())
     console.log('Concept length:', concept.trim().length, 'chars')

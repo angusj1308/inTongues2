@@ -73,6 +73,60 @@ export const generateFullStory = async ({ authorName, format, level, language, c
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Short Story Pipeline — Phase 2: Generate scene-by-scene summaries.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateSceneSummaries = async ({ uid, storyId, authorName, language, concept }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/story/scene-summaries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, storyId, authorName, language, concept }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate scene summaries.')
+    }
+
+    const data = await response.json()
+    if (!data?.sceneSummaries) {
+      throw new Error('No scene summaries were returned.')
+    }
+
+    return { sceneSummaries: data.sceneSummaries, storyId: data.storyId }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate scene summaries. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Short Story Pipeline — Phase 3: Generate complete prose from concept + scenes.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateStoryProse = async ({ uid, storyId, authorName, language, concept, sceneSummaries }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/story/prose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, storyId, authorName, language, concept, sceneSummaries }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate story prose.')
+    }
+
+    const data = await response.json()
+    if (!data?.storyText) {
+      throw new Error('No story text was returned.')
+    }
+
+    return { storyText: data.storyText, wordCount: data.wordCount, storyId: data.storyId }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate story prose. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Novel Pipeline — Call 1: Roll a novel author and generate a concept.
 // Same shape as generateConcept but hits the novel-specific endpoint which
 // strips conversational preamble and uses streaming.

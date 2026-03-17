@@ -20,7 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
-import { rewriteProse, validateCoherence, repairCoherence } from '../services/generator'
+import { rewriteProse, validateCoherence, repairCoherence, generateSceneSummaries, generateStoryProse } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1108,109 +1108,149 @@ const Dashboard = () => {
     }
   }
 
-  // Run coherence validation on a short story
-  const handleValidateStory = async (e, book) => {
+  // Detect short stories using the 3-phase pipeline
+  const isShortStoryPhased = (book) => !book.isGeneratedBook && book.totalPhases === 3
+
+  // Execute next phase for a short story
+  const handleNextStoryPhase = async (e, book) => {
     e.stopPropagation()
-    if (!book?.id || !user?.uid || !book.adaptedTextBlob) return
+    if (!book?.id || !user?.uid) return
     if (generatingBookId) return
 
-    setGeneratingBookId(book.id)
-    try {
-      const valResponse = await validateCoherence({ storyText: book.adaptedTextBlob })
-      const result = valResponse.validationResult
-      console.log('Coherence validation:', result)
-
-      // Store validation result on the story doc
-      const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
-      await updateDoc(storyRef, { validationResult: result })
-
-      if (!result.clean) {
-        alert(`Coherence check found ${result.error_count} issue(s). Hit ▶ to repair or ⟲ to re-validate.`)
-      } else {
-        alert('Coherence check passed — no issues found.')
-      }
-    } catch (err) {
-      console.error('Validation failed:', err)
-      alert(`Validation failed: ${err.message}`)
-    } finally {
-      setGeneratingBookId(null)
+    const lastPhase = book.lastPhaseCompleted || 0
+    if (lastPhase >= 3) {
+      alert('All phases complete! Story is ready to read.')
+      return
     }
-  }
-
-  const handleRepairStory = async (e, book) => {
-    e.stopPropagation()
-    if (!book?.id || !user?.uid || !book.adaptedTextBlob) return
-    if (!book.validationResult?.errors?.length) return
-    if (generatingBookId) return
 
     setGeneratingBookId(book.id)
     try {
-      const repairResponse = await repairCoherence({
-        storyText: book.adaptedTextBlob,
-        errors: book.validationResult.errors,
-      })
-      console.log('Coherence repair:', repairResponse)
-
-      if (repairResponse.correctedStory) {
-        const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
-        await updateDoc(storyRef, {
-          adaptedTextBlob: repairResponse.correctedStory,
-          validationResult: { ...book.validationResult, repaired: true, repair_count: repairResponse.repair_count },
+      if (lastPhase === 1) {
+        await generateSceneSummaries({
+          uid: user.uid,
+          storyId: book.id,
+          authorName: book.author,
+          language: book.language,
+          concept: book.concept,
         })
-        alert(`Applied ${repairResponse.repair_count} repair(s). Story has been updated.`)
-      } else {
-        alert('Repair completed but no corrected story was returned. Check console.')
+      } else if (lastPhase === 2) {
+        await generateStoryProse({
+          uid: user.uid,
+          storyId: book.id,
+          authorName: book.author,
+          language: book.language,
+          concept: book.concept,
+          sceneSummaries: book.sceneSummaries,
+        })
+        // Trigger audio generation if requested
+        if (book.generateAudio) {
+          try {
+            await fetch('http://localhost:4000/api/generate-audio-book', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uid: user.uid, storyId: book.id }),
+            })
+          } catch (err) {
+            console.error('Audio trigger failed:', err)
+          }
+        }
       }
     } catch (err) {
-      console.error('Repair failed:', err)
-      alert(`Repair failed: ${err.message}`)
+      console.error('Error executing short story phase:', err)
+      alert(`Failed: ${err.message}`)
     } finally {
       setGeneratingBookId(null)
     }
   }
 
-  // Run a specific step on a short story (purple # button)
-  const handleRunStep = async (e, book) => {
+  // Redo the last completed phase for a short story
+  const handleRedoStoryPhase = async (e, book) => {
     e.stopPropagation()
-    if (!book?.id || !user?.uid || !book.adaptedTextBlob) return
+    if (!book?.id || !user?.uid) return
     if (generatingBookId) return
 
-    const stepInput = window.prompt(
-      'Enter step to run:\n\n' +
-      '  1  Prose Rewrite\n' +
-      '  2  Validate Coherence\n' +
-      '  3  Repair Coherence\n',
-      '1'
+    const lastPhase = book.lastPhaseCompleted || 0
+    if (lastPhase < 1) {
+      alert('No phase to redo.')
+      return
+    }
+
+    const confirmed = window.confirm(`Redo Phase ${lastPhase}?`)
+    if (!confirmed) return
+
+    setGeneratingBookId(book.id)
+    try {
+      if (lastPhase === 2) {
+        await generateSceneSummaries({
+          uid: user.uid,
+          storyId: book.id,
+          authorName: book.author,
+          language: book.language,
+          concept: book.concept,
+        })
+      } else if (lastPhase === 3) {
+        await generateStoryProse({
+          uid: user.uid,
+          storyId: book.id,
+          authorName: book.author,
+          language: book.language,
+          concept: book.concept,
+          sceneSummaries: book.sceneSummaries,
+        })
+      }
+    } catch (err) {
+      console.error('Redo failed:', err)
+      alert(`Redo failed: ${err.message}`)
+    } finally {
+      setGeneratingBookId(null)
+    }
+  }
+
+  // Run a specific phase on a short story (# button)
+  const handleRunSpecificStoryPhase = async (e, book) => {
+    e.stopPropagation()
+    if (!book?.id || !user?.uid) return
+    if (generatingBookId) return
+
+    const phaseInput = window.prompt(
+      'Enter phase to run (2-3):\n\n' +
+      '  2  Scene Summaries\n' +
+      '  3  Prose Generation\n',
+      '2'
     )
-    if (!stepInput) return
+    if (!phaseInput) return
 
-    const step = stepInput.trim()
+    const phase = parseInt(phaseInput.trim(), 10)
+    if (isNaN(phase) || phase < 2 || phase > 3) {
+      alert('Enter 2 or 3.')
+      return
+    }
 
-    if (step === '1' || /^prose/i.test(step)) {
-      if (!book.author) {
-        alert('No author found on this story — cannot run prose rewrite.')
-        return
+    setGeneratingBookId(book.id)
+    try {
+      if (phase === 2) {
+        await generateSceneSummaries({
+          uid: user.uid,
+          storyId: book.id,
+          authorName: book.author,
+          language: book.language,
+          concept: book.concept,
+        })
+      } else if (phase === 3) {
+        await generateStoryProse({
+          uid: user.uid,
+          storyId: book.id,
+          authorName: book.author,
+          language: book.language,
+          concept: book.concept,
+          sceneSummaries: book.sceneSummaries,
+        })
       }
-      setGeneratingBookId(book.id)
-      try {
-        const proseResult = await rewriteProse({ storyText: book.adaptedTextBlob, authorName: book.author })
-        if (proseResult.rewrittenText) {
-          const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
-          await updateDoc(storyRef, { adaptedTextBlob: proseResult.rewrittenText })
-          alert(`Prose rewrite complete — ${proseResult.wordCount} words.`)
-        }
-      } catch (err) {
-        console.error('Prose rewrite failed:', err)
-        alert(`Prose rewrite failed: ${err.message}`)
-      } finally {
-        setGeneratingBookId(null)
-      }
-    } else if (step === '2' || /^valid/i.test(step)) {
-      handleValidateStory(e, book)
-    } else if (step === '3' || /^repair/i.test(step)) {
-      handleRepairStory(e, book)
-    } else {
-      alert('Unknown step. Enter 1, 2, or 3.')
+    } catch (err) {
+      console.error(`Phase ${phase} failed:`, err)
+      alert(`Phase ${phase} failed: ${err.message}`)
+    } finally {
+      setGeneratingBookId(null)
     }
   }
 
@@ -1754,8 +1794,8 @@ const Dashboard = () => {
                           const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
                           const isProcessing = isGenerating || isRegenerating || generatingBookId === book.id
-                          // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
-                          const isClickable = !isProcessing && !isFailed
+                          // Clickable if not processing, not failed, and short stories must have completed Phase 3
+                          const isClickable = !isProcessing && !isFailed && !(book.totalPhases === 3 && (book.lastPhaseCompleted || 0) < 3)
                           // Can regenerate if it's a generated book with bible data and not currently processing
                           return (
                             <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
@@ -1766,39 +1806,34 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
-                              {/* Validation / Repair buttons for short stories */}
-                              {!book.isGeneratedBook && !isProcessing && book.adaptedTextBlob && (
+                              {/* Phase controls for short stories (3-phase pipeline) */}
+                              {isShortStoryPhased(book) && !isProcessing && (
                                 <div className="book-phase-controls">
-                                  {book.validationResult && !book.validationResult.clean && !book.validationResult.repaired ? (
-                                    <>
-                                      <button
-                                        className="book-phase-btn book-phase-redo"
-                                        onClick={(e) => handleValidateStory(e, book)}
-                                        title="Re-run coherence validation"
-                                      >
-                                        ⟲
-                                      </button>
-                                      <button
-                                        className="book-phase-btn book-phase-next"
-                                        onClick={(e) => handleRepairStory(e, book)}
-                                        title="Run surgical repair"
-                                      >
-                                        ▶
-                                      </button>
-                                    </>
-                                  ) : (
+                                  <span className="book-phase-indicator">
+                                    Phase {book.lastPhaseCompleted || 0}/3
+                                  </span>
+                                  {(book.lastPhaseCompleted || 0) < 3 && (
                                     <button
                                       className="book-phase-btn book-phase-next"
-                                      onClick={(e) => handleValidateStory(e, book)}
-                                      title="Run coherence validation"
+                                      onClick={(e) => handleNextStoryPhase(e, book)}
+                                      title={`Run Phase ${(book.lastPhaseCompleted || 0) + 1}`}
                                     >
                                       ▶
                                     </button>
                                   )}
+                                  {(book.lastPhaseCompleted || 0) > 1 && (
+                                    <button
+                                      className="book-phase-btn book-phase-redo"
+                                      onClick={(e) => handleRedoStoryPhase(e, book)}
+                                      title={`Redo Phase ${book.lastPhaseCompleted}`}
+                                    >
+                                      ↻
+                                    </button>
+                                  )}
                                   <button
                                     className="book-phase-btn book-phase-goto"
-                                    onClick={(e) => handleRunStep(e, book)}
-                                    title="Run specific step (prose rewrite, validate, repair)"
+                                    onClick={(e) => handleRunSpecificStoryPhase(e, book)}
+                                    title="Go to specific phase"
                                   >
                                     #
                                   </button>
@@ -1960,8 +1995,8 @@ const Dashboard = () => {
                           const isRegenerating = book.status === 'regenerating'
                           const isFailed = book.status === 'failed' || book.status === 'error'
                           const isProcessing = isGenerating || isRegenerating || generatingBookId === book.id
-                          // Clickable if not processing and not failed (allow bible_complete, bible_needs_review, ready, or no status)
-                          const isClickable = !isProcessing && !isFailed
+                          // Clickable if not processing, not failed, and short stories must have completed Phase 3
+                          const isClickable = !isProcessing && !isFailed && !(book.totalPhases === 3 && (book.lastPhaseCompleted || 0) < 3)
                           // Can regenerate if it's a generated book with bible data and not currently processing
                           return (
                             <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
@@ -1972,39 +2007,34 @@ const Dashboard = () => {
                               >
                                 ×
                               </button>
-                              {/* Validation / Repair buttons for short stories */}
-                              {!book.isGeneratedBook && !isProcessing && book.adaptedTextBlob && (
+                              {/* Phase controls for short stories (3-phase pipeline) */}
+                              {isShortStoryPhased(book) && !isProcessing && (
                                 <div className="book-phase-controls">
-                                  {book.validationResult && !book.validationResult.clean && !book.validationResult.repaired ? (
-                                    <>
-                                      <button
-                                        className="book-phase-btn book-phase-redo"
-                                        onClick={(e) => handleValidateStory(e, book)}
-                                        title="Re-run coherence validation"
-                                      >
-                                        ⟲
-                                      </button>
-                                      <button
-                                        className="book-phase-btn book-phase-next"
-                                        onClick={(e) => handleRepairStory(e, book)}
-                                        title="Run surgical repair"
-                                      >
-                                        ▶
-                                      </button>
-                                    </>
-                                  ) : (
+                                  <span className="book-phase-indicator">
+                                    Phase {book.lastPhaseCompleted || 0}/3
+                                  </span>
+                                  {(book.lastPhaseCompleted || 0) < 3 && (
                                     <button
                                       className="book-phase-btn book-phase-next"
-                                      onClick={(e) => handleValidateStory(e, book)}
-                                      title="Run coherence validation"
+                                      onClick={(e) => handleNextStoryPhase(e, book)}
+                                      title={`Run Phase ${(book.lastPhaseCompleted || 0) + 1}`}
                                     >
                                       ▶
                                     </button>
                                   )}
+                                  {(book.lastPhaseCompleted || 0) > 1 && (
+                                    <button
+                                      className="book-phase-btn book-phase-redo"
+                                      onClick={(e) => handleRedoStoryPhase(e, book)}
+                                      title={`Redo Phase ${book.lastPhaseCompleted}`}
+                                    >
+                                      ↻
+                                    </button>
+                                  )}
                                   <button
                                     className="book-phase-btn book-phase-goto"
-                                    onClick={(e) => handleRunStep(e, book)}
-                                    title="Run specific step (prose rewrite, validate, repair)"
+                                    onClick={(e) => handleRunSpecificStoryPhase(e, book)}
+                                    title="Go to specific phase"
                                   >
                                     #
                                   </button>

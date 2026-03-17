@@ -8972,6 +8972,155 @@ app.post('/api/generate/full-story', async (req, res) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SHORT STORY PIPELINE — Phase 2: Scene Summaries
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post('/api/generate/story/scene-summaries', async (req, res) => {
+  try {
+    const { uid, storyId, authorName, language, concept } = req.body
+
+    if (!uid?.trim()) return res.status(400).json({ error: 'uid is required' })
+    if (!storyId?.trim()) return res.status(400).json({ error: 'storyId is required' })
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
+
+    const prompt = `You are ${authorName.trim()}. You are writing a short story of approximately 5,000 words in ${language.trim()}.
+
+Below is the complete concept for the story. Expand it into a detailed scene-by-scene outline. For each scene provide: a brief heading, a summary of what happens beat by beat, which characters are present, and how the scene ends. Every scene must advance the central narrative. The outline must cover the entire story from first sentence to last.
+
+IMPORTANT: Each scene heading MUST use the format "Scene N: Title" (e.g. "Scene 1: The Arrival", "Scene 2: A Confession").
+
+Do not write prose. Write summaries only. Be specific — name the actions, the locations, the turning points.
+
+Here is the concept:
+
+${concept.trim()}`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('SHORT STORY PHASE 2 — SCENE SUMMARIES')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Language:', language.trim())
+    console.log('Story ID:', storyId)
+    console.log('Concept length:', concept.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    let sceneSummaries = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        sceneSummaries += event.delta.text
+      }
+    }
+
+    if (!sceneSummaries) {
+      return res.status(500).json({ error: 'No scene summaries were generated.' })
+    }
+
+    console.log('PHASE 2 — SCENE SUMMARIES RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(sceneSummaries)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    // Update Firestore
+    const storyRef = admin.firestore().collection('users').doc(uid).collection('stories').doc(storyId)
+    await storyRef.update({
+      sceneSummaries,
+      lastPhaseCompleted: 2,
+    })
+
+    return res.json({ success: true, sceneSummaries, storyId })
+  } catch (error) {
+    console.error('Generate scene summaries error:', error)
+    return res.status(500).json({ error: 'Failed to generate scene summaries', details: error.message })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHORT STORY PIPELINE — Phase 3: Prose Generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post('/api/generate/story/prose', async (req, res) => {
+  try {
+    const { uid, storyId, authorName, language, concept, sceneSummaries } = req.body
+
+    if (!uid?.trim()) return res.status(400).json({ error: 'uid is required' })
+    if (!storyId?.trim()) return res.status(400).json({ error: 'storyId is required' })
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
+    if (!sceneSummaries?.trim()) return res.status(400).json({ error: 'sceneSummaries is required' })
+
+    const prompt = `You are ${authorName.trim()}. You are writing a short story of approximately 5,000 words in ${language.trim()}.
+
+Below is the complete concept and the full scene-by-scene outline. You must keep the entire story in mind as you write. Every detail you introduce must serve the whole.
+
+Write the complete short story. No preamble, no commentary. Begin with the first sentence and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.
+
+=== CONCEPT ===
+
+${concept.trim()}
+
+=== SCENE OUTLINE ===
+
+${sceneSummaries.trim()}`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('SHORT STORY PHASE 3 — PROSE GENERATION')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', authorName.trim())
+    console.log('Language:', language.trim())
+    console.log('Story ID:', storyId)
+    console.log('Concept length:', concept.trim().length, 'chars')
+    console.log('Scene summaries length:', sceneSummaries.trim().length, 'chars')
+    console.log('───────────────────────────────────────────────────────')
+
+    let storyText = ''
+    const stream = anthropicClient.messages.stream({
+      model: 'claude-opus-4-6',
+      max_tokens: 32768,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        storyText += event.delta.text
+      }
+    }
+    storyText = cleanStoryText(storyText)
+
+    if (!storyText) {
+      return res.status(500).json({ error: 'No story text was generated.' })
+    }
+
+    const wordCount = storyText.split(/\s+/).length
+    console.log('PHASE 3 — PROSE RECEIVED:')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Word count:', wordCount)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    // Update Firestore
+    const storyRef = admin.firestore().collection('users').doc(uid).collection('stories').doc(storyId)
+    await storyRef.update({
+      adaptedTextBlob: storyText,
+      lastPhaseCompleted: 3,
+      status: 'paginating',
+    })
+
+    return res.json({ success: true, storyText, wordCount, storyId })
+  } catch (error) {
+    console.error('Generate story prose error:', error)
+    return res.status(500).json({ error: 'Failed to generate story prose', details: error.message })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // NOVEL PIPELINE — Call 1 & Call 2
 // ─────────────────────────────────────────────────────────────────────────────
 

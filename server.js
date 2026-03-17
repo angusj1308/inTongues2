@@ -8817,12 +8817,27 @@ app.post('/api/generate/different-prompt', async (req, res) => {
   }
 })
 
+// Genre id → display label map (used to qualify concept prompts)
+const GENRE_LABELS = {
+  romance: 'romance',
+  thriller: 'thriller',
+  scifi: 'science fiction',
+  mystery: 'mystery',
+  adventure: 'adventure',
+  comedy: 'comedy',
+  horror: 'horror',
+  fantasy: 'fantasy',
+  literary: 'literary',
+  historical: 'historical fiction',
+  fairytale: 'fairy tale',
+}
+
 // POST /api/generate/concept - Call 1: Author-driven concept generation
-// Receives authorName, format (short story | novella | novel), and timePlaceSetting
+// Receives authorName, genre, format (short story | novella | novel), and timePlaceSetting
 // Returns a detailed concept for a new original work
 app.post('/api/generate/concept', async (req, res) => {
   try {
-    const { authorName, format, timePlaceSetting } = req.body
+    const { authorName, genre, format, timePlaceSetting } = req.body
 
     if (!authorName || !authorName.trim()) {
       return res.status(400).json({ error: 'authorName is required' })
@@ -8832,6 +8847,7 @@ app.post('/api/generate/concept', async (req, res) => {
     }
 
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
 
     // Expand short story format to include length guidance
     const trimmedFormat = format.trim()
@@ -8839,14 +8855,16 @@ app.post('/api/generate/concept', async (req, res) => {
       ? 'short story of approximately 5,000 words'
       : trimmedFormat
 
+    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
     const prompt = trimmedFormat === 'short story'
-      ? `You are ${authorName.trim()}. Please come up with a plot and characters for a new 3,000–5,000 word short story set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
-      : `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+      ? `You are ${authorName.trim()}. Please come up with a plot and characters for a new 3,000–5,000 word ${genreQualifier}short story set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+      : `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 1 — CONCEPT GENERATION')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', authorName.trim())
+    console.log('Genre:', genreLabel || '(none)')
     console.log('Format:', format.trim())
     console.log('Setting:', settingText)
     console.log('───────────────────────────────────────────────────────')
@@ -9138,19 +9156,22 @@ function stripPreamble(text) {
 // Returns a detailed concept for a novel, with preamble stripped.
 app.post('/api/generate/novel/concept', async (req, res) => {
   try {
-    const { authorName, format, timePlaceSetting } = req.body
+    const { authorName, genre, format, timePlaceSetting } = req.body
 
     if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
     if (!format?.trim()) return res.status(400).json({ error: 'format is required (novella or novel)' })
 
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
+    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
 
-    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('NOVEL CALL 1 — CONCEPT GENERATION')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', authorName.trim())
+    console.log('Genre:', genreLabel || '(none)')
     console.log('Format:', format.trim())
     console.log('Setting:', settingText)
     console.log('───────────────────────────────────────────────────────')

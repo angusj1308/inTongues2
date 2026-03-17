@@ -8927,7 +8927,7 @@ function cleanStoryText(text) {
 // Returns the full story as a single text blob
 app.post('/api/generate/full-story', async (req, res) => {
   try {
-    const { authorName, genre, format, level, language, concept } = req.body
+    const { authorName, genre, format, level, language, concept, timePlaceSetting } = req.body
 
     if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
     if (!format?.trim()) return res.status(400).json({ error: 'format is required' })
@@ -8938,10 +8938,12 @@ app.post('/api/generate/full-story', async (req, res) => {
     const trimmedFormat = format.trim()
     const genreLabel = GENRE_LABELS[genre] || genre || ''
     const genreQualifier = genreLabel ? `${genreLabel} ` : ''
+    const settingText = timePlaceSetting?.trim() || ''
 
     let prompt
     if (trimmedFormat === 'short story') {
-      prompt = `You are ${authorName.trim()}. Write this 3,000–5,000 word ${genreQualifier}short story in ${level.trim()} ${language.trim()}, true to your own distinct style of prose.\nNo preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
+      const settingClause = settingText ? ` set in ${settingText}` : ''
+      prompt = `You are ${authorName.trim()}. Write this 3,000–5,000 word ${genreQualifier}short story${settingClause} in ${level.trim()} ${language.trim()}, true to your own distinct voice and style of prose.\nNo preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`
     } else {
       const formatForPrompt = trimmedFormat
       prompt = `You are ${authorName.trim()}. You are writing a ${genreQualifier}${formatForPrompt} in ${level.trim()} ${language.trim()}.\nWrite the complete ${genreQualifier}${formatForPrompt}. No preamble, no commentary. Begin with the first sentence and end with the last.\nDo not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section or chapter breaks, simply use three blank lines.\nHere is the concept:\n${concept.trim()}`

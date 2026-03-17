@@ -44,12 +44,12 @@ export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
 // back the complete story text as a single blob.
 // Params: { authorName, genre, format, level, language, concept }
 // ─────────────────────────────────────────────────────────────────────────────
-export const generateFullStory = async ({ authorName, genre, format, level, language, concept }) => {
+export const generateFullStory = async ({ authorName, genre, format, level, language, concept, timePlaceSetting }) => {
   try {
     const response = await fetch('http://localhost:4000/api/generate/full-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ authorName, genre, format, level, language, concept }),
+      body: JSON.stringify({ authorName, genre, format, level, language, concept, timePlaceSetting }),
     })
 
     if (!response.ok) {

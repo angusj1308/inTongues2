@@ -17,7 +17,7 @@ export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
     const response = await fetch('http://localhost:4000/api/generate/concept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ authorName, format, timePlaceSetting }),
+      body: JSON.stringify({ authorName, genre, format, timePlaceSetting }),
     })
 
     if (!response.ok) {
@@ -138,7 +138,7 @@ export const generateNovelConcept = async ({ genre, format, timePlaceSetting }) 
     const response = await fetch('http://localhost:4000/api/generate/novel/concept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ authorName, format, timePlaceSetting }),
+      body: JSON.stringify({ authorName, genre, format, timePlaceSetting }),
     })
 
     if (!response.ok) {

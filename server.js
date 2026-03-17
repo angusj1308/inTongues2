@@ -9103,6 +9103,8 @@ ${sceneSummaries.trim()}`
     console.log('PHASE 3 — PROSE RECEIVED:')
     console.log('───────────────────────────────────────────────────────')
     console.log('Word count:', wordCount)
+    console.log('───────────────────────────────────────────────────────')
+    console.log(storyText)
     console.log('═══════════════════════════════════════════════════════\n')
 
     // Update Firestore

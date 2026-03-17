@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateConcept, generateFullStory, generateNovelConcept, generateChapterSummaries, rewriteProse, validateCoherence } from '../../services/generator'
+import { generateConcept, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
 
@@ -221,53 +221,13 @@ const GenerateStoryPanel = ({
       return
     }
 
-    // ── Call 2: Generate the complete story text ──
+    // Save Phase 1 result — scene summaries and prose generated via dashboard phase controls
     const selectedLevel = LEVELS[levelIndex]
-    let storyText = null
-    try {
-      const storyResult = await generateFullStory({
-        authorName: rolledAuthor,
-        format,
-        level: selectedLevel,
-        language: activeLanguage,
-        concept,
-      })
-      storyText = storyResult.storyText
-    } catch (storyError) {
-      setError(storyError?.message || 'Unable to generate story.')
-      setIsSubmitting(false)
-      return
-    }
-
-    // ── Prose Style Rewrite ──
-    try {
-      const proseResult = await rewriteProse({ storyText, authorName: rolledAuthor })
-      storyText = proseResult.rewrittenText
-      console.log('Prose rewrite complete:', proseResult.wordCount, 'words')
-    } catch (proseErr) {
-      console.warn('Prose rewrite failed (non-blocking):', proseErr.message)
-    }
-
-    // ── Coherence Validation Sweep ──
-    let validationResult = null
-    try {
-      const valResponse = await validateCoherence({ storyText, title: storyTitle })
-      validationResult = valResponse.validationResult
-      console.log('Coherence validation:', validationResult)
-      if (!validationResult.clean) {
-        alert(`Coherence check found ${validationResult.error_count} issue(s). Use the repair button on the story card to fix.`)
-      }
-    } catch (valErr) {
-      console.warn('Coherence validation failed (non-blocking):', valErr.message)
-    }
-
-    // Store as flat book (same shape as imported books) so Dashboard
-    // pagination picks it up and the Reader renders it identically.
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
       const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
 
-      const storyRef = await addDoc(storiesRef, {
+      await addDoc(storiesRef, {
         title: storyTitle || `${genreLabel} ${format}`,
         author: rolledAuthor,
         language: activeLanguage,
@@ -276,8 +236,11 @@ const GenerateStoryPanel = ({
         description: description.trim(),
         concept,
         isFlat: true,
-        adaptedTextBlob: storyText,
-        status: 'paginating',
+        adaptedTextBlob: null,
+        sceneSummaries: null,
+        lastPhaseCompleted: 1,
+        totalPhases: 3,
+        status: 'phase_complete',
         createdAt: serverTimestamp(),
         generateAudio,
         voiceGender: generateAudio ? voiceGender : null,
@@ -285,21 +248,7 @@ const GenerateStoryPanel = ({
         audioStatus: generateAudio ? 'pending' : 'none',
         fullAudioUrl: null,
         voiceId: null,
-        validationResult: validationResult || null,
       })
-
-      // Trigger audio generation if requested
-      if (generateAudio) {
-        try {
-          await fetch('http://localhost:4000/api/generate-audio-book', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: user.uid, storyId: storyRef.id }),
-          })
-        } catch (err) {
-          console.error('Failed to trigger audio book generation:', err)
-        }
-      }
 
       if (onClose) onClose()
       navigate('/dashboard', { state: { initialTab: 'read' } })

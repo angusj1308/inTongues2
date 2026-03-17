@@ -9004,7 +9004,7 @@ app.post('/api/generate/full-story', async (req, res) => {
 
 app.post('/api/generate/story/scene-summaries', async (req, res) => {
   try {
-    const { uid, storyId, authorName, language, concept } = req.body
+    const { uid, storyId, authorName, genre, language, concept } = req.body
 
     if (!uid?.trim()) return res.status(400).json({ error: 'uid is required' })
     if (!storyId?.trim()) return res.status(400).json({ error: 'storyId is required' })
@@ -9012,15 +9012,12 @@ app.post('/api/generate/story/scene-summaries', async (req, res) => {
     if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
     if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
 
-    const prompt = `You are ${authorName.trim()}. You are writing a short story of approximately 5,000 words in ${language.trim()}.
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
+    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
 
-Below is the complete concept for the story. Expand it into a detailed scene-by-scene outline. For each scene provide: a brief heading, a summary of what happens beat by beat, which characters are present, and how the scene ends. Every scene must advance the central narrative. The outline must cover the entire story from first sentence to last.
+    const prompt = `You are ${authorName.trim()}. You are writing an original 3,000–5,000 word ${genreQualifier}short story.
 
-IMPORTANT: Each scene heading MUST use the format "Scene N: Title" (e.g. "Scene 1: The Arrival", "Scene 2: A Confession").
-
-Do not write prose. Write summaries only. Be specific — name the actions, the locations, the turning points.
-
-Here is the concept:
+Below is your story concept. Use it to craft a comprehensive list of scene summaries, true to your own short story narrative style.
 
 ${concept.trim()}`
 

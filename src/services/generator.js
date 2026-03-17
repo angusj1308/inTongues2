@@ -75,12 +75,12 @@ export const generateFullStory = async ({ authorName, genre, format, level, lang
 // ─────────────────────────────────────────────────────────────────────────────
 // Short Story Pipeline — Phase 2: Generate scene-by-scene summaries.
 // ─────────────────────────────────────────────────────────────────────────────
-export const generateSceneSummaries = async ({ uid, storyId, authorName, language, concept }) => {
+export const generateSceneSummaries = async ({ uid, storyId, authorName, genre, language, concept }) => {
   try {
     const response = await fetch('http://localhost:4000/api/generate/story/scene-summaries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, storyId, authorName, language, concept }),
+      body: JSON.stringify({ uid, storyId, authorName, genre, language, concept }),
     })
 
     if (!response.ok) {

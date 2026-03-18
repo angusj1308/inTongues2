@@ -156,6 +156,33 @@ export const generateStoryProse = async ({ uid, storyId, authorName, genre, lang
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Short Story Pipeline — Phase 4: Style rewrite in author's authentic voice.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateStyleRewrite = async ({ uid, storyId, authorName }) => {
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/story/style-rewrite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, storyId, authorName }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to style rewrite.')
+    }
+
+    const data = await response.json()
+    if (!data?.storyText) {
+      throw new Error('No rewritten text was returned.')
+    }
+
+    return { storyText: data.storyText, wordCount: data.wordCount, storyId: data.storyId }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to style rewrite. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Novel Pipeline — Call 1: Roll a novel author and generate a concept.
 // Same shape as generateConcept but hits the novel-specific endpoint which
 // strips conversational preamble and uses streaming.

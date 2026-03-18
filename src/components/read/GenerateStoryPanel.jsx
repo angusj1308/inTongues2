@@ -239,7 +239,7 @@ const GenerateStoryPanel = ({
         adaptedTextBlob: null,
         sceneSummaries: null,
         lastPhaseCompleted: 1,
-        totalPhases: 3,
+        totalPhases: 4,
         status: 'phase_complete',
         createdAt: serverTimestamp(),
         generateAudio,

@@ -1126,21 +1126,13 @@ const Dashboard = () => {
     setGeneratingBookId(book.id)
     try {
       if (lastPhase === 1) {
-        await generateSceneSummaries({
-          uid: user.uid,
-          storyId: book.id,
-          authorName: book.author,
-          language: book.language,
-          concept: book.concept,
-        })
-      } else if (lastPhase === 2) {
+        // Skip scene summaries — go straight to prose generation
         await generateStoryProse({
           uid: user.uid,
           storyId: book.id,
           authorName: book.author,
           language: book.language,
           concept: book.concept,
-          sceneSummaries: book.sceneSummaries,
         })
         // Trigger audio generation if requested
         if (book.generateAudio) {
@@ -1180,22 +1172,13 @@ const Dashboard = () => {
 
     setGeneratingBookId(book.id)
     try {
-      if (lastPhase === 2) {
-        await generateSceneSummaries({
-          uid: user.uid,
-          storyId: book.id,
-          authorName: book.author,
-          language: book.language,
-          concept: book.concept,
-        })
-      } else if (lastPhase === 3) {
+      if (lastPhase === 3) {
         await generateStoryProse({
           uid: user.uid,
           storyId: book.id,
           authorName: book.author,
           language: book.language,
           concept: book.concept,
-          sceneSummaries: book.sceneSummaries,
         })
       }
     } catch (err) {
@@ -1213,17 +1196,16 @@ const Dashboard = () => {
     if (generatingBookId) return
 
     const phaseInput = window.prompt(
-      'Enter phase to run (1-3):\n\n' +
-      '  1  Concept (re-roll author & concept)\n' +
-      '  2  Scene Summaries\n' +
+      'Enter phase to run (1 or 3):\n\n' +
+      '  1  Concept (regenerate concept)\n' +
       '  3  Prose Generation\n',
-      '2'
+      '3'
     )
     if (!phaseInput) return
 
     const phase = parseInt(phaseInput.trim(), 10)
-    if (isNaN(phase) || phase < 1 || phase > 3) {
-      alert('Enter 1, 2, or 3.')
+    if (phase !== 1 && phase !== 3) {
+      alert('Enter 1 or 3.')
       return
     }
 
@@ -1244,14 +1226,6 @@ const Dashboard = () => {
           lastPhaseCompleted: 1,
           status: 'phase_complete',
         })
-      } else if (phase === 2) {
-        await generateSceneSummaries({
-          uid: user.uid,
-          storyId: book.id,
-          authorName: book.author,
-          language: book.language,
-          concept: book.concept,
-        })
       } else if (phase === 3) {
         await generateStoryProse({
           uid: user.uid,
@@ -1259,7 +1233,6 @@ const Dashboard = () => {
           authorName: book.author,
           language: book.language,
           concept: book.concept,
-          sceneSummaries: book.sceneSummaries,
         })
       }
     } catch (err) {

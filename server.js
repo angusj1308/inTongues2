@@ -9078,9 +9078,11 @@ app.post('/api/generate/story/prose', async (req, res) => {
     if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
     if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
     if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
-    if (!sceneSummaries?.trim()) return res.status(400).json({ error: 'sceneSummaries is required' })
 
-    const prompt = `You are ${authorName.trim()}. You are writing a short story of approximately 5,000 words in ${language.trim()}.
+    const hasSceneSummaries = sceneSummaries?.trim()
+
+    const prompt = hasSceneSummaries
+      ? `You are ${authorName.trim()}. You are writing a short story of approximately 5,000 words in ${language.trim()}.
 
 Below is the complete concept and the full scene-by-scene outline. You must keep the entire story in mind as you write. Every detail you introduce must serve the whole.
 
@@ -9095,6 +9097,15 @@ ${concept.trim()}
 === SCENE OUTLINE ===
 
 ${sceneSummaries.trim()}`
+      : `You are ${authorName.trim()}. You are writing an original 3,000–5,000 word short story in ${language.trim()}.
+
+Below is your story concept. Write the complete short story from it.
+
+No preamble, no commentary. Begin with the first sentence and end with the last.
+
+Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.
+
+${concept.trim()}`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('SHORT STORY PHASE 3 — PROSE GENERATION')
@@ -9103,7 +9114,7 @@ ${sceneSummaries.trim()}`
     console.log('Language:', language.trim())
     console.log('Story ID:', storyId)
     console.log('Concept length:', concept.trim().length, 'chars')
-    console.log('Scene summaries length:', sceneSummaries.trim().length, 'chars')
+    console.log('Scene summaries:', hasSceneSummaries ? `${sceneSummaries.trim().length} chars` : '(skipped)')
     console.log('───────────────────────────────────────────────────────')
 
     let storyText = ''

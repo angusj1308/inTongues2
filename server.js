@@ -8857,8 +8857,8 @@ app.post('/api/generate/concept', async (req, res) => {
 
     const genreQualifier = genreLabel ? `${genreLabel} ` : ''
     const prompt = trimmedFormat === 'short story'
-      ? `You are ${authorName.trim()}. Write a brief concept for a simple 3,000–5,000 word ${genreQualifier}short story set in ${settingText}.\nInclude the premise, the main characters, and how the story ends.\nKeep the concept under 500 words.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>`
-      : `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+      ? `You are ${authorName.trim()}. Write a brief concept for a simple 3,000–5,000 word ${genreQualifier}short story set in ${settingText}.\nInclude the premise, the main characters, and how the story ends.\nKeep the concept under 500 words.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nDeliver your concept as a continuous plot outline. Do not use headers, bullet points, or bold formatting.`
+      : `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.\nDeliver your concept as a continuous plot outline. Do not use headers, bullet points, or bold formatting.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('CALL 1 — CONCEPT GENERATION')
@@ -9250,7 +9250,7 @@ app.post('/api/generate/novel/concept', async (req, res) => {
     const genreLabel = GENRE_LABELS[genre] || genre || ''
     const genreQualifier = genreLabel ? `${genreLabel} ` : ''
 
-    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+    const prompt = `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${format.trim()} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.\nDeliver your concept as a continuous plot outline. Do not use headers, bullet points, or bold formatting.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('NOVEL CALL 1 — CONCEPT GENERATION')

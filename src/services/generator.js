@@ -1,5 +1,8 @@
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import { rollAuthor, rollNovelAuthor } from './Authors'
+import { rollAuthor, rollNovelAuthor, GENRES } from './Authors'
+
+// Reverse map: genre label → genre id (e.g. "Science Fiction" → "scifi")
+const LABEL_TO_ID = Object.fromEntries(GENRES.map((g) => [g.label.toLowerCase(), g.id]))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generateConcept — Call 1: Roll an author from the genre, then ask the API
@@ -36,6 +39,32 @@ export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
     }
   } catch (error) {
     throw new Error(error?.message || 'Unable to generate concept. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// regenerateConcept — Re-generate a concept for an existing short story,
+// keeping the same author. Accepts the genre label as stored on the book.
+// ─────────────────────────────────────────────────────────────────────────────
+export const regenerateConcept = async ({ authorName, genreLabel, timePlaceSetting }) => {
+  const genreId = LABEL_TO_ID[genreLabel?.toLowerCase()] || genreLabel || ''
+
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/concept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorName, genre: genreId, format: 'short story', timePlaceSetting }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to regenerate concept.')
+    }
+
+    const data = await response.json()
+    return { concept: data.concept, title: data.title }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to regenerate concept. Please try again.')
   }
 }
 

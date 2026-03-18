@@ -20,7 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
-import { rewriteProse, validateCoherence, repairCoherence, generateSceneSummaries, generateStoryProse } from '../services/generator'
+import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateSceneSummaries, generateStoryProse } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1213,7 +1213,8 @@ const Dashboard = () => {
     if (generatingBookId) return
 
     const phaseInput = window.prompt(
-      'Enter phase to run (2-3):\n\n' +
+      'Enter phase to run (1-3):\n\n' +
+      '  1  Concept (re-roll author & concept)\n' +
       '  2  Scene Summaries\n' +
       '  3  Prose Generation\n',
       '2'
@@ -1221,14 +1222,29 @@ const Dashboard = () => {
     if (!phaseInput) return
 
     const phase = parseInt(phaseInput.trim(), 10)
-    if (isNaN(phase) || phase < 2 || phase > 3) {
-      alert('Enter 2 or 3.')
+    if (isNaN(phase) || phase < 1 || phase > 3) {
+      alert('Enter 1, 2, or 3.')
       return
     }
 
     setGeneratingBookId(book.id)
     try {
-      if (phase === 2) {
+      if (phase === 1) {
+        const result = await regenerateConcept({
+          authorName: book.author,
+          genreLabel: book.genre,
+          timePlaceSetting: book.description,
+        })
+        const storyRef = doc(db, 'users', user.uid, 'stories', book.id)
+        await updateDoc(storyRef, {
+          concept: result.concept,
+          title: result.title || book.title,
+          sceneSummaries: null,
+          adaptedTextBlob: null,
+          lastPhaseCompleted: 1,
+          status: 'phase_complete',
+        })
+      } else if (phase === 2) {
         await generateSceneSummaries({
           uid: user.uid,
           storyId: book.id,

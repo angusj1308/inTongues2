@@ -1131,6 +1131,7 @@ const Dashboard = () => {
           uid: user.uid,
           storyId: book.id,
           authorName: book.author,
+          genre: book.genre,
           language: book.language,
           concept: book.concept,
         })
@@ -1177,6 +1178,7 @@ const Dashboard = () => {
           uid: user.uid,
           storyId: book.id,
           authorName: book.author,
+          genre: book.genre,
           language: book.language,
           concept: book.concept,
         })
@@ -1231,6 +1233,7 @@ const Dashboard = () => {
           uid: user.uid,
           storyId: book.id,
           authorName: book.author,
+          genre: book.genre,
           language: book.language,
           concept: book.concept,
         })

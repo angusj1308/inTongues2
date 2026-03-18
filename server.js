@@ -9071,30 +9071,22 @@ ${concept.trim()}`
 
 app.post('/api/generate/story/prose', async (req, res) => {
   try {
-    const { uid, storyId, authorName, language, concept, sceneSummaries } = req.body
+    const { uid, storyId, authorName, genre, language, concept, sceneSummaries } = req.body
 
     if (!uid?.trim()) return res.status(400).json({ error: 'uid is required' })
     if (!storyId?.trim()) return res.status(400).json({ error: 'storyId is required' })
     if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
     if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
     if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
-    if (!sceneSummaries?.trim()) return res.status(400).json({ error: 'sceneSummaries is required' })
 
-    const prompt = `You are ${authorName.trim()}. You are writing a short story of approximately 5,000 words in ${language.trim()}.
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
+    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
 
-Below is the complete concept and the full scene-by-scene outline. You must keep the entire story in mind as you write. Every detail you introduce must serve the whole.
+    const prompt = `You are ${authorName.trim()}. Write a ${genreQualifier}short story of approximately 3,000–5,000 words in ${language.trim()}. Write the complete short story, true to your own authentic style of prose and narrative voice. No preamble, no commentary. Begin with the first sentence and end with the last. Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.
 
-Write the complete short story. No preamble, no commentary. Begin with the first sentence and end with the last.
+Here is the concept:
 
-Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.
-
-=== CONCEPT ===
-
-${concept.trim()}
-
-=== SCENE OUTLINE ===
-
-${sceneSummaries.trim()}`
+${concept.trim()}`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('SHORT STORY PHASE 3 — PROSE GENERATION')
@@ -9103,7 +9095,7 @@ ${sceneSummaries.trim()}`
     console.log('Language:', language.trim())
     console.log('Story ID:', storyId)
     console.log('Concept length:', concept.trim().length, 'chars')
-    console.log('Scene summaries length:', sceneSummaries.trim().length, 'chars')
+    console.log('Genre:', genreLabel || '(none)')
     console.log('───────────────────────────────────────────────────────')
 
     let storyText = ''

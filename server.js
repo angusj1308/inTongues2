@@ -9084,6 +9084,18 @@ app.post('/api/generate/story/prose', async (req, res) => {
 
     const prompt = `You are ${authorName.trim()}. Write a ${genreQualifier}short story of approximately 3,000–5,000 words in ${language.trim()}. Write the complete short story, true to your own authentic style of prose and narrative voice. No preamble, no commentary. Begin with the first sentence and end with the last. Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.
 
+PROSE RULES — FOLLOW THESE WITHOUT EXCEPTION:
+NEVER explain a metaphor after making it. Make it and move on.
+NEVER restate the same idea in different words within the same paragraph. Say it once.
+NEVER use "the way X does Y" simile constructions more than twice in an entire story.
+NEVER have the narrator comment on the story's own meaning or themes.
+NEVER tell the reader what a character is feeling when their actions already show it.
+NEVER use "It was a kind of..." or "It was the sort of..." constructions.
+NEVER follow a concrete image with an abstract explanation of what the image represents.
+NEVER use rhetorical questions to underline a point already made.
+NEVER extend a sentence past the point where it has landed. If the sentence has delivered its meaning, end it.
+NEVER have a character "feel" or "understand" or "realize" something when you can show them doing something instead.
+
 Here is the concept:
 
 ${concept.trim()}`

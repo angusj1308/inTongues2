@@ -8857,7 +8857,7 @@ app.post('/api/generate/concept', async (req, res) => {
 
     const genreQualifier = genreLabel ? `${genreLabel} ` : ''
     const prompt = trimmedFormat === 'short story'
-      ? `You are ${authorName.trim()}. Please come up with a plot and characters for a new 3,000–5,000 word ${genreQualifier}short story set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
+      ? `You are ${authorName.trim()}. Write a brief concept for a simple 3,000–5,000 word ${genreQualifier}short story set in ${settingText}.\nInclude the premise, the main characters, and how the story ends.\nKeep the concept under 500 words.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>`
       : `You are ${authorName.trim()}. Write a detailed and comprehensive concept for a new original ${genreQualifier}${formatForPrompt} set in ${settingText}.\nBegin your response with the title on its own line in the format:\nTitle: <title of the work>\nThen provide the full concept below it.`
 
     console.log('\n═══════════════════════════════════════════════════════')

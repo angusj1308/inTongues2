@@ -8999,79 +8999,12 @@ app.post('/api/generate/full-story', async (req, res) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHORT STORY PIPELINE — Phase 2: Scene Summaries
-// ─────────────────────────────────────────────────────────────────────────────
-
-app.post('/api/generate/story/scene-summaries', async (req, res) => {
-  try {
-    const { uid, storyId, authorName, genre, language, concept } = req.body
-
-    if (!uid?.trim()) return res.status(400).json({ error: 'uid is required' })
-    if (!storyId?.trim()) return res.status(400).json({ error: 'storyId is required' })
-    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
-    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
-    if (!concept?.trim()) return res.status(400).json({ error: 'concept is required' })
-
-    const genreLabel = GENRE_LABELS[genre] || genre || ''
-    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
-
-    const prompt = `You are ${authorName.trim()}. You are writing an original 3,000–5,000 word ${genreQualifier}short story.
-
-Below is your story concept. Use it to craft a comprehensive list of scene summaries, true to your own short story narrative style.
-
-${concept.trim()}`
-
-    console.log('\n═══════════════════════════════════════════════════════')
-    console.log('SHORT STORY PHASE 2 — SCENE SUMMARIES')
-    console.log('═══════════════════════════════════════════════════════')
-    console.log('Author:', authorName.trim())
-    console.log('Language:', language.trim())
-    console.log('Story ID:', storyId)
-    console.log('Concept length:', concept.trim().length, 'chars')
-    console.log('───────────────────────────────────────────────────────')
-
-    let sceneSummaries = ''
-    const stream = anthropicClient.messages.stream({
-      model: 'claude-opus-4-6',
-      max_tokens: 16384,
-      messages: [{ role: 'user', content: prompt }],
-    })
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        sceneSummaries += event.delta.text
-      }
-    }
-
-    if (!sceneSummaries) {
-      return res.status(500).json({ error: 'No scene summaries were generated.' })
-    }
-
-    console.log('PHASE 2 — SCENE SUMMARIES RECEIVED:')
-    console.log('───────────────────────────────────────────────────────')
-    console.log(sceneSummaries)
-    console.log('═══════════════════════════════════════════════════════\n')
-
-    // Update Firestore
-    const storyRef = admin.firestore().collection('users').doc(uid).collection('stories').doc(storyId)
-    await storyRef.update({
-      sceneSummaries,
-      lastPhaseCompleted: 2,
-    })
-
-    return res.json({ success: true, sceneSummaries, storyId })
-  } catch (error) {
-    console.error('Generate scene summaries error:', error)
-    return res.status(500).json({ error: 'Failed to generate scene summaries', details: error.message })
-  }
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SHORT STORY PIPELINE — Phase 3: Prose Generation
+// SHORT STORY PIPELINE — Phase 2: Prose Generation
 // ─────────────────────────────────────────────────────────────────────────────
 
 app.post('/api/generate/story/prose', async (req, res) => {
   try {
-    const { uid, storyId, authorName, genre, language, concept, sceneSummaries } = req.body
+    const { uid, storyId, authorName, genre, language, concept } = req.body
 
     if (!uid?.trim()) return res.status(400).json({ error: 'uid is required' })
     if (!storyId?.trim()) return res.status(400).json({ error: 'storyId is required' })
@@ -9101,25 +9034,28 @@ Here is the concept:
 ${concept.trim()}`
 
     console.log('\n═══════════════════════════════════════════════════════')
-    console.log('SHORT STORY PHASE 3 — PROSE GENERATION')
+    console.log('SHORT STORY PHASE 2 — PROSE GENERATION')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', authorName.trim())
     console.log('Language:', language.trim())
     console.log('Story ID:', storyId)
     console.log('Concept length:', concept.trim().length, 'chars')
     console.log('Genre:', genreLabel || '(none)')
+    console.log('Model: ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI')
+    console.log('Temperature: 0.8')
     console.log('───────────────────────────────────────────────────────')
 
     let storyText = ''
-    const stream = anthropicClient.messages.stream({
-      model: 'claude-opus-4-6',
+    const stream = await client.chat.completions.create({
+      model: 'ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI',
+      temperature: 0.8,
       max_tokens: 32768,
       messages: [{ role: 'user', content: prompt }],
+      stream: true,
     })
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        storyText += event.delta.text
-      }
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content
+      if (delta) storyText += delta
     }
     storyText = cleanStoryText(storyText)
 
@@ -9128,7 +9064,7 @@ ${concept.trim()}`
     }
 
     const wordCount = storyText.split(/\s+/).length
-    console.log('PHASE 3 — PROSE RECEIVED:')
+    console.log('PHASE 2 — PROSE RECEIVED:')
     console.log('───────────────────────────────────────────────────────')
     console.log('Word count:', wordCount)
     console.log('───────────────────────────────────────────────────────')
@@ -9139,7 +9075,7 @@ ${concept.trim()}`
     const storyRef = admin.firestore().collection('users').doc(uid).collection('stories').doc(storyId)
     await storyRef.update({
       adaptedTextBlob: storyText,
-      lastPhaseCompleted: 3,
+      lastPhaseCompleted: 2,
       status: 'paginating',
     })
 
@@ -9151,8 +9087,8 @@ ${concept.trim()}`
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHORT STORY — Phase 4: Style Rewrite
-// Takes the Phase 3 prose and rewrites it in the author's authentic voice.
+// SHORT STORY — Phase 3: Style Rewrite
+// Takes the Phase 2 prose and rewrites it in the author's authentic voice.
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/generate/story/style-rewrite', async (req, res) => {
   try {
@@ -9168,25 +9104,25 @@ app.post('/api/generate/story/style-rewrite', async (req, res) => {
     if (!storyDoc.exists) return res.status(404).json({ error: 'Story not found' })
 
     const storyData = storyDoc.data()
-    const phase3Prose = storyData.adaptedTextBlob
-    if (!phase3Prose?.trim()) return res.status(400).json({ error: 'No Phase 3 prose found to rewrite' })
+    const phase2Prose = storyData.adaptedTextBlob
+    if (!phase2Prose?.trim()) return res.status(400).json({ error: 'No Phase 2 prose found to rewrite' })
 
     const prompt = `This story was intended to be written in the style of ${authorName.trim()} but reads as generic AI output. You are ${authorName.trim()}. Conduct a full rewrite of this story, true to your authentic voice and narrative style. Maintain only the substance of the story. The prose is entirely yours to command.
 
 Do not use any markdown formatting. Write pure prose only. Do not include the title in the text. Do not use #, ##, ---, ***, or any markup symbols. For section breaks, simply use three blank lines.
 
-${phase3Prose.trim()}`
+${phase2Prose.trim()}`
 
     console.log('\n═══════════════════════════════════════════════════════')
-    console.log('SHORT STORY PHASE 4 — STYLE REWRITE')
+    console.log('SHORT STORY PHASE 3 — STYLE REWRITE')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', authorName.trim())
     console.log('Story ID:', storyId)
-    console.log('Phase 3 prose length:', phase3Prose.trim().length, 'chars')
+    console.log('Phase 2 prose length:', phase2Prose.trim().length, 'chars')
     console.log('───────────────────────────────────────────────────────')
 
     let rewrittenText = ''
-    const estimatedTokens = Math.ceil(phase3Prose.trim().length / 4)
+    const estimatedTokens = Math.ceil(phase2Prose.trim().length / 4)
     const maxTokens = Math.min(Math.max(estimatedTokens + 4096, 16384), 128000)
 
     const stream = anthropicClient.messages.stream({
@@ -9206,7 +9142,7 @@ ${phase3Prose.trim()}`
     }
 
     const wordCount = rewrittenText.split(/\s+/).length
-    console.log('PHASE 4 — STYLE REWRITE RECEIVED:')
+    console.log('PHASE 3 — STYLE REWRITE RECEIVED:')
     console.log('───────────────────────────────────────────────────────')
     console.log('Word count:', wordCount)
     console.log('───────────────────────────────────────────────────────')
@@ -9216,7 +9152,7 @@ ${phase3Prose.trim()}`
     // Update Firestore — overwrite the prose with the rewritten version
     await storyRef.update({
       adaptedTextBlob: rewrittenText,
-      lastPhaseCompleted: 4,
+      lastPhaseCompleted: 3,
       status: 'paginating',
     })
 

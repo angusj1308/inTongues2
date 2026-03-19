@@ -102,34 +102,7 @@ export const generateFullStory = async ({ authorName, genre, format, level, lang
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Short Story Pipeline — Phase 2: Generate scene-by-scene summaries.
-// ─────────────────────────────────────────────────────────────────────────────
-export const generateSceneSummaries = async ({ uid, storyId, authorName, genre, language, concept }) => {
-  try {
-    const response = await fetch('http://localhost:4000/api/generate/story/scene-summaries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, storyId, authorName, genre, language, concept }),
-    })
-
-    if (!response.ok) {
-      const errorPayload = await response.json().catch(() => ({}))
-      throw new Error(errorPayload?.error || 'Failed to generate scene summaries.')
-    }
-
-    const data = await response.json()
-    if (!data?.sceneSummaries) {
-      throw new Error('No scene summaries were returned.')
-    }
-
-    return { sceneSummaries: data.sceneSummaries, storyId: data.storyId }
-  } catch (error) {
-    throw new Error(error?.message || 'Unable to generate scene summaries. Please try again.')
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Short Story Pipeline — Phase 3: Generate complete prose from concept + scenes.
+// Short Story Pipeline — Phase 2: Generate complete prose from concept.
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateStoryProse = async ({ uid, storyId, authorName, genre, language, concept }) => {
   try {
@@ -156,7 +129,7 @@ export const generateStoryProse = async ({ uid, storyId, authorName, genre, lang
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Short Story Pipeline — Phase 4: Style rewrite in author's authentic voice.
+// Short Story Pipeline — Phase 3: Style rewrite in author's authentic voice.
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateStyleRewrite = async ({ uid, storyId, authorName }) => {
   try {

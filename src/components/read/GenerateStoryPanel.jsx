@@ -221,7 +221,7 @@ const GenerateStoryPanel = ({
       return
     }
 
-    // Save Phase 1 result — scene summaries and prose generated via dashboard phase controls
+    // Save Phase 1 result — prose and style rewrite generated via dashboard phase controls
     const selectedLevel = LEVELS[levelIndex]
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
@@ -237,9 +237,8 @@ const GenerateStoryPanel = ({
         concept,
         isFlat: true,
         adaptedTextBlob: null,
-        sceneSummaries: null,
         lastPhaseCompleted: 1,
-        totalPhases: 4,
+        totalPhases: 3,
         status: 'phase_complete',
         createdAt: serverTimestamp(),
         generateAudio,

@@ -20,7 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
-import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateSceneSummaries, generateStoryProse, generateStyleRewrite } from '../services/generator'
+import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateStoryProse, generateStyleRewrite } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1118,7 +1118,7 @@ const Dashboard = () => {
     if (generatingBookId) return
 
     const lastPhase = book.lastPhaseCompleted || 0
-    if (lastPhase >= 4) {
+    if (lastPhase >= 3) {
       alert('All phases complete! Story is ready to read.')
       return
     }
@@ -1126,7 +1126,7 @@ const Dashboard = () => {
     setGeneratingBookId(book.id)
     try {
       if (lastPhase === 1) {
-        // Skip scene summaries — go straight to prose generation
+        // Phase 2: Prose generation
         await generateStoryProse({
           uid: user.uid,
           storyId: book.id,
@@ -1136,8 +1136,8 @@ const Dashboard = () => {
           concept: book.concept,
         })
       }
-      if (lastPhase <= 3) {
-        // Phase 4: Style rewrite in author's authentic voice
+      if (lastPhase <= 2) {
+        // Phase 3: Style rewrite in author's authentic voice
         await generateStyleRewrite({
           uid: user.uid,
           storyId: book.id,
@@ -1181,13 +1181,13 @@ const Dashboard = () => {
 
     setGeneratingBookId(book.id)
     try {
-      if (lastPhase === 4) {
+      if (lastPhase === 3) {
         await generateStyleRewrite({
           uid: user.uid,
           storyId: book.id,
           authorName: book.author,
         })
-      } else if (lastPhase === 3) {
+      } else if (lastPhase === 2) {
         await generateStoryProse({
           uid: user.uid,
           storyId: book.id,
@@ -1212,17 +1212,17 @@ const Dashboard = () => {
     if (generatingBookId) return
 
     const phaseInput = window.prompt(
-      'Enter phase to run (1, 3, or 4):\n\n' +
+      'Enter phase to run (1, 2, or 3):\n\n' +
       '  1  Concept (regenerate concept)\n' +
-      '  3  Prose Generation\n' +
-      '  4  Style Rewrite\n',
-      '4'
+      '  2  Prose Generation\n' +
+      '  3  Style Rewrite\n',
+      '3'
     )
     if (!phaseInput) return
 
     const phase = parseInt(phaseInput.trim(), 10)
-    if (phase !== 1 && phase !== 3 && phase !== 4) {
-      alert('Enter 1, 3, or 4.')
+    if (phase !== 1 && phase !== 2 && phase !== 3) {
+      alert('Enter 1, 2, or 3.')
       return
     }
 
@@ -1238,12 +1238,11 @@ const Dashboard = () => {
         await updateDoc(storyRef, {
           concept: result.concept,
           title: result.title || book.title,
-          sceneSummaries: null,
           adaptedTextBlob: null,
           lastPhaseCompleted: 1,
           status: 'phase_complete',
         })
-      } else if (phase === 3) {
+      } else if (phase === 2) {
         await generateStoryProse({
           uid: user.uid,
           storyId: book.id,
@@ -1252,7 +1251,7 @@ const Dashboard = () => {
           language: book.language,
           concept: book.concept,
         })
-      } else if (phase === 4) {
+      } else if (phase === 3) {
         await generateStyleRewrite({
           uid: user.uid,
           storyId: book.id,
@@ -1808,7 +1807,7 @@ const Dashboard = () => {
                           const isFailed = book.status === 'failed' || book.status === 'error'
                           const isProcessing = isGenerating || isRegenerating || generatingBookId === book.id
                           // Clickable if not processing, not failed, and short stories must have completed Phase 3
-                          const isClickable = !isProcessing && !isFailed && !((book.totalPhases === 4 || book.totalPhases === 3) && (book.lastPhaseCompleted || 0) < (book.totalPhases || 4))
+                          const isClickable = !isProcessing && !isFailed && !((book.totalPhases === 4 || book.totalPhases === 3) && (book.lastPhaseCompleted || 0) < (book.totalPhases || 3))
                           // Can regenerate if it's a generated book with bible data and not currently processing
                           return (
                             <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
@@ -1823,9 +1822,9 @@ const Dashboard = () => {
                               {isShortStoryPhased(book) && !isProcessing && (
                                 <div className="book-phase-controls">
                                   <span className="book-phase-indicator">
-                                    Phase {book.lastPhaseCompleted || 0}/{book.totalPhases || 4}
+                                    Phase {book.lastPhaseCompleted || 0}/{book.totalPhases || 3}
                                   </span>
-                                  {(book.lastPhaseCompleted || 0) < (book.totalPhases || 4) && (
+                                  {(book.lastPhaseCompleted || 0) < (book.totalPhases || 3) && (
                                     <button
                                       className="book-phase-btn book-phase-next"
                                       onClick={(e) => handleNextStoryPhase(e, book)}
@@ -2009,7 +2008,7 @@ const Dashboard = () => {
                           const isFailed = book.status === 'failed' || book.status === 'error'
                           const isProcessing = isGenerating || isRegenerating || generatingBookId === book.id
                           // Clickable if not processing, not failed, and short stories must have completed Phase 3
-                          const isClickable = !isProcessing && !isFailed && !((book.totalPhases === 4 || book.totalPhases === 3) && (book.lastPhaseCompleted || 0) < (book.totalPhases || 4))
+                          const isClickable = !isProcessing && !isFailed && !((book.totalPhases === 4 || book.totalPhases === 3) && (book.lastPhaseCompleted || 0) < (book.totalPhases || 3))
                           // Can regenerate if it's a generated book with bible data and not currently processing
                           return (
                             <div key={book.id || book.title} className={`reading-shelf-item${isProcessing ? ' reading-shelf-item--generating' : ''}${isFailed ? ' reading-shelf-item--failed' : ''}`}>
@@ -2024,9 +2023,9 @@ const Dashboard = () => {
                               {isShortStoryPhased(book) && !isProcessing && (
                                 <div className="book-phase-controls">
                                   <span className="book-phase-indicator">
-                                    Phase {book.lastPhaseCompleted || 0}/{book.totalPhases || 4}
+                                    Phase {book.lastPhaseCompleted || 0}/{book.totalPhases || 3}
                                   </span>
-                                  {(book.lastPhaseCompleted || 0) < (book.totalPhases || 4) && (
+                                  {(book.lastPhaseCompleted || 0) < (book.totalPhases || 3) && (
                                     <button
                                       className="book-phase-btn book-phase-next"
                                       onClick={(e) => handleNextStoryPhase(e, book)}

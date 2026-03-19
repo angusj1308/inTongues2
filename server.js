@@ -9049,7 +9049,7 @@ ${concept.trim()}`
     const stream = await client.chat.completions.create({
       model: 'ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI',
       temperature: 0.8,
-      max_tokens: 32768,
+      max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }],
       stream: true,
     })

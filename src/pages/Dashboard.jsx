@@ -20,7 +20,7 @@ import { loadDueCards } from '../services/vocab'
 import { getHomeStats } from '../services/stats'
 import { getTodayActivities, ACTIVITY_TYPES, addActivity, getOrCreateActiveRoutine, DAYS_OF_WEEK, DAY_LABELS } from '../services/routine'
 import { regeneratePhases, executePhase, generateChapter, resetGeneration, cancelGeneration, regenerateChapterSummaries } from '../services/novelApiClient'
-import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateStoryProse, generateStyleRewrite } from '../services/generator'
+import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateStoryProse } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
 
@@ -1136,24 +1136,16 @@ const Dashboard = () => {
           concept: book.concept,
         })
       }
-      if (lastPhase <= 2) {
-        // Phase 3: Style rewrite in author's authentic voice
-        await generateStyleRewrite({
-          uid: user.uid,
-          storyId: book.id,
-          authorName: book.author,
-        })
-        // Trigger audio generation if requested
-        if (book.generateAudio) {
-          try {
-            await fetch('http://localhost:4000/api/generate-audio-book', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ uid: user.uid, storyId: book.id }),
-            })
-          } catch (err) {
-            console.error('Audio trigger failed:', err)
-          }
+      // Trigger audio generation if requested after prose generation
+      if (lastPhase <= 2 && book.generateAudio) {
+        try {
+          await fetch('http://localhost:4000/api/generate-audio-book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: user.uid, storyId: book.id }),
+          })
+        } catch (err) {
+          console.error('Audio trigger failed:', err)
         }
       }
     } catch (err) {
@@ -1181,13 +1173,7 @@ const Dashboard = () => {
 
     setGeneratingBookId(book.id)
     try {
-      if (lastPhase === 3) {
-        await generateStyleRewrite({
-          uid: user.uid,
-          storyId: book.id,
-          authorName: book.author,
-        })
-      } else if (lastPhase === 2) {
+      if (lastPhase === 2) {
         await generateStoryProse({
           uid: user.uid,
           storyId: book.id,
@@ -1212,17 +1198,16 @@ const Dashboard = () => {
     if (generatingBookId) return
 
     const phaseInput = window.prompt(
-      'Enter phase to run (1, 2, or 3):\n\n' +
+      'Enter phase to run (1 or 2):\n\n' +
       '  1  Concept (regenerate concept)\n' +
-      '  2  Prose Generation\n' +
-      '  3  Style Rewrite\n',
-      '3'
+      '  2  Prose Generation\n',
+      '2'
     )
     if (!phaseInput) return
 
     const phase = parseInt(phaseInput.trim(), 10)
-    if (phase !== 1 && phase !== 2 && phase !== 3) {
-      alert('Enter 1, 2, or 3.')
+    if (phase !== 1 && phase !== 2) {
+      alert('Enter 1 or 2.')
       return
     }
 
@@ -1250,12 +1235,6 @@ const Dashboard = () => {
           genre: book.genre,
           language: book.language,
           concept: book.concept,
-        })
-      } else if (phase === 3) {
-        await generateStyleRewrite({
-          uid: user.uid,
-          storyId: book.id,
-          authorName: book.author,
         })
       }
     } catch (err) {

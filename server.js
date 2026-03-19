@@ -9041,18 +9041,21 @@ ${concept.trim()}`
     console.log('Story ID:', storyId)
     console.log('Concept length:', concept.trim().length, 'chars')
     console.log('Genre:', genreLabel || '(none)')
+    console.log('Model: ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI')
+    console.log('Temperature: 0.8')
     console.log('───────────────────────────────────────────────────────')
 
     let storyText = ''
-    const stream = anthropicClient.messages.stream({
-      model: 'claude-opus-4-6',
+    const stream = await client.chat.completions.create({
+      model: 'ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI',
+      temperature: 0.8,
       max_tokens: 32768,
       messages: [{ role: 'user', content: prompt }],
+      stream: true,
     })
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        storyText += event.delta.text
-      }
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content
+      if (delta) storyText += delta
     }
     storyText = cleanStoryText(storyText)
 
@@ -9119,7 +9122,7 @@ ${phase2Prose.trim()}`
     console.log('───────────────────────────────────────────────────────')
 
     let rewrittenText = ''
-    const estimatedTokens = Math.ceil(phase3Prose.trim().length / 4)
+    const estimatedTokens = Math.ceil(phase2Prose.trim().length / 4)
     const maxTokens = Math.min(Math.max(estimatedTokens + 4096, 16384), 128000)
 
     const stream = anthropicClient.messages.stream({

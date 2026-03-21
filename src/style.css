@@ -1248,6 +1248,60 @@ textarea {
   color: #0f172a;
 }
 
+.dashboard-nav-button.dashboard-nav-gated {
+  opacity: 0.45;
+}
+
+.dashboard-nav-button.dashboard-nav-gated.active {
+  opacity: 1;
+}
+
+/* ========================================
+   Development Gate (coming soon placeholder)
+   ======================================== */
+
+.development-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem;
+}
+
+.development-gate-content {
+  text-align: center;
+  max-width: 480px;
+}
+
+.development-gate-icon {
+  width: 48px;
+  height: 48px;
+  color: #a8a29e;
+  margin: 0 auto 1.5rem;
+}
+
+.development-gate-title {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #0f172a;
+  margin: 0 0 0.75rem;
+}
+
+.development-gate-message {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 1.1rem;
+  color: #44403c;
+  margin: 0 0 0.5rem;
+}
+
+.development-gate-sub {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: #78716c;
+  margin: 0;
+}
+
 .dashboard-brand-button {
   border: none;
   background: transparent;
@@ -24339,6 +24393,22 @@ body.active-pass-locked {
 
 [data-theme='dark'] .dashboard-nav-button.active {
   color: #fafaf9;
+}
+
+[data-theme='dark'] .development-gate-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .development-gate-message {
+  color: #d6d3d1;
+}
+
+[data-theme='dark'] .development-gate-sub {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .development-gate-icon {
+  color: #78716c;
 }
 
 [data-theme='dark'] .dashboard-icon-btn {

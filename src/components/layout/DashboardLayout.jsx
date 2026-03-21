@@ -5,7 +5,10 @@ import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabe
 import { resetVocabProgress } from '../../services/vocab'
 import spanishFlag from '../../assets/spanishflag.png'
 
-export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review', 'tutor']
+export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
+
+// GATED: Tabs with output features under development — remove entries to un-gate
+const GATED_TABS = new Set(['speak', 'write'])
 
 const LANGUAGE_NATIVE_NAMES = {
   English: 'English',
@@ -187,7 +190,7 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
             {DASHBOARD_TABS.map((tab) => (
               <button
                 key={tab}
-                className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}`}
+                className={`dashboard-nav-button ui-text ${activeTab === tab ? 'active' : ''}${GATED_TABS.has(tab) ? ' dashboard-nav-gated' : ''}`}
                 onClick={() => handleTabClick(tab)}
               >
                 {tab}

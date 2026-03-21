@@ -4,9 +4,10 @@ import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc
 import { computePagesWithFontLoading } from '../utils/pagination'
 import DashboardLayout, { DASHBOARD_TABS } from '../components/layout/DashboardLayout'
 import ListeningHub from '../components/listen/ListeningHub'
-import WritingHub from '../components/write/WritingHub'
+// GATED: import WritingHub from '../components/write/WritingHub'
 import TutorHome from '../components/tutor/TutorHome'
-import SpeakHub from '../components/speak/SpeakHub'
+// GATED: import SpeakHub from '../components/speak/SpeakHub'
+import DevelopmentGate from '../components/DevelopmentGate'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
@@ -2177,21 +2178,27 @@ const Dashboard = () => {
           )}
           {activeTab === 'listen' && <ListeningHub embedded showBackButton={false} />}
 
-          {activeTab === 'speak' && (
-            <SpeakHub
-              activeLanguage={activeLanguage}
-              nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
-            />
-          )}
+          {/* GATED: Speaking and Writing hubs replaced with development gate for MVP launch.
+              To restore, uncomment the hub imports above and swap these back:
+              {activeTab === 'speak' && (
+                <SpeakHub
+                  activeLanguage={activeLanguage}
+                  nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
+                />
+              )}
+              {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}
+          */}
+          {activeTab === 'speak' && <DevelopmentGate feature="Speaking" />}
+          {activeTab === 'write' && <DevelopmentGate feature="Writing" />}
 
-          {activeTab === 'write' && <WritingHub activeLanguage={activeLanguage} />}
-
+          {/* HIDDEN: Tutor tab removed from nav — restore with 'tutor' in DASHBOARD_TABS
           {activeTab === 'tutor' && (
             <TutorHome
               activeLanguage={activeLanguage}
               nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
             />
           )}
+          */}
 
           {activeTab === 'review' && (
             <div className="listening-hub">

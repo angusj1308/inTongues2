@@ -5,7 +5,7 @@ import { filterSupportedLanguages, resolveSupportedLanguageLabel, toLanguageLabe
 import { resetVocabProgress } from '../../services/vocab'
 import spanishFlag from '../../assets/spanishflag.png'
 
-export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review', 'tutor']
+export const DASHBOARD_TABS = ['read', 'listen', 'speak', 'write', 'review'] // HIDDEN: 'tutor' — restore when speaking build ships
 
 // GATED: Tabs with output features under development — remove entries to un-gate
 const GATED_TABS = new Set(['speak', 'write'])

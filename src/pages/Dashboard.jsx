@@ -2191,12 +2191,14 @@ const Dashboard = () => {
           {activeTab === 'speak' && <DevelopmentGate feature="Speaking" />}
           {activeTab === 'write' && <DevelopmentGate feature="Writing" />}
 
+          {/* HIDDEN: Tutor tab removed from nav — restore with 'tutor' in DASHBOARD_TABS
           {activeTab === 'tutor' && (
             <TutorHome
               activeLanguage={activeLanguage}
               nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English')}
             />
           )}
+          */}
 
           {activeTab === 'review' && (
             <div className="listening-hub">

@@ -1,4 +1,4 @@
-const SpotifyCollectionCard = ({ title, subtitle, meta, imageUrl, onOpen, ctaLabel = 'Open playlist →' }) => {
+const SpotifyCollectionCard = ({ title, subtitle, meta, imageUrl, onOpen }) => {
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
@@ -8,27 +8,31 @@ const SpotifyCollectionCard = ({ title, subtitle, meta, imageUrl, onOpen, ctaLab
 
   return (
     <div
-      className="preview-card spotify-collection-card"
+      className="spotify-tile"
       role="button"
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={handleKeyDown}
     >
-      <div className="spotify-collection-cover">
+      <div className="spotify-tile-cover">
         {imageUrl ? (
-          <img src={imageUrl} alt="Playlist artwork" />
+          <img className="spotify-tile-cover-img" src={imageUrl} alt={title || 'Album artwork'} />
         ) : (
-          <div className="spotify-collection-cover-placeholder">No cover art</div>
+          <div className="spotify-tile-no-cover">
+            <span className="ui-text">No cover art</span>
+          </div>
         )}
-      </div>
 
-      <div className="spotify-collection-body">
-        <div className="spotify-collection-title">{title}</div>
-        {subtitle && <div className="spotify-collection-subtitle">{subtitle}</div>}
-        {meta && <div className="spotify-collection-meta">{meta}</div>}
-        <button className="button primary" type="button" style={{ marginTop: 'auto' }}>
-          {ctaLabel}
-        </button>
+        <div className="spotify-tile-hover-overlay">
+          <div className="spotify-tile-hover-title">{title}</div>
+          {(subtitle || meta) && (
+            <div className="spotify-tile-hover-meta">
+              {subtitle}
+              {subtitle && meta ? ' · ' : ''}
+              {meta}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

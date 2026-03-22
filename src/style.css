@@ -3574,7 +3574,7 @@ textarea {
   width: 100%;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 400);
-  font-size: 1.1rem;
+  font-size: var(--reader-font-size, 1rem);
 }
 
 .page.reader-page {
@@ -3608,7 +3608,7 @@ textarea {
   /* Font MUST match Reader's default: Crimson Pro at weight 300 */
   font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 300);
-  font-size: 1.1rem;
+  font-size: var(--reader-font-size, 1rem);
   line-height: 1.75;
 }
 

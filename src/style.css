@@ -3418,57 +3418,20 @@ textarea {
 
 .reader-pages {
   width: 100%;
-  height: calc(100vh - 180px);
+  height: calc(100vh - 100px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 100px; /* Account for header overlay zone + visual centering */
+  padding-top: 80px; /* Account for header overlay zone + visual centering */
   box-sizing: border-box;
 }
 
-.reader-spread {
-  /* Fixed dimensions for consistent pagination */
-  width: 1240px;
-  height: 800px;
-  display: grid;
-  grid-template-columns: 596px 596px;
-  column-gap: 3rem;
-  /* Scale to fit viewport - set by JavaScript */
-  transform: scale(var(--page-scale, 1));
-  transform-origin: center center;
-}
-
-/* Assisted mode - single page, larger font */
-.reader-single {
-  max-width: 800px;
+.reader-page-wrapper {
+  max-width: 680px;
+  height: calc(100vh - 120px);
   margin: 0 auto;
   display: flex;
-  justify-content: center;
-}
-
-.reader-single .reader-page-block {
-  width: 100%;
-  max-width: 700px;
-}
-
-.reader-single .page-text {
-  font-size: 1.4rem;
-  line-height: 1.8;
-  padding: 3rem 2.5rem;
-}
-
-.reader-single .chapter-title {
-  font-size: 2rem;
-  margin-bottom: 2rem;
-}
-
-.reader-single .page-number {
-  font-size: 1.1rem;
-}
-
-/* Page single mode class */
-.page--single .page-text {
-  padding: 3rem 2.5rem;
+  flex-direction: column;
 }
 
 .reader-navigation {
@@ -3600,12 +3563,8 @@ textarea {
 .reader-page-block .page-text {
   cursor: pointer;
   user-select: text;
-  padding: 4rem 2.5rem 6rem 4rem;
+  padding: 3rem 2.5rem 5rem 2.5rem;
   line-height: 1.75; /* Must match .reader-measure-container for accurate pagination */
-}
-
-.page--right .page-text {
-  padding: 4rem 4rem 6rem 2.5rem;
 }
 
 .reader-themed {
@@ -3641,14 +3600,12 @@ textarea {
   position: absolute;
   visibility: hidden;
   pointer-events: none;
-  /* Fixed dimensions matching reader spread: 1240px total, 48px gap, 2 columns */
-  /* Each page = (1240 - 48) / 2 = 596px, height matches .reader-spread */
-  width: 596px;
-  height: 800px;
+  /* Fixed dimensions matching single-column reader page */
+  width: 680px;
+  height: 900px;
   overflow: hidden;
-  padding: 4rem 2.5rem 6rem 4rem; /* Must match .reader-page-block .page-text padding */
+  padding: 3rem 2.5rem 5rem 2.5rem; /* Must match .reader-page-block .page-text padding */
   /* Font MUST match Reader's default: Crimson Pro at weight 300 */
-  /* Using 'Garamond' previously caused mismatches since it's not loaded (falls back to Times New Roman) */
   font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 300);
   font-size: 1.1rem;

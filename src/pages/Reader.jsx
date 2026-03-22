@@ -115,9 +115,7 @@ const Reader = ({ initialMode }) => {
   const [readerMode, setReaderMode] = useState(
     () => initialMode || location.state?.readerMode || 'active'
   )
-  const [displayMode, setDisplayMode] = useState(
-    () => localStorage.getItem('readerDisplayMode') || 'normal'
-  ) // 'normal' (two-page spread) or 'assisted' (single page, large font)
+  // Display mode is now always single-column
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceSegments, setSentenceSegments] = useState([])
@@ -841,36 +839,6 @@ const Reader = ({ initialMode }) => {
   // Note: Window resize no longer triggers re-pagination since pages have fixed dimensions
   // Pre-computed pages are loaded from Firestore and don't change with window size
 
-  // Calculate and apply page scale to fit viewport
-  useEffect(() => {
-    const SPREAD_WIDTH = 1240
-    const SPREAD_HEIGHT = 800
-    const MARGIN_X = 100 // horizontal margin
-    const MARGIN_Y = 180 // vertical margin for header + page numbers
-
-    const updateScale = () => {
-      if (!pageContainerRef.current) return
-
-      const availableWidth = window.innerWidth - MARGIN_X
-      const availableHeight = window.innerHeight - MARGIN_Y
-
-      const scaleX = availableWidth / SPREAD_WIDTH
-      const scaleY = availableHeight / SPREAD_HEIGHT
-
-      // Use smaller scale to fit both dimensions - cap at 1.0 to keep book-like proportions
-      const scale = Math.min(scaleX, scaleY, 1.0)
-
-      // Apply to the spread element (child of pageContainerRef)
-      const spreadElement = pageContainerRef.current.querySelector('.reader-spread')
-      if (spreadElement) {
-        spreadElement.style.setProperty('--page-scale', scale)
-      }
-    }
-
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  }, [])
 
   useEffect(() => {
     if (!user || !id) {
@@ -1025,10 +993,9 @@ const Reader = ({ initialMode }) => {
 
     const targetIndex = Number.isFinite(bookmarkIndex) ? bookmarkIndex : 0
     const boundedIndex = Math.min(Math.max(targetIndex, 0), Math.max(pages.length - 1, 0))
-    const evenIndex = boundedIndex - (boundedIndex % 2)
 
-    setCurrentIndex(evenIndex)
-    lastPageIndexRef.current = evenIndex
+    setCurrentIndex(boundedIndex)
+    lastPageIndexRef.current = boundedIndex
     hasAppliedBookmarkRef.current = true
   }, [pages.length, bookmarkIndex])
 
@@ -1068,7 +1035,7 @@ const Reader = ({ initialMode }) => {
     }
   }, [language, user])
 
-  const pagesPerView = displayMode === 'assisted' ? 1 : 2
+  const pagesPerView = 1
   const visiblePages = pages.slice(currentIndex, currentIndex + pagesPerView)
   const pageText = visiblePages.map((p) => getDisplayText(p)).join(' ')
 
@@ -1626,11 +1593,6 @@ const Reader = ({ initialMode }) => {
     }
   }
 
-  const toggleDisplayMode = () => {
-    const newMode = displayMode === 'normal' ? 'assisted' : 'normal'
-    setDisplayMode(newMode)
-    localStorage.setItem('readerDisplayMode', newMode)
-  }
 
   const handlePointerDown = (event) => {
     pointerStartRef.current = { x: event.clientX, y: event.clientY }
@@ -1670,7 +1632,6 @@ const Reader = ({ initialMode }) => {
       Math.max(index, 0),
       Math.max(pages.length - 1, 0)
     )
-    const evenIndex = boundedIndex - (boundedIndex % 2)
 
     setIsSavingBookmark(true)
 
@@ -1678,15 +1639,15 @@ const Reader = ({ initialMode }) => {
       const storyRef = doc(db, 'users', user.uid, 'stories', id)
       // Calculate progress as percentage of pages read
       const progress = pages.length > 0
-        ? Math.min(100, Math.round(((evenIndex + 2) / pages.length) * 100))
+        ? Math.min(100, Math.round(((boundedIndex + 1) / pages.length) * 100))
         : 0
       await updateDoc(storyRef, {
-        bookmarkIndex: evenIndex,
+        bookmarkIndex: boundedIndex,
         bookmarkUpdatedAt: serverTimestamp(),
         progress,
       })
 
-      setBookmarkIndex(evenIndex)
+      setBookmarkIndex(boundedIndex)
 
       if (notify) {
         window.alert('Bookmark saved. You\'ll return to this page next time.')
@@ -2190,18 +2151,6 @@ const Reader = ({ initialMode }) => {
                   Aa
                 </button>
                 <button
-                  className={`reader-header-button ui-text ${displayMode === 'assisted' ? 'is-active' : ''}`}
-                  type="button"
-                  aria-label={displayMode === 'assisted' ? 'Switch to normal view' : 'Switch to assisted view'}
-                  onClick={(e) => {
-                    toggleDisplayMode()
-                    e.currentTarget.blur()
-                  }}
-                  title={displayMode === 'assisted' ? 'Normal view (2 pages)' : 'Assisted view (1 page, larger)'}
-                >
-                  {displayMode === 'assisted' ? '1pg' : '2pg'}
-                </button>
-                <button
                   className="reader-header-button icon-button reader-theme-trigger"
                   type="button"
                   aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -2305,17 +2254,14 @@ const Reader = ({ initialMode }) => {
                 />
 
                 <div ref={pageContainerRef} className="reader-pages">
-                  <div className={displayMode === 'assisted' ? 'reader-single' : 'reader-spread'}>
+                  <div className="reader-page-wrapper">
                   {visiblePages.map((page, pageIndex) => {
                     const pageNumber = (page.index ?? pages.indexOf(page)) + 1
-                    const isLeftPage = pageIndex % 2 === 0
 
                     return (
                       <div
                         key={page.id || page.index}
-                        className={`reader-page-block ${
-                          displayMode === 'assisted' ? 'page--single' : (isLeftPage ? 'page--left' : 'page--right')
-                        }`}
+                        className="reader-page-block"
                       >
                         {/* Structured chapter header for TXT imports */}
                         {page.isChapterStart && page.chapterHeader && (

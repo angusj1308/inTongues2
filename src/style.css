@@ -3647,16 +3647,12 @@ textarea {
 
 /* Paragraph styles for measurement - must match .reader-paragraph */
 .reader-measure-container .reader-paragraph {
-  margin: 0 0 1em 0;
+  margin: 0;
   text-indent: 1.5em;
 }
 
 .reader-measure-container .reader-paragraph:first-child {
   text-indent: 0;
-}
-
-.reader-measure-container .reader-paragraph:last-child {
-  margin-bottom: 0;
 }
 
 .reader-intensive-active .reader-body-shell {
@@ -6194,22 +6190,22 @@ textarea {
   font-size: 1.15rem;
 }
 
-/* Paragraph styling for adapted book text */
+/* Paragraph styling — book-style: indent only, no vertical gaps */
 .reader-paragraph {
-  margin: 0 0 1em 0;
+  margin: 0;
   text-indent: 1.5em;
 }
 
+/* First paragraph of a chapter has no indent (standard typographic convention) */
 .reader-paragraph:first-child {
   text-indent: 0;
 }
 
-.reader-paragraph:last-child {
-  margin-bottom: 0;
-}
-
 /* No text-indent after chapter headers */
 .chapter-header-structured + .page-text .reader-paragraph:first-child {
+  text-indent: 0;
+}
+.chapter-title + .page-text .reader-paragraph:first-child {
   text-indent: 0;
 }
 

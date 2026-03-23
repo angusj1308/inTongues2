@@ -166,6 +166,7 @@ const _novelCounts = {}     // { genre: { authorName: count } }
 function _rollFromPool(pool, countsStore, genre) {
   // Test mode: return the override author only for the matching genre
   if (genre === 'literary') return 'Ernest Hemingway'
+  if (genre === 'horror') return 'Shirley Jackson'
   if (_authorOverride && genre === 'historical') return 'Bernard Cornwell'
 
   const authors = pool[genre]

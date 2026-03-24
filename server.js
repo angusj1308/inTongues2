@@ -9041,13 +9041,13 @@ ${concept.trim()}`
     console.log('Story ID:', storyId)
     console.log('Concept length:', concept.trim().length, 'chars')
     console.log('Genre:', genreLabel || '(none)')
-    console.log('Model: ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI')
+    console.log('Model: gpt-4.1-2025-04-14')
     console.log('Temperature: 0.8')
     console.log('───────────────────────────────────────────────────────')
 
     let storyText = ''
     const stream = await client.chat.completions.create({
-      model: 'ft:gpt-4.1-2025-04-14:personal:inoconnor:DKqvG0TI',
+      model: 'gpt-4.1-2025-04-14',
       temperature: 0.8,
       max_tokens: 16384,
       frequency_penalty: 0.1,

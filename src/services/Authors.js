@@ -168,6 +168,7 @@ function _rollFromPool(pool, countsStore, genre) {
   if (genre === 'literary') return 'Ernest Hemingway'
   if (genre === 'horror') return 'Shirley Jackson'
   if (genre === 'fantasy') return 'Jorge Luis Borges'
+  if (genre === 'mystery') return 'Agatha Christie'
   if (_authorOverride && genre === 'historical') return 'Bernard Cornwell'
 
   const authors = pool[genre]

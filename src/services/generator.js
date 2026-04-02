@@ -1,20 +1,42 @@
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import { rollAuthor, rollNovelAuthor, GENRES } from './Authors'
+import { getAuthorOverride, GENRES } from './Authors'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// matchAuthor — Ask the backend AI to pick the best-fitting author for a
+// given genre + user setting.  Respects the test-mode override.
+// ─────────────────────────────────────────────────────────────────────────────
+async function matchAuthor({ genre, format, timePlaceSetting }) {
+  const override = getAuthorOverride()
+  if (override) return override
+
+  const response = await fetch('http://localhost:4000/api/generate/match-author', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ genre, format, timePlaceSetting }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err?.error || 'Failed to match author')
+  }
+
+  const data = await response.json()
+  return data.authorName
+}
 
 // Reverse map: genre label → genre id (e.g. "Science Fiction" → "scifi")
 const LABEL_TO_ID = Object.fromEntries(GENRES.map((g) => [g.label.toLowerCase(), g.id]))
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generateConcept — Call 1: Roll an author from the genre, then ask the API
-// to produce a detailed concept as that author.
+// generateConcept — Call 1: Match the best-fitting author for the genre +
+// setting via AI, then ask the API to produce a detailed concept as that author.
 // Params: { genre, format, timePlaceSetting }
 //   genre           — genre id (e.g. 'romance', 'scifi')
 //   format          — 'short story' | 'novella' | 'novel'
 //   timePlaceSetting — user-entered time & place string
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateConcept = async ({ genre, format, timePlaceSetting }) => {
-  const isNovel = format === 'novel' || format === 'novella'
-  const authorName = isNovel ? rollNovelAuthor(genre) : rollAuthor(genre)
+  const authorName = await matchAuthor({ genre, format, timePlaceSetting })
 
   try {
     const response = await fetch('http://localhost:4000/api/generate/concept', {
@@ -129,12 +151,13 @@ export const generateStoryProse = async ({ uid, storyId, authorName, genre, lang
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Novel Pipeline — Call 1: Roll a novel author and generate a concept.
-// Same shape as generateConcept but hits the novel-specific endpoint which
-// strips conversational preamble and uses streaming.
+// Novel Pipeline — Call 1: Match the best-fitting novel author for the genre +
+// setting via AI, then generate a concept. Same shape as generateConcept but
+// hits the novel-specific endpoint which strips conversational preamble and
+// uses streaming.
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateNovelConcept = async ({ genre, format, timePlaceSetting }) => {
-  const authorName = rollNovelAuthor(genre)
+  const authorName = await matchAuthor({ genre, format, timePlaceSetting })
 
   try {
     const response = await fetch('http://localhost:4000/api/generate/novel/concept', {

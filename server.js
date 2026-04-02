@@ -8832,6 +8832,100 @@ const GENRE_LABELS = {
   fairytale: 'fairy tale',
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Author pools — mirrors src/services/Authors.js for backend use
+// ─────────────────────────────────────────────────────────────────────────────
+const SHORT_STORY_AUTHORS = {
+  thriller: ['Roald Dahl', 'Patricia Highsmith', 'Daphne du Maurier'],
+  scifi: ['Ted Chiang', 'Ray Bradbury', 'Ursula K. Le Guin', 'Philip K. Dick'],
+  mystery: ['Arthur Conan Doyle', 'Agatha Christie', 'G.K. Chesterton'],
+  adventure: ['Jack London', 'Rudyard Kipling', 'Joseph Conrad'],
+  comedy: ['P.G. Wodehouse', 'Saki', 'Dorothy Parker', 'Mark Twain'],
+  horror: ['Edgar Allan Poe', 'Shirley Jackson', 'M.R. James'],
+  fantasy: ['Jorge Luis Borges', 'Neil Gaiman', 'Ursula K. Le Guin'],
+  literary: ['Ernest Hemingway', 'Anton Chekhov', "Flannery O'Connor", 'Raymond Carver', 'Franz Kafka'],
+  historical: ['Isaac Bashevis Singer', 'Isak Dinesen'],
+  fairytale: ['Hans Christian Andersen', 'Oscar Wilde', 'Italo Calvino'],
+}
+
+const NOVEL_AUTHORS = {
+  romance: ['Nora Roberts', 'Julia Quinn', 'Beverly Jenkins', 'Judith McNaught', 'Lisa Kleypas'],
+  thriller: ['Patricia Highsmith', 'Daphne du Maurier', 'Thomas Harris', 'Gillian Flynn', 'John le Carré'],
+  scifi: ['Isaac Asimov', 'Arthur C. Clarke', 'Ursula K. Le Guin', 'Philip K. Dick', 'Frank Herbert', 'Octavia Butler', 'Ray Bradbury', 'H.G. Wells', 'Stanisław Lem'],
+  mystery: ['Agatha Christie', 'Arthur Conan Doyle', 'Raymond Chandler', 'Georges Simenon', 'Dashiell Hammett', 'Freida McFadden'],
+  adventure: ['Alexandre Dumas', 'Robert Louis Stevenson', 'Jack London', 'Joseph Conrad', 'Rudyard Kipling', 'Jules Verne'],
+  comedy: ['P.G. Wodehouse', 'Mark Twain', 'Terry Pratchett', 'Douglas Adams', 'Dorothy Parker'],
+  horror: ['Stephen King', 'Shirley Jackson', 'H.P. Lovecraft', 'Mary Shelley', 'Bram Stoker'],
+  fantasy: ['J.R.R. Tolkien', 'Ursula K. Le Guin', 'Neil Gaiman', 'George R.R. Martin', 'Terry Pratchett', 'C.S. Lewis', 'J.K. Rowling'],
+  literary: ['James Joyce', 'Franz Kafka', 'Ernest Hemingway', 'Gabriel García Márquez', 'Fyodor Dostoevsky', 'Leo Tolstoy', 'Virginia Woolf', 'William Faulkner', 'Julio Cortázar', 'Jane Austen', 'Charles Dickens', 'Cormac McCarthy', 'John Steinbeck'],
+  historical: ["Patrick O'Brian", 'Bernard Cornwell', 'Arturo Pérez-Reverte', 'Tracy Chevalier', 'Colleen McCullough'],
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/generate/match-author — AI-powered author selection
+// Receives genre, format, and the user's setting; returns the best-fitting
+// author from the genre pool.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/generate/match-author', async (req, res) => {
+  try {
+    const { genre, format, timePlaceSetting } = req.body
+
+    if (!genre) {
+      return res.status(400).json({ error: 'genre is required' })
+    }
+
+    const isNovel = format === 'novel' || format === 'novella'
+    const pool = isNovel ? NOVEL_AUTHORS : SHORT_STORY_AUTHORS
+    const authors = pool[genre]
+
+    if (!authors || !authors.length) {
+      return res.status(400).json({ error: `No authors found for genre "${genre}"` })
+    }
+
+    const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
+
+    const systemPrompt = `You are a literary expert. Given a list of authors, a genre, and a story setting, select the single author whose writing style best fits the described setting. Consider the author's known themes, historical period expertise, prose style, and subject matter affinity.\n\nRespond with ONLY valid JSON: {"author": "<exact author name from the list>"}`
+
+    const userPrompt = `Genre: ${genreLabel}\nSetting: ${settingText}\nAuthors to choose from: ${authors.join(', ')}\n\nSelect the author whose style is the best fit for this setting.`
+
+    console.log('\n───────────────────────────────────────────────────────')
+    console.log('MATCH-AUTHOR — AI author selection')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Genre:', genreLabel)
+    console.log('Format:', format)
+    console.log('Setting:', settingText)
+    console.log('Pool:', authors.join(', '))
+    console.log('───────────────────────────────────────────────────────')
+
+    const response = await anthropicClient.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 128,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+
+    const raw = response.content[0].text.trim()
+    const parsed = parseJSONResponse(raw)
+
+    let selectedAuthor = parsed?.data?.author
+
+    // Validate the returned author exists in the pool
+    if (!selectedAuthor || !authors.includes(selectedAuthor)) {
+      console.warn(`AI returned invalid author "${selectedAuthor}", falling back to random`)
+      selectedAuthor = authors[Math.floor(Math.random() * authors.length)]
+    }
+
+    console.log('Selected author:', selectedAuthor)
+    console.log('───────────────────────────────────────────────────────\n')
+
+    return res.json({ authorName: selectedAuthor })
+  } catch (error) {
+    console.error('Match-author error:', error)
+    return res.status(500).json({ error: 'Failed to match author', details: error.message })
+  }
+})
+
 // POST /api/generate/concept - Call 1: Author-driven concept generation
 // Receives authorName, genre, format (short story | novella | novel), and timePlaceSetting
 // Returns a detailed concept for a new original work

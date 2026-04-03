@@ -3429,6 +3429,45 @@ textarea {
   padding-bottom: 4rem;
 }
 
+.auto-known-bubble {
+  position: sticky;
+  top: 90px;
+  z-index: 20;
+  max-width: 480px;
+  margin: 0 auto 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--reader-bg, #fff);
+  border: 1px solid var(--reader-text, #1a1a1a);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.auto-known-bubble p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--reader-text, #1a1a1a);
+}
+
+.auto-known-bubble button {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--reader-text, #1a1a1a);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--reader-text, #1a1a1a);
+  cursor: pointer;
+}
+
+.auto-known-bubble button:hover {
+  background: var(--reader-text, #1a1a1a);
+  color: var(--reader-bg, #fff);
+}
+
 .reader-end-actions {
   display: flex;
   justify-content: flex-end;

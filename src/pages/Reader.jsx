@@ -94,9 +94,7 @@ const Reader = ({ initialMode }) => {
   const [vocabEntries, setVocabEntries] = useState({})
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
-  const [hasSeenAutoKnownInfo, setHasSeenAutoKnownInfo] = useState(
-    () => localStorage.getItem('seenAutoKnownInfo') === 'true'
-  )
+  const [showAutoKnownBubble, setShowAutoKnownBubble] = useState(false)
   const [audioStatus, setAudioStatus] = useState('')
   const [fullAudioUrl, setFullAudioUrl] = useState('')
   const [hasFullAudio, setHasFullAudio] = useState(false)
@@ -118,6 +116,10 @@ const Reader = ({ initialMode }) => {
   const pronunciationAudioRef = useRef(null)
   const sentenceAudioRef = useRef(null)
   const sentenceAudioStopRef = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const highWaterMarkRef = useRef(0)
+  const promotedParagraphsRef = useRef(new Set())
+  const globalParagraphCounterRef = useRef(0)
 
   const supportedLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -839,29 +841,6 @@ const Reader = ({ initialMode }) => {
     setSentenceTranslations({})
   }, [id, language])
 
-  const getNewWordsOnCurrentPages = () => {
-    const combinedText = chapters.map((ch) => getDisplayText(ch)).join(' ')
-
-    if (!combinedText) return []
-
-    const rawWords = Array.from(
-      new Set(
-        combinedText
-          .replace(/[^\p{L}\p{N}]+/gu, ' ')
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean)
-      )
-    )
-
-    const newWords = rawWords.filter((word) => {
-      const key = normaliseExpression(word)
-      return !vocabEntries[key]
-    })
-
-    return newWords
-  }
-
   const getNewWordsInSentence = (sentence) => {
     if (!sentence) return []
 
@@ -920,67 +899,7 @@ const Reader = ({ initialMode }) => {
     }
   }
 
-  const promoteNewWordsToKnown = async () => {
-    const shouldAutoPromote = readerMode === 'active' || readerMode === 'intensive'
-
-    if (!user || !language || !shouldAutoPromote) return true
-
-    if (!hasSeenAutoKnownInfo) {
-      window.alert(
-        'When you move forward, all new words you have not tagged will automatically be marked as Known.'
-      )
-      localStorage.setItem('seenAutoKnownInfo', 'true')
-      setHasSeenAutoKnownInfo(true)
-    }
-
-    const newWords = getNewWordsOnCurrentPages()
-
-    if (newWords.length === 0) return true
-
-    const confirmed = window.confirm(
-      'By proceeding, all new words you have not tagged will be marked as Known. Continue?'
-    )
-
-    if (!confirmed) {
-      return false
-    }
-
-    try {
-      await Promise.all(
-        newWords.map((word) => {
-          const key = normaliseExpression(word)
-          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
-
-          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', id)
-        })
-      )
-
-      setVocabEntries((prev) => {
-        const next = { ...prev }
-        newWords.forEach((word) => {
-          const key = normaliseExpression(word)
-          const existingTranslation = prev[key]?.translation || 'No translation found'
-
-          next[key] = {
-            ...(next[key] || { text: word, language }),
-            status: 'known',
-            translation: existingTranslation,
-          }
-        })
-        return next
-      })
-    } catch (error) {
-      console.error('Failed to auto-mark new words as known:', error)
-    }
-
-    return true
-  }
-
-  const handleFinishStory = async () => {
-    const canFinish = await promoteNewWordsToKnown()
-
-    if (!canFinish) return
-
+  const handleFinishStory = () => {
     navigate('/dashboard', { state: { initialTab: 'read' } })
   }
 
@@ -1215,25 +1134,27 @@ const Reader = ({ initialMode }) => {
   }
 
   const renderHighlightedText = (text, sentenceOffset = 0) => {
-    // Split into paragraphs first (double newline = paragraph break)
     const paragraphs = (text || '').split(/\n\n+/)
 
     if (readerMode !== 'intensive') {
-      // Non-intensive mode: render paragraphs with word segments
-      return paragraphs.map((paragraph, pIndex) => (
-        <p key={`para-${pIndex}`} className="reader-paragraph">
-          {renderWordSegments(paragraph.trim())}
-        </p>
-      ))
+      return paragraphs.map((paragraph, pIndex) => {
+        const paraIdx = globalParagraphCounterRef.current++
+        return (
+          <p key={`para-${paraIdx}`} className="reader-paragraph" data-paragraph-index={paraIdx}>
+            {renderWordSegments(paragraph.trim())}
+          </p>
+        )
+      })
     }
 
-    // Intensive mode: render sentences within paragraphs
     let runningSentenceOffset = sentenceOffset
 
     return paragraphs.map((paragraph, pIndex) => {
       const sentences = splitIntoSentences(paragraph.trim())
 
       if (sentences.length === 0) return null
+
+      const paraIdx = globalParagraphCounterRef.current++
 
       const paragraphContent = sentences.map((sentence, sIndex) => {
         const globalIndex = runningSentenceOffset + sIndex
@@ -1255,7 +1176,7 @@ const Reader = ({ initialMode }) => {
       runningSentenceOffset += sentences.length
 
       return (
-        <p key={`para-${pIndex}`} className="reader-paragraph">
+        <p key={`para-${paraIdx}`} className="reader-paragraph" data-paragraph-index={paraIdx}>
           {paragraphContent}
         </p>
       )
@@ -1351,6 +1272,119 @@ const Reader = ({ initialMode }) => {
       setCurrentSentenceIndex((prev) => Math.max(prev - 1, 0))
     }
   }, [readerMode, allVisibleSentences, currentSentenceIndex, currentIntensiveSentence, user, language])
+
+  // High-water mark scroll promotion for active mode
+  useEffect(() => {
+    if (readerMode !== 'active' || !user?.uid || !language) return undefined
+
+    const container = scrollContainerRef.current
+    if (!container) return undefined
+
+    // Reset on story/language change
+    highWaterMarkRef.current = 0
+    promotedParagraphsRef.current = new Set()
+
+    let debounceTimer = null
+
+    const promoteWordsInParagraph = (paragraphEl) => {
+      const text = paragraphEl.textContent || ''
+      const rawWords = Array.from(
+        new Set(
+          text
+            .replace(/[^\p{L}\p{N}]+/gu, ' ')
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean)
+        )
+      )
+
+      const newWords = rawWords.filter((word) => {
+        const key = normaliseExpression(word)
+        return !vocabEntries[key]
+      })
+
+      if (newWords.length === 0) return
+
+      // Batch Firestore writes
+      Promise.all(
+        newWords.map((word) => {
+          const key = normaliseExpression(word)
+          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
+          return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', id)
+        })
+      ).catch((err) => console.error('Failed to promote paragraph words', err))
+
+      // Update local state immediately
+      setVocabEntries((prev) => {
+        const next = { ...prev }
+        newWords.forEach((word) => {
+          const key = normaliseExpression(word)
+          next[key] = {
+            ...(next[key] || { text: word, language }),
+            status: 'known',
+            translation: prev[key]?.translation || 'No translation found',
+          }
+        })
+        return next
+      })
+
+      // Track words read
+      const wordCount = newWords.length
+      if (wordCount > 0) {
+        incrementWordsRead(user.uid, language, wordCount)
+      }
+    }
+
+    const handleScroll = () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+
+      debounceTimer = setTimeout(() => {
+        const scrollTop = container.scrollTop
+        if (scrollTop <= highWaterMarkRef.current) return
+
+        highWaterMarkRef.current = scrollTop
+
+        const containerRect = container.getBoundingClientRect()
+        const paragraphs = container.querySelectorAll('[data-paragraph-index]')
+
+        paragraphs.forEach((el) => {
+          const idx = Number(el.dataset.paragraphIndex)
+          if (promotedParagraphsRef.current.has(idx)) return
+
+          const rect = el.getBoundingClientRect()
+          // Paragraph bottom is above the container's top edge + some margin
+          if (rect.bottom < containerRect.top + 40) {
+            promotedParagraphsRef.current.add(idx)
+            promoteWordsInParagraph(el)
+          }
+        })
+      }, 500)
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
+  }, [readerMode, user?.uid, language, id, vocabEntries])
+
+  // Show auto-known info bubble on first entry to active mode
+  useEffect(() => {
+    if (readerMode !== 'active') {
+      setShowAutoKnownBubble(false)
+      return
+    }
+
+    const seen = localStorage.getItem('seenAutoKnownScrollInfo')
+    if (!seen) {
+      setShowAutoKnownBubble(true)
+    }
+  }, [readerMode])
+
+  const dismissAutoKnownBubble = useCallback(() => {
+    localStorage.setItem('seenAutoKnownScrollInfo', 'true')
+    setShowAutoKnownBubble(false)
+  }, [])
 
   useEffect(() => {
     if (readerMode === 'intensive') {
@@ -1613,6 +1647,8 @@ const Reader = ({ initialMode }) => {
   const intensiveTranslation =
     sentenceTranslations[currentIntensiveSentence?.trim?.() || currentIntensiveSentence]
 
+  globalParagraphCounterRef.current = 0
+
   return (
     <div
       className={`page reader-page reader-themed ${
@@ -1742,7 +1778,13 @@ const Reader = ({ initialMode }) => {
           ) : error ? (
             <p className="error">{error}</p>
           ) : chapters.length ? (
-            <div className="reader-scroll-container">
+            <div className="reader-scroll-container" ref={scrollContainerRef}>
+              {showAutoKnownBubble && (
+                <div className="auto-known-bubble">
+                  <p>As you read, words you haven&apos;t tagged will automatically be marked as known once you scroll past them.</p>
+                  <button type="button" onClick={dismissAutoKnownBubble}>Got it</button>
+                </div>
+              )}
               <div className="reader-content-column">
                 {chapters.map((chapter, chapterIndex) => (
                   <div key={chapter.id || chapterIndex} className="reader-chapter-block">

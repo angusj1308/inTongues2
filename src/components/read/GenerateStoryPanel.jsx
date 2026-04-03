@@ -8,7 +8,7 @@ import {
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
-import { generateConcept, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
+import { generateShortStory, generateNovelConcept, generateChapterSummaries } from '../../services/generator'
 import { PROSE_STYLES } from '../../services/novelApiClient'
 import { GENRES, SHORT_STORY_GENRES, NOVEL_GENRES } from '../../services/Authors'
 
@@ -200,46 +200,39 @@ const GenerateStoryPanel = ({
       return
     }
 
-    // ── Call 1: Roll an author from the genre and generate a concept ──
-    const FORMAT_MAP = { short: 'short story', novella: 'novella', novel: 'novel' }
-    const format = FORMAT_MAP[lengthPreset] || 'short story'
-
-    let concept = null
-    let rolledAuthor = null
+    // ── Single-call short story generation (GPT-5.4-pro) ──
+    let storyResult = null
     try {
-      const conceptResult = await generateConcept({
+      storyResult = await generateShortStory({
         genre,
-        format,
         timePlaceSetting: description.trim(),
+        language: activeLanguage,
       })
-      concept = conceptResult.concept
-      rolledAuthor = conceptResult.authorName
-      var storyTitle = conceptResult.title
-    } catch (conceptError) {
-      setError(conceptError?.message || 'Unable to generate concept.')
+    } catch (genError) {
+      setError(genError?.message || 'Unable to generate short story.')
       setIsSubmitting(false)
       return
     }
 
-    // Save Phase 1 result — prose and style rewrite generated via dashboard phase controls
+    // Save the completed story — prose is already generated, go straight to pagination
     const selectedLevel = LEVELS[levelIndex]
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
       const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
 
       await addDoc(storiesRef, {
-        title: storyTitle || `${genreLabel} ${format}`,
-        author: rolledAuthor,
+        title: `${genreLabel} Short Story`,
+        author: storyResult.authorName,
         language: activeLanguage,
         level: selectedLevel,
         genre: genreLabel,
         description: description.trim(),
-        concept,
+        concept: '',
         isFlat: true,
-        adaptedTextBlob: null,
-        lastPhaseCompleted: 1,
-        totalPhases: 3,
-        status: 'phase_complete',
+        adaptedTextBlob: storyResult.storyText,
+        lastPhaseCompleted: 2,
+        totalPhases: 2,
+        status: 'paginating',
         createdAt: serverTimestamp(),
         generateAudio,
         voiceGender: generateAudio ? voiceGender : null,

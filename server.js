@@ -8926,6 +8926,75 @@ app.post('/api/generate/match-author', async (req, res) => {
   }
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/generate/short-story — Single-call short story generation
+// Uses GPT-5.4-pro Responses API with high reasoning to write a complete
+// short story in the matched author's voice.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/generate/short-story', async (req, res) => {
+  try {
+    const { genre, timePlaceSetting, language, authorName } = req.body
+
+    if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
+    if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
+
+    const genreLabel = GENRE_LABELS[genre] || genre || ''
+    const genreQualifier = genreLabel ? `${genreLabel} ` : ''
+    const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
+    const author = authorName.trim()
+
+    const developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
+
+    const userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that he would not write. A reader familiar with his body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.`
+
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log('SHORT STORY — SINGLE-CALL GENERATION (GPT-5.4-pro)')
+    console.log('═══════════════════════════════════════════════════════')
+    console.log('Author:', author)
+    console.log('Genre:', genreLabel || '(none)')
+    console.log('Language:', language.trim())
+    console.log('Setting:', settingText)
+    console.log('───────────────────────────────────────────────────────')
+
+    const response = await client.responses.create({
+      model: 'gpt-5.4-pro',
+      instructions: developerMessage,
+      input: [
+        { role: 'user', content: userMessage },
+      ],
+      reasoning: { effort: 'high' },
+      text: { format: { type: 'text' } },
+      store: true,
+    })
+
+    // Extract text from Responses API output
+    let storyText = ''
+    for (const block of response?.output || []) {
+      if (block.type === 'message') {
+        for (const part of block.content || []) {
+          if (part.type === 'output_text') storyText += part.text
+        }
+      }
+    }
+    storyText = cleanStoryText(storyText)
+
+    if (!storyText) {
+      return res.status(500).json({ error: 'No story text was generated.' })
+    }
+
+    const wordCount = storyText.split(/\s+/).length
+    console.log('SHORT STORY — GENERATION COMPLETE')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Word count:', wordCount)
+    console.log('═══════════════════════════════════════════════════════\n')
+
+    return res.json({ success: true, storyText, wordCount, authorName: author })
+  } catch (error) {
+    console.error('Generate short story error:', error)
+    return res.status(500).json({ error: 'Failed to generate short story', details: error.message })
+  }
+})
+
 // POST /api/generate/concept - Call 1: Author-driven concept generation
 // Receives authorName, genre, format (short story | novella | novel), and timePlaceSetting
 // Returns a detailed concept for a new original work

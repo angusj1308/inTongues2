@@ -28,6 +28,41 @@ async function matchAuthor({ genre, format, timePlaceSetting }) {
 const LABEL_TO_ID = Object.fromEntries(GENRES.map((g) => [g.label.toLowerCase(), g.id]))
 
 // ─────────────────────────────────────────────────────────────────────────────
+// generateShortStory — Single-call short story generation.
+// Matches the best author via AI, then sends a single request to GPT-5.4-pro
+// which writes the complete story in one shot.
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateShortStory = async ({ genre, timePlaceSetting, language }) => {
+  const authorName = await matchAuthor({ genre, format: 'short story', timePlaceSetting })
+
+  try {
+    const response = await fetch('http://localhost:4000/api/generate/short-story', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ genre, timePlaceSetting, language, authorName }),
+    })
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      throw new Error(errorPayload?.error || 'Failed to generate short story.')
+    }
+
+    const data = await response.json()
+    if (!data?.storyText) {
+      throw new Error('No story text was returned.')
+    }
+
+    return {
+      storyText: data.storyText,
+      wordCount: data.wordCount,
+      authorName: data.authorName,
+    }
+  } catch (error) {
+    throw new Error(error?.message || 'Unable to generate short story. Please try again.')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // generateConcept — Call 1: Match the best-fitting author for the genre +
 // setting via AI, then ask the API to produce a detailed concept as that author.
 // Params: { genre, format, timePlaceSetting }

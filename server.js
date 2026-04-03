@@ -8955,6 +8955,12 @@ app.post('/api/generate/short-story', async (req, res) => {
     console.log('Language:', language.trim())
     console.log('Setting:', settingText)
     console.log('───────────────────────────────────────────────────────')
+    console.log('DEVELOPER MESSAGE:')
+    console.log(developerMessage)
+    console.log('───────────────────────────────────────────────────────')
+    console.log('USER MESSAGE:')
+    console.log(userMessage)
+    console.log('───────────────────────────────────────────────────────')
 
     const response = await client.responses.create({
       model: 'gpt-5.4-pro',
@@ -8962,9 +8968,12 @@ app.post('/api/generate/short-story', async (req, res) => {
       input: [
         { role: 'user', content: userMessage },
       ],
-      reasoning: { effort: 'high' },
+      reasoning: { effort: 'xhigh' },
+      max_output_tokens: 100000,
       text: { format: { type: 'text' } },
       store: true,
+    }, {
+      timeout: 1200000, // 20 minutes — xhigh reasoning can take 12+ mins alone
     })
 
     // Extract text from Responses API output

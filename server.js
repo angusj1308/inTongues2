@@ -8829,23 +8829,23 @@ const GENRE_LABELS = {
   fantasy: 'fantasy',
   literary: 'literary',
   historical: 'historical fiction',
-  fairytale: 'fairy tale',
+  myth: 'myth & folk tale',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Author pools — mirrors src/services/Authors.js for backend use
 // ─────────────────────────────────────────────────────────────────────────────
 const SHORT_STORY_AUTHORS = {
-  thriller: ['Roald Dahl', 'Patricia Highsmith', 'Daphne du Maurier'],
+  thriller: ['Daphne du Maurier', 'Gillian Flynn', 'Dennis Lehane'],
   scifi: ['Ted Chiang', 'Ray Bradbury', 'Ursula K. Le Guin', 'Philip K. Dick'],
-  mystery: ['Arthur Conan Doyle', 'Agatha Christie', 'G.K. Chesterton'],
-  adventure: ['Jack London', 'Rudyard Kipling', 'Joseph Conrad'],
-  comedy: ['P.G. Wodehouse', 'Saki', 'Dorothy Parker', 'Mark Twain'],
-  horror: ['Edgar Allan Poe', 'Shirley Jackson', 'M.R. James'],
-  fantasy: ['Jorge Luis Borges', 'Neil Gaiman', 'Ursula K. Le Guin'],
-  literary: ['Ernest Hemingway', 'Anton Chekhov', "Flannery O'Connor", 'Raymond Carver', 'Franz Kafka'],
-  historical: ['Isaac Bashevis Singer', 'Isak Dinesen'],
-  fairytale: ['Hans Christian Andersen', 'Oscar Wilde', 'Italo Calvino'],
+  mystery: ['Agatha Christie', 'Arthur Conan Doyle', 'Freida McFadden'],
+  adventure: ['Jack London', 'Rudyard Kipling', 'Joseph Conrad', 'Cormac McCarthy'],
+  comedy: ['P.G. Wodehouse', 'Mark Twain', 'Nick Hornby'],
+  horror: ['Edgar Allan Poe', 'M.R. James', 'Stephen King'],
+  fantasy: ['Ursula K. Le Guin', 'Neil Gaiman', 'Jorge Luis Borges', 'Angela Carter'],
+  literary: ['Ernest Hemingway', 'Anton Chekhov'],
+  historical: ['Hilary Mantel'],
+  myth: ['Hans Christian Andersen', 'Oscar Wilde', 'Ted Hughes'],
 }
 
 const NOVEL_AUTHORS = {

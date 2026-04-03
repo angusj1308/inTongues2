@@ -8945,7 +8945,7 @@ app.post('/api/generate/short-story', async (req, res) => {
 
     const developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
 
-    const userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that he would not write. A reader familiar with his body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.`
+    const userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.`
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('SHORT STORY — SINGLE-CALL GENERATION (GPT-5.4-pro)')
@@ -8962,7 +8962,7 @@ app.post('/api/generate/short-story', async (req, res) => {
     console.log(userMessage)
     console.log('───────────────────────────────────────────────────────')
 
-    const response = await client.responses.create({
+    const stream = await client.responses.create({
       model: 'gpt-5.4-pro',
       instructions: developerMessage,
       input: [
@@ -8972,17 +8972,16 @@ app.post('/api/generate/short-story', async (req, res) => {
       max_output_tokens: 100000,
       text: { format: { type: 'text' } },
       store: true,
+      stream: true,
     }, {
       timeout: 1200000, // 20 minutes — xhigh reasoning can take 12+ mins alone
     })
 
-    // Extract text from Responses API output
+    // Collect text from streaming events
     let storyText = ''
-    for (const block of response?.output || []) {
-      if (block.type === 'message') {
-        for (const part of block.content || []) {
-          if (part.type === 'output_text') storyText += part.text
-        }
+    for await (const event of stream) {
+      if (event.type === 'response.output_text.delta') {
+        storyText += event.delta
       }
     }
     storyText = cleanStoryText(storyText)

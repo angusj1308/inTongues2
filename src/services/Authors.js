@@ -2,9 +2,9 @@
 // Curated for distinctive, subtractive voices that suppress Claude's overwriting.
 export const SHORT_STORY_AUTHORS = {
   thriller: [
-    'Roald Dahl',
-    'Patricia Highsmith',
     'Daphne du Maurier',
+    'Gillian Flynn',
+    'Dennis Lehane',
   ],
   scifi: [
     'Ted Chiang',
@@ -13,46 +13,43 @@ export const SHORT_STORY_AUTHORS = {
     'Philip K. Dick',
   ],
   mystery: [
-    'Arthur Conan Doyle',
     'Agatha Christie',
-    'G.K. Chesterton',
+    'Arthur Conan Doyle',
+    'Freida McFadden',
   ],
   adventure: [
     'Jack London',
     'Rudyard Kipling',
     'Joseph Conrad',
+    'Cormac McCarthy',
   ],
   comedy: [
     'P.G. Wodehouse',
-    'Saki',
-    'Dorothy Parker',
     'Mark Twain',
+    'Nick Hornby',
   ],
   horror: [
     'Edgar Allan Poe',
-    'Shirley Jackson',
     'M.R. James',
+    'Stephen King',
   ],
   fantasy: [
-    'Jorge Luis Borges',
-    'Neil Gaiman',
     'Ursula K. Le Guin',
+    'Neil Gaiman',
+    'Jorge Luis Borges',
+    'Angela Carter',
   ],
   literary: [
     'Ernest Hemingway',
     'Anton Chekhov',
-    'Flannery O\'Connor',
-    'Raymond Carver',
-    'Franz Kafka',
   ],
   historical: [
-    'Isaac Bashevis Singer',
-    'Isak Dinesen',
+    'Hilary Mantel',
   ],
-  fairytale: [
+  myth: [
     'Hans Christian Andersen',
     'Oscar Wilde',
-    'Italo Calvino',
+    'Ted Hughes',
   ],
 }
 
@@ -166,10 +163,10 @@ const _novelCounts = {}     // { genre: { authorName: count } }
 function _rollFromPool(pool, countsStore, genre) {
   // Test mode: return the override author only for the matching genre
   if (genre === 'literary') return 'Ernest Hemingway'
-  if (genre === 'horror') return 'Shirley Jackson'
+  if (genre === 'horror') return 'Edgar Allan Poe'
   if (genre === 'fantasy') return 'Jorge Luis Borges'
   if (genre === 'mystery') return 'Agatha Christie'
-  if (_authorOverride && genre === 'historical') return 'Bernard Cornwell'
+  if (_authorOverride && genre === 'historical') return 'Hilary Mantel'
 
   const authors = pool[genre]
   if (!authors || !authors.length) {
@@ -226,7 +223,7 @@ const ALL_GENRES = [
   { id: 'fantasy', label: 'Fantasy' },
   { id: 'literary', label: 'Literary' },
   { id: 'historical', label: 'Historical Fiction' },
-  { id: 'fairytale', label: 'Fairy Tale' },
+  { id: 'myth', label: 'Myth & Folk Tale' },
 ]
 
 // Derived genre lists — only genres that have authors in the corresponding pool

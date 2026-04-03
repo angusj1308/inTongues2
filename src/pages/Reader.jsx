@@ -7,8 +7,6 @@ import {
   getDocs,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
 } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { db } from '../firebase'
@@ -23,7 +21,6 @@ import {
   toLanguageLabel,
 } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
-import { waitForFonts } from '../utils/pagination'
 
 const themeOptions = [
   {
@@ -80,13 +77,7 @@ const Reader = ({ initialMode }) => {
   const { id, language: languageParam } = useParams()
   const { user, profile } = useAuth()
 
-  // Client-side pagination state
   const [chapters, setChapters] = useState([])
-  const [pages, setPages] = useState([]) // Virtual pages computed from chapters
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [paginationReady, setPaginationReady] = useState(false)
-  const measureRef = useRef(null) // Hidden div for measuring text overflow
-  const pageContainerRef = useRef(null) // Visible page container
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -122,17 +113,11 @@ const Reader = ({ initialMode }) => {
   const [isIntensiveTranslationVisible, setIsIntensiveTranslationVisible] =
     useState(false)
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
-  const [bookmarkIndex, setBookmarkIndex] = useState(null)
-  const [isSavingBookmark, setIsSavingBookmark] = useState(false)
   const [contentExpressions, setContentExpressions] = useState([])
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
   const sentenceAudioRef = useRef(null)
   const sentenceAudioStopRef = useRef(null)
-  const pointerStartRef = useRef(null)
-  const lastPageIndexRef = useRef(currentIndex)
-  const hasAppliedBookmarkRef = useRef(false)
-  // popup: { x, y, word, displayText, translation } | null
 
   const supportedLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -530,14 +515,12 @@ const Reader = ({ initialMode }) => {
   useEffect(() => {
     if (!user || !id) {
       setChapters([])
-      setPages([])
       setLoading(false)
       return undefined
     }
 
     const loadContent = async () => {
       setLoading(true)
-      setPaginationReady(false)
       setIsGeneratedBook(false)
       setGeneratedBookData(null)
 
@@ -547,31 +530,7 @@ const Reader = ({ initialMode }) => {
         const storySnap = await getDoc(storyRef)
 
         if (storySnap.exists()) {
-          // Regular story found
           const storyData = storySnap.data() || {}
-
-          // Check if pre-computed pages exist
-          const pagesRef = collection(db, 'users', user.uid, 'stories', id, 'pages')
-          const pagesQuery = query(pagesRef, orderBy('index', 'asc'))
-          const pagesSnapshot = await getDocs(pagesQuery)
-
-          if (pagesSnapshot.docs.length > 0) {
-            // Pre-computed pages exist - load them directly
-            const loadedPages = pagesSnapshot.docs.map((docSnap) => ({
-              id: docSnap.id,
-              ...docSnap.data(),
-            }))
-            console.log(`Loaded ${loadedPages.length} pre-computed pages`)
-            setPages(loadedPages)
-            setPaginationReady(true)
-            setChapters([])
-            setError('')
-            setLoading(false)
-            return
-          }
-
-          // No pre-computed pages - fall back to loading chapters for on-the-fly pagination
-          console.log('No pre-computed pages found, falling back to chapter-based pagination')
 
           if (storyData.isFlat) {
             const flatChapter = {
@@ -651,201 +610,11 @@ const Reader = ({ initialMode }) => {
     return undefined
   }, [id, language, user])
 
-  // Compute page breaks based on what fits in the container (fallback for books without pre-computed pages)
-  useEffect(() => {
-    // Skip if pages are already loaded (pre-computed) or no chapters to paginate
-    if (paginationReady || !chapters.length || loading || !measureRef.current) {
-      return
-    }
-
-    // Check if content fits within the given height
-    // For first page of chapter, includes header/outline as part of the content
-    const measureFits = (measureDiv, bodyText, maxHeight, header = null, outline = null) => {
-      measureDiv.innerHTML = ''
-
-      // Create wrapper for all content
-      const contentWrapper = document.createElement('div')
-
-      // Add header/outline if present (first page of chapter)
-      if (header || outline) {
-        const headerDiv = document.createElement('div')
-        headerDiv.className = 'chapter-header-structured'
-        if (header) {
-          const titleDiv = document.createElement('div')
-          titleDiv.className = 'chapter-header-title'
-          titleDiv.innerText = header.toUpperCase()
-          headerDiv.appendChild(titleDiv)
-        }
-        if (outline) {
-          const outlineDiv = document.createElement('div')
-          outlineDiv.className = 'chapter-header-outline'
-          outlineDiv.innerText = outline
-          headerDiv.appendChild(outlineDiv)
-        }
-        contentWrapper.appendChild(headerDiv)
-      }
-
-      // Add body text as paragraphs
-      const textNode = document.createElement('div')
-      textNode.className = 'page-text-measure'
-
-      const paragraphs = bodyText.split(/\n\n+/)
-      paragraphs.forEach((para) => {
-        if (para.trim()) {
-          const p = document.createElement('p')
-          p.className = 'reader-paragraph'
-          p.innerText = para.trim()
-          textNode.appendChild(p)
-        }
-      })
-
-      contentWrapper.appendChild(textNode)
-      measureDiv.appendChild(contentWrapper)
-
-      return contentWrapper.scrollHeight <= maxHeight
-    }
-
-    const computePages = () => {
-      const measureDiv = measureRef.current
-      if (!measureDiv) return
-
-      // Fixed container height for all pages - content flows within this
-      const computedStyle = window.getComputedStyle(measureDiv)
-      const paddingTop = parseFloat(computedStyle.paddingTop) || 0
-      const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
-      const SAFETY_MARGIN = 4 // Prevent clipping from sub-pixel rendering differences
-      const containerHeight = measureDiv.clientHeight - paddingTop - paddingBottom - SAFETY_MARGIN
-      if (containerHeight <= 0) return
-
-      const virtualPages = []
-      let globalPageIndex = 0
-
-      for (const chapter of chapters) {
-        const text = chapter.adaptedText || ''
-        if (!text.trim()) continue
-
-        const chapterHeader = chapter.adaptedChapterHeader || null
-        const chapterOutline = chapter.adaptedChapterOutline || null
-
-        // Split text into units (words + paragraph breaks)
-        const units = []
-        const paragraphs = text.split(/\n\n+/)
-        for (let i = 0; i < paragraphs.length; i++) {
-          if (i > 0) units.push('\n\n') // paragraph break marker
-          const words = paragraphs[i].split(/\s+/).filter(Boolean)
-          units.push(...words)
-        }
-
-        let currentPageText = ''
-        let isFirstPageOfChapter = true
-        let unitIndex = 0
-
-        while (unitIndex < units.length) {
-          const unit = units[unitIndex]
-
-          // Build test text
-          let testText
-          if (unit === '\n\n') {
-            testText = currentPageText ? currentPageText + '\n\n' : ''
-          } else {
-            testText = currentPageText ? currentPageText + ' ' + unit : unit
-          }
-
-          // Same container height for all pages
-          // Header/outline included in measurement for first page (flows as content)
-          const headerForMeasure = isFirstPageOfChapter ? chapterHeader : null
-          const outlineForMeasure = isFirstPageOfChapter ? chapterOutline : null
-
-          if (measureFits(measureDiv, testText, containerHeight, headerForMeasure, outlineForMeasure)) {
-            // Unit fits - add it
-            if (unit === '\n\n') {
-              currentPageText = currentPageText ? currentPageText + '\n\n' : ''
-            } else {
-              currentPageText = currentPageText ? currentPageText + ' ' + unit : unit
-            }
-            unitIndex++
-          } else {
-            // Doesn't fit - save current page and start new one
-            if (currentPageText.trim()) {
-              virtualPages.push({
-                index: globalPageIndex,
-                text: currentPageText.trim(),
-                adaptedText: currentPageText.trim(),
-                chapterIndex: chapter.index,
-                chapterTitle: isFirstPageOfChapter ? chapter.title : null,
-                chapterHeader: isFirstPageOfChapter ? chapterHeader : null,
-                chapterOutline: isFirstPageOfChapter ? chapterOutline : null,
-                isChapterStart: isFirstPageOfChapter,
-              })
-              globalPageIndex++
-              isFirstPageOfChapter = false
-            }
-
-            // Start fresh - if unit is paragraph break, skip it at page start
-            if (unit === '\n\n') {
-              currentPageText = ''
-              unitIndex++
-            } else {
-              currentPageText = unit
-              unitIndex++
-            }
-          }
-        }
-
-        // Save last page of chapter
-        if (currentPageText.trim()) {
-          virtualPages.push({
-            index: globalPageIndex,
-            text: currentPageText.trim(),
-            adaptedText: currentPageText.trim(),
-            chapterIndex: chapter.index,
-            chapterTitle: isFirstPageOfChapter ? chapter.title : null,
-            chapterHeader: isFirstPageOfChapter ? chapterHeader : null,
-            chapterOutline: isFirstPageOfChapter ? chapterOutline : null,
-            isChapterStart: isFirstPageOfChapter,
-          })
-          globalPageIndex++
-        }
-      }
-
-      setPages(virtualPages)
-      setPaginationReady(true)
-    }
-
-    // Retry logic in case container isn't sized yet, with font loading
-    let attempts = 0
-    const maxAttempts = 10
-    const tryCompute = async () => {
-      const measureDiv = measureRef.current
-      if (!measureDiv || measureDiv.clientHeight === 0) {
-        attempts++
-        if (attempts < maxAttempts) {
-          setTimeout(tryCompute, 100)
-        } else {
-          console.warn('Could not get container height after', maxAttempts, 'attempts')
-        }
-        return
-      }
-      // Wait for fonts to load before computing pages
-      await waitForFonts()
-      computePages()
-    }
-
-    // Small delay to ensure container is properly sized
-    const timer = setTimeout(tryCompute, 100)
-    return () => clearTimeout(timer)
-  }, [chapters, loading, paginationReady])
-
-  // Note: Window resize no longer triggers re-pagination since pages have fixed dimensions
-  // Pre-computed pages are loaded from Firestore and don't change with window size
-
-
   useEffect(() => {
     if (!user || !id) {
       setAudioStatus('')
       setFullAudioUrl('')
       setHasFullAudio(false)
-      setBookmarkIndex(null)
       return
     }
 
@@ -866,18 +635,12 @@ const Reader = ({ initialMode }) => {
         setFullAudioUrl(data.fullAudioUrl || '')
         setHasFullAudio(Boolean(data.hasFullAudio))
         setVoiceGender(data.voiceGender || 'male')
-        setBookmarkIndex(
-          Number.isFinite(data.bookmarkIndex) ? data.bookmarkIndex : null
-        )
-        hasAppliedBookmarkRef.current = false
       } catch (err) {
         console.error('Failed to load story audio metadata', err)
         setAudioStatus('')
         setFullAudioUrl('')
         setHasFullAudio(false)
         setVoiceGender('male')
-        setBookmarkIndex(null)
-        hasAppliedBookmarkRef.current = false
       }
     }
 
@@ -987,22 +750,6 @@ const Reader = ({ initialMode }) => {
     }
   }, [id, readerMode, user])
 
-  useEffect(() => {
-    if (!pages.length) return
-    if (hasAppliedBookmarkRef.current) return
-
-    const targetIndex = Number.isFinite(bookmarkIndex) ? bookmarkIndex : 0
-    const boundedIndex = Math.min(Math.max(targetIndex, 0), Math.max(pages.length - 1, 0))
-
-    setCurrentIndex(boundedIndex)
-    lastPageIndexRef.current = boundedIndex
-    hasAppliedBookmarkRef.current = true
-  }, [pages.length, bookmarkIndex])
-
-  useEffect(() => {
-    hasAppliedBookmarkRef.current = false
-  }, [id])
-
   const getDisplayText = (page) =>
     page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -1035,14 +782,9 @@ const Reader = ({ initialMode }) => {
     }
   }, [language, user])
 
-  const pagesPerView = 1
-  const visiblePages = pages.slice(currentIndex, currentIndex + pagesPerView)
-  const pageText = visiblePages.map((p) => getDisplayText(p)).join(' ')
-
   const splitIntoSentences = (text) => {
     if (!text) return []
 
-    // First split by paragraphs, then by sentences within each paragraph
     const paragraphs = text.split(/\n\n+/)
     const allSentences = []
 
@@ -1062,19 +804,18 @@ const Reader = ({ initialMode }) => {
     return allSentences.length > 0 ? allSentences : [text]
   }
 
-  const visiblePageSentences = visiblePages.map((page) =>
-    splitIntoSentences(getDisplayText(page))
+  const chapterSentences = chapters.map((ch) =>
+    splitIntoSentences(getDisplayText(ch))
   )
 
-  const sentenceOffsets = []
-  let runningSentenceOffset = 0
-
-  visiblePageSentences.forEach((sentences, index) => {
-    sentenceOffsets[index] = runningSentenceOffset
-    runningSentenceOffset += sentences.length
+  const chapterSentenceOffsets = []
+  let runningOffset = 0
+  chapterSentences.forEach((sentences) => {
+    chapterSentenceOffsets.push(runningOffset)
+    runningOffset += sentences.length
   })
 
-  const allVisibleSentences = visiblePageSentences.flat()
+  const allVisibleSentences = chapterSentences.flat()
   const currentIntensiveSentence =
     readerMode === 'intensive'
       ? allVisibleSentences[currentSentenceIndex]?.trim() || ''
@@ -1094,22 +835,12 @@ const Reader = ({ initialMode }) => {
   }, [readerMode, allVisibleSentences.length])
 
   useEffect(() => {
-    if (currentIndex !== lastPageIndexRef.current) {
-      if (readerMode !== 'intensive') {
-        setCurrentSentenceIndex(0)
-      }
-      lastPageIndexRef.current = currentIndex
-    }
-  }, [currentIndex, readerMode])
-
-  useEffect(() => {
     setCurrentSentenceIndex(0)
-    lastPageIndexRef.current = 0
     setSentenceTranslations({})
   }, [id, language])
 
   const getNewWordsOnCurrentPages = () => {
-    const combinedText = visiblePages.map((p) => getDisplayText(p)).join(' ')
+    const combinedText = chapters.map((ch) => getDisplayText(ch)).join(' ')
 
     if (!combinedText) return []
 
@@ -1245,30 +976,6 @@ const Reader = ({ initialMode }) => {
     return true
   }
 
-  const handleNextPages = async () => {
-    if (!hasNext) return
-
-    const advancePages = () => {
-      setCurrentIndex((prev) =>
-        Math.min(prev + pagesPerView, pages.length - 1)
-      )
-    }
-
-    const canAdvance = await promoteNewWordsToKnown()
-    if (!canAdvance) return
-
-    // Track words read from current pages before advancing
-    if (user?.uid && language) {
-      const currentPages = pages.slice(currentIndex, currentIndex + 2)
-      const wordCount = currentPages.reduce((sum, page) => sum + countWords(getDisplayText(page)), 0)
-      if (wordCount > 0) {
-        incrementWordsRead(user.uid, language, wordCount)
-      }
-    }
-
-    advancePages()
-  }
-
   const handleFinishStory = async () => {
     const canFinish = await promoteNewWordsToKnown()
 
@@ -1313,9 +1020,6 @@ const Reader = ({ initialMode }) => {
 
         setChapters(prev => [...prev, newChapter])
         setGeneratedChapterCount(nextChapterIndex)
-
-        // Reset pagination to include new chapter
-        setPaginationReady(false)
 
         console.log(`Chapter ${nextChapterIndex} generated successfully`)
       } else {
@@ -1362,9 +1066,6 @@ const Reader = ({ initialMode }) => {
         setChapters(prev => prev.map(ch =>
           ch.index === chapterToRegenerate - 1 ? updatedChapter : ch
         ))
-
-        // Reset pagination to reflect updated content
-        setPaginationReady(false)
 
         console.log(`Chapter ${chapterToRegenerate} regenerated successfully`)
       } else {
@@ -1576,139 +1277,7 @@ const Reader = ({ initialMode }) => {
     }
   }, [])
 
-  const hasPrevious = currentIndex > 0
-  const hasNext = currentIndex + pagesPerView < pages.length
-  // visiblePages is already defined above
-
-  const handleEdgeNavigation = (direction) => {
-    const selection = window.getSelection()
-    if (selection && selection.toString().trim()) return
-
-    if (direction === 'previous' && hasPrevious) {
-      setCurrentIndex((prev) => Math.max(prev - pagesPerView, 0))
-    }
-
-    if (direction === 'next' && hasNext) {
-      handleNextPages()
-    }
-  }
-
-
-  const handlePointerDown = (event) => {
-    pointerStartRef.current = { x: event.clientX, y: event.clientY }
-  }
-
-  const handlePointerUp = (event) => {
-    const start = pointerStartRef.current
-    pointerStartRef.current = null
-
-    if (!start) return
-
-    const selection = window.getSelection()
-    if (selection && selection.toString().trim()) return
-
-    const dx = event.clientX - start.x
-    const dy = event.clientY - start.y
-
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
-      if (dx < 0) {
-        if (readerMode === 'intensive') {
-          handleSentenceNavigation('next')
-        } else {
-          handleEdgeNavigation('next')
-        }
-      } else if (readerMode === 'intensive') {
-        handleSentenceNavigation('previous')
-      } else {
-        handleEdgeNavigation('previous')
-      }
-    }
-  }
-
-  const persistBookmark = async (index = currentIndex, { notify = true } = {}) => {
-    if (!user || !id) return false
-
-    const boundedIndex = Math.min(
-      Math.max(index, 0),
-      Math.max(pages.length - 1, 0)
-    )
-
-    setIsSavingBookmark(true)
-
-    try {
-      const storyRef = doc(db, 'users', user.uid, 'stories', id)
-      // Calculate progress as percentage of pages read
-      const progress = pages.length > 0
-        ? Math.min(100, Math.round(((boundedIndex + 1) / pages.length) * 100))
-        : 0
-      await updateDoc(storyRef, {
-        bookmarkIndex: boundedIndex,
-        bookmarkUpdatedAt: serverTimestamp(),
-        progress,
-      })
-
-      setBookmarkIndex(boundedIndex)
-
-      if (notify) {
-        window.alert('Bookmark saved. You\'ll return to this page next time.')
-      }
-
-      return true
-    } catch (err) {
-      console.error('Failed to save bookmark', err)
-      if (notify) {
-        window.alert('Unable to save bookmark right now.')
-      }
-      return false
-    } finally {
-      setIsSavingBookmark(false)
-    }
-  }
-
-  // Auto-save progress periodically and on unmount
-  useEffect(() => {
-    if (!user || !id || !pages.length) return undefined
-
-    // Save progress every 30 seconds
-    const intervalId = setInterval(() => {
-      persistBookmark(currentIndex, { notify: false })
-    }, 30000)
-
-    // Save on unmount
-    return () => {
-      clearInterval(intervalId)
-      persistBookmark(currentIndex, { notify: false })
-    }
-  }, [user, id, pages.length, currentIndex])
-
-  // Save progress when page becomes hidden (user switches tabs or closes)
-  useEffect(() => {
-    if (!user || !id || !pages.length) return undefined
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        persistBookmark(currentIndex, { notify: false })
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [user, id, pages.length, currentIndex])
-
-  const handleBackToLibrary = async () => {
-    const hasUnsavedProgress =
-      !Number.isFinite(bookmarkIndex) || bookmarkIndex !== currentIndex
-
-    if (hasUnsavedProgress) {
-      const shouldSave = window.confirm(
-        'Save a bookmark for this page before returning to the library?'
-      )
-
-      if (shouldSave) {
-        await persistBookmark(currentIndex, { notify: false })
-      }
-    }
-
+  const handleBackToLibrary = () => {
     navigate('/dashboard', { state: { initialTab: 'read' } })
   }
 
@@ -1756,73 +1325,32 @@ const Reader = ({ initialMode }) => {
     }, durationMs + 100)
   }
 
-  const handleSentenceNavigation = async (direction) => {
+  const handleSentenceNavigation = useCallback(async (direction) => {
     if (readerMode !== 'intensive') return
     if (allVisibleSentences.length === 0) return
-
-    const movingForward = direction === 'next'
-    const movingBackward = direction === 'previous'
 
     const atLastSentence = currentSentenceIndex >= allVisibleSentences.length - 1
     const atFirstSentence = currentSentenceIndex === 0
 
-    if ((movingForward && atLastSentence && !hasNext) || (movingBackward && atFirstSentence && !hasPrevious)) {
+    if ((direction === 'next' && atLastSentence) || (direction === 'previous' && atFirstSentence)) {
       return
     }
 
     await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
 
-    // Track words read when moving forward (completing a sentence)
-    if (movingForward && user?.uid && language && currentIntensiveSentence) {
+    if (direction === 'next' && user?.uid && language && currentIntensiveSentence) {
       const wordCount = countWords(currentIntensiveSentence)
       if (wordCount > 0) {
         incrementWordsRead(user.uid, language, wordCount)
       }
     }
 
-    if (movingForward) {
-      if (!atLastSentence) {
-        setCurrentSentenceIndex((prev) => prev + 1)
-        return
-      }
-
-      if (hasNext) {
-        const nextIndex = Math.min(
-          currentIndex + 2,
-          pages.length - (pages.length % 2 ? 1 : 2)
-        )
-        const nextPages = pages.slice(nextIndex, nextIndex + 2)
-        const nextSentences = nextPages
-          .map((page) => splitIntoSentences(getDisplayText(page)))
-          .flat()
-
-        setCurrentIndex(nextIndex)
-        setCurrentSentenceIndex(nextSentences.length ? 0 : 0)
-      }
-
-      return
+    if (direction === 'next') {
+      setCurrentSentenceIndex((prev) => prev + 1)
+    } else {
+      setCurrentSentenceIndex((prev) => Math.max(prev - 1, 0))
     }
-
-    if (movingBackward) {
-      if (!atFirstSentence) {
-        setCurrentSentenceIndex((prev) => Math.max(prev - 1, 0))
-        return
-      }
-
-      if (hasPrevious) {
-        const previousIndex = Math.max(currentIndex - 2, 0)
-        const previousPages = pages.slice(previousIndex, previousIndex + 2)
-        const previousSentences = previousPages
-          .map((page) => splitIntoSentences(getDisplayText(page)))
-          .flat()
-
-        setCurrentIndex(previousIndex)
-        setCurrentSentenceIndex(
-          previousSentences.length ? previousSentences.length - 1 : 0
-        )
-      }
-    }
-  }
+  }, [readerMode, allVisibleSentences, currentSentenceIndex, currentIntensiveSentence, user, language])
 
   useEffect(() => {
     if (readerMode === 'intensive') {
@@ -2204,114 +1732,47 @@ const Reader = ({ initialMode }) => {
                     </svg>
                   )}
                 </button>
-                <button
-                  className="reader-header-button icon-button"
-                  type="button"
-                  onClick={(e) => {
-                    persistBookmark()
-                    e.currentTarget.blur()
-                  }}
-                  disabled={isSavingBookmark}
-                  aria-label={bookmarkIndex === currentIndex ? 'Bookmark saved' : 'Save bookmark'}
-                >
-                  {bookmarkIndex === currentIndex ? (
-                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
-                  ) : (
-                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
-                  )}
-                </button>
               </div>
             </div>
           </header>
         </div>
         <div className="reader-body-shell">
-          {/* Hidden measuring div for client-side pagination */}
-          <div
-            ref={measureRef}
-            className="reader-measure-container"
-            aria-hidden="true"
-          />
-
-          {loading || (chapters.length > 0 && !paginationReady) ? (
-            <p className="muted">Loading pages...</p>
+          {loading ? (
+            <p className="muted">Loading...</p>
           ) : error ? (
             <p className="error">{error}</p>
-          ) : pages.length ? (
-            <>
-              <div
-                className="reader-navigation"
-                onPointerDown={handlePointerDown}
-                onPointerUp={handlePointerUp}
-              >
-                <div
-                  className={`reader-nav-zone left ${hasPrevious ? '' : 'disabled'}`}
-                  aria-label="Previous pages"
-                  onClick={() => handleEdgeNavigation('previous')}
-                />
-
-                <div ref={pageContainerRef} className="reader-pages">
-                  <div className="reader-page-wrapper">
-                  {visiblePages.map((page, pageIndex) => {
-                    const pageNumber = (page.index ?? pages.indexOf(page)) + 1
-
-                    return (
-                      <div
-                        key={page.id || page.index}
-                        className="reader-page-block"
-                      >
-                        {/* Structured chapter header for TXT imports */}
-                        {page.isChapterStart && page.chapterHeader && (
-                          <div className="chapter-header-structured">
-                            <div className="chapter-header-title" onMouseUp={handleWordClick}>
-                              {renderHighlightedText(
-                                page.chapterHeader.toUpperCase(),
-                                0
-                              )}
-                            </div>
-                            {page.chapterOutline && (
-                              <div className="chapter-header-outline" onMouseUp={handleWordClick}>
-                                {renderHighlightedText(
-                                  page.chapterOutline,
-                                  0
-                                )}
-                              </div>
-                            )}
+          ) : chapters.length ? (
+            <div className="reader-scroll-container">
+              <div className="reader-content-column">
+                {chapters.map((chapter, chapterIndex) => (
+                  <div key={chapter.id || chapterIndex} className="reader-chapter-block">
+                    {chapter.adaptedChapterHeader && (
+                      <div className="chapter-header-structured">
+                        <div className="chapter-header-title" onMouseUp={handleWordClick}>
+                          {renderHighlightedText(chapter.adaptedChapterHeader.toUpperCase(), 0)}
+                        </div>
+                        {chapter.adaptedChapterOutline && (
+                          <div className="chapter-header-outline" onMouseUp={handleWordClick}>
+                            {renderHighlightedText(chapter.adaptedChapterOutline, 0)}
                           </div>
                         )}
-                        {/* Fallback to simple chapter title for EPUB imports */}
-                        {page.isChapterStart && !page.chapterHeader && page.chapterTitle && (
-                          <div className="chapter-title">{page.chapterTitle}</div>
-                        )}
-                        <div className="page-text" onMouseUp={handleWordClick}>
-                          {renderHighlightedText(
-                            getDisplayText(page),
-                            sentenceOffsets[pageIndex] || 0
-                          )}
-                        </div>
-                        <div className="page-number">{pageNumber}</div>
                       </div>
-                    )
-                  })}
+                    )}
+                    {!chapter.adaptedChapterHeader && chapter.title && chapters.length > 1 && (
+                      <div className="chapter-title">{chapter.title}</div>
+                    )}
+                    <div className="page-text" onMouseUp={handleWordClick}>
+                      {renderHighlightedText(
+                        getDisplayText(chapter),
+                        chapterSentenceOffsets[chapterIndex] || 0
+                      )}
+                    </div>
                   </div>
-                </div>
+                ))}
 
-                <div
-                  className={`reader-nav-zone right ${hasNext ? '' : 'disabled'}`}
-                  aria-label="Next pages"
-                  onClick={() => handleEdgeNavigation('next')}
-                />
-              </div>
-
-              {!hasNext && (
                 <div className="reader-end-actions">
                   {isGeneratedBook ? (
-                    // Generated book end actions
                     generatedChapterCount < totalChapters ? (
-                      // More chapters to generate
                       <div className="reader-generate-next">
                         {isGeneratingChapter ? (
                           <div className="reader-generating-state">
@@ -2346,7 +1807,6 @@ const Reader = ({ initialMode }) => {
                         )}
                       </div>
                     ) : (
-                      // All chapters generated - book complete
                       <div className="reader-book-complete">
                         <p className="reader-the-end">The End</p>
                         <p className="reader-chapter-progress">
@@ -2362,7 +1822,6 @@ const Reader = ({ initialMode }) => {
                       </div>
                     )
                   ) : (
-                    // Regular story end action
                     <button
                       type="button"
                       className="reader-end-button"
@@ -2372,8 +1831,8 @@ const Reader = ({ initialMode }) => {
                     </button>
                   )}
                 </div>
-              )}
-            </>
+              </div>
+            </div>
           ) : (
             <p className="muted">Story {id} is ready to read soon.</p>
           )}
@@ -2393,7 +1852,7 @@ const Reader = ({ initialMode }) => {
             <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
               {currentIntensiveSentence
                 ? renderWordSegments(currentIntensiveSentence)
-                : 'No text available for this page.'}
+                : 'No text available.'}
             </div>
 
             <div className="reader-intensive-controls">

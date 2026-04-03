@@ -3416,26 +3416,17 @@ textarea {
   margin-bottom: 1rem;
 }
 
-.reader-pages {
+.reader-scroll-container {
   width: 100%;
-  height: calc(100vh - 100px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-top: 80px; /* Account for header overlay zone + visual centering */
-  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: 80px;
 }
 
-.reader-page-wrapper {
+.reader-content-column {
   max-width: 680px;
-  height: calc(100vh - 120px);
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.reader-navigation {
-  position: relative;
+  padding-bottom: 4rem;
 }
 
 .reader-end-actions {
@@ -3526,45 +3517,20 @@ textarea {
   margin: 0 0 0.5rem;
 }
 
-.reader-nav-zone {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6%;
-  cursor: pointer;
-  transition: background 0.2s ease, opacity 0.2s ease;
-  background: linear-gradient(
-    to right,
-    var(--reader-gutter, rgba(0, 0, 0, 0.04)),
-    transparent
-  );
-  opacity: 0;
-}
-
-.reader-nav-zone.right {
-  right: 0;
-  transform: scaleX(-1);
-}
-
-.reader-nav-zone.disabled {
-  pointer-events: none;
-  opacity: 0;
-  background: transparent;
-  cursor: default;
-}
-
-.reader-page-block {
-  flex: 1;
+.reader-chapter-block {
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 
-.reader-page-block .page-text {
+.reader-chapter-block + .reader-chapter-block {
+  margin-top: 3rem;
+}
+
+.reader-chapter-block .page-text {
   cursor: pointer;
   user-select: text;
-  padding: 3rem 2.5rem 5rem 2.5rem;
-  line-height: 1.75; /* Must match .reader-measure-container for accurate pagination */
+  padding: 0 2.5rem;
+  line-height: 1.75;
 }
 
 .reader-themed {
@@ -3592,67 +3558,6 @@ textarea {
 
 .reader-body-shell {
   position: relative;
-}
-
-/* Hidden container for measuring text to compute client-side pagination */
-/* Uses FIXED dimensions - same words per page on all devices */
-.reader-measure-container {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-  /* Fixed dimensions matching single-column reader page */
-  width: 680px;
-  height: 900px;
-  overflow: hidden;
-  padding: 3rem 2.5rem 5rem 2.5rem; /* Must match .reader-page-block .page-text padding */
-  /* Font MUST match Reader's default: Crimson Pro at weight 300 */
-  font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
-  font-weight: var(--reader-font-weight, 300);
-  font-size: 1.1rem;
-  line-height: 1.75;
-}
-
-.reader-measure-container .page-text-measure {
-  /* No special white-space - must match rendered .page-text (default: normal) */
-}
-
-/* Chapter header styles for measurement */
-/* Note: padding-top is 0 here because the container already has 4rem top padding.
-   This matches the rendered total: header padding (4rem) in .reader-page-block */
-.reader-measure-container .chapter-header-structured {
-  text-align: center;
-  margin-bottom: 1rem;
-  padding-top: 0;
-}
-
-.reader-measure-container .chapter-header-title {
-  font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
-  font-size: 1.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 1rem;
-  line-height: 1.3;
-}
-
-.reader-measure-container .chapter-header-outline {
-  font-family: var(--reader-font-family, 'Crimson Pro', 'Times New Roman', serif);
-  font-size: 1rem;
-  font-weight: 400;
-  font-style: italic;
-  line-height: 1.5;
-  max-width: 80%;
-  margin: 0 auto;
-}
-
-/* Paragraph styles for measurement - must match .reader-paragraph */
-.reader-measure-container .reader-paragraph {
-  margin: 0;
-  text-indent: 1.5em;
-}
-
-.reader-measure-container .reader-paragraph:first-child {
-  text-indent: 0;
 }
 
 .reader-intensive-active .reader-body-shell {
@@ -6081,13 +5986,8 @@ textarea {
   color: #ffffff;
 }
 
-.reader-themed .reader-page-block .page-text {
+.reader-themed .reader-chapter-block .page-text {
   color: var(--reader-text);
-}
-
-.reader-themed .reader-page-block .page-number {
-  color: inherit;
-  opacity: 0.75;
 }
 
 .audio-hover-area {
@@ -6128,18 +6028,7 @@ textarea {
   color: var(--reader-text);
 }
 
-.reader-page-block .page-number {
-  position: absolute;
-  bottom: 1rem;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-weight: 600;
-  z-index: 10; /* Always above text content */
-  pointer-events: none; /* Don't interfere with text selection */
-}
-
-.reader-page-block .chapter-title {
+.reader-chapter-block .chapter-title {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-size: 1.5rem;
   font-weight: 600;
@@ -6151,13 +6040,13 @@ textarea {
 }
 
 /* Structured chapter header for TXT imports */
-.reader-page-block .chapter-header-structured {
+.reader-chapter-block .chapter-header-structured {
   text-align: center;
   margin-bottom: 1rem;
   padding-top: 4rem; /* Push down below header trigger zone for tap-to-translate */
 }
 
-.reader-page-block .chapter-header-title {
+.reader-chapter-block .chapter-header-title {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-size: 1.75rem;
   font-weight: 700;
@@ -6168,7 +6057,7 @@ textarea {
   line-height: 1.3;
 }
 
-.reader-page-block .chapter-header-outline {
+.reader-chapter-block .chapter-header-outline {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-size: 1rem;
   font-weight: 400;

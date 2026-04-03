@@ -46,8 +46,8 @@ const fontOptions = [
     id: 'crimson-pro',
     label: 'Crimson Pro',
     fontFamily: "'Crimson Pro', 'Times New Roman', serif",
-    fontWeight: 400,
-    fontSize: '1.375rem',
+    fontWeight: 450,
+    fontSize: '1.625rem',
   },
   {
     id: 'inter',

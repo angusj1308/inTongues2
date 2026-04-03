@@ -3424,7 +3424,7 @@ textarea {
 }
 
 .reader-content-column {
-  max-width: 680px;
+  max-width: 900px;
   margin: 0 auto;
   padding-bottom: 4rem;
 }
@@ -3579,7 +3579,7 @@ textarea {
   width: 100%;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 400);
-  font-size: 1.1rem;
+  font-size: var(--reader-font-size, 1.1rem);
 }
 
 .page.reader-page {

@@ -532,15 +532,7 @@ export const resetVocabProgress = async (userId, language) => {
   let batchCount = 0
 
   for (const docSnap of snapshot.docs) {
-    batch.update(docSnap.ref, {
-      status: 'unknown',
-      intervalDays: null,
-      easeFactor: DEFAULT_EASE_FACTOR,
-      correctStreak: 0,
-      recallStreak: 0,
-      nextReviewAt: null,
-      updatedAt: serverTimestamp(),
-    })
+    batch.delete(docSnap.ref)
 
     batchCount++
     totalReset++

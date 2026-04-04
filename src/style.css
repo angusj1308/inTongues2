@@ -3182,8 +3182,8 @@ textarea {
 }
 
 .reader-header-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   display: block;
 }
 
@@ -3234,6 +3234,7 @@ textarea {
   gap: 0.5rem;
   transition: color 0.2s ease, opacity 0.2s ease;
   font-weight: 600;
+  font-size: 1.25rem;
 }
 
 .reader-header-button:hover {

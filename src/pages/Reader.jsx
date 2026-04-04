@@ -1279,9 +1279,6 @@ const Reader = ({ initialMode }) => {
   useEffect(() => {
     if (readerMode !== 'active' || !user?.uid || !language) return undefined
 
-    const container = scrollContainerRef.current
-    if (!container) return undefined
-
     // Reset on story/language change
     highWaterMarkRef.current = 0
     promotedParagraphsRef.current = new Set()
@@ -1341,21 +1338,19 @@ const Reader = ({ initialMode }) => {
       if (debounceTimer) clearTimeout(debounceTimer)
 
       debounceTimer = setTimeout(() => {
-        const scrollTop = container.scrollTop
-        if (scrollTop <= highWaterMarkRef.current) return
+        const scrollY = window.scrollY
+        if (scrollY <= highWaterMarkRef.current) return
 
-        highWaterMarkRef.current = scrollTop
+        highWaterMarkRef.current = scrollY
 
-        const containerRect = container.getBoundingClientRect()
-        const paragraphs = container.querySelectorAll('[data-paragraph-index]')
+        const paragraphs = document.querySelectorAll('[data-paragraph-index]')
 
         paragraphs.forEach((el) => {
           const idx = Number(el.dataset.paragraphIndex)
           if (promotedParagraphsRef.current.has(idx)) return
 
           const rect = el.getBoundingClientRect()
-          // Paragraph bottom is above the container's top edge + some margin
-          if (rect.bottom < containerRect.top + 40) {
+          if (rect.bottom < 40) {
             promotedParagraphsRef.current.add(idx)
             promoteWordsInParagraph(el)
           }
@@ -1363,9 +1358,9 @@ const Reader = ({ initialMode }) => {
       }, 500)
     }
 
-    container.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
-      container.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('scroll', handleScroll)
       if (debounceTimer) clearTimeout(debounceTimer)
     }
   }, [readerMode, user?.uid, language, id])

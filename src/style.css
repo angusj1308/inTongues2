@@ -3652,6 +3652,10 @@ html.reader-dark {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
+html.reader-dark body {
+  background: #1c1917;
+}
+
 .reader-themed {
   background: var(--reader-bg);
   color: var(--reader-text);

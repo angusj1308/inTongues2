@@ -801,7 +801,7 @@ textarea {
   border: none;
   background: transparent;
   color: #0f172a;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.1;

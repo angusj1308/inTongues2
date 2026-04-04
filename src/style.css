@@ -3442,42 +3442,9 @@ textarea {
 
 .reader-scroll-container {
   width: 100%;
-  height: 100vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-top: 80px;
-  scrollbar-width: thin;
-  scrollbar-color: #d6d3d1 transparent;
-}
-
-.reader-scroll-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.reader-scroll-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.reader-scroll-container::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
-  border-radius: 999px;
-}
-
-.reader-themed[data-reader-tone='dark'] .reader-scroll-container {
-  scrollbar-color: rgba(255, 255, 255, 0.25) #000000;
-}
-
-.reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-track {
-  background: #000000;
-}
-
-.reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
 }
 
 .reader-content-column {
@@ -3629,11 +3596,13 @@ textarea {
   line-height: 1.75;
 }
 
-/* Hide Chrome's window scrollbar when reader is active */
-html.reader-active,
-html.reader-active body {
-  overflow: hidden;
-  height: 100%;
+/* Hide scrollbar entirely in reader — scroll via trackpad/mouse wheel */
+html.reader-active {
+  scrollbar-width: none;
+}
+
+html.reader-active::-webkit-scrollbar {
+  display: none;
 }
 
 .reader-themed {

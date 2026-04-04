@@ -116,6 +116,11 @@ const Reader = ({ initialMode }) => {
   const vocabEntriesRef = useRef(vocabEntries)
   useEffect(() => { vocabEntriesRef.current = vocabEntries }, [vocabEntries])
 
+  useEffect(() => {
+    document.documentElement.classList.add('reader-active')
+    return () => document.documentElement.classList.remove('reader-active')
+  }, [])
+
   const supportedLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
     [profile?.myLanguages],

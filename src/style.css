@@ -3629,8 +3629,17 @@ html:has(.reader-themed[data-reader-tone='dark']) {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
+html:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar {
+  width: 6px;
+}
+
+html:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 html:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
 }
 
 .page.reader-page {

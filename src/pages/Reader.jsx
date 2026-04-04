@@ -206,16 +206,16 @@ const Reader = ({ initialMode }) => {
       spaceBelow < estimatedPopupHeight + margin && spaceAbove > spaceBelow
 
     const y = shouldRenderAbove
-      ? Math.max(window.scrollY + rect.top - estimatedPopupHeight - margin, window.scrollY + margin)
+      ? Math.max(rect.top - estimatedPopupHeight - margin, margin)
       : Math.min(
-          window.scrollY + rect.bottom + margin,
-          window.scrollY + window.innerHeight - estimatedPopupHeight - margin
+          rect.bottom + margin,
+          window.innerHeight - estimatedPopupHeight - margin
         )
 
-    const centerX = rect.left + rect.width / 2 + window.scrollX
+    const centerX = rect.left + rect.width / 2
     const x = Math.min(
-      Math.max(centerX - estimatedPopupWidth / 2, window.scrollX + margin),
-      window.scrollX + viewportWidth - estimatedPopupWidth - margin
+      Math.max(centerX - estimatedPopupWidth / 2, margin),
+      viewportWidth - estimatedPopupWidth - margin
     )
 
     return { x, y }
@@ -291,8 +291,10 @@ const Reader = ({ initialMode }) => {
       const ttsLanguage = normalizeLanguageCode(language)
 
       if (!ttsLanguage) {
+        const { x, y } = getPopupPosition(rect)
         setPopup({
-          x, y,
+          x,
+          y,
           word: phrase,
           displayText: selection,
           translation: missingLanguageMessage,
@@ -1382,11 +1384,14 @@ const Reader = ({ initialMode }) => {
       }
     }
 
+    const container = scrollContainerRef.current
+    if (!container) return undefined
+
     const handleScroll = () => {
       if (debounceTimer) clearTimeout(debounceTimer)
 
       debounceTimer = setTimeout(() => {
-        const scrollY = window.scrollY
+        const scrollY = container.scrollTop
         if (scrollY <= highWaterMarkRef.current) return
 
         highWaterMarkRef.current = scrollY
@@ -1406,9 +1411,9 @@ const Reader = ({ initialMode }) => {
       }, 500)
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    container.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
-      window.removeEventListener('scroll', handleScroll)
+      container.removeEventListener('scroll', handleScroll)
       if (debounceTimer) clearTimeout(debounceTimer)
     }
   }, [readerMode, user?.uid, language, id])
@@ -1549,16 +1554,6 @@ const Reader = ({ initialMode }) => {
     themeOptions.find((option) => option.id === readerTheme) || themeOptions[0]
 
   const activeFont = fontOptions.find((option) => option.id === readerFont) || fontOptions[0]
-
-  useEffect(() => {
-    const el = document.documentElement
-    if (activeTheme.tone === 'dark') {
-      el.classList.add('reader-dark')
-    } else {
-      el.classList.remove('reader-dark')
-    }
-    return () => el.classList.remove('reader-dark')
-  }, [activeTheme.tone])
 
   const cycleTheme = () => {
     const currentIndex = themeOptions.findIndex((option) => option.id === readerTheme)

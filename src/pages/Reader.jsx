@@ -120,6 +120,8 @@ const Reader = ({ initialMode }) => {
   const highWaterMarkRef = useRef(0)
   const promotedParagraphsRef = useRef(new Set())
   const globalParagraphCounterRef = useRef(0)
+  const vocabEntriesRef = useRef(vocabEntries)
+  useEffect(() => { vocabEntriesRef.current = vocabEntries }, [vocabEntries])
 
   const supportedLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
@@ -1300,7 +1302,7 @@ const Reader = ({ initialMode }) => {
 
       const newWords = rawWords.filter((word) => {
         const key = normaliseExpression(word)
-        return !vocabEntries[key]
+        return !vocabEntriesRef.current[key]
       })
 
       if (newWords.length === 0) return
@@ -1309,7 +1311,7 @@ const Reader = ({ initialMode }) => {
       Promise.all(
         newWords.map((word) => {
           const key = normaliseExpression(word)
-          const existingTranslation = vocabEntries[key]?.translation || 'No translation found'
+          const existingTranslation = vocabEntriesRef.current[key]?.translation || 'No translation found'
           return upsertVocabEntry(user.uid, language, word, existingTranslation, 'known', id)
         })
       ).catch((err) => console.error('Failed to promote paragraph words', err))
@@ -1366,7 +1368,7 @@ const Reader = ({ initialMode }) => {
       container.removeEventListener('scroll', handleScroll)
       if (debounceTimer) clearTimeout(debounceTimer)
     }
-  }, [readerMode, user?.uid, language, id, vocabEntries])
+  }, [readerMode, user?.uid, language, id])
 
   // Show auto-known info bubble on first entry to active mode
   useEffect(() => {

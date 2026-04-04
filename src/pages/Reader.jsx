@@ -1500,6 +1500,16 @@ const Reader = ({ initialMode }) => {
 
   const activeFont = fontOptions.find((option) => option.id === readerFont) || fontOptions[0]
 
+  useEffect(() => {
+    const el = document.documentElement
+    if (activeTheme.tone === 'dark') {
+      el.classList.add('reader-dark')
+    } else {
+      el.classList.remove('reader-dark')
+    }
+    return () => el.classList.remove('reader-dark')
+  }, [activeTheme.tone])
+
   const cycleTheme = () => {
     const currentIndex = themeOptions.findIndex((option) => option.id === readerTheme)
     const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % themeOptions.length

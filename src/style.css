@@ -3625,15 +3625,15 @@ html.reader-active::-webkit-scrollbar-thumb {
   border-radius: 999px;
 }
 
-html.reader-active:has(.reader-themed[data-reader-tone='dark']) {
+html.reader-dark {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
-html.reader-active:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar-track {
+html.reader-dark::-webkit-scrollbar-track {
   background: transparent;
 }
 
-html.reader-active:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar-thumb {
+html.reader-dark::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.25);
 }
 

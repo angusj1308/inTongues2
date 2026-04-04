@@ -3177,6 +3177,7 @@ textarea {
 
 .reader-mode-nav {
   justify-content: center;
+  gap: 2rem;
   min-width: 0;
 }
 
@@ -3194,7 +3195,27 @@ textarea {
 }
 
 .reader-mode-nav .dashboard-nav-button {
-  color: inherit;
+  color: #78716c;
+}
+
+.reader-mode-nav .dashboard-nav-button.active {
+  color: #0f172a;
+}
+
+.reader-mode-nav .dashboard-nav-button:hover {
+  color: #0f172a;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button {
+  color: #a8a29e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button.active {
+  color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button:hover {
+  color: #fafaf9;
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button::after {

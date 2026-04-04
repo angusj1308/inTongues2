@@ -1945,20 +1945,12 @@ const Reader = ({ initialMode }) => {
       {readerMode === 'intensive' && (
         <div className="reader-intensive-overlay">
           <div className="reader-intensive-card">
-            <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
-              {currentIntensiveSentence
-                ? renderWordSegments(currentIntensiveSentence)
-                : 'No text available.'}
-            </div>
-
-            <div className="reader-intensive-controls">
-              <button
-                type="button"
-                className="intensive-translation-toggle"
-                onClick={toggleIntensiveTranslation}
-              >
-                {isIntensiveTranslationVisible ? 'Hide translation' : 'Show translation'}
-              </button>
+            <div className="reader-intensive-top">
+              <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
+                {currentIntensiveSentence
+                  ? renderWordSegments(currentIntensiveSentence)
+                  : 'No text available.'}
+              </div>
 
               <p
                 className={`reader-intensive-translation ${
@@ -1971,9 +1963,19 @@ const Reader = ({ initialMode }) => {
               </p>
             </div>
 
-            <p className="reader-intensive-helper">
-              Space = play / repeat · ← / → = previous / next sentence
-            </p>
+            <div className="reader-intensive-bottom">
+              <button
+                type="button"
+                className="intensive-translation-toggle"
+                onClick={toggleIntensiveTranslation}
+              >
+                {isIntensiveTranslationVisible ? 'Hide translation' : 'Show translation'}
+              </button>
+
+              <p className="reader-intensive-helper">
+                Space = play / repeat · ← / → = previous / next sentence
+              </p>
+            </div>
           </div>
         </div>
       )}

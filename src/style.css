@@ -3670,6 +3670,128 @@ html.reader-active body {
   user-select: none;
 }
 
+/* --- Reader intensive mode card --- */
+
+.reader-intensive-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+
+.reader-intensive-card {
+  background: #ffffff;
+  border-radius: 0;
+  border: 1px solid #e7e5e4;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+  width: min(900px, 94vw);
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 3rem clamp(2rem, 10vw, 6rem);
+  overflow-y: auto;
+}
+
+.reader-intensive-sentence {
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-weight: var(--reader-font-weight, 400);
+  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.6rem);
+  line-height: 1.6;
+  color: #0f172a;
+  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.reader-intensive-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.intensive-translation-toggle {
+  background: transparent;
+  border: none;
+  color: #78716c;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 0;
+  transition: all 150ms ease;
+}
+
+.intensive-translation-toggle:hover {
+  background: #f5f5f4;
+  color: #0f172a;
+}
+
+.reader-intensive-translation {
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-size: clamp(1rem, 0.8vw + 0.75rem, 1.25rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.6;
+  color: #78716c;
+  text-align: center;
+  margin: 0;
+  transition: opacity 200ms ease;
+}
+
+.reader-intensive-translation.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader-intensive-translation.is-visible {
+  opacity: 1;
+}
+
+.reader-intensive-helper {
+  font-size: 0.85rem;
+  color: #a8a29e;
+  margin: 0;
+}
+
+/* Dark mode */
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-overlay {
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-card {
+  background: #1c1917;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-sentence {
+  color: #e7e5e4;
+}
+
+.reader-themed[data-reader-tone='dark'] .intensive-translation-toggle {
+  color: #a8a29e;
+}
+
+.reader-themed[data-reader-tone='dark'] .intensive-translation-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e7e5e4;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-helper {
+  color: #57534e;
+}
+
 .reader-loading-text {
   display: flex;
   align-items: center;

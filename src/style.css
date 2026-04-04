@@ -3661,12 +3661,26 @@ html.reader-active body {
 .reader-body-shell {
   position: relative;
   width: 100%;
+  flex: 1;
 }
 
 .reader-intensive-active .reader-body-shell {
   filter: blur(6px);
   pointer-events: none;
   user-select: none;
+}
+
+.reader-loading-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-weight: var(--reader-font-weight, 400);
+  font-size: var(--reader-font-size, 1.1rem);
+  color: inherit;
+  opacity: 0.5;
 }
 
 /* Pronunciation Practice Page - standalone page layout */

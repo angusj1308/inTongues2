@@ -43,23 +43,16 @@ const themeOptions = [
 
 const fontOptions = [
   {
-    id: 'crimson-pro',
-    label: 'Crimson Pro',
-    fontFamily: "'Crimson Pro', 'Times New Roman', serif",
+    id: 'eb-garamond',
+    label: 'EB Garamond',
+    fontFamily: "'EB Garamond', 'Times New Roman', serif",
     fontWeight: 400,
     fontSize: '1.625rem',
   },
   {
-    id: 'inter',
-    label: 'Inter',
-    fontFamily: "'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif",
-    fontWeight: 300,
-    fontSize: '0.9375rem',
-  },
-  {
-    id: 'atkinson-hyperlegible',
-    label: 'Atkinson Hyperlegible',
-    fontFamily: "'Atkinson Hyperlegible', 'Inter', system-ui, -apple-system, sans-serif",
+    id: 'libre-franklin',
+    label: 'Libre Franklin',
+    fontFamily: "'Libre Franklin', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
     fontSize: '1rem',
   },

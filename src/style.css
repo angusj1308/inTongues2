@@ -3445,6 +3445,38 @@ textarea {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-top: 80px;
+  scrollbar-width: thin;
+  scrollbar-color: #d6d3d1 transparent;
+}
+
+.reader-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reader-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reader-scroll-container::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 999px;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-scroll-container {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
 }
 
 .reader-content-column {
@@ -3596,17 +3628,7 @@ textarea {
   line-height: 1.75;
 }
 
-.reader-themed {
-  background: var(--reader-bg);
-  color: var(--reader-text);
-  min-height: 100vh;
-  width: 100%;
-  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
-  font-weight: var(--reader-font-weight, 400);
-  font-size: var(--reader-font-size, 1.1rem);
-}
-
-/* Floating scrollbar thumb (no track) for reader — targets the document scrollbar */
+/* Floating scrollbar thumb (no track) for reader */
 html.reader-active {
   scrollbar-width: thin;
   scrollbar-color: #d6d3d1 transparent;
@@ -3629,13 +3651,29 @@ html.reader-dark {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
+html.reader-dark::-webkit-scrollbar {
+  width: 6px;
+}
+
 html.reader-dark::-webkit-scrollbar-track {
   background: transparent;
 }
 
 html.reader-dark::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
 }
+
+.reader-themed {
+  background: var(--reader-bg);
+  color: var(--reader-text);
+  min-height: 100vh;
+  width: 100%;
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-weight: var(--reader-font-weight, 400);
+  font-size: var(--reader-font-size, 1.1rem);
+}
+
 
 .page.reader-page {
   flex-direction: column;

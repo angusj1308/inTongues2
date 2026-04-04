@@ -91,7 +91,7 @@ const ELEVENLABS_VOICE_MAP = {
     female: 'ZF6FPAbjXT4488VcRRnw',
   },
   Spanish: {
-    male: 'kulszILr6ees0ArU8miO',
+    male: 'FrrTxu4nrplZwLlMy2kD',
     female: '1WXz8v08ntDcSTeVXMN2',
   },
   French: {
@@ -801,7 +801,7 @@ async function requestElevenLabsTts(text, voiceId) {
 // Uses male voice as default per language
 const DEFAULT_IMPORT_VOICE_IDS = {
   english: 'NFG5qt843uXKj4pFvR7C',
-  spanish: 'kulszILr6ees0ArU8miO',
+  spanish: 'FrrTxu4nrplZwLlMy2kD',
   french: 'UBXZKOKbt62aLQHhc1Jm',
   italian: 'W71zT1VwIFFx3mMGH2uZ',
 }

@@ -1828,7 +1828,9 @@ const Reader = ({ initialMode }) => {
         </div>
         <div className="reader-body-shell">
           {loading ? (
-            <p className="reader-loading-text">Loading</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 80px)' }}>
+              <p className="muted">Loading...</p>
+            </div>
           ) : error ? (
             <p className="error">{error}</p>
           ) : chapters.length ? (

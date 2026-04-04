@@ -3631,7 +3631,7 @@ textarea {
 /* Floating scrollbar thumb (no track) for reader */
 html.reader-active {
   scrollbar-width: thin;
-  scrollbar-color: #d6d3d1 transparent;
+  scrollbar-color: #d6d3d1 #ffffff;
 }
 
 html.reader-active::-webkit-scrollbar {
@@ -3639,7 +3639,7 @@ html.reader-active::-webkit-scrollbar {
 }
 
 html.reader-active::-webkit-scrollbar-track {
-  background: transparent;
+  background: #ffffff;
 }
 
 html.reader-active::-webkit-scrollbar-thumb {
@@ -3649,11 +3649,25 @@ html.reader-active::-webkit-scrollbar-thumb {
 
 html.reader-dark {
   color-scheme: dark;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.25) #000000;
 }
 
+html.reader-dark,
 html.reader-dark body {
-  background: #1c1917;
+  background: #000000;
+}
+
+html.reader-dark::-webkit-scrollbar {
+  width: 6px;
+}
+
+html.reader-dark::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+html.reader-dark::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
 }
 
 .reader-themed {

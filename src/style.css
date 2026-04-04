@@ -6038,6 +6038,60 @@ textarea {
   font-weight: 700;
 }
 
+/* Translation popup — dark mode */
+.reader-themed[data-reader-tone='dark'] .translate-popup {
+  background: #1c1917;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-close {
+  color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-close:focus-visible {
+  outline-color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-body {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-language-label {
+  color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-language-text {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-status {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-status-button {
+  color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-status-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-status-button:focus-visible {
+  outline-color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-status-button.active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .reader-themed .dashboard-header {
   background: #fff;
   color: #0f172a;

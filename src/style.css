@@ -3604,6 +3604,11 @@ textarea {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 400);
   font-size: var(--reader-font-size, 1.1rem);
+  scrollbar-width: none;
+}
+
+.reader-themed::-webkit-scrollbar {
+  display: none;
 }
 
 .page.reader-page {

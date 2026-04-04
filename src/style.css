@@ -3646,9 +3646,9 @@ html.reader-active body {
 
 .page.reader-page {
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
-  gap: 1.5rem;
+  gap: 0;
   padding: 0;
 }
 
@@ -3660,6 +3660,7 @@ html.reader-active body {
 
 .reader-body-shell {
   position: relative;
+  width: 100%;
 }
 
 .reader-intensive-active .reader-body-shell {

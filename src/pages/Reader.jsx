@@ -21,6 +21,7 @@ import {
   toLanguageLabel,
 } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../constants/highlightColors'
 
 const themeOptions = [
   {
@@ -62,6 +63,39 @@ const fontOptions = [
 const countWords = (text) => {
   if (!text) return 0
   return text.trim().split(/\s+/).filter(Boolean).length
+}
+
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+const getStatusStyle = (statusLevel, isActive) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'new':
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY[statusLevel === 'new' ? 'new' : 'unknown'] * 100}%, white)`,
+        color: '#5C1A22',
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#5C1A22',
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        color: '#64748b',
+      }
+    case 'known':
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534',
+      }
+    default:
+      return {}
+  }
 }
 
 const Reader = ({ initialMode }) => {
@@ -247,6 +281,7 @@ const Reader = ({ initialMode }) => {
 
       const range = selectionObj.getRangeAt(0)
       const rect = range.getBoundingClientRect()
+      const { x, y } = getPopupPosition(rect)
 
       let translation = 'No translation found'
       let audioBase64 = null
@@ -270,6 +305,17 @@ const Reader = ({ initialMode }) => {
 
         return
       }
+
+      // Show popup immediately with loading state
+      setPopup({
+        x, y,
+        word: phrase,
+        displayText: selection,
+        translation: null,
+        targetText: null,
+        audioBase64: null,
+        audioUrl: null,
+      })
 
       // Check if this is a detected expression with pre-stored meaning
       const normalizedPhrase = normaliseExpression(phrase)
@@ -313,8 +359,6 @@ const Reader = ({ initialMode }) => {
         }
       }
 
-      const { x, y } = getPopupPosition(rect)
-
       setPopup({
         x,
         y,
@@ -333,6 +377,13 @@ const Reader = ({ initialMode }) => {
     const clean = selection.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
     if (!clean) return
 
+    const selectionObj = window.getSelection()
+    if (!selectionObj || selectionObj.rangeCount === 0) return
+
+    const range = selectionObj.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    const { x, y } = getPopupPosition(rect)
+
     let translation = null
     let audioBase64 = null
     let audioUrl = null
@@ -340,62 +391,55 @@ const Reader = ({ initialMode }) => {
 
     const ttsLanguage = normalizeLanguageCode(language)
 
-    if (!translation) {
-      if (!ttsLanguage) {
-        const selectionObj = window.getSelection()
-        if (!selectionObj || selectionObj.rangeCount === 0) return
+    if (!ttsLanguage) {
+      setPopup({
+        x, y,
+        word: clean,
+        displayText: selection,
+        translation: missingLanguageMessage,
+        targetText: missingLanguageMessage,
+        audioBase64: null,
+        audioUrl: null,
+      })
 
-        const range = selectionObj.getRangeAt(0)
-        const rect = range.getBoundingClientRect()
-        const { x, y } = getPopupPosition(rect)
-
-        setPopup({
-          x,
-          y,
-          word: clean,
-          displayText: selection,
-          translation: missingLanguageMessage,
-          targetText: missingLanguageMessage,
-          audioBase64: null,
-          audioUrl: null,
-        })
-
-        return
-      }
-
-      try {
-        const response = await fetch('http://localhost:4000/api/translatePhrase', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phrase: selection,
-            sourceLang: language || 'es',
-            targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-            voiceGender,
-          }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          translation = data.translation || 'No translation found'
-          targetText = data.targetText || translation
-          audioBase64 = data.audioBase64 || null
-          audioUrl = data.audioUrl || null
-        } else {
-          translation = 'No translation found'
-        }
-      } catch (err) {
-        translation = 'No translation found'
-      }
+      return
     }
 
-    const selectionObj = window.getSelection()
-    if (!selectionObj || selectionObj.rangeCount === 0) return
+    // Show popup immediately with loading state
+    setPopup({
+      x, y,
+      word: clean,
+      displayText: selection,
+      translation: null,
+      targetText: null,
+      audioBase64: null,
+      audioUrl: null,
+    })
 
-    const range = selectionObj.getRangeAt(0)
-    const rect = range.getBoundingClientRect()
+    try {
+      const response = await fetch('http://localhost:4000/api/translatePhrase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrase: selection,
+          sourceLang: language || 'es',
+          targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+          voiceGender,
+        }),
+      })
 
-    const { x, y } = getPopupPosition(rect)
+      if (response.ok) {
+        const data = await response.json()
+        translation = data.translation || 'No translation found'
+        targetText = data.targetText || translation
+        audioBase64 = data.audioBase64 || null
+        audioUrl = data.audioUrl || null
+      } else {
+        translation = 'No translation found'
+      }
+    } catch (err) {
+      translation = 'No translation found'
+    }
 
     setPopup({
       x,
@@ -417,6 +461,9 @@ const Reader = ({ initialMode }) => {
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
+    const rect = event.currentTarget.getBoundingClientRect()
+    const { x, y } = getPopupPosition(rect)
+
     let translation = null
     let audioBase64 = null
     let audioUrl = null
@@ -425,22 +472,29 @@ const Reader = ({ initialMode }) => {
     const ttsLanguage = normalizeLanguageCode(language)
 
     if (!ttsLanguage) {
-      const rect = event.currentTarget.getBoundingClientRect()
-      const { x, y } = getPopupPosition(rect)
-
       setPopup({
-        x,
-        y,
+        x, y,
         word: key,
         displayText: text,
-        translation: translation || missingLanguageMessage,
-        targetText: targetText || translation || missingLanguageMessage,
+        translation: missingLanguageMessage,
+        targetText: missingLanguageMessage,
         audioBase64: null,
         audioUrl: null,
       })
 
       return
     }
+
+    // Show popup immediately with loading state
+    setPopup({
+      x, y,
+      word: key,
+      displayText: text,
+      translation: null,
+      targetText: null,
+      audioBase64: null,
+      audioUrl: null,
+    })
 
     try {
       const response = await fetch('http://localhost:4000/api/translatePhrase', {
@@ -468,9 +522,6 @@ const Reader = ({ initialMode }) => {
       translation = 'No translation found'
       targetText = translation
     }
-
-    const rect = event.currentTarget.getBoundingClientRect()
-    const { x, y } = getPopupPosition(rect)
 
     setPopup({
       x,
@@ -2007,27 +2058,35 @@ const Reader = ({ initialMode }) => {
                 {nativeLanguage || 'Native language'}
               </p>
               <p className="translate-popup-language-text translate-popup-book-text">
-                {popup.translation}
+                {popup.translation === null ? (
+                  <span style={{ opacity: 0.5, fontStyle: 'italic' }}>Translating...</span>
+                ) : (
+                  popup.translation
+                )}
               </p>
             </div>
           </div>
 
           <div className="translate-popup-status">
-            {VOCAB_STATUSES.map((status) => {
-              const isActive =
-                vocabEntries[normaliseExpression(popup.word)]?.status === status
+            {STATUS_ABBREV.map((abbrev, i) => {
+              const level = STATUS_LEVELS[i]
+              const currentStatus = vocabEntries[normaliseExpression(popup.word)]?.status
+              const isActive = level === 'new'
+                ? !currentStatus
+                : currentStatus === level
 
               return (
                 <button
-                  key={status}
+                  key={abbrev}
                   type="button"
-                  className={`translate-popup-status-button ${
-                    isActive ? 'active' : ''
-                  }`}
-                  onClick={() => handleSetWordStatus(status)}
+                  className={`translate-popup-status-button ${isActive ? 'active' : ''}`}
+                  style={getStatusStyle(level, isActive)}
+                  onClick={() => level !== 'new' && handleSetWordStatus(level)}
                   onMouseDown={(event) => event.preventDefault()}
+                  aria-label={`Set status to ${level}`}
+                  aria-pressed={isActive}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {abbrev}
                 </button>
               )
             })}

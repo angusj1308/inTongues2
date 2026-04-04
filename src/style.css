@@ -3670,6 +3670,10 @@ html.reader-active body {
   user-select: none;
 }
 
+.reader-intensive-active .reader-hover-shell {
+  z-index: 110;
+}
+
 /* --- Reader intensive mode card --- */
 
 .reader-intensive-overlay {
@@ -3688,22 +3692,24 @@ html.reader-active body {
   border-radius: 0;
   border: 1px solid #e7e5e4;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
-  width: min(900px, 94vw);
-  max-height: calc(100vh - 4rem);
+  width: min(1200px, 96vw);
+  min-height: 50vh;
+  max-height: calc(100vh - 6rem);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  padding: 3rem clamp(2rem, 10vw, 6rem);
+  padding: 4rem clamp(3rem, 10vw, 8rem);
+  padding-top: 5rem;
   overflow-y: auto;
 }
 
 .reader-intensive-sentence {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 400);
-  font-size: clamp(1.25rem, 1vw + 0.9rem, 1.6rem);
-  line-height: 1.6;
+  font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem);
+  line-height: 1.7;
   color: #0f172a;
   text-align: center;
   display: flex;

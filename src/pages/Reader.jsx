@@ -21,6 +21,7 @@ import {
   toLanguageLabel,
 } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
+import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../constants/highlightColors'
 
 const themeOptions = [
   {
@@ -62,6 +63,39 @@ const fontOptions = [
 const countWords = (text) => {
   if (!text) return 0
   return text.trim().split(/\s+/).filter(Boolean).length
+}
+
+const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
+const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+const getStatusStyle = (statusLevel, isActive) => {
+  if (!isActive) return {}
+
+  switch (statusLevel) {
+    case 'new':
+    case 'unknown':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY[statusLevel === 'new' ? 'new' : 'unknown'] * 100}%, white)`,
+        color: '#5C1A22',
+      }
+    case 'recognised':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, white)`,
+        color: '#5C1A22',
+      }
+    case 'familiar':
+      return {
+        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, white)`,
+        color: '#64748b',
+      }
+    case 'known':
+      return {
+        background: 'color-mix(in srgb, #22c55e 40%, white)',
+        color: '#166534',
+      }
+    default:
+      return {}
+  }
 }
 
 const Reader = ({ initialMode }) => {
@@ -2020,21 +2054,25 @@ const Reader = ({ initialMode }) => {
           </div>
 
           <div className="translate-popup-status">
-            {VOCAB_STATUSES.map((status) => {
-              const isActive =
-                vocabEntries[normaliseExpression(popup.word)]?.status === status
+            {STATUS_ABBREV.map((abbrev, i) => {
+              const level = STATUS_LEVELS[i]
+              const currentStatus = vocabEntries[normaliseExpression(popup.word)]?.status
+              const isActive = level === 'new'
+                ? !currentStatus
+                : currentStatus === level
 
               return (
                 <button
-                  key={status}
+                  key={abbrev}
                   type="button"
-                  className={`translate-popup-status-button ${
-                    isActive ? 'active' : ''
-                  }`}
-                  onClick={() => handleSetWordStatus(status)}
+                  className={`translate-popup-status-button ${isActive ? 'active' : ''}`}
+                  style={getStatusStyle(level, isActive)}
+                  onClick={() => level !== 'new' && handleSetWordStatus(level)}
                   onMouseDown={(event) => event.preventDefault()}
+                  aria-label={`Set status to ${level}`}
+                  aria-pressed={isActive}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {abbrev}
                 </button>
               )
             })}

@@ -5896,8 +5896,8 @@ textarea {
 .translate-popup {
   background: #ffffff;
   padding: 14px 16px 12px;
-  border-radius: 12px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
+  border-radius: 0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
   z-index: 1000;
   min-width: 320px;
   max-width: 380px;
@@ -5918,9 +5918,10 @@ textarea {
 
 .translate-popup-title {
   font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.01em;
-  font-family: 'SF Pro Display', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .translate-popup-close {
@@ -5931,7 +5932,7 @@ textarea {
   line-height: 1;
   cursor: pointer;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .translate-popup-close:hover {
@@ -5946,7 +5947,7 @@ textarea {
 .translate-popup-body {
   background: #fafaf9;
   border: 1px solid #e7e5e4;
-  border-radius: 10px;
+  border-radius: 0;
   padding: 12px 14px;
   display: grid;
   gap: 12px;
@@ -5955,9 +5956,11 @@ textarea {
 .translate-popup-language-label {
   font-weight: 700;
   margin: 0 0 4px;
-  font-size: 0.87rem;
+  font-size: 0.75rem;
   color: #0f172a;
-  font-family: 'SF Pro Display', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .translate-popup-language-text {
@@ -5974,31 +5977,32 @@ textarea {
 }
 
 .translate-popup-status {
-  margin-top: 12px;
-  background: #fafaf9;
-  border-radius: 10px;
-  border: 1px solid #e7e5e4;
-  padding: 8px;
+  margin-top: 10px;
+  background: #f5f5f4;
+  border-radius: 0;
+  border: none;
+  padding: 3px;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .translate-popup-status-button {
-  padding: 9px 8px;
+  flex: 1;
+  padding: 6px 0;
   background: transparent;
-  color: #0f172a;
+  color: #a8a29e;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  transition: background 120ms ease, transform 120ms ease;
-  flex: 1 1 22%;
+  text-transform: uppercase;
+  transition: all 150ms ease;
 }
 
-.translate-popup-status-button:hover {
+.translate-popup-status-button:hover:not(.active) {
   background: #e7e5e4;
+  color: #78716c;
 }
 
 .translate-popup-status-button:focus-visible {
@@ -6007,7 +6011,6 @@ textarea {
 }
 
 .translate-popup-status-button.active {
-  background: #e7e5e4;
   font-weight: 700;
 }
 

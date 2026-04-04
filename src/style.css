@@ -3604,28 +3604,36 @@ textarea {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
   font-weight: var(--reader-font-weight, 400);
   font-size: var(--reader-font-size, 1.1rem);
+}
+
+/* Floating scrollbar thumb (no track) for reader — targets the document scrollbar */
+html.reader-active {
   scrollbar-width: thin;
   scrollbar-color: #d6d3d1 transparent;
 }
 
-.reader-themed::-webkit-scrollbar {
+html.reader-active::-webkit-scrollbar {
   width: 6px;
 }
 
-.reader-themed::-webkit-scrollbar-track {
+html.reader-active::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.reader-themed::-webkit-scrollbar-thumb {
+html.reader-active::-webkit-scrollbar-thumb {
   background: #d6d3d1;
   border-radius: 999px;
 }
 
-.reader-themed[data-reader-tone='dark'] {
+html.reader-active:has(.reader-themed[data-reader-tone='dark']) {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
-.reader-themed[data-reader-tone='dark']::-webkit-scrollbar-thumb {
+html.reader-active:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.reader-active:has(.reader-themed[data-reader-tone='dark'])::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.25);
 }
 

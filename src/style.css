@@ -3442,6 +3442,7 @@ textarea {
 
 .reader-scroll-container {
   width: 100%;
+  height: 100vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-top: 80px;
@@ -3463,7 +3464,7 @@ textarea {
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container {
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.25) #000000;
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar {
@@ -3471,7 +3472,7 @@ textarea {
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-track {
-  background: transparent;
+  background: #000000;
 }
 
 .reader-themed[data-reader-tone='dark'] .reader-scroll-container::-webkit-scrollbar-thumb {
@@ -3628,46 +3629,11 @@ textarea {
   line-height: 1.75;
 }
 
-/* Floating scrollbar thumb (no track) for reader */
-html.reader-active {
-  scrollbar-width: thin;
-  scrollbar-color: #d6d3d1 #ffffff;
-}
-
-html.reader-active::-webkit-scrollbar {
-  width: 6px;
-}
-
-html.reader-active::-webkit-scrollbar-track {
-  background: #ffffff;
-}
-
-html.reader-active::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
-  border-radius: 999px;
-}
-
-html.reader-dark {
-  color-scheme: dark;
-  scrollbar-color: rgba(255, 255, 255, 0.25) #000000;
-}
-
-html.reader-dark,
-html.reader-dark body {
-  background: #000000;
-}
-
-html.reader-dark::-webkit-scrollbar {
-  width: 6px;
-}
-
-html.reader-dark::-webkit-scrollbar-track {
-  background: #000000;
-}
-
-html.reader-dark::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
+/* Hide Chrome's window scrollbar when reader is active */
+html.reader-active,
+html.reader-active body {
+  overflow: hidden;
+  height: 100%;
 }
 
 .reader-themed {

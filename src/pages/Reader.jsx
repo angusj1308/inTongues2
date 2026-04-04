@@ -54,7 +54,7 @@ const fontOptions = [
     label: 'Libre Franklin',
     fontFamily: "'Libre Franklin', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
-    fontSize: '1rem',
+    fontSize: '1.35rem',
   },
 ]
 

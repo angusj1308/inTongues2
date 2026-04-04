@@ -5977,31 +5977,32 @@ textarea {
 }
 
 .translate-popup-status {
-  margin-top: 12px;
-  background: #fafaf9;
+  margin-top: 10px;
+  background: #f5f5f4;
   border-radius: 0;
-  border: 1px solid #e7e5e4;
-  padding: 8px;
+  border: none;
+  padding: 3px;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .translate-popup-status-button {
-  padding: 9px 8px;
+  flex: 1;
+  padding: 6px 0;
   background: transparent;
-  color: #0f172a;
+  color: #a8a29e;
   border: none;
   border-radius: 0;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  transition: background 120ms ease, transform 120ms ease;
-  flex: 1 1 22%;
+  text-transform: uppercase;
+  transition: all 150ms ease;
 }
 
-.translate-popup-status-button:hover {
+.translate-popup-status-button:hover:not(.active) {
   background: #e7e5e4;
+  color: #78716c;
 }
 
 .translate-popup-status-button:focus-visible {
@@ -6010,7 +6011,6 @@ textarea {
 }
 
 .translate-popup-status-button.active {
-  background: #e7e5e4;
   font-weight: 700;
 }
 

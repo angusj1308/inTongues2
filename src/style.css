@@ -3718,17 +3718,12 @@ html.reader-active body {
   line-height: 1.7;
   color: #0f172a;
   text-align: left;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 0.35rem;
   cursor: pointer;
-  align-content: flex-start;
 }
 
 .reader-intensive-translation {
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
-  font-size: clamp(1rem, 0.8vw + 0.75rem, 1.25rem);
+  font-size: clamp(1.25rem, 1.5vw + 0.75rem, 1.75rem);
   font-weight: 400;
   font-style: italic;
   line-height: 1.6;

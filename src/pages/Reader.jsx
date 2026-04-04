@@ -1687,7 +1687,6 @@ const Reader = ({ initialMode }) => {
                     >
                       {mode.label.toUpperCase()}
                     </button>
-                    {index < readerModes.length - 1 && <span className="dashboard-nav-divider" />}
                   </div>
                 ))}
               </nav>

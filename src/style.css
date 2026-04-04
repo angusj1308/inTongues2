@@ -3177,6 +3177,7 @@ textarea {
 
 .reader-mode-nav {
   justify-content: center;
+  gap: 2rem;
   min-width: 0;
 }
 

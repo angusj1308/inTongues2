@@ -1737,7 +1737,7 @@ const Reader = ({ initialMode }) => {
                     >
                       {mode.label.toUpperCase()}
                     </button>
-                    {index < readerModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
+                    {index < readerModes.length - 1 && <span className="dashboard-nav-divider" />}
                   </div>
                 ))}
               </nav>
@@ -1747,6 +1747,7 @@ const Reader = ({ initialMode }) => {
                   className="reader-header-button ui-text"
                   type="button"
                   aria-label={`Font: ${activeFont.label}`}
+                  style={{ fontFamily: activeFont.fontFamily }}
                   onClick={(e) => {
                     cycleFont()
                     e.currentTarget.blur()

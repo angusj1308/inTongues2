@@ -1236,8 +1236,7 @@ textarea {
   cursor: pointer;
   transition: color 0.15s ease;
   scroll-snap-align: center;
-  min-width: 76px;
-  text-align: center;
+  white-space: nowrap;
 }
 
 .dashboard-nav-button.active {

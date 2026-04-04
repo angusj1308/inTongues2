@@ -3233,7 +3233,7 @@ textarea {
   align-items: center;
   gap: 0.5rem;
   transition: color 0.2s ease, opacity 0.2s ease;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 1.25rem;
 }
 

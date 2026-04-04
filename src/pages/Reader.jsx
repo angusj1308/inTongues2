@@ -44,25 +44,18 @@ const themeOptions = [
 
 const fontOptions = [
   {
-    id: 'crimson-pro',
-    label: 'Crimson Pro',
-    fontFamily: "'Crimson Pro', 'Times New Roman', serif",
+    id: 'eb-garamond',
+    label: 'EB Garamond',
+    fontFamily: "'EB Garamond', 'Times New Roman', serif",
     fontWeight: 400,
     fontSize: '1.625rem',
   },
   {
-    id: 'inter',
-    label: 'Inter',
-    fontFamily: "'Inter', 'SF Pro Text', system-ui, -apple-system, sans-serif",
-    fontWeight: 300,
-    fontSize: '0.9375rem',
-  },
-  {
-    id: 'atkinson-hyperlegible',
-    label: 'Atkinson Hyperlegible',
-    fontFamily: "'Atkinson Hyperlegible', 'Inter', system-ui, -apple-system, sans-serif",
+    id: 'libre-franklin',
+    label: 'Libre Franklin',
+    fontFamily: "'Libre Franklin', 'Inter', system-ui, -apple-system, sans-serif",
     fontWeight: 400,
-    fontSize: '1rem',
+    fontSize: '1.35rem',
   },
 ]
 
@@ -157,6 +150,11 @@ const Reader = ({ initialMode }) => {
   const vocabEntriesRef = useRef(vocabEntries)
   useEffect(() => { vocabEntriesRef.current = vocabEntries }, [vocabEntries])
 
+  useEffect(() => {
+    document.documentElement.classList.add('reader-active')
+    return () => document.documentElement.classList.remove('reader-active')
+  }, [])
+
   const supportedLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),
     [profile?.myLanguages],
@@ -208,16 +206,16 @@ const Reader = ({ initialMode }) => {
       spaceBelow < estimatedPopupHeight + margin && spaceAbove > spaceBelow
 
     const y = shouldRenderAbove
-      ? Math.max(window.scrollY + rect.top - estimatedPopupHeight - margin, window.scrollY + margin)
+      ? Math.max(rect.top - estimatedPopupHeight - margin, margin)
       : Math.min(
-          window.scrollY + rect.bottom + margin,
-          window.scrollY + window.innerHeight - estimatedPopupHeight - margin
+          rect.bottom + margin,
+          window.innerHeight - estimatedPopupHeight - margin
         )
 
-    const centerX = rect.left + rect.width / 2 + window.scrollX
+    const centerX = rect.left + rect.width / 2
     const x = Math.min(
-      Math.max(centerX - estimatedPopupWidth / 2, window.scrollX + margin),
-      window.scrollX + viewportWidth - estimatedPopupWidth - margin
+      Math.max(centerX - estimatedPopupWidth / 2, margin),
+      viewportWidth - estimatedPopupWidth - margin
     )
 
     return { x, y }
@@ -293,8 +291,10 @@ const Reader = ({ initialMode }) => {
       const ttsLanguage = normalizeLanguageCode(language)
 
       if (!ttsLanguage) {
+        const { x, y } = getPopupPosition(rect)
         setPopup({
-          x, y,
+          x,
+          y,
           word: phrase,
           displayText: selection,
           translation: missingLanguageMessage,
@@ -1384,11 +1384,14 @@ const Reader = ({ initialMode }) => {
       }
     }
 
+    const container = scrollContainerRef.current
+    if (!container) return undefined
+
     const handleScroll = () => {
       if (debounceTimer) clearTimeout(debounceTimer)
 
       debounceTimer = setTimeout(() => {
-        const scrollY = window.scrollY
+        const scrollY = container.scrollTop
         if (scrollY <= highWaterMarkRef.current) return
 
         highWaterMarkRef.current = scrollY
@@ -1408,9 +1411,9 @@ const Reader = ({ initialMode }) => {
       }, 500)
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    container.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
-      window.removeEventListener('scroll', handleScroll)
+      container.removeEventListener('scroll', handleScroll)
       if (debounceTimer) clearTimeout(debounceTimer)
     }
   }, [readerMode, user?.uid, language, id])
@@ -1719,10 +1722,14 @@ const Reader = ({ initialMode }) => {
             <div className="dashboard-brand-band reader-header-band">
               <div className="reader-header-left">
                 <button
-                  className="dashboard-control ui-text reader-back-button"
+                  className="reader-header-button icon-button reader-back-button"
                   onClick={handleBackToLibrary}
+                  aria-label="Back to library"
                 >
-                  Back to library
+                  <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                  </svg>
                 </button>
               </div>
 
@@ -1744,7 +1751,6 @@ const Reader = ({ initialMode }) => {
                     >
                       {mode.label.toUpperCase()}
                     </button>
-                    {index < readerModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
                   </div>
                 ))}
               </nav>
@@ -1754,6 +1760,7 @@ const Reader = ({ initialMode }) => {
                   className="reader-header-button ui-text"
                   type="button"
                   aria-label={`Font: ${activeFont.label}`}
+                  style={{ fontFamily: activeFont.fontFamily }}
                   onClick={(e) => {
                     cycleFont()
                     e.currentTarget.blur()
@@ -1771,11 +1778,11 @@ const Reader = ({ initialMode }) => {
                   }}
                 >
                   {activeTheme.tone === 'dark' ? (
-                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                     </svg>
                   ) : (
-                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="5" />
                       <line x1="12" y1="1" x2="12" y2="3" />
                       <line x1="12" y1="21" x2="12" y2="23" />
@@ -1800,18 +1807,18 @@ const Reader = ({ initialMode }) => {
                   aria-pressed={isFullscreen}
                 >
                   {isFullscreen ? (
-                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="4" y1="20" x2="10" y2="14" />
                       <polyline points="4 14 4 20 10 20" />
+                      <line x1="20" y1="4" x2="14" y2="10" />
                       <polyline points="20 10 20 4 14 4" />
-                      <polyline points="14 20 20 20 20 14" />
-                      <polyline points="10 4 4 4 4 10" />
                     </svg>
                   ) : (
-                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="14" y1="10" x2="21" y2="3" />
                       <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="3" y2="21" />
                       <polyline points="9 21 3 21 3 15" />
-                      <polyline points="21 15 21 21 15 21" />
-                      <polyline points="3 9 3 3 9 3" />
                     </svg>
                   )}
                 </button>

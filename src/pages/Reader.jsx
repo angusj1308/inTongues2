@@ -1662,10 +1662,14 @@ const Reader = ({ initialMode }) => {
             <div className="dashboard-brand-band reader-header-band">
               <div className="reader-header-left">
                 <button
-                  className="dashboard-control ui-text reader-back-button"
+                  className="reader-header-button icon-button reader-back-button"
                   onClick={handleBackToLibrary}
+                  aria-label="Back to library"
                 >
-                  Back to library
+                  <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                  </svg>
                 </button>
               </div>
 

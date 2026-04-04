@@ -3693,16 +3693,13 @@ html.reader-active body {
   border: 1px solid #e7e5e4;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
   width: min(1200px, 96vw);
-  min-height: 50vh;
-  max-height: calc(100vh - 6rem);
+  height: 60vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  padding: 4rem clamp(3rem, 10vw, 8rem);
-  padding-top: 5rem;
-  overflow-y: auto;
+  align-items: stretch;
+  gap: 0;
+  padding: 5rem clamp(3rem, 10vw, 8rem) 2rem;
+  overflow: hidden;
 }
 
 .reader-intensive-sentence {
@@ -3711,19 +3708,24 @@ html.reader-active body {
   font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem);
   line-height: 1.7;
   color: #0f172a;
-  text-align: center;
+  text-align: left;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.35rem;
   cursor: pointer;
+  flex: 1;
+  align-content: flex-start;
+  overflow-y: auto;
 }
 
 .reader-intensive-controls {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
 }
 
 .intensive-translation-toggle {
@@ -3749,7 +3751,7 @@ html.reader-active body {
   font-style: italic;
   line-height: 1.6;
   color: #78716c;
-  text-align: center;
+  text-align: left;
   margin: 0;
   transition: opacity 200ms ease;
 }
@@ -3767,6 +3769,7 @@ html.reader-active body {
   font-size: 0.85rem;
   color: #a8a29e;
   margin: 0;
+  padding-top: 0.5rem;
 }
 
 /* Dark mode */

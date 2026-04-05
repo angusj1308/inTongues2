@@ -763,7 +763,7 @@ async function requestElevenLabsTts(text, voiceId) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  const timeoutId = setTimeout(() => controller.abort(), 120000)
 
   let response
   try {
@@ -6807,24 +6807,46 @@ app.post('/api/generate-audio-book', async (req, res) => {
     const storyTextParts = []
 
     if (isFlat) {
-      // Flat story — generate audio from the full text blob
+      // Flat story — split text into chunks and generate audio for each
       const fullText = storyData.adaptedTextBlob.trim()
-      storyTextParts.push(fullText)
-      pagesProcessed = 1
-
-      try {
-        const audioUrl = await generateAudioForPage(
-          storyId,
-          0,
-          fullText,
-          expectedVoiceId,
-          storyLanguage,
-        )
-        if (audioUrl) {
-          pagesSucceeded = 1
+      const CHUNK_SIZE = 4000
+      const chunks = []
+      let remaining = fullText
+      while (remaining.length > 0) {
+        if (remaining.length <= CHUNK_SIZE) {
+          chunks.push(remaining)
+          break
         }
-      } catch (audioError) {
-        console.error(`Error generating audio for flat story ${storyId}:`, audioError)
+        // Find last sentence boundary within the chunk size
+        let splitAt = remaining.lastIndexOf('. ', CHUNK_SIZE)
+        if (splitAt === -1 || splitAt < CHUNK_SIZE * 0.5) {
+          splitAt = remaining.lastIndexOf(' ', CHUNK_SIZE)
+        }
+        if (splitAt === -1) splitAt = CHUNK_SIZE
+        else splitAt += 1 // include the space/period
+        chunks.push(remaining.slice(0, splitAt).trim())
+        remaining = remaining.slice(splitAt).trim()
+      }
+
+      console.log(`Flat story ${storyId}: split into ${chunks.length} audio chunks`)
+
+      for (let i = 0; i < chunks.length; i++) {
+        storyTextParts.push(chunks[i])
+        pagesProcessed += 1
+        try {
+          const audioUrl = await generateAudioForPage(
+            storyId,
+            i,
+            chunks[i],
+            expectedVoiceId,
+            storyLanguage,
+          )
+          if (audioUrl) {
+            pagesSucceeded += 1
+          }
+        } catch (audioError) {
+          console.error(`Error generating audio for flat story ${storyId} chunk ${i}:`, audioError)
+        }
       }
     } else {
       for (const doc of pagesSnap.docs) {
@@ -6877,7 +6899,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
       }
     }
 
-    const totalSegments = isFlat ? 1 : pagesSnap.size
+    const totalSegments = isFlat ? pagesProcessed : pagesSnap.size
     const finalStatus = pagesSucceeded === totalSegments ? 'ready' : 'error'
     if (finalStatus !== 'ready') {
       await storyRef.update({
@@ -6904,9 +6926,11 @@ app.post('/api/generate-audio-book', async (req, res) => {
       const wavBuffers = []
 
       if (isFlat) {
-        const bucketPath = `guidebooks/${storyId}/page_0.mp3`
-        const wavBuffer = await downloadPageAudioAsWav(bucketPath)
-        wavBuffers.push(wavBuffer)
+        for (let i = 0; i < pagesProcessed; i++) {
+          const bucketPath = `guidebooks/${storyId}/page_${i}.mp3`
+          const wavBuffer = await downloadPageAudioAsWav(bucketPath)
+          wavBuffers.push(wavBuffer)
+        }
       } else {
         for (const doc of pagesSnap.docs) {
           const data = doc.data() || {}

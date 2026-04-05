@@ -3708,7 +3708,8 @@ html.reader-active body {
   flex-direction: column;
   align-items: flex-start;
   gap: 1rem;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .reader-intensive-sentence {
@@ -3773,6 +3774,107 @@ html.reader-active body {
   text-align: center;
 }
 
+/* Intensive reading word list */
+
+.reader-intensive-words {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.reader-intensive-word-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.reader-intensive-word-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: #f5f5f4;
+  border: none;
+  border-radius: 50%;
+  color: #78716c;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.reader-intensive-word-play:hover:not(:disabled) {
+  background: #e7e5e4;
+  color: #57534e;
+}
+
+.reader-intensive-word-play--disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.reader-intensive-word-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.reader-intensive-word-translation {
+  color: #78716c;
+  font-size: 0.95rem;
+  font-style: italic;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-intensive-status-pills {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+  background: #f5f5f4;
+  border-radius: 0;
+  padding: 3px;
+}
+
+.reader-intensive-status-pill {
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: #a8a29e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.reader-intensive-status-pill:hover {
+  color: #57534e;
+}
+
+.reader-intensive-status-pill.is-active {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 /* Dark mode */
 
 .reader-themed[data-reader-tone='dark'] .reader-intensive-overlay {
@@ -3800,6 +3902,32 @@ html.reader-active body {
 
 .reader-themed[data-reader-tone='dark'] .reader-intensive-helper {
   color: #57534e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-word-play {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a8a29e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-word-play:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e7e5e4;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-word-text {
+  color: #e7e5e4;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-status-pills {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-status-pill {
+  color: #57534e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-status-pill:hover {
+  color: #a8a29e;
 }
 
 .reader-loading-text {

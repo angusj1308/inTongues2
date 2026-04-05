@@ -91,7 +91,7 @@ const ELEVENLABS_VOICE_MAP = {
     female: 'ZF6FPAbjXT4488VcRRnw',
   },
   Spanish: {
-    male: 'kulszILr6ees0ArU8miO',
+    male: 'FrrTxu4nrplZwLlMy2kD',
     female: '1WXz8v08ntDcSTeVXMN2',
   },
   French: {
@@ -764,6 +764,7 @@ async function requestElevenLabsTts(text, voiceId) {
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 60000)
+  const timeoutId = setTimeout(() => controller.abort(), 120000)
 
   let response
   try {
@@ -828,7 +829,7 @@ async function requestElevenLabsTts(text, voiceId) {
 // Uses male voice as default per language
 const DEFAULT_IMPORT_VOICE_IDS = {
   english: 'NFG5qt843uXKj4pFvR7C',
-  spanish: 'kulszILr6ees0ArU8miO',
+  spanish: 'FrrTxu4nrplZwLlMy2kD',
   french: 'UBXZKOKbt62aLQHhc1Jm',
   italian: 'W71zT1VwIFFx3mMGH2uZ',
 }
@@ -6788,12 +6789,6 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
-    if (!storyVoiceId) {
-      const message = 'Missing ElevenLabs voiceId for audio generation'
-      console.error(message)
-      throw new Error(message)
-    }
-
     const expectedVoiceId =
       ELEVENLABS_VOICE_MAP[storyLanguage]?.[storyVoiceGender]
 
@@ -6803,10 +6798,57 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
-    if (storyVoiceId !== expectedVoiceId) {
+    // Auto-resolve voiceId if missing, otherwise validate it matches
+    if (!storyVoiceId) {
+      console.log(`Auto-resolving voiceId for ${storyLanguage} (${storyVoiceGender}): ${expectedVoiceId}`)
+      await storyRef.update({ voiceId: expectedVoiceId })
+    } else if (storyVoiceId !== expectedVoiceId) {
       const message = `VoiceId mismatch for ${storyLanguage} (${storyVoiceGender})`
       console.error(message)
       throw new Error(message)
+    }
+
+    // If full audio already exists, skip regeneration and just retry Whisper
+    if (storyData.hasFullAudio && storyData.fullAudioUrl) {
+      console.log(`Full audio already exists for story ${storyId}, skipping to Whisper transcription`)
+      try {
+        const transcriptResult = await transcribeWithWhisper({
+          audioUrl: storyData.fullAudioUrl,
+          languageCode: storyData?.language || storyData?.outputLanguage,
+        })
+
+        const transcriptRef = storyRef.collection('transcripts').doc('intensive')
+        const timestamp = admin.firestore.FieldValue.serverTimestamp()
+
+        await transcriptRef.set(
+          {
+            text: transcriptResult?.text || '',
+            segments: Array.isArray(transcriptResult?.segments)
+              ? transcriptResult.segments
+              : [],
+            sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
+              ? transcriptResult.sentenceSegments
+              : buildSentenceSegmentsFromWhisper(
+                  normaliseTranscriptSegments(transcriptResult?.segments || []),
+                ),
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          { merge: true },
+        )
+
+        await storyRef.update({ audioStatus: 'ready' })
+
+        return res.json({
+          success: true,
+          audioStatus: 'ready',
+          fullAudioUrl: storyData.fullAudioUrl,
+          whisperRetry: true,
+        })
+      } catch (whisperError) {
+        console.error('Whisper retry failed:', whisperError)
+        return res.status(500).json({ error: 'Whisper transcription failed', details: whisperError.message })
+      }
     }
 
     await storyRef.update({
@@ -6815,16 +6857,20 @@ app.post('/api/generate-audio-book', async (req, res) => {
       fullAudioUrl: null,
     })
 
+    // Collect audio segments — either from pages subcollection or adaptedTextBlob
     const pagesRef = storyRef.collection('pages')
     const pagesSnap = await pagesRef.orderBy('index').get()
 
-    if (pagesSnap.empty) {
+    // For flat stories with no pages, generate audio directly from adaptedTextBlob
+    const isFlat = pagesSnap.empty && storyData.adaptedTextBlob?.trim()
+
+    if (pagesSnap.empty && !isFlat) {
       await storyRef.update({
         audioStatus: 'error',
         hasFullAudio: false,
         fullAudioUrl: null,
       })
-      return res.status(404).json({ error: 'No pages found for this story' })
+      return res.status(404).json({ error: 'No pages or text found for this story' })
     }
 
     let pagesProcessed = 0
@@ -6848,16 +6894,62 @@ app.post('/api/generate-audio-book', async (req, res) => {
         pagesSucceeded += 1
         allPageWordTimestamps.push([])
         continue
+    if (isFlat) {
+      // Flat story — split text into chunks and generate audio for each
+      const fullText = storyData.adaptedTextBlob.trim()
+      const CHUNK_SIZE = 4000
+      const chunks = []
+      let remaining = fullText
+      while (remaining.length > 0) {
+        if (remaining.length <= CHUNK_SIZE) {
+          chunks.push(remaining)
+          break
+        }
+        // Find last sentence boundary within the chunk size
+        let splitAt = remaining.lastIndexOf('. ', CHUNK_SIZE)
+        if (splitAt === -1 || splitAt < CHUNK_SIZE * 0.5) {
+          splitAt = remaining.lastIndexOf(' ', CHUNK_SIZE)
+        }
+        if (splitAt === -1) splitAt = CHUNK_SIZE
+        else splitAt += 1 // include the space/period
+        chunks.push(remaining.slice(0, splitAt).trim())
+        remaining = remaining.slice(splitAt).trim()
       }
 
-      if (!pageText) {
-        await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+      console.log(`Flat story ${storyId}: split into ${chunks.length} audio chunks`)
+
+      for (let i = 0; i < chunks.length; i++) {
+        storyTextParts.push(chunks[i])
         pagesProcessed += 1
         allPageWordTimestamps.push([])
         continue
+        try {
+          const audioUrl = await generateAudioForPage(
+            storyId,
+            i,
+            chunks[i],
+            expectedVoiceId,
+            storyLanguage,
+          )
+          if (audioUrl) {
+            pagesSucceeded += 1
+          }
+        } catch (audioError) {
+          console.error(`Error generating audio for flat story ${storyId} chunk ${i}:`, audioError)
+        }
       }
+    } else {
+      for (const doc of pagesSnap.docs) {
+        const data = doc.data() || {}
+        const pageIndex = data.index ?? Number(doc.id) ?? 0
+        const readyAudio = data.audioStatus === 'ready' && data.audioUrl
+        const pageText =
+          (data.adaptedText && data.adaptedText.trim()) ||
+          (data.originalText && data.originalText.trim()) ||
+          (data.text && data.text.trim()) ||
+          ''
 
-      pagesProcessed += 1
+        storyTextParts.push(pageText)
 
       try {
         const { audioUrl, wordTimestamps } = await generateAudioForPage(
@@ -6883,10 +6975,46 @@ app.post('/api/generate-audio-book', async (req, res) => {
           audioError: pageError?.message || 'Audio generation failed',
         })
         allPageWordTimestamps.push([])
+        if (readyAudio) {
+          pagesSucceeded += 1
+          continue
+        }
+
+        if (!pageText) {
+          await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+          pagesProcessed += 1
+          continue
+        }
+
+        pagesProcessed += 1
+
+        try {
+          const audioUrl = await generateAudioForPage(
+            storyId,
+            pageIndex,
+            pageText,
+            expectedVoiceId,
+            storyLanguage,
+          )
+          if (audioUrl) {
+            await doc.ref.update({ audioUrl, audioStatus: 'ready' })
+            pagesSucceeded += 1
+          } else {
+            await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+          }
+        } catch (pageError) {
+          console.error(`Error generating audio for page ${pageIndex} in story ${storyId}:`, pageError)
+          await doc.ref.update({
+            audioStatus: 'error',
+            audioUrl: null,
+            audioError: pageError?.message || 'Audio generation failed',
+          })
+        }
       }
     }
 
-    const finalStatus = pagesSucceeded === pagesSnap.size ? 'ready' : 'error'
+    const totalSegments = isFlat ? pagesProcessed : pagesSnap.size
+    const finalStatus = pagesSucceeded === totalSegments ? 'ready' : 'error'
     if (finalStatus !== 'ready') {
       await storyRef.update({
         hasFullAudio: false,
@@ -6911,12 +7039,20 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
       const wavBuffers = []
 
-      for (const doc of pagesSnap.docs) {
-        const data = doc.data() || {}
-        const pageIndex = data.index ?? Number(doc.id) ?? 0
-        const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
-        const wavBuffer = await downloadPageAudioAsWav(bucketPath)
-        wavBuffers.push(wavBuffer)
+      if (isFlat) {
+        for (let i = 0; i < pagesProcessed; i++) {
+          const bucketPath = `guidebooks/${storyId}/page_${i}.mp3`
+          const wavBuffer = await downloadPageAudioAsWav(bucketPath)
+          wavBuffers.push(wavBuffer)
+        }
+      } else {
+        for (const doc of pagesSnap.docs) {
+          const data = doc.data() || {}
+          const pageIndex = data.index ?? Number(doc.id) ?? 0
+          const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
+          const wavBuffer = await downloadPageAudioAsWav(bucketPath)
+          wavBuffers.push(wavBuffer)
+        }
       }
 
       const mergedWavBuffer = await mergeWavBuffers(wavBuffers)
@@ -6995,7 +7131,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
         })
 
         // Trigger preparation asynchronously (don't await)
-        prepareContentPronunciations(uid, storyId, 'story', storyLanguage, storyVoiceId)
+        prepareContentPronunciations(uid, storyId, 'story', storyLanguage, expectedVoiceId)
           .catch((prepErr) => {
             console.error('Background preparation failed:', prepErr)
           })

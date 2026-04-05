@@ -214,13 +214,13 @@ const GenerateStoryPanel = ({
       return
     }
 
-    // Save the completed story — prose is already generated, go straight to pagination
+    // Save the completed story — prose is already generated, ready to read
     const selectedLevel = LEVELS[levelIndex]
     try {
       const storiesRef = collection(db, 'users', user.uid, 'stories')
       const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
 
-      await addDoc(storiesRef, {
+      const storyDocRef = await addDoc(storiesRef, {
         title: `${genreLabel} Short Story`,
         author: storyResult.authorName,
         language: activeLanguage,
@@ -232,7 +232,7 @@ const GenerateStoryPanel = ({
         adaptedTextBlob: storyResult.storyText,
         lastPhaseCompleted: 2,
         totalPhases: 2,
-        status: 'paginating',
+        status: 'ready',
         createdAt: serverTimestamp(),
         generateAudio,
         voiceGender: generateAudio ? voiceGender : null,
@@ -241,6 +241,19 @@ const GenerateStoryPanel = ({
         fullAudioUrl: null,
         voiceId: null,
       })
+
+      // Trigger audio generation if requested
+      if (generateAudio) {
+        try {
+          await fetch('http://localhost:4000/api/generate-audio-book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
+          })
+        } catch (audioErr) {
+          console.error('Audio trigger failed:', audioErr)
+        }
+      }
 
       if (onClose) onClose()
       navigate('/dashboard', { state: { initialTab: 'read' } })

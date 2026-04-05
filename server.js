@@ -11117,6 +11117,65 @@ Respond naturally to the student's message.`
   }
 })
 
+// Reader-context AI tutor — story-aware teaching endpoint
+app.post('/api/reader/tutor', async (req, res) => {
+  try {
+    const { message, targetLanguage, sourceLanguage, conversationHistory, storyText } = req.body || {}
+
+    if (!message || !targetLanguage) {
+      return res.status(400).json({ error: 'message and targetLanguage are required' })
+    }
+
+    const sourceLang = sourceLanguage || 'English'
+
+    const historyMessages = (conversationHistory || []).map((m) => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content,
+    }))
+
+    const systemPrompt = `You are a language tutor helping a learner read a story in ${targetLanguage}. The learner's native language is ${sourceLang}.
+
+Here is the complete text of the story they are reading:
+
+<story>
+${storyText || '(No story text provided)'}
+</story>
+
+Rules:
+- Answer in ${sourceLang}.
+- Be concise. Aim for 2-4 sentences unless the learner asks for more detail.
+- When explaining a word or grammar point, always reference the specific sentence from the story where it appears.
+- Give one additional example sentence in ${targetLanguage} with translation if it helps illustrate the point.
+- Do not repeat information the learner already knows from earlier in this conversation.
+- If asked about conjugation, name the tense and mood, explain why it is used in this context, and give the infinitive form.
+- If asked about an idiom or expression, explain the literal meaning, the actual meaning, and how common it is in everyday speech.
+- If asked a question unrelated to language learning or the story, politely redirect to the text.
+- Never summarise large sections of the story unless explicitly asked.
+- Use simple, clear language. You are teaching, not showing off.`
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...historyMessages,
+      { role: 'user', content: message },
+    ]
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      temperature: 0.5,
+    })
+
+    const tutorResponse = response.choices?.[0]?.message?.content?.trim() || 'Sorry, I could not respond. Please try again.'
+
+    return res.json({
+      response: tutorResponse,
+    })
+  } catch (error) {
+    console.error('Reader tutor error:', error)
+    return res.status(500).json({ error: 'Failed to get reader tutor response' })
+  }
+})
+
 /**
  * Generate TTS audio for tutor response
  */

@@ -3708,7 +3708,8 @@ html.reader-active body {
   flex-direction: column;
   align-items: flex-start;
   gap: 1rem;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .reader-intensive-sentence {
@@ -3773,6 +3774,107 @@ html.reader-active body {
   text-align: center;
 }
 
+/* Intensive reading word list */
+
+.reader-intensive-words {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.reader-intensive-word-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.reader-intensive-word-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: #f5f5f4;
+  border: none;
+  border-radius: 50%;
+  color: #78716c;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.reader-intensive-word-play:hover:not(:disabled) {
+  background: #e7e5e4;
+  color: #57534e;
+}
+
+.reader-intensive-word-play--disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.reader-intensive-word-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.reader-intensive-word-translation {
+  color: #78716c;
+  font-size: 0.95rem;
+  font-style: italic;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-intensive-status-pills {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+  background: #f5f5f4;
+  border-radius: 0;
+  padding: 3px;
+}
+
+.reader-intensive-status-pill {
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: #a8a29e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.reader-intensive-status-pill:hover {
+  color: #57534e;
+}
+
+.reader-intensive-status-pill.is-active {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
 /* Dark mode */
 
 .reader-themed[data-reader-tone='dark'] .reader-intensive-overlay {
@@ -3800,6 +3902,32 @@ html.reader-active body {
 
 .reader-themed[data-reader-tone='dark'] .reader-intensive-helper {
   color: #57534e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-word-play {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a8a29e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-word-play:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e7e5e4;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-word-text {
+  color: #e7e5e4;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-status-pills {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-status-pill {
+  color: #57534e;
+}
+
+.reader-themed[data-reader-tone='dark'] .reader-intensive-status-pill:hover {
+  color: #a8a29e;
 }
 
 .reader-loading-text {
@@ -6276,6 +6404,237 @@ html.reader-active body {
 
 .reader-themed[data-reader-tone='dark'] .translate-popup-status-button.active {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Tutor FAB ── */
+
+.tutor-fab {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--reader-text, #1a1a1a);
+  color: var(--reader-bg, #fff);
+  font-family: 'Source Sans 3', -apple-system, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border: 1px solid var(--reader-text, #1a1a1a);
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 500;
+  touch-action: none;
+  transition: opacity 0.15s ease;
+}
+
+.tutor-fab:hover {
+  opacity: 0.85;
+}
+
+/* ── Tutor Panel ── */
+
+.tutor-panel {
+  width: 380px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--reader-bg, #fff);
+  color: var(--reader-text, #1a1a1a);
+  border: 1px solid var(--reader-text, #1a1a1a);
+  border-radius: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.9375rem;
+  z-index: 500;
+  overflow: hidden;
+}
+
+.tutor-panel-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid currentColor;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.tutor-panel-titlebar:active {
+  cursor: grabbing;
+}
+
+.tutor-panel-title {
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tutor-panel-titlebar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.tutor-panel-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutor-panel-btn:hover {
+  opacity: 0.6;
+}
+
+.tutor-panel-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+
+.tutor-panel-empty {
+  opacity: 0.4;
+  font-style: italic;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.tutor-msg {
+  max-width: 88%;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  font-size: 0.9375rem;
+}
+
+.tutor-msg--user {
+  align-self: flex-end;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tutor-msg--assistant {
+  align-self: flex-start;
+  padding: 8px 0;
+}
+
+.tutor-msg--loading {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.tutor-panel-input-row {
+  display: flex;
+  border-top: 1px solid currentColor;
+  flex-shrink: 0;
+}
+
+.tutor-panel-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.tutor-panel-input::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+
+.tutor-panel-send {
+  background: transparent;
+  border: none;
+  border-left: 1px solid currentColor;
+  color: inherit;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutor-panel-send:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.tutor-panel-send:hover:not(:disabled) {
+  opacity: 0.6;
+}
+
+/* ── Tutor - Ask tutor button in popup ── */
+
+.translate-popup-tutor-button {
+  width: 100%;
+  padding: 8px 0;
+  margin-top: 6px;
+  background: transparent;
+  border: 1px solid #e7e5e4;
+  color: inherit;
+  font-family: 'Source Sans 3', -apple-system, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.translate-popup-tutor-button:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ── Tutor Dark Mode ── */
+
+.reader-themed[data-reader-tone='dark'] .tutor-fab {
+  background: #fafaf9;
+  color: #1c1917;
+  border-color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .tutor-panel {
+  background: #1c1917;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .tutor-msg--user {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-tutor-button {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.reader-themed[data-reader-tone='dark'] .translate-popup-tutor-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 480px) {
+  .tutor-panel {
+    width: calc(100vw - 32px);
+  }
 }
 
 .reader-themed .dashboard-header {

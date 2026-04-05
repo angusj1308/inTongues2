@@ -7038,12 +7038,21 @@ app.post('/api/generate-audio-book', async (req, res) => {
           }
         }
 
-        const transcriptRef = storyRef.collection('transcripts').doc('intensive')
+        const transcriptsRef = storyRef.collection('transcripts')
         const timestamp = admin.firestore.FieldValue.serverTimestamp()
 
-        await transcriptRef.set(
+        // Firestore has a 1MB document limit. Split word timestamps into chunks if needed.
+        const MAX_WORDS_PER_CHUNK = 8000
+        const chunks = []
+        for (let i = 0; i < mergedWordTimestamps.length; i += MAX_WORDS_PER_CHUNK) {
+          chunks.push(mergedWordTimestamps.slice(i, i + MAX_WORDS_PER_CHUNK))
+        }
+
+        // Write main doc with first chunk and chunk count
+        await transcriptsRef.doc('intensive').set(
           {
-            wordTimestamps: mergedWordTimestamps,
+            wordTimestamps: chunks[0],
+            chunkCount: chunks.length,
             source: 'elevenlabs',
             createdAt: timestamp,
             updatedAt: timestamp,
@@ -7051,7 +7060,15 @@ app.post('/api/generate-audio-book', async (req, res) => {
           { merge: true },
         )
 
-        console.log(`Stored ${mergedWordTimestamps.length} word timestamps for story ${storyId}`)
+        // Write overflow chunks
+        for (let c = 1; c < chunks.length; c++) {
+          await transcriptsRef.doc(`intensive_${c}`).set({
+            wordTimestamps: chunks[c],
+            createdAt: timestamp,
+          })
+        }
+
+        console.log(`Stored ${mergedWordTimestamps.length} word timestamps for story ${storyId} in ${chunks.length} chunk(s)`)
       } catch (timestampError) {
         console.error('Failed to store word timestamps for story', timestampError)
       }

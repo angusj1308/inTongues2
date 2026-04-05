@@ -790,7 +790,22 @@ const Reader = ({ initialMode }) => {
 
         if (Array.isArray(data.wordTimestamps) && data.wordTimestamps.length > 0) {
           // ElevenLabs format: flat array of {text, start, end}
-          for (const w of data.wordTimestamps) {
+          // May be split across multiple chunks if the story is long
+          const allTimestamps = [...data.wordTimestamps]
+          const chunkCount = data.chunkCount || 1
+          if (chunkCount > 1) {
+            for (let c = 1; c < chunkCount; c++) {
+              const chunkRef = doc(db, 'users', user.uid, 'stories', id, 'transcripts', `intensive_${c}`)
+              const chunkSnap = await getDoc(chunkRef)
+              if (chunkSnap.exists()) {
+                const chunkData = chunkSnap.data()
+                if (Array.isArray(chunkData.wordTimestamps)) {
+                  allTimestamps.push(...chunkData.wordTimestamps)
+                }
+              }
+            }
+          }
+          for (const w of allTimestamps) {
             const start = Number(w.start) || 0
             const end = Number(w.end) || 0
             const text = (w.text || '').trim()

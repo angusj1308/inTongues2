@@ -7042,7 +7042,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
         const timestamp = admin.firestore.FieldValue.serverTimestamp()
 
         // Firestore has a 1MB document limit. Split word timestamps into chunks if needed.
-        const MAX_WORDS_PER_CHUNK = 8000
+        const MAX_WORDS_PER_CHUNK = 4000
         const chunks = []
         for (let i = 0; i < mergedWordTimestamps.length; i += MAX_WORDS_PER_CHUNK) {
           chunks.push(mergedWordTimestamps.slice(i, i + MAX_WORDS_PER_CHUNK))

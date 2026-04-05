@@ -1269,18 +1269,58 @@ const Reader = ({ initialMode }) => {
     if (readerMode !== 'intensive') return
     if (!fullAudioUrl || !sentenceSegments.length) return
 
-    const index = Math.max(0, Math.min(sentenceIndex, sentenceSegments.length - 1))
+    // Get the text sentence to play
+    const sentenceText = allVisibleSentences[sentenceIndex]?.trim()
+    if (!sentenceText) return
 
-    const segment = sentenceSegments[index]
-    if (
-      !segment ||
-      !Number.isFinite(segment.start) ||
-      !Number.isFinite(segment.end)
-    )
-      return
+    // Find all audio segments that belong to this text sentence by matching
+    // text content rather than assuming 1:1 index alignment (Whisper may
+    // split on pauses while text splits on .!? only)
+    const normalise = (s) => (s || '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase()
+    const sentenceNorm = normalise(sentenceText)
 
-    const startTime = Math.max(0, (Number(segment.start) || 0) - 0.15)
-    const endTime = Math.max(startTime, Number(segment.end) || 0)
+    let matchStart = null
+    let matchEnd = null
+
+    // Try exact text match first
+    for (const seg of sentenceSegments) {
+      const segNorm = normalise(seg.text)
+      if (sentenceNorm === segNorm) {
+        matchStart = seg.start
+        matchEnd = seg.end
+        break
+      }
+    }
+
+    // If no exact match, find contiguous segments whose combined text
+    // matches the sentence (Whisper split a sentence into multiple segments)
+    if (matchStart === null) {
+      for (let i = 0; i < sentenceSegments.length; i++) {
+        let combined = ''
+        for (let j = i; j < sentenceSegments.length; j++) {
+          combined += normalise(sentenceSegments[j].text)
+          if (combined === sentenceNorm) {
+            matchStart = sentenceSegments[i].start
+            matchEnd = sentenceSegments[j].end
+            break
+          }
+          if (combined.length >= sentenceNorm.length) break
+        }
+        if (matchStart !== null) break
+      }
+    }
+
+    // Fallback: index-based (original behaviour)
+    if (matchStart === null) {
+      const index = Math.max(0, Math.min(sentenceIndex, sentenceSegments.length - 1))
+      const seg = sentenceSegments[index]
+      if (!seg || !Number.isFinite(seg.start) || !Number.isFinite(seg.end)) return
+      matchStart = seg.start
+      matchEnd = seg.end
+    }
+
+    const startTime = Math.max(0, Number(matchStart) - 0.15)
+    const endTime = Math.max(startTime, Number(matchEnd) || 0)
 
     if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
       sentenceAudioRef.current = new Audio(fullAudioUrl)

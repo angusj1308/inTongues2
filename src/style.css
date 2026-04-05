@@ -6409,28 +6409,28 @@ html.reader-active body {
 /* ── Tutor FAB ── */
 
 .tutor-fab {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--reader-text, #1a1a1a);
-  color: var(--reader-bg, #fff);
+  background: #ffffff;
+  color: #a8a29e;
   font-family: 'Source Sans 3', -apple-system, sans-serif;
-  font-size: 1.25rem;
-  font-weight: 700;
-  border: 1px solid var(--reader-text, #1a1a1a);
-  border-radius: 0;
+  font-size: 1.15rem;
+  font-weight: 400;
+  border: 1px solid #d6d3d1;
+  border-radius: 50%;
   cursor: pointer;
   user-select: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   z-index: 500;
   touch-action: none;
-  transition: opacity 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .tutor-fab:hover {
-  opacity: 0.85;
+  border-color: #a8a29e;
+  color: #78716c;
 }
 
 /* ── Tutor Panel ── */
@@ -6606,9 +6606,14 @@ html.reader-active body {
 /* ── Tutor Dark Mode ── */
 
 .reader-themed[data-reader-tone='dark'] .tutor-fab {
-  background: #fafaf9;
-  color: #1c1917;
-  border-color: #fafaf9;
+  background: #1c1917;
+  color: #57534e;
+  border-color: #44403c;
+}
+
+.reader-themed[data-reader-tone='dark'] .tutor-fab:hover {
+  border-color: #57534e;
+  color: #78716c;
 }
 
 .reader-themed[data-reader-tone='dark'] .tutor-panel {

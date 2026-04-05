@@ -783,27 +783,36 @@ const Reader = ({ initialMode }) => {
         }
 
         const data = transcriptSnap.data() || {}
-        const rawSentenceSegments = Array.isArray(data.sentenceSegments)
-          ? data.sentenceSegments
-          : []
 
-        // Flatten all word-level timestamps from segments into one timeline
-        const allWords = []
-        for (const seg of rawSentenceSegments) {
-          if (Array.isArray(seg.words)) {
-            for (const w of seg.words) {
-              const start = Number(w.start) || 0
-              const end = Number(w.end) || 0
-              const text = (w.text || '').trim()
-              if (text && end > start && /[\p{L}\p{N}]/u.test(text)) {
-                allWords.push({ text, start, end })
+        // Prefer ElevenLabs word timestamps (new format), fall back to
+        // Whisper sentenceSegments with nested words (old format)
+        let allWords = []
+
+        if (Array.isArray(data.wordTimestamps) && data.wordTimestamps.length > 0) {
+          // ElevenLabs format: flat array of {text, start, end}
+          for (const w of data.wordTimestamps) {
+            const start = Number(w.start) || 0
+            const end = Number(w.end) || 0
+            const text = (w.text || '').trim()
+            if (text && end > start && /[\p{L}\p{N}]/u.test(text)) {
+              allWords.push({ text, start, end })
+            }
+          }
+        } else if (Array.isArray(data.sentenceSegments)) {
+          // Old Whisper format: segments with nested words arrays
+          for (const seg of data.sentenceSegments) {
+            if (Array.isArray(seg.words)) {
+              for (const w of seg.words) {
+                const start = Number(w.start) || 0
+                const end = Number(w.end) || 0
+                const text = (w.text || '').trim()
+                if (text && end > start && /[\p{L}\p{N}]/u.test(text)) {
+                  allWords.push({ text, start, end })
+                }
               }
             }
           }
         }
-
-        console.log('Total Whisper tokens after filter:', allWords.length)
-        console.log('First 50 tokens:', allWords.slice(0, 50).map(w => w.text))
 
         setSentenceSegments(allWords)
       } catch (error) {
@@ -903,15 +912,11 @@ const Reader = ({ initialMode }) => {
     let cursor = 0
 
     for (const sentence of allVisibleSentences) {
-      const words = (sentence || '')
+      const wordCount = (sentence || '')
         .replace(/[^\p{L}\p{N}\s]+/gu, '')
         .split(/\s+/)
         .filter(Boolean)
-      const wordCount = words.length
-
-      console.log(`Sentence ${ranges.length}: ${wordCount} words:`, words.join(' '))
-      console.log(`  Consuming Whisper tokens ${cursor} to ${Math.min(cursor + wordCount - 1, sentenceSegments.length - 1)}:`,
-        sentenceSegments.slice(cursor, cursor + wordCount).map(w => w.text).join(' '))
+        .length
 
       if (wordCount === 0 || cursor >= sentenceSegments.length) {
         ranges.push(null)

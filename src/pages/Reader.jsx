@@ -889,6 +889,40 @@ const Reader = ({ initialMode }) => {
   })
 
   const allVisibleSentences = chapterSentences.flat()
+
+  // Precompute audio time ranges for each sentence by walking the word timeline
+  // sequentially. Each sentence consumes N words from the timeline where N is the
+  // word count of that text sentence. No matching needed — same source, same order.
+  const sentenceAudioRanges = useMemo(() => {
+    if (!sentenceSegments.length || !allVisibleSentences.length) return []
+
+    const ranges = []
+    let cursor = 0
+
+    for (const sentence of allVisibleSentences) {
+      const wordCount = (sentence || '')
+        .replace(/[^\p{L}\p{N}\s]+/gu, '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .length
+
+      if (wordCount === 0 || cursor >= sentenceSegments.length) {
+        ranges.push(null)
+        continue
+      }
+
+      const startIdx = cursor
+      const endIdx = Math.min(cursor + wordCount - 1, sentenceSegments.length - 1)
+      ranges.push({
+        start: sentenceSegments[startIdx].start,
+        end: sentenceSegments[endIdx].end,
+      })
+      cursor += wordCount
+    }
+
+    return ranges
+  }, [sentenceSegments, allVisibleSentences])
+
   const currentIntensiveSentence =
     readerMode === 'intensive'
       ? allVisibleSentences[currentSentenceIndex]?.trim() || ''
@@ -1277,47 +1311,13 @@ const Reader = ({ initialMode }) => {
 
   const playSentenceAudio = (sentenceIndex) => {
     if (readerMode !== 'intensive') return
-    if (!fullAudioUrl || !sentenceSegments.length) return
+    if (!fullAudioUrl) return
 
-    // sentenceSegments is now a flat array of word timestamps [{text, start, end}]
-    // Match words from the text sentence to find the audio time range
-    const sentenceText = allVisibleSentences[sentenceIndex]?.trim()
-    if (!sentenceText) return
+    const range = sentenceAudioRanges[sentenceIndex]
+    if (!range) return
 
-    // Extract words from the text sentence
-    const sentenceWords = sentenceText
-      .replace(/[^\p{L}\p{N}\s]+/gu, '')
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean)
-
-    if (!sentenceWords.length) return
-
-    // Find the first word timestamp that starts a run matching this sentence
-    const normalise = (s) => (s || '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase()
-
-    let matchStart = null
-    let matchEnd = null
-
-    for (let i = 0; i <= sentenceSegments.length - sentenceWords.length; i++) {
-      let matched = true
-      for (let j = 0; j < sentenceWords.length; j++) {
-        if (normalise(sentenceSegments[i + j].text) !== sentenceWords[j]) {
-          matched = false
-          break
-        }
-      }
-      if (matched) {
-        matchStart = sentenceSegments[i].start
-        matchEnd = sentenceSegments[i + sentenceWords.length - 1].end
-        break
-      }
-    }
-
-    if (matchStart === null) return
-
-    const startTime = Math.max(0, Number(matchStart) - 0.15)
-    const endTime = Math.max(startTime, Number(matchEnd) || 0)
+    const startTime = Math.max(0, Number(range.start) - 0.15)
+    const endTime = Math.max(startTime, Number(range.end) || 0)
 
     if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
       sentenceAudioRef.current = new Audio(fullAudioUrl)

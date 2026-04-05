@@ -6780,6 +6780,49 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
+    // If full audio already exists, skip regeneration and just retry Whisper
+    if (storyData.hasFullAudio && storyData.fullAudioUrl) {
+      console.log(`Full audio already exists for story ${storyId}, skipping to Whisper transcription`)
+      try {
+        const transcriptResult = await transcribeWithWhisper({
+          audioUrl: storyData.fullAudioUrl,
+          languageCode: storyData?.language || storyData?.outputLanguage,
+        })
+
+        const transcriptRef = storyRef.collection('transcripts').doc('intensive')
+        const timestamp = admin.firestore.FieldValue.serverTimestamp()
+
+        await transcriptRef.set(
+          {
+            text: transcriptResult?.text || '',
+            segments: Array.isArray(transcriptResult?.segments)
+              ? transcriptResult.segments
+              : [],
+            sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
+              ? transcriptResult.sentenceSegments
+              : buildSentenceSegmentsFromWhisper(
+                  normaliseTranscriptSegments(transcriptResult?.segments || []),
+                ),
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          { merge: true },
+        )
+
+        await storyRef.update({ audioStatus: 'ready' })
+
+        return res.json({
+          success: true,
+          audioStatus: 'ready',
+          fullAudioUrl: storyData.fullAudioUrl,
+          whisperRetry: true,
+        })
+      } catch (whisperError) {
+        console.error('Whisper retry failed:', whisperError)
+        return res.status(500).json({ error: 'Whisper transcription failed', details: whisperError.message })
+      }
+    }
+
     await storyRef.update({
       audioStatus: 'processing',
       hasFullAudio: false,

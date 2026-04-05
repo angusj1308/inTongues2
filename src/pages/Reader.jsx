@@ -1320,12 +1320,14 @@ const Reader = ({ initialMode }) => {
       return
     }
 
-    await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
+    if (direction === 'next') {
+      await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
 
-    if (direction === 'next' && user?.uid && language && currentIntensiveSentence) {
-      const wordCount = countWords(currentIntensiveSentence)
-      if (wordCount > 0) {
-        incrementWordsRead(user.uid, language, wordCount)
+      if (user?.uid && language && currentIntensiveSentence) {
+        const wordCount = countWords(currentIntensiveSentence)
+        if (wordCount > 0) {
+          incrementWordsRead(user.uid, language, wordCount)
+        }
       }
     }
 

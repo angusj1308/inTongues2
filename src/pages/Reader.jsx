@@ -754,7 +754,7 @@ const Reader = ({ initialMode }) => {
   }, [user, id, language])
 
   useEffect(() => {
-    if (!user || !id || readerMode !== 'intensive') {
+    if (!user || !id) {
       setSentenceSegments([])
       return undefined
     }
@@ -843,7 +843,14 @@ const Reader = ({ initialMode }) => {
     return () => {
       isActive = false
     }
-  }, [id, readerMode, user])
+  }, [id, user])
+
+  // Preload audio as soon as fullAudioUrl is available
+  useEffect(() => {
+    if (!fullAudioUrl) return
+    sentenceAudioRef.current = new Audio(fullAudioUrl)
+    sentenceAudioRef.current.preload = 'auto'
+  }, [fullAudioUrl])
 
   const getDisplayText = (page) =>
     page?.adaptedText || page?.originalText || page?.text || ''

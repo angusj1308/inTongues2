@@ -14,6 +14,7 @@ import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } 
 import { incrementWordsRead } from '../services/stats'
 import { generateChapter } from '../services/novelApiClient'
 import WordToken from '../components/read/WordToken'
+import TutorPanel from '../components/read/TutorPanel'
 import { readerModes } from '../constants/readerModes'
 import {
   filterSupportedLanguages,
@@ -140,6 +141,8 @@ const Reader = ({ initialMode }) => {
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
   const [contentExpressions, setContentExpressions] = useState([])
   const [intensiveWordTranslations, setIntensiveWordTranslations] = useState({})
+  const [tutorOpen, setTutorOpen] = useState(false)
+  const [tutorInitialMessage, setTutorInitialMessage] = useState(null)
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
   const sentenceAudioRef = useRef(null)
@@ -859,6 +862,11 @@ const Reader = ({ initialMode }) => {
     return allSentences.length > 0 ? allSentences : [text]
   }
 
+  const fullStoryText = useMemo(
+    () => chapters.map((ch) => getDisplayText(ch)).join('\n\n'),
+    [chapters]
+  )
+
   const chapterSentences = chapters.map((ch) =>
     splitIntoSentences(getDisplayText(ch))
   )
@@ -1238,9 +1246,11 @@ const Reader = ({ initialMode }) => {
 
   useEffect(() => {
     function handleGlobalClick(event) {
-      // If clicking inside the popup, do NOT close
+      // If clicking inside the popup, tutor, or page text, do NOT close
       if (event.target.closest('.translate-popup')) return
       if (event.target.closest('.page-text')) return
+      if (event.target.closest('.tutor-panel')) return
+      if (event.target.closest('.tutor-fab')) return
 
       setPopup(null)
     }
@@ -1806,6 +1816,23 @@ const Reader = ({ initialMode }) => {
     }
   }, [user, language, id])
 
+  const findContainingSentence = useCallback((word) => {
+    if (readerMode === 'intensive' && currentIntensiveSentence) {
+      return currentIntensiveSentence.trim()
+    }
+    const container = scrollContainerRef.current
+    if (!container) return word
+    const paragraphs = container.querySelectorAll('.reader-paragraph')
+    for (const paraEl of paragraphs) {
+      const text = paraEl.textContent || ''
+      if (!text.toLowerCase().includes(word.toLowerCase())) continue
+      const sentences = splitIntoSentences(text)
+      const match = sentences.find((s) => s.toLowerCase().includes(word.toLowerCase()))
+      if (match) return match.trim()
+    }
+    return word
+  }, [readerMode, currentIntensiveSentence])
+
   const toggleIntensiveTranslation = () => {
     setIsIntensiveTranslationVisible((prev) => !prev)
   }
@@ -2268,8 +2295,59 @@ const Reader = ({ initialMode }) => {
               )
             })}
           </div>
+          <button
+            type="button"
+            className="translate-popup-tutor-button"
+            onClick={() => {
+              const word = popup.displayText || popup.word
+              const sentence = findContainingSentence(word)
+              const msg = sentence && sentence !== word
+                ? `Explain "${word}" in this sentence: ${sentence}`
+                : `Explain "${word}"`
+              setTutorInitialMessage(msg)
+              setTutorOpen(true)
+              setPopup(null)
+            }}
+          >
+            Ask tutor
+          </button>
         </div>
       )}
+
+      {!tutorOpen && (
+        <div
+          className="tutor-fab"
+          style={{ position: 'fixed', bottom: 24, right: 24 }}
+          role="button"
+          aria-label="Open AI Tutor"
+          tabIndex={0}
+          onClick={() => {
+            setTutorInitialMessage(null)
+            setTutorOpen(true)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setTutorInitialMessage(null)
+              setTutorOpen(true)
+            }
+          }}
+        >
+          ?
+        </div>
+      )}
+
+      <TutorPanel
+        isOpen={tutorOpen}
+        onClose={() => {
+          setTutorOpen(false)
+          setTutorInitialMessage(null)
+        }}
+        language={language}
+        nativeLanguage={nativeLanguage}
+        storyText={fullStoryText}
+        initialMessage={tutorInitialMessage}
+        storyId={id}
+      />
     </div>
   )
 }

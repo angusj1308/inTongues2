@@ -925,7 +925,7 @@ const Reader = ({ initialMode }) => {
     return rawWords.filter((word) => {
       const key = normaliseExpression(word)
       const status = vocabEntries[key]?.status
-      return !status || status === 'unknown'
+      return !status
     })
   }
 

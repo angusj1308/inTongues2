@@ -152,6 +152,9 @@ const Reader = ({ initialMode }) => {
   const promotedParagraphsRef = useRef(new Set())
   const globalParagraphCounterRef = useRef(0)
   const vocabEntriesRef = useRef(vocabEntries)
+  const fabPositionRef = useRef({ x: null, y: null })
+  const fabDragRef = useRef(null)
+  const [fabPos, setFabPos] = useState({ x: null, y: null })
   useEffect(() => { vocabEntriesRef.current = vocabEntries }, [vocabEntries])
 
   useEffect(() => {
@@ -925,7 +928,7 @@ const Reader = ({ initialMode }) => {
     return rawWords.filter((word) => {
       const key = normaliseExpression(word)
       const status = vocabEntries[key]?.status
-      return !status || status === 'unknown'
+      return !status
     })
   }
 
@@ -2357,13 +2360,52 @@ const Reader = ({ initialMode }) => {
       {!tutorOpen && (
         <div
           className="tutor-fab"
-          style={{ position: 'fixed', bottom: 24, right: 24 }}
+          style={{
+            position: 'fixed',
+            ...(fabPos.x != null
+              ? { left: fabPos.x, top: fabPos.y }
+              : { bottom: 24, right: 24 }),
+          }}
           role="button"
           aria-label="Open AI Tutor"
           tabIndex={0}
-          onClick={() => {
-            setTutorInitialMessage(null)
-            setTutorOpen(true)
+          onPointerDown={(e) => {
+            e.preventDefault()
+            const rect = e.currentTarget.getBoundingClientRect()
+            fabDragRef.current = {
+              startX: e.clientX,
+              startY: e.clientY,
+              originX: rect.left,
+              originY: rect.top,
+              moved: false,
+            }
+
+            const onMove = (ev) => {
+              if (!fabDragRef.current) return
+              const dx = ev.clientX - fabDragRef.current.startX
+              const dy = ev.clientY - fabDragRef.current.startY
+              if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                fabDragRef.current.moved = true
+              }
+              const newX = Math.max(0, Math.min(window.innerWidth - 44, fabDragRef.current.originX + dx))
+              const newY = Math.max(0, Math.min(window.innerHeight - 44, fabDragRef.current.originY + dy))
+              fabPositionRef.current = { x: newX, y: newY }
+              setFabPos({ x: newX, y: newY })
+            }
+
+            const onUp = () => {
+              const wasDrag = fabDragRef.current?.moved
+              fabDragRef.current = null
+              window.removeEventListener('pointermove', onMove)
+              window.removeEventListener('pointerup', onUp)
+              if (!wasDrag) {
+                setTutorInitialMessage(null)
+                setTutorOpen(true)
+              }
+            }
+
+            window.addEventListener('pointermove', onMove)
+            window.addEventListener('pointerup', onUp)
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {

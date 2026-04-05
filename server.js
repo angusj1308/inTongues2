@@ -6758,7 +6758,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
   let storyRef
 
   try {
-    const { uid, storyId } = req.body || {}
+    const { uid, storyId, force } = req.body || {}
 
     if (!uid || !storyId) {
       return res.status(400).json({ error: 'uid and storyId are required' })
@@ -6807,8 +6807,8 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
-    // If full audio already exists, skip regeneration
-    if (storyData.hasFullAudio && storyData.fullAudioUrl) {
+    // If full audio already exists, skip regeneration (unless force=true)
+    if (storyData.hasFullAudio && storyData.fullAudioUrl && !force) {
       console.log(`Full audio already exists for story ${storyId}, skipping regeneration`)
       await storyRef.update({ audioStatus: 'ready' })
       return res.json({

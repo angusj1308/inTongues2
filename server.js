@@ -763,7 +763,6 @@ async function requestElevenLabsTts(text, voiceId) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 60000)
   const timeoutId = setTimeout(() => controller.abort(), 120000)
 
   let response
@@ -6808,47 +6807,16 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
-    // If full audio already exists, skip regeneration and just retry Whisper
+    // If full audio already exists, skip regeneration
     if (storyData.hasFullAudio && storyData.fullAudioUrl) {
-      console.log(`Full audio already exists for story ${storyId}, skipping to Whisper transcription`)
-      try {
-        const transcriptResult = await transcribeWithWhisper({
-          audioUrl: storyData.fullAudioUrl,
-          languageCode: storyData?.language || storyData?.outputLanguage,
-        })
-
-        const transcriptRef = storyRef.collection('transcripts').doc('intensive')
-        const timestamp = admin.firestore.FieldValue.serverTimestamp()
-
-        await transcriptRef.set(
-          {
-            text: transcriptResult?.text || '',
-            segments: Array.isArray(transcriptResult?.segments)
-              ? transcriptResult.segments
-              : [],
-            sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
-              ? transcriptResult.sentenceSegments
-              : buildSentenceSegmentsFromWhisper(
-                  normaliseTranscriptSegments(transcriptResult?.segments || []),
-                ),
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          },
-          { merge: true },
-        )
-
-        await storyRef.update({ audioStatus: 'ready' })
-
-        return res.json({
-          success: true,
-          audioStatus: 'ready',
-          fullAudioUrl: storyData.fullAudioUrl,
-          whisperRetry: true,
-        })
-      } catch (whisperError) {
-        console.error('Whisper retry failed:', whisperError)
-        return res.status(500).json({ error: 'Whisper transcription failed', details: whisperError.message })
-      }
+      console.log(`Full audio already exists for story ${storyId}, skipping regeneration`)
+      await storyRef.update({ audioStatus: 'ready' })
+      return res.json({
+        success: true,
+        audioStatus: 'ready',
+        fullAudioUrl: storyData.fullAudioUrl,
+        skippedRegeneration: true,
+      })
     }
 
     await storyRef.update({
@@ -6878,22 +6846,6 @@ app.post('/api/generate-audio-book', async (req, res) => {
     const storyTextParts = []
     const allPageWordTimestamps = []
 
-    for (const doc of pagesSnap.docs) {
-      const data = doc.data() || {}
-      const pageIndex = data.index ?? Number(doc.id) ?? 0
-      const readyAudio = data.audioStatus === 'ready' && data.audioUrl
-      const pageText =
-        (data.adaptedText && data.adaptedText.trim()) ||
-        (data.originalText && data.originalText.trim()) ||
-        (data.text && data.text.trim()) ||
-        ''
-
-      storyTextParts.push(pageText)
-
-      if (readyAudio) {
-        pagesSucceeded += 1
-        allPageWordTimestamps.push([])
-        continue
     if (isFlat) {
       // Flat story — split text into chunks and generate audio for each
       const fullText = storyData.adaptedTextBlob.trim()
@@ -6905,13 +6857,12 @@ app.post('/api/generate-audio-book', async (req, res) => {
           chunks.push(remaining)
           break
         }
-        // Find last sentence boundary within the chunk size
         let splitAt = remaining.lastIndexOf('. ', CHUNK_SIZE)
         if (splitAt === -1 || splitAt < CHUNK_SIZE * 0.5) {
           splitAt = remaining.lastIndexOf(' ', CHUNK_SIZE)
         }
         if (splitAt === -1) splitAt = CHUNK_SIZE
-        else splitAt += 1 // include the space/period
+        else splitAt += 1
         chunks.push(remaining.slice(0, splitAt).trim())
         remaining = remaining.slice(splitAt).trim()
       }
@@ -6921,10 +6872,8 @@ app.post('/api/generate-audio-book', async (req, res) => {
       for (let i = 0; i < chunks.length; i++) {
         storyTextParts.push(chunks[i])
         pagesProcessed += 1
-        allPageWordTimestamps.push([])
-        continue
         try {
-          const audioUrl = await generateAudioForPage(
+          const { audioUrl, wordTimestamps } = await generateAudioForPage(
             storyId,
             i,
             chunks[i],
@@ -6933,9 +6882,13 @@ app.post('/api/generate-audio-book', async (req, res) => {
           )
           if (audioUrl) {
             pagesSucceeded += 1
+            allPageWordTimestamps.push(wordTimestamps || [])
+          } else {
+            allPageWordTimestamps.push([])
           }
         } catch (audioError) {
           console.error(`Error generating audio for flat story ${storyId} chunk ${i}:`, audioError)
+          allPageWordTimestamps.push([])
         }
       }
     } else {
@@ -6951,45 +6904,23 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
         storyTextParts.push(pageText)
 
-      try {
-        const { audioUrl, wordTimestamps } = await generateAudioForPage(
-          storyId,
-          pageIndex,
-          pageText,
-          storyVoiceId,
-          storyLanguage,
-        )
-        if (audioUrl) {
-          await doc.ref.update({ audioUrl, audioStatus: 'ready' })
-          pagesSucceeded += 1
-          allPageWordTimestamps.push(wordTimestamps || [])
-        } else {
-          await doc.ref.update({ audioStatus: 'error', audioUrl: null })
-          allPageWordTimestamps.push([])
-        }
-      } catch (pageError) {
-        console.error(`Error generating audio for page ${pageIndex} in story ${storyId}:`, pageError)
-        await doc.ref.update({
-          audioStatus: 'error',
-          audioUrl: null,
-          audioError: pageError?.message || 'Audio generation failed',
-        })
-        allPageWordTimestamps.push([])
         if (readyAudio) {
           pagesSucceeded += 1
+          allPageWordTimestamps.push([])
           continue
         }
 
         if (!pageText) {
           await doc.ref.update({ audioStatus: 'error', audioUrl: null })
           pagesProcessed += 1
+          allPageWordTimestamps.push([])
           continue
         }
 
         pagesProcessed += 1
 
         try {
-          const audioUrl = await generateAudioForPage(
+          const { audioUrl, wordTimestamps } = await generateAudioForPage(
             storyId,
             pageIndex,
             pageText,
@@ -6999,8 +6930,10 @@ app.post('/api/generate-audio-book', async (req, res) => {
           if (audioUrl) {
             await doc.ref.update({ audioUrl, audioStatus: 'ready' })
             pagesSucceeded += 1
+            allPageWordTimestamps.push(wordTimestamps || [])
           } else {
             await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+            allPageWordTimestamps.push([])
           }
         } catch (pageError) {
           console.error(`Error generating audio for page ${pageIndex} in story ${storyId}:`, pageError)
@@ -7009,6 +6942,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
             audioUrl: null,
             audioError: pageError?.message || 'Audio generation failed',
           })
+          allPageWordTimestamps.push([])
         }
       }
     }
@@ -7088,7 +7022,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
           // Get page audio duration for offset — use the page mp3 file
           if (pageWords.length > 0) {
-            const pageIndex = pagesSnap.docs[p].data()?.index ?? Number(pagesSnap.docs[p].id) ?? 0
+            const pageIndex = isFlat ? p : (pagesSnap.docs[p].data()?.index ?? Number(pagesSnap.docs[p].id) ?? 0)
             const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
             try {
               const tmpPath = path.join(os.tmpdir(), `duration-${storyId}-${pageIndex}.mp3`)

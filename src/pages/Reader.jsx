@@ -1279,7 +1279,7 @@ const Reader = ({ initialMode }) => {
     )
       return
 
-    const startTime = Math.max(0, Number(segment.start) || 0)
+    const startTime = Math.max(0, (Number(segment.start) || 0) - 0.15)
     const endTime = Math.max(startTime, Number(segment.end) || 0)
 
     if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
@@ -1300,13 +1300,15 @@ const Reader = ({ initialMode }) => {
       return
     }
 
-    audio.play().catch((err) => console.error('Sentence playback failed', err))
-
     const durationMs = Math.max((endTime - startTime) * 1000, 0)
 
-    sentenceAudioStopRef.current = setTimeout(() => {
-      audio.pause()
-    }, durationMs + 100)
+    audio.addEventListener('seeked', () => {
+      audio.play().catch((err) => console.error('Sentence playback failed', err))
+
+      sentenceAudioStopRef.current = setTimeout(() => {
+        audio.pause()
+      }, durationMs + 300)
+    }, { once: true })
   }
 
   const handleSentenceNavigation = useCallback(async (direction) => {

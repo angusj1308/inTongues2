@@ -1325,26 +1325,35 @@ const Reader = ({ initialMode }) => {
 
     const audio = sentenceAudioRef.current
 
+    // Clean up any previous stop listener
     if (sentenceAudioStopRef.current) {
-      clearTimeout(sentenceAudioStopRef.current)
+      audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
       sentenceAudioStopRef.current = null
     }
+    audio.pause()
+
+    // Monitor actual playback position and pause at the end boundary
+    const onTimeUpdate = () => {
+      if (audio.currentTime >= endTime) {
+        audio.pause()
+        audio.removeEventListener('timeupdate', onTimeUpdate)
+        sentenceAudioStopRef.current = null
+      }
+    }
+    sentenceAudioStopRef.current = onTimeUpdate
+    audio.addEventListener('timeupdate', onTimeUpdate)
 
     try {
       audio.currentTime = startTime
     } catch (error) {
       console.error('Failed to set sentence audio start time', error)
+      audio.removeEventListener('timeupdate', onTimeUpdate)
+      sentenceAudioStopRef.current = null
       return
     }
 
-    const durationMs = Math.max((endTime - startTime) * 1000, 0)
-
     audio.addEventListener('seeked', () => {
       audio.play().catch((err) => console.error('Sentence playback failed', err))
-
-      sentenceAudioStopRef.current = setTimeout(() => {
-        audio.pause()
-      }, durationMs)
     }, { once: true })
   }
 

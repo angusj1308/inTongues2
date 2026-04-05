@@ -795,7 +795,7 @@ const Reader = ({ initialMode }) => {
               const start = Number(w.start) || 0
               const end = Number(w.end) || 0
               const text = (w.text || '').trim()
-              if (text && end > start) {
+              if (text && end > start && /[\p{L}\p{N}]/u.test(text)) {
                 allWords.push({ text, start, end })
               }
             }

@@ -784,15 +784,22 @@ const Reader = ({ initialMode }) => {
           ? data.sentenceSegments
           : []
 
-        const normalised = rawSentenceSegments
-          .map((seg) => ({
-            start: Number(seg.start) || 0,
-            end: Number(seg.end) || 0,
-            text: (seg.text || '').trim(),
-          }))
-          .filter((seg) => seg.end > seg.start)
+        // Flatten all word-level timestamps from segments into one timeline
+        const allWords = []
+        for (const seg of rawSentenceSegments) {
+          if (Array.isArray(seg.words)) {
+            for (const w of seg.words) {
+              const start = Number(w.start) || 0
+              const end = Number(w.end) || 0
+              const text = (w.text || '').trim()
+              if (text && end > start) {
+                allWords.push({ text, start, end })
+              }
+            }
+          }
+        }
 
-        setSentenceSegments(normalised)
+        setSentenceSegments(allWords)
       } catch (error) {
         console.error('Failed to load intensive transcript', error)
         if (isActive) {
@@ -1269,18 +1276,45 @@ const Reader = ({ initialMode }) => {
     if (readerMode !== 'intensive') return
     if (!fullAudioUrl || !sentenceSegments.length) return
 
-    const index = Math.max(0, Math.min(sentenceIndex, sentenceSegments.length - 1))
+    // sentenceSegments is now a flat array of word timestamps [{text, start, end}]
+    // Match words from the text sentence to find the audio time range
+    const sentenceText = allVisibleSentences[sentenceIndex]?.trim()
+    if (!sentenceText) return
 
-    const segment = sentenceSegments[index]
-    if (
-      !segment ||
-      !Number.isFinite(segment.start) ||
-      !Number.isFinite(segment.end)
-    )
-      return
+    // Extract words from the text sentence
+    const sentenceWords = sentenceText
+      .replace(/[^\p{L}\p{N}\s]+/gu, '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
 
-    const startTime = Math.max(0, Number(segment.start) || 0)
-    const endTime = Math.max(startTime, Number(segment.end) || 0)
+    if (!sentenceWords.length) return
+
+    // Find the first word timestamp that starts a run matching this sentence
+    const normalise = (s) => (s || '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase()
+
+    let matchStart = null
+    let matchEnd = null
+
+    for (let i = 0; i <= sentenceSegments.length - sentenceWords.length; i++) {
+      let matched = true
+      for (let j = 0; j < sentenceWords.length; j++) {
+        if (normalise(sentenceSegments[i + j].text) !== sentenceWords[j]) {
+          matched = false
+          break
+        }
+      }
+      if (matched) {
+        matchStart = sentenceSegments[i].start
+        matchEnd = sentenceSegments[i + sentenceWords.length - 1].end
+        break
+      }
+    }
+
+    if (matchStart === null) return
+
+    const startTime = Math.max(0, Number(matchStart) - 0.15)
+    const endTime = Math.max(startTime, Number(matchEnd) || 0)
 
     if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
       sentenceAudioRef.current = new Audio(fullAudioUrl)
@@ -1300,13 +1334,15 @@ const Reader = ({ initialMode }) => {
       return
     }
 
-    audio.play().catch((err) => console.error('Sentence playback failed', err))
-
     const durationMs = Math.max((endTime - startTime) * 1000, 0)
 
-    sentenceAudioStopRef.current = setTimeout(() => {
-      audio.pause()
-    }, durationMs + 100)
+    audio.addEventListener('seeked', () => {
+      audio.play().catch((err) => console.error('Sentence playback failed', err))
+
+      sentenceAudioStopRef.current = setTimeout(() => {
+        audio.pause()
+      }, durationMs + 300)
+    }, { once: true })
   }
 
   const handleSentenceNavigation = useCallback(async (direction) => {

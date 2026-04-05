@@ -721,20 +721,6 @@ const Dashboard = () => {
         await batch.commit()
         console.log(`Pagination complete for book: ${book.title} - ${pages.length} pages stored`)
 
-        // Trigger audio generation if requested and still pending
-        if (book.generateAudio && book.audioStatus === 'pending') {
-          try {
-            await fetch('http://localhost:4000/api/generate-audio-book', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ uid: user.uid, storyId: book.id }),
-            })
-            console.log(`Audio generation triggered for book: ${book.title}`)
-          } catch (audioErr) {
-            console.error(`Audio trigger failed for book ${book.id}:`, audioErr)
-          }
-        }
-
       } catch (error) {
         console.error(`Pagination failed for book ${book.id}:`, error)
       } finally {

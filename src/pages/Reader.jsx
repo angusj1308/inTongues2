@@ -1316,7 +1316,7 @@ const Reader = ({ initialMode }) => {
     const range = sentenceAudioRanges[sentenceIndex]
     if (!range) return
 
-    const startTime = Math.max(0, Number(range.start) - 0.15)
+    const startTime = Math.max(0, Number(range.start))
     const endTime = Math.max(startTime, Number(range.end) || 0)
 
     if (!sentenceAudioRef.current || sentenceAudioRef.current.src !== fullAudioUrl) {
@@ -1344,7 +1344,7 @@ const Reader = ({ initialMode }) => {
 
       sentenceAudioStopRef.current = setTimeout(() => {
         audio.pause()
-      }, durationMs + 300)
+      }, durationMs)
     }, { once: true })
   }
 

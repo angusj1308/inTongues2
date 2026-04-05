@@ -802,6 +802,9 @@ const Reader = ({ initialMode }) => {
           }
         }
 
+        console.log('Total Whisper tokens after filter:', allWords.length)
+        console.log('First 50 tokens:', allWords.slice(0, 50).map(w => w.text))
+
         setSentenceSegments(allWords)
       } catch (error) {
         console.error('Failed to load intensive transcript', error)
@@ -900,11 +903,15 @@ const Reader = ({ initialMode }) => {
     let cursor = 0
 
     for (const sentence of allVisibleSentences) {
-      const wordCount = (sentence || '')
+      const words = (sentence || '')
         .replace(/[^\p{L}\p{N}\s]+/gu, '')
         .split(/\s+/)
         .filter(Boolean)
-        .length
+      const wordCount = words.length
+
+      console.log(`Sentence ${ranges.length}: ${wordCount} words:`, words.join(' '))
+      console.log(`  Consuming Whisper tokens ${cursor} to ${Math.min(cursor + wordCount - 1, sentenceSegments.length - 1)}:`,
+        sentenceSegments.slice(cursor, cursor + wordCount).map(w => w.text).join(' '))
 
       if (wordCount === 0 || cursor >= sentenceSegments.length) {
         ranges.push(null)

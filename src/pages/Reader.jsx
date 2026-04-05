@@ -784,15 +784,22 @@ const Reader = ({ initialMode }) => {
           ? data.sentenceSegments
           : []
 
-        const normalised = rawSentenceSegments
-          .map((seg) => ({
-            start: Number(seg.start) || 0,
-            end: Number(seg.end) || 0,
-            text: (seg.text || '').trim(),
-          }))
-          .filter((seg) => seg.end > seg.start)
+        // Flatten all word-level timestamps from segments into one timeline
+        const allWords = []
+        for (const seg of rawSentenceSegments) {
+          if (Array.isArray(seg.words)) {
+            for (const w of seg.words) {
+              const start = Number(w.start) || 0
+              const end = Number(w.end) || 0
+              const text = (w.text || '').trim()
+              if (text && end > start) {
+                allWords.push({ text, start, end })
+              }
+            }
+          }
+        }
 
-        setSentenceSegments(normalised)
+        setSentenceSegments(allWords)
       } catch (error) {
         console.error('Failed to load intensive transcript', error)
         if (isActive) {
@@ -1269,55 +1276,42 @@ const Reader = ({ initialMode }) => {
     if (readerMode !== 'intensive') return
     if (!fullAudioUrl || !sentenceSegments.length) return
 
-    // Get the text sentence to play
+    // sentenceSegments is now a flat array of word timestamps [{text, start, end}]
+    // Match words from the text sentence to find the audio time range
     const sentenceText = allVisibleSentences[sentenceIndex]?.trim()
     if (!sentenceText) return
 
-    // Find all audio segments that belong to this text sentence by matching
-    // text content rather than assuming 1:1 index alignment (Whisper may
-    // split on pauses while text splits on .!? only)
+    // Extract words from the text sentence
+    const sentenceWords = sentenceText
+      .replace(/[^\p{L}\p{N}\s]+/gu, '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+
+    if (!sentenceWords.length) return
+
+    // Find the first word timestamp that starts a run matching this sentence
     const normalise = (s) => (s || '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase()
-    const sentenceNorm = normalise(sentenceText)
 
     let matchStart = null
     let matchEnd = null
 
-    // Try exact text match first
-    for (const seg of sentenceSegments) {
-      const segNorm = normalise(seg.text)
-      if (sentenceNorm === segNorm) {
-        matchStart = seg.start
-        matchEnd = seg.end
+    for (let i = 0; i <= sentenceSegments.length - sentenceWords.length; i++) {
+      let matched = true
+      for (let j = 0; j < sentenceWords.length; j++) {
+        if (normalise(sentenceSegments[i + j].text) !== sentenceWords[j]) {
+          matched = false
+          break
+        }
+      }
+      if (matched) {
+        matchStart = sentenceSegments[i].start
+        matchEnd = sentenceSegments[i + sentenceWords.length - 1].end
         break
       }
     }
 
-    // If no exact match, find contiguous segments whose combined text
-    // matches the sentence (Whisper split a sentence into multiple segments)
-    if (matchStart === null) {
-      for (let i = 0; i < sentenceSegments.length; i++) {
-        let combined = ''
-        for (let j = i; j < sentenceSegments.length; j++) {
-          combined += normalise(sentenceSegments[j].text)
-          if (combined === sentenceNorm) {
-            matchStart = sentenceSegments[i].start
-            matchEnd = sentenceSegments[j].end
-            break
-          }
-          if (combined.length >= sentenceNorm.length) break
-        }
-        if (matchStart !== null) break
-      }
-    }
-
-    // Fallback: index-based (original behaviour)
-    if (matchStart === null) {
-      const index = Math.max(0, Math.min(sentenceIndex, sentenceSegments.length - 1))
-      const seg = sentenceSegments[index]
-      if (!seg || !Number.isFinite(seg.start) || !Number.isFinite(seg.end)) return
-      matchStart = seg.start
-      matchEnd = seg.end
-    }
+    if (matchStart === null) return
 
     const startTime = Math.max(0, Number(matchStart) - 0.15)
     const endTime = Math.max(startTime, Number(matchEnd) || 0)

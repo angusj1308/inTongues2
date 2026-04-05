@@ -6761,12 +6761,6 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
-    if (!storyVoiceId) {
-      const message = 'Missing ElevenLabs voiceId for audio generation'
-      console.error(message)
-      throw new Error(message)
-    }
-
     const expectedVoiceId =
       ELEVENLABS_VOICE_MAP[storyLanguage]?.[storyVoiceGender]
 
@@ -6776,7 +6770,11 @@ app.post('/api/generate-audio-book', async (req, res) => {
       throw new Error(message)
     }
 
-    if (storyVoiceId !== expectedVoiceId) {
+    // Auto-resolve voiceId if missing, otherwise validate it matches
+    if (!storyVoiceId) {
+      console.log(`Auto-resolving voiceId for ${storyLanguage} (${storyVoiceGender}): ${expectedVoiceId}`)
+      await storyRef.update({ voiceId: expectedVoiceId })
+    } else if (storyVoiceId !== expectedVoiceId) {
       const message = `VoiceId mismatch for ${storyLanguage} (${storyVoiceGender})`
       console.error(message)
       throw new Error(message)
@@ -6834,7 +6832,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
           storyId,
           pageIndex,
           pageText,
-          storyVoiceId,
+          expectedVoiceId,
           storyLanguage,
         )
         if (audioUrl) {

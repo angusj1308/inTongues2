@@ -763,17 +763,16 @@ async function requestElevenLabsTts(text, voiceId) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  const timeoutId = setTimeout(() => controller.abort(), 60000)
 
   let response
   try {
     response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'audio/mpeg',
           'xi-api-key': apiKey,
         },
         body: JSON.stringify({
@@ -794,7 +793,35 @@ async function requestElevenLabsTts(text, voiceId) {
     )
   }
 
-  return Buffer.from(await response.arrayBuffer())
+  const data = await response.json()
+  const audioBuffer = Buffer.from(data.audio_base64, 'base64')
+
+  // Extract word-level timestamps from the alignment data
+  const wordTimestamps = []
+  if (data.alignment) {
+    const { characters, character_start_times_seconds, character_end_times_seconds } = data.alignment
+
+    // Build words from character-level data
+    const fullText = characters.join('')
+    const wordMatches = [...fullText.matchAll(/[\p{L}\p{N}][\p{L}\p{N}'-]*/gu)]
+
+    for (const match of wordMatches) {
+      const wordStart = match.index
+      const wordEnd = wordStart + match[0].length - 1
+      const start = character_start_times_seconds[wordStart]
+      const end = character_end_times_seconds[wordEnd]
+
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+        wordTimestamps.push({
+          text: match[0],
+          start,
+          end,
+        })
+      }
+    }
+  }
+
+  return { audioBuffer, wordTimestamps }
 }
 
 // Default voice IDs for imported content (YouTube, Spotify, etc.)
@@ -6716,15 +6743,15 @@ async function encodeMergedWavToMp3(wavBuffer) {
 }
 
 async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLabel) {
-  if (!text || !text.trim()) return null
+  if (!text || !text.trim()) return { audioUrl: null, wordTimestamps: [] }
 
   const MAX_CHARS = 6000
   const safeText = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text
-  const audioBuffer = await requestElevenLabsTts(safeText, voiceId)
+  const { audioBuffer, wordTimestamps } = await requestElevenLabsTts(safeText, voiceId)
   const audioUrl = await saveAudioBufferForGuidebookPage(bookId, pageIndex, audioBuffer)
   logTtsMethod('elevenlabs', languageLabel || 'unknown')
 
-  return audioUrl
+  return { audioUrl, wordTimestamps }
 }
 
 app.post('/api/generate-audio-book', async (req, res) => {
@@ -6803,6 +6830,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
     let pagesProcessed = 0
     let pagesSucceeded = 0
     const storyTextParts = []
+    const allPageWordTimestamps = []
 
     for (const doc of pagesSnap.docs) {
       const data = doc.data() || {}
@@ -6818,19 +6846,21 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
       if (readyAudio) {
         pagesSucceeded += 1
+        allPageWordTimestamps.push([])
         continue
       }
 
       if (!pageText) {
         await doc.ref.update({ audioStatus: 'error', audioUrl: null })
         pagesProcessed += 1
+        allPageWordTimestamps.push([])
         continue
       }
 
       pagesProcessed += 1
 
       try {
-        const audioUrl = await generateAudioForPage(
+        const { audioUrl, wordTimestamps } = await generateAudioForPage(
           storyId,
           pageIndex,
           pageText,
@@ -6840,8 +6870,10 @@ app.post('/api/generate-audio-book', async (req, res) => {
         if (audioUrl) {
           await doc.ref.update({ audioUrl, audioStatus: 'ready' })
           pagesSucceeded += 1
+          allPageWordTimestamps.push(wordTimestamps || [])
         } else {
           await doc.ref.update({ audioStatus: 'error', audioUrl: null })
+          allPageWordTimestamps.push([])
         }
       } catch (pageError) {
         console.error(`Error generating audio for page ${pageIndex} in story ${storyId}:`, pageError)
@@ -6850,6 +6882,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
           audioUrl: null,
           audioError: pageError?.message || 'Audio generation failed',
         })
+        allPageWordTimestamps.push([])
       }
     }
 
@@ -6901,33 +6934,56 @@ app.post('/api/generate-audio-book', async (req, res) => {
         fullAudioUrl,
       })
 
+      // Build merged word timestamps with page duration offsets
       try {
-        const transcriptResult = await transcribeWithWhisper({
-          audioUrl: fullAudioUrl,
-          languageCode: storyData?.language || storyData?.outputLanguage,
-        })
+        const mergedWordTimestamps = []
+        let timeOffset = 0
+
+        for (let p = 0; p < allPageWordTimestamps.length; p++) {
+          const pageWords = allPageWordTimestamps[p]
+
+          for (const w of pageWords) {
+            mergedWordTimestamps.push({
+              text: w.text,
+              start: w.start + timeOffset,
+              end: w.end + timeOffset,
+            })
+          }
+
+          // Get page audio duration for offset — use the page mp3 file
+          if (pageWords.length > 0) {
+            const pageIndex = pagesSnap.docs[p].data()?.index ?? Number(pagesSnap.docs[p].id) ?? 0
+            const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
+            try {
+              const tmpPath = path.join(os.tmpdir(), `duration-${storyId}-${pageIndex}.mp3`)
+              const [mp3Buffer] = await bucket.file(bucketPath).download()
+              await fs.writeFile(tmpPath, mp3Buffer)
+              const pageDuration = await getAudioDuration(tmpPath)
+              await fs.unlink(tmpPath).catch(() => {})
+              timeOffset += pageDuration
+            } catch (durErr) {
+              console.error(`Failed to get duration for page ${pageIndex}, using last word end:`, durErr)
+              timeOffset += pageWords[pageWords.length - 1].end
+            }
+          }
+        }
 
         const transcriptRef = storyRef.collection('transcripts').doc('intensive')
         const timestamp = admin.firestore.FieldValue.serverTimestamp()
 
         await transcriptRef.set(
           {
-            text: transcriptResult?.text || '',
-            segments: Array.isArray(transcriptResult?.segments)
-              ? transcriptResult.segments
-              : [],
-            sentenceSegments: Array.isArray(transcriptResult?.sentenceSegments)
-              ? transcriptResult.sentenceSegments
-              : buildSentenceSegmentsFromWhisper(
-                  normaliseTranscriptSegments(transcriptResult?.segments || []),
-                ),
+            wordTimestamps: mergedWordTimestamps,
+            source: 'elevenlabs',
             createdAt: timestamp,
             updatedAt: timestamp,
           },
           { merge: true },
         )
-      } catch (transcriptError) {
-        console.error('Failed to generate Whisper transcript for story', transcriptError)
+
+        console.log(`Stored ${mergedWordTimestamps.length} word timestamps for story ${storyId}`)
+      } catch (timestampError) {
+        console.error('Failed to store word timestamps for story', timestampError)
       }
 
       // Trigger content preparation (pronunciation caching) - runs in background

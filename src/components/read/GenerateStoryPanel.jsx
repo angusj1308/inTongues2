@@ -207,6 +207,7 @@ const GenerateStoryPanel = ({
         genre,
         timePlaceSetting: description.trim(),
         language: activeLanguage,
+        level: LEVELS[levelIndex],
       })
     } catch (genError) {
       setError(genError?.message || 'Unable to generate short story.')
@@ -321,7 +322,15 @@ const GenerateStoryPanel = ({
               min="0"
               max={LEVELS.length - 1}
               value={levelIndex}
-              onChange={(event) => setLevelIndex(Number(event.target.value))}
+              onChange={(event) => {
+                const val = Number(event.target.value)
+                // Skip Intermediate (index 1) — snap to nearest allowed level
+                if (LEVELS[val] === 'Intermediate') {
+                  setLevelIndex(val > levelIndex ? 2 : 0)
+                } else {
+                  setLevelIndex(val)
+                }
+              }}
               style={{ '--range-progress': `${(levelIndex / (LEVELS.length - 1)) * 100}%` }}
             />
           </div>
@@ -329,7 +338,8 @@ const GenerateStoryPanel = ({
             {LEVELS.map((level, index) => (
               <span
                 key={level}
-                className={`slider-mark${levelIndex === index ? ' active' : ''}`}
+                className={`slider-mark${levelIndex === index ? ' active' : ''}${level === 'Intermediate' ? ' disabled' : ''}`}
+                title={level === 'Intermediate' ? 'Coming soon' : undefined}
               >
                 {level}
               </span>

@@ -14,3 +14,13 @@ export const DARK_HIGHLIGHTS = {
   familiar: '#4A2028',
   known: null,
 }
+
+// Legacy exports used by other components
+export const HIGHLIGHT_COLOR = '#E8485A'
+export const STATUS_OPACITY = {
+  new: 0.4,
+  unknown: 0.4,
+  recognised: 0.28,
+  familiar: 0.16,
+  known: 0.0,
+}

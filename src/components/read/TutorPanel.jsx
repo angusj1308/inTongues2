@@ -16,10 +16,12 @@ const TutorPanel = ({
     x: Math.max(0, window.innerWidth - 420),
     y: Math.max(0, window.innerHeight - 500),
   }))
+  const [size, setSize] = useState({ width: 380, height: null })
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const dragRef = useRef(null)
+  const resizeRef = useRef(null)
   const panelRef = useRef(null)
   const lastInitialMessageRef = useRef(null)
 
@@ -143,13 +145,66 @@ const TutorPanel = ({
     window.addEventListener('mouseup', onUp)
   }
 
+  const startResize = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = panelRef.current?.getBoundingClientRect()
+    if (!rect) return
+    resizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originW: rect.width,
+      originH: rect.height,
+      rafId: null,
+      lastW: rect.width,
+      lastH: rect.height,
+    }
+
+    const onMove = (ev) => {
+      if (!resizeRef.current) return
+      const dx = ev.clientX - resizeRef.current.startX
+      const dy = ev.clientY - resizeRef.current.startY
+      const newW = Math.max(280, resizeRef.current.originW + dx)
+      const newH = Math.max(200, resizeRef.current.originH + dy)
+      resizeRef.current.lastW = newW
+      resizeRef.current.lastH = newH
+      if (resizeRef.current.rafId) cancelAnimationFrame(resizeRef.current.rafId)
+      resizeRef.current.rafId = requestAnimationFrame(() => {
+        if (panelRef.current) {
+          panelRef.current.style.width = `${newW}px`
+          panelRef.current.style.maxHeight = `${newH}px`
+          panelRef.current.style.height = `${newH}px`
+        }
+      })
+    }
+
+    const onUp = () => {
+      const finalW = resizeRef.current?.lastW ?? size.width
+      const finalH = resizeRef.current?.lastH ?? size.height
+      if (resizeRef.current?.rafId) cancelAnimationFrame(resizeRef.current.rafId)
+      resizeRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      setSize({ width: finalW, height: finalH })
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   if (!isOpen) return null
 
   return (
     <div
       ref={panelRef}
       className="tutor-panel"
-      style={{ position: 'fixed', left: position.x, top: position.y }}
+      style={{
+        position: 'fixed',
+        left: position.x,
+        top: position.y,
+        width: size.width,
+        ...(size.height ? { height: size.height, maxHeight: size.height } : {}),
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="tutor-panel-titlebar" onMouseDown={startDrag}>
@@ -220,6 +275,7 @@ const TutorPanel = ({
           </svg>
         </button>
       </div>
+      <div className="tutor-panel-resize-handle" onMouseDown={startResize} />
     </div>
   )
 }

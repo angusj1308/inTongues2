@@ -6583,6 +6583,27 @@ html.reader-active body {
   opacity: 0.8;
 }
 
+.tutor-panel-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.tutor-panel-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #d6d3d1;
+  border-bottom: 2px solid #d6d3d1;
+}
+
 /* ── Tutor - Ask tutor button in popup ── */
 
 .translate-popup-tutor-button {
@@ -6631,6 +6652,10 @@ html.reader-active body {
 
 .reader-themed[data-reader-tone='dark'] .tutor-panel-input-row {
   border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.reader-themed[data-reader-tone='dark'] .tutor-panel-resize-handle::after {
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .reader-themed[data-reader-tone='dark'] .tutor-msg--user {

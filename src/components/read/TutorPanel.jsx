@@ -54,9 +54,10 @@ const TutorPanel = ({
         const panelH = 400
         const gap = 16
 
-        // Find the text column edges
+        // Find the text edges — use first word token for accurate position
+        const firstWord = document.querySelector('.reader-content-column .reader-word')
         const col = document.querySelector('.reader-content-column')
-        const colRect = col?.getBoundingClientRect()
+        const colRect = firstWord?.getBoundingClientRect() || col?.getBoundingClientRect()
 
         // Determine fab center
         const fabX = anchorPos?.x != null ? anchorPos.x + 20 : 44

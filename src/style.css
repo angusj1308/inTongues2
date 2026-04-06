@@ -6566,6 +6566,12 @@ html.reader-active body {
   text-align: left;
 }
 
+.tutor-panel-input:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .tutor-panel-input::placeholder {
   color: inherit;
   opacity: 0.4;

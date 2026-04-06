@@ -1,18 +1,16 @@
 import {
-  HIGHLIGHT_COLOR,
-  STATUS_OPACITY,
+  LIGHT_HIGHLIGHTS,
+  DARK_HIGHLIGHTS,
 } from '../../constants/highlightColors'
 
-function getHighlightStyle({ status, mode }) {
+function getHighlightStyle({ status, mode, tone }) {
   if (mode === 'extensive') return {}
 
-  const opacity = STATUS_OPACITY[status]
-  if (!opacity || opacity === 0) return {}
+  const colors = tone === 'dark' ? DARK_HIGHLIGHTS : LIGHT_HIGHLIGHTS
+  const color = colors[status]
+  if (!color) return {}
 
-  return {
-    '--hlt-base': HIGHLIGHT_COLOR,
-    '--hlt-opacity': opacity,
-  }
+  return { backgroundColor: color }
 }
 
 const normaliseStatus = (status) => {
@@ -23,14 +21,15 @@ const normaliseStatus = (status) => {
   return 'new'
 }
 
-const WordToken = ({ text, status, readerMode, onWordClick }) => {
+const WordToken = ({ text, status, readerMode, tone, onWordClick }) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
     status: normalisedStatus,
     mode: readerMode,
+    tone,
   })
 
-  const highlighted = Boolean(style['--hlt-opacity'])
+  const highlighted = Boolean(style.backgroundColor)
 
   const handleWordInteraction = (event) => {
     const selection = window.getSelection()?.toString().trim()

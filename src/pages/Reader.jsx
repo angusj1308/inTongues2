@@ -1233,6 +1233,7 @@ const Reader = ({ initialMode }) => {
             status={getDisplayStatus(segment.status)}
             language={language}
             readerMode={readerMode}
+            tone={activeTheme.tone}
           />
         )
         return
@@ -1263,6 +1264,7 @@ const Reader = ({ initialMode }) => {
             status={status}
             language={language}
             readerMode={readerMode}
+            tone={activeTheme.tone}
             onWordClick={handleSingleWordClick}
           />
         )

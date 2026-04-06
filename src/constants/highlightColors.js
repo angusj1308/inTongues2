@@ -1,11 +1,16 @@
-// Single brand color for all word highlighting
-export const HIGHLIGHT_COLOR = '#8B2332'
+// Fixed highlight colours per status, no opacity mixing
+export const LIGHT_HIGHLIGHTS = {
+  new: '#E8485A',
+  unknown: '#E8485A',
+  recognised: '#F0969F',
+  familiar: '#F7CDD1',
+  known: null,
+}
 
-// Fading intensity: darkest → invisible
-export const STATUS_OPACITY = {
-  new: 0.4,
-  unknown: 0.4,
-  recognised: 0.28,
-  familiar: 0.16,
-  known: 0.0,
+export const DARK_HIGHLIGHTS = {
+  new: '#C8102E',
+  unknown: '#C8102E',
+  recognised: '#8B3040',
+  familiar: '#4A2028',
+  known: null,
 }

@@ -442,14 +442,7 @@ textarea {
 }
 
 .reader-word--highlighted {
-  background-color: rgba(0, 0, 0, var(--hlt-opacity, 0.16));
-  background-color: color-mix(
-    in srgb,
-    var(--hlt-base) calc(var(--hlt-opacity, 0) * 100%),
-    transparent
-  );
   border-radius: 0.2em;
-  /* No horizontal padding - would cause line width differences vs measurement */
   transition: background-color 0.15s ease;
 }
 

@@ -66,14 +66,14 @@ const TutorPanel = ({
 
         if (colRect) {
           if (fabX > window.innerWidth / 2) {
-            // Tab on right — open in right margin
-            x = colRect.right + gap
-            if (x + panelW > window.innerWidth - 8) {
-              x = window.innerWidth - panelW - 8
-            }
+            // Tab on right — centre panel in right margin
+            const marginStart = colRect.right
+            const marginWidth = window.innerWidth - marginStart
+            x = marginStart + (marginWidth - panelW) / 2
           } else {
-            // Tab on left — open in left margin, panel right edge flush with column left edge
-            x = colRect.left - panelW - gap
+            // Tab on left — centre panel in left margin
+            const marginWidth = colRect.left
+            x = (marginWidth - panelW) / 2
             if (x < 8) x = 8
           }
         } else {

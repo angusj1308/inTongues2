@@ -13,39 +13,10 @@ const TutorPanel = ({
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [position, setPosition] = useState(() => ({
-    x: Math.max(0, window.innerWidth - 420),
-    y: Math.max(0, window.innerHeight - 500),
-  }))
+  const [position, setPosition] = useState({ x: 0, y: 0 })
   const [size, setSize] = useState({ width: 380, height: null })
-  const hasPositionedRef = useRef(false)
-
-  // Position panel near the ? tab when it opens
-  useEffect(() => {
-    if (!isOpen) {
-      hasPositionedRef.current = false
-      return
-    }
-    if (hasPositionedRef.current) return
-    hasPositionedRef.current = true
-
-    const panelW = size.width || 380
-    const panelH = 400
-    let x, y
-
-    if (anchorPos?.x != null) {
-      // Open near the fab position, offset so panel doesn't cover the tab
-      x = Math.max(0, Math.min(anchorPos.x, window.innerWidth - panelW))
-      y = Math.max(0, anchorPos.y - panelH - 8)
-      if (y < 0) y = Math.min(anchorPos.y + 48, window.innerHeight - panelH)
-    } else {
-      // Default: bottom-left (matching default fab position)
-      x = 24
-      y = Math.max(0, window.innerHeight - panelH - 70)
-    }
-
-    setPosition({ x, y })
-  }, [isOpen, anchorPos, size.width])
+  const [animClass, setAnimClass] = useState('is-closed')
+  const [transformOrigin, setTransformOrigin] = useState('bottom left')
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -53,6 +24,7 @@ const TutorPanel = ({
   const resizeRef = useRef(null)
   const panelRef = useRef(null)
   const lastInitialMessageRef = useRef(null)
+  const hasPositionedRef = useRef(false)
 
   // Reset conversation on story change
   useEffect(() => {
@@ -71,6 +43,73 @@ const TutorPanel = ({
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [isOpen, initialMessage])
+
+  // Animate open/close and position in margin
+  useEffect(() => {
+    if (isOpen) {
+      if (!hasPositionedRef.current) {
+        hasPositionedRef.current = true
+
+        const panelW = size.width || 380
+        const panelH = 400
+        const gap = 16
+
+        // Find the text column edges
+        const col = document.querySelector('.reader-content-column')
+        const colRect = col?.getBoundingClientRect()
+
+        // Determine fab center
+        const fabX = anchorPos?.x != null ? anchorPos.x + 20 : 44
+        const fabY = anchorPos?.y != null ? anchorPos.y + 20 : window.innerHeight - 44
+
+        let x, y
+
+        if (colRect) {
+          const rightMargin = window.innerWidth - colRect.right
+          const leftMargin = colRect.left
+
+          if (fabX > window.innerWidth / 2) {
+            // Tab on right — open in right margin
+            x = colRect.right + gap
+            if (x + panelW > window.innerWidth - 8) {
+              x = window.innerWidth - panelW - 8
+            }
+          } else {
+            // Tab on left — open in left margin
+            x = colRect.left - panelW - gap
+            if (x < 8) x = 8
+            // If left margin is too narrow, try right
+            if (leftMargin < panelW + gap * 2 && rightMargin > panelW + gap * 2) {
+              x = colRect.right + gap
+            }
+          }
+        } else {
+          // No column found — fallback
+          x = fabX > window.innerWidth / 2
+            ? Math.max(8, window.innerWidth - panelW - 8)
+            : 8
+        }
+
+        // Vertical: align with fab, clamped to viewport
+        y = Math.max(8, Math.min(fabY - panelH / 2, window.innerHeight - panelH - 8))
+
+        // Transform origin relative to panel
+        const originX = fabX - x
+        const originY = fabY - y
+        setTransformOrigin(`${originX}px ${originY}px`)
+
+        setPosition({ x, y })
+      }
+
+      // Trigger open animation on next frame
+      requestAnimationFrame(() => {
+        setAnimClass('is-open')
+      })
+    } else {
+      setAnimClass('is-closed')
+      hasPositionedRef.current = false
+    }
+  }, [isOpen, anchorPos, size.width])
 
   const sendMessage = useCallback(async (content) => {
     if (!content.trim() || isLoading) return
@@ -252,17 +291,16 @@ const TutorPanel = ({
     window.addEventListener('mouseup', onUp)
   }
 
-  if (!isOpen) return null
-
   return (
     <div
       ref={panelRef}
-      className="tutor-panel"
+      className={`tutor-panel ${animClass}`}
       style={{
         position: 'fixed',
         left: position.x,
         top: position.y,
         width: size.width,
+        transformOrigin,
         ...(size.height ? { height: size.height, maxHeight: size.height } : {}),
       }}
       onClick={(e) => e.stopPropagation()}

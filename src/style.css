@@ -442,7 +442,7 @@ textarea {
 }
 
 .reader-word--highlighted {
-  border-radius: 0.2em;
+  border-radius: 0;
   transition: background-color 0.15s ease;
 }
 

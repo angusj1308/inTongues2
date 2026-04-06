@@ -7183,11 +7183,17 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
   let allText = ''
 
   if (contentType === 'story') {
-    const pagesSnap = await contentRef.collection('pages').get()
-    pagesSnap.docs.forEach((doc) => {
-      const data = doc.data() || {}
-      allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
-    })
+    const contentData = contentSnap.data() || {}
+    // Flat stories store text in adaptedTextBlob, not in pages subcollection
+    if (contentData.isFlat && contentData.adaptedTextBlob) {
+      allText = contentData.adaptedTextBlob
+    } else {
+      const pagesSnap = await contentRef.collection('pages').get()
+      pagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
+      })
+    }
   } else if (contentType === 'youtube') {
     const transcriptsSnap = await contentRef.collection('transcripts').get()
     transcriptsSnap.docs.forEach((doc) => {

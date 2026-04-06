@@ -50,9 +50,9 @@ const TutorPanel = ({
       if (!hasPositionedRef.current) {
         hasPositionedRef.current = true
 
-        let panelW = size.width || 380
+        const panelW = size.width || 380
         const panelH = 400
-        const gap = 32
+        const gap = 16
 
         // Find the text column edges
         const col = document.querySelector('.reader-content-column')
@@ -65,35 +65,16 @@ const TutorPanel = ({
         let x, y
 
         if (colRect) {
-          const rightMargin = window.innerWidth - colRect.right
-          const leftMargin = colRect.left
-
           if (fabX > window.innerWidth / 2) {
             // Tab on right — open in right margin
-            const availableW = rightMargin - gap - 8
-            if (availableW >= 280) {
-              x = colRect.right + gap
-              panelW = Math.min(panelW, availableW)
-            } else {
-              // Right margin too narrow, use left
-              const leftAvailable = leftMargin - gap - 8
-              panelW = Math.min(panelW, Math.max(280, leftAvailable))
-              x = colRect.left - panelW - gap
-              if (x < 8) x = 8
+            x = colRect.right + gap
+            if (x + panelW > window.innerWidth - 8) {
+              x = window.innerWidth - panelW - 8
             }
           } else {
-            // Tab on left — open in left margin
-            const availableW = leftMargin - gap - 8
-            if (availableW >= 280) {
-              panelW = Math.min(panelW, availableW)
-              x = colRect.left - panelW - gap
-              if (x < 8) x = 8
-            } else {
-              // Left margin too narrow, use right
-              const rightAvailable = rightMargin - gap - 8
-              panelW = Math.min(panelW, Math.max(280, rightAvailable))
-              x = colRect.right + gap
-            }
+            // Tab on left — open in left margin, panel right edge flush with column left edge
+            x = colRect.left - panelW - gap
+            if (x < 8) x = 8
           }
         } else {
           // No column found — fallback
@@ -111,9 +92,6 @@ const TutorPanel = ({
         setTransformOrigin(`${originX}px ${originY}px`)
 
         setPosition({ x, y })
-        if (panelW !== (size.width || 380)) {
-          setSize((prev) => ({ ...prev, width: panelW }))
-        }
       }
 
       // Trigger open animation on next frame

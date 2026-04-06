@@ -10,7 +10,7 @@ function getHighlightStyle({ status, mode, tone }) {
   const color = colors[status]
   if (!color) return {}
 
-  return { backgroundColor: color }
+  return { '--hlt-color': color }
 }
 
 const normaliseStatus = (status) => {
@@ -29,7 +29,7 @@ const WordToken = ({ text, status, readerMode, tone, onWordClick }) => {
     tone,
   })
 
-  const highlighted = Boolean(style.backgroundColor)
+  const highlighted = Boolean(style['--hlt-color'])
 
   const handleWordInteraction = (event) => {
     const selection = window.getSelection()?.toString().trim()

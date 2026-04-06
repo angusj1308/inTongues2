@@ -8,6 +8,7 @@ const TutorPanel = ({
   storyText,
   initialMessage,
   storyId,
+  anchorPos,
 }) => {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -17,6 +18,34 @@ const TutorPanel = ({
     y: Math.max(0, window.innerHeight - 500),
   }))
   const [size, setSize] = useState({ width: 380, height: null })
+  const hasPositionedRef = useRef(false)
+
+  // Position panel near the ? tab when it opens
+  useEffect(() => {
+    if (!isOpen) {
+      hasPositionedRef.current = false
+      return
+    }
+    if (hasPositionedRef.current) return
+    hasPositionedRef.current = true
+
+    const panelW = size.width || 380
+    const panelH = 400
+    let x, y
+
+    if (anchorPos?.x != null) {
+      // Open near the fab position, offset so panel doesn't cover the tab
+      x = Math.max(0, Math.min(anchorPos.x, window.innerWidth - panelW))
+      y = Math.max(0, anchorPos.y - panelH - 8)
+      if (y < 0) y = Math.min(anchorPos.y + 48, window.innerHeight - panelH)
+    } else {
+      // Default: bottom-left (matching default fab position)
+      x = 24
+      y = Math.max(0, window.innerHeight - panelH - 70)
+    }
+
+    setPosition({ x, y })
+  }, [isOpen, anchorPos, size.width])
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)

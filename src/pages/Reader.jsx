@@ -2411,7 +2411,7 @@ const Reader = ({ initialMode }) => {
             position: 'fixed',
             ...(fabPos.x != null
               ? { left: fabPos.x, top: fabPos.y }
-              : { bottom: 24, right: 24 }),
+              : { bottom: 24, left: 24 }),
           }}
           role="button"
           aria-label="Open AI Tutor"
@@ -2492,6 +2492,7 @@ const Reader = ({ initialMode }) => {
         storyText={fullStoryText}
         initialMessage={tutorInitialMessage}
         storyId={id}
+        anchorPos={fabPositionRef.current}
       />
     </div>
   )

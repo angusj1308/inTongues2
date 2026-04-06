@@ -443,6 +443,7 @@ textarea {
 
 .reader-word--highlighted {
   border-radius: 0;
+  padding: 0 0.15em;
   transition: background-color 0.15s ease;
 }
 

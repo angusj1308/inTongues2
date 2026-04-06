@@ -20,6 +20,7 @@ const TutorPanel = ({
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   const dragRef = useRef(null)
+  const panelRef = useRef(null)
   const lastInitialMessageRef = useRef(null)
 
   // Reset conversation on story change
@@ -106,22 +107,36 @@ const TutorPanel = ({
       startY: e.clientY,
       originX: position.x,
       originY: position.y,
+      rafId: null,
+      lastX: position.x,
+      lastY: position.y,
     }
 
     const onMove = (ev) => {
       if (!dragRef.current) return
       const dx = ev.clientX - dragRef.current.startX
       const dy = ev.clientY - dragRef.current.startY
-      setPosition({
-        x: Math.max(0, Math.min(window.innerWidth - 380, dragRef.current.originX + dx)),
-        y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.originY + dy)),
+      const newX = Math.max(0, Math.min(window.innerWidth - 380, dragRef.current.originX + dx))
+      const newY = Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.originY + dy))
+      dragRef.current.lastX = newX
+      dragRef.current.lastY = newY
+      if (dragRef.current.rafId) cancelAnimationFrame(dragRef.current.rafId)
+      dragRef.current.rafId = requestAnimationFrame(() => {
+        if (panelRef.current) {
+          panelRef.current.style.left = `${newX}px`
+          panelRef.current.style.top = `${newY}px`
+        }
       })
     }
 
     const onUp = () => {
+      const finalX = dragRef.current?.lastX ?? position.x
+      const finalY = dragRef.current?.lastY ?? position.y
+      if (dragRef.current?.rafId) cancelAnimationFrame(dragRef.current.rafId)
       dragRef.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      setPosition({ x: finalX, y: finalY })
     }
 
     window.addEventListener('mousemove', onMove)
@@ -132,6 +147,7 @@ const TutorPanel = ({
 
   return (
     <div
+      ref={panelRef}
       className="tutor-panel"
       style={{ position: 'fixed', left: position.x, top: position.y }}
       onClick={(e) => e.stopPropagation()}

@@ -154,6 +154,7 @@ const Reader = ({ initialMode }) => {
   const vocabEntriesRef = useRef(vocabEntries)
   const fabPositionRef = useRef({ x: null, y: null })
   const fabDragRef = useRef(null)
+  const tutorTabRef = useRef(null)
   const [fabPos, setFabPos] = useState({ x: null, y: null })
   useEffect(() => { vocabEntriesRef.current = vocabEntries }, [vocabEntries])
 
@@ -2404,6 +2405,7 @@ const Reader = ({ initialMode }) => {
 
       {!tutorOpen && (
         <div
+          ref={tutorTabRef}
           className="tutor-fab"
           style={{
             position: 'fixed',
@@ -2423,6 +2425,7 @@ const Reader = ({ initialMode }) => {
               originX: rect.left,
               originY: rect.top,
               moved: false,
+              rafId: null,
             }
 
             const onMove = (ev) => {
@@ -2434,16 +2437,31 @@ const Reader = ({ initialMode }) => {
               }
               const newX = Math.max(0, Math.min(window.innerWidth - 44, fabDragRef.current.originX + dx))
               const newY = Math.max(0, Math.min(window.innerHeight - 44, fabDragRef.current.originY + dy))
-              fabPositionRef.current = { x: newX, y: newY }
-              setFabPos({ x: newX, y: newY })
+              fabDragRef.current.lastX = newX
+              fabDragRef.current.lastY = newY
+              if (fabDragRef.current.rafId) cancelAnimationFrame(fabDragRef.current.rafId)
+              fabDragRef.current.rafId = requestAnimationFrame(() => {
+                if (tutorTabRef.current) {
+                  tutorTabRef.current.style.left = `${newX}px`
+                  tutorTabRef.current.style.top = `${newY}px`
+                  tutorTabRef.current.style.bottom = 'auto'
+                  tutorTabRef.current.style.right = 'auto'
+                }
+              })
             }
 
             const onUp = () => {
               const wasDrag = fabDragRef.current?.moved
+              const finalX = fabDragRef.current?.lastX ?? fabDragRef.current?.originX
+              const finalY = fabDragRef.current?.lastY ?? fabDragRef.current?.originY
+              if (fabDragRef.current?.rafId) cancelAnimationFrame(fabDragRef.current.rafId)
               fabDragRef.current = null
               window.removeEventListener('pointermove', onMove)
               window.removeEventListener('pointerup', onUp)
-              if (!wasDrag) {
+              if (wasDrag) {
+                fabPositionRef.current = { x: finalX, y: finalY }
+                setFabPos({ x: finalX, y: finalY })
+              } else {
                 setTutorInitialMessage(null)
                 setTutorOpen(true)
               }

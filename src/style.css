@@ -6453,6 +6453,7 @@ html.reader-active body {
   border-bottom: 1px solid #d6d3d1;
   cursor: grab;
   user-select: none;
+  touch-action: none;
   flex-shrink: 0;
 }
 

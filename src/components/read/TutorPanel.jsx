@@ -145,35 +145,63 @@ const TutorPanel = ({
     window.addEventListener('mouseup', onUp)
   }
 
-  const startResize = (e) => {
+  const startResize = (dir) => (e) => {
     e.preventDefault()
     e.stopPropagation()
     const rect = panelRef.current?.getBoundingClientRect()
     if (!rect) return
+
+    const resizeLeft = dir.includes('l')
+    const resizeRight = dir.includes('r')
+    const resizeTop = dir.includes('t')
+    const resizeBottom = dir.includes('b')
+
     resizeRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       originW: rect.width,
       originH: rect.height,
+      originX: rect.left,
+      originY: rect.top,
       rafId: null,
       lastW: rect.width,
       lastH: rect.height,
+      lastX: rect.left,
+      lastY: rect.top,
     }
 
     const onMove = (ev) => {
       if (!resizeRef.current) return
       const dx = ev.clientX - resizeRef.current.startX
       const dy = ev.clientY - resizeRef.current.startY
-      const newW = Math.max(280, resizeRef.current.originW + dx)
-      const newH = Math.max(200, resizeRef.current.originH + dy)
+      let newW = resizeRef.current.originW
+      let newH = resizeRef.current.originH
+      let newX = resizeRef.current.originX
+      let newY = resizeRef.current.originY
+
+      if (resizeRight) newW = Math.max(280, resizeRef.current.originW + dx)
+      if (resizeLeft) {
+        newW = Math.max(280, resizeRef.current.originW - dx)
+        newX = resizeRef.current.originX + (resizeRef.current.originW - newW)
+      }
+      if (resizeBottom) newH = Math.max(200, resizeRef.current.originH + dy)
+      if (resizeTop) {
+        newH = Math.max(200, resizeRef.current.originH - dy)
+        newY = resizeRef.current.originY + (resizeRef.current.originH - newH)
+      }
+
       resizeRef.current.lastW = newW
       resizeRef.current.lastH = newH
+      resizeRef.current.lastX = newX
+      resizeRef.current.lastY = newY
       if (resizeRef.current.rafId) cancelAnimationFrame(resizeRef.current.rafId)
       resizeRef.current.rafId = requestAnimationFrame(() => {
         if (panelRef.current) {
           panelRef.current.style.width = `${newW}px`
-          panelRef.current.style.maxHeight = `${newH}px`
           panelRef.current.style.height = `${newH}px`
+          panelRef.current.style.maxHeight = `${newH}px`
+          panelRef.current.style.left = `${newX}px`
+          panelRef.current.style.top = `${newY}px`
         }
       })
     }
@@ -181,11 +209,14 @@ const TutorPanel = ({
     const onUp = () => {
       const finalW = resizeRef.current?.lastW ?? size.width
       const finalH = resizeRef.current?.lastH ?? size.height
+      const finalX = resizeRef.current?.lastX ?? position.x
+      const finalY = resizeRef.current?.lastY ?? position.y
       if (resizeRef.current?.rafId) cancelAnimationFrame(resizeRef.current.rafId)
       resizeRef.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       setSize({ width: finalW, height: finalH })
+      setPosition({ x: finalX, y: finalY })
     }
 
     window.addEventListener('mousemove', onMove)
@@ -275,7 +306,14 @@ const TutorPanel = ({
           </svg>
         </button>
       </div>
-      <div className="tutor-panel-resize-handle" onMouseDown={startResize} />
+      <div className="tutor-resize tutor-resize--t" onMouseDown={startResize('t')} />
+      <div className="tutor-resize tutor-resize--r" onMouseDown={startResize('r')} />
+      <div className="tutor-resize tutor-resize--b" onMouseDown={startResize('b')} />
+      <div className="tutor-resize tutor-resize--l" onMouseDown={startResize('l')} />
+      <div className="tutor-resize tutor-resize--tl" onMouseDown={startResize('tl')} />
+      <div className="tutor-resize tutor-resize--tr" onMouseDown={startResize('tr')} />
+      <div className="tutor-resize tutor-resize--bl" onMouseDown={startResize('bl')} />
+      <div className="tutor-resize tutor-resize--br" onMouseDown={startResize('br')} />
     </div>
   )
 }

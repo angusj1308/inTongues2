@@ -6596,26 +6596,19 @@ html.reader-active body {
   opacity: 0.8;
 }
 
-.tutor-panel-resize-handle {
+.tutor-resize {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
   touch-action: none;
 }
 
-.tutor-panel-resize-handle::after {
-  content: '';
-  position: absolute;
-  bottom: 3px;
-  right: 3px;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid #d6d3d1;
-  border-bottom: 2px solid #d6d3d1;
-}
+.tutor-resize--t { top: -3px; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.tutor-resize--b { bottom: -3px; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.tutor-resize--l { left: -3px; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.tutor-resize--r { right: -3px; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.tutor-resize--tl { top: -3px; left: -3px; width: 10px; height: 10px; cursor: nwse-resize; }
+.tutor-resize--tr { top: -3px; right: -3px; width: 10px; height: 10px; cursor: nesw-resize; }
+.tutor-resize--bl { bottom: -3px; left: -3px; width: 10px; height: 10px; cursor: nesw-resize; }
+.tutor-resize--br { bottom: -3px; right: -3px; width: 10px; height: 10px; cursor: nwse-resize; }
 
 /* ── Tutor - Ask tutor button in popup ── */
 
@@ -6665,10 +6658,6 @@ html.reader-active body {
 
 .reader-themed[data-reader-tone='dark'] .tutor-panel-input-row {
   border-top-color: rgba(255, 255, 255, 0.12);
-}
-
-.reader-themed[data-reader-tone='dark'] .tutor-panel-resize-handle::after {
-  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .reader-themed[data-reader-tone='dark'] .tutor-panel-messages::-webkit-scrollbar-thumb {

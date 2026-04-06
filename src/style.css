@@ -6436,9 +6436,9 @@ html.reader-active body {
   flex-direction: column;
   background: var(--reader-bg, #fff);
   color: var(--reader-text, #1a1a1a);
-  border: 1px solid var(--reader-text, #1a1a1a);
+  border: 1px solid #d6d3d1;
   border-radius: 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
   font-size: 0.9375rem;
   z-index: 500;
@@ -6450,7 +6450,7 @@ html.reader-active body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid currentColor;
+  border-bottom: 1px solid #d6d3d1;
   cursor: grab;
   user-select: none;
   flex-shrink: 0;
@@ -6461,10 +6461,10 @@ html.reader-active body {
 }
 
 .tutor-panel-title {
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 400;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .tutor-panel-titlebar-actions {
@@ -6534,7 +6534,9 @@ html.reader-active body {
 
 .tutor-panel-input-row {
   display: flex;
-  border-top: 1px solid currentColor;
+  align-items: center;
+  position: relative;
+  border-top: 1px solid #d6d3d1;
   flex-shrink: 0;
 }
 
@@ -6543,36 +6545,41 @@ html.reader-active body {
   border: none;
   background: transparent;
   color: inherit;
-  padding: 10px 12px;
+  padding: 10px 36px 10px 12px;
   font-family: inherit;
   font-size: 0.875rem;
   outline: none;
+  text-align: left;
 }
 
 .tutor-panel-input::placeholder {
   color: inherit;
   opacity: 0.4;
+  text-align: left;
 }
 
 .tutor-panel-send {
+  position: absolute;
+  right: 8px;
   background: transparent;
   border: none;
-  border-left: 1px solid currentColor;
   color: inherit;
-  padding: 10px 14px;
+  padding: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.3;
+  transition: opacity 0.15s ease;
 }
 
 .tutor-panel-send:disabled {
-  opacity: 0.3;
+  opacity: 0.15;
   cursor: default;
 }
 
 .tutor-panel-send:hover:not(:disabled) {
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 /* ── Tutor - Ask tutor button in popup ── */
@@ -6612,9 +6619,17 @@ html.reader-active body {
 
 .reader-themed[data-reader-tone='dark'] .tutor-panel {
   background: #1c1917;
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   color: #fafaf9;
+}
+
+.reader-themed[data-reader-tone='dark'] .tutor-panel-titlebar {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.reader-themed[data-reader-tone='dark'] .tutor-panel-input-row {
+  border-top-color: rgba(255, 255, 255, 0.12);
 }
 
 .reader-themed[data-reader-tone='dark'] .tutor-msg--user {

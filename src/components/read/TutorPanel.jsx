@@ -14,7 +14,7 @@ const TutorPanel = ({
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [size, setSize] = useState({ width: 380, height: null })
+  const [size, setSize] = useState({ width: 340, height: null })
   const [animClass, setAnimClass] = useState('is-closed')
   const [transformOrigin, setTransformOrigin] = useState('bottom left')
 
@@ -50,7 +50,7 @@ const TutorPanel = ({
       if (!hasPositionedRef.current) {
         hasPositionedRef.current = true
 
-        const panelW = size.width || 380
+        const panelW = size.width || 340
         const panelH = 400
         const gap = 16
 

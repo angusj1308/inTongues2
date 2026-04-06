@@ -9082,7 +9082,7 @@ app.post('/api/generate/match-author', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/api/generate/short-story', async (req, res) => {
   try {
-    const { genre, timePlaceSetting, language, authorName } = req.body
+    const { genre, timePlaceSetting, language, authorName, level } = req.body
 
     if (!authorName?.trim()) return res.status(400).json({ error: 'authorName is required' })
     if (!language?.trim()) return res.status(400).json({ error: 'language is required' })
@@ -9091,15 +9091,66 @@ app.post('/api/generate/short-story', async (req, res) => {
     const genreQualifier = genreLabel ? `${genreLabel} ` : ''
     const settingText = timePlaceSetting?.trim() || 'a time and place of your choosing'
     const author = authorName.trim()
+    const resolvedLevel = (level || 'Native').trim()
 
-    const developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
+    let developerMessage
+    let userMessage
 
-    const userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.`
+    if (resolvedLevel === 'Beginner') {
+      developerMessage = `You are a fiction generation engine that writes original stories for language learners.
+
+In the user message you will receive the an author name, genre, setting and a CEFR language level.
+
+The author shapes your narrative sensibility — what you notice, what you value, how you structure a story, where you place moral weight, what details you choose. It does not govern sentence complexity or vocabulary.
+
+The CEFR level is the non-negotiable constraint. It governs everything about the language: sentence length, vocabulary, grammar, tense usage. The level cannot be violated for any reason, including style fidelity.
+
+CEFR LEVELS
+
+A1-A2 (Beginner):
+- Short sentences
+- Only high-frequency everyday vocabulary
+- Simplify verbs and adjectives to their most common equivalents. Nouns stay as they are — concrete things cannot be simplified.
+- Present tense and simple past only
+- No subordinate clauses
+- No metaphor, no personification, no figurative language
+- No abstract reasoning or interiority. Show action and concrete detail only.
+- Every sentence must describe something visible, audible, or physically felt
+
+B1-B2 (Intermediate):
+- Sentences up to 20 words
+- Common vocabulary with occasional low-frequency words where context makes meaning clear
+- All tenses permitted, including subjunctive where natural
+- Simple metaphor and figurative language permitted
+- Limited interiority — characters can think and feel, but in concrete terms
+- Compound sentences permitted. Limit subordinate clauses to one per sentence.
+
+C1-C2 (Native):
+- No restrictions. Write at full literary capacity in the author's authentic style.
+
+RULES
+- Never skip or summarise narrative content to simplify
+- Never add preambles, disclaimers, notes, or summaries
+- Output only the story
+- Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only.
+
+Format the story as normal prose paragraphs. Do not place each sentence on its own line. Group sentences into paragraphs by scene, location, or action shift, as in published fiction. Respond in prose only. Do not include preambles or summaries.`
+
+      userMessage = `Author: ${author}  Level: Beginner  Language: ${language.trim()}
+
+Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}`
+    } else {
+      // Native (and fallback for any unrecognized level)
+      developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
+
+      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.`
+    }
 
     console.log('\n═══════════════════════════════════════════════════════')
     console.log('SHORT STORY — SINGLE-CALL GENERATION (GPT-5.4-pro)')
     console.log('═══════════════════════════════════════════════════════')
     console.log('Author:', author)
+    console.log('Level:', resolvedLevel)
     console.log('Genre:', genreLabel || '(none)')
     console.log('Language:', language.trim())
     console.log('Setting:', settingText)

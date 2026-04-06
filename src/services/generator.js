@@ -32,14 +32,14 @@ const LABEL_TO_ID = Object.fromEntries(GENRES.map((g) => [g.label.toLowerCase(),
 // Matches the best author via AI, then sends a single request to GPT-5.4-pro
 // which writes the complete story in one shot.
 // ─────────────────────────────────────────────────────────────────────────────
-export const generateShortStory = async ({ genre, timePlaceSetting, language }) => {
+export const generateShortStory = async ({ genre, timePlaceSetting, language, level }) => {
   const authorName = await matchAuthor({ genre, format: 'short story', timePlaceSetting })
 
   try {
     const response = await fetch('http://localhost:4000/api/generate/short-story', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ genre, timePlaceSetting, language, authorName }),
+      body: JSON.stringify({ genre, timePlaceSetting, language, authorName, level }),
     })
 
     if (!response.ok) {

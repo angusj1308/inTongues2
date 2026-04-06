@@ -52,7 +52,7 @@ const TutorPanel = ({
 
         const panelW = size.width || 380
         const panelH = 400
-        const gap = 16
+        const gap = 32
 
         // Find the text column edges
         const col = document.querySelector('.reader-content-column')

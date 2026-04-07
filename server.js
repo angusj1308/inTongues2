@@ -6757,6 +6757,55 @@ async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLa
 // ─────────────────────────────────────────────────────────────────────────────
 // Cover painting generation — picks a scene with Haiku, paints with gpt-image-1
 // ─────────────────────────────────────────────────────────────────────────────
+const COVER_FONTS_DIR = path.join(process.cwd(), 'scripts', 'fonts')
+const COVER_FONT_URLS = {
+  'Lora-Variable.ttf':
+    'https://github.com/google/fonts/raw/main/ofl/lora/Lora%5Bwght%5D.ttf',
+  'texgyreheros-regular.otf':
+    'https://mirrors.ctan.org/fonts/tex-gyre/opentype/texgyreheros-regular.otf',
+}
+
+async function ensureCoverFonts() {
+  await fs.mkdir(COVER_FONTS_DIR, { recursive: true })
+  for (const [name, url] of Object.entries(COVER_FONT_URLS)) {
+    const dest = path.join(COVER_FONTS_DIR, name)
+    try {
+      await fs.access(dest)
+      continue
+    } catch {}
+    console.log(`Downloading cover font: ${name}`)
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to download ${name}: HTTP ${response.status}`)
+    }
+    const buf = Buffer.from(await response.arrayBuffer())
+    await fs.writeFile(dest, buf)
+  }
+}
+
+function runCoverCompositor(paintingPath, title, level, outputPath) {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'compose_cover.py')
+    const proc = spawn('python3', [
+      scriptPath,
+      '--painting', paintingPath,
+      '--title', title,
+      '--level', level,
+      '--output', outputPath,
+    ])
+    let stderr = ''
+    proc.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+    proc.on('error', (err) => reject(new Error(`Failed to spawn python3: ${err.message}`)))
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`compose_cover.py exited with code ${code}: ${stderr.trim()}`))
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
 async function pickCoverScene(storyText) {
   if (!anthropicClient) throw new Error('Anthropic client not configured')
 
@@ -6830,8 +6879,33 @@ app.post('/api/generate-cover', async (req, res) => {
     console.log('Step 2: Generating image...')
     const imageBuffer = await generateCoverImage(imagePrompt)
 
-    console.log('Step 3: Uploading to Firebase Storage...')
-    const coverUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
+    console.log('Step 3: Compositing cover...')
+    await ensureCoverFonts()
+
+    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
+    const tempComposed = path.join(os.tmpdir(), `cover-composed-${tempId}.png`)
+
+    let coverBuffer
+    try {
+      await fs.writeFile(tempPainting, imageBuffer)
+
+      const title = data.storyTitle || data.title || 'Untitled'
+      // Map Native → Advanced for correct CEFR labelling on the cover.
+      // Frontend continues to display "Native" — this mapping is cover-only.
+      const storedLevel = data.level || 'Intermediate'
+      const coverLevel = storedLevel === 'Native' ? 'Advanced' : storedLevel
+      const levelLine = `${coverLevel} ${data.language || ''}`.trim()
+
+      await runCoverCompositor(tempPainting, title, levelLine, tempComposed)
+      coverBuffer = await fs.readFile(tempComposed)
+    } finally {
+      await fs.unlink(tempPainting).catch(() => {})
+      await fs.unlink(tempComposed).catch(() => {})
+    }
+
+    console.log('Step 4: Uploading to Firebase Storage...')
+    const coverUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
     if (!coverUrl) throw new Error('Failed to upload cover to Firebase Storage')
 
     await storyRef.update({

@@ -222,7 +222,8 @@ const GenerateStoryPanel = ({
       const genreLabel = GENRES.find((g) => g.id === genre)?.label || genre
 
       const storyDocRef = await addDoc(storiesRef, {
-        title: `${genreLabel} Short Story`,
+        title: storyResult.storyTitle || `${genreLabel} Short Story`,
+        storyTitle: storyResult.storyTitle || '',
         author: storyResult.authorName,
         language: activeLanguage,
         level: selectedLevel,

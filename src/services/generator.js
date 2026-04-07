@@ -54,6 +54,7 @@ export const generateShortStory = async ({ genre, timePlaceSetting, language, le
 
     return {
       storyText: data.storyText,
+      storyTitle: data.storyTitle || '',
       wordCount: data.wordCount,
       authorName: data.authorName,
     }

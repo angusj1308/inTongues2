@@ -9096,6 +9096,8 @@ app.post('/api/generate/short-story', async (req, res) => {
     let developerMessage
     let userMessage
 
+    const titleInstruction = ' Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words.'
+
     if (resolvedLevel === 'Beginner') {
       developerMessage = `You are a fiction generation engine that writes original stories for language learners.
 
@@ -9138,12 +9140,12 @@ Format the story as normal prose paragraphs. Do not place each sentence on its o
 
       userMessage = `Author: ${author}  Level: Beginner  Language: ${language.trim()}
 
-Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}`
+Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}.${titleInstruction}`
     } else {
       // Native (and fallback for any unrecognized level)
       developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`
 
-      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.`
+      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in ${language.trim()}. The story is to be set in ${settingText} and your composition is to be in authentic ${author} prose. Do not write anything that this author would not write. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. Respond only in prose with no preambles or summaries.${titleInstruction}`
     }
 
     console.log('\n═══════════════════════════════════════════════════════')
@@ -9190,13 +9192,26 @@ Compose an original ${genreQualifier}short story of at least 5000 words set ${se
       return res.status(500).json({ error: 'No story text was generated.' })
     }
 
+    // Split title from story body — first double newline separates them
+    let storyTitle = ''
+    const splitIndex = storyText.indexOf('\n\n')
+    if (splitIndex !== -1) {
+      const possibleTitle = storyText.slice(0, splitIndex).trim()
+      // Sanity check: title should be short (<= 80 chars) and not contain common prose punctuation patterns
+      if (possibleTitle && possibleTitle.length <= 80 && !possibleTitle.includes('. ')) {
+        storyTitle = possibleTitle
+        storyText = storyText.slice(splitIndex + 2).trim()
+      }
+    }
+
     const wordCount = storyText.split(/\s+/).length
     console.log('SHORT STORY — GENERATION COMPLETE')
     console.log('───────────────────────────────────────────────────────')
+    console.log('Title:', storyTitle || '(none)')
     console.log('Word count:', wordCount)
     console.log('═══════════════════════════════════════════════════════\n')
 
-    return res.json({ success: true, storyText, wordCount, authorName: author })
+    return res.json({ success: true, storyText, storyTitle, wordCount, authorName: author })
   } catch (error) {
     console.error('Generate short story error:', error)
     return res.status(500).json({ error: 'Failed to generate short story', details: error.message })

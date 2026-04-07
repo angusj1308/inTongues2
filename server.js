@@ -6754,6 +6754,111 @@ async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLa
   return { audioUrl, wordTimestamps }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Cover painting generation — picks a scene with Haiku, paints with gpt-image-1
+// ─────────────────────────────────────────────────────────────────────────────
+async function pickCoverScene(storyText) {
+  if (!anthropicClient) throw new Error('Anthropic client not configured')
+
+  const prompt = `You are selecting a scene from this story to depict as a book cover painting. Choose a single visual scene that captures the mood and setting without spoiling the plot. Describe only what is visible — no characters' thoughts, no plot summary.
+
+Respond in this exact format and nothing else:
+
+Scene: [one or two sentences describing what a painter would see]
+
+STORY:
+${storyText}`
+
+  const response = await anthropicClient.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 300,
+    messages: [{ role: 'user', content: prompt }],
+  })
+  const text = response.content.find((b) => b.type === 'text')?.text || ''
+  return text.replace(/^Scene:\s*/i, '').trim()
+}
+
+async function generateCoverImage(prompt) {
+  if (!client) throw new Error('OpenAI client not configured')
+
+  const result = await client.images.generate({
+    model: 'gpt-image-1',
+    prompt,
+    size: '1024x1536',
+    quality: 'high',
+    n: 1,
+  })
+  const b64 = result.data?.[0]?.b64_json
+  if (!b64) throw new Error('No image data returned from gpt-image-1')
+  return Buffer.from(b64, 'base64')
+}
+
+app.post('/api/generate-cover', async (req, res) => {
+  let storyRef
+  try {
+    const { uid, storyId, force } = req.body || {}
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const snap = await storyRef.get()
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const data = snap.data() || {}
+
+    // Skip if cover already exists, unless forced
+    if (data.coverUrl && !force) {
+      return res.json({ success: true, coverUrl: data.coverUrl, skipped: true })
+    }
+
+    const storyText = data.adaptedTextBlob || ''
+    if (!storyText.trim()) {
+      return res.status(400).json({ error: 'Story has no text' })
+    }
+
+    await storyRef.update({ coverStatus: 'processing' })
+
+    console.log(`\nCover generation for story ${storyId}`)
+    console.log('Step 1: Picking scene with Haiku...')
+    const sceneDescription = await pickCoverScene(storyText)
+    console.log('Scene:', sceneDescription)
+
+    const imagePrompt = `Impressionist oil painting. ${sceneDescription}. Loose, textured brushstrokes.`
+    console.log('Step 2: Generating image...')
+    const imageBuffer = await generateCoverImage(imagePrompt)
+
+    console.log('Step 3: Uploading to Firebase Storage...')
+    const coverUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
+    if (!coverUrl) throw new Error('Failed to upload cover to Firebase Storage')
+
+    await storyRef.update({
+      coverUrl,
+      coverImageUrl: coverUrl,
+      coverStatus: 'ready',
+      coverScene: sceneDescription,
+    })
+    console.log('Cover ready:', coverUrl, '\n')
+
+    return res.json({ success: true, coverUrl, coverScene: sceneDescription })
+  } catch (err) {
+    console.error('Cover generation failed:', err)
+    if (storyRef) {
+      try {
+        await storyRef.update({
+          coverStatus: 'error',
+          coverError: err?.message || 'Cover generation failed',
+        })
+      } catch (updateErr) {
+        console.error('Failed to record cover error on story:', updateErr)
+      }
+    }
+    return res.status(500).json({ error: 'Cover generation failed', details: err?.message })
+  }
+})
+
 app.post('/api/generate-audio-book', async (req, res) => {
   let storyRef
 

@@ -106,6 +106,7 @@ const Reader = ({ initialMode }) => {
   const { user, profile } = useAuth()
 
   const [chapters, setChapters] = useState([])
+  const [storyTitle, setStoryTitle] = useState('')
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -585,6 +586,7 @@ const Reader = ({ initialMode }) => {
       setLoading(true)
       setIsGeneratedBook(false)
       setGeneratedBookData(null)
+      setStoryTitle('')
 
       try {
         // First try regular stories collection
@@ -593,6 +595,7 @@ const Reader = ({ initialMode }) => {
 
         if (storySnap.exists()) {
           const storyData = storySnap.data() || {}
+          setStoryTitle(storyData.storyTitle || '')
 
           if (storyData.isFlat) {
             const flatChapter = {
@@ -2072,6 +2075,9 @@ const Reader = ({ initialMode }) => {
                 </div>
               )}
               <div className="reader-content-column">
+                {storyTitle && (
+                  <h1 className="reader-story-title">{storyTitle}</h1>
+                )}
                 {chapters.map((chapter, chapterIndex) => (
                   <div key={chapter.id || chapterIndex} className="reader-chapter-block">
                     {chapter.adaptedChapterHeader && (

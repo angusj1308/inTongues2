@@ -3477,6 +3477,15 @@ textarea {
   padding-bottom: 4rem;
 }
 
+.reader-story-title {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 2.5rem;
+  font-weight: 400;
+  text-align: center;
+  margin: 0 0 3rem;
+  line-height: 1.2;
+}
+
 .auto-known-bubble {
   position: sticky;
   top: 90px;

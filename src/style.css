@@ -154,7 +154,7 @@ a:hover {
 
 [data-theme='dark'] .home-grid-divider,
 [data-theme='dark'] .home-row-divider {
-  background: #44403c;
+  background: transparent;
 }
 
 /* Dark mode - book tiles and cards */
@@ -599,7 +599,7 @@ textarea {
 .dashboard-brand-line {
   flex: 1;
   height: 0.75px;
-  background: #be123c;
+  background: transparent;
 }
 
 .dashboard-brand-flag {
@@ -23383,13 +23383,13 @@ body.active-pass-locked {
 
 .home-grid-divider {
   width: 0.75px;
-  background: #be123c;
+  background: transparent;
   align-self: stretch;
 }
 
 .home-row-divider {
   height: 0.75px;
-  background: #be123c;
+  background: transparent;
   width: 100%;
   margin: 0.75rem 0 0.5rem 0;
 }
@@ -24914,7 +24914,7 @@ body.active-pass-locked {
 
 [data-theme='dark'] .home-grid-divider,
 [data-theme='dark'] .home-row-divider {
-  background: #be123c;
+  background: transparent;
 }
 
 [data-theme='dark'] .reading-card-description {
@@ -25042,7 +25042,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .dashboard-brand-line {
-  background: #be123c;
+  background: transparent;
 }
 
 /* Routine Builder - Minimal */

@@ -24,6 +24,7 @@ import { regeneratePhases, executePhase, generateChapter, resetGeneration, cance
 import { rewriteProse, validateCoherence, repairCoherence, regenerateConcept, generateStoryProse } from '../services/generator'
 import generateIcon from '../assets/Generate.png'
 import importIcon from '../assets/import.png'
+import exploreIcon from '../assets/explore.png'
 
 // Target language translations for card headers
 const CARD_HEADERS = {
@@ -1758,7 +1759,7 @@ const Dashboard = () => {
                       className="home-card reading-action-card"
                       onClick={() => setShowGutenbergModal(true)}
                     >
-                      <div className="reading-card-icon-placeholder" />
+                      <img src={exploreIcon} alt="" className="reading-card-icon" />
                       <h3 className="home-card-title">{getCardHeader(activeLanguage, 'explore')}</h3>
                       <p className="reading-card-description">
                         Explore Gutenberg's vast library of classics, ready to be adapted to your level.

@@ -15,6 +15,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { toLanguageLabel } from '../constants/languages'
+import { DEFAULT_PALETTE, resolvePalette } from '../constants/highlightColors'
 
 const AuthContext = createContext()
 
@@ -62,6 +63,19 @@ export const AuthProvider = ({ children }) => {
 
     return unsubscribe
   }, [buildProfile])
+
+  // Sync the active highlight palette to CSS variables on :root.
+  // Consumers (WordToken, Reader pills, Cinema, Karaoke, etc.) read these
+  // via var(--hlt-new) / var(--hlt-recognised) / var(--hlt-familiar), so
+  // changing the profile field flips every highlight on the page instantly.
+  useEffect(() => {
+    const paletteName = profile?.highlightPalette || DEFAULT_PALETTE
+    const palette = resolvePalette(paletteName)
+    const root = document.documentElement
+    root.style.setProperty('--hlt-new', palette.new)
+    root.style.setProperty('--hlt-recognised', palette.recognised)
+    root.style.setProperty('--hlt-familiar', palette.familiar)
+  }, [profile?.highlightPalette])
 
   const signup = useCallback(
     async (email, password) => {

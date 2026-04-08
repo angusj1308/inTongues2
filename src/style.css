@@ -15,6 +15,12 @@
   --dashboard-surface-contrast: #ffffff;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Highlight palette fallback (Terracotta default).
+     AuthProvider overrides these on document.documentElement when
+     profile.highlightPalette changes. */
+  --hlt-new: #B56545;
+  --hlt-recognised: #CB8E72;
+  --hlt-familiar: #E2C4B0;
 }
 
 /* Dark mode - warm stone palette */
@@ -3257,6 +3263,17 @@ textarea {
   opacity: 0.85;
 }
 
+.reader-palette-trigger .palette-circle {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--hlt-new);
+  border: 1px solid currentColor;
+  opacity: 0.85;
+  transition: background-color 0.2s ease;
+}
+
 .reader-theme-menu {
   position: relative;
 }
@@ -5514,27 +5531,27 @@ html.reader-active body {
   color: #78716c;
 }
 
-/* N - New: muted red at 40% opacity (matches STATUS_OPACITY.new) */
+/* N - New: active palette --hlt-new at 40% mix */
 .intensive-status-pill--new.is-active {
-  background: color-mix(in srgb, #0f172a 40%, white);
+  background: color-mix(in srgb, var(--hlt-new) 40%, white);
   color: #8B1525;
 }
 
-/* U - Unknown: muted red at 40% (matches STATUS_OPACITY.unknown) */
+/* U - Unknown: same as new */
 .intensive-status-pill--unknown.is-active {
-  background: color-mix(in srgb, #0f172a 40%, white);
+  background: color-mix(in srgb, var(--hlt-new) 40%, white);
   color: #8B1525;
 }
 
-/* R - Recognised: muted red at 28% (matches STATUS_OPACITY.recognised) */
+/* R - Recognised: active palette --hlt-recognised at 40% mix */
 .intensive-status-pill--recognised.is-active {
-  background: color-mix(in srgb, #0f172a 28%, white);
+  background: color-mix(in srgb, var(--hlt-recognised) 40%, white);
   color: #8B1525;
 }
 
-/* F - Familiar: muted red at 16% (matches STATUS_OPACITY.familiar) */
+/* F - Familiar: active palette --hlt-familiar at 40% mix */
 .intensive-status-pill--familiar.is-active {
-  background: color-mix(in srgb, #0f172a 16%, white);
+  background: color-mix(in srgb, var(--hlt-familiar) 40%, white);
   color: #78716c;
 }
 

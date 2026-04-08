@@ -22,7 +22,13 @@ import {
   toLanguageLabel,
 } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
-import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../constants/highlightColors'
+import {
+  HIGHLIGHT_COLOR,
+  STATUS_OPACITY,
+  PALETTE_ORDER,
+  DEFAULT_PALETTE,
+  resolvePalette,
+} from '../constants/highlightColors'
 
 const themeOptions = [
   {
@@ -103,7 +109,7 @@ const Reader = ({ initialMode }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { id, language: languageParam } = useParams()
-  const { user, profile } = useAuth()
+  const { user, profile, updateProfile } = useAuth()
 
   const [chapters, setChapters] = useState([])
   const [storyTitle, setStoryTitle] = useState('')
@@ -1668,6 +1674,17 @@ const Reader = ({ initialMode }) => {
     setReaderFont(fontOptions[nextIndex].id)
   }
 
+  const currentPaletteName = profile?.highlightPalette || DEFAULT_PALETTE
+  const currentPalette = resolvePalette(currentPaletteName)
+
+  const cyclePalette = () => {
+    const idx = PALETTE_ORDER.indexOf(currentPaletteName)
+    const next = PALETTE_ORDER[(idx === -1 ? 0 : idx + 1) % PALETTE_ORDER.length]
+    updateProfile({ highlightPalette: next }).catch((err) => {
+      console.error('Failed to update palette:', err)
+    })
+  }
+
   const handleModeSelect = (modeId) => {
     setReaderMode(modeId)
   }
@@ -2027,6 +2044,19 @@ const Reader = ({ initialMode }) => {
                       <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                     </svg>
                   )}
+                </button>
+
+                <button
+                  className="reader-header-button icon-button reader-palette-trigger"
+                  type="button"
+                  aria-label={`Highlight palette: ${currentPalette.label}. Click to change.`}
+                  title={`Highlight: ${currentPalette.label}`}
+                  onClick={(e) => {
+                    cyclePalette()
+                    e.currentTarget.blur()
+                  }}
+                >
+                  <span className="palette-circle" />
                 </button>
 
                 <button

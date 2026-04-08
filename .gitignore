@@ -29,3 +29,10 @@ acess token.pages
 serviceAccountKey.json
 .env
 .env.*
+
+# Python
+__pycache__/
+*.pyc
+
+# Downloaded cover fonts (fetched at runtime, not versioned)
+scripts/fonts/

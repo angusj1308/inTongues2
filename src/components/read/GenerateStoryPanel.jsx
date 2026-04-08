@@ -242,6 +242,8 @@ const GenerateStoryPanel = ({
         audioStatus: generateAudio ? 'pending' : 'none',
         fullAudioUrl: null,
         voiceId: null,
+        coverUrl: null,
+        coverStatus: 'pending',
       })
 
       // Trigger audio generation if requested
@@ -255,6 +257,17 @@ const GenerateStoryPanel = ({
         } catch (audioErr) {
           console.error('Audio trigger failed:', audioErr)
         }
+      }
+
+      // Trigger cover generation (fire-and-forget)
+      try {
+        fetch('http://localhost:4000/api/generate-cover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
+        }).catch((coverErr) => console.error('Cover trigger failed:', coverErr))
+      } catch (coverErr) {
+        console.error('Cover trigger failed:', coverErr)
       }
 
       if (onClose) onClose()

@@ -6754,6 +6754,185 @@ async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLa
   return { audioUrl, wordTimestamps }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Cover painting generation — picks a scene with Haiku, paints with gpt-image-1
+// ─────────────────────────────────────────────────────────────────────────────
+const COVER_FONTS_DIR = path.join(process.cwd(), 'scripts', 'fonts')
+const COVER_FONT_URLS = {
+  'Lora-Variable.ttf':
+    'https://github.com/google/fonts/raw/main/ofl/lora/Lora%5Bwght%5D.ttf',
+  'texgyreheros-regular.otf':
+    'https://mirrors.ctan.org/fonts/tex-gyre/opentype/texgyreheros-regular.otf',
+}
+
+async function ensureCoverFonts() {
+  await fs.mkdir(COVER_FONTS_DIR, { recursive: true })
+  for (const [name, url] of Object.entries(COVER_FONT_URLS)) {
+    const dest = path.join(COVER_FONTS_DIR, name)
+    try {
+      await fs.access(dest)
+      continue
+    } catch {}
+    console.log(`Downloading cover font: ${name}`)
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to download ${name}: HTTP ${response.status}`)
+    }
+    const buf = Buffer.from(await response.arrayBuffer())
+    await fs.writeFile(dest, buf)
+  }
+}
+
+function runCoverCompositor(paintingPath, title, level, outputPath) {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'compose_cover.py')
+    const proc = spawn('python3', [
+      scriptPath,
+      '--painting', paintingPath,
+      '--title', title,
+      '--level', level,
+      '--output', outputPath,
+    ])
+    let stderr = ''
+    proc.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+    proc.on('error', (err) => reject(new Error(`Failed to spawn python3: ${err.message}`)))
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`compose_cover.py exited with code ${code}: ${stderr.trim()}`))
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+async function pickCoverScene(storyText) {
+  if (!anthropicClient) throw new Error('Anthropic client not configured')
+
+  const prompt = `You are selecting a scene from this story to depict as a book cover painting. Choose a single visual scene that captures the mood and setting without spoiling the plot. Describe only what is visible — no characters' thoughts, no plot summary.
+
+Respond in this exact format and nothing else:
+
+Scene: [one or two sentences describing what a painter would see]
+
+STORY:
+${storyText}`
+
+  const response = await anthropicClient.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 300,
+    messages: [{ role: 'user', content: prompt }],
+  })
+  const text = response.content.find((b) => b.type === 'text')?.text || ''
+  return text.replace(/^Scene:\s*/i, '').trim()
+}
+
+async function generateCoverImage(prompt) {
+  if (!client) throw new Error('OpenAI client not configured')
+
+  const result = await client.images.generate({
+    model: 'gpt-image-1',
+    prompt,
+    size: '1024x1536',
+    quality: 'high',
+    n: 1,
+  })
+  const b64 = result.data?.[0]?.b64_json
+  if (!b64) throw new Error('No image data returned from gpt-image-1')
+  return Buffer.from(b64, 'base64')
+}
+
+app.post('/api/generate-cover', async (req, res) => {
+  let storyRef
+  try {
+    const { uid, storyId, force } = req.body || {}
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const snap = await storyRef.get()
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const data = snap.data() || {}
+
+    // Skip if cover already exists, unless forced
+    if (data.coverUrl && !force) {
+      return res.json({ success: true, coverUrl: data.coverUrl, skipped: true })
+    }
+
+    const storyText = data.adaptedTextBlob || ''
+    if (!storyText.trim()) {
+      return res.status(400).json({ error: 'Story has no text' })
+    }
+
+    await storyRef.update({ coverStatus: 'processing' })
+
+    console.log(`\nCover generation for story ${storyId}`)
+    console.log('Step 1: Picking scene with Haiku...')
+    const sceneDescription = await pickCoverScene(storyText)
+    console.log('Scene:', sceneDescription)
+
+    const imagePrompt = `Impressionist oil painting. ${sceneDescription}. Loose, textured brushstrokes.`
+    console.log('Step 2: Generating image...')
+    const imageBuffer = await generateCoverImage(imagePrompt)
+
+    console.log('Step 3: Compositing cover...')
+    await ensureCoverFonts()
+
+    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
+    const tempComposed = path.join(os.tmpdir(), `cover-composed-${tempId}.png`)
+
+    let coverBuffer
+    try {
+      await fs.writeFile(tempPainting, imageBuffer)
+
+      const title = data.storyTitle || data.title || 'Untitled'
+      // Map Native → Advanced for correct CEFR labelling on the cover.
+      // Frontend continues to display "Native" — this mapping is cover-only.
+      const storedLevel = data.level || 'Intermediate'
+      const coverLevel = storedLevel === 'Native' ? 'Advanced' : storedLevel
+      const levelLine = `${coverLevel} ${data.language || ''}`.trim()
+
+      await runCoverCompositor(tempPainting, title, levelLine, tempComposed)
+      coverBuffer = await fs.readFile(tempComposed)
+    } finally {
+      await fs.unlink(tempPainting).catch(() => {})
+      await fs.unlink(tempComposed).catch(() => {})
+    }
+
+    console.log('Step 4: Uploading to Firebase Storage...')
+    const coverUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
+    if (!coverUrl) throw new Error('Failed to upload cover to Firebase Storage')
+
+    await storyRef.update({
+      coverUrl,
+      coverImageUrl: coverUrl,
+      coverStatus: 'ready',
+      coverScene: sceneDescription,
+    })
+    console.log('Cover ready:', coverUrl, '\n')
+
+    return res.json({ success: true, coverUrl, coverScene: sceneDescription })
+  } catch (err) {
+    console.error('Cover generation failed:', err)
+    if (storyRef) {
+      try {
+        await storyRef.update({
+          coverStatus: 'error',
+          coverError: err?.message || 'Cover generation failed',
+        })
+      } catch (updateErr) {
+        console.error('Failed to record cover error on story:', updateErr)
+      }
+    }
+    return res.status(500).json({ error: 'Cover generation failed', details: err?.message })
+  }
+})
+
 app.post('/api/generate-audio-book', async (req, res) => {
   let storyRef
 
@@ -9098,8 +9277,7 @@ app.post('/api/generate/short-story', async (req, res) => {
 
     const titleInstruction = ' Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words.'
 
-    if (resolvedLevel === 'Beginner') {
-      developerMessage = `You are a fiction generation engine that writes original stories for language learners.
+    const cefrDeveloperMessage = `You are a fiction generation engine that writes original stories for language learners.
 
 In the user message you will receive the an author name, genre, setting and a CEFR language level.
 
@@ -9138,9 +9316,16 @@ RULES
 
 Format the story as normal prose paragraphs. Do not place each sentence on its own line. Group sentences into paragraphs by scene, location, or action shift, as in published fiction. Respond in prose only. Do not include preambles or summaries.`
 
+    if (resolvedLevel === 'Beginner') {
+      developerMessage = cefrDeveloperMessage
+
       userMessage = `Author: ${author}  Level: Beginner  Language: ${language.trim()}
 
 Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}.${titleInstruction}`
+    } else if (resolvedLevel === 'Intermediate') {
+      developerMessage = cefrDeveloperMessage
+
+      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in Intermediate B1-B2 ${language.trim()}. The story is to be set in ${settingText}. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. However, you must also strictly adhere to the authentic narrative style and prose of ${author}. Respond only in prose with no preambles or summaries.${titleInstruction}`
     } else {
       // Native (and fallback for any unrecognized level)
       developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`

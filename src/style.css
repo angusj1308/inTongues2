@@ -11,8 +11,8 @@
   -webkit-font-smoothing: antialiased;
   --accent-color: #111111;
   --accent-red: #0f172a;
-  --dashboard-surface: #ffffff;
-  --dashboard-surface-contrast: #ffffff;
+  --dashboard-surface: #FAF6F0;
+  --dashboard-surface-contrast: #FAF6F0;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   /* Highlight palette fallbacks (Terracotta default, light + dark variants).
@@ -757,7 +757,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #ffffff;
+  background: #FAF6F0;
 }
 
 .dashboard-wrapper {
@@ -6744,13 +6744,13 @@ html.reader-active body {
 }
 
 .reader-themed .dashboard-header {
-  background: #fff;
+  background: #FAF6F0;
   color: #0f172a;
 }
 
 .reader-themed[data-reader-tone='dark'] .dashboard-header {
-  background: #0a0a0a;
-  color: #ffffff;
+  background: #1C1A17;
+  color: #E8E0D4;
 }
 
 .reader-themed[data-reader-tone='dark'] {

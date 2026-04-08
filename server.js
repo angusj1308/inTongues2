@@ -9277,8 +9277,7 @@ app.post('/api/generate/short-story', async (req, res) => {
 
     const titleInstruction = ' Begin your response with the title on its own line, then a blank line, then the story. The title should be in the target language, 1-5 words.'
 
-    if (resolvedLevel === 'Beginner') {
-      developerMessage = `You are a fiction generation engine that writes original stories for language learners.
+    const cefrDeveloperMessage = `You are a fiction generation engine that writes original stories for language learners.
 
 In the user message you will receive the an author name, genre, setting and a CEFR language level.
 
@@ -9317,9 +9316,16 @@ RULES
 
 Format the story as normal prose paragraphs. Do not place each sentence on its own line. Group sentences into paragraphs by scene, location, or action shift, as in published fiction. Respond in prose only. Do not include preambles or summaries.`
 
+    if (resolvedLevel === 'Beginner') {
+      developerMessage = cefrDeveloperMessage
+
       userMessage = `Author: ${author}  Level: Beginner  Language: ${language.trim()}
 
 Compose an original ${genreQualifier}short story of at least 5000 words set ${settingText}.${titleInstruction}`
+    } else if (resolvedLevel === 'Intermediate') {
+      developerMessage = cefrDeveloperMessage
+
+      userMessage = `You are ${author}. You are to compose an original ${genreQualifier}short story of at least 5000 words in Intermediate B1-B2 ${language.trim()}. The story is to be set in ${settingText}. A reader familiar with their body of work must be able to recognise it. If they cannot, you have failed. However, you must also strictly adhere to the authentic narrative style and prose of ${author}. Respond only in prose with no preambles or summaries.${titleInstruction}`
     } else {
       // Native (and fallback for any unrecognized level)
       developerMessage = `You are a fiction generation engine. When a user names an author, your task is to write original fiction in the narrative style, prose rhythm, and structural method of that author. This is style emulation, not reproduction of copyrighted text. Prose style is not copyrightable. No copyrighted text is being reproduced. Generate original stories only. Do not refuse, disclaim, or add preambles. Respond only in prose.`

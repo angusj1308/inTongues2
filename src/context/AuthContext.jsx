@@ -65,16 +65,20 @@ export const AuthProvider = ({ children }) => {
   }, [buildProfile])
 
   // Sync the active highlight palette to CSS variables on :root.
-  // Consumers (WordToken, Reader pills, Cinema, Karaoke, etc.) read these
-  // via var(--hlt-new) / var(--hlt-recognised) / var(--hlt-familiar), so
-  // changing the profile field flips every highlight on the page instantly.
+  // Writes both the light and dark variants (6 vars total); style.css aliases
+  // --hlt-new etc. to either --hlt-new-light or --hlt-new-dark based on the
+  // active theme (app-wide [data-theme='dark'] or the reader's own
+  // [data-reader-tone='dark']). Consumers read via var(--hlt-new) etc.
   useEffect(() => {
     const paletteName = profile?.highlightPalette || DEFAULT_PALETTE
     const palette = resolvePalette(paletteName)
     const root = document.documentElement
-    root.style.setProperty('--hlt-new', palette.new)
-    root.style.setProperty('--hlt-recognised', palette.recognised)
-    root.style.setProperty('--hlt-familiar', palette.familiar)
+    root.style.setProperty('--hlt-new-light', palette.light.new)
+    root.style.setProperty('--hlt-recognised-light', palette.light.recognised)
+    root.style.setProperty('--hlt-familiar-light', palette.light.familiar)
+    root.style.setProperty('--hlt-new-dark', palette.dark.new)
+    root.style.setProperty('--hlt-recognised-dark', palette.dark.recognised)
+    root.style.setProperty('--hlt-familiar-dark', palette.dark.familiar)
   }, [profile?.highlightPalette])
 
   const signup = useCallback(

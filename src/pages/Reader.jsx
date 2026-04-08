@@ -42,8 +42,8 @@ const themeOptions = [
   {
     id: 'pure-black',
     label: 'Pure Black',
-    background: '#000000',
-    text: '#FFFFFF',
+    background: '#1C1A17',
+    text: '#E8E0D4',
     tone: 'dark',
     gutter: 'rgba(255, 255, 255, 0.12)',
   },

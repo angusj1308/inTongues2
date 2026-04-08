@@ -15,12 +15,28 @@
   --dashboard-surface-contrast: #ffffff;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  /* Highlight palette fallback (Terracotta default).
-     AuthProvider overrides these on document.documentElement when
-     profile.highlightPalette changes. */
-  --hlt-new: #B56545;
-  --hlt-recognised: #CB8E72;
-  --hlt-familiar: #E2C4B0;
+  /* Highlight palette fallbacks (Terracotta default, light + dark variants).
+     AuthProvider overrides --hlt-{new,recognised,familiar}-{light,dark} on
+     document.documentElement when profile.highlightPalette changes. The
+     active --hlt-new etc. aliases below pick the light variant by default
+     and are overridden under [data-theme='dark'] and the reader's
+     [data-reader-tone='dark'] scopes. */
+  --hlt-new-light: #B56545;
+  --hlt-recognised-light: #CB8E72;
+  --hlt-familiar-light: #E2C4B0;
+  --hlt-new-dark: #7A6B5E;
+  --hlt-recognised-dark: #5A4435;
+  --hlt-familiar-dark: #3D2E25;
+  --hlt-new: var(--hlt-new-light);
+  --hlt-recognised: var(--hlt-recognised-light);
+  --hlt-familiar: var(--hlt-familiar-light);
+}
+
+[data-theme='dark'],
+.reader-themed[data-reader-tone='dark'] {
+  --hlt-new: var(--hlt-new-dark);
+  --hlt-recognised: var(--hlt-recognised-dark);
+  --hlt-familiar: var(--hlt-familiar-dark);
 }
 
 /* Dark mode - warm stone palette */

@@ -1229,12 +1229,17 @@ For each expression found, return:
 Return a JSON array. Return an empty array [] if no genuine expressions are found.
 Return ONLY valid JSON, no other text.`
 
+    console.log(`[EXPRESSIONS] Sending prompt to LLM (${prompt.length} chars): ${prompt.slice(0, 200)}...`)
+    console.log(`[EXPRESSIONS] Model: gpt-5.4 | Reasoning effort: xhigh`)
+
     const response = await client.responses.create({
       model: 'gpt-5.4',
       reasoning: { effort: 'xhigh' },
       input: prompt,
       text: { format: { type: 'json_object' } },
     })
+
+    console.log(`[EXPRESSIONS] Raw API response:`, JSON.stringify(response?.output?.[0]?.content || response?.output_text || 'NO_CONTENT', null, 2))
 
     let expressions = []
 
@@ -1253,7 +1258,8 @@ Return ONLY valid JSON, no other text.`
         try {
           payload = JSON.parse(candidateText)
         } catch (err) {
-          console.error('Failed to parse expression detection response:', err)
+          console.error(`[EXPRESSIONS] Failed to parse response as JSON: ${err.message}`)
+          console.error(`[EXPRESSIONS] Raw text was: ${candidateText}`)
           return []
         }
       }
@@ -1267,15 +1273,20 @@ Return ONLY valid JSON, no other text.`
     }
 
     // Validate and normalize
-    return expressions
+    const result = expressions
       .filter(e => e && e.expression && e.meaning)
       .map(e => ({
         expression: e.expression.trim().toLowerCase(),
         meaning: e.meaning.trim(),
         literal: e.literal ? e.literal.trim() : null,
       }))
+
+    console.log(`[EXPRESSIONS] Parsed ${result.length} expressions:`)
+    result.forEach((e, i) => console.log(`[EXPRESSIONS]   ${i + 1}. "${e.expression}" → meaning: "${e.meaning}" | literal: "${e.literal}"`))
+
+    return result
   } catch (err) {
-    console.error('Error detecting expressions with LLM:', err)
+    console.error(`[EXPRESSIONS] LLM call failed: ${err.message}`)
     return []
   }
 }
@@ -1284,12 +1295,12 @@ Return ONLY valid JSON, no other text.`
 async function detectAndSaveExpressions(text, language, nativeLanguage = 'english') {
   if (!text || !language) return []
 
-  console.log(`Detecting expressions in ${language} text (${text.length} chars)...`)
+  console.log(`[EXPRESSIONS] detectAndSaveExpressions called — ${language}, ${text.length} chars`)
 
   // Detect expressions using LLM
   const detectedExpressions = await detectExpressionsWithLLM(text, language, nativeLanguage)
 
-  console.log(`Found ${detectedExpressions.length} expressions`)
+  console.log(`[EXPRESSIONS] LLM returned ${detectedExpressions.length} expressions`)
 
   // Save each expression to the database
   const savedExpressions = []
@@ -1299,6 +1310,8 @@ async function detectAndSaveExpressions(text, language, nativeLanguage = 'englis
       savedExpressions.push(expr.expression)
     }
   }
+
+  console.log(`[EXPRESSIONS] Saved ${savedExpressions.length}/${detectedExpressions.length} to Firestore: [${savedExpressions.join(', ')}]`)
 
   return savedExpressions
 }
@@ -7420,18 +7433,21 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
   // Detect and save expressions from the text
   let detectedExpressions = []
   try {
-    console.log(`Detecting expressions for ${contentType} ${contentId}...`)
+    console.log(`[EXPRESSIONS] Content prep triggered detection — contentType: ${contentType}, contentId: ${contentId}`)
     detectedExpressions = await detectAndSaveExpressions(allText, normalizedLang, nativeLanguage)
-    console.log(`Detected ${detectedExpressions.length} expressions`)
+    console.log(`[EXPRESSIONS] Content prep: ${detectedExpressions.length} expressions detected`)
 
     // Save expressions list on content document
     if (detectedExpressions.length > 0) {
       await contentRef.update({
         expressions: detectedExpressions,
       })
+      console.log(`[EXPRESSIONS] Saved expression list to content document (${contentType}/${contentId})`)
+    } else {
+      console.log(`[EXPRESSIONS] No expressions to save to content document`)
     }
   } catch (exprError) {
-    console.error('Error detecting expressions:', exprError)
+    console.error('[EXPRESSIONS] Error during content prep detection:', exprError)
     // Continue - expression detection failures shouldn't block content preparation
   }
 
@@ -7657,6 +7673,24 @@ app.post('/api/content/expressions', async (req, res) => {
   } catch (error) {
     console.error('Error fetching content expressions:', error)
     return res.status(500).json({ error: 'Failed to fetch content expressions' })
+  }
+})
+
+// Test expression detection without saving to Firestore
+app.post('/api/test/detect-expressions', async (req, res) => {
+  const { text, language, nativeLanguage } = req.body || {}
+
+  if (!text || !language) {
+    return res.status(400).json({ error: 'text and language are required' })
+  }
+
+  try {
+    console.log(`[EXPRESSIONS] Test endpoint called — language: ${language}, text length: ${text.length}`)
+    const expressions = await detectExpressionsWithLLM(text, language, nativeLanguage || 'english')
+    return res.json({ expressions, count: expressions.length })
+  } catch (error) {
+    console.error('[EXPRESSIONS] Test endpoint error:', error)
+    return res.status(500).json({ error: 'Expression detection failed' })
   }
 })
 

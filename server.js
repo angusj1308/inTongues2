@@ -7697,6 +7697,66 @@ app.post('/api/test/detect-expressions', async (req, res) => {
   }
 })
 
+// Test expression detection on a stored story (no Firestore writes)
+app.post('/api/test/detect-expressions-story', async (req, res) => {
+  const { uid, storyId } = req.body || {}
+
+  if (!uid || !storyId) {
+    return res.status(400).json({ error: 'uid and storyId are required' })
+  }
+
+  try {
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const storySnap = await storyRef.get()
+
+    if (!storySnap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const storyData = storySnap.data() || {}
+    const language = (storyData.outputLanguage || storyData.language || '').toLowerCase().trim()
+
+    if (!language) {
+      return res.status(400).json({ error: 'Story has no language set' })
+    }
+
+    // Get native language from user profile
+    let nativeLanguage = 'english'
+    try {
+      const userDoc = await firestore.collection('users').doc(uid).get()
+      if (userDoc.exists) {
+        nativeLanguage = (userDoc.data()?.nativeLanguage || 'english').toLowerCase().trim()
+      }
+    } catch (err) {
+      console.error('[EXPRESSIONS] Failed to fetch user native language, defaulting to english:', err)
+    }
+
+    // Extract text — flat stories use adaptedTextBlob, others use pages subcollection
+    let allText = ''
+    if (storyData.isFlat && storyData.adaptedTextBlob) {
+      allText = storyData.adaptedTextBlob
+    } else {
+      const pagesSnap = await storyRef.collection('pages').get()
+      pagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.text || data.originalText || data.adaptedText || '')
+      })
+    }
+
+    allText = allText.trim()
+    if (!allText) {
+      return res.status(400).json({ error: 'Story has no text content' })
+    }
+
+    console.log(`[EXPRESSIONS] Story test endpoint — storyId: ${storyId}, language: ${language}, text length: ${allText.length}`)
+    const expressions = await detectExpressionsWithLLM(allText, language, nativeLanguage)
+    return res.json({ expressions, count: expressions.length, language, textLength: allText.length })
+  } catch (error) {
+    console.error('[EXPRESSIONS] Story test endpoint error:', error)
+    return res.status(500).json({ error: 'Expression detection failed' })
+  }
+})
+
 // Preload cached translations and pronunciations for content
 app.post('/api/content/preload', async (req, res) => {
   const { uid, contentId, contentType, targetLanguage, nativeLanguage, voiceId: requestedVoiceId } = req.body || {}

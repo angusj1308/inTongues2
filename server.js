@@ -1270,6 +1270,8 @@ Return ONLY valid JSON, no other text.`
       expressions = payload
     } else if (payload && Array.isArray(payload.expressions)) {
       expressions = payload.expressions
+    } else if (payload && Array.isArray(payload.result)) {
+      expressions = payload.result
     }
 
     // Validate and normalize

@@ -1265,13 +1265,15 @@ Return ONLY valid JSON, no other text.`
       }
     }
 
-    // Handle both array and object with expressions key
+    // Handle both array and object with any key name
     if (Array.isArray(payload)) {
       expressions = payload
-    } else if (payload && Array.isArray(payload.expressions)) {
-      expressions = payload.expressions
-    } else if (payload && Array.isArray(payload.result)) {
-      expressions = payload.result
+    } else if (payload && typeof payload === 'object') {
+      // Find the first array value in the object, regardless of key name
+      const firstArray = Object.values(payload).find(v => Array.isArray(v))
+      if (firstArray) {
+        expressions = firstArray
+      }
     }
 
     // Validate and normalize

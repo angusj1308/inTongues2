@@ -1,5 +1,6 @@
 import { useMemo, memo, useState } from 'react'
 import { HIGHLIGHT_COLOR } from '../../constants/highlightColors'
+import { normaliseExpression } from '../../services/vocab'
 
 // Eye icon for tracking toggle
 const EyeIcon = ({ open }) => (
@@ -93,8 +94,47 @@ const KaraokeSubtitles = ({
   onWordSelect,
   defaultTrackingEnabled = false,
   showTrackingToggle = true,
+  contentExpressions = [],
 }) => {
   const [trackingEnabled, setTrackingEnabled] = useState(defaultTrackingEnabled)
+
+  // Build set of detected expression texts for matching
+  const detectedExpressionTexts = useMemo(() => {
+    const userExpressions = Object.keys(vocabEntries)
+      .filter((key) => key.includes(' '))
+      .map((key) => normaliseExpression(key))
+
+    const detected = (contentExpressions || [])
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((t) => t.includes(' '))
+
+    return [...new Set([...userExpressions, ...detected])]
+      .sort((a, b) => b.length - a.length)
+  }, [contentExpressions, vocabEntries])
+
+  // For word-timing path: map word indices to expression groups
+  const wordExpressionMap = useMemo(() => {
+    if (!activeSegment?.words?.length || !detectedExpressionTexts.length) return {}
+
+    const words = activeSegment.words
+    const lowerWords = words.map((w) => w.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''))
+    const map = {} // index -> { expressionText, indices }
+
+    for (const expr of detectedExpressionTexts) {
+      const exprParts = expr.split(/\s+/)
+      for (let i = 0; i <= lowerWords.length - exprParts.length; i++) {
+        const match = exprParts.every((part, j) => lowerWords[i + j] === part)
+        if (match) {
+          const fullText = words.slice(i, i + exprParts.length).map((w) => w.text).join(' ')
+          for (let j = 0; j < exprParts.length; j++) {
+            map[i + j] = { expressionText: fullText, indices: Array.from({ length: exprParts.length }, (_, k) => i + k) }
+          }
+        }
+      }
+    }
+
+    return map
+  }, [activeSegment, detectedExpressionTexts])
 
   // Find active segment based on current time
   const activeSegment = useMemo(() => {
@@ -163,6 +203,12 @@ const KaraokeSubtitles = ({
             const entry = vocabEntries[normalised]
             const status = entry?.status || 'new'
 
+            // If this word is part of an expression, clicking sends the full expression
+            const exprInfo = wordExpressionMap[index]
+            const handleWordClick = exprInfo
+              ? (text, event) => onWordClick?.(exprInfo.expressionText, event)
+              : onWordClick
+
             return (
               <KaraokeWord
                 key={`${word.start}-${index}`}
@@ -170,7 +216,7 @@ const KaraokeSubtitles = ({
                 isActive={index === activeWordIndex}
                 isPast={index < activeWordIndex || isInGap}
                 status={status}
-                onWordClick={onWordClick}
+                onWordClick={handleWordClick}
                 trackingEnabled={trackingEnabled}
               />
             )
@@ -180,8 +226,44 @@ const KaraokeSubtitles = ({
     )
   }
 
-  // Fallback: no word-level timing - tokenize text and apply word status colors
-  const tokens = (activeSegment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+  // Fallback: no word-level timing - use expression-aware segmentation
+  const fallbackText = activeSegment.text || ''
+  const isWordChar = (ch) => ch && /\p{L}|\p{N}/u.test(ch)
+
+  const fallbackSegments = (() => {
+    if (!fallbackText || !detectedExpressionTexts.length) return [{ type: 'text', text: fallbackText }]
+
+    const result = []
+    let idx = 0
+    const lower = fallbackText.toLowerCase()
+
+    while (idx < fallbackText.length) {
+      let matched = null
+      for (const expr of detectedExpressionTexts) {
+        if (lower.slice(idx, idx + expr.length) === expr) {
+          const before = idx === 0 ? '' : lower[idx - 1]
+          const after = idx + expr.length >= lower.length ? '' : lower[idx + expr.length]
+          if (!isWordChar(before) && !isWordChar(after)) {
+            matched = expr
+            break
+          }
+        }
+      }
+      if (matched) {
+        result.push({ type: 'phrase', text: fallbackText.slice(idx, idx + matched.length), status: vocabEntries[matched]?.status || 'new' })
+        idx += matched.length
+      } else {
+        let next = fallbackText.length
+        for (const expr of detectedExpressionTexts) {
+          const fi = lower.indexOf(expr, idx)
+          if (fi !== -1 && fi < next) next = fi
+        }
+        result.push({ type: 'text', text: fallbackText.slice(idx, next) })
+        idx = next
+      }
+    }
+    return result
+  })()
 
   return (
     <div
@@ -190,31 +272,44 @@ const KaraokeSubtitles = ({
       style={{ cursor: 'pointer', userSelect: 'text' }}
     >
       <div className="karaoke-line karaoke-line--no-words">
-        {tokens.map((token, index) => {
-          if (!token) return null
-
-          const isWord = /[\p{L}\p{N}]/u.test(token)
-          if (!isWord) {
-            // Punctuation/whitespace - render as-is
-            return <span key={index}>{token}</span>
+        {fallbackSegments.map((segment, segIdx) => {
+          if (segment.type === 'phrase') {
+            const color = getWordColor({ status: segment.status })
+            return (
+              <span
+                key={`phrase-${segIdx}`}
+                className="karaoke-word"
+                style={{ color }}
+                onClick={(e) => onWordClick?.(segment.text, e)}
+              >
+                {segment.text}
+              </span>
+            )
           }
 
-          // Word token - look up status and apply color
-          const normalised = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
-          const entry = vocabEntries[normalised]
-          const status = entry?.status || 'new'
-          const color = getWordColor({ status })
+          const tokens = (segment.text || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+          return tokens.map((token, index) => {
+            if (!token) return null
 
-          return (
-            <span
-              key={index}
-              className="karaoke-word"
-              style={{ color }}
-              onClick={(e) => onWordClick?.(token, e)}
-            >
-              {token}
-            </span>
-          )
+            const isW = /[\p{L}\p{N}]/u.test(token)
+            if (!isW) return <span key={`${segIdx}-${index}`}>{token}</span>
+
+            const normalised = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+            const entry = vocabEntries[normalised]
+            const status = entry?.status || 'new'
+            const color = getWordColor({ status })
+
+            return (
+              <span
+                key={`${segIdx}-${index}`}
+                className="karaoke-word"
+                style={{ color }}
+                onClick={(e) => onWordClick?.(token, e)}
+              >
+                {token}
+              </span>
+            )
+          })
         })}
       </div>
     </div>

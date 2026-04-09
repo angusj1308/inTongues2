@@ -114,6 +114,7 @@ const ExtensiveMode = ({
   nativeLanguage,
   voiceGender = 'male',
   setPopup,
+  contentExpressions = [],
 }) => {
   const [scrubMenuOpen, setScrubMenuOpen] = useState(false)
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false)
@@ -249,6 +250,12 @@ const ExtensiveMode = ({
 
       const { x, y } = getPopupPosition(targetRect)
 
+      // Check for pre-stored expression meaning
+      const normalizedKey = normaliseExpression(text)
+      const detectedExpr = (contentExpressions || []).find(
+        (expr) => normaliseExpression(expr.text || '') === normalizedKey
+      )
+
       const requestId = ++reqIdRef.current
 
       const anchorRect = {
@@ -311,16 +318,24 @@ const ExtensiveMode = ({
 
         if (response.ok) {
           const data = await response.json()
-          translation = data.translation || translation
+          translation = detectedExpr?.meaning || data.translation || translation
           displayText = data.targetText || displayText
-          targetText = data.targetText || translation || 'No translation found'
+          targetText = detectedExpr?.meaning || data.targetText || translation || 'No translation found'
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
+        } else if (detectedExpr?.meaning) {
+          translation = detectedExpr.meaning
+          targetText = detectedExpr.meaning
         }
       } catch (err) {
         console.error('Translation lookup failed', err)
-        translation = 'Translation unavailable. Please try again.'
-        targetText = translation
+        if (detectedExpr?.meaning) {
+          translation = detectedExpr.meaning
+          targetText = detectedExpr.meaning
+        } else {
+          translation = 'Translation unavailable. Please try again.'
+          targetText = translation
+        }
       }
 
       setPopup((prev) =>
@@ -336,7 +351,7 @@ const ExtensiveMode = ({
           : prev,
       )
     },
-    [language, nativeLanguage, voiceGender, setPopup],
+    [contentExpressions, language, nativeLanguage, voiceGender, setPopup],
   )
 
   const handleTranscriptSelection = useCallback(
@@ -748,6 +763,7 @@ const ExtensiveMode = ({
               onUserScroll={handleTranscriptUnsync}
               onResync={handleTranscriptResync}
               syncToken={syncToken}
+              contentExpressions={contentExpressions}
             />
           ) : null}
         </div>

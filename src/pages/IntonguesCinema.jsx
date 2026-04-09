@@ -145,6 +145,7 @@ const IntonguesCinema = () => {
   const [scrubSeconds, setScrubSeconds] = useState(5)
   const [playbackRate, setPlaybackRate] = useState(1)
   const [wordTranslations, setWordTranslations] = useState({})
+  const [contentExpressions, setContentExpressions] = useState([])
 
   // Extensive mode state - defaults to subtitles for immediate value
   // textDisplayMode: 'off' | 'subtitles' | 'transcript'
@@ -738,6 +739,46 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }, [transcriptLanguage, user])
 
+  // Fetch content expressions (idioms detected by LLM)
+  useEffect(() => {
+    if (!user || !id || !transcriptLanguage) {
+      setContentExpressions([])
+      return
+    }
+
+    let isActive = true
+
+    const fetchExpressions = async () => {
+      try {
+        const contentType = isSpotify ? 'spotify' : 'youtube'
+        const response = await fetch('http://localhost:4000/api/content/expressions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: user.uid,
+            contentId: id,
+            contentType,
+            language: transcriptLanguage,
+          }),
+        })
+
+        if (!response.ok) throw new Error('Failed to fetch expressions')
+
+        const data = await response.json()
+        if (isActive && Array.isArray(data.expressions)) {
+          setContentExpressions(data.expressions)
+        }
+      } catch (err) {
+        console.error('Failed to fetch content expressions:', err)
+        if (isActive) setContentExpressions([])
+      }
+    }
+
+    fetchExpressions()
+
+    return () => { isActive = false }
+  }, [user, id, transcriptLanguage, isSpotify])
+
   // Preload translations from cache when content opens
   useEffect(() => {
     if (!id || !user || !transcriptLanguage) return
@@ -1074,12 +1115,18 @@ const normalisePagesToSegments = (pages = []) =>
   }
 
   const renderHighlightedText = useCallback((text) => {
-    const expressions = Object.keys(vocabEntries)
+    const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
+
+    const detectedExpressions = (contentExpressions || [])
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((t) => t.includes(' '))
+
+    const allExpressions = [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
 
-    const segments = segmentTextByExpressions(text || '', expressions)
+    const segments = segmentTextByExpressions(text || '', allExpressions)
 
     const elements = []
 
@@ -1135,7 +1182,7 @@ const normalisePagesToSegments = (pages = []) =>
     })
 
     return elements
-  }, [vocabEntries])
+  }, [vocabEntries, contentExpressions])
 
   async function handleSubtitleWordClick(e) {
     e.stopPropagation()
@@ -1160,6 +1207,12 @@ const normalisePagesToSegments = (pages = []) =>
       let audioBase64 = null
       let audioUrl = null
 
+      // Check for pre-stored expression meaning
+      const normalizedPhrase = normaliseExpression(phrase)
+      const detectedExpr = (contentExpressions || []).find(
+        (expr) => normaliseExpression(expr.text || '') === normalizedPhrase
+      )
+
       // Position popup ABOVE the subtitle
       const popupY = Math.max(10, rect.top + window.scrollY - popupHeight - 12)
 
@@ -1168,7 +1221,7 @@ const normalisePagesToSegments = (pages = []) =>
           x: rect.left + rect.width / 2 + window.scrollX,
           y: popupY,
           word: phrase,
-          translation: missingLanguageMessage,
+          translation: detectedExpr?.meaning || missingLanguageMessage,
           audioBase64: null,
           audioUrl: null,
         })
@@ -1191,14 +1244,16 @@ const normalisePagesToSegments = (pages = []) =>
 
         if (response.ok) {
           const data = await response.json()
-          translation = data.translation || translation
+          translation = detectedExpr?.meaning || data.translation || translation
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
         } else {
           console.error('Phrase translation failed:', await response.text())
+          if (detectedExpr?.meaning) translation = detectedExpr.meaning
         }
       } catch (err) {
         console.error('Error translating phrase:', err)
+        if (detectedExpr?.meaning) translation = detectedExpr.meaning
       }
 
       setPopup({
@@ -1487,6 +1542,7 @@ const normalisePagesToSegments = (pages = []) =>
           darkMode={cinemaDarkMode}
           translations={translations}
           pronunciations={pronunciations}
+          contentExpressions={contentExpressions}
         >
           {videoPlayer}
         </ExtensiveCinemaMode>
@@ -1526,6 +1582,7 @@ const normalisePagesToSegments = (pages = []) =>
           onAdvanceChunk={handleAdvanceChunk}
           renderHighlightedText={renderHighlightedText}
           onSubtitleWordClick={handleSubtitleWordClick}
+          contentExpressions={contentExpressions}
         >
           {videoPlayer}
         </ActiveCinemaMode>
@@ -1557,6 +1614,7 @@ const normalisePagesToSegments = (pages = []) =>
           contentId={id}
           preloadedTranslations={translations}
           preloadedPronunciations={pronunciations}
+          contentExpressions={contentExpressions}
         />
       )
     }

@@ -104,6 +104,7 @@ const ActiveMode = ({
   onSelectStep,
   onScrubChange,
   onAdvanceChunk,
+  contentExpressions = [],
 }) => {
   const rewindButtonRef = useRef(null)
   const scrubMenuRef = useRef(null)
@@ -793,6 +794,7 @@ const ActiveMode = ({
                     onUserScroll={handleTranscriptUnsync}
                     onResync={handleTranscriptResync}
                     syncToken={syncToken}
+                    contentExpressions={contentExpressions}
                   />
                 </div>
               </div>

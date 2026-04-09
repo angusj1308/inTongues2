@@ -17,6 +17,7 @@ const TranscriptPanel = ({
   onResync,
   syncToken = 0,
   darkMode = false,
+  contentExpressions = [],
 }) => {
   // Track vocab version to force TranscriptRoller re-renders when status changes
   const [vocabVersion, setVocabVersion] = useState(0)
@@ -44,6 +45,7 @@ const TranscriptPanel = ({
           isSynced={isSynced}
           onUserScroll={onUserScroll}
           syncToken={syncToken}
+          contentExpressions={contentExpressions}
         />
       </div>
     <div className="transcript-panel-footer">

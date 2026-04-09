@@ -104,6 +104,7 @@ const ActiveCinemaMode = ({
   onAdvanceChunk,
   renderHighlightedText,
   onSubtitleWordClick,
+  contentExpressions = [],
   children: videoPlayer,
 }) => {
   const rewindButtonRef = useRef(null)
@@ -692,6 +693,7 @@ const ActiveCinemaMode = ({
                 onWordClick={activeStep === 4 ? onSubtitleWordClick : undefined}
                 defaultTrackingEnabled={activeStep === 2}
                 showTrackingToggle
+                contentExpressions={contentExpressions}
               />
             </div>
           )}
@@ -961,6 +963,7 @@ const ActiveCinemaMode = ({
             onResync={handleTranscriptResync}
             syncToken={syncToken}
             darkMode
+            contentExpressions={contentExpressions}
           />
         </div>
 

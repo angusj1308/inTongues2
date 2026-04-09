@@ -78,6 +78,7 @@ const TranscriptRoller = ({
   isSynced = true,
   onUserScroll,
   syncToken = 0,
+  contentExpressions = [],
 }) => {
   const containerRef = useRef(null)
   const trackRef = useRef(null)
@@ -90,9 +91,15 @@ const TranscriptRoller = ({
   itemRefs.current = []
 
   const renderedSegments = useMemo(() => {
-    const expressions = Object.keys(vocabEntries)
+    const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
+
+    const detectedExpressions = (contentExpressions || [])
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((t) => t.includes(' '))
+
+    const expressions = [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
 
     const renderWordSegments = (text = '') => {
@@ -157,7 +164,7 @@ const TranscriptRoller = ({
       content: renderWordSegments(segment.text || ''),
       isActive: index === activeIndex,
     }))
-  }, [activeIndex, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
+  }, [activeIndex, contentExpressions, language, onSelectionTranslate, onWordClick, segments, showWordStatus, vocabEntries])
 
   const scrollToActive = useCallback(() => {
     const container = containerRef.current

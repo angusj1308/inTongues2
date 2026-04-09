@@ -160,6 +160,7 @@ const IntensiveCinemaMode = ({
   contentId,
   preloadedTranslations = {},
   preloadedPronunciations = {},
+  contentExpressions = [],
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceWordPairs, setSentenceWordPairs] = useState({})
@@ -514,12 +515,15 @@ const IntensiveCinemaMode = ({
     let audioUrl = null
     let targetText = 'No translation found'
 
-    // Check preloaded data first
+    // Check preloaded data and expression meanings first
     const key = normaliseExpression(text)
     const preloadedTranslation = preloadedTranslations[key]
     const preloadedPronunciation = preloadedPronunciations[key]
+    const detectedExpr = (contentExpressions || []).find(
+      (expr) => normaliseExpression(expr.text || '') === key
+    )
 
-    if (preloadedTranslation || preloadedPronunciation) {
+    if (detectedExpr?.meaning || preloadedTranslation || preloadedPronunciation) {
       const selectionObj = window.getSelection()
       if (!selectionObj || selectionObj.rangeCount === 0) return
 
@@ -532,8 +536,8 @@ const IntensiveCinemaMode = ({
         y,
         word: text,
         displayText: text,
-        translation: preloadedTranslation?.translation || 'No translation found',
-        targetText: preloadedTranslation?.translation || 'No translation found',
+        translation: detectedExpr?.meaning || preloadedTranslation?.translation || 'No translation found',
+        targetText: detectedExpr?.meaning || preloadedTranslation?.translation || 'No translation found',
         audioBase64: null,
         audioUrl: preloadedPronunciation?.audioUrl || null,
       })
@@ -631,9 +635,15 @@ const IntensiveCinemaMode = ({
   }
 
   const renderWordSegments = (text = '') => {
-    const expressions = Object.keys(vocabEntries)
+    const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
+
+    const detectedExpressions = (contentExpressions || [])
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((t) => t.includes(' '))
+
+    const expressions = [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
 
     const elements = []

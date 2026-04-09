@@ -122,6 +122,7 @@ const AudioPlayer = () => {
   const [activeWordTranslations, setActiveWordTranslations] = useState({})
   const [preloadedTranslations, setPreloadedTranslations] = useState({})
   const [preloadedPronunciations, setPreloadedPronunciations] = useState({})
+  const [contentExpressions, setContentExpressions] = useState([])
   const fetchedWordsRef = useRef(new Set())
   const completedPassKeyRef = useRef(new Set())
   const passProgressRef = useRef(new Map())
@@ -625,6 +626,46 @@ const AudioPlayer = () => {
     }
   }, [storyLanguage, user])
 
+  // Fetch content expressions (idioms detected by LLM)
+  useEffect(() => {
+    if (!user || !id || !storyLanguage) {
+      setContentExpressions([])
+      return
+    }
+
+    let isActive = true
+
+    const fetchExpressions = async () => {
+      try {
+        const contentType = isSpotify ? 'spotify' : 'story'
+        const response = await fetch('http://localhost:4000/api/content/expressions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: user.uid,
+            contentId: id,
+            contentType,
+            language: storyLanguage,
+          }),
+        })
+
+        if (!response.ok) throw new Error('Failed to fetch expressions')
+
+        const data = await response.json()
+        if (isActive && Array.isArray(data.expressions)) {
+          setContentExpressions(data.expressions)
+        }
+      } catch (err) {
+        console.error('Failed to fetch content expressions:', err)
+        if (isActive) setContentExpressions([])
+      }
+    }
+
+    fetchExpressions()
+
+    return () => { isActive = false }
+  }, [user, id, storyLanguage, isSpotify])
+
   const isWordChar = (ch) => {
     if (!ch) return false
     return /\p{L}|\p{N}/u.test(ch)
@@ -686,12 +727,18 @@ const AudioPlayer = () => {
   }
 
   const renderHighlightedText = (text) => {
-    const expressions = Object.keys(vocabEntries)
+    const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
+
+    const detectedExpressions = (contentExpressions || [])
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((text) => text.includes(' '))
+
+    const allExpressions = [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
 
-    const segments = segmentTextByExpressions(text || '', expressions)
+    const segments = segmentTextByExpressions(text || '', allExpressions)
 
     const elements = []
 
@@ -771,6 +818,12 @@ const AudioPlayer = () => {
       let audioBase64 = null
       let audioUrl = null
 
+      // Check for pre-stored expression meaning
+      const normalizedPhrase = normaliseExpression(phrase)
+      const detectedExpr = (contentExpressions || []).find(
+        (expr) => normaliseExpression(expr.text || '') === normalizedPhrase
+      )
+
       const ttsLanguage = normalizeLanguageCode(storyLanguage)
 
       if (!ttsLanguage) {
@@ -778,7 +831,7 @@ const AudioPlayer = () => {
           x: rect.left + window.scrollX,
           y: rect.bottom + window.scrollY + 8,
           word: phrase,
-          translation: missingLanguageMessage,
+          translation: detectedExpr?.meaning || missingLanguageMessage,
           audioBase64: null,
           audioUrl: null,
         })
@@ -800,14 +853,16 @@ const AudioPlayer = () => {
 
         if (response.ok) {
           const data = await response.json()
-          translation = data.translation || translation
+          translation = detectedExpr?.meaning || data.translation || translation
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
         } else {
           console.error('Phrase translation failed:', await response.text())
+          if (detectedExpr?.meaning) translation = detectedExpr.meaning
         }
       } catch (err) {
         console.error('Error translating phrase:', err)
+        if (detectedExpr?.meaning) translation = detectedExpr.meaning
       }
 
       setPopup({
@@ -1923,6 +1978,7 @@ const AudioPlayer = () => {
                         nativeLanguage={profile?.nativeLanguage}
                         voiceGender={voiceGender}
                         setPopup={setPopup}
+                        contentExpressions={contentExpressions}
                       />
                     </div>
                   </section>
@@ -1963,6 +2019,7 @@ const AudioPlayer = () => {
                         onSelectStep={handleSelectStep}
                         onScrubChange={setScrubSeconds}
                         onAdvanceChunk={handleAdvanceChunkFromPass4}
+                        contentExpressions={contentExpressions}
                       />
                     </div>
                   </section>
@@ -2105,6 +2162,7 @@ const AudioPlayer = () => {
         preloadedTranslations={preloadedTranslations}
         preloadedPronunciations={preloadedPronunciations}
         contentId={id}
+        contentExpressions={contentExpressions}
       />
 
       {popup && (

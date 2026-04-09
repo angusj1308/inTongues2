@@ -56,6 +56,7 @@ const ExtensiveCinemaMode = ({
   darkMode = true,
   translations = {},
   pronunciations = {},
+  contentExpressions = [],
 }) => {
   const [isTranscriptSynced, setIsTranscriptSynced] = useState(true)
   const [syncToken, setSyncToken] = useState(0)
@@ -134,17 +135,24 @@ const ExtensiveCinemaMode = ({
         height: targetRect.height ?? 0,
       }
 
+      // Check pre-stored expression meaning
+      const detectedExpr = (contentExpressions || []).find(
+        (expr) => normaliseExpression(expr.text || '') === cleanWord
+      )
+
       // Check pre-fetched translations and pronunciations first (single word lookup)
       const prefetchedTranslation = translations[cleanWord] || translations[text]
       const prefetchedPronunciation = pronunciations[cleanWord] || pronunciations[text]
 
-      if (prefetchedTranslation || prefetchedPronunciation) {
+      if (detectedExpr?.meaning || prefetchedTranslation || prefetchedPronunciation) {
         // Handle translation (can be string or object)
         let translation = 'No translation found'
         let audioBase64 = null
         let audioUrl = null
 
-        if (prefetchedTranslation) {
+        if (detectedExpr?.meaning) {
+          translation = detectedExpr.meaning
+        } else if (prefetchedTranslation) {
           if (typeof prefetchedTranslation === 'string') {
             translation = prefetchedTranslation
           } else {
@@ -232,16 +240,24 @@ const ExtensiveCinemaMode = ({
 
         if (response.ok) {
           const data = await response.json()
-          translation = data.translation || translation
+          translation = detectedExpr?.meaning || data.translation || translation
           displayText = data.targetText || displayText
-          targetText = data.targetText || translation || 'No translation found'
+          targetText = detectedExpr?.meaning || data.targetText || translation || 'No translation found'
           audioBase64 = data.audioBase64 || null
           audioUrl = data.audioUrl || null
+        } else if (detectedExpr?.meaning) {
+          translation = detectedExpr.meaning
+          targetText = detectedExpr.meaning
         }
       } catch (err) {
         console.error('Translation lookup failed', err)
-        translation = 'Translation unavailable. Please try again.'
-        targetText = translation
+        if (detectedExpr?.meaning) {
+          translation = detectedExpr.meaning
+          targetText = detectedExpr.meaning
+        } else {
+          translation = 'Translation unavailable. Please try again.'
+          targetText = translation
+        }
       }
 
       setPopup((prev) =>
@@ -257,7 +273,7 @@ const ExtensiveCinemaMode = ({
           : prev
       )
     },
-    [language, nativeLanguage, voiceGender, popup, setPopup, translations, pronunciations]
+    [contentExpressions, language, nativeLanguage, voiceGender, popup, setPopup, translations, pronunciations]
   )
 
   const handleTranscriptSelection = useCallback(
@@ -378,6 +394,7 @@ const ExtensiveCinemaMode = ({
                 showWordStatus={showWordStatus}
                 onWordClick={handleTranscriptWordClick}
                 onWordSelect={onSubtitleWordClick}
+                contentExpressions={contentExpressions}
               />
             </div>
           )}
@@ -402,6 +419,7 @@ const ExtensiveCinemaMode = ({
           onUserScroll={handleTranscriptUnsync}
           onResync={handleTranscriptResync}
           syncToken={syncToken}
+          contentExpressions={contentExpressions}
         />
       </FloatingTranscriptPanel>
     </div>

@@ -170,6 +170,7 @@ const IntensiveListeningMode = ({
   preloadedTranslations = {},
   preloadedPronunciations = {},
   contentId,
+  contentExpressions = [],
 }) => {
   const [sentenceTranslations, setSentenceTranslations] = useState({})
   const [sentenceWordPairs, setSentenceWordPairs] = useState({}) // { sentence: [{source, target, audioBase64}] }
@@ -450,6 +451,12 @@ const IntensiveListeningMode = ({
     if (parts.length > 1) return
 
     const key = normaliseExpression(text)
+
+    // Check for pre-stored expression meaning
+    const detectedExpr = (contentExpressions || []).find(
+      (expr) => normaliseExpression(expr.text || '') === key
+    )
+
     let translation = null
     let audioBase64 = null
     let audioUrl = null
@@ -483,7 +490,7 @@ const IntensiveListeningMode = ({
     const preloadedTranslation = preloadedTranslations[key]
     const preloadedPronunciation = preloadedPronunciations[key]
 
-    if (preloadedTranslation || preloadedPronunciation) {
+    if (detectedExpr?.meaning || preloadedTranslation || preloadedPronunciation) {
       const selectionObj = window.getSelection()
       if (!selectionObj || selectionObj.rangeCount === 0) return
 
@@ -496,8 +503,8 @@ const IntensiveListeningMode = ({
         y,
         word: text,
         displayText: text,
-        translation: preloadedTranslation?.translation || 'No translation found',
-        targetText: preloadedTranslation?.translation || 'No translation found',
+        translation: detectedExpr?.meaning || preloadedTranslation?.translation || 'No translation found',
+        targetText: detectedExpr?.meaning || preloadedTranslation?.translation || 'No translation found',
         audioBase64: null,
         audioUrl: preloadedPronunciation?.audioUrl || null,
       })
@@ -521,8 +528,8 @@ const IntensiveListeningMode = ({
 
       if (response.ok) {
         const data = await response.json()
-        translation = data.translation || 'No translation found'
-        targetText = data.targetText || translation || 'No translation found'
+        translation = detectedExpr?.meaning || data.translation || 'No translation found'
+        targetText = detectedExpr?.meaning || data.targetText || translation || 'No translation found'
         audioBase64 = data.audioBase64 || null
         audioUrl = data.audioUrl || null
       } else {
@@ -613,9 +620,15 @@ const IntensiveListeningMode = ({
   }
 
   const renderWordSegments = (text = '') => {
-    const expressions = Object.keys(vocabEntries)
+    const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
+
+    const detectedExpressions = (contentExpressions || [])
+      .map((expr) => normaliseExpression(expr.text || ''))
+      .filter((t) => t.includes(' '))
+
+    const expressions = [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
 
     const elements = []

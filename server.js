@@ -5881,6 +5881,39 @@ app.post('/api/adapt-imported-book', async (req, res) => {
       }
     }
 
+    // Detect expressions from adapted text
+    try {
+      let nativeLanguage = 'english'
+      try {
+        const userDoc = await firestore.collection('users').doc(uid).get()
+        if (userDoc.exists) {
+          nativeLanguage = (userDoc.data()?.nativeLanguage || 'english').toLowerCase().trim()
+        }
+      } catch (err) {
+        console.error('[EXPRESSIONS] Failed to fetch user native language, defaulting to english:', err)
+      }
+
+      let allText = ''
+      const adaptedPagesSnap = await pagesRef.orderBy('index').get()
+      adaptedPagesSnap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        allText += ' ' + (data.adaptedText || data.text || data.originalText || '')
+      })
+      allText = allText.trim()
+
+      if (allText) {
+        const normalizedLang = (resolvedTargetLanguage || targetLanguage || '').toLowerCase().trim()
+        console.log(`[EXPRESSIONS] Running detection on imported book ${storyId} (${allText.length} chars)`)
+        const detectedExpressions = await detectAndSaveExpressions(allText, normalizedLang, nativeLanguage)
+        if (detectedExpressions.length > 0) {
+          await storyRef.update({ expressions: detectedExpressions })
+          console.log(`[EXPRESSIONS] Saved ${detectedExpressions.length} expressions to imported book ${storyId}`)
+        }
+      }
+    } catch (exprError) {
+      console.error('[EXPRESSIONS] Error detecting expressions for imported book:', exprError)
+    }
+
     await storyRef.update({
       status: 'ready',
       adaptedPages: processedCount,
@@ -5952,6 +5985,19 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
 
     let totalAdaptedPages = 0
     let completedChapters = 0
+
+    // Fetch native language for expression detection
+    let nativeLanguage = 'english'
+    try {
+      const userDoc = await firestore.collection('users').doc(uid).get()
+      if (userDoc.exists) {
+        nativeLanguage = (userDoc.data()?.nativeLanguage || 'english').toLowerCase().trim()
+      }
+    } catch (err) {
+      console.error('[EXPRESSIONS] Failed to fetch user native language, defaulting to english:', err)
+    }
+    const normalizedLang = (resolvedTargetLanguage || targetLanguage || '').toLowerCase().trim()
+    const allDetectedExpressions = []
 
     // Process each chapter
     for (const chapterDoc of chaptersSnap.docs) {
@@ -6128,7 +6174,25 @@ app.post('/api/adapt-chapter-book', async (req, res) => {
       await chapterDoc.ref.update({ status: 'ready' })
       completedChapters += 1
 
+      // Detect expressions for this chapter
+      if (chapterAdaptedText) {
+        try {
+          console.log(`[EXPRESSIONS] Running detection on chapter ${chapterIndex}: "${chapterTitle}" (${chapterAdaptedText.length} chars)`)
+          const chapterExpressions = await detectAndSaveExpressions(chapterAdaptedText, normalizedLang, nativeLanguage)
+          allDetectedExpressions.push(...chapterExpressions)
+        } catch (exprError) {
+          console.error(`[EXPRESSIONS] Error detecting expressions for chapter ${chapterIndex}:`, exprError)
+        }
+      }
+
       console.log(`Completed chapter ${chapterIndex}: "${chapterTitle}"`)
+    }
+
+    // Save all detected expressions to story document
+    if (allDetectedExpressions.length > 0) {
+      const dedupedExpressions = [...new Set(allDetectedExpressions)]
+      await storyRef.update({ expressions: dedupedExpressions })
+      console.log(`[EXPRESSIONS] Saved ${dedupedExpressions.length} expressions to chapter book ${storyId}`)
     }
 
     // All chapters adapted - pagination will be computed client-side on Dashboard
@@ -6331,6 +6395,31 @@ app.post('/api/adapt-flat-book', async (req, res) => {
     // All chunks adapted - structure was already parsed at import time
     // Header/outline were translated at the start, body paragraphs were adapted above
     console.log('Flat book adaptation complete. Waiting for client-side pagination.')
+
+    // Detect expressions from adapted text
+    if (adaptedTextBlob) {
+      try {
+        let nativeLanguage = 'english'
+        try {
+          const userDoc = await firestore.collection('users').doc(uid).get()
+          if (userDoc.exists) {
+            nativeLanguage = (userDoc.data()?.nativeLanguage || 'english').toLowerCase().trim()
+          }
+        } catch (err) {
+          console.error('[EXPRESSIONS] Failed to fetch user native language, defaulting to english:', err)
+        }
+
+        const normalizedLang = (resolvedTargetLanguage || targetLanguage || '').toLowerCase().trim()
+        console.log(`[EXPRESSIONS] Running detection on flat book ${storyId} (${adaptedTextBlob.length} chars)`)
+        const detectedExpressions = await detectAndSaveExpressions(adaptedTextBlob, normalizedLang, nativeLanguage)
+        if (detectedExpressions.length > 0) {
+          await storyRef.update({ expressions: detectedExpressions })
+          console.log(`[EXPRESSIONS] Saved ${detectedExpressions.length} expressions to flat book ${storyId}`)
+        }
+      } catch (exprError) {
+        console.error('[EXPRESSIONS] Error detecting expressions for flat book:', exprError)
+      }
+    }
 
     // Update story status to 'paginating' - client will compute pages and set 'ready'
     await storyRef.update({

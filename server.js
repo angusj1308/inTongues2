@@ -191,7 +191,7 @@ function escapeForSsml(text) {
 
 let client = null
 if (process.env.OPENAI_API_KEY) {
-  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 1800000 })
 } else {
   console.warn('Warning: OPENAI_API_KEY not set. OpenAI features disabled.')
 }
@@ -1236,7 +1236,7 @@ Return ONLY valid JSON, no other text.`
       model: 'gpt-5.4',
       reasoning: { effort: 'xhigh' },
       input: prompt,
-    }, { timeout: 1800000 })
+    })
 
     console.log(`[EXPRESSIONS] Raw API response:`, JSON.stringify(response?.output?.[0]?.content || response?.output_text || 'NO_CONTENT', null, 2))
 

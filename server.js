@@ -1183,36 +1183,55 @@ async function detectExpressionsWithLLM(text, language, nativeLanguage = 'englis
   if (!text || !language) return []
 
   try {
-    const prompt = `Analyze this ${language} text and identify ALL multi-word combinations where the meaning differs from the literal sum of the individual words.
+    const prompt = `You are a language learning tool. Analyze this ${language} text and identify multi-word expressions where the LITERAL word-by-word translation would MISLEAD a learner about the actual meaning.
 
-A learner might know each word separately but still not understand the combination. Find these.
+The test is simple: if a learner translates each word individually, would they get the WRONG meaning — not just an awkward phrasing, but a genuinely wrong or nonsensical one?
 
 TEXT:
 ${text}
 
-For each expression found, provide:
-1. The exact expression as it appears in the text (lowercase)
-2. Its actual meaning in ${nativeLanguage}
-3. A literal word-by-word translation (to show the gap between literal and actual meaning)
+EXAMPLES OF WHAT TO FLAG (the literal translation is wrong or misleading):
+- "de hecho" → literal: "of done/made" → actual: "in fact" — literal is nonsensical
+- "sin embargo" → literal: "without seizure" → actual: "however" — completely misleading
+- "echar de menos" → literal: "throw of less" → actual: "to miss someone" — nonsensical
+- "hacer caso" → literal: "make case" → actual: "pay attention" — wrong meaning
+- "dar a luz" → literal: "give to light" → actual: "give birth" — misleading
+- "en absoluto" → literal: "in absolute" → actual: "not at all" — opposite meaning
+- "tener en cuenta" → literal: "have in count" → actual: "keep in mind" — misleading
 
-Return a JSON array of objects with keys: "expression", "meaning", "literal"
+EXAMPLES OF WHAT TO NEVER FLAG (the literal translation gets the meaning across):
+- "todos incompletos" → literal: "all incomplete" — meaning is right there in the words
+- "esta historia" → literal: "this story" — completely transparent
+- "se llama" → literal: "itself calls" — structural difference but meaning is clear enough
+- "he llegado a pensar" → literal: "I have arrived at thinking" — close enough
+- "lugar extraño" → literal: "strange place" — transparent
+- "nota tardía" → literal: "late note" — transparent
+- "la menos fiel" → literal: "the least faithful" — transparent
+- "tener hambre" → literal: "to have hunger" — meaning is obvious
+- "pensar en" → literal: "think in" — preposition differs but meaning is clear
+- Any adjective + noun combination where both words keep their normal meaning
+- Any verb conjugation + basic preposition where meaning is still clear
+- Any phrase where the individual word meanings lead you to the correct understanding
 
-Types to look for (works for any language):
-- Idioms: ES "dar en el clavo" = "get it right", FR "coûter les yeux de la tête" = "cost a fortune"
-- Phrasal verbs: EN "give up" = "surrender", "look after" = "care for"
-- Verb + preposition: ES "pensar en" = "think about", IT "contare su" = "rely on"
-- Verb + noun: ES "hacer caso" = "pay attention", FR "faire attention" = "be careful"
-- Fixed phrases: ES "sin embargo" = "however", IT "a proposito" = "by the way"
-- Collocations: ES "echar de menos" = "miss someone", FR "avoir envie de" = "want to"
-- Any word combination where the meaning ≠ sum of literal parts
+DO NOT flag:
+- Simple adjective + noun pairs
+- Verb + preposition where meaning is guessable
+- Structural grammar differences between languages (e.g. reflexive verbs, word order)
+- Anything where the literal word-by-word meaning gets you close to the real meaning
 
-The key test: Would a learner who knows each word individually still fail to understand the combination?
+When in doubt, do NOT flag it. Only flag expressions where the literal translation would leave a learner confused or wrong about what was said.
 
-Return an empty array [] if no such expressions are found.
+For each expression found, return:
+1. "expression": the exact text as it appears (lowercase)
+2. "meaning": actual meaning in ${nativeLanguage}
+3. "literal": word-by-word translation showing WHY it's misleading
+
+Return a JSON array. Return an empty array [] if no genuine expressions are found.
 Return ONLY valid JSON, no other text.`
 
     const response = await client.responses.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.4',
+      reasoning: { effort: 'xhigh' },
       input: prompt,
       text: { format: { type: 'json_object' } },
     })

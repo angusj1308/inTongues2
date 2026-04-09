@@ -1236,7 +1236,6 @@ Return ONLY valid JSON, no other text.`
       model: 'gpt-5.4',
       reasoning: { effort: 'xhigh' },
       input: prompt,
-      text: { format: { type: 'json_object' } },
     })
 
     console.log(`[EXPRESSIONS] Raw API response:`, JSON.stringify(response?.output?.[0]?.content || response?.output_text || 'NO_CONTENT', null, 2))

@@ -1226,6 +1226,8 @@ For each expression found, return:
 2. "meaning": actual meaning in ${nativeLanguage}
 3. "literal": word-by-word translation showing WHY it's misleading
 
+Be thorough. Scan every sentence. Do not skip any expression that meets the test above. A missed expression is worse than no detection at all.
+
 Return a JSON array. Return an empty array [] if no genuine expressions are found.
 Return ONLY valid JSON, no other text.`
 
@@ -1234,7 +1236,7 @@ Return ONLY valid JSON, no other text.`
 
     const response = await client.responses.create({
       model: 'gpt-5.4',
-      reasoning: { effort: 'high' },
+      reasoning: { effort: 'xhigh' },
       input: prompt,
     })
 
@@ -1396,7 +1398,14 @@ async function detectAndSaveExpressions(text, language, nativeLanguage = 'englis
   const totalWords = (text.match(/\S+/g) || []).length
   const chunks = chunkTextForExpressionDetection(text)
 
-  console.log(`[EXPRESSIONS] Split text into ${chunks.length} chunks (${totalWords} words total)`)
+  console.log(`[EXPRESSIONS] Split text into ${chunks.length} chunks`)
+
+  // Log chunk details
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkWords = (chunks[i].match(/\S+/g) || []).length
+    console.log(`[EXPRESSIONS] Chunk ${i + 1}/${chunks.length}: ${chunkWords} words, ${chunks[i].length} characters`)
+    console.log(`[EXPRESSIONS] Chunk ${i + 1}/${chunks.length} text preview: "${chunks[i].slice(0, 100)}..."`)
+  }
 
   // Detect expressions in each chunk
   const allDetected = []
@@ -1404,7 +1413,8 @@ async function detectAndSaveExpressions(text, language, nativeLanguage = 'englis
 
   for (let i = 0; i < chunks.length; i++) {
     const chunkExpressions = await detectExpressionsWithLLM(chunks[i], language, nativeLanguage)
-    console.log(`[EXPRESSIONS] Chunk ${i + 1}/${chunks.length}: detected ${chunkExpressions.length} expressions`)
+    console.log(`[EXPRESSIONS] Chunk ${i + 1}/${chunks.length} returned ${chunkExpressions.length} expressions:`)
+    chunkExpressions.forEach((e, j) => console.log(`[EXPRESSIONS]   ${j + 1}. "${e.expression}" → "${e.meaning}"`))
 
     // Deduplicate: keep first occurrence
     for (const expr of chunkExpressions) {
@@ -1417,7 +1427,8 @@ async function detectAndSaveExpressions(text, language, nativeLanguage = 'englis
   }
 
   const detectedExpressions = allDetected
-  console.log(`[EXPRESSIONS] Total unique expressions after merge: ${detectedExpressions.length}`)
+  console.log(`[EXPRESSIONS] Total unique expressions after dedup: ${detectedExpressions.length}`)
+  detectedExpressions.forEach((e, i) => console.log(`[EXPRESSIONS]   ${i + 1}. "${e.expression}" → meaning: "${e.meaning}" | literal: "${e.literal}"`))
 
   // Save each expression to the database
   const savedExpressions = []

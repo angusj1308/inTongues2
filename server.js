@@ -1235,7 +1235,6 @@ Return ONLY valid JSON, no other text.`
     const response = await client.responses.create({
       model: 'gpt-5.4',
       reasoning: { effort: 'high' },
-      temperature: 0,
       input: prompt,
     })
 

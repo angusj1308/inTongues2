@@ -1235,6 +1235,7 @@ Return ONLY valid JSON, no other text.`
     const response = await client.responses.create({
       model: 'gpt-5.4',
       reasoning: { effort: 'high' },
+      temperature: 0,
       input: prompt,
     })
 
@@ -1294,16 +1295,130 @@ Return ONLY valid JSON, no other text.`
   }
 }
 
+// Split text into ~1000-word chunks at paragraph/sentence boundaries with 1-sentence overlap
+function chunkTextForExpressionDetection(text) {
+  const TARGET_WORDS = 1000
+  const MAX_WORDS = 1200
+
+  const countWords = (s) => (s.match(/\S+/g) || []).length
+
+  // Get the last sentence from a chunk (for overlap)
+  const getLastSentence = (s) => {
+    const trimmed = s.trimEnd()
+    // Find last sentence-ending punctuation followed by space or end
+    const matches = [...trimmed.matchAll(/[.!?]\s+/g)]
+    if (matches.length < 2) return ''
+    const lastBreak = matches[matches.length - 1]
+    return trimmed.slice(lastBreak.index + lastBreak[0].length).trim()
+  }
+
+  // Split a long paragraph at sentence boundary before MAX_WORDS
+  const splitLongParagraph = (para) => {
+    const pieces = []
+    let remaining = para
+    while (countWords(remaining) > MAX_WORDS) {
+      const words = remaining.split(/\s+/)
+      const cutText = words.slice(0, MAX_WORDS).join(' ')
+      // Find last sentence break in cutText
+      const sentenceBreaks = [...cutText.matchAll(/[.!?]\s+/g)]
+      if (sentenceBreaks.length > 0) {
+        const lastBreak = sentenceBreaks[sentenceBreaks.length - 1]
+        const cutPoint = lastBreak.index + lastBreak[0].length
+        pieces.push(cutText.slice(0, cutPoint).trim())
+        remaining = remaining.slice(cutPoint).trim()
+      } else {
+        // No sentence break found — take the whole MAX_WORDS block
+        pieces.push(cutText.trim())
+        remaining = words.slice(MAX_WORDS).join(' ').trim()
+      }
+    }
+    if (remaining) pieces.push(remaining)
+    return pieces
+  }
+
+  const paragraphs = text.split(/\n\n+/)
+  const chunks = []
+  let currentChunk = ''
+  let overlapSentence = ''
+
+  for (const para of paragraphs) {
+    const trimmedPara = para.trim()
+    if (!trimmedPara) continue
+
+    const paraWords = countWords(trimmedPara)
+    const currentWords = countWords(currentChunk)
+
+    // If adding this paragraph would exceed MAX_WORDS, start a new chunk
+    if (currentWords > 0 && currentWords + paraWords > MAX_WORDS) {
+      const lastSentence = getLastSentence(currentChunk)
+      chunks.push(currentChunk.trim())
+      // Start new chunk with overlap sentence
+      currentChunk = lastSentence ? lastSentence + '\n\n' : ''
+      overlapSentence = lastSentence
+    }
+
+    // If a single paragraph exceeds MAX_WORDS, split it
+    if (paraWords > MAX_WORDS) {
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim())
+        currentChunk = ''
+      }
+      const subPieces = splitLongParagraph(trimmedPara)
+      for (let i = 0; i < subPieces.length; i++) {
+        if (i < subPieces.length - 1) {
+          const lastSentence = getLastSentence(subPieces[i])
+          chunks.push(subPieces[i])
+          currentChunk = lastSentence ? lastSentence + '\n\n' : ''
+        } else {
+          currentChunk += (currentChunk ? '\n\n' : '') + subPieces[i]
+        }
+      }
+    } else {
+      currentChunk += (currentChunk ? '\n\n' : '') + trimmedPara
+    }
+
+    // If we've passed TARGET_WORDS and the next paragraph might push us over, let the loop handle it
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim())
+  }
+
+  return chunks.length > 0 ? chunks : [text]
+}
+
 // Detect and save expressions from text content
 async function detectAndSaveExpressions(text, language, nativeLanguage = 'english') {
   if (!text || !language) return []
 
   console.log(`[EXPRESSIONS] detectAndSaveExpressions called — ${language}, ${text.length} chars`)
 
-  // Detect expressions using LLM
-  const detectedExpressions = await detectExpressionsWithLLM(text, language, nativeLanguage)
+  // Split text into chunks for better detection
+  const totalWords = (text.match(/\S+/g) || []).length
+  const chunks = chunkTextForExpressionDetection(text)
 
-  console.log(`[EXPRESSIONS] LLM returned ${detectedExpressions.length} expressions`)
+  console.log(`[EXPRESSIONS] Split text into ${chunks.length} chunks (${totalWords} words total)`)
+
+  // Detect expressions in each chunk
+  const allDetected = []
+  const seenExpressions = new Set()
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkExpressions = await detectExpressionsWithLLM(chunks[i], language, nativeLanguage)
+    console.log(`[EXPRESSIONS] Chunk ${i + 1}/${chunks.length}: detected ${chunkExpressions.length} expressions`)
+
+    // Deduplicate: keep first occurrence
+    for (const expr of chunkExpressions) {
+      const key = expr.expression.trim().toLowerCase()
+      if (!seenExpressions.has(key)) {
+        seenExpressions.add(key)
+        allDetected.push(expr)
+      }
+    }
+  }
+
+  const detectedExpressions = allDetected
+  console.log(`[EXPRESSIONS] Total unique expressions after merge: ${detectedExpressions.length}`)
 
   // Save each expression to the database
   const savedExpressions = []

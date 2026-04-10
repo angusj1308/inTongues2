@@ -471,13 +471,19 @@ const Reader = ({ initialMode }) => {
   const handleSingleWordClick = async (text, event) => {
     const selection = window.getSelection()?.toString().trim()
     const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
+    const isExpression = text.includes(' ')
 
-    // Let the multi-word path handle multi-word selections
-    if (parts.length > 1) return
+    // Let the multi-word path handle multi-word browser selections (but not expression token clicks)
+    if (parts.length > 1 && !isExpression) return
 
     const key = normaliseExpression(text)
     const rect = event.currentTarget.getBoundingClientRect()
     const { x, y } = getPopupPosition(rect)
+
+    // Check for pre-stored expression meaning
+    const detectedExpr = isExpression
+      ? contentExpressions.find((expr) => normaliseExpression(expr.text || '') === key)
+      : null
 
     let translation = null
     let audioBase64 = null
@@ -491,8 +497,8 @@ const Reader = ({ initialMode }) => {
         x, y,
         word: key,
         displayText: text,
-        translation: missingLanguageMessage,
-        targetText: missingLanguageMessage,
+        translation: detectedExpr?.meaning || missingLanguageMessage,
+        targetText: detectedExpr?.meaning || missingLanguageMessage,
         audioBase64: null,
         audioUrl: null,
       })
@@ -525,16 +531,16 @@ const Reader = ({ initialMode }) => {
 
       if (response.ok) {
         const data = await response.json()
-        translation = data.translation || 'No translation found'
-        targetText = data.targetText || translation || 'No translation found'
+        translation = detectedExpr?.meaning || data.translation || 'No translation found'
+        targetText = detectedExpr?.meaning || data.targetText || translation || 'No translation found'
         audioBase64 = data.audioBase64 || null
         audioUrl = data.audioUrl || null
       } else {
-        translation = 'No translation found'
+        translation = detectedExpr?.meaning || 'No translation found'
         targetText = translation
       }
     } catch (err) {
-      translation = 'No translation found'
+      translation = detectedExpr?.meaning || 'No translation found'
       targetText = translation
     }
 
@@ -1216,20 +1222,21 @@ const Reader = ({ initialMode }) => {
     return 'new'
   }
 
-  const renderWordSegments = (text = '') => {
-    // Combine user's known expressions with content-detected expressions
+  // Memoize merged expression list to avoid rebuilding on every render
+  const allExpressions = useMemo(() => {
     const userExpressions = Object.keys(vocabEntries)
       .filter((key) => key.includes(' '))
       .map((key) => normaliseExpression(key))
 
     const detectedExpressions = contentExpressions
       .map((expr) => normaliseExpression(expr.text || ''))
-      .filter((text) => text.includes(' '))
+      .filter((t) => t.includes(' '))
 
-    // Merge and dedupe, keeping user expressions first (they have status)
-    const allExpressions = [...new Set([...userExpressions, ...detectedExpressions])]
+    return [...new Set([...userExpressions, ...detectedExpressions])]
       .sort((a, b) => b.length - a.length)
+  }, [vocabEntries, contentExpressions])
 
+  const renderWordSegments = (text = '') => {
     const elements = []
 
     const segments = segmentTextByExpressions(text || '', allExpressions)
@@ -1244,6 +1251,7 @@ const Reader = ({ initialMode }) => {
             language={language}
             readerMode={readerMode}
             tone={activeTheme.tone}
+            onWordClick={handleSingleWordClick}
           />
         )
         return

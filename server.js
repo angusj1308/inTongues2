@@ -8023,24 +8023,15 @@ app.post('/api/test/detect-and-save-expressions-story', async (req, res) => {
     }
 
     console.log(`[EXPRESSIONS] Detect-and-save endpoint — storyId: ${storyId}, language: ${language}, text length: ${allText.length}`)
-    const expressions = await detectExpressionsWithLLM(allText, language, nativeLanguage)
-
-    // Save each expression to global expressions collection
-    const savedExpressions = []
-    for (const expr of expressions) {
-      const saved = await saveExpression(expr.expression, language, expr.meaning, expr.literal)
-      if (saved) {
-        savedExpressions.push(expr.expression)
-      }
-    }
+    const savedExpressions = await detectAndSaveExpressions(allText, language, nativeLanguage)
 
     // Update story document with expression list
     if (savedExpressions.length > 0) {
       await storyRef.update({ expressions: savedExpressions })
     }
 
-    console.log(`[EXPRESSIONS] Saved ${savedExpressions.length}/${expressions.length} expressions for story ${storyId}`)
-    return res.json({ expressions, count: expressions.length, saved: savedExpressions.length, language, textLength: allText.length })
+    console.log(`[EXPRESSIONS] Saved ${savedExpressions.length} expressions for story ${storyId}`)
+    return res.json({ expressions: savedExpressions, count: savedExpressions.length, language, textLength: allText.length })
   } catch (error) {
     console.error('[EXPRESSIONS] Detect-and-save endpoint error:', error)
     return res.status(500).json({ error: 'Expression detection failed' })

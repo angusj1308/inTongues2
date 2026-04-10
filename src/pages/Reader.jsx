@@ -1441,7 +1441,9 @@ const Reader = ({ initialMode }) => {
   }, [readerMode, allVisibleSentences, currentSentenceIndex, currentIntensiveSentence, user, language])
 
   // High-water mark scroll promotion for active mode
+  // TEMPORARILY DISABLED for expression detector testing
   useEffect(() => {
+    if (true) return undefined // eslint-disable-line no-constant-condition
     if (readerMode !== 'active' || !user?.uid || !language) return undefined
 
     // Reset on story/language change

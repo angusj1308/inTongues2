@@ -4002,6 +4002,7 @@ app.post('/api/generate', async (req, res) => {
 })
 
 // Align a source sentence with its translation into meaning chunks
+// Align a source sentence with its translation into meaning chunks
 app.post('/api/align-chunks', async (req, res) => {
   try {
     const { source, translation } = req.body || {}
@@ -4010,14 +4011,26 @@ app.post('/api/align-chunks', async (req, res) => {
       return res.status(400).json({ error: 'source and translation are required' })
     }
 
-    const prompt = `Source: ${source}
-Translation: ${translation}
+    const developerMessage = `You are a language learning tool. A learner is reading a sentence in a foreign language. They have the full sentence translation above. Your job is to show them which source words map to which parts of the translation, so they can understand how each word contributes to the meaning.
+Align the source words to their translation. Go word by word through the source. For each word, find the part of the translation it maps to. Most words will map one-to-one. Only group source words together when they share a meaning that cannot be split — when one source word alone cannot be matched to any part of the translation without the other.
+For example:
+- "sin embargo" must be grouped → "however" — neither "sin" nor "embargo" alone maps to "however"
+- "de hecho" must be grouped → "in fact" — neither "de" nor "hecho" alone maps to "in fact"
+- "el hombre" stays separate → "el" = "the", "hombre" = "man" — each word maps on its own
+Every word from both the source and the translation must be accounted for. Nothing dropped. Every single word from the translation must appear in exactly one meaning field.
+Strip all punctuation. No commas, periods, dashes, or quotation marks in the output.
+Return ONLY a JSON array of {"source": "...", "meaning": "..."}.`
 
-Split these into aligned chunks of meaning. Each chunk should be the smallest group of source words that maps to a piece of the translation. Return ONLY a JSON array of {"source": "...", "meaning": "..."}.`
+    const userMessage = `Sentence: ${source}
+Translation: ${translation}`
 
     const response = await client.responses.create({
-      model: 'gpt-4o-mini',
-      input: prompt,
+      model: 'gpt-5-nano',
+      reasoning: { effort: 'minimal' },
+      input: [
+        { role: 'developer', content: developerMessage },
+        { role: 'user', content: userMessage },
+      ],
     })
 
     // Parse response — handles array, or object with any array value

@@ -1943,6 +1943,17 @@ const Reader = ({ initialMode }) => {
   const intensiveWordList = useMemo(() => {
     if (readerMode !== 'intensive' || !currentIntensiveSentence) return []
 
+    // Build set of words already covered by phrase chunks
+    const chunkWords = new Set()
+    intensiveChunkList.forEach((chunk) => {
+      const chunkTokens = (chunk.source || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
+      chunkTokens.forEach((t) => {
+        if (t && /[\p{L}\p{N}]/u.test(t)) {
+          chunkWords.add(t.toLowerCase())
+        }
+      })
+    })
+
     const tokens = (currentIntensiveSentence || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
     const seen = new Set()
     const words = []
@@ -1953,6 +1964,9 @@ const Reader = ({ initialMode }) => {
       const key = normaliseExpression(token)
       if (seen.has(key)) return
       seen.add(key)
+
+      // Skip if this word is already part of a phrase chunk above
+      if (chunkWords.has(token.toLowerCase())) return
 
       const entry = vocabEntries[key]
       const status = entry?.status || 'new'
@@ -1969,7 +1983,7 @@ const Reader = ({ initialMode }) => {
     })
 
     return words
-  }, [readerMode, currentIntensiveSentence, vocabEntries, intensiveWordTranslations])
+  }, [readerMode, currentIntensiveSentence, vocabEntries, intensiveWordTranslations, intensiveChunkList])
 
   // Fetch translations for words in the intensive word list that are missing
   useEffect(() => {

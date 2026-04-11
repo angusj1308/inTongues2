@@ -4001,6 +4001,68 @@ app.post('/api/generate', async (req, res) => {
   }
 })
 
+// Align a source sentence with its translation into meaning chunks
+app.post('/api/align-chunks', async (req, res) => {
+  try {
+    const { source, translation } = req.body || {}
+
+    if (!source || !translation) {
+      return res.status(400).json({ error: 'source and translation are required' })
+    }
+
+    const prompt = `Source: ${source}
+Translation: ${translation}
+
+Split these into aligned chunks of meaning. Each chunk should be the smallest group of source words that maps to a piece of the translation. Return ONLY a JSON array of {"source": "...", "meaning": "..."}.`
+
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      input: prompt,
+    })
+
+    // Parse response — handles array, or object with any array value
+    let chunks = []
+    const contentBlocks = response?.output?.[0]?.content || []
+    const jsonBlock = contentBlocks.find((block) =>
+      block?.type === 'output_json' || block?.type === 'json'
+    )
+    let payload = jsonBlock?.output_json || jsonBlock?.json
+
+    if (!payload) {
+      const textBlock = contentBlocks.find((block) => typeof block?.text === 'string')
+      const candidateText = textBlock?.text || response?.output_text
+      if (candidateText) {
+        try {
+          // Strip any markdown code fences
+          const cleaned = candidateText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+          payload = JSON.parse(cleaned)
+        } catch (err) {
+          console.error('[ALIGN] Failed to parse response:', err.message)
+          return res.json({ chunks: [] })
+        }
+      }
+    }
+
+    if (Array.isArray(payload)) {
+      chunks = payload
+    } else if (payload && typeof payload === 'object') {
+      const firstArray = Object.values(payload).find((v) => Array.isArray(v))
+      if (firstArray) chunks = firstArray
+    }
+
+    // Validate and normalize shape
+    const result = chunks
+      .filter((c) => c && typeof c.source === 'string' && typeof c.meaning === 'string')
+      .map((c) => ({ source: c.source.trim(), meaning: c.meaning.trim() }))
+      .filter((c) => c.source && c.meaning)
+
+    return res.json({ chunks: result })
+  } catch (err) {
+    console.error('[ALIGN] Error:', err.message)
+    return res.status(500).json({ error: 'Alignment failed' })
+  }
+})
+
 app.post('/api/translatePhrase', async (req, res) => {
   try {
     const { phrase, sourceLang, targetLang, ttsLanguage, skipAudio, voiceGender, unknownWords, voiceId: requestedVoiceId, context } = req.body || {}

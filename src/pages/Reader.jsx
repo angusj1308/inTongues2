@@ -147,7 +147,7 @@ const Reader = ({ initialMode }) => {
     useState(false)
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false)
   const [contentExpressions, setContentExpressions] = useState([])
-  const [intensiveWordTranslations, setIntensiveWordTranslations] = useState({})
+  const [sentenceChunks, setSentenceChunks] = useState({})
   const [tutorOpen, setTutorOpen] = useState(false)
   const [tutorInitialMessage, setTutorInitialMessage] = useState(null)
   const audioRef = useRef(null)
@@ -1818,118 +1818,123 @@ const Reader = ({ initialMode }) => {
     sentenceTranslations,
   ])
 
-  // Extract non-known words from the current intensive sentence
-  const intensiveWordList = useMemo(() => {
+  // Build chunk list for intensive panel from sentenceChunks + vocab status
+  const intensiveChunkList = useMemo(() => {
     if (readerMode !== 'intensive' || !currentIntensiveSentence) return []
 
-    const tokens = (currentIntensiveSentence || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
-    const seen = new Set()
-    const words = []
-
-    tokens.forEach((token) => {
-      if (!token || !/[\p{L}\p{N}]/u.test(token)) return
-
-      const key = normaliseExpression(token)
-      if (seen.has(key)) return
-      seen.add(key)
-
-      const entry = vocabEntries[key]
-      const status = entry?.status || 'new'
-      if (status === 'known') return
-
-      words.push({
-        word: token,
-        normalised: key,
-        status,
-        translation: entry?.translation || intensiveWordTranslations[key]?.translation || null,
-        audioBase64: intensiveWordTranslations[key]?.audioBase64 || null,
-        audioUrl: intensiveWordTranslations[key]?.audioUrl || null,
+    const chunks = sentenceChunks[currentIntensiveSentence] || []
+    return chunks
+      .map((chunk) => {
+        const normalised = normaliseExpression(chunk.source)
+        const entry = vocabEntries[normalised]
+        const status = entry?.status || 'new'
+        return {
+          source: chunk.source,
+          meaning: chunk.meaning,
+          normalised,
+          status,
+          audioBase64: chunk.audioBase64 || null,
+          audioUrl: chunk.audioUrl || null,
+        }
       })
-    })
+      .filter((chunk) => chunk.status !== 'known')
+  }, [readerMode, currentIntensiveSentence, sentenceChunks, vocabEntries])
 
-    return words
-  }, [readerMode, currentIntensiveSentence, vocabEntries, intensiveWordTranslations])
-
-  // Fetch translations for words in the intensive word list that are missing
+  // Fetch aligned chunks for the current intensive sentence once its translation is loaded
   useEffect(() => {
     if (readerMode !== 'intensive' || !currentIntensiveSentence) return
     if (!language || !profile?.nativeLanguage) return
 
+    const sentence = currentIntensiveSentence
+    const translation = sentenceTranslations[sentence?.trim?.() || sentence] || sentenceTranslations[sentence]
+    if (!translation) return
+
+    // Already have chunks for this sentence
+    if (sentenceChunks[sentence]) return
+
     let cancelled = false
-    const ttsLang = normalizeLanguageCode(language)
 
-    const fetchMissing = async () => {
-      const tokens = (currentIntensiveSentence || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
-      const seen = new Set()
+    const loadChunks = async () => {
+      try {
+        const alignResponse = await fetch('http://localhost:4000/api/align-chunks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: sentence, translation }),
+        })
 
-      for (const token of tokens) {
-        if (!token || !/[\p{L}\p{N}]/u.test(token)) continue
+        if (cancelled) return
+        if (!alignResponse.ok) {
+          setSentenceChunks((prev) => ({ ...prev, [sentence]: [] }))
+          return
+        }
 
-        const key = normaliseExpression(token)
-        if (seen.has(key)) continue
-        seen.add(key)
+        const { chunks } = await alignResponse.json()
+        if (cancelled) return
+        if (!Array.isArray(chunks) || chunks.length === 0) {
+          setSentenceChunks((prev) => ({ ...prev, [sentence]: [] }))
+          return
+        }
 
-        const entry = vocabEntries[key]
-        const status = entry?.status || 'new'
-        if (status === 'known') continue
+        // Fetch pronunciation audio for each chunk in parallel
+        const chunksWithAudio = await Promise.all(
+          chunks.map(async (chunk) => {
+            try {
+              const ttsLang = normalizeLanguageCode(language)
+              if (!ttsLang) return { ...chunk, audioBase64: null, audioUrl: null }
 
-        // Skip if we already have a translation from vocabEntries or cache
-        if (entry?.translation || intensiveWordTranslations[key]?.translation) continue
+              const pronResponse = await fetch('http://localhost:4000/api/translatePhrase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  phrase: chunk.source,
+                  sourceLang: language || 'es',
+                  targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
+                  voiceGender,
+                }),
+              })
 
-        if (!ttsLang) continue
-
-        try {
-          const response = await fetch('http://localhost:4000/api/translatePhrase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phrase: token,
-              sourceLang: language || 'es',
-              targetLang: resolveSupportedLanguageLabel(profile?.nativeLanguage),
-              voiceGender,
-            }),
-          })
-
-          if (cancelled) return
-
-          if (response.ok) {
-            const data = await response.json()
-            setIntensiveWordTranslations((prev) => ({
-              ...prev,
-              [key]: {
-                translation: data.translation || null,
+              if (!pronResponse.ok) return { ...chunk, audioBase64: null, audioUrl: null }
+              const data = await pronResponse.json()
+              return {
+                ...chunk,
                 audioBase64: data.audioBase64 || null,
                 audioUrl: data.audioUrl || null,
-              },
-            }))
-          }
-        } catch {
-          // silently skip failed translations
-        }
+              }
+            } catch {
+              return { ...chunk, audioBase64: null, audioUrl: null }
+            }
+          })
+        )
+
+        if (cancelled) return
+        setSentenceChunks((prev) => ({ ...prev, [sentence]: chunksWithAudio }))
+      } catch (err) {
+        console.error('Failed to fetch sentence chunks:', err)
+        if (!cancelled) setSentenceChunks((prev) => ({ ...prev, [sentence]: [] }))
       }
     }
 
-    fetchMissing()
+    loadChunks()
     return () => { cancelled = true }
-  }, [readerMode, currentIntensiveSentence, language, profile?.nativeLanguage, voiceGender])
+  }, [readerMode, currentIntensiveSentence, sentenceTranslations, language, profile?.nativeLanguage, voiceGender, sentenceChunks])
 
-  const handleIntensiveWordStatus = useCallback(async (word, translation, newStatus) => {
+  const handleIntensiveChunkStatus = useCallback(async (chunkSource, chunkMeaning, newStatus) => {
     if (!user || !language) return
 
     try {
-      await upsertVocabEntry(user.uid, language, word, translation, newStatus, id)
+      await upsertVocabEntry(user.uid, language, chunkSource, chunkMeaning, newStatus, id)
 
-      const key = normaliseExpression(word)
+      const key = normaliseExpression(chunkSource)
       setVocabEntries((prev) => ({
         ...prev,
         [key]: {
-          ...(prev[key] || { text: word, language }),
+          ...(prev[key] || { text: chunkSource, language }),
           status: newStatus,
-          translation,
+          translation: chunkMeaning,
         },
       }))
     } catch (err) {
-      console.error('Failed to update word status:', err)
+      console.error('Failed to update chunk status:', err)
     }
   }, [user, language, id])
 
@@ -2240,38 +2245,35 @@ const Reader = ({ initialMode }) => {
                   : intensiveTranslation || 'Translation will appear here.'}
               </p>
 
-              {isIntensiveTranslationVisible && intensiveWordList.length > 0 && (
+              {isIntensiveTranslationVisible && intensiveChunkList.length > 0 && (
                 <div className="reader-intensive-words">
-                  {intensiveWordList.map((wordData) => {
-                    const currentStatus = vocabEntries[wordData.normalised]?.status || 'new'
-                    const translation = vocabEntries[wordData.normalised]?.translation
-                      || intensiveWordTranslations[wordData.normalised]?.translation
-                      || null
+                  {intensiveChunkList.map((chunkData, chunkIndex) => {
+                    const currentStatus = vocabEntries[chunkData.normalised]?.status || 'new'
 
                     return (
-                      <div key={wordData.normalised} className="reader-intensive-word-row">
+                      <div key={`${chunkData.normalised}-${chunkIndex}`} className="reader-intensive-word-row">
                         <button
                           type="button"
                           className={`reader-intensive-word-play ${
-                            wordData.audioBase64 || wordData.audioUrl ? '' : 'reader-intensive-word-play--disabled'
+                            chunkData.audioBase64 || chunkData.audioUrl ? '' : 'reader-intensive-word-play--disabled'
                           }`}
-                          onClick={() => playPronunciationAudio(wordData)}
-                          disabled={!wordData.audioBase64 && !wordData.audioUrl}
-                          aria-label={`Play pronunciation of ${wordData.word}`}
+                          onClick={() => playPronunciationAudio({ word: chunkData.source, audioBase64: chunkData.audioBase64, audioUrl: chunkData.audioUrl })}
+                          disabled={!chunkData.audioBase64 && !chunkData.audioUrl}
+                          aria-label={`Play pronunciation of ${chunkData.source}`}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         </button>
-                        <span className="reader-intensive-word-text">{wordData.word}</span>
+                        <span className="reader-intensive-word-text">{chunkData.source}</span>
                         <span className="reader-intensive-word-translation">
-                          {translation || '...'}
+                          {chunkData.meaning || '...'}
                         </span>
                         <div className="reader-intensive-status-pills">
                           {STATUS_ABBREV.map((abbrev, i) => {
                             const level = STATUS_LEVELS[i]
                             const isActive = level === 'new'
-                              ? !vocabEntries[wordData.normalised]?.status
+                              ? !vocabEntries[chunkData.normalised]?.status
                               : currentStatus === level
 
                             return (
@@ -2280,12 +2282,12 @@ const Reader = ({ initialMode }) => {
                                 type="button"
                                 className={`reader-intensive-status-pill ${isActive ? 'is-active' : ''}`}
                                 style={getStatusStyle(level, isActive)}
-                                onClick={() => level !== 'new' && handleIntensiveWordStatus(
-                                  wordData.word,
-                                  translation,
+                                onClick={() => level !== 'new' && handleIntensiveChunkStatus(
+                                  chunkData.source,
+                                  chunkData.meaning,
                                   level
                                 )}
-                                aria-label={`Set ${wordData.word} status to ${level}`}
+                                aria-label={`Set ${chunkData.source} status to ${level}`}
                                 aria-pressed={isActive}
                               >
                                 {abbrev}

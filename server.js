@@ -7318,9 +7318,10 @@ img.crop((0, 0, ${1600}, ${1580})).save("${tempPainting}")
       await fs.unlink(tempComposed).catch(() => {})
     }
 
-    const coverUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
-    if (!coverUrl) throw new Error('Failed to upload recomposited cover')
+    const baseUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
+    if (!baseUrl) throw new Error('Failed to upload recomposited cover')
 
+    const coverUrl = `${baseUrl}?v=${Date.now()}`
     await storyRef.update({ coverUrl, coverImageUrl: coverUrl })
     console.log(`Recomposited cover for ${storyId}:`, coverUrl)
 

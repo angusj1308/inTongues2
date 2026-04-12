@@ -34,7 +34,7 @@ const themeOptions = [
   {
     id: 'soft-white',
     label: 'Pure White',
-    background: '#F5F4F0',
+    background: '#FFFFFF',
     text: '#1A1A1A',
     tone: 'light',
     gutter: 'rgba(0, 0, 0, 0.08)',

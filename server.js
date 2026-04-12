@@ -4011,30 +4011,25 @@ app.post('/api/align-chunks', async (req, res) => {
       return res.status(400).json({ error: 'source and translation are required' })
     }
 
-    const developerMessage = `You are a language learning tool. A learner is reading a sentence in a foreign language. They have the full sentence translation above. Your job is to show them which source words map to which parts of the translation, so they can understand how each word contributes to the meaning.
+    const developerMessage = `You are a language learning tool. A learner has a sentence and its translation. Show them which source words map to which parts of the translation, so they understand how each word contributes to the meaning.
 
-Align the source words to their translation based on MEANING, not position. Do not force a source word to map to the translation word sitting in the same position. Find the part of the translation that actually captures what that source word means.
+Rules:
+1. Align based on MEANING not position. Find the part of the translation that captures what each source word actually means.
+2. Most words map one-to-one. Only group source words when a single source word cannot be matched to any part of the translation on its own — when the meaning only exists as a combination.
+3. "sin embargo" must be grouped → "however" — neither word alone means "however". "el hombre" stays separate → "el"="the", "hombre"="man".
+4. Use ONLY words from the provided translation in the meaning field. Do not generate your own translations.
+5. Every word from the translation must appear exactly once across all meaning fields. No duplicates. No gaps. If you find yourself putting the same translation words in two different rows, STOP — those source words must be grouped into one row instead.
+6. If two source words must share the same piece of the translation because neither can stand alone, group them into one entry with that shared meaning.
 
-If a source word cannot be meaningfully matched to any part of the translation on its own, group it with its neighbour until the group maps to a clear piece of meaning. For example:
-- "sin embargo" must be grouped → "however" — neither "sin" nor "embargo" alone maps to "however"
-- "de hecho" must be grouped → "in fact" — neither "de" nor "hecho" alone maps to "in fact"
-- "dar a luz" must be grouped → "give birth" — none of these words alone means "give birth"
-- "el hombre" stays separate → "el" = "the", "hombre" = "man" — each word maps on its own
-
-Most words will map one-to-one. Only group when singles are impossible.
-
-Every word from both the source and the translation must be accounted for. Nothing dropped. Every single word from the translation must appear in exactly one meaning field. A piece of the translation must never appear in more than one row. If two source words share the same meaning and cannot be split, group them into one entry.
-
-Strip all punctuation. No commas, periods, dashes, or quotation marks in the output.
-
+Strip all punctuation.
 Return ONLY a JSON array of {"source": "...", "meaning": "..."}.`
 
     const userMessage = `Sentence: ${source}
 Translation: ${translation}`
 
     const response = await client.responses.create({
-      model: 'gpt-5-nano',
-      reasoning: { effort: 'minimal' },
+      model: 'gpt-5.4-mini',
+      reasoning: { effort: 'low' },
       input: [
         { role: 'developer', content: developerMessage },
         { role: 'user', content: userMessage },

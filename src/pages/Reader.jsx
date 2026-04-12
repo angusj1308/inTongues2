@@ -1917,6 +1917,9 @@ const Reader = ({ initialMode }) => {
         currentSentenceIndex,
         currentSentenceIndex + 1,
         currentSentenceIndex + 2,
+        currentSentenceIndex + 3,
+        currentSentenceIndex + 4,
+        currentSentenceIndex + 5,
       ].filter((i) => i >= 0 && i < intensiveSentences.length)
 
       for (const i of indices) {
@@ -2258,6 +2261,12 @@ const Reader = ({ initialMode }) => {
                   ? 'Loading translation...'
                   : intensiveTranslation || 'Translation will appear here.'}
               </p>
+
+              {isIntensiveTranslationVisible && !(currentIntensiveSentence in sentenceChunks) && (
+                <div className="reader-intensive-words reader-intensive-words--loading">
+                  <p className="reader-intensive-loading">Loading...</p>
+                </div>
+              )}
 
               {isIntensiveTranslationVisible && intensiveChunkList.length > 0 && (
                 <div className="reader-intensive-words">

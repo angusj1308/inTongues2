@@ -20,10 +20,10 @@ BRAND_SIZE = 64
 TITLE_SIZE = 130
 LEVEL_SIZE = 38
 
-WHITE = (255, 255, 255)
+CREAM = (242, 237, 232)
 BLACK = (0, 0, 0)
 PANEL_BG = (46, 46, 46)
-LINE_COLOUR = (170, 31, 35)
+LINE_COLOUR = (242, 237, 232)
 
 
 def compose_cover(painting_path, title, level, output_path):
@@ -34,7 +34,7 @@ def compose_cover(painting_path, title, level, output_path):
     cover.paste(painting, (0, 0))
 
     draw = ImageDraw.Draw(cover)
-    draw.rectangle([(0, BAND_TOP), (COVER_W, BAND_TOP + BAND_H)], fill=WHITE)
+    draw.rectangle([(0, BAND_TOP), (COVER_W, BAND_TOP + BAND_H)], fill=CREAM)
 
     font_brand = ImageFont.truetype(FONT_BRAND, BRAND_SIZE)
     try:
@@ -72,7 +72,7 @@ def compose_cover(painting_path, title, level, output_path):
     # Title (title case, sans)
     title_x = (COVER_W - title_w) // 2
     title_y = block_top
-    draw.text((title_x, title_y), title, fill=WHITE, font=font_title)
+    draw.text((title_x, title_y), title, fill=CREAM, font=font_title)
 
     # Line
     line_y = block_top + title_h + gap_above_line
@@ -84,7 +84,7 @@ def compose_cover(painting_path, title, level, output_path):
     level_x = (COVER_W - total_level_w) // 2
     level_y = line_y + gap_below_line
     for c in level_upper:
-        draw.text((level_x, level_y), c, fill=WHITE, font=font_level)
+        draw.text((level_x, level_y), c, fill=CREAM, font=font_level)
         c_w = draw.textbbox((0, 0), c, font=font_level)[2] - draw.textbbox((0, 0), c, font=font_level)[0]
         level_x += c_w + spacing
 

@@ -4012,13 +4012,21 @@ app.post('/api/align-chunks', async (req, res) => {
     }
 
     const developerMessage = `You are a language learning tool. A learner is reading a sentence in a foreign language. They have the full sentence translation above. Your job is to show them which source words map to which parts of the translation, so they can understand how each word contributes to the meaning.
-Align the source words to their translation. Go word by word through the source. For each word, find the part of the translation it maps to. Most words will map one-to-one. Only group source words together when they share a meaning that cannot be split — when one source word alone cannot be matched to any part of the translation without the other.
-For example:
+
+Align the source words to their translation based on MEANING, not position. Do not force a source word to map to the translation word sitting in the same position. Find the part of the translation that actually captures what that source word means.
+
+If a source word cannot be meaningfully matched to any part of the translation on its own, group it with its neighbour until the group maps to a clear piece of meaning. For example:
 - "sin embargo" must be grouped → "however" — neither "sin" nor "embargo" alone maps to "however"
 - "de hecho" must be grouped → "in fact" — neither "de" nor "hecho" alone maps to "in fact"
+- "dar a luz" must be grouped → "give birth" — none of these words alone means "give birth"
 - "el hombre" stays separate → "el" = "the", "hombre" = "man" — each word maps on its own
-Every word from both the source and the translation must be accounted for. Nothing dropped. Every single word from the translation must appear in exactly one meaning field.
+
+Most words will map one-to-one. Only group when singles are impossible.
+
+Every word from both the source and the translation must be accounted for. Nothing dropped. Every single word from the translation must appear in exactly one meaning field. A piece of the translation must never appear in more than one row. If two source words share the same meaning and cannot be split, group them into one entry.
+
 Strip all punctuation. No commas, periods, dashes, or quotation marks in the output.
+
 Return ONLY a JSON array of {"source": "...", "meaning": "..."}.`
 
     const userMessage = `Sentence: ${source}

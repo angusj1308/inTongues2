@@ -571,7 +571,7 @@ textarea {
 .dashboard-brand-section {
   width: min(1320px, 100%);
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0.5rem 1rem 0;
 }
 
 .dashboard-brand-center {
@@ -789,7 +789,7 @@ textarea {
   display: flex;
   align-items: baseline;
   gap: 0.05rem;
-  font-size: 3.5rem;
+  font-size: 4rem;
   font-weight: 300;
   font-family: 'EB Garamond', Georgia, serif;
   color: inherit;

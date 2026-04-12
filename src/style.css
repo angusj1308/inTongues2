@@ -3819,8 +3819,7 @@ html.reader-active body {
 }
 
 .intensive-translation-toggle:hover {
-  background: #f5f5f4;
-  color: #0f172a;
+  color: #44403c;
 }
 
 .reader-intensive-helper {
@@ -3952,7 +3951,6 @@ html.reader-active body {
 }
 
 .reader-themed[data-reader-tone='dark'] .intensive-translation-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: #e7e5e4;
 }
 

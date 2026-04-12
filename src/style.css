@@ -3717,7 +3717,7 @@ html.reader-active body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(250, 246, 240, 0.95);
   backdrop-filter: blur(8px);
   z-index: 100;
 }

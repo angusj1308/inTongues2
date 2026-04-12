@@ -3723,7 +3723,7 @@ html.reader-active body {
 }
 
 .reader-intensive-card {
-  background: #ffffff;
+  background: #FAF6F0;
   border-radius: 0;
   border: 1px solid #e7e5e4;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
@@ -3735,6 +3735,27 @@ html.reader-active body {
   gap: 0;
   padding: 5rem clamp(3rem, 10vw, 8rem) 2rem;
   overflow: hidden;
+  position: relative;
+}
+
+.reader-intensive-counter {
+  position: absolute;
+  top: 1rem;
+  left: 1.5rem;
+  font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
+  font-size: 0.9rem;
+  color: #78716c;
+  user-select: none;
+}
+
+.reader-intensive-counter-arrow {
+  cursor: pointer;
+  display: inline-block;
+  padding: 0 0.25rem;
+}
+
+.reader-intensive-counter-arrow:hover {
+  color: #0f172a;
 }
 
 .reader-intensive-top {

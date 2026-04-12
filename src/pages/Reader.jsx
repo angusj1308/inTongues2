@@ -1292,14 +1292,33 @@ const Reader = ({ initialMode }) => {
     return elements
   }
 
-  const renderHighlightedText = (text, sentenceOffset = 0) => {
+  const renderHighlightedText = (text, sentenceOffset = 0, trackSentences = false) => {
     const paragraphs = (text || '').split(/\n\n+/)
 
     if (readerMode !== 'intensive') {
+      let runningSentenceOffset = sentenceOffset
       return paragraphs.map((paragraph, pIndex) => {
         const paraIdx = globalParagraphCounterRef.current++
+        let firstSentenceIdx = null
+        let sentenceCount = 0
+        if (trackSentences) {
+          const sentences = splitIntoSentences(paragraph.trim())
+          sentenceCount = sentences.length
+          firstSentenceIdx = runningSentenceOffset
+          runningSentenceOffset += sentenceCount
+        }
         return (
-          <p key={`para-${paraIdx}`} className="reader-paragraph" data-paragraph-index={paraIdx}>
+          <p
+            key={`para-${paraIdx}`}
+            className="reader-paragraph"
+            data-paragraph-index={paraIdx}
+            {...(firstSentenceIdx !== null
+              ? {
+                  'data-first-sentence-index': firstSentenceIdx,
+                  'data-sentence-count': sentenceCount,
+                }
+              : {})}
+          >
             {renderWordSegments(paragraph.trim())}
           </p>
         )
@@ -1696,6 +1715,50 @@ const Reader = ({ initialMode }) => {
   }
 
   const handleModeSelect = (modeId) => {
+    // Active/extensive → intensive: jump to sentence closest to viewport top
+    if (modeId === 'intensive' && readerMode !== 'intensive') {
+      const container = scrollContainerRef.current
+      if (container) {
+        const paragraphs = container.querySelectorAll('[data-first-sentence-index]')
+        let targetIndex = 0
+        for (const el of paragraphs) {
+          const rect = el.getBoundingClientRect()
+          if (rect.bottom > 40) {
+            targetIndex = Number(el.dataset.firstSentenceIndex) || 0
+            break
+          }
+        }
+        setCurrentSentenceIndex(targetIndex)
+      }
+    }
+
+    // Intensive → other mode: scroll to paragraph containing current sentence
+    if (modeId !== 'intensive' && readerMode === 'intensive') {
+      const targetSentenceIdx = currentSentenceIndex
+      // Wait for the non-intensive DOM to render
+      setTimeout(() => {
+        const container = scrollContainerRef.current
+        if (!container) return
+        const paragraphs = container.querySelectorAll('[data-first-sentence-index]')
+        let targetEl = null
+        for (const el of paragraphs) {
+          const first = Number(el.dataset.firstSentenceIndex)
+          const count = Number(el.dataset.sentenceCount) || 1
+          if (targetSentenceIdx >= first && targetSentenceIdx < first + count) {
+            targetEl = el
+            break
+          }
+          if (first > targetSentenceIdx) {
+            targetEl = el
+            break
+          }
+        }
+        if (targetEl) {
+          targetEl.scrollIntoView({ block: 'start', behavior: 'auto' })
+        }
+      }, 50)
+    }
+
     setReaderMode(modeId)
   }
 
@@ -2160,7 +2223,8 @@ const Reader = ({ initialMode }) => {
                     <div className="page-text" onMouseUp={handleWordClick}>
                       {renderHighlightedText(
                         getDisplayText(chapter),
-                        chapterSentenceOffsets[chapterIndex] || 0
+                        chapterSentenceOffsets[chapterIndex] || 0,
+                        true
                       )}
                     </div>
                   </div>
@@ -2245,6 +2309,31 @@ const Reader = ({ initialMode }) => {
       {readerMode === 'intensive' && (
         <div className="reader-intensive-overlay">
           <div className="reader-intensive-card">
+            {allVisibleSentences.length > 0 && (
+              <div className="reader-intensive-counter">
+                <span
+                  className="reader-intensive-counter-arrow"
+                  onClick={() => handleSentenceNavigation('previous')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Previous sentence"
+                >
+                  &lt;
+                </span>
+                {' '}
+                {currentSentenceIndex + 1} of {allVisibleSentences.length}
+                {' '}
+                <span
+                  className="reader-intensive-counter-arrow"
+                  onClick={() => handleSentenceNavigation('next')}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Next sentence"
+                >
+                  &gt;
+                </span>
+              </div>
+            )}
             <div className="reader-intensive-top">
               <div className="reader-intensive-sentence" onMouseUp={handleWordClick}>
                 {currentIntensiveSentence

@@ -3840,7 +3840,7 @@ html.reader-active body {
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #57534e transparent;
+  scrollbar-color: #78716c transparent;
 }
 
 .reader-intensive-words::-webkit-scrollbar {
@@ -3852,7 +3852,7 @@ html.reader-active body {
 }
 
 .reader-intensive-words::-webkit-scrollbar-thumb {
-  background: #57534e;
+  background: #78716c;
   border-radius: 2px;
 }
 

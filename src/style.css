@@ -3838,7 +3838,7 @@ html.reader-active body {
   gap: 0.25rem;
   width: 100%;
   margin-top: 0.5rem;
-  max-height: 220px;
+  flex: 1;
   overflow-y: auto;
 }
 

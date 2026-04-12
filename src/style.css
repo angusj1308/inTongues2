@@ -3743,7 +3743,7 @@ html.reader-active body {
   top: 1.75rem;
   left: 1.5rem;
   font-family: var(--reader-font-family, 'Garamond', 'Times New Roman', serif);
-  font-size: 1rem;
+  font-size: 1.2rem;
   color: #57534e;
   user-select: none;
 }
@@ -3811,7 +3811,7 @@ html.reader-active body {
   background: transparent;
   border: none;
   color: #78716c;
-  font-size: 1rem;
+  font-size: 1.15rem;
   cursor: pointer;
   padding: 0.5rem 1rem;
   border-radius: 0;
@@ -3823,7 +3823,7 @@ html.reader-active body {
 }
 
 .reader-intensive-helper {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   color: #a8a29e;
   margin: 0;
   text-align: center;

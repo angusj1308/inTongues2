@@ -592,8 +592,7 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  width: 60%;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .dashboard-brand-line {
@@ -23424,8 +23423,8 @@ body.active-pass-locked {
 .home-row-divider {
   height: 0.5px;
   background: #78716c;
-  width: 60%;
-  margin: 0.75rem auto 0.5rem auto;
+  width: 100%;
+  margin: 0.75rem 0 0.5rem 0;
 }
 
 /* Two Column Equal Grid with Divider */

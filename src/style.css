@@ -3839,6 +3839,21 @@ html.reader-active body {
   margin-top: 0.5rem;
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #57534e transparent;
+}
+
+.reader-intensive-words::-webkit-scrollbar {
+  width: 4px;
+}
+
+.reader-intensive-words::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.reader-intensive-words::-webkit-scrollbar-thumb {
+  background: #57534e;
+  border-radius: 2px;
 }
 
 .reader-intensive-word-row {

@@ -7274,7 +7274,7 @@ app.post('/api/recomposite-cover', async (req, res) => {
     }
 
     const data = snap.data() || {}
-    if (!data.coverUrl) {
+    if (!data.coverUrl && !data.coverImageUrl) {
       return res.status(400).json({ error: 'Story has no existing cover' })
     }
 

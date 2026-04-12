@@ -7260,6 +7260,77 @@ app.post('/api/generate-cover', async (req, res) => {
   }
 })
 
+app.post('/api/recomposite-cover', async (req, res) => {
+  try {
+    const { uid, storyId } = req.body || {}
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const snap = await storyRef.get()
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const data = snap.data() || {}
+    if (!data.coverUrl) {
+      return res.status(400).json({ error: 'Story has no existing cover' })
+    }
+
+    // Download existing cover from Storage
+    const storagePath = `covers/${uid}/${storyId}.png`
+    const file = bucket.file(storagePath)
+    const [existingCover] = await file.download()
+
+    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const tempCover = path.join(os.tmpdir(), `cover-existing-${tempId}.png`)
+    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
+    const tempComposed = path.join(os.tmpdir(), `cover-composed-${tempId}.png`)
+
+    let coverBuffer
+    try {
+      await fs.writeFile(tempCover, existingCover)
+
+      // Crop the painting (top 1580px) from the existing cover
+      await new Promise((resolve, reject) => {
+        const proc = spawn('python3', ['-c', `
+from PIL import Image
+img = Image.open("${tempCover}")
+img.crop((0, 0, ${1600}, ${1580})).save("${tempPainting}")
+`])
+        proc.on('error', (err) => reject(err))
+        proc.on('close', (code) => code === 0 ? resolve() : reject(new Error('Crop failed')))
+      })
+
+      await ensureCoverFonts()
+
+      const title = data.storyTitle || data.title || 'Untitled'
+      const storedLevel = data.level || 'Intermediate'
+      const coverLevel = storedLevel === 'Native' ? 'Advanced' : storedLevel
+      const levelLine = `${coverLevel} ${data.language || ''}`.trim()
+
+      await runCoverCompositor(tempPainting, title, levelLine, tempComposed)
+      coverBuffer = await fs.readFile(tempComposed)
+    } finally {
+      await fs.unlink(tempCover).catch(() => {})
+      await fs.unlink(tempPainting).catch(() => {})
+      await fs.unlink(tempComposed).catch(() => {})
+    }
+
+    const coverUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
+    if (!coverUrl) throw new Error('Failed to upload recomposited cover')
+
+    await storyRef.update({ coverUrl, coverImageUrl: coverUrl })
+    console.log(`Recomposited cover for ${storyId}:`, coverUrl)
+
+    return res.json({ success: true, coverUrl })
+  } catch (err) {
+    console.error('Recomposite cover error:', err)
+    return res.status(500).json({ error: 'Recomposite failed', details: err?.message })
+  }
+})
+
 app.post('/api/generate-audio-book', async (req, res) => {
   let storyRef
 

@@ -22,6 +22,7 @@ LEVEL_SIZE = 38
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+PANEL_BG = (46, 46, 46)
 LINE_COLOUR = (170, 31, 35)
 
 
@@ -29,7 +30,7 @@ def compose_cover(painting_path, title, level, output_path):
     painting = Image.open(painting_path).convert("RGB")
     painting = painting.resize((COVER_W, PAINTING_H), Image.LANCZOS)
 
-    cover = Image.new("RGB", (COVER_W, COVER_H), BLACK)
+    cover = Image.new("RGB", (COVER_W, COVER_H), PANEL_BG)
     cover.paste(painting, (0, 0))
 
     draw = ImageDraw.Draw(cover)

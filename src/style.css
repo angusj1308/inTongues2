@@ -3811,7 +3811,7 @@ html.reader-active body {
   background: transparent;
   border: none;
   color: #78716c;
-  font-size: 0.95rem;
+  font-size: 1rem;
   cursor: pointer;
   padding: 0.5rem 1rem;
   border-radius: 0;
@@ -3823,7 +3823,7 @@ html.reader-active body {
 }
 
 .reader-intensive-helper {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #a8a29e;
   margin: 0;
   text-align: center;

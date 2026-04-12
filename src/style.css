@@ -6,13 +6,13 @@
   font-weight: 400;
   color-scheme: light;
   color: #0f172a;
-  background-color: #FAF6F0;
+  background-color: #f2ede8;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --accent-color: #111111;
   --accent-red: #0f172a;
-  --dashboard-surface: #FAF6F0;
-  --dashboard-surface-contrast: #FAF6F0;
+  --dashboard-surface: #f2ede8;
+  --dashboard-surface-contrast: #f2ede8;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   /* Highlight palette fallbacks (Terracotta default, light + dark variants).
@@ -527,7 +527,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #FAF6F0;
+  background: #f2ede8;
   min-height: 100vh;
 }
 
@@ -756,7 +756,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #FAF6F0;
+  background: #f2ede8;
 }
 
 .dashboard-wrapper {
@@ -3723,7 +3723,7 @@ html.reader-active body {
 }
 
 .reader-intensive-card {
-  background: #FAF6F0;
+  background: #f2ede8;
   border-radius: 0;
   border: 1px solid #e7e5e4;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
@@ -6777,7 +6777,7 @@ html.reader-active body {
 }
 
 .reader-themed .dashboard-header {
-  background: #FAF6F0;
+  background: #f2ede8;
   color: #0f172a;
 }
 

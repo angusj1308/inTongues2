@@ -76,7 +76,7 @@ body {
 }
 
 [data-theme='dark'] .card {
-  background: #292524;
+  background: #1c1917;
   border-color: #44403c;
 }
 
@@ -124,7 +124,7 @@ a:hover {
 [data-theme='dark'] .home-stats-card,
 [data-theme='dark'] .home-routine-card,
 [data-theme='dark'] .home-level-card {
-  background: #292524;
+  background: #1c1917;
 }
 
 [data-theme='dark'] .home-card-title,
@@ -160,7 +160,7 @@ a:hover {
 /* Dark mode - book tiles and cards */
 [data-theme='dark'] .book-tile,
 [data-theme='dark'] .book-card {
-  background: #292524;
+  background: #1c1917;
   border-color: #44403c;
 }
 
@@ -183,7 +183,7 @@ a:hover {
 [data-theme='dark'] input,
 [data-theme='dark'] textarea,
 [data-theme='dark'] select {
-  background: #292524;
+  background: #1c1917;
   color: #fafaf9;
   border-color: #44403c;
 }
@@ -233,19 +233,19 @@ a:hover {
 
 [data-theme='dark'] .import-input,
 [data-theme='dark'] .import-file-input input[type='file'] {
-  background: #292524;
+  background: #1c1917;
   color: #fafaf9;
   border-color: #44403c;
 }
 
 [data-theme='dark'] .import-input:focus {
-  background: #292524;
+  background: #1c1917;
   border-color: #78716c;
 }
 
 /* Dark mode - continue reading section */
 [data-theme='dark'] .continue-card {
-  background: #292524;
+  background: #1c1917;
 }
 
 [data-theme='dark'] .continue-card-title {
@@ -260,7 +260,7 @@ a:hover {
 /* Dark mode - routine builder */
 [data-theme='dark'] .routine-day,
 [data-theme='dark'] .routine-item {
-  background: #292524;
+  background: #1c1917;
   border-color: #44403c;
 }
 
@@ -20454,7 +20454,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .media-card-tag {
-  background: #292524;
+  background: #1c1917;
   color: #a8a29e;
 }
 
@@ -24985,7 +24985,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .reading-shelf-cover {
-  background: #292524;
+  background: #1c1917;
   border-color: #44403c;
 }
 
@@ -25002,7 +25002,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .reading-book-cover {
-  background: #292524;
+  background: #1c1917;
   border-color: #44403c;
 }
 
@@ -25029,7 +25029,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .book-delete-btn {
-  background: #292524;
+  background: #1c1917;
   color: #a8a29e;
   border-color: #44403c;
 }
@@ -25040,7 +25040,7 @@ body.active-pass-locked {
 }
 
 [data-theme='dark'] .book-regenerate-btn {
-  background: #292524;
+  background: #1c1917;
   color: #a8a29e;
   border-color: #44403c;
 }

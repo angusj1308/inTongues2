@@ -571,7 +571,7 @@ textarea {
 .dashboard-brand-section {
   width: min(1320px, 100%);
   margin: 0 auto;
-  padding: 1.75rem 1rem 1.75rem;
+  padding: 0.75rem 1rem 1.75rem;
 }
 
 .dashboard-brand-center {

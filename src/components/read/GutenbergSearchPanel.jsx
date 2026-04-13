@@ -123,7 +123,7 @@ const GutenbergSearchPanel = ({
   // Reset import wizard
   const resetImportWizard = () => {
     setImportingBookId(null)
-    setImportStep('format')
+    setImportStep('level')
     setImportOptions({
       format: null,
       level: null,
@@ -132,10 +132,11 @@ const GutenbergSearchPanel = ({
     })
   }
 
-  // Start import wizard for a book
-  const startImportWizard = (e, bookId, format) => {
+  // Start import wizard for a book (default to txt, fallback to epub)
+  const startImportWizard = (e, book) => {
     e.stopPropagation()
-    setImportingBookId(bookId)
+    const format = book.textUrl ? 'txt' : 'epub'
+    setImportingBookId(book.id)
     setImportStep('level')
     setImportOptions({
       format,
@@ -206,25 +207,21 @@ const GutenbergSearchPanel = ({
   // Render the import wizard overlay for a book
   const renderImportWizard = (book) => {
     if (importingBookId !== book.id) {
-      // Default format selection
+      // Show level selection directly on hover
       return (
         <div className="gutenberg-book-hover-overlay">
-          {book.epubUrl && (
+          {LEVELS.map((level) => (
             <button
+              key={level}
               className="gutenberg-quick-import-btn"
-              onClick={(e) => startImportWizard(e, book.id, 'epub')}
+              onClick={(e) => {
+                startImportWizard(e, book)
+                handleLevelSelect(e, level)
+              }}
             >
-              EPUB
+              {level}
             </button>
-          )}
-          {book.textUrl && (
-            <button
-              className="gutenberg-quick-import-btn"
-              onClick={(e) => startImportWizard(e, book.id, 'txt')}
-            >
-              TXT
-            </button>
-          )}
+          ))}
         </div>
       )
     }
@@ -294,7 +291,6 @@ const GutenbergSearchPanel = ({
           <div className="gutenberg-wizard-step gutenberg-wizard-confirm">
             <span className="gutenberg-wizard-label">Confirm Import</span>
             <div className="gutenberg-wizard-summary">
-              <span>{importOptions.format.toUpperCase()}</span>
               <span>{importOptions.level}</span>
               <span>{importOptions.generateAudio ? `Audio: ${importOptions.voiceGender}` : 'No audio'}</span>
             </div>
@@ -310,11 +306,10 @@ const GutenbergSearchPanel = ({
     )
   }
 
-  // Handle detail view import (same wizard but in detail)
-  const handleDetailImport = (format) => {
+  // Handle detail view import (default to txt, fallback to epub)
+  const handleDetailImport = () => {
     if (onSelectBook && selectedBook) {
-      // For detail view, we'll open import modal with pre-filled data
-      // For now, just pass the format
+      const format = selectedBook.textUrl ? 'txt' : 'epub'
       onSelectBook({
         ...selectedBook,
         selectedFormat: format,
@@ -428,20 +423,12 @@ const GutenbergSearchPanel = ({
               </div>
 
               <div className="gutenberg-book-detail-actions">
-                {selectedBook.epubUrl && (
+                {(selectedBook.textUrl || selectedBook.epubUrl) && (
                   <button
                     className="gutenberg-btn-primary"
-                    onClick={() => handleDetailImport('epub')}
+                    onClick={handleDetailImport}
                   >
-                    Import EPUB
-                  </button>
-                )}
-                {selectedBook.textUrl && (
-                  <button
-                    className={selectedBook.epubUrl ? "gutenberg-btn-secondary" : "gutenberg-btn-primary"}
-                    onClick={() => handleDetailImport('txt')}
-                  >
-                    Import TXT
+                    Import
                   </button>
                 )}
                 {selectedBook.htmlUrl && (

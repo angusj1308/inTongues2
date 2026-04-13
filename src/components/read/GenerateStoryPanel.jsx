@@ -330,24 +330,16 @@ const GenerateStoryPanel = ({
       <form className="form" onSubmit={handleSubmit}>
         <label className="ui-text">
           Language level
-          <div className="slider-row">
-            <input
-              type="range"
-              min="0"
-              max={LEVELS.length - 1}
-              value={levelIndex}
-              onChange={(event) => setLevelIndex(Number(event.target.value))}
-              style={{ '--range-progress': `${(levelIndex / (LEVELS.length - 1)) * 100}%` }}
-            />
-          </div>
-          <div className="slider-marks">
+          <div className="import-level-options" style={{ marginTop: '0.5rem' }}>
             {LEVELS.map((level, index) => (
-              <span
+              <button
                 key={level}
-                className={`slider-mark${levelIndex === index ? ' active' : ''}`}
+                type="button"
+                className={`import-level-option${levelIndex === index ? ' is-active' : ''}`}
+                onClick={() => setLevelIndex(index)}
               >
                 {level}
-              </span>
+              </button>
             ))}
           </div>
         </label>

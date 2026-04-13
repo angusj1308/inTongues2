@@ -353,7 +353,7 @@ input {
   border-radius: 10px;
   border: 1px solid #d6d3d1;
   font-size: 1rem;
-  background-color: #fafaf9;
+  background-color: #FAF8F6;
 }
 
 input[type='range'] {
@@ -371,7 +371,7 @@ textarea {
   border-radius: 10px;
   border: 1px solid #d6d3d1;
   font-size: 1rem;
-  background-color: #fafaf9;
+  background-color: #FAF8F6;
 }
 
 input:focus {
@@ -16905,7 +16905,7 @@ body.active-pass-locked {
   font-size: 0.95rem;
   border: 1px solid #d6d3d1;
   border-radius: 0;
-  background: #fafaf9;
+  background: #FAF8F6;
   color: #1c1917;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -16914,7 +16914,7 @@ body.active-pass-locked {
   outline: none;
   border-color: #78716c;
   box-shadow: 0 0 0 2px rgba(120, 113, 108, 0.1);
-  background: #fff;
+  background: #FAF8F6;
 }
 
 .import-input::placeholder {
@@ -16927,7 +16927,7 @@ body.active-pass-locked {
   font-size: 0.9rem;
   border: 1px dashed #d6d3d1;
   border-radius: 0;
-  background: #fafaf9;
+  background: #FAF8F6;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -16942,7 +16942,7 @@ body.active-pass-locked {
   margin-right: 0.75rem;
   border: 1px solid #d6d3d1;
   border-radius: 0;
-  background: #fafaf9;
+  background: #FAF8F6;
   color: #57534e;
   font-size: 0.85rem;
   font-weight: 600;
@@ -26009,6 +26009,7 @@ body.active-pass-locked {
   border: 1px solid #d6d3d1;
   border-radius: 4px;
   font-size: 0.95rem;
+  background: #FAF8F6;
   transition: border-color 0.2s;
 }
 

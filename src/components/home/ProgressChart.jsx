@@ -45,8 +45,7 @@ const STAT_TITLES = {
 }
 
 const getStatTitle = (language, statKey) => {
-  const titles = STAT_TITLES[language] || STAT_TITLES.English
-  return titles[statKey] || STAT_TITLES.English[statKey] || 'Progress'
+  return STAT_TITLES.English[statKey] || 'Progress'
 }
 
 // Y-axis milestone thresholds for known words

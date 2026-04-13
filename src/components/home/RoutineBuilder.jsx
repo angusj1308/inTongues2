@@ -72,8 +72,7 @@ const WEEKLY_ROUTINE_TITLES = {
 }
 
 const getDayLabel = (language, day) => {
-  const labels = LOCALIZED_DAY_LABELS[language] || LOCALIZED_DAY_LABELS.English
-  return labels[day] || DAY_LABELS[day]
+  return LOCALIZED_DAY_LABELS.English[day] || DAY_LABELS[day]
 }
 
 // Format hour for display
@@ -452,7 +451,7 @@ const RoutineBuilder = ({ userId, language }) => {
 
   return (
     <div className="routine-builder">
-      <h3 className="home-section-title">{WEEKLY_ROUTINE_TITLES[language] || WEEKLY_ROUTINE_TITLES.English}</h3>
+      <h3 className="home-section-title">{WEEKLY_ROUTINE_TITLES.English}</h3>
 
       <div className="routine-week-container">
         {/* Sticky day headers row */}

@@ -327,7 +327,7 @@ const GutenbergSearchPanel = ({
       <div className="gutenberg-header">
         <div className="gutenberg-header-top">
           <h2 className="gutenberg-title">
-            {EXPLORE_TITLES[activeLanguage] || EXPLORE_TITLES.English}
+            {EXPLORE_TITLES.English}
           </h2>
           {onClose && (
             <button className="modal-close-button" onClick={onClose} aria-label="Close">

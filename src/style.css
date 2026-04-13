@@ -375,14 +375,16 @@ textarea {
 }
 
 input:focus {
-  outline: 2px solid #000;
-  outline-offset: 1px;
+  outline: none;
+  border-color: #78716c;
+  box-shadow: 0 0 0 2px rgba(120, 113, 108, 0.1);
 }
 
 select:focus,
 textarea:focus {
-  outline: 2px solid #000;
-  outline-offset: 1px;
+  outline: none;
+  border-color: #78716c;
+  box-shadow: 0 0 0 2px rgba(120, 113, 108, 0.1);
 }
 
 textarea {
@@ -2728,14 +2730,15 @@ textarea {
 }
 
 .voice-gender-option.is-active {
-  border-color: #111;
-  background: #111;
-  color: #fff;
+  border-color: #57534e;
+  background: #57534e;
+  color: #fafaf9;
 }
 
 .voice-gender-option:focus-visible {
-  outline: 2px solid #0f172a;
-  outline-offset: 2px;
+  outline: none;
+  border-color: #78716c;
+  box-shadow: 0 0 0 2px rgba(120, 113, 108, 0.1);
 }
 
 [data-theme='dark'] .voice-gender-option {
@@ -17033,9 +17036,9 @@ body.active-pass-locked {
 }
 
 .import-voice-option.is-active {
-  border-color: #111;
-  background: #111;
-  color: #fff;
+  border-color: #57534e;
+  background: #57534e;
+  color: #fafaf9;
 }
 
 .import-checkboxes {

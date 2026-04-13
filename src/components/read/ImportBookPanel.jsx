@@ -109,7 +109,7 @@ const ImportBookPanel = ({
   const panelContent = (
     <>
       <div className="import-modal-header">
-        <HeadingTag className="import-modal-title">{IMPORT_TITLES[activeLanguage] || IMPORT_TITLES.English}</HeadingTag>
+        <HeadingTag className="import-modal-title">{IMPORT_TITLES.English}</HeadingTag>
         <p className="import-modal-subtitle">
           Import a book and get a full adaptation in your target language.
         </p>

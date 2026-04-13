@@ -71,8 +71,7 @@ const CARD_HEADERS = {
 }
 
 const getCardHeader = (language, key) => {
-  const headers = CARD_HEADERS[language] || CARD_HEADERS.English
-  return headers[key] || CARD_HEADERS.English[key]
+  return CARD_HEADERS.English[key]
 }
 
 // Get today's day of week (monday, tuesday, etc.)

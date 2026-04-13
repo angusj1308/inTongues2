@@ -284,7 +284,7 @@ const GenerateStoryPanel = ({
       <div className="page-header">
         <div className="page-header-title">
           <HeadingTag className="text-center generate-modal-title">
-            {GENERATE_TITLES[activeLanguage] || GENERATE_TITLES.English}
+            {GENERATE_TITLES.English}
           </HeadingTag>
           <p className="text-center ui-text">
             Create an original story in your target language, tailored to your level.

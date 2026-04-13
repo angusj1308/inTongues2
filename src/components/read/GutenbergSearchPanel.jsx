@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { searchBooks } from '../../services/gutenberg'
+import { searchBooks, getCachedPopularBooks } from '../../services/gutenberg'
 
 // Target language translations for modal title
 const EXPLORE_TITLES = {
@@ -37,12 +37,12 @@ const GutenbergSearchPanel = ({
     voiceGender: null,
   })
 
-  // Load popular books on mount
+  // Load popular books on mount (uses prefetched cache if available)
   useEffect(() => {
     const loadPopular = async () => {
       setLoading(true)
       try {
-        const results = await searchBooks({ page: 1 })
+        const results = await getCachedPopularBooks()
         setBooks(results.books)
         setTotalCount(results.count)
         setNextPage(results.next)

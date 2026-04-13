@@ -141,6 +141,38 @@ export const getPopularBooks = async (page = 1) => {
   return searchBooks({ page })
 }
 
+// Prefetch cache for popular books
+let _popularCache = null
+let _popularCachePromise = null
+
+/**
+ * Prefetch popular books silently so the Explore panel opens instantly.
+ * Safe to call multiple times — only fetches once.
+ */
+export const prefetchPopularBooks = () => {
+  if (_popularCache || _popularCachePromise) return
+  _popularCachePromise = searchBooks({ page: 1 })
+    .then((results) => {
+      _popularCache = results
+    })
+    .catch(() => {
+      _popularCachePromise = null // allow retry on failure
+    })
+}
+
+/**
+ * Get cached popular books if available, otherwise fetch fresh.
+ * @returns {Promise<Object>} Popular books
+ */
+export const getCachedPopularBooks = async () => {
+  if (_popularCache) return _popularCache
+  if (_popularCachePromise) {
+    await _popularCachePromise
+    if (_popularCache) return _popularCache
+  }
+  return searchBooks({ page: 1 })
+}
+
 /**
  * Map language names to Gutenberg language codes
  */

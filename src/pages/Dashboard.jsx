@@ -11,6 +11,7 @@ import DevelopmentGate from '../components/DevelopmentGate'
 import ImportBookPanel from '../components/read/ImportBookPanel'
 import GenerateStoryPanel from '../components/read/GenerateStoryPanel'
 import GutenbergSearchPanel from '../components/read/GutenbergSearchPanel'
+import { prefetchPopularBooks } from '../services/gutenberg'
 import ReviewModal from '../components/review/ReviewModal'
 import RoutineBuilder from '../components/home/RoutineBuilder'
 import ProgressChart from '../components/home/ProgressChart'
@@ -460,6 +461,11 @@ const Dashboard = () => {
   const [selectedStat, setSelectedStat] = useState('knownWords')
   const [addActivityModal, setAddActivityModal] = useState({ isOpen: false, position: null })
   const [activeRoutineId, setActiveRoutineId] = useState(null)
+
+  // Prefetch Gutenberg popular books when read tab is active
+  useEffect(() => {
+    if (activeTab === 'read') prefetchPopularBooks()
+  }, [activeTab])
 
   const availableLanguages = useMemo(
     () => filterSupportedLanguages(profile?.myLanguages || []),

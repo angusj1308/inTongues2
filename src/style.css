@@ -24796,6 +24796,10 @@ body.active-pass-locked {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.75);
   text-align: center;
+  margin-bottom: 0.15rem;
+}
+
+.reading-shelf-hover-meta:last-of-type {
   margin-bottom: 0.75rem;
 }
 

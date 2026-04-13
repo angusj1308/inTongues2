@@ -75,6 +75,24 @@ const getCardHeader = (language, key) => {
   return CARD_HEADERS.English[key]
 }
 
+// Format label from length preset or page count
+const FORMAT_LABELS = { short: 'Short Story', novella: 'Novella', novel: 'Novel' }
+const getBookFormat = (book) => {
+  if (book.lengthPreset && FORMAT_LABELS[book.lengthPreset]) return FORMAT_LABELS[book.lengthPreset]
+  const pages = book.pageCount || 0
+  if (pages <= 20) return 'Short Story'
+  if (pages <= 120) return 'Novella'
+  if (pages > 120) return 'Novel'
+  return ''
+}
+
+// Calculate page count from word count if not pre-computed
+const getPageCount = (book) => {
+  if (book.pageCount) return book.pageCount
+  if (book.totalWords) return Math.round(book.totalWords / 250)
+  return 0
+}
+
 // Get today's day of week (monday, tuesday, etc.)
 const getTodayDayOfWeek = () => {
   const dayIndex = new Date().getDay()
@@ -1940,19 +1958,24 @@ const Dashboard = () => {
                                       </span>
                                     </div>
                                   )}
-                                  {!isProcessing && (
+                                  {!isProcessing && (() => {
+                                    const pages = getPageCount(book)
+                                    const format = getBookFormat(book)
+                                    return (
                                     <div className="reading-shelf-hover-overlay">
                                       <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
-                                      <div className="reading-shelf-hover-meta">
-                                        {book.level ? `Level ${book.level}` : ''}
-                                        {book.level && book.pageCount ? ' · ' : ''}
-                                        {book.pageCount ? `${book.pageCount} pages` : ''}
-                                      </div>
+                                      {book.level && <div className="reading-shelf-hover-meta">{`Level ${book.level}`}</div>}
+                                      {(pages > 0 || format) && (
+                                        <div className="reading-shelf-hover-meta">
+                                          {pages > 0 ? `${pages} pages` : ''}{pages > 0 && format ? ' · ' : ''}{format}
+                                        </div>
+                                      )}
                                       <div className="reading-shelf-hover-progress">
                                         <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
                                       </div>
                                     </div>
-                                  )}
+                                    )
+                                  })()}
                                 </div>
                               </button>
                               {book.isGeneratedBook && isProcessing && (
@@ -2141,19 +2164,24 @@ const Dashboard = () => {
                                       </span>
                                     </div>
                                   )}
-                                  {!isProcessing && (
+                                  {!isProcessing && (() => {
+                                    const pages = getPageCount(book)
+                                    const format = getBookFormat(book)
+                                    return (
                                     <div className="reading-shelf-hover-overlay">
                                       <div className="reading-shelf-hover-title">{getStoryTitle(book)}</div>
-                                      <div className="reading-shelf-hover-meta">
-                                        {book.level ? `Level ${book.level}` : ''}
-                                        {book.level && book.pageCount ? ' · ' : ''}
-                                        {book.pageCount ? `${book.pageCount} pages` : ''}
-                                      </div>
+                                      {book.level && <div className="reading-shelf-hover-meta">{`Level ${book.level}`}</div>}
+                                      {(pages > 0 || format) && (
+                                        <div className="reading-shelf-hover-meta">
+                                          {pages > 0 ? `${pages} pages` : ''}{pages > 0 && format ? ' · ' : ''}{format}
+                                        </div>
+                                      )}
                                       <div className="reading-shelf-hover-progress">
                                         <div className="reading-shelf-hover-progress-bar" style={{ width: `${progress}%` }} />
                                       </div>
                                     </div>
-                                  )}
+                                    )
+                                  })()}
                                 </div>
                               </button>
                               {book.isGeneratedBook && isProcessing && (

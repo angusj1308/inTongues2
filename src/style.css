@@ -152,7 +152,10 @@ a:hover {
   border-color: #44403c;
 }
 
-[data-theme='dark'] .home-grid-divider,
+[data-theme='dark'] .home-grid-divider {
+  background: transparent;
+}
+
 [data-theme='dark'] .home-row-divider {
   background: #a8a29e;
 }
@@ -24967,7 +24970,10 @@ body.active-pass-locked {
   color: #a8a29e;
 }
 
-[data-theme='dark'] .home-grid-divider,
+[data-theme='dark'] .home-grid-divider {
+  background: transparent;
+}
+
 [data-theme='dark'] .home-row-divider {
   background: #a8a29e;
 }

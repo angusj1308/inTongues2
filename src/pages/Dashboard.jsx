@@ -63,7 +63,7 @@ const CARD_HEADERS = {
     generate: 'Generate',
     import: 'Import',
     explore: 'Explore',
-    routine: 'Routine',
+    routine: 'Daily Routine',
     stats: 'Stats',
     recent: 'Recent',
     allBooks: 'All Books',

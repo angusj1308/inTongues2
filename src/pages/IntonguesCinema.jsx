@@ -134,6 +134,14 @@ const IntonguesCinema = () => {
   const [transcript, setTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
   const [transcriptError, setTranscriptError] = useState('')
   const [transcriptLoading, setTranscriptLoading] = useState(false)
+
+  // Dubbed content state
+  const [isDubbed, setIsDubbed] = useState(false)
+  const [dubbedAudioUrl, setDubbedAudioUrl] = useState('')
+  const [activeSubtitleLanguage, setActiveSubtitleLanguage] = useState('target')
+  const [sourceTranscript, setSourceTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
+  const [targetTranscript, setTargetTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
+  const dubbedAudioRef = useRef(null)
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
   const [pronunciations, setPronunciations] = useState({})
@@ -189,20 +197,28 @@ const IntonguesCinema = () => {
           e.preventDefault()
           if (playbackStatus.isPlaying) {
             playerRef.current?.pauseVideo?.()
+            if (isDubbed) dubbedAudioRef.current?.pause()
           } else {
             playerRef.current?.playVideo?.()
+            if (isDubbed) dubbedAudioRef.current?.play()
           }
           break
         case 'ArrowLeft':
           e.preventDefault()
           const currentTime = playerRef.current?.getCurrentTime?.() ?? 0
           playerRef.current?.seekTo?.(Math.max(0, currentTime - scrubSeconds))
+          if (isDubbed && dubbedAudioRef.current) {
+            dubbedAudioRef.current.currentTime = Math.max(0, currentTime - scrubSeconds)
+          }
           break
         case 'ArrowRight':
           e.preventDefault()
           const current = playerRef.current?.getCurrentTime?.() ?? 0
           const duration = playerRef.current?.getDuration?.() ?? 0
           playerRef.current?.seekTo?.(Math.min(duration, current + scrubSeconds))
+          if (isDubbed && dubbedAudioRef.current) {
+            dubbedAudioRef.current.currentTime = Math.min(duration, current + scrubSeconds)
+          }
           break
         default:
           break
@@ -478,7 +494,12 @@ const normalisePagesToSegments = (pages = []) =>
           return
         }
 
-        setVideo({ id: videoSnap.id, ...videoSnap.data() })
+        const videoData = videoSnap.data()
+        setVideo({ id: videoSnap.id, ...videoData })
+        if (videoData.isDubbed) {
+          setIsDubbed(true)
+          setDubbedAudioUrl(videoData.dubbedAudioUrl || '')
+        }
         setError('')
       } catch (err) {
         console.error('Failed to load YouTube video', err)
@@ -493,9 +514,15 @@ const normalisePagesToSegments = (pages = []) =>
 
   const videoId = useMemo(() => extractVideoId(video), [video])
   const transcriptLanguage = useMemo(
-    () => video?.language || profile?.lastUsedLanguage || 'auto',
-    [profile?.lastUsedLanguage, video?.language]
+    () => isDubbed ? (video?.targetLanguage || video?.language || profile?.lastUsedLanguage || 'auto') : (video?.language || profile?.lastUsedLanguage || 'auto'),
+    [isDubbed, video?.targetLanguage, video?.language, profile?.lastUsedLanguage]
   )
+
+  // For dubbed content, derive which language to use for vocab tracking based on active subtitle view
+  const vocabTrackingLanguage = useMemo(() => {
+    if (!isDubbed) return transcriptLanguage
+    return activeSubtitleLanguage === 'source' ? video?.sourceLanguage : video?.targetLanguage
+  }, [isDubbed, activeSubtitleLanguage, video?.sourceLanguage, video?.targetLanguage, transcriptLanguage])
   const transcriptTtsLanguage = normalizeLanguageCode(transcriptLanguage)
 
   useEffect(() => {
@@ -573,6 +600,55 @@ const normalisePagesToSegments = (pages = []) =>
       isCancelled = true
     }
   }, [id, isSpotify, transcriptLanguage, user?.uid, videoId])
+
+  // Load both source and target transcripts for dubbed content
+  useEffect(() => {
+    if (!isDubbed || !user || !id || !video?.sourceLanguage || !video?.targetLanguage) return
+
+    let isCancelled = false
+
+    const loadDubbedTranscripts = async () => {
+      try {
+        // Load target transcript
+        const targetRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', video.targetLanguage)
+        const targetSnap = await getDoc(targetRef)
+        if (!isCancelled && targetSnap.exists()) {
+          const data = targetSnap.data()
+          setTargetTranscript({
+            text: data?.text || '',
+            segments: normaliseSegments(data?.segments),
+            sentenceSegments: normaliseSegments(data?.sentenceSegments),
+          })
+        }
+
+        // Load source transcript
+        const sourceRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', video.sourceLanguage)
+        const sourceSnap = await getDoc(sourceRef)
+        if (!isCancelled && sourceSnap.exists()) {
+          const data = sourceSnap.data()
+          setSourceTranscript({
+            text: data?.text || '',
+            segments: normaliseSegments(data?.segments),
+            sentenceSegments: normaliseSegments(data?.sentenceSegments),
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load dubbed transcripts', err)
+      }
+    }
+
+    loadDubbedTranscripts()
+    return () => { isCancelled = true }
+  }, [isDubbed, id, user?.uid, video?.sourceLanguage, video?.targetLanguage])
+
+  // Switch active transcript when subtitle language toggles (dubbed content)
+  useEffect(() => {
+    if (!isDubbed) return
+    const active = activeSubtitleLanguage === 'source' ? sourceTranscript : targetTranscript
+    if (active.segments.length > 0 || active.sentenceSegments.length > 0) {
+      setTranscript(active)
+    }
+  }, [isDubbed, activeSubtitleLanguage, sourceTranscript, targetTranscript])
 
   useEffect(() => {
     if (!isSpotify || !user || !id) return undefined
@@ -930,6 +1006,9 @@ const normalisePagesToSegments = (pages = []) =>
     if (isSpotify) return
 
     const player = playerRef.current
+    if (isDubbed) {
+      player?.mute?.()
+    }
     setPlaybackStatus({
       currentTime: player?.getCurrentTime?.() ?? 0,
       duration: player?.getDuration?.() ?? 0,
@@ -956,6 +1035,20 @@ const normalisePagesToSegments = (pages = []) =>
   useEffect(() => {
     if (!playbackStatus.isPlaying || isSpotify) return
 
+    // For dubbed content, use the audio element as the time source
+    if (isDubbed && dubbedAudioRef.current) {
+      const interval = setInterval(() => {
+        const audio = dubbedAudioRef.current
+        if (!audio) return
+        setPlaybackStatus((prev) => ({
+          ...prev,
+          currentTime: audio.currentTime,
+          duration: audio.duration || prev.duration,
+        }))
+      }, 100)
+      return () => clearInterval(interval)
+    }
+
     const interval = setInterval(() => {
       const player = playerRef.current
       if (!player?.getCurrentTime) return
@@ -971,7 +1064,7 @@ const normalisePagesToSegments = (pages = []) =>
     }, 100) // Update every 100ms for smooth word highlighting
 
     return () => clearInterval(interval)
-  }, [playbackStatus.isPlaying, isSpotify])
+  }, [playbackStatus.isPlaying, isSpotify, isDubbed])
 
   // Save progress to Firestore for stats tracking (debounced)
   useEffect(() => {
@@ -1001,10 +1094,12 @@ const normalisePagesToSegments = (pages = []) =>
     const player = playerRef.current
     if (playbackStatus.isPlaying) {
       player?.pauseVideo?.()
+      if (isDubbed) dubbedAudioRef.current?.pause()
     } else {
       player?.playVideo?.()
+      if (isDubbed) dubbedAudioRef.current?.play()
     }
-  }, [isSpotify, playbackStatus.isPlaying, spotifyPlayer])
+  }, [isSpotify, playbackStatus.isPlaying, spotifyPlayer, isDubbed])
 
   const handleSeek = useCallback((newTime) => {
     const target = Number.isFinite(newTime) && newTime >= 0 ? newTime : 0
@@ -1017,8 +1112,11 @@ const normalisePagesToSegments = (pages = []) =>
     const player = playerRef.current
 
     player?.seekTo?.(target, true)
+    if (isDubbed && dubbedAudioRef.current) {
+      dubbedAudioRef.current.currentTime = target
+    }
     setPlaybackStatus((prev) => ({ ...prev, currentTime: target }))
-  }, [isSpotify, spotifyPlayer])
+  }, [isSpotify, spotifyPlayer, isDubbed])
 
   // Enforce chunk boundaries in Active mode - pause at chunk end, snap to chunk start
   useEffect(() => {
@@ -1632,6 +1730,15 @@ const normalisePagesToSegments = (pages = []) =>
       ref={cinemaContainerRef}
       className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
+      {/* Hidden audio element for dubbed content */}
+      {isDubbed && dubbedAudioUrl && (
+        <audio
+          ref={dubbedAudioRef}
+          src={dubbedAudioUrl}
+          preload="auto"
+          style={{ display: 'none' }}
+        />
+      )}
       {/* Top hover zone for header reveal in fullscreen modes */}
       {isHeaderHideable && (
         <div
@@ -1680,6 +1787,18 @@ const normalisePagesToSegments = (pages = []) =>
           </nav>
           {/* Toggle controls on the right */}
           <div className="cinema-header-actions">
+            {/* Subtitle language toggle - dubbed content only */}
+            {isDubbed && (
+              <button
+                type="button"
+                className="cinema-header-icon-btn"
+                onClick={() => setActiveSubtitleLanguage((prev) => prev === 'target' ? 'source' : 'target')}
+                aria-label={`Subtitles: ${activeSubtitleLanguage === 'target' ? 'Target' : 'Source'} language`}
+                title={`Subtitles: ${activeSubtitleLanguage === 'target' ? video?.targetLanguage?.toUpperCase() : video?.sourceLanguage?.toUpperCase()}`}
+              >
+                <span className="material-symbols-outlined">translate</span>
+              </button>
+            )}
             {/* Dark mode toggle - always visible */}
             <button
               type="button"

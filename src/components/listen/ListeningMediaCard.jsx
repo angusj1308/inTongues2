@@ -24,8 +24,9 @@ const ListeningMediaCard = ({
   const progressPercent = normaliseProgress(progress)
   const prepProgress = normaliseProgress(preparationProgress)
 
-  // Video is importing (transcript being generated)
-  const isImporting = status === 'importing'
+  // Video is importing (transcript being generated) or dubbing
+  const isDubbing = status === 'dubbing'
+  const isImporting = status === 'importing' || isDubbing
   const importFailed = status === 'failed'
 
   // Content is preparing when status is 'pending' or 'preparing' (pronunciation caching)
@@ -37,7 +38,9 @@ const ListeningMediaCard = ({
 
   // Determine action label and disabled state
   let cardActionLabel = actionLabel || (isYouTube ? 'Watch →' : 'Play →')
-  if (isImporting) {
+  if (isDubbing) {
+    cardActionLabel = 'Dubbing...'
+  } else if (isImporting) {
     cardActionLabel = 'Importing...'
   } else if (importFailed) {
     cardActionLabel = 'Import failed'

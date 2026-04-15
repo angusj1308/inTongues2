@@ -3872,6 +3872,288 @@ app.post('/api/youtube/import', async (req, res) => {
   }
 })
 
+// ── YouTube Dubbing via ElevenLabs ──────────────────────────────────────
+
+async function startElevenLabsDubbing(youtubeUrl, sourceLang, targetLang) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY not configured')
+
+  const formData = new FormData()
+  formData.append('source_url', youtubeUrl)
+  formData.append('target_lang', targetLang)
+  if (sourceLang && sourceLang !== 'auto') {
+    formData.append('source_lang', sourceLang)
+  }
+  formData.append('watermark', 'false')
+
+  const response = await fetch('https://api.elevenlabs.io/v1/dubbing', {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    throw new Error(`ElevenLabs dubbing request failed (${response.status}): ${errorText.slice(0, 400)}`)
+  }
+
+  return response.json() // { dubbing_id }
+}
+
+async function pollDubbingStatus(dubbingId, maxAttempts = 40, intervalMs = 15000) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/dubbing/${dubbingId}`, {
+      headers: { 'xi-api-key': apiKey },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Dubbing status check failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log(`  Dubbing ${dubbingId} poll #${attempt + 1}: ${data.status}`)
+
+    if (data.status === 'dubbed') return data
+    if (data.status === 'failed') throw new Error(`Dubbing failed: ${data.error || 'unknown'}`)
+  }
+
+  throw new Error('Dubbing timed out after maximum polling attempts')
+}
+
+async function downloadDubbedAudio(dubbingId, languageCode) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+
+  const response = await fetch(
+    `https://api.elevenlabs.io/v1/dubbing/${dubbingId}/audio/${languageCode}`,
+    { headers: { 'xi-api-key': apiKey } },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to download dubbed audio (${response.status})`)
+  }
+
+  return Buffer.from(await response.arrayBuffer())
+}
+
+async function downloadDubbingSubtitles(dubbingId, languageCode) {
+  const apiKey = process.env.ELEVENLABS_API_KEY
+
+  const response = await fetch(
+    `https://api.elevenlabs.io/v1/dubbing/${dubbingId}/transcript/${languageCode}`,
+    {
+      headers: {
+        'xi-api-key': apiKey,
+        Accept: 'application/json',
+      },
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to download dubbing subtitles for ${languageCode} (${response.status})`)
+  }
+
+  return response.json()
+}
+
+function parseDubbingSubtitlesToSegments(subtitleData) {
+  // ElevenLabs returns { segments: [{ start, end, text }] } or similar
+  // Normalize to our transcript schema
+  if (Array.isArray(subtitleData)) {
+    return subtitleData.map((s) => ({
+      start: s.start ?? s.start_time ?? 0,
+      end: s.end ?? s.end_time ?? 0,
+      text: s.text || '',
+    }))
+  }
+
+  if (subtitleData?.segments && Array.isArray(subtitleData.segments)) {
+    return subtitleData.segments.map((s) => ({
+      start: s.start ?? s.start_time ?? 0,
+      end: s.end ?? s.end_time ?? 0,
+      text: s.text || '',
+    }))
+  }
+
+  // Fallback: if we got a single text blob, return one segment
+  if (typeof subtitleData?.text === 'string') {
+    return [{ start: 0, end: 0, text: subtitleData.text }]
+  }
+
+  return []
+}
+
+async function processYouTubeDubbing(uid, videoDocId, youtubeUrl, sourceLanguage, targetLanguage, title) {
+  const videoRef = firestore.collection('users').doc(uid).collection('youtubeVideos').doc(videoDocId)
+
+  try {
+    // Step 1: Start dubbing
+    console.log(`\nDubbing video ${videoDocId}: ${sourceLanguage} → ${targetLanguage}`)
+    console.log('Step 1: Starting ElevenLabs dubbing...')
+    const { dubbing_id } = await startElevenLabsDubbing(youtubeUrl, sourceLanguage, targetLanguage)
+    await videoRef.update({ dubbingId: dubbing_id })
+    console.log(`  Dubbing ID: ${dubbing_id}`)
+
+    // Step 2: Poll until complete
+    console.log('Step 2: Polling dubbing status...')
+    await pollDubbingStatus(dubbing_id)
+    console.log('  Dubbing complete!')
+
+    // Step 3: Download dubbed audio
+    console.log('Step 3: Downloading dubbed audio...')
+    const audioBuffer = await downloadDubbedAudio(dubbing_id, targetLanguage)
+    console.log(`  Audio size: ${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB`)
+
+    // Step 4: Upload to Firebase Storage
+    console.log('Step 4: Uploading to Firebase Storage...')
+    const storagePath = `dubbed/${uid}/${videoDocId}.mp3`
+    const file = bucket.file(storagePath)
+    await file.save(audioBuffer, {
+      contentType: 'audio/mpeg',
+      metadata: { cacheControl: 'public, max-age=31536000' },
+    })
+    await file.makePublic()
+    const dubbedAudioUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+    console.log(`  Uploaded: ${dubbedAudioUrl}`)
+
+    // Step 5: Get subtitles for both languages
+    console.log('Step 5: Downloading subtitles...')
+    let targetSegments = []
+    let sourceSegments = []
+
+    try {
+      const targetSubs = await downloadDubbingSubtitles(dubbing_id, targetLanguage)
+      targetSegments = parseDubbingSubtitlesToSegments(targetSubs)
+      console.log(`  Target (${targetLanguage}): ${targetSegments.length} segments`)
+    } catch (subErr) {
+      console.error(`  Failed to get target subtitles: ${subErr.message}`)
+    }
+
+    try {
+      const sourceSubs = await downloadDubbingSubtitles(dubbing_id, sourceLanguage === 'auto' ? 'en' : sourceLanguage)
+      sourceSegments = parseDubbingSubtitlesToSegments(sourceSubs)
+      console.log(`  Source (${sourceLanguage}): ${sourceSegments.length} segments`)
+    } catch (subErr) {
+      console.error(`  Failed to get source subtitles: ${subErr.message}`)
+    }
+
+    // Step 6: Store transcripts
+    console.log('Step 6: Storing transcripts...')
+    const transcriptsRef = videoRef.collection('transcripts')
+
+    if (targetSegments.length > 0) {
+      const targetText = targetSegments.map((s) => s.text).join(' ')
+      await transcriptsRef.doc(targetLanguage).set({
+        videoId: videoDocId,
+        language: targetLanguage,
+        segments: targetSegments,
+        text: targetText,
+        sentenceSegments: targetSegments,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+
+    if (sourceSegments.length > 0) {
+      const sourceCode = sourceLanguage === 'auto' ? 'en' : sourceLanguage
+      const sourceText = sourceSegments.map((s) => s.text).join(' ')
+      await transcriptsRef.doc(sourceCode).set({
+        videoId: videoDocId,
+        language: sourceCode,
+        segments: sourceSegments,
+        text: sourceText,
+        sentenceSegments: sourceSegments,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    }
+
+    // Step 7: Update Firestore doc
+    console.log('Step 7: Updating video document...')
+    await videoRef.update({
+      status: 'ready',
+      dubbedAudioUrl,
+      dubbedAudioStoragePath: storagePath,
+    })
+
+    // Step 8: Prepare pronunciations for target language
+    console.log('Step 8: Preparing pronunciations...')
+    const langLabel = Object.entries(LANGUAGE_NAME_TO_CODE).find(([, code]) => code === targetLanguage)?.[0] || ''
+    const voiceId = DEFAULT_IMPORT_VOICE_IDS[langLabel.toLowerCase()] || ''
+    if (voiceId && targetSegments.length > 0) {
+      prepareContentPronunciations(uid, videoDocId, 'youtube', langLabel, voiceId)
+        .then(() => console.log(`  Pronunciations ready for ${videoDocId}`))
+        .catch((err) => console.error(`  Pronunciation prep failed: ${err.message}`))
+    }
+
+    console.log(`Dubbing complete for ${videoDocId}!\n`)
+  } catch (err) {
+    console.error(`Dubbing failed for ${videoDocId}:`, err)
+    await videoRef.update({
+      status: 'failed',
+      failureReason: err?.message || 'Dubbing failed',
+    }).catch(() => {})
+  }
+}
+
+app.post('/api/youtube/dub', async (req, res) => {
+  const { title, youtubeUrl, uid, sourceLanguage, targetLanguage } = req.body || {}
+  const trimmedTitle = (title || '').trim()
+  const trimmedUrl = (youtubeUrl || '').trim()
+
+  if (!trimmedTitle || !trimmedUrl || !uid || !targetLanguage) {
+    return res.status(400).json({ error: 'title, youtubeUrl, uid, and targetLanguage are required' })
+  }
+
+  const videoId = extractYouTubeId(trimmedUrl)
+  if (!videoId) {
+    return res.status(400).json({ error: 'Invalid YouTube URL' })
+  }
+
+  let metadata = { channelTitle: null, durationSeconds: null }
+  try {
+    metadata = await fetchYoutubeMetadata(videoId)
+  } catch (metadataError) {
+    console.error('Failed to fetch YouTube metadata', metadataError)
+  }
+
+  const payload = {
+    title: trimmedTitle,
+    youtubeUrl: trimmedUrl,
+    videoId,
+    channelTitle: metadata.channelTitle || 'Unknown channel',
+    ...(Number.isFinite(metadata.durationSeconds) && { durationSeconds: metadata.durationSeconds }),
+    language: targetLanguage,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    source: 'youtube',
+    status: 'dubbing',
+    isDubbed: true,
+    sourceLanguage: sourceLanguage || 'auto',
+    targetLanguage,
+  }
+
+  try {
+    const videoRef = await firestore
+      .collection('users')
+      .doc(uid)
+      .collection('youtubeVideos')
+      .add(payload)
+
+    const videoDocId = videoRef.id
+
+    // Fire-and-forget dubbing pipeline
+    processYouTubeDubbing(uid, videoDocId, trimmedUrl, sourceLanguage || 'auto', targetLanguage, trimmedTitle)
+      .then(() => console.log(`YouTube dubbing ready: ${videoDocId}`))
+      .catch((err) => console.error(`YouTube dubbing failed: ${videoDocId}`, err))
+
+    return res.json({ id: videoDocId, ...payload })
+  } catch (error) {
+    console.error('Failed to create dubbed YouTube import', error)
+    return res.status(500).json({ error: 'Failed to start dubbing' })
+  }
+})
+
 app.post('/api/audio-url', async (req, res) => {
   const { audioPath } = req.body || {}
 

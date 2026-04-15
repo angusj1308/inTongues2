@@ -1,17 +1,24 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { extractYouTubeId } from '../../utils/youtube'
+import { SUPPORTED_LANGUAGES_MVP, toLanguageCode, toLanguageLabel } from '../../constants/languages'
+import { LANGUAGE_LABELS_BY_CODE } from '../../constants/languages'
 
 const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) => {
   const { user, profile } = useAuth()
 
   // Use passed language prop, or fall back to profile's lastUsedLanguage
   const targetLanguage = language || profile?.lastUsedLanguage || ''
+  const targetLanguageCode = toLanguageCode(targetLanguage)
 
   const [title, setTitle] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [sourceLanguage, setSourceLanguage] = useState('auto')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const isDubbingFlow =
+    sourceLanguage !== 'auto' && sourceLanguage !== targetLanguageCode
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -39,15 +46,29 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
     setError('')
 
     try {
-      const response = await fetch('http://localhost:4000/api/youtube/import', {
+      const endpoint = isDubbingFlow
+        ? 'http://localhost:4000/api/youtube/dub'
+        : 'http://localhost:4000/api/youtube/import'
+
+      const body = isDubbingFlow
+        ? {
+            title: trimmedTitle,
+            youtubeUrl: trimmedUrl,
+            uid: user.uid,
+            sourceLanguage,
+            targetLanguage: targetLanguageCode,
+          }
+        : {
+            title: trimmedTitle,
+            youtubeUrl: trimmedUrl,
+            uid: user.uid,
+            language: targetLanguage,
+          }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          youtubeUrl: trimmedUrl,
-          uid: user.uid,
-          language: targetLanguage,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -57,6 +78,7 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
 
       setTitle('')
       setYoutubeUrl('')
+      setSourceLanguage('auto')
       onSuccess?.()
     } catch (submissionError) {
       console.error('Failed to import YouTube video', submissionError)
@@ -99,6 +121,34 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
         />
       </label>
 
+      <label className="ui-text">
+        Source Language
+        <select value={sourceLanguage} onChange={(e) => setSourceLanguage(e.target.value)}>
+          <option value="auto">Auto-detect</option>
+          {SUPPORTED_LANGUAGES_MVP.map((code) => (
+            <option key={code} value={code}>
+              {LANGUAGE_LABELS_BY_CODE[code]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="ui-text">
+        Output Language
+        <input
+          type="text"
+          value={toLanguageLabel(targetLanguage) || 'Not set'}
+          disabled
+        />
+      </label>
+
+      {isDubbingFlow && (
+        <p className="muted small">
+          This video will be dubbed from {LANGUAGE_LABELS_BY_CODE[sourceLanguage]} to{' '}
+          {toLanguageLabel(targetLanguage)}.
+        </p>
+      )}
+
       {error && <p className="error">{error}</p>}
 
       <div className="action-row">
@@ -108,7 +158,13 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
           </button>
         )}
         <button className="button primary" type="submit" disabled={submitting}>
-          {submitting ? 'Importing…' : 'Import'}
+          {submitting
+            ? isDubbingFlow
+              ? 'Dubbing…'
+              : 'Importing…'
+            : isDubbingFlow
+              ? 'Import & Dub'
+              : 'Import'}
         </button>
       </div>
     </form>

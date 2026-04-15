@@ -7,6 +7,8 @@ const LANGUAGE_LABELS_BY_CODE = {
   it: 'Italian',
 }
 
+export { LANGUAGE_LABELS_BY_CODE }
+
 const LANGUAGE_CODE_BY_LABEL = {
   english: 'en',
   french: 'fr',

@@ -63,7 +63,7 @@ const CARD_HEADERS = {
     continue: 'Continue',
     generate: 'Generate',
     import: 'Import',
-    explore: 'Gutenberg Library',
+    explore: 'Gutenberg',
     routine: 'Daily Routine',
     stats: 'Stats',
     recent: 'Recent',

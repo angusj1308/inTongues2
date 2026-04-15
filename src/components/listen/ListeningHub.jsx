@@ -19,6 +19,8 @@ import db from '../../firebase'
 import { signOutFromSpotify } from '../../services/spotifyAuth'
 import ImportYouTubePanel from './ImportYouTubePanel'
 import youtubeIcon from '../../assets/youtube.png'
+import spotifyIcon from '../../assets/spotify.png'
+import netflixIcon from '../../assets/netflix.png'
 import ListeningMediaCard from './ListeningMediaCard'
 import SpotifyCollectionCard from './SpotifyCollectionCard'
 import { getYouTubeThumbnailUrl } from '../../utils/youtube'
@@ -548,7 +550,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             className="home-card reading-action-card"
             onClick={() => { handleConnectSpotify(); setShowSpotifyPanel(true) }}
           >
-            <div className="reading-card-icon-placeholder" />
+            <img src={spotifyIcon} alt="" className="reading-card-icon" />
             <h3 className="home-card-title">Browse</h3>
             <p className="reading-card-description">
               Browse and import songs from Spotify to study lyrics in your target language.
@@ -563,7 +565,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             className="home-card reading-action-card"
             onClick={() => window.open('https://chrome.google.com/webstore', '_blank')}
           >
-            <div className="reading-card-icon-placeholder" />
+            <img src={netflixIcon} alt="" className="reading-card-icon" />
             <h3 className="home-card-title">Stream</h3>
             <p className="reading-card-description">
               Install our Chrome extension to learn while streaming Netflix and other platforms.

@@ -18,6 +18,7 @@ import useAuth from '../../context/AuthContext'
 import db from '../../firebase'
 import { signOutFromSpotify } from '../../services/spotifyAuth'
 import ImportYouTubePanel from './ImportYouTubePanel'
+import youtubeIcon from '../../assets/youtube.png'
 import ListeningMediaCard from './ListeningMediaCard'
 import SpotifyCollectionCard from './SpotifyCollectionCard'
 import { getYouTubeThumbnailUrl } from '../../utils/youtube'
@@ -532,7 +533,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             className="home-card reading-action-card"
             onClick={() => setShowImportPanel(true)}
           >
-            <div className="reading-card-icon-placeholder" />
+            <img src={youtubeIcon} alt="" className="reading-card-icon" />
             <h3 className="home-card-title">Import</h3>
             <p className="reading-card-description">
               Import YouTube videos with subtitles to practice listening comprehension.

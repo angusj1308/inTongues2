@@ -551,7 +551,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             onClick={() => { handleConnectSpotify(); setShowSpotifyPanel(true) }}
           >
             <img src={spotifyIcon} alt="" className="reading-card-icon" />
-            <h3 className="home-card-title">Browse</h3>
+            <h3 className="home-card-title">Music</h3>
             <p className="reading-card-description">
               Browse and import songs from Spotify to study lyrics in your target language.
             </p>
@@ -566,7 +566,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             onClick={() => window.open('https://chrome.google.com/webstore', '_blank')}
           >
             <img src={netflixIcon} alt="" className="reading-card-icon" />
-            <h3 className="home-card-title">Stream</h3>
+            <h3 className="home-card-title">Film & TV</h3>
             <p className="reading-card-description">
               Install our Chrome extension to learn while streaming Netflix and other platforms.
             </p>

@@ -723,18 +723,23 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
         </div>
 
         {showImportPanel && (
-          <div className="modal-backdrop">
-            <div className="modal-card">
-              <div className="section-header" style={{ alignItems: 'flex-start' }}>
-                <div>
-                  <h3>Import YouTube Video</h3>
-                  <p className="muted small">Paste a YouTube URL to import a video with subtitles.</p>
+          <div className="modal-overlay" onClick={() => setShowImportPanel(false)}>
+            <div className="modal-container generate-story-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="page-header">
+                <div className="page-header-title">
+                  <h3 className="text-center generate-modal-title">YouTube</h3>
+                  <p className="text-center ui-text">Add a YouTube video to your listening library.</p>
                 </div>
-                <button className="button ghost" type="button" onClick={() => setShowImportPanel(false)}>
-                  Close
+                <button className="modal-close-button" onClick={() => setShowImportPanel(false)} aria-label="Close">
+                  ×
                 </button>
               </div>
-              <ImportYouTubePanel headingLevel="h4" layout="inline" onSuccess={() => setShowImportPanel(false)} />
+              <ImportYouTubePanel
+                headingLevel="h4"
+                layout="inline"
+                onSuccess={() => setShowImportPanel(false)}
+                onCancel={() => setShowImportPanel(false)}
+              />
             </div>
           </div>
         )}

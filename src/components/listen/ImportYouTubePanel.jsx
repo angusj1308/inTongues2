@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { extractYouTubeId } from '../../utils/youtube'
 
-const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess, language }) => {
+const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) => {
   const { user, profile } = useAuth()
 
   // Use passed language prop, or fall back to profile's lastUsedLanguage
@@ -12,8 +12,6 @@ const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess, l
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  const HeadingTag = useMemo(() => headingLevel || 'h3', [headingLevel])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -68,44 +66,49 @@ const ImportYouTubePanel = ({ headingLevel = 'h3', layout = 'card', onSuccess, l
     }
   }
 
-  const wrapperClass = layout === 'card' ? 'preview-card' : 'section'
+  const isInline = layout === 'inline'
 
   return (
-    <form className={wrapperClass} onSubmit={handleSubmit}>
-      <div className="section-header">
-        <HeadingTag>Import from YouTube</HeadingTag>
-        <p className="muted small">Add a YouTube video to your listening library.</p>
-      </div>
+    <form className={isInline ? 'form' : 'preview-card'} onSubmit={handleSubmit}>
+      {!isInline && (
+        <div className="section-header">
+          <h3>Import from YouTube</h3>
+          <p className="muted small">Add a YouTube video to your listening library.</p>
+        </div>
+      )}
 
-      <div className="form-grid">
-        <label className="form-field">
-          <span>Title</span>
-          <input
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="My favorite talk"
-            required
-          />
-        </label>
+      <label className="ui-text">
+        Title
+        <input
+          type="text"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="My favorite talk"
+          required
+        />
+      </label>
 
-        <label className="form-field">
-          <span>YouTube URL</span>
-          <input
-            type="url"
-            value={youtubeUrl}
-            onChange={(event) => setYoutubeUrl(event.target.value)}
-            placeholder="https://www.youtube.com/watch?v=example"
-            required
-          />
-        </label>
-      </div>
+      <label className="ui-text">
+        YouTube URL
+        <input
+          type="url"
+          value={youtubeUrl}
+          onChange={(event) => setYoutubeUrl(event.target.value)}
+          placeholder="https://www.youtube.com/watch?v=example"
+          required
+        />
+      </label>
 
       {error && <p className="error">{error}</p>}
 
-      <div className="actions" style={{ justifyContent: 'flex-end' }}>
-        <button className="button" type="submit" disabled={submitting}>
-          {submitting ? 'Importing…' : 'Import to library'}
+      <div className="action-row">
+        {onCancel && (
+          <button className="button ghost" type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+        <button className="button primary" type="submit" disabled={submitting}>
+          {submitting ? 'Importing…' : 'Import'}
         </button>
       </div>
     </form>

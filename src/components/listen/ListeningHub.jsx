@@ -536,7 +536,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
             onClick={() => setShowImportPanel(true)}
           >
             <img src={youtubeIcon} alt="" className="reading-card-icon" />
-            <h3 className="home-card-title">Import</h3>
+            <h3 className="home-card-title">YouTube</h3>
             <p className="reading-card-description">
               Import YouTube videos with subtitles to practice listening comprehension.
             </p>

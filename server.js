@@ -530,6 +530,84 @@ async function parseChapterStructure(chapterText, testMode = false) {
 }
 
 // ============================================================
+// CHAPTER CLASSIFIER (narrative vs non-narrative)
+// ============================================================
+
+const CHAPTER_CLASSIFIER_PROMPT = `
+You are deciding whether a single chapter from a book belongs to the AUTHORED NARRATIVE or is NON-NARRATIVE editorial / front-matter / back-matter material.
+
+KEEP (narrative) — the chapter is one a reader reading for pleasure would read as part of the story or work:
+- Prologue, epilogue, author's preface, author's introduction
+- Numbered or titled chapters that advance the story or argument
+- Named parts / sections written by the author
+
+DISCARD (non-narrative) — the chapter is reference, legal, or editorial material:
+- Project Gutenberg header / license / terms of use / footer boilerplate
+- Copyright pages, title pages, publisher notes, ISBN / catalog entries
+- Table of contents, list of illustrations
+- Translator's or editor's notes, forewords by someone other than the author
+- Dedications, epigraphs that stand alone as a chapter
+- Character indexes, glossaries, maps, appendices, indexes
+
+You are given: the chapter title, its word count, and the first 200 words of the body. Decide based on content, not position.
+
+Return ONLY valid JSON, with exactly these two fields:
+{
+  "decision": "keep" | "discard",
+  "reason": "one short sentence explaining why"
+}
+`
+
+/**
+ * Classify a single chapter as narrative (keep) or non-narrative (discard).
+ * Never throws — on failure returns keep with a failure reason. Caller logs loudly.
+ * @returns {Promise<{decision: 'keep'|'discard', reason: string, raw: string|null, systemMessage: string, userMessage: string, failed: boolean, error: Error|null}>}
+ */
+async function classifyChapter(chapter) {
+  const words = (chapter.originalText || '').split(/\s+/).filter(Boolean)
+  const sample = words.slice(0, 200).join(' ')
+  const systemMessage = CHAPTER_CLASSIFIER_PROMPT
+  const userMessage = `Chapter title: ${chapter.title || '(untitled)'}\nWord count: ${chapter.wordCount ?? words.length}\nFirst 200 words of body:\n${sample}`
+
+  try {
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
+      input: [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: userMessage },
+      ],
+    })
+    const raw = response?.output?.[0]?.content?.[0]?.text?.trim() || ''
+    const jsonMatch = raw.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      return {
+        decision: 'keep',
+        reason: 'Classifier returned non-JSON — defaulting to keep',
+        raw,
+        systemMessage,
+        userMessage,
+        failed: true,
+        error: null,
+      }
+    }
+    const parsed = JSON.parse(jsonMatch[0])
+    const decision = parsed?.decision === 'discard' ? 'discard' : 'keep'
+    const reason = typeof parsed?.reason === 'string' ? parsed.reason : ''
+    return { decision, reason, raw, systemMessage, userMessage, failed: false, error: null }
+  } catch (err) {
+    return {
+      decision: 'keep',
+      reason: `Classifier error: ${err?.message || 'unknown'} — defaulting to keep`,
+      raw: null,
+      systemMessage,
+      userMessage,
+      failed: true,
+      error: err,
+    }
+  }
+}
+
+// ============================================================
 // ADAPTATION REFINEMENT UTILITIES
 // ============================================================
 
@@ -5795,6 +5873,14 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
       }
 
+      // Classifier state (mutated only inside the test-mode block below).
+      // When not in test mode, chaptersToSave === chapters, so production behaviour is unchanged.
+      let chaptersToSave = chapters
+      let classifierRan = false
+      let classifierExtractedCount = chapters.length
+      let classifierKeptCount = chapters.length
+      let classifierDiscardedCount = 0
+
       // Try to extract cover from EPUB
       failedStep = 'cover-lookup'
       let coverImageUrl = null
@@ -5844,6 +5930,62 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         tmBanner('AI CALLS DURING EXTRACTION')
         console.log('No AI calls during extraction for this file type.')
 
+        tmBanner('CHAPTER CLASSIFIER')
+        if (chapters.length === 0) {
+          console.log('No chapters to classify — skipping.')
+        } else {
+          const classifications = await Promise.all(chapters.map((c) => classifyChapter(c)))
+          classifierRan = true
+
+          for (let i = 0; i < chapters.length; i++) {
+            const chap = chapters[i]
+            const cls = classifications[i]
+            console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+            console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+            console.log(cls.systemMessage)
+            console.log('\n-- USER MESSAGE (verbatim) --')
+            console.log(cls.userMessage)
+            console.log('\n-- RAW RESPONSE (verbatim) --')
+            console.log(cls.raw ?? '(no response — API error)')
+            if (cls.failed) {
+              console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+              if (cls.error) console.log(cls.error.stack || cls.error.message)
+            }
+            console.log(`\nDecision: ${cls.decision}`)
+            console.log(`Reason:   ${cls.reason}`)
+          }
+
+          const kept = []
+          const discarded = []
+          for (let i = 0; i < chapters.length; i++) {
+            const chap = chapters[i]
+            const cls = classifications[i]
+            if (cls.decision === 'keep') {
+              kept.push({ chapter: chap, cls })
+            } else {
+              discarded.push({ chapter: chap, cls })
+            }
+          }
+          const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+
+          chaptersToSave = keptReindexed
+          classifierExtractedCount = chapters.length
+          classifierKeptCount = keptReindexed.length
+          classifierDiscardedCount = discarded.length
+
+          console.log('\n-- CLASSIFIER SUMMARY --')
+          console.log(`Original chapter count: ${classifierExtractedCount}`)
+          console.log(`Kept:      ${classifierKeptCount}`)
+          console.log(`Discarded: ${classifierDiscardedCount}`)
+          for (const { chapter, cls } of discarded) {
+            console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+          }
+          console.log('\nFinal kept chapter list (new indices):')
+          for (const k of keptReindexed) {
+            console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
+          }
+        }
+
         tmBanner('COVER SEARCH')
         if (epubCover) {
           console.log(`source: embedded EPUB cover`)
@@ -5868,7 +6010,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         translationMode,
         level,
         isPublicDomain,
-        chapters,
+        chapters: chaptersToSave,
         voiceGender,
         sourceType: 'epub',
         coverImageUrl,
@@ -5892,7 +6034,11 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         }
 
         tmBanner('VERDICT')
-        console.log(`VERDICT: ${chapters.length} chapters detected`)
+        if (classifierRan) {
+          console.log(`VERDICT: ${classifierKeptCount} chapters detected (${classifierExtractedCount} extracted, ${classifierDiscardedCount} discarded)`)
+        } else {
+          console.log(`VERDICT: ${chaptersToSave.length} chapters detected`)
+        }
 
         return res.json({
           success: true,
@@ -5900,7 +6046,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           bookId,
           sourceType: 'epub',
           isFlat: false,
-          chapterCount: chapters.length,
+          chapterCount: chaptersToSave.length,
           chunkCount: null,
           coverImageUrl,
         })
@@ -5960,6 +6106,14 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       failedStep = 'extract-txt'
       const extracted = await extractTxtWithChapters(req.file.path, testMode)
 
+      // Classifier state (mutated only inside the test-mode block below,
+      // and only for chapter-based TXT). Non-test-mode behaviour is unchanged.
+      let chaptersToSaveTxt = null
+      let classifierRanTxt = false
+      let classifierExtractedCountTxt = 0
+      let classifierKeptCountTxt = 0
+      let classifierDiscardedCountTxt = 0
+
       if (testMode) {
         let rawText = ''
         let totalLen = 0
@@ -6007,6 +6161,64 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           console.log('parseChapterStructure was called inside extractTxtWithChapters — see AI CALL — parseChapterStructure banner above for full prompt/response.')
         } else {
           console.log('No AI calls during extraction for chapter-based TXT.')
+        }
+
+        tmBanner('CHAPTER CLASSIFIER')
+        if (extracted.isFlat) {
+          console.log('Flat book — classifier skipped (no chapters to classify against).')
+        } else if (extracted.length === 0) {
+          console.log('No chapters to classify — skipping.')
+        } else {
+          const classifications = await Promise.all(extracted.map((c) => classifyChapter(c)))
+          classifierRanTxt = true
+
+          for (let i = 0; i < extracted.length; i++) {
+            const chap = extracted[i]
+            const cls = classifications[i]
+            console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+            console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+            console.log(cls.systemMessage)
+            console.log('\n-- USER MESSAGE (verbatim) --')
+            console.log(cls.userMessage)
+            console.log('\n-- RAW RESPONSE (verbatim) --')
+            console.log(cls.raw ?? '(no response — API error)')
+            if (cls.failed) {
+              console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+              if (cls.error) console.log(cls.error.stack || cls.error.message)
+            }
+            console.log(`\nDecision: ${cls.decision}`)
+            console.log(`Reason:   ${cls.reason}`)
+          }
+
+          const kept = []
+          const discarded = []
+          for (let i = 0; i < extracted.length; i++) {
+            const chap = extracted[i]
+            const cls = classifications[i]
+            if (cls.decision === 'keep') {
+              kept.push({ chapter: chap, cls })
+            } else {
+              discarded.push({ chapter: chap, cls })
+            }
+          }
+          const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+
+          chaptersToSaveTxt = keptReindexed
+          classifierExtractedCountTxt = extracted.length
+          classifierKeptCountTxt = keptReindexed.length
+          classifierDiscardedCountTxt = discarded.length
+
+          console.log('\n-- CLASSIFIER SUMMARY --')
+          console.log(`Original chapter count: ${classifierExtractedCountTxt}`)
+          console.log(`Kept:      ${classifierKeptCountTxt}`)
+          console.log(`Discarded: ${classifierDiscardedCountTxt}`)
+          for (const { chapter, cls } of discarded) {
+            console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+          }
+          console.log('\nFinal kept chapter list (new indices):')
+          for (const k of keptReindexed) {
+            console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
+          }
         }
       }
 
@@ -6118,7 +6330,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       }
 
       // Chapters detected - use chapter-based flow
-      const chapters = extracted
+      const chapters = chaptersToSaveTxt ?? extracted
       console.log('Extracted TXT chapters:', chapters.length)
 
       failedStep = 'firestore-write'
@@ -6155,7 +6367,11 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         }
 
         tmBanner('VERDICT')
-        console.log(`VERDICT: ${chapters.length} chapters detected`)
+        if (classifierRanTxt) {
+          console.log(`VERDICT: ${classifierKeptCountTxt} chapters detected (${classifierExtractedCountTxt} extracted, ${classifierDiscardedCountTxt} discarded)`)
+        } else {
+          console.log(`VERDICT: ${chapters.length} chapters detected`)
+        }
 
         return res.json({
           success: true,

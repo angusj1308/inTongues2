@@ -105,7 +105,6 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
           type="text"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="My favorite talk"
           required
         />
       </label>

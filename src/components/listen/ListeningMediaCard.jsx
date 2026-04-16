@@ -74,7 +74,7 @@ const ListeningMediaCard = ({
         onClick={handleCardClick}
         onKeyDown={handleKeyDown}
       >
-        {onDelete && !isBlocked && (
+        {onDelete && (
           <button
             type="button"
             className="media-card-yt-delete-btn"

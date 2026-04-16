@@ -167,23 +167,4 @@ export class ApiClient {
     }
   }
 
-  /**
-   * Get detected expressions for text
-   */
-  async getExpressions(text, language) {
-    try {
-      const result = await this.request('/detectExpressions', {
-        method: 'POST',
-        body: JSON.stringify({
-          text,
-          language,
-        }),
-      });
-
-      return result.expressions || [];
-    } catch (error) {
-      console.error('[inTongues] Expression detection failed:', error);
-      return [];
-    }
-  }
 }

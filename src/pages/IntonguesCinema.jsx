@@ -815,46 +815,6 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }, [transcriptLanguage, user])
 
-  // Fetch content expressions (idioms detected by LLM)
-  useEffect(() => {
-    if (!user || !id || !transcriptLanguage) {
-      setContentExpressions([])
-      return
-    }
-
-    let isActive = true
-
-    const fetchExpressions = async () => {
-      try {
-        const contentType = isSpotify ? 'spotify' : 'youtube'
-        const response = await fetch('http://localhost:4000/api/content/expressions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uid: user.uid,
-            contentId: id,
-            contentType,
-            language: transcriptLanguage,
-          }),
-        })
-
-        if (!response.ok) throw new Error('Failed to fetch expressions')
-
-        const data = await response.json()
-        if (isActive && Array.isArray(data.expressions)) {
-          setContentExpressions(data.expressions)
-        }
-      } catch (err) {
-        console.error('Failed to fetch content expressions:', err)
-        if (isActive) setContentExpressions([])
-      }
-    }
-
-    fetchExpressions()
-
-    return () => { isActive = false }
-  }, [user, id, transcriptLanguage, isSpotify])
-
   // Preload translations from cache when content opens
   useEffect(() => {
     if (!id || !user || !transcriptLanguage) return

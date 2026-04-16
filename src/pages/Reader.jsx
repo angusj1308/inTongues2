@@ -724,51 +724,6 @@ const Reader = ({ initialMode }) => {
     loadStoryMeta()
   }, [user, id])
 
-  // Fetch content expressions (idioms detected by LLM)
-  useEffect(() => {
-    if (!user || !id || !language) {
-      setContentExpressions([])
-      return
-    }
-
-    let isActive = true
-
-    const fetchExpressions = async () => {
-      try {
-        const response = await fetch('http://localhost:4000/api/content/expressions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uid: user.uid,
-            contentId: id,
-            contentType: 'story',
-            language: language,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch expressions')
-        }
-
-        const data = await response.json()
-        if (isActive && Array.isArray(data.expressions)) {
-          setContentExpressions(data.expressions)
-        }
-      } catch (err) {
-        console.error('Failed to fetch content expressions:', err)
-        if (isActive) {
-          setContentExpressions([])
-        }
-      }
-    }
-
-    fetchExpressions()
-
-    return () => {
-      isActive = false
-    }
-  }, [user, id, language])
-
   useEffect(() => {
     if (!user || !id) {
       setSentenceSegments([])

@@ -626,46 +626,6 @@ const AudioPlayer = () => {
     }
   }, [storyLanguage, user])
 
-  // Fetch content expressions (idioms detected by LLM)
-  useEffect(() => {
-    if (!user || !id || !storyLanguage) {
-      setContentExpressions([])
-      return
-    }
-
-    let isActive = true
-
-    const fetchExpressions = async () => {
-      try {
-        const contentType = isSpotify ? 'spotify' : 'story'
-        const response = await fetch('http://localhost:4000/api/content/expressions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uid: user.uid,
-            contentId: id,
-            contentType,
-            language: storyLanguage,
-          }),
-        })
-
-        if (!response.ok) throw new Error('Failed to fetch expressions')
-
-        const data = await response.json()
-        if (isActive && Array.isArray(data.expressions)) {
-          setContentExpressions(data.expressions)
-        }
-      } catch (err) {
-        console.error('Failed to fetch content expressions:', err)
-        if (isActive) setContentExpressions([])
-      }
-    }
-
-    fetchExpressions()
-
-    return () => { isActive = false }
-  }, [user, id, storyLanguage, isSpotify])
-
   const isWordChar = (ch) => {
     if (!ch) return false
     return /\p{L}|\p{N}/u.test(ch)

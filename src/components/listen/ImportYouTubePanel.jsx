@@ -13,7 +13,7 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
 
   const [title, setTitle] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
-  const [sourceLanguage, setSourceLanguage] = useState('auto')
+  const [sourceLanguage, setSourceLanguage] = useState(() => targetLanguageCode || 'auto')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -78,7 +78,7 @@ const ImportYouTubePanel = ({ layout = 'card', onSuccess, onCancel, language }) 
 
       setTitle('')
       setYoutubeUrl('')
-      setSourceLanguage('auto')
+      setSourceLanguage(targetLanguageCode || 'auto')
       onSuccess?.()
     } catch (submissionError) {
       console.error('Failed to import YouTube video', submissionError)

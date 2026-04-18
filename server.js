@@ -5818,30 +5818,38 @@ async function loadAdaptationPrompt(level, language) {
 }
 
 /**
- * Run GPT-5.4-pro with high reasoning on one chapter's originalText.
- * Returns adaptedText with paragraph breaks preserved (no whitespace collapse).
+ * Run GPT-5.4-pro with xhigh reasoning on one chapter's originalText.
+ * Streams the response so the socket stays active through long reasoning
+ * phases (non-streaming requests die on intermediate proxy/NAT idle
+ * timeouts well before the 20-min SDK timeout). Returns adaptedText with
+ * paragraph breaks preserved (no whitespace collapse).
  */
 async function adaptOneChapter({ originalText, developerMessage, language }) {
   const userMessage = `Adapt the following chapter into ${language}.\n\n---\n\n${originalText}`
 
-  const response = await client.responses.create(
+  const stream = await client.responses.create(
     {
       model: 'gpt-5.4-pro',
       instructions: developerMessage,
       input: [{ role: 'user', content: userMessage }],
-      reasoning: { effort: 'high' },
+      reasoning: { effort: 'xhigh' },
       max_output_tokens: 100000,
       text: { format: { type: 'text' } },
       store: true,
+      stream: true,
     },
     {
-      timeout: 1200000, // 20 minutes — high reasoning on long chapters can run long
+      timeout: 1200000, // 20 minutes — xhigh reasoning on long chapters can run long
     }
   )
 
-  const adapted = response?.output?.[0]?.content?.[0]?.text
-    ?? response?.output_text
-    ?? ''
+  let adapted = ''
+  for await (const event of stream) {
+    if (event.type === 'response.output_text.delta') {
+      adapted += event.delta
+    }
+  }
+
   const trimmed = adapted.trim()
   if (!trimmed) {
     throw new Error('Adaptation returned empty output')

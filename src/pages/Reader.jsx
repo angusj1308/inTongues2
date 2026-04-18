@@ -948,9 +948,27 @@ const Reader = ({ initialMode }) => {
 
       const startIdx = cursor
       const endIdx = Math.min(cursor + advance - 1, sentenceSegments.length - 1)
+
+      // ElevenLabs' per-word `end` sits at the phonetic boundary of the word's
+      // last character — before the audible tail of the final vowel/consonant
+      // decays. Pausing exactly at that boundary cuts off the word audibly
+      // (e.g. the final "a" of "fredda" clips). Extend the sentence's end to
+      // just before the next word's start, using the natural silence between
+      // sentences as buffer. 50ms epsilon protects against browser timeupdate
+      // granularity (~250ms) overshooting into the first consonant of the
+      // next sentence. For the final sentence of the stream, no next word
+      // exists so we keep the original phonetic end (one trailing cutoff per
+      // book, not one per sentence).
+      const EPSILON_SEC = 0.05
+      const nextStart = sentenceSegments[endIdx + 1]?.start
+      const extendedEnd =
+        typeof nextStart === 'number' && nextStart > sentenceSegments[endIdx].end
+          ? Math.max(sentenceSegments[endIdx].end, nextStart - EPSILON_SEC)
+          : sentenceSegments[endIdx].end
+
       ranges.push({
         start: sentenceSegments[startIdx].start,
-        end: sentenceSegments[endIdx].end,
+        end: extendedEnd,
       })
       cursor += advance
     }

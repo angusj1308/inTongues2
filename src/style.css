@@ -1676,6 +1676,51 @@ textarea {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
 }
 
+.book-tile--failed {
+  cursor: not-allowed;
+}
+
+.book-tile--failed:hover {
+  transform: none;
+}
+
+.book-tile--failed .book-tile-hover-overlay {
+  display: none;
+}
+
+.book-tile-failed-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 20, 20, 0.72);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.book-tile-failed-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  color: #8a1a1a;
+  font-weight: 700;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-tile-failed-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  text-align: center;
+  padding: 0 8px;
+}
+
 .book-tile-cancel-btn {
   margin-top: 4px;
   padding: 2px 12px;

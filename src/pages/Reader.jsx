@@ -609,6 +609,22 @@ const Reader = ({ initialMode }) => {
           const storyData = storySnap.data() || {}
           setStoryTitle(storyData.storyTitle || '')
 
+          // Defence-in-depth: never display source text to the reader for books
+          // whose adaptation hasn't finished. The Dashboard already blocks clicks
+          // on non-ready tiles, but if a stale URL or a race gets us here, refuse.
+          if (storyData.status === 'pending' || storyData.status === 'adapting') {
+            setError('This book is still being adapted. Please wait for adaptation to finish before opening it.')
+            setLoading(false)
+            return
+          }
+          if (storyData.status === 'failed') {
+            setError(storyData.adaptationError
+              ? `Adaptation failed: ${storyData.adaptationError}`
+              : 'Adaptation failed for this book.')
+            setLoading(false)
+            return
+          }
+
           if (storyData.isFlat) {
             const flatChapter = {
               id: 'flat-0',

@@ -277,7 +277,7 @@ const BookGrid = ({
           return (
             <div
               key={book.id || book.title}
-              className={`book-tile ${isProcessing ? 'book-tile--processing' : ''}`}
+              className={`book-tile ${isProcessing ? 'book-tile--processing' : ''}${isFailed ? ' book-tile--failed' : ''}`}
               role={canClick ? 'button' : undefined}
               tabIndex={canClick ? 0 : undefined}
               onClick={canClick ? () => onBookClick(book) : undefined}
@@ -307,11 +307,22 @@ const BookGrid = ({
                     <span className="book-tile-no-cover-title">{titleText}</span>
                   </div>
                 )}
+                {isFailed && (
+                  <div className="book-tile-failed-overlay">
+                    <span className="book-tile-failed-icon">!</span>
+                    <span className="book-tile-failed-text">
+                      {book.adaptationError ? 'Adaptation failed' : 'Import failed'}
+                    </span>
+                  </div>
+                )}
                 {isProcessing && (
                   <div className="book-tile-processing-overlay">
                     <div className="book-tile-spinner" />
                     <span className="book-tile-processing-text">
-                      {book.status === 'adapting' ? 'Adapting...'
+                      {book.status === 'pending' && typeof book.adaptedChapters === 'number' && book.chapterCount
+                        ? `Adapting ${book.adaptedChapters} of ${book.chapterCount}...`
+                        : book.status === 'pending' ? 'Importing...'
+                        : book.status === 'adapting' ? 'Adapting...'
                         : isRegenerating ? 'Regenerating...'
                         : (book.status === 'generating' || book.status === 'planning') ? 'Generating...'
                         : 'Processing...'}

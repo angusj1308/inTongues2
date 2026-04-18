@@ -5784,6 +5784,182 @@ async function adaptPageText({
   return adapted
 }
 
+// ============================================================
+// CHAPTER ADAPTATION (new pipeline — import-driven, sequential)
+// ============================================================
+
+const ADAPT_PROMPT_CACHE = {}
+
+/**
+ * Load the level-specific adaptation prompt from disk, cache it, and
+ * substitute {LANGUAGE} with the target language. Throws on unknown level
+ * or missing file so callers can mark the book as failed.
+ */
+async function loadAdaptationPrompt(level, language) {
+  const key = String(level || '').toLowerCase().trim()
+  const map = { beginner: 'adapt-beginner.md', intermediate: 'adapt-intermediate.md', native: 'adapt-native.md' }
+  const fileName = map[key]
+  if (!fileName) {
+    throw new Error(`Unknown adaptation level: "${level}" (expected beginner, intermediate, or native)`)
+  }
+  if (!ADAPT_PROMPT_CACHE[fileName]) {
+    const promptPath = path.join(process.cwd(), 'prompts', fileName)
+    ADAPT_PROMPT_CACHE[fileName] = (await fs.readFile(promptPath, 'utf8')).trim()
+  }
+  const template = ADAPT_PROMPT_CACHE[fileName]
+  return template.replace(/\{LANGUAGE\}/g, language || '')
+}
+
+/**
+ * Run GPT-5.4-pro with high reasoning on one chapter's originalText.
+ * Returns adaptedText with paragraph breaks preserved (no whitespace collapse).
+ */
+async function adaptOneChapter({ originalText, developerMessage, language }) {
+  const userMessage = `Adapt the following chapter into ${language}.\n\n---\n\n${originalText}`
+
+  const response = await client.responses.create(
+    {
+      model: 'gpt-5.4-pro',
+      instructions: developerMessage,
+      input: [{ role: 'user', content: userMessage }],
+      reasoning: { effort: 'high' },
+      max_output_tokens: 100000,
+      text: { format: { type: 'text' } },
+      store: true,
+    },
+    {
+      timeout: 1200000, // 20 minutes — high reasoning on long chapters can run long
+    }
+  )
+
+  const adapted = response?.output?.[0]?.content?.[0]?.text
+    ?? response?.output_text
+    ?? ''
+  const trimmed = adapted.trim()
+  if (!trimmed) {
+    throw new Error('Adaptation returned empty output')
+  }
+  return trimmed
+}
+
+/**
+ * Adapt every chapter of a chapter-based book sequentially, writing each
+ * chapter's adaptedText to Firestore, incrementing adaptedChapters on the
+ * story doc, and flipping status to 'ready' on success or 'failed' on error.
+ *
+ * Never throws — all failures are captured on the story doc so the UI can
+ * reflect them. Intended to be called fire-and-forget from the import handler.
+ */
+async function runChapterAdaptation(userId, bookId) {
+  const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
+
+  try {
+    const storySnap = await storyRef.get()
+    if (!storySnap.exists) {
+      console.error(`runChapterAdaptation: story not found ${userId}/${bookId}`)
+      return
+    }
+    const story = storySnap.data() || {}
+    const level = story.level
+    const language = story.outputLanguage || story.language
+
+    const developerMessage = await loadAdaptationPrompt(level, language)
+
+    console.log(`[adapt chapter book ${bookId}] starting: level=${level}, language=${language}`)
+
+    // Reset the counter at the start of a run.
+    await storyRef.update({ adaptedChapters: 0, adaptationError: admin.firestore.FieldValue.delete() })
+
+    const chaptersRef = storyRef.collection('chapters')
+    const chaptersSnap = await chaptersRef.orderBy('index', 'asc').get()
+    const chapterDocs = chaptersSnap.docs
+
+    for (let i = 0; i < chapterDocs.length; i++) {
+      const chapDoc = chapterDocs[i]
+      const chap = chapDoc.data() || {}
+      const originalText = chap.originalText || ''
+      if (!originalText.trim()) {
+        throw new Error(`Chapter ${chap.index} has empty originalText`)
+      }
+
+      console.log(`[adapt chapter book ${bookId}] chapter ${i + 1}/${chapterDocs.length} (index=${chap.index}, ${originalText.length} chars)`)
+
+      const adaptedText = await adaptOneChapter({ originalText, developerMessage, language })
+
+      await chapDoc.ref.update({
+        adaptedText,
+        status: 'ready',
+      })
+      await storyRef.update({ adaptedChapters: i + 1 })
+    }
+
+    await storyRef.update({ status: 'ready' })
+    console.log(`[adapt chapter book ${bookId}] done: ${chapterDocs.length} chapters adapted`)
+  } catch (err) {
+    console.error(`[adapt chapter book ${bookId}] FAILED:`, err)
+    try {
+      await storyRef.update({
+        status: 'failed',
+        adaptationError: err?.message || String(err),
+        adaptationFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    } catch (updateErr) {
+      console.error(`[adapt chapter book ${bookId}] failed to record failure:`, updateErr)
+    }
+  }
+}
+
+/**
+ * Flat-book adaptation: single GPT-5.4 call on the full originalText,
+ * stored as adaptedText on the story doc itself (flat books have no
+ * chapters subcollection). Same status transitions as chapter adaptation.
+ */
+async function runFlatAdaptation(userId, bookId) {
+  const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
+
+  try {
+    const storySnap = await storyRef.get()
+    if (!storySnap.exists) {
+      console.error(`runFlatAdaptation: story not found ${userId}/${bookId}`)
+      return
+    }
+    const story = storySnap.data() || {}
+    const level = story.level
+    const language = story.outputLanguage || story.language
+    const originalText = story.originalText || ''
+
+    if (!originalText.trim()) {
+      throw new Error('Flat book has empty originalText')
+    }
+
+    const developerMessage = await loadAdaptationPrompt(level, language)
+
+    console.log(`[adapt flat book ${bookId}] starting: level=${level}, language=${language}, ${originalText.length} chars`)
+
+    await storyRef.update({ adaptedChapters: 0, adaptationError: admin.firestore.FieldValue.delete() })
+
+    const adaptedText = await adaptOneChapter({ originalText, developerMessage, language })
+
+    await storyRef.update({
+      adaptedText,
+      adaptedChapters: 1,
+      status: 'ready',
+    })
+    console.log(`[adapt flat book ${bookId}] done`)
+  } catch (err) {
+    console.error(`[adapt flat book ${bookId}] FAILED:`, err)
+    try {
+      await storyRef.update({
+        status: 'failed',
+        adaptationError: err?.message || String(err),
+        adaptationFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+      })
+    } catch (updateErr) {
+      console.error(`[adapt flat book ${bookId}] failed to record failure:`, updateErr)
+    }
+  }
+}
+
 async function runAdaptationForBook(bookId) {
   const bookRef = firestore.collection('books').doc(bookId)
   const bookSnap = await bookRef.get()
@@ -6010,10 +6186,11 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
         tmBanner('CHAPTER DETECTION — OUTPUT')
         if (chapters.length === 0) {
-          console.log('FLAT BOOK — no chapters detected')
+          console.log('FLAT BOOK — no chapters detected (EPUB with empty spine)')
         } else {
           for (const ch of chapters) {
-            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount} ---`)
+            const paraCount = (ch.originalText || '').split('\n\n').filter((p) => p.trim()).length
+            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount}  paragraphs=${paraCount} ---`)
             console.log(ch.originalText)
           }
           console.log(`\nSummary: ${chapters.length} chapters detected`)
@@ -6144,20 +6321,11 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
       }
 
-      // Fire-and-forget EPUB adaptation trigger
-      const adaptPayload = {
-        uid: userId,
-        storyId: bookId,
-        targetLanguage: outputLanguage,
-        level,
-        generateAudio: generateAudio === 'true',
-      }
-
-      fetch('http://localhost:4000/api/adapt-chapter-book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adaptPayload),
-      }).catch((err) => console.error('Auto-adapt EPUB trigger failed:', err))
+      // Fire-and-forget chapter adaptation (sequential, new pipeline).
+      // Audio generation has been de-wired; will be re-wired in a follow-up brief.
+      runChapterAdaptation(userId, bookId).catch((err) =>
+        console.error('runChapterAdaptation unhandled error (EPUB):', err)
+      )
 
       return res.json({
         success: true,
@@ -6237,12 +6405,14 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
         tmBanner('CHAPTER DETECTION — OUTPUT')
         if (extracted.isFlat) {
-          console.log('FLAT BOOK — no chapters detected')
+          const flatParaCount = (extracted.originalText || '').split('\n\n').filter((p) => p.trim()).length
+          console.log(`FLAT BOOK — no chapters detected (paragraphs=${flatParaCount})`)
           console.log('\n--- FULL ORIGINAL TEXT ---')
           console.log(extracted.originalText || '')
         } else {
           for (const ch of extracted) {
-            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount} ---`)
+            const paraCount = (ch.originalText || '').split('\n\n').filter((p) => p.trim()).length
+            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount}  paragraphs=${paraCount} ---`)
             console.log(ch.originalText)
           }
           console.log(`\nSummary: ${extracted.length} chapters detected`)
@@ -6395,20 +6565,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           })
         }
 
-        // Fire-and-forget flat adaptation trigger
-        const adaptPayload = {
-          uid: userId,
-          storyId: bookId,
-          targetLanguage: outputLanguage,
-          level,
-          generateAudio: generateAudio === 'true',
-        }
-
-        fetch('http://localhost:4000/api/adapt-flat-book', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(adaptPayload),
-        }).catch((err) => console.error('Auto-adapt flat TXT trigger failed:', err))
+        // Fire-and-forget flat adaptation (single-call, new pipeline).
+        runFlatAdaptation(userId, bookId).catch((err) =>
+          console.error('runFlatAdaptation unhandled error (TXT flat):', err)
+        )
 
         return res.json({
           success: true,
@@ -6477,20 +6637,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
       }
 
-      // Fire-and-forget adaptation trigger (same endpoint as EPUB)
-      const adaptPayload = {
-        uid: userId,
-        storyId: bookId,
-        targetLanguage: outputLanguage,
-        level,
-        generateAudio: generateAudio === 'true',
-      }
-
-      fetch('http://localhost:4000/api/adapt-chapter-book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adaptPayload),
-      }).catch((err) => console.error('Auto-adapt TXT trigger failed:', err))
+      // Fire-and-forget chapter adaptation (sequential, new pipeline).
+      runChapterAdaptation(userId, bookId).catch((err) =>
+        console.error('runChapterAdaptation unhandled error (TXT):', err)
+      )
 
       return res.json({
         success: true,
@@ -6556,12 +6706,14 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
         tmBanner('CHAPTER DETECTION — OUTPUT')
         if (extracted.isFlat) {
-          console.log('FLAT BOOK — no chapters detected')
+          const flatParaCount = (extracted.originalText || '').split('\n\n').filter((p) => p.trim()).length
+          console.log(`FLAT BOOK — no chapters detected (paragraphs=${flatParaCount})`)
           console.log('\n--- FULL ORIGINAL TEXT ---')
           console.log(extracted.originalText || '')
         } else {
           for (const ch of extracted) {
-            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount} ---`)
+            const paraCount = (ch.originalText || '').split('\n\n').filter((p) => p.trim()).length
+            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount}  paragraphs=${paraCount} ---`)
             console.log(ch.originalText)
           }
           console.log(`\nSummary: ${extracted.length} chapters detected`)
@@ -6714,20 +6866,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           })
         }
 
-        // Fire-and-forget flat adaptation trigger
-        const adaptPayload = {
-          uid: userId,
-          storyId: bookId,
-          targetLanguage: outputLanguage,
-          level,
-          generateAudio: generateAudio === 'true',
-        }
-
-        fetch('http://localhost:4000/api/adapt-flat-book', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(adaptPayload),
-        }).catch((err) => console.error('Auto-adapt PDF trigger failed:', err))
+        // Fire-and-forget flat adaptation (single-call, new pipeline).
+        runFlatAdaptation(userId, bookId).catch((err) =>
+          console.error('runFlatAdaptation unhandled error (PDF flat):', err)
+        )
 
         return res.json({
           success: true,
@@ -6796,20 +6938,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
       }
 
-      // Fire-and-forget chapter adaptation trigger
-      const adaptPayload = {
-        uid: userId,
-        storyId: bookId,
-        targetLanguage: outputLanguage,
-        level,
-        generateAudio: generateAudio === 'true',
-      }
-
-      fetch('http://localhost:4000/api/adapt-chapter-book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adaptPayload),
-      }).catch((err) => console.error('Auto-adapt PDF trigger failed:', err))
+      // Fire-and-forget chapter adaptation (sequential, new pipeline).
+      runChapterAdaptation(userId, bookId).catch((err) =>
+        console.error('runChapterAdaptation unhandled error (PDF):', err)
+      )
 
       return res.json({
         success: true,

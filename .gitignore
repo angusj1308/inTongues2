@@ -37,3 +37,4 @@ __pycache__/
 # Downloaded cover fonts (fetched at runtime, not versioned)
 scripts/fonts/
 api backup
+.DS_Store

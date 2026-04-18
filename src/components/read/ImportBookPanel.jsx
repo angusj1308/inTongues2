@@ -27,8 +27,6 @@ const ImportBookPanel = ({
   const [voiceGender, setVoiceGender] = useState('male')
   const [isPublicDomain, setIsPublicDomain] = useState(false)
   const [generateAudio, setGenerateAudio] = useState(false)
-  const [testMode, setTestMode] = useState(false)
-  const [testResult, setTestResult] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   const HeadingTag = useMemo(() => headingLevel || 'h2', [headingLevel])
@@ -58,7 +56,6 @@ const ImportBookPanel = ({
       formData.append('userId', user?.uid || '')
       formData.append('voiceGender', voiceGender)
       formData.append('generateAudio', generateAudio ? 'true' : 'false')
-      formData.append('testMode', testMode ? 'true' : 'false')
 
       const response = await fetch('http://localhost:4000/api/import-upload', {
         method: 'POST',
@@ -93,18 +90,7 @@ const ImportBookPanel = ({
         }
       }
 
-      const data = await response.json()
-      if (data?.testMode) {
-        setTestResult({
-          bookId: data.bookId,
-          sourceType: data.sourceType,
-          isFlat: data.isFlat,
-          chapterCount: data.chapterCount,
-          chunkCount: data.chunkCount,
-        })
-        // Do NOT close the modal — keep the user on the import screen to run another test.
-        return
-      }
+      await response.json()
       alert('Import started successfully.')
       if (onClose) {
         onClose()
@@ -133,52 +119,6 @@ const ImportBookPanel = ({
           </button>
         )}
       </div>
-
-      {testResult && (
-        <div
-          className="import-test-result"
-          style={{
-            border: '2px solid #d89b00',
-            background: '#fff7e0',
-            color: '#332200',
-            padding: '14px 16px',
-            borderRadius: '8px',
-            margin: '0 0 16px 0',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            fontSize: '13px',
-            lineHeight: '1.5',
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: '6px' }}>
-            Test import complete. Check terminal for full output.
-          </div>
-          <div>Source:        {testResult.sourceType}</div>
-          <div>Structure:     {testResult.isFlat ? 'Flat' : 'Chaptered'}</div>
-          {testResult.isFlat ? (
-            <div>Chunks:        {testResult.chunkCount}</div>
-          ) : (
-            <div>Chapters:      {testResult.chapterCount}</div>
-          )}
-          <div>Firestore ID:  {testResult.bookId}</div>
-          <div style={{ marginTop: '8px', fontWeight: 700, color: '#8a2a00' }}>
-            Adaptation: SKIPPED · Audio: SKIPPED
-          </div>
-          <button
-            type="button"
-            onClick={() => setTestResult(null)}
-            style={{
-              marginTop: '10px',
-              padding: '6px 10px',
-              border: '1px solid #333',
-              background: '#fff',
-              cursor: 'pointer',
-              borderRadius: '4px',
-            }}
-          >
-            Run another test
-          </button>
-        </div>
-      )}
 
       {!activeLanguage ? (
         <p className="muted small ui-text">Select a language to import a book.</p>
@@ -286,17 +226,6 @@ const ImportBookPanel = ({
                 type="checkbox"
                 checked={isPublicDomain}
                 onChange={(event) => setIsPublicDomain(event.target.checked)}
-              />
-            </label>
-          </div>
-
-          <div className="import-form-section">
-            <label className="import-checkbox-label">
-              <span>Test mode (stop after extraction — see terminal)</span>
-              <input
-                type="checkbox"
-                checked={testMode}
-                onChange={(event) => setTestMode(event.target.checked)}
               />
             </label>
           </div>

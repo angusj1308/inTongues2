@@ -81,6 +81,11 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 const IMPORT_VERBOSE = process.env.IMPORT_VERBOSE === 'true'
 const vlog = (...args) => { if (IMPORT_VERBOSE) console.log(...args) }
 
+// Reasoning effort for adaptOneChapter (import adaptation). Set
+// ADAPTATION_REASONING to 'low' | 'medium' | 'high' | 'xhigh'. Default is
+// 'high' — a good balance of quality and latency on long chapters.
+const ADAPTATION_REASONING = process.env.ADAPTATION_REASONING || 'high'
+
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
   French: 'fr',
@@ -5818,7 +5823,8 @@ async function loadAdaptationPrompt(level, language) {
 }
 
 /**
- * Run GPT-5.4-pro with xhigh reasoning on one chapter's originalText.
+ * Run GPT-5.4-pro on one chapter's originalText at the reasoning effort
+ * set by ADAPTATION_REASONING (default 'high').
  * Streams the response so the socket stays active through long reasoning
  * phases (non-streaming requests die on intermediate proxy/NAT idle
  * timeouts well before the 20-min SDK timeout). Returns adaptedText with
@@ -5849,7 +5855,7 @@ async function adaptOneChapter({ originalText, developerMessage, language, label
       model: 'gpt-5.4-pro',
       instructions: developerMessage,
       input: [{ role: 'user', content: userMessage }],
-      reasoning: { effort: 'xhigh' },
+      reasoning: { effort: ADAPTATION_REASONING },
       max_output_tokens: 100000,
       text: { format: { type: 'text' } },
       store: true,

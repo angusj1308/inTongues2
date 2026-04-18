@@ -5823,9 +5823,26 @@ async function loadAdaptationPrompt(level, language) {
  * phases (non-streaming requests die on intermediate proxy/NAT idle
  * timeouts well before the 20-min SDK timeout). Returns adaptedText with
  * paragraph breaks preserved (no whitespace collapse).
+ *
+ * `label` (e.g. "book abc123 chapter 2/5 (index=1)") is printed in the
+ * banner so a terminal reader can correlate each adaptation block with its
+ * chapter. Prompt + user message are printed BEFORE the API call so they
+ * remain visible even if the call hangs or fails; response + metadata are
+ * printed AFTER the stream completes.
  */
-async function adaptOneChapter({ originalText, developerMessage, language }) {
+async function adaptOneChapter({ originalText, developerMessage, language, label }) {
   const userMessage = `Adapt the following chapter into ${language}.\n\n---\n\n${originalText}`
+
+  const rule = '═'.repeat(60)
+  console.log('\n' + rule)
+  console.log(`ADAPTATION — ${label}`)
+  console.log(rule)
+  console.log('\n-- DEVELOPER MESSAGE (verbatim) --')
+  console.log(developerMessage)
+  console.log('\n-- USER MESSAGE (verbatim) --')
+  console.log(userMessage)
+
+  const startedAt = Date.now()
 
   const stream = await client.responses.create(
     {
@@ -5851,6 +5868,16 @@ async function adaptOneChapter({ originalText, developerMessage, language }) {
   }
 
   const trimmed = adapted.trim()
+  const durationSec = ((Date.now() - startedAt) / 1000).toFixed(1)
+
+  console.log('\n-- RESPONSE (verbatim) --')
+  console.log(trimmed)
+  console.log('\n-- METADATA --')
+  console.log(`  input chars: ${userMessage.length}`)
+  console.log(`  output chars: ${trimmed.length}`)
+  console.log(`  duration: ${durationSec}s`)
+  console.log(rule + '\n')
+
   if (!trimmed) {
     throw new Error('Adaptation returned empty output')
   }
@@ -5899,7 +5926,12 @@ async function runChapterAdaptation(userId, bookId) {
 
       console.log(`[adapt chapter book ${bookId}] chapter ${i + 1}/${chapterDocs.length} (index=${chap.index}, ${originalText.length} chars)`)
 
-      const adaptedText = await adaptOneChapter({ originalText, developerMessage, language })
+      const adaptedText = await adaptOneChapter({
+        originalText,
+        developerMessage,
+        language,
+        label: `book ${bookId} chapter ${i + 1}/${chapterDocs.length} (index=${chap.index})`,
+      })
 
       await chapDoc.ref.update({
         adaptedText,
@@ -5953,7 +5985,12 @@ async function runFlatAdaptation(userId, bookId) {
 
     await storyRef.update({ adaptedChapters: 0, adaptationError: admin.firestore.FieldValue.delete() })
 
-    const adaptedText = await adaptOneChapter({ originalText, developerMessage, language })
+    const adaptedText = await adaptOneChapter({
+      originalText,
+      developerMessage,
+      language,
+      label: `book ${bookId} FLAT`,
+    })
 
     await storyRef.update({
       adaptedText,

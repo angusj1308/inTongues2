@@ -792,40 +792,13 @@ const Reader = ({ initialMode }) => {
               }
             }
           }
-          // Merge elision tokens (e.g. Italian "l'" + "aria" → "l'aria",
-          // French "d'" + "être" → "d'être") so the audio-token count matches
-          // the text-side word count. The text side strips apostrophes before
-          // splitting on whitespace, so it counts "l'aria" as one word; without
-          // this merge the audio side counts two, the per-sentence cursor
-          // advances one short per elision, and the last word of the sentence
-          // is silently cut off.
-          //
-          // TODO(audio-alignment): this only covers tokens that END with an
-          // apostrophe character. Other drift classes still desync the cursor
-          // silently: English contractions where EL returns "don" + "t" with
-          // no apostrophe, closing quote marks on non-elision words, numerals
-          // pronounced as multi-word expansions ($50 → "fifty dollars"),
-          // hyphenated compounds, abbreviations. Proper fix is a shared
-          // text↔audio token normaliser; see discussion in commit history.
-          for (let i = 0; i < allTimestamps.length; i++) {
-            const w = allTimestamps[i]
-            let start = Number(w.start) || 0
-            let end = Number(w.end) || 0
-            let text = (w.text || '').trim()
-            if (!text || end <= start || !/[\p{L}\p{N}]/u.test(text)) continue
-
-            if (/[''′ʼ]$/.test(text) && i + 1 < allTimestamps.length) {
-              const next = allTimestamps[i + 1]
-              const nextText = (next.text || '').trim()
-              const nextEnd = Number(next.end) || 0
-              if (nextText && /[\p{L}\p{N}]/u.test(nextText)) {
-                text += nextText
-                end = nextEnd || end
-                i += 1
-              }
+          for (const w of allTimestamps) {
+            const start = Number(w.start) || 0
+            const end = Number(w.end) || 0
+            const text = (w.text || '').trim()
+            if (text && end > start && /[\p{L}\p{N}]/u.test(text)) {
+              allWords.push({ text, start, end })
             }
-
-            allWords.push({ text, start, end })
           }
         } else if (Array.isArray(data.sentenceSegments)) {
           // Old Whisper format: segments with nested words arrays
@@ -954,18 +927,32 @@ const Reader = ({ initialMode }) => {
         .filter(Boolean)
         .length
 
-      if (wordCount === 0 || cursor >= sentenceSegments.length) {
+      // ElevenLabs word tokens for audio generated before the server-side
+      // tokeniser was fixed split elisions like "l'aria" into two entries
+      // ("l" + "aria") because the server's word regex only allowed ASCII
+      // apostrophes. The text-side wordCount above strips the apostrophe and
+      // counts "l'aria" as one word, so the audio cursor advances one short
+      // per elision and the last word of the sentence gets dropped.
+      //
+      // Bump the advance by the number of elisions present in the source
+      // sentence so the cursor consumes the extra audio token. For audio
+      // generated after the server fix each elision is one audio token and
+      // this match returns zero, making the adjustment a no-op.
+      const elisionCount = (sentence.match(/\b\p{L}{1,3}[''′ʼ]\p{L}/gu) || []).length
+      const advance = wordCount + elisionCount
+
+      if (advance === 0 || cursor >= sentenceSegments.length) {
         ranges.push(null)
         continue
       }
 
       const startIdx = cursor
-      const endIdx = Math.min(cursor + wordCount - 1, sentenceSegments.length - 1)
+      const endIdx = Math.min(cursor + advance - 1, sentenceSegments.length - 1)
       ranges.push({
         start: sentenceSegments[startIdx].start,
         end: sentenceSegments[endIdx].end,
       })
-      cursor += wordCount
+      cursor += advance
     }
 
     return ranges

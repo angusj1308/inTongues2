@@ -6213,8 +6213,8 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
       }
 
-      // Classifier state (mutated only inside the test-mode block below).
-      // When not in test mode, chaptersToSave === chapters, so production behaviour is unchanged.
+      // Classifier state — mutated by the CHAPTER CLASSIFIER block below
+      // (which runs on every import, not just in test mode).
       let chaptersToSave = chapters
       let classifierRan = false
       let classifierExtractedCount = chapters.length
@@ -6271,62 +6271,6 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         tmBanner('AI CALLS DURING EXTRACTION')
         console.log('No AI calls during extraction for this file type.')
 
-        tmBanner('CHAPTER CLASSIFIER')
-        if (chapters.length === 0) {
-          console.log('No chapters to classify — skipping.')
-        } else {
-          const classifications = await Promise.all(chapters.map((c) => classifyChapter(c)))
-          classifierRan = true
-
-          for (let i = 0; i < chapters.length; i++) {
-            const chap = chapters[i]
-            const cls = classifications[i]
-            console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
-            console.log('\n-- SYSTEM MESSAGE (verbatim) --')
-            console.log(cls.systemMessage)
-            console.log('\n-- USER MESSAGE (verbatim) --')
-            console.log(cls.userMessage)
-            console.log('\n-- RAW RESPONSE (verbatim) --')
-            console.log(cls.raw ?? '(no response — API error)')
-            if (cls.failed) {
-              console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
-              if (cls.error) console.log(cls.error.stack || cls.error.message)
-            }
-            console.log(`\nDecision: ${cls.decision}`)
-            console.log(`Reason:   ${cls.reason}`)
-          }
-
-          const kept = []
-          const discarded = []
-          for (let i = 0; i < chapters.length; i++) {
-            const chap = chapters[i]
-            const cls = classifications[i]
-            if (cls.decision === 'keep') {
-              kept.push({ chapter: chap, cls })
-            } else {
-              discarded.push({ chapter: chap, cls })
-            }
-          }
-          const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
-
-          chaptersToSave = keptReindexed
-          classifierExtractedCount = chapters.length
-          classifierKeptCount = keptReindexed.length
-          classifierDiscardedCount = discarded.length
-
-          console.log('\n-- CLASSIFIER SUMMARY --')
-          console.log(`Original chapter count: ${classifierExtractedCount}`)
-          console.log(`Kept:      ${classifierKeptCount}`)
-          console.log(`Discarded: ${classifierDiscardedCount}`)
-          for (const { chapter, cls } of discarded) {
-            console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
-          }
-          console.log('\nFinal kept chapter list (new indices):')
-          for (const k of keptReindexed) {
-            console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
-          }
-        }
-
         tmBanner('COVER SEARCH')
         if (epubCover) {
           console.log(`source: embedded EPUB cover`)
@@ -6338,6 +6282,64 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         } else {
           console.log('source: (none — no title/author provided and no embedded cover)')
           console.log('result_url: no cover found')
+        }
+      }
+
+      // CHAPTER CLASSIFIER — runs on every import (filters Gutenberg boilerplate,
+      // TOCs, translator's notes, etc. from the candidate chapter list).
+      tmBanner('CHAPTER CLASSIFIER')
+      if (chapters.length === 0) {
+        console.log('No chapters to classify — skipping.')
+      } else {
+        const classifications = await Promise.all(chapters.map((c) => classifyChapter(c)))
+        classifierRan = true
+
+        for (let i = 0; i < chapters.length; i++) {
+          const chap = chapters[i]
+          const cls = classifications[i]
+          console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+          console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+          console.log(cls.systemMessage)
+          console.log('\n-- USER MESSAGE (verbatim) --')
+          console.log(cls.userMessage)
+          console.log('\n-- RAW RESPONSE (verbatim) --')
+          console.log(cls.raw ?? '(no response — API error)')
+          if (cls.failed) {
+            console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+            if (cls.error) console.log(cls.error.stack || cls.error.message)
+          }
+          console.log(`\nDecision: ${cls.decision}`)
+          console.log(`Reason:   ${cls.reason}`)
+        }
+
+        const kept = []
+        const discarded = []
+        for (let i = 0; i < chapters.length; i++) {
+          const chap = chapters[i]
+          const cls = classifications[i]
+          if (cls.decision === 'keep') {
+            kept.push({ chapter: chap, cls })
+          } else {
+            discarded.push({ chapter: chap, cls })
+          }
+        }
+        const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+
+        chaptersToSave = keptReindexed
+        classifierExtractedCount = chapters.length
+        classifierKeptCount = keptReindexed.length
+        classifierDiscardedCount = discarded.length
+
+        console.log('\n-- CLASSIFIER SUMMARY --')
+        console.log(`Original chapter count: ${classifierExtractedCount}`)
+        console.log(`Kept:      ${classifierKeptCount}`)
+        console.log(`Discarded: ${classifierDiscardedCount}`)
+        for (const { chapter, cls } of discarded) {
+          console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+        }
+        console.log('\nFinal kept chapter list (new indices):')
+        for (const k of keptReindexed) {
+          console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
         }
       }
 
@@ -6450,8 +6452,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       failedStep = 'extract-txt'
       const extracted = await extractTxtWithChapters(req.file.path, testMode)
 
-      // Classifier state (mutated only inside the test-mode block below,
-      // and only for chapter-based TXT). Non-test-mode behaviour is unchanged.
+      // Classifier state — mutated by the CHAPTER CLASSIFIER block below
+      // (which runs on every import, not just in test mode). Flat books leave
+      // these at null/0; the later `chaptersToSaveTxt ?? extracted` falls back
+      // to the unfiltered extraction for that case.
       let chaptersToSaveTxt = null
       let classifierRanTxt = false
       let classifierExtractedCountTxt = 0
@@ -6509,62 +6513,66 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           console.log('No AI calls during extraction for chapter-based TXT.')
         }
 
-        tmBanner('CHAPTER CLASSIFIER')
-        if (extracted.isFlat) {
-          console.log('Flat book — classifier skipped (no chapters to classify against).')
-        } else if (extracted.length === 0) {
-          console.log('No chapters to classify — skipping.')
-        } else {
-          const classifications = await Promise.all(extracted.map((c) => classifyChapter(c)))
-          classifierRanTxt = true
+      }
 
-          for (let i = 0; i < extracted.length; i++) {
-            const chap = extracted[i]
-            const cls = classifications[i]
-            console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
-            console.log('\n-- SYSTEM MESSAGE (verbatim) --')
-            console.log(cls.systemMessage)
-            console.log('\n-- USER MESSAGE (verbatim) --')
-            console.log(cls.userMessage)
-            console.log('\n-- RAW RESPONSE (verbatim) --')
-            console.log(cls.raw ?? '(no response — API error)')
-            if (cls.failed) {
-              console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
-              if (cls.error) console.log(cls.error.stack || cls.error.message)
-            }
-            console.log(`\nDecision: ${cls.decision}`)
-            console.log(`Reason:   ${cls.reason}`)
-          }
+      // CHAPTER CLASSIFIER — runs on every import (filters Gutenberg boilerplate,
+      // TOCs, translator's notes, etc. from the candidate chapter list). Flat
+      // books skip the classifier since there are no chapter candidates to filter.
+      tmBanner('CHAPTER CLASSIFIER')
+      if (extracted.isFlat) {
+        console.log('Flat book — classifier skipped (no chapters to classify against).')
+      } else if (extracted.length === 0) {
+        console.log('No chapters to classify — skipping.')
+      } else {
+        const classifications = await Promise.all(extracted.map((c) => classifyChapter(c)))
+        classifierRanTxt = true
 
-          const kept = []
-          const discarded = []
-          for (let i = 0; i < extracted.length; i++) {
-            const chap = extracted[i]
-            const cls = classifications[i]
-            if (cls.decision === 'keep') {
-              kept.push({ chapter: chap, cls })
-            } else {
-              discarded.push({ chapter: chap, cls })
-            }
+        for (let i = 0; i < extracted.length; i++) {
+          const chap = extracted[i]
+          const cls = classifications[i]
+          console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+          console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+          console.log(cls.systemMessage)
+          console.log('\n-- USER MESSAGE (verbatim) --')
+          console.log(cls.userMessage)
+          console.log('\n-- RAW RESPONSE (verbatim) --')
+          console.log(cls.raw ?? '(no response — API error)')
+          if (cls.failed) {
+            console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+            if (cls.error) console.log(cls.error.stack || cls.error.message)
           }
-          const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+          console.log(`\nDecision: ${cls.decision}`)
+          console.log(`Reason:   ${cls.reason}`)
+        }
 
-          chaptersToSaveTxt = keptReindexed
-          classifierExtractedCountTxt = extracted.length
-          classifierKeptCountTxt = keptReindexed.length
-          classifierDiscardedCountTxt = discarded.length
+        const kept = []
+        const discarded = []
+        for (let i = 0; i < extracted.length; i++) {
+          const chap = extracted[i]
+          const cls = classifications[i]
+          if (cls.decision === 'keep') {
+            kept.push({ chapter: chap, cls })
+          } else {
+            discarded.push({ chapter: chap, cls })
+          }
+        }
+        const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
 
-          console.log('\n-- CLASSIFIER SUMMARY --')
-          console.log(`Original chapter count: ${classifierExtractedCountTxt}`)
-          console.log(`Kept:      ${classifierKeptCountTxt}`)
-          console.log(`Discarded: ${classifierDiscardedCountTxt}`)
-          for (const { chapter, cls } of discarded) {
-            console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
-          }
-          console.log('\nFinal kept chapter list (new indices):')
-          for (const k of keptReindexed) {
-            console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
-          }
+        chaptersToSaveTxt = keptReindexed
+        classifierExtractedCountTxt = extracted.length
+        classifierKeptCountTxt = keptReindexed.length
+        classifierDiscardedCountTxt = discarded.length
+
+        console.log('\n-- CLASSIFIER SUMMARY --')
+        console.log(`Original chapter count: ${classifierExtractedCountTxt}`)
+        console.log(`Kept:      ${classifierKeptCountTxt}`)
+        console.log(`Discarded: ${classifierDiscardedCountTxt}`)
+        for (const { chapter, cls } of discarded) {
+          console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+        }
+        console.log('\nFinal kept chapter list (new indices):')
+        for (const k of keptReindexed) {
+          console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
         }
       }
 
@@ -6781,8 +6789,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       failedStep = 'extract-pdf'
       const extracted = await extractPdfWithChapters(req.file.path, testMode)
 
-      // Classifier state (mutated only inside the test-mode block below,
-      // and only for chapter-based PDFs). Non-test-mode behaviour is unchanged.
+      // Classifier state — mutated by the CHAPTER CLASSIFIER block below
+      // (which runs on every import, not just in test mode). Flat books leave
+      // these at null/0; the later `chaptersToSavePdf ?? extracted` falls back
+      // to the unfiltered extraction for that case.
       let chaptersToSavePdf = null
       let classifierRanPdf = false
       let classifierExtractedCountPdf = 0
@@ -6834,62 +6844,66 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           console.log('No AI calls during extraction for chapter-based PDF.')
         }
 
-        tmBanner('CHAPTER CLASSIFIER')
-        if (extracted.isFlat) {
-          console.log('Flat book — classifier skipped (no chapters to classify against).')
-        } else if (extracted.length === 0) {
-          console.log('No chapters to classify — skipping.')
-        } else {
-          const classifications = await Promise.all(extracted.map((c) => classifyChapter(c)))
-          classifierRanPdf = true
+      }
 
-          for (let i = 0; i < extracted.length; i++) {
-            const chap = extracted[i]
-            const cls = classifications[i]
-            console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
-            console.log('\n-- SYSTEM MESSAGE (verbatim) --')
-            console.log(cls.systemMessage)
-            console.log('\n-- USER MESSAGE (verbatim) --')
-            console.log(cls.userMessage)
-            console.log('\n-- RAW RESPONSE (verbatim) --')
-            console.log(cls.raw ?? '(no response — API error)')
-            if (cls.failed) {
-              console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
-              if (cls.error) console.log(cls.error.stack || cls.error.message)
-            }
-            console.log(`\nDecision: ${cls.decision}`)
-            console.log(`Reason:   ${cls.reason}`)
-          }
+      // CHAPTER CLASSIFIER — runs on every import (filters Gutenberg boilerplate,
+      // TOCs, translator's notes, etc. from the candidate chapter list). Flat
+      // books skip the classifier since there are no chapter candidates to filter.
+      tmBanner('CHAPTER CLASSIFIER')
+      if (extracted.isFlat) {
+        console.log('Flat book — classifier skipped (no chapters to classify against).')
+      } else if (extracted.length === 0) {
+        console.log('No chapters to classify — skipping.')
+      } else {
+        const classifications = await Promise.all(extracted.map((c) => classifyChapter(c)))
+        classifierRanPdf = true
 
-          const kept = []
-          const discarded = []
-          for (let i = 0; i < extracted.length; i++) {
-            const chap = extracted[i]
-            const cls = classifications[i]
-            if (cls.decision === 'keep') {
-              kept.push({ chapter: chap, cls })
-            } else {
-              discarded.push({ chapter: chap, cls })
-            }
+        for (let i = 0; i < extracted.length; i++) {
+          const chap = extracted[i]
+          const cls = classifications[i]
+          console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+          console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+          console.log(cls.systemMessage)
+          console.log('\n-- USER MESSAGE (verbatim) --')
+          console.log(cls.userMessage)
+          console.log('\n-- RAW RESPONSE (verbatim) --')
+          console.log(cls.raw ?? '(no response — API error)')
+          if (cls.failed) {
+            console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+            if (cls.error) console.log(cls.error.stack || cls.error.message)
           }
-          const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+          console.log(`\nDecision: ${cls.decision}`)
+          console.log(`Reason:   ${cls.reason}`)
+        }
 
-          chaptersToSavePdf = keptReindexed
-          classifierExtractedCountPdf = extracted.length
-          classifierKeptCountPdf = keptReindexed.length
-          classifierDiscardedCountPdf = discarded.length
+        const kept = []
+        const discarded = []
+        for (let i = 0; i < extracted.length; i++) {
+          const chap = extracted[i]
+          const cls = classifications[i]
+          if (cls.decision === 'keep') {
+            kept.push({ chapter: chap, cls })
+          } else {
+            discarded.push({ chapter: chap, cls })
+          }
+        }
+        const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
 
-          console.log('\n-- CLASSIFIER SUMMARY --')
-          console.log(`Original chapter count: ${classifierExtractedCountPdf}`)
-          console.log(`Kept:      ${classifierKeptCountPdf}`)
-          console.log(`Discarded: ${classifierDiscardedCountPdf}`)
-          for (const { chapter, cls } of discarded) {
-            console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
-          }
-          console.log('\nFinal kept chapter list (new indices):')
-          for (const k of keptReindexed) {
-            console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
-          }
+        chaptersToSavePdf = keptReindexed
+        classifierExtractedCountPdf = extracted.length
+        classifierKeptCountPdf = keptReindexed.length
+        classifierDiscardedCountPdf = discarded.length
+
+        console.log('\n-- CLASSIFIER SUMMARY --')
+        console.log(`Original chapter count: ${classifierExtractedCountPdf}`)
+        console.log(`Kept:      ${classifierKeptCountPdf}`)
+        console.log(`Discarded: ${classifierDiscardedCountPdf}`)
+        for (const { chapter, cls } of discarded) {
+          console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+        }
+        console.log('\nFinal kept chapter list (new indices):')
+        for (const k of keptReindexed) {
+          console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
         }
       }
 

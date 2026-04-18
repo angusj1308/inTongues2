@@ -4842,6 +4842,109 @@ async function extractPdf(filePath) {
 }
 
 /**
+ * Extract PDF with chapter structure detection.
+ * Mirrors extractTxtWithChapters: uses detectChapterMarkers + parseChapterStructure,
+ * falls back to flat on no pattern. Scanned-PDF guard retained.
+ */
+async function extractPdfWithChapters(filePath, testMode = false) {
+  const data = await fs.readFile(filePath)
+  const pdf = await pdfParse(data)
+  const fullText = pdf.text || ''
+  const trimmed = fullText.trim()
+
+  if (trimmed.length < 100) {
+    const err = new Error('SCANNED_PDF_NOT_SUPPORTED')
+    err.code = 'SCANNED_PDF_NOT_SUPPORTED'
+    throw err
+  }
+
+  // Strip Gutenberg boilerplate (rare in PDF but possible; harmless when absent).
+  const text = stripGutenbergBoilerplate(fullText)
+  const lines = text.split('\n')
+
+  // Detect chapter markers using the shared structural detector.
+  const chapterMarkers = detectChapterMarkers(text, testMode)
+
+  // No chapter pattern → flat path (identical shape to flat TXT).
+  if (!chapterMarkers || chapterMarkers.length === 0) {
+    console.log('No chapter pattern detected in PDF, using flat adaptation')
+    const cleanText = normalizeTextWithParagraphs(text)
+    const words = cleanText.split(/\s+/)
+
+    const { chapterHeader, chapterOutline, bodyText } = await parseChapterStructure(cleanText, testMode)
+
+    const textToChunk = bodyText || cleanText
+    const adaptationChunks = splitTextIntoAdaptationChunks(textToChunk)
+
+    console.log(`Flat PDF structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
+
+    return {
+      isFlat: true,
+      originalText: cleanText,
+      adaptationChunks,
+      chapterHeader: chapterHeader || '',
+      chapterOutline: chapterOutline || '',
+      wordCount: words.length,
+    }
+  }
+
+  console.log(`Detected ${chapterMarkers.length} chapters in PDF`)
+
+  const chapters = []
+  for (let i = 0; i < chapterMarkers.length; i++) {
+    const marker = chapterMarkers[i]
+    const nextMarker = chapterMarkers[i + 1]
+
+    const startLine = marker.lineIndex
+    const endLine = nextMarker ? nextMarker.lineIndex : lines.length
+
+    const chapterLines = lines.slice(startLine + 1, endLine)
+    const chapterText = normalizeTextWithParagraphs(chapterLines.join('\n'))
+
+    if (chapterText.length < 100) {
+      console.log(`Skipping short PDF chapter: "${marker.title}"`)
+      continue
+    }
+
+    const words = chapterText.split(/\s+/)
+    const adaptationPages = splitTextIntoAdaptationChunks(chapterText)
+
+    chapters.push({
+      index: chapters.length,
+      title: marker.title,
+      originalText: chapterText,
+      adaptationPages,
+      wordCount: words.length,
+    })
+  }
+
+  // Preamble before first chapter marker (same rule as TXT).
+  if (chapterMarkers[0].lineIndex > 10) {
+    const preambleLines = lines.slice(0, chapterMarkers[0].lineIndex)
+    const preambleText = normalizeTextWithParagraphs(preambleLines.join('\n'))
+
+    if (preambleText.length > 200) {
+      const words = preambleText.split(/\s+/)
+      const adaptationPages = splitTextIntoAdaptationChunks(preambleText)
+
+      chapters.unshift({
+        index: 0,
+        title: 'Preface',
+        originalText: preambleText,
+        adaptationPages,
+        wordCount: words.length,
+      })
+
+      for (let i = 1; i < chapters.length; i++) {
+        chapters[i].index = i
+      }
+    }
+  }
+
+  return chapters
+}
+
+/**
  * Convert HTML to plain text while preserving paragraph structure.
  * Block-level elements become paragraph breaks (\n\n).
  * @param {string} html - The HTML content to convert
@@ -6410,10 +6513,10 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
     }
 
-    // Handle PDF with flat book flow (same as flat TXT for client-side pagination)
+    // Handle PDF with structural chapter detection (mirrors TXT flow).
     if (fileType === 'pdf') {
       // Test-mode PDF diagnostic: parse once to capture raw char count.
-      // The real extractPdf below will parse again — acceptable dev-only cost.
+      // extractPdfWithChapters will parse again — acceptable dev-only cost.
       let pdfDiag = null
       if (testMode) {
         const pdfBuf = await fs.readFile(req.file.path)
@@ -6429,28 +6532,116 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       }
 
       failedStep = 'extract-pdf'
-      const extracted = await extractPdf(req.file.path)
-      console.log('PDF using flat adaptation flow')
+      const extracted = await extractPdfWithChapters(req.file.path, testMode)
+
+      // Classifier state (mutated only inside the test-mode block below,
+      // and only for chapter-based PDFs). Non-test-mode behaviour is unchanged.
+      let chaptersToSavePdf = null
+      let classifierRanPdf = false
+      let classifierExtractedCountPdf = 0
+      let classifierKeptCountPdf = 0
+      let classifierDiscardedCountPdf = 0
 
       if (testMode) {
+        let rawText = ''
+        let totalLen = 0
+        if (extracted.isFlat) {
+          rawText = extracted.originalText || ''
+          totalLen = rawText.length
+        } else {
+          const joined = extracted.map((c) => c.originalText || '').join('\n\n')
+          rawText = joined
+          totalLen = joined.length
+        }
         tmBlock(
           'EXTRACTION — RAW OUTPUT',
-          `Total char count (normalized): ${(extracted.originalText || '').length}\n\n--- FULL EXTRACTED TEXT ---\n${extracted.originalText || ''}`
+          `isFlat: ${!!extracted.isFlat}\nTotal char count: ${totalLen}\n\n--- FULL EXTRACTED TEXT ---\n${rawText}`
         )
 
         tmBanner('FORMAT DIAGNOSTICS')
         tmKv(pdfDiag)
 
         tmBanner('CHAPTER DETECTION — INPUT')
-        console.log('chapter detection is implicit in format (PDF is always flat), no structural scan')
+        console.log(`Text char count passed to detector: ${pdfDiag.pdf_parse_char_count}`)
+        console.log('(Candidate signature groups and scores are logged above from within detectChapterMarkers)')
 
         tmBanner('CHAPTER DETECTION — OUTPUT')
-        console.log('FLAT BOOK — no chapters detected')
-        console.log('\n--- FULL ORIGINAL TEXT ---')
-        console.log(extracted.originalText || '')
+        if (extracted.isFlat) {
+          console.log('FLAT BOOK — no chapters detected')
+          console.log('\n--- FULL ORIGINAL TEXT ---')
+          console.log(extracted.originalText || '')
+        } else {
+          for (const ch of extracted) {
+            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount} ---`)
+            console.log(ch.originalText)
+          }
+          console.log(`\nSummary: ${extracted.length} chapters detected`)
+        }
 
         tmBanner('AI CALLS DURING EXTRACTION')
-        console.log('No AI calls during extraction for PDF.')
+        if (extracted.isFlat) {
+          console.log('parseChapterStructure was called inside extractPdfWithChapters — see AI CALL — parseChapterStructure banner above for full prompt/response.')
+        } else {
+          console.log('No AI calls during extraction for chapter-based PDF.')
+        }
+
+        tmBanner('CHAPTER CLASSIFIER')
+        if (extracted.isFlat) {
+          console.log('Flat book — classifier skipped (no chapters to classify against).')
+        } else if (extracted.length === 0) {
+          console.log('No chapters to classify — skipping.')
+        } else {
+          const classifications = await Promise.all(extracted.map((c) => classifyChapter(c)))
+          classifierRanPdf = true
+
+          for (let i = 0; i < extracted.length; i++) {
+            const chap = extracted[i]
+            const cls = classifications[i]
+            console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+            console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+            console.log(cls.systemMessage)
+            console.log('\n-- USER MESSAGE (verbatim) --')
+            console.log(cls.userMessage)
+            console.log('\n-- RAW RESPONSE (verbatim) --')
+            console.log(cls.raw ?? '(no response — API error)')
+            if (cls.failed) {
+              console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+              if (cls.error) console.log(cls.error.stack || cls.error.message)
+            }
+            console.log(`\nDecision: ${cls.decision}`)
+            console.log(`Reason:   ${cls.reason}`)
+          }
+
+          const kept = []
+          const discarded = []
+          for (let i = 0; i < extracted.length; i++) {
+            const chap = extracted[i]
+            const cls = classifications[i]
+            if (cls.decision === 'keep') {
+              kept.push({ chapter: chap, cls })
+            } else {
+              discarded.push({ chapter: chap, cls })
+            }
+          }
+          const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+
+          chaptersToSavePdf = keptReindexed
+          classifierExtractedCountPdf = extracted.length
+          classifierKeptCountPdf = keptReindexed.length
+          classifierDiscardedCountPdf = discarded.length
+
+          console.log('\n-- CLASSIFIER SUMMARY --')
+          console.log(`Original chapter count: ${classifierExtractedCountPdf}`)
+          console.log(`Kept:      ${classifierKeptCountPdf}`)
+          console.log(`Discarded: ${classifierDiscardedCountPdf}`)
+          for (const { chapter, cls } of discarded) {
+            console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+          }
+          console.log('\nFinal kept chapter list (new indices):')
+          for (const k of keptReindexed) {
+            console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
+          }
+        }
       }
 
       failedStep = 'cover-lookup'
@@ -6473,8 +6664,99 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         }
       }
 
+      // Flat PDF → flat save (no chapters detected)
+      if (extracted.isFlat) {
+        console.log('PDF has no chapters, using flat adaptation flow')
+
+        failedStep = 'firestore-write'
+        const bookId = await saveImportedFlatBookToFirestore({
+          userId,
+          title,
+          author,
+          originalLanguage,
+          outputLanguage,
+          translationMode,
+          level,
+          isPublicDomain,
+          originalText: extracted.originalText,
+          adaptationChunks: extracted.adaptationChunks,
+          chapterHeader: extracted.chapterHeader,
+          chapterOutline: extracted.chapterOutline,
+          wordCount: extracted.wordCount,
+          voiceGender,
+          sourceType: 'pdf',
+          coverImageUrl,
+        })
+
+        if (testMode) {
+          failedStep = 'readback'
+          tmBanner('FIRESTORE WRITE')
+          const storyPath = `users/${userId}/stories/${bookId}`
+          console.log(`Story doc path: ${storyPath}`)
+          const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
+          const storySnap = await storyRef.get()
+          const data = storySnap.data() || {}
+          console.log('\n--- STORY DOCUMENT (full contents) ---')
+          console.log(JSON.stringify(data, null, 2))
+          console.log('\n--- FLAT BOOK FIELD CHECK ---')
+          tmKv({
+            originalText_present: typeof data.originalText === 'string',
+            originalText_length: (data.originalText || '').length,
+            adaptationChunks_present: Array.isArray(data.adaptationChunks),
+            adaptationChunks_count: Array.isArray(data.adaptationChunks) ? data.adaptationChunks.length : 0,
+            chapterHeader_present: typeof data.chapterHeader === 'string',
+            chapterHeader_value: data.chapterHeader || '(empty)',
+            chapterOutline_present: typeof data.chapterOutline === 'string',
+            chapterOutline_value: data.chapterOutline || '(empty)',
+          })
+
+          tmBanner('VERDICT')
+          console.log(`VERDICT: flat book, ${extracted.adaptationChunks.length} adaptation chunks`)
+
+          return res.json({
+            success: true,
+            testMode: true,
+            bookId,
+            sourceType: 'pdf',
+            isFlat: true,
+            chapterCount: null,
+            chunkCount: extracted.adaptationChunks.length,
+            coverImageUrl,
+          })
+        }
+
+        // Fire-and-forget flat adaptation trigger
+        const adaptPayload = {
+          uid: userId,
+          storyId: bookId,
+          targetLanguage: outputLanguage,
+          level,
+          generateAudio: generateAudio === 'true',
+        }
+
+        fetch('http://localhost:4000/api/adapt-flat-book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adaptPayload),
+        }).catch((err) => console.error('Auto-adapt PDF trigger failed:', err))
+
+        return res.json({
+          success: true,
+          message: 'PDF import processed successfully (no chapters detected)',
+          bookId,
+          chunkCount: extracted.adaptationChunks.length,
+          sourceType: 'pdf',
+          isFlat: true,
+          coverImageUrl,
+        })
+      }
+
+      // Chapter-based PDF
+      const chapters = chaptersToSavePdf ?? extracted
+      console.log('Extracted PDF chapters:', chapters.length)
+
       failedStep = 'firestore-write'
-      const bookId = await saveImportedFlatBookToFirestore({
+      const bookId = await saveImportedChapterBookToFirestore({
         userId,
         title,
         author,
@@ -6483,11 +6765,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         translationMode,
         level,
         isPublicDomain,
-        originalText: extracted.originalText,
-        adaptationChunks: extracted.adaptationChunks,
-        chapterHeader: extracted.chapterHeader,
-        chapterOutline: extracted.chapterOutline,
-        wordCount: extracted.wordCount,
+        chapters,
         voiceGender,
         sourceType: 'pdf',
         coverImageUrl,
@@ -6500,37 +6778,36 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         console.log(`Story doc path: ${storyPath}`)
         const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
         const storySnap = await storyRef.get()
-        const data = storySnap.data() || {}
         console.log('\n--- STORY DOCUMENT (full contents) ---')
-        console.log(JSON.stringify(data, null, 2))
-        console.log('\n--- FLAT BOOK FIELD CHECK ---')
-        tmKv({
-          originalText_present: typeof data.originalText === 'string',
-          originalText_length: (data.originalText || '').length,
-          adaptationChunks_present: Array.isArray(data.adaptationChunks),
-          adaptationChunks_count: Array.isArray(data.adaptationChunks) ? data.adaptationChunks.length : 0,
-          chapterHeader_present: typeof data.chapterHeader === 'string',
-          chapterHeader_value: data.chapterHeader || '(empty)',
-          chapterOutline_present: typeof data.chapterOutline === 'string',
-          chapterOutline_value: data.chapterOutline || '(empty)',
-        })
+        console.log(JSON.stringify(storySnap.data(), null, 2))
+
+        const chaptersSnap = await storyRef.collection('chapters').get()
+        console.log(`\nChapter sub-docs: ${chaptersSnap.size}`)
+        for (const chapDoc of chaptersSnap.docs) {
+          console.log(`\n--- CHAPTER DOC path=${storyPath}/chapters/${chapDoc.id} ---`)
+          console.log(JSON.stringify(chapDoc.data(), null, 2))
+        }
 
         tmBanner('VERDICT')
-        console.log(`VERDICT: flat book, ${extracted.adaptationChunks.length} adaptation chunks`)
+        if (classifierRanPdf) {
+          console.log(`VERDICT: ${classifierKeptCountPdf} chapters detected (${classifierExtractedCountPdf} extracted, ${classifierDiscardedCountPdf} discarded)`)
+        } else {
+          console.log(`VERDICT: ${chapters.length} chapters detected`)
+        }
 
         return res.json({
           success: true,
           testMode: true,
           bookId,
           sourceType: 'pdf',
-          isFlat: true,
-          chapterCount: null,
-          chunkCount: extracted.adaptationChunks.length,
+          isFlat: false,
+          chapterCount: chapters.length,
+          chunkCount: null,
           coverImageUrl,
         })
       }
 
-      // Fire-and-forget flat adaptation trigger
+      // Fire-and-forget chapter adaptation trigger
       const adaptPayload = {
         uid: userId,
         storyId: bookId,
@@ -6539,7 +6816,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         generateAudio: generateAudio === 'true',
       }
 
-      fetch('http://localhost:4000/api/adapt-flat-book', {
+      fetch('http://localhost:4000/api/adapt-chapter-book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adaptPayload),
@@ -6549,9 +6826,8 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         success: true,
         message: 'PDF import processed successfully',
         bookId,
-        chunkCount: extracted.adaptationChunks.length,
+        chapterCount: chapters.length,
         sourceType: 'pdf',
-        isFlat: true,
         coverImageUrl,
       })
     }

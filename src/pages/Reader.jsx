@@ -1664,10 +1664,24 @@ const Reader = ({ initialMode }) => {
       }
     }
 
+    // After a mouse click on any button inside the reader, drop focus so the
+    // keyboard-shortcut handler above doesn't bail out on the focused button
+    // (otherwise space would re-trigger the click, and arrows would do
+    // nothing). event.detail > 0 filters to mouse-originated clicks — we
+    // keep keyboard-driven Enter/Space activations on focused buttons
+    // working normally for accessibility.
+    const handleIntensiveClickBlur = (event) => {
+      if (event.detail === 0) return
+      const btn = event.target instanceof Element ? event.target.closest('button') : null
+      if (btn) btn.blur()
+    }
+
     window.addEventListener('keydown', handleIntensiveShortcuts)
+    window.addEventListener('click', handleIntensiveClickBlur)
 
     return () => {
       window.removeEventListener('keydown', handleIntensiveShortcuts)
+      window.removeEventListener('click', handleIntensiveClickBlur)
     }
   }, [
     readerMode,

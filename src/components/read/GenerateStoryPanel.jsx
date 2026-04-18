@@ -4,7 +4,6 @@ import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/fires
 import {
   filterSupportedLanguages,
   resolveSupportedLanguageLabel,
-  toLanguageLabel,
 } from '../../constants/languages'
 import { useAuth } from '../../context/AuthContext'
 import { db } from '../../firebase'
@@ -55,7 +54,6 @@ const GenerateStoryPanel = ({
     () => filterSupportedLanguages(profile?.myLanguages || []),
     [profile?.myLanguages],
   )
-  const languageLocked = Boolean(languageParam || activeLanguageProp)
 
   const activeLanguage = useMemo(() => {
     if (activeLanguageProp) return resolveSupportedLanguageLabel(activeLanguageProp, '')
@@ -74,14 +72,6 @@ const GenerateStoryPanel = ({
     ? 'The selected language is not available in your account.'
     : ''
 
-  const environmentLanguage = activeLanguage || ''
-  const environmentLanguageCapitalized =
-    environmentLanguage.charAt(0).toUpperCase() + environmentLanguage.slice(1)
-  const normalizedEnvironmentLanguage = environmentLanguage.toLowerCase()
-
-  // Get current preset details
-  const currentPreset = LENGTH_PRESETS.find((p) => p.id === lengthPreset) || LENGTH_PRESETS[0]
-
   useEffect(() => {
     if (profile && !availableLanguages.length && !isModal) {
       navigate('/select-language')
@@ -95,19 +85,6 @@ const GenerateStoryPanel = ({
   }, [activeLanguage, setLastUsedLanguage])
 
   const HeadingTag = useMemo(() => headingLevel || 'h2', [headingLevel])
-
-  const handleLanguageChange = (newLanguage) => {
-    if (!newLanguage || languageLocked) return
-    if (languageParam) {
-      const resolved = toLanguageLabel(newLanguage)
-      if (!resolved) return
-      navigate(`/generate/${encodeURIComponent(resolved)}`)
-      return
-    }
-    const resolved = toLanguageLabel(newLanguage)
-    if (!resolved) return
-    setLastUsedLanguage(resolved)
-  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -297,35 +274,7 @@ const GenerateStoryPanel = ({
         )}
       </div>
 
-      {normalizedEnvironmentLanguage !== 'spanish' && (
-        <div className="section">
-          <div className="section-header">
-            <h3>Language</h3>
-          </div>
-          {availableLanguages.length ? (
-            <>
-              <div className="language-switcher">
-                <span className="pill primary">in{activeLanguage || '...'}</span>
-                <select
-                  className="language-select"
-                  value={activeLanguage}
-                  onChange={(event) => handleLanguageChange(event.target.value)}
-                  disabled={languageLocked}
-                >
-                  {availableLanguages.map((language) => (
-                    <option key={language} value={language}>
-                      {language}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {languageError && <p className="error small ui-text">{languageError}</p>}
-            </>
-          ) : (
-            <p className="muted ui-text">Add a language to begin generating content.</p>
-          )}
-        </div>
-      )}
+      {languageError && <p className="error small ui-text">{languageError}</p>}
 
       <form className="form" onSubmit={handleSubmit}>
         <label className="ui-text">

@@ -74,6 +74,13 @@ const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:517
 const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY
 
+// Gate for verbose import-pipeline logging. Default: off (a single summary
+// banner prints per import). Set IMPORT_VERBOSE=true to restore the full
+// pre-trim output (progress logs, extraction dumps, AI-call prompts/responses,
+// cover-search chatter, etc.). console.error / console.warn are never gated.
+const IMPORT_VERBOSE = process.env.IMPORT_VERBOSE === 'true'
+const vlog = (...args) => { if (IMPORT_VERBOSE) console.log(...args) }
+
 const LANGUAGE_NAME_TO_CODE = {
   English: 'en',
   French: 'fr',
@@ -519,7 +526,7 @@ async function parseChapterStructure(chapterText, testMode = false) {
       }
     }
 
-    console.log(`Parsed chapter structure - Header: "${chapterHeader.slice(0, 50)}...", Outline: ${chapterOutline ? 'present' : 'none'}, Body: ${bodyText.length} chars`)
+    vlog(`Parsed chapter structure - Header: "${chapterHeader.slice(0, 50)}...", Outline: ${chapterOutline ? 'present' : 'none'}, Body: ${bodyText.length} chars`)
 
     return { chapterHeader, chapterOutline, bodyText }
   } catch (error) {
@@ -4649,7 +4656,7 @@ function stripRtfMarkup(text) {
     return text
   }
 
-  console.log('Detected RTF content, stripping markup...')
+  vlog('Detected RTF content, stripping markup...')
 
   // Remove RTF header and control words
   let result = text
@@ -4695,7 +4702,7 @@ function stripRtfMarkup(text) {
   // Restore paragraph breaks (RTF uses \par)
   result = result.replace(/\\par\s*/g, '\n\n')
 
-  console.log('RTF stripped, first 200 chars:', result.slice(0, 200))
+  vlog('RTF stripped, first 200 chars:', result.slice(0, 200))
 
   return result
 }
@@ -4719,7 +4726,7 @@ async function extractTxtWithChapters(filePath, testMode = false) {
 
   // If no chapters detected, return flat structure (not chapter-based)
   if (!chapterMarkers || chapterMarkers.length === 0) {
-    console.log('No chapter pattern detected, using flat adaptation')
+    vlog('No chapter pattern detected, using flat adaptation')
     const cleanText = normalizeTextWithParagraphs(text)
     const words = cleanText.split(/\s+/)
 
@@ -4730,7 +4737,7 @@ async function extractTxtWithChapters(filePath, testMode = false) {
     const textToChunk = bodyText || cleanText
     const adaptationChunks = splitTextIntoAdaptationChunks(textToChunk)
 
-    console.log(`Flat book structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
+    vlog(`Flat book structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
 
     // Return flat structure with flag
     return {
@@ -4743,7 +4750,7 @@ async function extractTxtWithChapters(filePath, testMode = false) {
     }
   }
 
-  console.log(`Detected ${chapterMarkers.length} chapters`)
+  vlog(`Detected ${chapterMarkers.length} chapters`)
 
   // Split text at chapter boundaries
   const chapters = []
@@ -4828,7 +4835,7 @@ async function extractPdf(filePath) {
   // PDF doesn't have chapter headers/outlines like TXT, so we use empty strings
   const adaptationChunks = splitTextIntoAdaptationChunks(cleanText)
 
-  console.log(`PDF extracted: ${words.length} words, ${adaptationChunks.length} chunks`)
+  vlog(`PDF extracted: ${words.length} words, ${adaptationChunks.length} chunks`)
 
   // Return flat structure (same as flat TXT) for client-side pagination
   return {
@@ -4867,7 +4874,7 @@ async function extractPdfWithChapters(filePath, testMode = false) {
 
   // No chapter pattern → flat path (identical shape to flat TXT).
   if (!chapterMarkers || chapterMarkers.length === 0) {
-    console.log('No chapter pattern detected in PDF, using flat adaptation')
+    vlog('No chapter pattern detected in PDF, using flat adaptation')
     const cleanText = normalizeTextWithParagraphs(text)
     const words = cleanText.split(/\s+/)
 
@@ -4876,7 +4883,7 @@ async function extractPdfWithChapters(filePath, testMode = false) {
     const textToChunk = bodyText || cleanText
     const adaptationChunks = splitTextIntoAdaptationChunks(textToChunk)
 
-    console.log(`Flat PDF structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
+    vlog(`Flat PDF structure: Header="${(chapterHeader || '').slice(0, 50)}", Outline=${chapterOutline ? 'present' : 'none'}, Body chunks=${adaptationChunks.length}`)
 
     return {
       isFlat: true,
@@ -4888,7 +4895,7 @@ async function extractPdfWithChapters(filePath, testMode = false) {
     }
   }
 
-  console.log(`Detected ${chapterMarkers.length} chapters in PDF`)
+  vlog(`Detected ${chapterMarkers.length} chapters in PDF`)
 
   const chapters = []
   for (let i = 0; i < chapterMarkers.length; i++) {
@@ -4902,7 +4909,7 @@ async function extractPdfWithChapters(filePath, testMode = false) {
     const chapterText = normalizeTextWithParagraphs(chapterLines.join('\n'))
 
     if (chapterText.length < 100) {
-      console.log(`Skipping short PDF chapter: "${marker.title}"`)
+      vlog(`Skipping short PDF chapter: "${marker.title}"`)
       continue
     }
 
@@ -5050,7 +5057,7 @@ async function extractEpubCover(epub) {
     }
 
     if (!coverId) {
-      console.log('No cover image found in EPUB metadata or manifest')
+      vlog('No cover image found in EPUB metadata or manifest')
       return null
     }
 
@@ -5097,7 +5104,7 @@ async function uploadCoverToStorage(imageBuffer, mimeType, userId, bookId) {
     await file.makePublic()
 
     const coverUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`
-    console.log('Cover uploaded to:', coverUrl)
+    vlog('Cover uploaded to:', coverUrl)
     return coverUrl
   } catch (error) {
     console.error('Failed to upload cover to storage:', error)
@@ -5116,7 +5123,7 @@ async function searchGoogleBooksCover(title, author) {
 
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY
   if (!apiKey) {
-    console.log('Google Books API key not configured, skipping')
+    vlog('Google Books API key not configured, skipping')
     return null
   }
 
@@ -5134,7 +5141,7 @@ async function searchGoogleBooksCover(title, author) {
     })
 
     const url = `https://www.googleapis.com/books/v1/volumes?${params.toString()}`
-    console.log('Searching Google Books for cover...')
+    vlog('Searching Google Books for cover...')
 
     const response = await fetch(url)
     if (!response.ok) {
@@ -5163,13 +5170,13 @@ async function searchGoogleBooksCover(title, author) {
             .replace('http://', 'https://')
             .replace('&edge=curl', '')
             .replace('zoom=1', 'zoom=2') // Get larger image
-          console.log('Found Google Books cover:', cleanUrl)
+          vlog('Found Google Books cover:', cleanUrl)
           return cleanUrl
         }
       }
     }
 
-    console.log('No cover found on Google Books')
+    vlog('No cover found on Google Books')
     return null
   } catch (error) {
     console.error('Google Books search failed:', error)
@@ -5215,7 +5222,7 @@ async function searchOpenLibraryCover(title, author) {
     params.append('fields', 'cover_i')
 
     const url = `${OPEN_LIBRARY_SEARCH_URL}?${params.toString()}`
-    console.log('Searching Open Library for cover:', url)
+    vlog('Searching Open Library for cover:', url)
 
     const response = await fetch(url)
     if (!response.ok) {
@@ -5230,12 +5237,12 @@ async function searchOpenLibraryCover(title, author) {
     for (const doc of docs) {
       if (doc.cover_i) {
         const coverUrl = `${OPEN_LIBRARY_COVERS_URL}/id/${doc.cover_i}-L.jpg`
-        console.log('Found Open Library cover:', coverUrl)
+        vlog('Found Open Library cover:', coverUrl)
         return coverUrl
       }
     }
 
-    console.log('No cover found on Open Library')
+    vlog('No cover found on Open Library')
     return null
   } catch (error) {
     console.error('Open Library search failed:', error)
@@ -5491,7 +5498,7 @@ async function extractPagesForFile(file) {
   }
 
   const fileType = detectFileType(file.originalname)
-  console.log('Detected import file type:', fileType, 'for', file.originalname)
+  vlog('Detected import file type:', fileType, 'for', file.originalname)
 
   if (fileType === 'txt') return extractTxt(file.path)
   if (fileType === 'pdf') return extractPdf(file.path)
@@ -6064,6 +6071,26 @@ function tmKv(obj) {
   }
 }
 
+// One-line-per-import summary banner. Prints unconditionally in default mode
+// and short-circuits in verbose mode (where today's full logs are restored
+// instead). Never called from test-mode paths — test mode has its own VERDICT.
+function printImportSummary({ filename, format, size, structure, chaptersDetected, chaptersDiscarded, chaptersWritten, totalWords, storyDocPath }) {
+  if (IMPORT_VERBOSE) return
+  const rule = '═'.repeat(60)
+  console.log('\n' + rule)
+  console.log(`IMPORT — ${filename}`)
+  console.log(rule)
+  console.log(`  format:              ${format}`)
+  console.log(`  size:                ${size} bytes`)
+  console.log(`  structure:           ${structure}`)
+  console.log(`  chapters detected:   ${chaptersDetected}`)
+  console.log(`  chapters discarded:  ${chaptersDiscarded} (by classifier)`)
+  console.log(`  chapters written:    ${chaptersWritten}`)
+  console.log(`  total words:         ${totalWords}`)
+  console.log(`  story doc:           ${storyDocPath}`)
+  console.log(rule + '\n')
+}
+
 app.post('/api/import-upload', upload.single('file'), async (req, res) => {
   const testMode = req.body?.testMode === 'true'
   let failedStep = 'init'
@@ -6099,7 +6126,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       generateAudio,
     }
 
-    console.log('Import upload received:', req.file.path, req.file.originalname, metadata)
+    vlog('Import upload received:', req.file.path, req.file.originalname, metadata)
 
     failedStep = 'detect-file-type'
     const fileType = detectFileType(req.file.originalname)
@@ -6123,7 +6150,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       const epub = await parseEpub(req.file.path)
       failedStep = 'extract-epub'
       const chapters = await extractEpubWithChaptersFromParsed(epub)
-      console.log('Extracted EPUB chapters:', chapters.length)
+      vlog('Extracted EPUB chapters:', chapters.length)
 
       if (testMode) {
         const joined = chapters.map((c) => c.originalText || '').join('\n\n')
@@ -6171,12 +6198,12 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           userId,
           tempBookId
         )
-        console.log('EPUB cover extracted and uploaded:', coverImageUrl)
+        vlog('EPUB cover extracted and uploaded:', coverImageUrl)
       }
 
       // If no cover in EPUB, search Open Library
       if (!coverImageUrl && (title || author)) {
-        console.log('No EPUB cover found, searching Open Library...')
+        vlog('No EPUB cover found, searching Open Library...')
         coverImageUrl = await searchBookCover(title, author)
       }
 
@@ -6320,6 +6347,18 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           coverImageUrl,
         })
       }
+
+      printImportSummary({
+        filename: req.file.originalname,
+        format: 'epub',
+        size: req.file.size,
+        structure: 'chaptered',
+        chaptersDetected: chapters.length,
+        chaptersDiscarded: chapters.length - chaptersToSave.length,
+        chaptersWritten: chaptersToSave.length,
+        totalWords: chaptersToSave.reduce((sum, c) => sum + (c.wordCount || 0), 0),
+        storyDocPath: `users/${userId}/stories/${bookId}`,
+      })
 
       // Fire-and-forget chapter adaptation (sequential, new pipeline).
       // Audio generation has been de-wired; will be re-wired in a follow-up brief.
@@ -6488,7 +6527,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       // TXT files don't have embedded covers, so search Open Library
       let coverImageUrl = null
       if (title || author) {
-        console.log('Searching Open Library for TXT cover...')
+        vlog('Searching Open Library for TXT cover...')
         coverImageUrl = await searchBookCover(title, author)
       }
 
@@ -6506,7 +6545,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
       // Check if chapters were detected or if it's a flat book
       if (extracted.isFlat) {
-        console.log('TXT has no chapters, using flat adaptation flow')
+        vlog('TXT has no chapters, using flat adaptation flow')
 
         failedStep = 'firestore-write'
         const bookId = await saveImportedFlatBookToFirestore({
@@ -6565,6 +6604,18 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           })
         }
 
+        printImportSummary({
+          filename: req.file.originalname,
+          format: 'txt',
+          size: req.file.size,
+          structure: 'flat',
+          chaptersDetected: 0,
+          chaptersDiscarded: 0,
+          chaptersWritten: 1,
+          totalWords: extracted.wordCount || 0,
+          storyDocPath: `users/${userId}/stories/${bookId}`,
+        })
+
         // Fire-and-forget flat adaptation (single-call, new pipeline).
         runFlatAdaptation(userId, bookId).catch((err) =>
           console.error('runFlatAdaptation unhandled error (TXT flat):', err)
@@ -6583,7 +6634,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
       // Chapters detected - use chapter-based flow
       const chapters = chaptersToSaveTxt ?? extracted
-      console.log('Extracted TXT chapters:', chapters.length)
+      vlog('Extracted TXT chapters:', chapters.length)
 
       failedStep = 'firestore-write'
       const bookId = await saveImportedChapterBookToFirestore({
@@ -6636,6 +6687,18 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           coverImageUrl,
         })
       }
+
+      printImportSummary({
+        filename: req.file.originalname,
+        format: 'txt',
+        size: req.file.size,
+        structure: 'chaptered',
+        chaptersDetected: extracted.length,
+        chaptersDiscarded: extracted.length - chapters.length,
+        chaptersWritten: chapters.length,
+        totalWords: chapters.reduce((sum, c) => sum + (c.wordCount || 0), 0),
+        storyDocPath: `users/${userId}/stories/${bookId}`,
+      })
 
       // Fire-and-forget chapter adaptation (sequential, new pipeline).
       runChapterAdaptation(userId, bookId).catch((err) =>
@@ -6789,7 +6852,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       // PDF files don't have embedded covers we can easily extract, so search Open Library
       let coverImageUrl = null
       if (title || author) {
-        console.log('Searching Open Library for PDF cover...')
+        vlog('Searching Open Library for PDF cover...')
         coverImageUrl = await searchBookCover(title, author)
       }
 
@@ -6807,7 +6870,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
       // Flat PDF → flat save (no chapters detected)
       if (extracted.isFlat) {
-        console.log('PDF has no chapters, using flat adaptation flow')
+        vlog('PDF has no chapters, using flat adaptation flow')
 
         failedStep = 'firestore-write'
         const bookId = await saveImportedFlatBookToFirestore({
@@ -6866,6 +6929,18 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           })
         }
 
+        printImportSummary({
+          filename: req.file.originalname,
+          format: 'pdf',
+          size: req.file.size,
+          structure: 'flat',
+          chaptersDetected: 0,
+          chaptersDiscarded: 0,
+          chaptersWritten: 1,
+          totalWords: extracted.wordCount || 0,
+          storyDocPath: `users/${userId}/stories/${bookId}`,
+        })
+
         // Fire-and-forget flat adaptation (single-call, new pipeline).
         runFlatAdaptation(userId, bookId).catch((err) =>
           console.error('runFlatAdaptation unhandled error (PDF flat):', err)
@@ -6884,7 +6959,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
 
       // Chapter-based PDF
       const chapters = chaptersToSavePdf ?? extracted
-      console.log('Extracted PDF chapters:', chapters.length)
+      vlog('Extracted PDF chapters:', chapters.length)
 
       failedStep = 'firestore-write'
       const bookId = await saveImportedChapterBookToFirestore({
@@ -6937,6 +7012,18 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
           coverImageUrl,
         })
       }
+
+      printImportSummary({
+        filename: req.file.originalname,
+        format: 'pdf',
+        size: req.file.size,
+        structure: 'chaptered',
+        chaptersDetected: extracted.length,
+        chaptersDiscarded: extracted.length - chapters.length,
+        chaptersWritten: chapters.length,
+        totalWords: chapters.reduce((sum, c) => sum + (c.wordCount || 0), 0),
+        storyDocPath: `users/${userId}/stories/${bookId}`,
+      })
 
       // Fire-and-forget chapter adaptation (sequential, new pipeline).
       runChapterAdaptation(userId, bookId).catch((err) =>

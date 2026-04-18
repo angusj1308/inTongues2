@@ -954,12 +954,12 @@ const Reader = ({ initialMode }) => {
       // decays. Pausing exactly at that boundary cuts off the word audibly
       // (e.g. the final "a" of "fredda" clips). Extend the sentence's end to
       // just before the next word's start, using the natural silence between
-      // sentences as buffer. 50ms epsilon protects against browser timeupdate
-      // granularity (~250ms) overshooting into the first consonant of the
-      // next sentence. For the final sentence of the stream, no next word
+      // sentences as buffer. 20ms epsilon is plenty now that pausing is
+      // setTimeout-based (~4ms accuracy) rather than timeupdate-based
+      // (~250ms jitter). For the final sentence of the stream, no next word
       // exists so we keep the original phonetic end (one trailing cutoff per
       // book, not one per sentence).
-      const EPSILON_SEC = 0.05
+      const EPSILON_SEC = 0.02
       const nextStart = sentenceSegments[endIdx + 1]?.start
       const extendedEnd =
         typeof nextStart === 'number' && nextStart > sentenceSegments[endIdx].end
@@ -1401,35 +1401,34 @@ const Reader = ({ initialMode }) => {
 
     const audio = sentenceAudioRef.current
 
-    // Clean up any previous stop listener
+    // Clean up any previous stop timer
     if (sentenceAudioStopRef.current) {
-      audio.removeEventListener('timeupdate', sentenceAudioStopRef.current)
+      clearTimeout(sentenceAudioStopRef.current)
       sentenceAudioStopRef.current = null
     }
     audio.pause()
-
-    // Monitor actual playback position and pause at the end boundary
-    const onTimeUpdate = () => {
-      if (audio.currentTime >= endTime) {
-        audio.pause()
-        audio.removeEventListener('timeupdate', onTimeUpdate)
-        sentenceAudioStopRef.current = null
-      }
-    }
-    sentenceAudioStopRef.current = onTimeUpdate
-    audio.addEventListener('timeupdate', onTimeUpdate)
 
     try {
       audio.currentTime = startTime
     } catch (error) {
       console.error('Failed to set sentence audio start time', error)
-      audio.removeEventListener('timeupdate', onTimeUpdate)
-      sentenceAudioStopRef.current = null
       return
     }
 
+    // Pause via setTimeout, not via the `timeupdate` event. `timeupdate` is
+    // throttled to ~250ms intervals, so using it to bound playback produces
+    // 0–250ms of bleed into the next sentence (noticeable as first-consonant
+    // leak). setTimeout is accurate to ~4ms, so we pause within single-digit
+    // milliseconds of the intended boundary. Scheduled inside the `seeked`
+    // handler so the duration counts from actual playback start, not from
+    // whenever the seek request was issued.
     audio.addEventListener('seeked', () => {
       audio.play().catch((err) => console.error('Sentence playback failed', err))
+      const durationMs = Math.max(0, (endTime - startTime) * 1000)
+      sentenceAudioStopRef.current = setTimeout(() => {
+        audio.pause()
+        sentenceAudioStopRef.current = null
+      }, durationMs)
     }, { once: true })
   }
 

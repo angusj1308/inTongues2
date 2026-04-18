@@ -1900,7 +1900,6 @@ const Reader = ({ initialMode }) => {
 
       const entry = vocabEntries[key]
       const status = entry?.status || 'new'
-      if (status === 'known') return
 
       words.push({
         word: token,

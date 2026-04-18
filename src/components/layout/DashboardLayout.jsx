@@ -57,6 +57,30 @@ const LANGUAGE_PREFIX = {
   Hindi: 'में',
 }
 
+// Acts 2:4 — "and they began to speak in other tongues" in each language
+const LANGUAGE_TAGLINE = {
+  English: 'and they began to speak in other tongues',
+  French: "et ils se mirent à parler en d'autres langues",
+  Spanish: 'y comenzaron a hablar en otras lenguas',
+  Italian: 'e cominciarono a parlare in altre lingue',
+  German: 'und fingen an, in anderen Sprachen zu reden',
+  Portuguese: 'e começaram a falar em outras línguas',
+  Japanese: '他国のいろいろな言葉で話しはじめた',
+  Chinese: '他们就开始说起别种语言来',
+  Korean: '다른 언어로 말하기 시작하니라',
+  Russian: 'и начали говорить на иных языках',
+  Arabic: 'وابتدأوا يتكلمون بألسنة أخرى',
+  Dutch: 'en zij begonnen in andere talen te spreken',
+  Swedish: 'och började tala andra tungomål',
+  Norwegian: 'og de begynte å tale i andre tungemål',
+  Danish: 'og de begyndte at tale i andre tungemål',
+  Polish: 'i zaczęli mówić innymi językami',
+  Turkish: 'başka dillerle konuşmaya başladılar',
+  Greek: 'και άρχισαν να μιλούν σε άλλες γλώσσες',
+  Hebrew: 'והחלו לדבר בלשונות אחרות',
+  Hindi: 'और वे अन्य भाषाओं में बोलने लगे',
+}
+
 const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const { user, profile, logout, updateProfile, setLastUsedLanguage } = useAuth()
   const navigate = useNavigate()
@@ -110,6 +134,11 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
   const brandPrefix = useMemo(() => {
     if (!activeLanguage) return 'in'
     return LANGUAGE_PREFIX[activeLanguage] || 'in'
+  }, [activeLanguage])
+
+  const brandTagline = useMemo(() => {
+    if (!activeLanguage) return LANGUAGE_TAGLINE.English
+    return LANGUAGE_TAGLINE[activeLanguage] || LANGUAGE_TAGLINE.English
   }, [activeLanguage])
 
   const handleLanguageChange = async (language) => {
@@ -277,9 +306,9 @@ const DashboardLayout = ({ activeTab = 'home', onTabChange, children }) => {
                 <div className="dashboard-brand">
                   <span className="dashboard-brand-prefix">{brandPrefix}</span>
                   <span className="dashboard-brand-language">{brandLanguage}</span>
-                  {activeLanguage !== 'Spanish' && <span className="brand-dot">.</span>}
+                  <span className="brand-dot">.</span>
                 </div>
-                <p className="dashboard-tagline">y comenzaron a hablar en otras lenguas</p>
+                <p className="dashboard-tagline">{brandTagline}</p>
               </div>
               <span className="dashboard-brand-line" />
             </div>

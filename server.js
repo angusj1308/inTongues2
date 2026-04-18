@@ -5652,8 +5652,6 @@ async function saveImportedFlatBookToFirestore({
     chapterHeader: chapterHeader || '',
     chapterOutline: chapterOutline || '',
     structureParsed: true, // Structure was parsed at import, not after adaptation
-    // Page count will be set after re-chunking
-    pageCount: 0,
     status: 'pending',
     hasFullAudio: false,
     audioStatus: 'none',
@@ -5670,8 +5668,7 @@ async function saveImportedFlatBookToFirestore({
 /**
  * Save imported book with chapter structure to Firestore.
  * Works for EPUB, TXT, or any format with detected chapters.
- * Chapters are stored separately with their originalText and adaptationPages.
- * Final 250-word pages are created after adaptation completes.
+ * Each chapter stores its full originalText for continuous-scroll rendering.
  */
 async function saveImportedChapterBookToFirestore({
   userId,
@@ -5706,7 +5703,6 @@ async function saveImportedChapterBookToFirestore({
 
   // Calculate totals
   const totalChapters = chapters.length
-  const totalAdaptationPages = chapters.reduce((sum, ch) => sum + ch.adaptationPages.length, 0)
   const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0)
 
   const storyRef = firestore
@@ -5729,11 +5725,8 @@ async function saveImportedChapterBookToFirestore({
     // Chapter-based book fields
     sourceType,
     chapterCount: totalChapters,
-    totalAdaptationPages,
     adaptedChapters: 0,
     totalWords,
-    // Page count will be set after re-chunking
-    pageCount: 0,
     status: 'pending',
     hasFullAudio: false,
     audioStatus: 'none',
@@ -5753,11 +5746,7 @@ async function saveImportedChapterBookToFirestore({
       originalText: chapter.originalText,
       adaptedText: '', // Will be built up during adaptation
       wordCount: chapter.wordCount,
-      adaptationPages: chapter.adaptationPages,
-      adaptedPageCount: 0,
-      totalAdaptationPages: chapter.adaptationPages.length,
       status: 'pending',
-      pageOffset: 0, // Will be calculated after all chapters are adapted
     })
   }
 

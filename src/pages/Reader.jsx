@@ -938,7 +938,7 @@ const Reader = ({ initialMode }) => {
       // sentence so the cursor consumes the extra audio token. For audio
       // generated after the server fix each elision is one audio token and
       // this match returns zero, making the adjustment a no-op.
-      const elisionCount = (sentence.match(/\b\p{L}{1,3}[''′ʼ]\p{L}/gu) || []).length
+      const elisionCount = (sentence.match(/\b\p{L}{1,3}['‘’′ʼ]\p{L}/gu) || []).length
       const advance = wordCount + elisionCount
 
       if (advance === 0 || cursor >= sentenceSegments.length) {

@@ -928,7 +928,7 @@ async function requestElevenLabsTts(text, voiceId) {
     // (U+2019 curly) and contractions like "don't" (U+0027 ASCII) tokenise as
     // one word instead of splitting around the apostrophe and inflating the
     // token count relative to the text-side word count.
-    const wordMatches = [...fullText.matchAll(/[\p{L}\p{N}][\p{L}\p{N}''′ʼ-]*/gu)]
+    const wordMatches = [...fullText.matchAll(/[\p{L}\p{N}][\p{L}\p{N}'‘’′ʼ-]*/gu)]
 
     for (const match of wordMatches) {
       const wordStart = match.index

@@ -5902,7 +5902,7 @@ async function adaptOneChapter({ originalText, developerMessage, language, label
  * Never throws — all failures are captured on the story doc so the UI can
  * reflect them. Intended to be called fire-and-forget from the import handler.
  */
-async function runChapterAdaptation(userId, bookId) {
+async function runChapterAdaptation(userId, bookId, generateAudio = false) {
   const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
 
   try {
@@ -5952,6 +5952,21 @@ async function runChapterAdaptation(userId, bookId) {
 
     await storyRef.update({ status: 'ready' })
     console.log(`[adapt chapter book ${bookId}] done: ${chapterDocs.length} chapters adapted`)
+
+    // Audio generation — fire-and-forget POST to /api/generate-audio-book,
+    // matching the trigger pattern used by the legacy adapt endpoints and the
+    // generated-book pipeline. Same downstream system, so intensive-mode word
+    // timestamps and full-audio playback work identically across all sources.
+    if (generateAudio) {
+      console.log(`[adapt chapter book ${bookId}] triggering audio generation`)
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: userId, storyId: bookId }),
+      }).catch((err) => {
+        console.error(`[adapt chapter book ${bookId}] audio trigger failed:`, err)
+      })
+    }
   } catch (err) {
     console.error(`[adapt chapter book ${bookId}] FAILED:`, err)
     try {
@@ -5971,7 +5986,7 @@ async function runChapterAdaptation(userId, bookId) {
  * stored as adaptedText on the story doc itself (flat books have no
  * chapters subcollection). Same status transitions as chapter adaptation.
  */
-async function runFlatAdaptation(userId, bookId) {
+async function runFlatAdaptation(userId, bookId, generateAudio = false) {
   const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
 
   try {
@@ -6008,6 +6023,21 @@ async function runFlatAdaptation(userId, bookId) {
       status: 'ready',
     })
     console.log(`[adapt flat book ${bookId}] done`)
+
+    // Audio generation — same trigger as runChapterAdaptation. /api/generate-
+    // audio-book handles flat books via the same code path used for generated
+    // books, so word-timestamp output and intensive-mode behaviour are
+    // identical regardless of source.
+    if (generateAudio) {
+      console.log(`[adapt flat book ${bookId}] triggering audio generation`)
+      fetch('http://localhost:4000/api/generate-audio-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: userId, storyId: bookId }),
+      }).catch((err) => {
+        console.error(`[adapt flat book ${bookId}] audio trigger failed:`, err)
+      })
+    }
   } catch (err) {
     console.error(`[adapt flat book ${bookId}] FAILED:`, err)
     try {
@@ -6418,8 +6448,9 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
 
       // Fire-and-forget chapter adaptation (sequential, new pipeline).
-      // Audio generation has been de-wired; will be re-wired in a follow-up brief.
-      runChapterAdaptation(userId, bookId).catch((err) =>
+      // Audio generation triggers from inside runChapterAdaptation once the
+      // last chapter is adapted, when generateAudio is true.
+      runChapterAdaptation(userId, bookId, generateAudio === 'true').catch((err) =>
         console.error('runChapterAdaptation unhandled error (EPUB):', err)
       )
 
@@ -6680,7 +6711,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
 
         // Fire-and-forget flat adaptation (single-call, new pipeline).
-        runFlatAdaptation(userId, bookId).catch((err) =>
+        runFlatAdaptation(userId, bookId, generateAudio === 'true').catch((err) =>
           console.error('runFlatAdaptation unhandled error (TXT flat):', err)
         )
 
@@ -6764,7 +6795,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
 
       // Fire-and-forget chapter adaptation (sequential, new pipeline).
-      runChapterAdaptation(userId, bookId).catch((err) =>
+      runChapterAdaptation(userId, bookId, generateAudio === 'true').catch((err) =>
         console.error('runChapterAdaptation unhandled error (TXT):', err)
       )
 
@@ -7011,7 +7042,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         })
 
         // Fire-and-forget flat adaptation (single-call, new pipeline).
-        runFlatAdaptation(userId, bookId).catch((err) =>
+        runFlatAdaptation(userId, bookId, generateAudio === 'true').catch((err) =>
           console.error('runFlatAdaptation unhandled error (PDF flat):', err)
         )
 
@@ -7095,7 +7126,7 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       })
 
       // Fire-and-forget chapter adaptation (sequential, new pipeline).
-      runChapterAdaptation(userId, bookId).catch((err) =>
+      runChapterAdaptation(userId, bookId, generateAudio === 'true').catch((err) =>
         console.error('runChapterAdaptation unhandled error (PDF):', err)
       )
 

@@ -105,6 +105,8 @@ const ActiveCinemaMode = ({
   renderHighlightedText,
   onSubtitleWordClick,
   contentExpressions = [],
+  showWordStatus = true,
+  onToggleWordStatus,
   children: videoPlayer,
 }) => {
   const rewindButtonRef = useRef(null)
@@ -689,7 +691,7 @@ const ActiveCinemaMode = ({
                 currentTime={currentTime}
                 language={language}
                 vocabEntries={vocabEntries}
-                showWordStatus
+                showWordStatus={showWordStatus}
                 onWordClick={activeStep === 4 ? onSubtitleWordClick : undefined}
                 defaultTrackingEnabled={activeStep === 2}
                 showTrackingToggle
@@ -955,7 +957,8 @@ const ActiveCinemaMode = ({
             activeIndex={activeTranscriptIndex}
             vocabEntries={vocabEntries}
             language={language}
-            showWordStatus
+            showWordStatus={showWordStatus}
+            onToggleWordStatus={onToggleWordStatus}
             showWordStatusToggle
             wordStatusDisabled={false}
             isSynced={isTranscriptSynced}

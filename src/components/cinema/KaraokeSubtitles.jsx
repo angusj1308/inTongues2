@@ -31,7 +31,10 @@ const EyeIcon = ({ open }) => (
 // `parseInt('ar', 16)` is NaN; the inline `color: rgb(NaN,NaN,NaN)` was
 // invalid; the browser fell through to .karaoke-word's default white. Every
 // word rendered white regardless of status — which is the bug the user saw.
-function getWordColor({ status }) {
+function getWordColor({ status, showWordStatus = true }) {
+  // Header toggle / panel toggle is OFF → render every word as plain white.
+  // Honoured by both render branches below (word-timed karaoke + fallback).
+  if (!showWordStatus) return '#ffffff'
   if (status === 'known') return '#ffffff'
   return LIGHT_HIGHLIGHTS[status] || LIGHT_HIGHLIGHTS.new
 }
@@ -41,10 +44,11 @@ const KaraokeWord = memo(({
   isActive,
   isPast,
   status,
+  showWordStatus,
   onWordClick,
   trackingEnabled,
 }) => {
-  const color = getWordColor({ status })
+  const color = getWordColor({ status, showWordStatus })
 
   const classNames = ['karaoke-word']
   if (trackingEnabled && isActive) classNames.push('karaoke-word--active')
@@ -205,6 +209,7 @@ const KaraokeSubtitles = ({
                 isActive={index === activeWordIndex}
                 isPast={index < activeWordIndex || isInGap}
                 status={status}
+                showWordStatus={showWordStatus}
                 onWordClick={handleWordClick}
                 trackingEnabled={trackingEnabled}
               />
@@ -263,7 +268,7 @@ const KaraokeSubtitles = ({
       <div className="karaoke-line karaoke-line--no-words">
         {fallbackSegments.map((segment, segIdx) => {
           if (segment.type === 'phrase') {
-            const color = getWordColor({ status: segment.status })
+            const color = getWordColor({ status: segment.status, showWordStatus })
             return (
               <span
                 key={`phrase-${segIdx}`}
@@ -286,7 +291,7 @@ const KaraokeSubtitles = ({
             const normalised = token.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
             const entry = vocabEntries[normalised]
             const status = entry?.status || 'new'
-            const color = getWordColor({ status })
+            const color = getWordColor({ status, showWordStatus })
 
             return (
               <span

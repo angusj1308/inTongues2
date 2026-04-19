@@ -51,6 +51,7 @@ const ExtensiveCinemaMode = ({
   // Props for text display mode
   subtitlesEnabled = true,
   showWordStatus = true,
+  onToggleWordStatus,
   transcriptPanelOpen = false,
   onCloseTranscript,
   darkMode = true,
@@ -415,6 +416,7 @@ const ExtensiveCinemaMode = ({
           onWordClick={handleTranscriptWordClick}
           onSelectionTranslate={handleTranscriptSelection}
           showWordStatus={showWordStatus}
+          onToggleWordStatus={onToggleWordStatus}
           isSynced={isTranscriptSynced}
           onUserScroll={handleTranscriptUnsync}
           onResync={handleTranscriptResync}

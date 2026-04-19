@@ -1596,6 +1596,7 @@ const normalisePagesToSegments = (pages = []) =>
           onSubtitleWordClick={handleSubtitleWordClick}
           subtitlesEnabled={subtitlesEnabled}
           showWordStatus={textDisplayMode !== 'off' && showWordStatus}
+          onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
           transcriptPanelOpen={transcriptPanelOpen}
           onCloseTranscript={handleCloseTranscript}
           darkMode={cinemaDarkMode}
@@ -1642,6 +1643,8 @@ const normalisePagesToSegments = (pages = []) =>
           renderHighlightedText={renderHighlightedText}
           onSubtitleWordClick={handleSubtitleWordClick}
           contentExpressions={contentExpressions}
+          showWordStatus={textDisplayMode !== 'off' && showWordStatus}
+          onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
         >
           {videoPlayer}
         </ActiveCinemaMode>

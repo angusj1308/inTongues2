@@ -996,6 +996,36 @@ textarea {
   color: #0f172a;
 }
 
+[data-theme='dark'] .dashboard-menu {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .menu-item {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='dark'] .menu-item.danger {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+[data-theme='dark'] .menu-item svg {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .menu-item.danger svg {
+  color: #fafaf9;
+}
+
 /* ===========================================
    Language Menu - Redesigned
    =========================================== */

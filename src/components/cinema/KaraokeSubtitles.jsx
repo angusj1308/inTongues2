@@ -112,6 +112,21 @@ const KaraokeSubtitles = ({
       .sort((a, b) => b.length - a.length)
   }, [contentExpressions, vocabEntries])
 
+  // Find active segment based on current time.
+  // MUST be declared before `wordExpressionMap` below — that useMemo
+  // references activeSegment in its callback body AND in its deps array.
+  // Previously declared after wordExpressionMap, which hit the let/const
+  // temporal dead zone during render and threw "Cannot access 'activeSegment'
+  // before initialization", crashing the whole cinema page.
+  const activeSegment = useMemo(() => {
+    if (!segments.length) return null
+    const time = Math.max(0, Number(currentTime) || 0)
+
+    return segments.find(
+      (segment) => time >= segment.start && time < segment.end
+    ) || null
+  }, [segments, currentTime])
+
   // For word-timing path: map word indices to expression groups
   const wordExpressionMap = useMemo(() => {
     if (!activeSegment?.words?.length || !detectedExpressionTexts.length) return {}
@@ -135,16 +150,6 @@ const KaraokeSubtitles = ({
 
     return map
   }, [activeSegment, detectedExpressionTexts])
-
-  // Find active segment based on current time
-  const activeSegment = useMemo(() => {
-    if (!segments.length) return null
-    const time = Math.max(0, Number(currentTime) || 0)
-
-    return segments.find(
-      (segment) => time >= segment.start && time < segment.end
-    ) || null
-  }, [segments, currentTime])
 
   // Find active word within segment
   const activeWordIndex = useMemo(() => {

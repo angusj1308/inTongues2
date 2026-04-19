@@ -12,6 +12,7 @@ import { cinemaViewingModes } from '../constants/cinemaViewingModes'
 import ExtensiveCinemaMode from '../components/cinema/ExtensiveCinemaMode'
 import ActiveCinemaMode from '../components/cinema/ActiveCinemaMode'
 import IntensiveCinemaMode from '../components/cinema/IntensiveCinemaMode'
+import CinemaErrorBoundary from '../components/cinema/CinemaErrorBoundary'
 import CinemaWordPopup from '../components/cinema/CinemaWordPopup'
 
 const extractVideoId = (video) => {
@@ -1812,7 +1813,7 @@ const normalisePagesToSegments = (pages = []) =>
         </p>
       )}
 
-      {renderModeContent()}
+      <CinemaErrorBoundary>{renderModeContent()}</CinemaErrorBoundary>
 
       {popup && (
         <CinemaWordPopup

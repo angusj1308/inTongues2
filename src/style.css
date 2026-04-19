@@ -3521,7 +3521,7 @@ textarea {
   height: 100dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-top: 80px;
+  padding-top: 140px;
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.25) transparent;

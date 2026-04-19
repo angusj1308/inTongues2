@@ -3766,6 +3766,7 @@ html.reader-active body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 60px;
   background: rgba(250, 246, 240, 0.95);
   backdrop-filter: blur(8px);
   z-index: 100;

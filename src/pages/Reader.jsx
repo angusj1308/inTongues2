@@ -1897,13 +1897,21 @@ const Reader = ({ initialMode }) => {
     sentenceTranslations,
   ])
 
-  // Extract non-known words from the current intensive sentence
-  const intensiveWordList = useMemo(() => {
+  // Freeze the list of word keys for the current intensive sentence at
+  // sentence-entry time. Known-at-entry words are filtered out here and
+  // never re-evaluated while the user remains on this sentence, so when
+  // the user promotes a word to 'known' mid-view it stays visible (with
+  // the K pill active) instead of vanishing under them. The freeze is
+  // recomputed on sentence change, which recaptures vocabEntries at that
+  // moment — next time they visit this sentence, newly-known words are
+  // filtered out. The deliberate omission of vocabEntries from the deps
+  // array is what makes this work.
+  const intensiveSentenceKeys = useMemo(() => {
     if (readerMode !== 'intensive' || !currentIntensiveSentence) return []
 
     const tokens = (currentIntensiveSentence || '').split(/([\p{L}\p{N}][\p{L}\p{N}'-]*)/gu)
     const seen = new Set()
-    const words = []
+    const keys = []
 
     tokens.forEach((token) => {
       if (!token || !/[\p{L}\p{N}]/u.test(token)) return
@@ -1912,21 +1920,35 @@ const Reader = ({ initialMode }) => {
       if (seen.has(key)) return
       seen.add(key)
 
-      const entry = vocabEntries[key]
-      const status = entry?.status || 'new'
+      // Filter out words already known at sentence-entry time.
+      if (vocabEntries[key]?.status === 'known') return
 
-      words.push({
-        word: token,
-        normalised: key,
-        status,
-        translation: entry?.translation || intensiveWordTranslations[key]?.translation || null,
-        audioBase64: intensiveWordTranslations[key]?.audioBase64 || null,
-        audioUrl: intensiveWordTranslations[key]?.audioUrl || null,
-      })
+      keys.push({ word: token, normalised: key })
     })
 
-    return words
-  }, [readerMode, currentIntensiveSentence, vocabEntries, intensiveWordTranslations])
+    return keys
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readerMode, currentIntensiveSentence])
+
+  // Derive the render list from the frozen keys plus the live vocabEntries /
+  // translations state. Status changes (including promotion to 'known') flow
+  // through here so pills update immediately, but the set of rows is fixed
+  // by intensiveSentenceKeys above until the sentence changes.
+  const intensiveWordList = useMemo(() => {
+    if (readerMode !== 'intensive') return []
+
+    return intensiveSentenceKeys.map(({ word, normalised }) => {
+      const entry = vocabEntries[normalised]
+      return {
+        word,
+        normalised,
+        status: entry?.status || 'new',
+        translation: entry?.translation || intensiveWordTranslations[normalised]?.translation || null,
+        audioBase64: intensiveWordTranslations[normalised]?.audioBase64 || null,
+        audioUrl: intensiveWordTranslations[normalised]?.audioUrl || null,
+      }
+    })
+  }, [readerMode, intensiveSentenceKeys, vocabEntries, intensiveWordTranslations])
 
   // Fetch translations for words in current + next 5 intensive sentences
   useEffect(() => {

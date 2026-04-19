@@ -1,5 +1,5 @@
 import { useMemo, memo, useState } from 'react'
-import { HIGHLIGHT_COLOR } from '../../constants/highlightColors'
+import { LIGHT_HIGHLIGHTS } from '../../constants/highlightColors'
 import { normaliseExpression } from '../../services/vocab'
 
 // Eye icon for tracking toggle
@@ -20,36 +20,20 @@ const EyeIcon = ({ open }) => (
   </svg>
 )
 
-// Blend intensity based on status (how much of the orange color vs white)
-// Higher = more color, lower = more white
-const STATUS_INTENSITY = {
-  new: 1.0,          // full orange intensity
-  unknown: 1.0,      // full orange intensity
-  recognised: 0.7,   // 70% color, 30% white
-  familiar: 0.4,     // 40% color, 60% white
-}
-
-// Blend a hex color with white based on intensity (0-1)
-const blendWithWhite = (hex, intensity) => {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-
-  const blendedR = Math.round(r * intensity + 255 * (1 - intensity))
-  const blendedG = Math.round(g * intensity + 255 * (1 - intensity))
-  const blendedB = Math.round(b * intensity + 255 * (1 - intensity))
-
-  return `rgb(${blendedR}, ${blendedG}, ${blendedB})`
-}
-
-// Get highlight color based on word status - all orange, fading to white
+// Map vocab status to a CSS color reference. The `var(--hlt-…)` references
+// resolve at render time against whatever palette the user has chosen
+// (terracotta / sage / slate, light or dark variant), so cinema stays
+// visually consistent with the reader's word highlights.
+//
+// Previously this used JS hex blending (parseInt on HIGHLIGHT_COLOR.slice(1,3)
+// then mixing with white), which broke when HIGHLIGHT_COLOR was refactored
+// from a hex literal into a CSS-variable reference string ('var(--hlt-new)').
+// `parseInt('ar', 16)` is NaN; the inline `color: rgb(NaN,NaN,NaN)` was
+// invalid; the browser fell through to .karaoke-word's default white. Every
+// word rendered white regardless of status — which is the bug the user saw.
 function getWordColor({ status }) {
-  // Known words are white
   if (status === 'known') return '#ffffff'
-
-  // All learning statuses use orange blended with white based on status
-  const intensity = STATUS_INTENSITY[status] || 1.0
-  return blendWithWhite(HIGHLIGHT_COLOR, intensity)
+  return LIGHT_HIGHLIGHTS[status] || LIGHT_HIGHLIGHTS.new
 }
 
 const KaraokeWord = memo(({

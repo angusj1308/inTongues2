@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
   LIGHT_HIGHLIGHTS,
   DARK_HIGHLIGHTS,
@@ -52,4 +53,8 @@ const WordToken = ({ text, status, readerMode, tone, onWordClick }) => {
   )
 }
 
-export default WordToken
+// Memoised: a chapter renders thousands of these, and the Reader root re-renders
+// on every state change (translation toggle, vocab update, etc.). Shallow-prop
+// equality is sufficient because all five props are primitives (text, status,
+// language, readerMode, tone) or a useCallback-stabilised function (onWordClick).
+export default memo(WordToken)

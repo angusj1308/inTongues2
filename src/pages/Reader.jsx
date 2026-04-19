@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   collection,
@@ -104,6 +104,61 @@ const getStatusStyle = (statusLevel, isActive) => {
       return {}
   }
 }
+
+// One row of the intensive-mode vocab panel. Memoised so promoting a single
+// word's status doesn't re-render every sibling row. Props are primitives or
+// useCallback-stabilised references; default shallow comparison is enough.
+const IntensiveWordRow = memo(function IntensiveWordRow({
+  word,
+  normalised,
+  translation,
+  currentStatus,
+  isNew,
+  audioBase64,
+  audioUrl,
+  onPlay,
+  onStatusChange,
+}) {
+  const hasAudio = Boolean(audioBase64 || audioUrl)
+  return (
+    <div className="reader-intensive-word-row">
+      <button
+        type="button"
+        className={`reader-intensive-word-play ${hasAudio ? '' : 'reader-intensive-word-play--disabled'}`}
+        onClick={() => onPlay({ audioBase64, audioUrl })}
+        disabled={!hasAudio}
+        aria-label={`Play pronunciation of ${word}`}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </button>
+      <span className="reader-intensive-word-text">{word}</span>
+      <span className="reader-intensive-word-translation">
+        {translation || '...'}
+      </span>
+      <div className="reader-intensive-status-pills">
+        {STATUS_ABBREV.map((abbrev, i) => {
+          const level = STATUS_LEVELS[i]
+          const isActive = level === 'new' ? isNew : currentStatus === level
+          return (
+            <button
+              key={abbrev}
+              type="button"
+              className={`reader-intensive-status-pill ${isActive ? 'is-active' : ''}`}
+              style={getStatusStyle(level, isActive)}
+              onClick={() => level !== 'new' && onStatusChange(word, translation, level)}
+              aria-label={`Set ${word} status to ${level}`}
+              aria-pressed={isActive}
+            >
+              {abbrev}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+})
 
 const Reader = ({ initialMode }) => {
   const navigate = useNavigate()
@@ -236,7 +291,10 @@ const Reader = ({ initialMode }) => {
     return { x, y }
   }
 
-  const playPronunciationAudio = (audioData) => {
+  // useCallback-stabilised (empty deps — only touches a ref and the param) so
+  // the memoised IntensiveWordRow rows can skip re-renders when siblings'
+  // statuses change.
+  const playPronunciationAudio = useCallback((audioData) => {
     if (!audioData?.audioBase64 && !audioData?.audioUrl) return
 
     if (pronunciationAudioRef.current) {
@@ -275,7 +333,7 @@ const Reader = ({ initialMode }) => {
 
     pronunciationAudioRef.current = audio
     audio.play().catch((err) => console.error('Pronunciation playback failed', err))
-  }
+  }, [])
 
   async function handleWordClick(e) {
     e.stopPropagation()
@@ -468,7 +526,11 @@ const Reader = ({ initialMode }) => {
     })
   }
 
-  const handleSingleWordClick = async (text, event) => {
+  // useCallback-stabilised so the memoised WordToken children can actually
+  // skip re-renders. Without this, every Reader re-render produces a fresh
+  // function reference and React.memo's shallow-prop equality check bails,
+  // defeating the whole optimisation chain.
+  const handleSingleWordClick = useCallback(async (text, event) => {
     const selection = window.getSelection()?.toString().trim()
     const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
     const isExpression = text.includes(' ')
@@ -554,7 +616,7 @@ const Reader = ({ initialMode }) => {
       audioBase64: audioBase64 || null,
       audioUrl: audioUrl || null,
     })
-  }
+  }, [contentExpressions, language, profile?.nativeLanguage, voiceGender])
 
   const handleSetWordStatus = async (status) => {
     if (!user || !language || !popup?.word) return
@@ -1705,8 +1767,14 @@ const Reader = ({ initialMode }) => {
     }
   }
 
-  const activeTheme =
-    themeOptions.find((option) => option.id === readerTheme) || themeOptions[0]
+  // activeTheme.tone is passed to every WordToken. Memoise so tone keeps
+  // a stable reference across renders that don't change readerTheme —
+  // otherwise Array.find returns a fresh result every render and the
+  // memoised WordToken children all re-render.
+  const activeTheme = useMemo(
+    () => themeOptions.find((option) => option.id === readerTheme) || themeOptions[0],
+    [readerTheme]
+  )
 
   const activeFont = fontOptions.find((option) => option.id === readerFont) || fontOptions[0]
 
@@ -2393,57 +2461,24 @@ const Reader = ({ initialMode }) => {
               {isIntensiveTranslationVisible && intensiveWordList.length > 0 && (
                 <div className="reader-intensive-words">
                   {intensiveWordList.map((wordData) => {
-                    const currentStatus = vocabEntries[wordData.normalised]?.status || 'new'
-                    const translation = vocabEntries[wordData.normalised]?.translation
+                    const entry = vocabEntries[wordData.normalised]
+                    const currentStatus = entry?.status || 'new'
+                    const translation = entry?.translation
                       || intensiveWordTranslations[wordData.normalised]?.translation
                       || null
-
                     return (
-                      <div key={wordData.normalised} className="reader-intensive-word-row">
-                        <button
-                          type="button"
-                          className={`reader-intensive-word-play ${
-                            wordData.audioBase64 || wordData.audioUrl ? '' : 'reader-intensive-word-play--disabled'
-                          }`}
-                          onClick={() => playPronunciationAudio(wordData)}
-                          disabled={!wordData.audioBase64 && !wordData.audioUrl}
-                          aria-label={`Play pronunciation of ${wordData.word}`}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </button>
-                        <span className="reader-intensive-word-text">{wordData.word}</span>
-                        <span className="reader-intensive-word-translation">
-                          {translation || '...'}
-                        </span>
-                        <div className="reader-intensive-status-pills">
-                          {STATUS_ABBREV.map((abbrev, i) => {
-                            const level = STATUS_LEVELS[i]
-                            const isActive = level === 'new'
-                              ? !vocabEntries[wordData.normalised]?.status
-                              : currentStatus === level
-
-                            return (
-                              <button
-                                key={abbrev}
-                                type="button"
-                                className={`reader-intensive-status-pill ${isActive ? 'is-active' : ''}`}
-                                style={getStatusStyle(level, isActive)}
-                                onClick={() => level !== 'new' && handleIntensiveWordStatus(
-                                  wordData.word,
-                                  translation,
-                                  level
-                                )}
-                                aria-label={`Set ${wordData.word} status to ${level}`}
-                                aria-pressed={isActive}
-                              >
-                                {abbrev}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
+                      <IntensiveWordRow
+                        key={wordData.normalised}
+                        word={wordData.word}
+                        normalised={wordData.normalised}
+                        translation={translation}
+                        currentStatus={currentStatus}
+                        isNew={!entry?.status}
+                        audioBase64={wordData.audioBase64}
+                        audioUrl={wordData.audioUrl}
+                        onPlay={playPronunciationAudio}
+                        onStatusChange={handleIntensiveWordStatus}
+                      />
                     )
                   })}
                 </div>

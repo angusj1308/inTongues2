@@ -954,12 +954,15 @@ const Reader = ({ initialMode }) => {
       // decays. Pausing exactly at that boundary cuts off the word audibly
       // (e.g. the final "a" of "fredda" clips). Extend the sentence's end to
       // just before the next word's start, using the natural silence between
-      // sentences as buffer. 20ms epsilon is plenty now that pausing is
-      // setTimeout-based (~4ms accuracy) rather than timeupdate-based
-      // (~250ms jitter). For the final sentence of the stream, no next word
-      // exists so we keep the original phonetic end (one trailing cutoff per
-      // book, not one per sentence).
-      const EPSILON_SEC = 0.02
+      // sentences as buffer. 50ms epsilon covers realistic setTimeout jitter
+      // (the pause timer fires ~4ms accurate most plays but spikes to 20-30ms
+      // under GC / React re-render / tab activity) plus MP3 decoder seek-snap
+      // (up to one frame ≈26ms past the requested startTime). At 50ms we
+      // reliably stop before nextWord.start; perceptibly loses ~30ms of vowel
+      // decay compared to a tighter margin — imperceptible in practice. For
+      // the final sentence of the stream, no next word exists so we keep the
+      // original phonetic end (one trailing cutoff per book, not per sentence).
+      const EPSILON_SEC = 0.05
       const nextStart = sentenceSegments[endIdx + 1]?.start
       const extendedEnd =
         typeof nextStart === 'number' && nextStart > sentenceSegments[endIdx].end

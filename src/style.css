@@ -3261,6 +3261,7 @@ textarea {
 
 .reader-mode-nav .dashboard-nav-button {
   color: #78716c;
+  transition: none;
 }
 
 .reader-mode-nav .dashboard-nav-button.active {
@@ -3414,8 +3415,6 @@ textarea {
   cursor: pointer;
   font-weight: 700;
   letter-spacing: 0.02em;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
-    transform 0.15s ease;
 }
 
 .reader-mode-option:not(.active):hover {
@@ -3864,7 +3863,6 @@ html.reader-active body {
   cursor: pointer;
   padding: 0.5rem 1rem;
   border-radius: 0;
-  transition: all 150ms ease;
 }
 
 .intensive-translation-toggle:hover {
@@ -3983,7 +3981,6 @@ html.reader-active body {
   text-transform: uppercase;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 150ms ease;
 }
 
 .reader-intensive-status-pill:hover {

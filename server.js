@@ -2486,10 +2486,19 @@ async function fetchYoutubeCaptionsViaDlp(videoId, requestedLanguage = null) {
       throw new Error('yt-dlp did not report a language and no requestedLanguage was given')
     }
 
-    // Find a track in that language. Prefer manual subtitles, then ASR.
-    // Try `<lang>` first, then `<lang>-orig` (YouTube's marker for the
-    // pre-translation source captions).
-    const candidates = [pullLang, `${pullLang}-orig`]
+    // Build candidate caption-track keys in priority order. YouTube sometimes
+    // reports regional variants like `es-us`, `en-gb`, `pt-br` as the video's
+    // language, but the actual caption tracks are keyed on the base language
+    // code (`es`, `en`, `pt`) or on a different regional variant (`es-419`).
+    // Walk: exact pullLang → pullLang-orig → base → base-orig → any `base-*`
+    // regional variant. Never match across language families (we stay on
+    // `es-*` for a Spanish video; auto-translations to other languages are
+    // never considered).
+    const baseLang = pullLang.split('-')[0]
+    const candidates = pullLang === baseLang
+      ? [pullLang, `${pullLang}-orig`]
+      : [pullLang, `${pullLang}-orig`, baseLang, `${baseLang}-orig`]
+
     let chosenLang = null
     let source = null
     for (const c of candidates) {
@@ -2500,12 +2509,25 @@ async function fetchYoutubeCaptionsViaDlp(videoId, requestedLanguage = null) {
         if (autoCaptions[c]) { chosenLang = c; source = 'asr'; break }
       }
     }
+
+    // Final fallback: any regional variant whose code starts with `baseLang-`
+    // (e.g. the video reports `es` but only `es-419` exists).
+    if (!chosenLang && baseLang) {
+      const isBaseRegional = (k) => k.startsWith(`${baseLang}-`) && k !== `${baseLang}-orig`
+      const manual = Object.keys(subtitles).find(isBaseRegional)
+      if (manual) { chosenLang = manual; source = 'manual' }
+      if (!chosenLang) {
+        const asr = Object.keys(autoCaptions).find(isBaseRegional)
+        if (asr) { chosenLang = asr; source = 'asr' }
+      }
+    }
+
     if (!chosenLang) {
-      console.warn(`[yt-dlp ${videoId}] no original-language captions available (lang=${pullLang})`)
+      console.warn(`[yt-dlp ${videoId}] no original-language captions available (lang=${pullLang}, base=${baseLang})`)
       return null
     }
 
-    console.log(`[yt-dlp ${videoId}] pulling ${source} captions in ${chosenLang} (originalLang=${originalLang || 'unknown'})`)
+    console.log(`[yt-dlp ${videoId}] pulling ${source} captions in ${chosenLang} (originalLang=${originalLang || 'unknown'}, requested=${requestedLanguage || 'none'})`)
 
     // Step 2: download the chosen track as SRT.
     const outputTemplate = path.join(tmpDir, '%(id)s.%(ext)s')

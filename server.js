@@ -8509,14 +8509,29 @@ app.post('/api/generate-audio-book', async (req, res) => {
       fullAudioUrl: null,
     })
 
-    // Collect audio segments — either from pages subcollection or adaptedTextBlob
+    // Collect audio segments — chaptered (new import pipeline), pages (legacy
+    // paginated), or adaptedTextBlob (flat). Chaptered path generates audio
+    // per chapter, storing a merged chapter-level mp3 URL on each chapter doc
+    // and still building up the sequential segment stream used downstream to
+    // produce the full-book audio + intensive word timestamps.
+    const chaptersRef = storyRef.collection('chapters')
+    const chaptersSnap = await chaptersRef.orderBy('index').get()
+    const isChaptered =
+      !chaptersSnap.empty &&
+      chaptersSnap.docs.some((d) => (d.data()?.adaptedText || '').trim())
+
     const pagesRef = storyRef.collection('pages')
-    const pagesSnap = await pagesRef.orderBy('index').get()
+    const pagesSnap = isChaptered
+      ? { empty: true, size: 0, docs: [] }
+      : await pagesRef.orderBy('index').get()
 
     // For flat stories with no pages, generate audio directly from adaptedTextBlob
-    const isFlat = pagesSnap.empty && storyData.adaptedTextBlob?.trim()
+    const isFlat =
+      !isChaptered &&
+      pagesSnap.empty &&
+      Boolean(storyData.adaptedTextBlob?.trim())
 
-    if (pagesSnap.empty && !isFlat) {
+    if (!isChaptered && pagesSnap.empty && !isFlat) {
       await storyRef.update({
         audioStatus: 'error',
         hasFullAudio: false,
@@ -8530,7 +8545,108 @@ app.post('/api/generate-audio-book', async (req, res) => {
     const storyTextParts = []
     const allPageWordTimestamps = []
 
-    if (isFlat) {
+    if (isChaptered) {
+      // Reset chapter-level counter for progress UI.
+      await storyRef.update({ audioChapters: 0, audioError: admin.firestore.FieldValue.delete() })
+
+      const MAX_CHARS = 6000
+
+      for (let c = 0; c < chaptersSnap.docs.length; c++) {
+        const chapDoc = chaptersSnap.docs[c]
+        const chapData = chapDoc.data() || {}
+        const chapText = (chapData.adaptedText || '').trim()
+        const chapIndex = chapData.index ?? Number(chapDoc.id) ?? c
+
+        if (!chapText) {
+          const message = `Chapter ${chapIndex} has no adaptedText`
+          console.error(`[audio story ${storyId}] ${message}`)
+          await chapDoc.ref.update({ audioStatus: 'error', audioUrl: null, audioError: message })
+          await storyRef.update({ audioStatus: 'failed', hasFullAudio: false, fullAudioUrl: null, audioError: message })
+          return res.status(500).json({ error: message })
+        }
+
+        // Split chapter text into ElevenLabs-sized chunks.
+        const chapChunks = []
+        let remaining = chapText
+        while (remaining.length > 0) {
+          if (remaining.length <= MAX_CHARS) {
+            chapChunks.push(remaining)
+            break
+          }
+          let splitAt = remaining.lastIndexOf('. ', MAX_CHARS)
+          if (splitAt === -1 || splitAt < MAX_CHARS * 0.5) {
+            splitAt = remaining.lastIndexOf(' ', MAX_CHARS)
+          }
+          if (splitAt === -1) splitAt = MAX_CHARS
+          else splitAt += 1
+          chapChunks.push(remaining.slice(0, splitAt).trim())
+          remaining = remaining.slice(splitAt).trim()
+        }
+
+        const segmentStart = pagesProcessed
+        console.log(`[audio story ${storyId}] chapter ${c + 1}/${chaptersSnap.docs.length} (index=${chapIndex}, ${chapText.length} chars, ${chapChunks.length} chunks)`)
+
+        for (let k = 0; k < chapChunks.length; k++) {
+          storyTextParts.push(chapChunks[k])
+          try {
+            const { audioUrl, wordTimestamps } = await generateAudioForPage(
+              storyId,
+              pagesProcessed,
+              chapChunks[k],
+              expectedVoiceId,
+              storyLanguage,
+            )
+            pagesProcessed += 1
+            if (!audioUrl) {
+              const message = `Audio generation returned no URL for chapter ${chapIndex} chunk ${k}`
+              await chapDoc.ref.update({ audioStatus: 'error', audioUrl: null, audioError: message })
+              await storyRef.update({ audioStatus: 'failed', hasFullAudio: false, fullAudioUrl: null, audioError: message })
+              return res.status(500).json({ error: message })
+            }
+            pagesSucceeded += 1
+            allPageWordTimestamps.push(wordTimestamps || [])
+          } catch (audioError) {
+            const message = audioError?.message || 'Audio generation failed'
+            console.error(`[audio story ${storyId}] chapter ${chapIndex} chunk ${k} failed:`, audioError)
+            await chapDoc.ref.update({ audioStatus: 'error', audioUrl: null, audioError: message })
+            await storyRef.update({ audioStatus: 'failed', hasFullAudio: false, fullAudioUrl: null, audioError: message })
+            return res.status(500).json({ error: message })
+          }
+        }
+
+        const segmentEnd = pagesProcessed - 1
+
+        // Merge this chapter's segments into a single chapter mp3 and store the
+        // URL on the chapter doc.
+        try {
+          const chapWavs = []
+          for (let s = segmentStart; s <= segmentEnd; s++) {
+            chapWavs.push(await downloadPageAudioAsWav(`guidebooks/${storyId}/page_${s}.mp3`))
+          }
+          const chapMergedWav = await mergeWavBuffers(chapWavs)
+          if (!chapMergedWav) throw new Error('No WAV buffers to merge for chapter')
+          const chapMp3 = await encodeMergedWavToMp3(chapMergedWav)
+          const chapFilePath = `guidebooks/${storyId}/chapter_${chapIndex}.mp3`
+          const chapFile = bucket.file(chapFilePath)
+          await chapFile.save(chapMp3, { contentType: 'audio/mpeg' })
+          await chapFile.makePublic()
+          const chapterAudioUrl = chapFile.publicUrl()
+
+          await chapDoc.ref.update({
+            audioUrl: chapterAudioUrl,
+            audioStatus: 'ready',
+          })
+        } catch (mergeErr) {
+          const message = mergeErr?.message || 'Chapter audio merge failed'
+          console.error(`[audio story ${storyId}] chapter ${chapIndex} merge failed:`, mergeErr)
+          await chapDoc.ref.update({ audioStatus: 'error', audioError: message })
+          await storyRef.update({ audioStatus: 'failed', hasFullAudio: false, fullAudioUrl: null, audioError: message })
+          return res.status(500).json({ error: message })
+        }
+
+        await storyRef.update({ audioChapters: c + 1 })
+      }
+    } else if (isFlat) {
       // Flat story — split text into chunks and generate audio for each
       const fullText = storyData.adaptedTextBlob.trim()
       const CHUNK_SIZE = 4000
@@ -8631,7 +8747,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
       }
     }
 
-    const totalSegments = isFlat ? pagesProcessed : pagesSnap.size
+    const totalSegments = (isFlat || isChaptered) ? pagesProcessed : pagesSnap.size
     const finalStatus = pagesSucceeded === totalSegments ? 'ready' : 'error'
     if (finalStatus !== 'ready') {
       await storyRef.update({
@@ -8657,7 +8773,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
       const wavBuffers = []
 
-      if (isFlat) {
+      if (isFlat || isChaptered) {
         for (let i = 0; i < pagesProcessed; i++) {
           const bucketPath = `guidebooks/${storyId}/page_${i}.mp3`
           const wavBuffer = await downloadPageAudioAsWav(bucketPath)
@@ -8706,7 +8822,7 @@ app.post('/api/generate-audio-book', async (req, res) => {
 
           // Get page audio duration for offset — use the page mp3 file
           if (pageWords.length > 0) {
-            const pageIndex = isFlat ? p : (pagesSnap.docs[p].data()?.index ?? Number(pagesSnap.docs[p].id) ?? 0)
+            const pageIndex = (isFlat || isChaptered) ? p : (pagesSnap.docs[p].data()?.index ?? Number(pagesSnap.docs[p].id) ?? 0)
             const bucketPath = `guidebooks/${storyId}/page_${pageIndex}.mp3`
             try {
               const tmpPath = path.join(os.tmpdir(), `duration-${storyId}-${pageIndex}.mp3`)

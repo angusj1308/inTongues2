@@ -6,13 +6,13 @@
   font-weight: 400;
   color-scheme: light;
   color: #0f172a;
-  background-color: #F2EDE8;
+  background-color: #F5F5F2;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --accent-color: #111111;
   --accent-red: #0f172a;
-  --dashboard-surface: #F2EDE8;
-  --dashboard-surface-contrast: #F2EDE8;
+  --dashboard-surface: #F5F5F2;
+  --dashboard-surface-contrast: #F5F5F2;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   --font-content: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   /* Highlight palette fallbacks (Terracotta default, light + dark variants).
@@ -531,7 +531,7 @@ textarea {
   align-items: center;
   justify-content: flex-start;
   padding: 0;
-  background: #F2EDE8;
+  background: #F5F5F2;
   min-height: 100vh;
 }
 
@@ -760,7 +760,7 @@ textarea {
 
 .dashboard-main {
   width: 100%;
-  background: #F2EDE8;
+  background: #F5F5F2;
 }
 
 .dashboard-wrapper {
@@ -841,7 +841,7 @@ textarea {
   right: 0;
   top: calc(100% + 0.75rem);
   width: min(360px, 85vw);
-  background: #F2EDE8;
+  background: #F5F5F2;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 0;
   box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
@@ -3803,7 +3803,7 @@ html.reader-active body {
 }
 
 .reader-intensive-card {
-  background: #F2EDE8;
+  background: #F5F5F2;
   border-radius: 0;
   border: 1px solid #e7e5e4;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
@@ -6854,7 +6854,7 @@ html.reader-active body {
 }
 
 .reader-themed .dashboard-header {
-  background: #F2EDE8;
+  background: #F5F5F2;
   color: #0f172a;
 }
 
@@ -14007,7 +14007,7 @@ body.active-pass-locked {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--editor-bg, #F2EDE8);
+  background: var(--editor-bg, #F5F5F2);
   transition: background 0.3s ease;
 }
 
@@ -16702,7 +16702,7 @@ body.active-pass-locked {
 }
 
 .modal-container {
-  background: #F2EDE8;
+  background: #F5F5F2;
   border-radius: 0;
   padding: 1.5rem;
   width: 100%;
@@ -25209,7 +25209,7 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   margin-top: 0.75rem;
-  /* no background — inherit dashboard page beige (#F2EDE8) for colour continuity */
+  /* no background — inherit dashboard page beige (#F5F5F2) for colour continuity */
 }
 
 /* Sticky day headers row */

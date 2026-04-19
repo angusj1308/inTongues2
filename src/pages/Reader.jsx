@@ -2327,9 +2327,6 @@ const Reader = ({ initialMode }) => {
                 </div>
               )}
               <div className="reader-content-column">
-                {storyTitle && (
-                  <h1 className="reader-story-title">{storyTitle}</h1>
-                )}
                 {chapters.map((chapter, chapterIndex) => (
                   <div key={chapter.id || chapterIndex} className="reader-chapter-block">
                     {chapter.adaptedChapterHeader && (

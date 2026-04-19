@@ -470,7 +470,6 @@ textarea {
 
 .reader-word--highlighted {
   background-color: var(--hlt-color);
-  transition: background-color 0.15s ease;
 }
 
 .reader-sentence {

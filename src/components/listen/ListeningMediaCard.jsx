@@ -5,6 +5,13 @@ const normaliseProgress = (value) => {
   return Math.min(value, 100)
 }
 
+// Unified thumbnail-as-card layout — same visual pattern the reading library
+// uses for book tiles and the YouTube listening row already uses. The old
+// side-by-side .preview-card layout has been retired so audio stories /
+// audiobooks / YouTube videos all render at identical size and style in the
+// listening hub. The underlying .media-card-yt-* CSS class names are legacy
+// (coined when only the YouTube branch used this pattern); kept as-is to
+// avoid a ripple of CSS renames.
 const ListeningMediaCard = ({
   type = 'audio',
   title,
@@ -24,34 +31,22 @@ const ListeningMediaCard = ({
   const progressPercent = normaliseProgress(progress)
   const prepProgress = normaliseProgress(preparationProgress)
 
-  // Video is importing (transcript being generated) or dubbing
   const isDubbing = status === 'dubbing'
   const isImporting = status === 'importing' || isDubbing
   const importFailed = status === 'failed'
-
-  // Content is preparing when status is 'pending' or 'preparing' (pronunciation caching)
   const isPreparing = preparationStatus === 'pending' || preparationStatus === 'preparing'
   const prepFailed = preparationStatus === 'error'
-
-  // Overall: blocked if importing OR preparing
   const isBlocked = isImporting || isPreparing
 
-  // Determine action label and disabled state
   let cardActionLabel = actionLabel || (isYouTube ? 'Watch →' : 'Play →')
-  if (isDubbing) {
-    cardActionLabel = 'Dubbing...'
-  } else if (isImporting) {
-    cardActionLabel = 'Importing...'
-  } else if (importFailed) {
-    cardActionLabel = 'Import failed'
-  } else if (isPreparing) {
-    cardActionLabel = prepProgress > 0 ? `Preparing ${Math.round(prepProgress)}%` : 'Preparing...'
-  } else if (prepFailed) {
-    cardActionLabel = 'Retry'
-  }
+  if (isDubbing) cardActionLabel = 'Dubbing...'
+  else if (isImporting) cardActionLabel = 'Importing...'
+  else if (importFailed) cardActionLabel = 'Import failed'
+  else if (isPreparing) cardActionLabel = prepProgress > 0 ? `Preparing ${Math.round(prepProgress)}%` : 'Preparing...'
+  else if (prepFailed) cardActionLabel = 'Retry'
+
   const handleKeyDown = (event) => {
     if (!onPlay || isBlocked) return
-
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       onPlay()
@@ -63,151 +58,69 @@ const ListeningMediaCard = ({
     onPlay()
   }
 
-  // YouTube: thumbnail-as-card pattern (like reading book tiles)
-  if (isYouTube) {
-    return (
-      <div
-        className={`media-card-yt-item${isBlocked ? ' media-card-yt-item--blocked' : ''}`}
-        role="button"
-        tabIndex={isBlocked ? -1 : 0}
-        aria-disabled={isBlocked}
-        onClick={handleCardClick}
-        onKeyDown={handleKeyDown}
-      >
-        {onDelete && (
-          <button
-            type="button"
-            className="media-card-yt-delete-btn"
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
-            aria-label="Delete video"
-          >
-            ×
-          </button>
-        )}
+  const fallbackLabel = isYouTube ? 'No thumbnail' : 'No cover'
 
-        <div className="media-card-yt-cover">
-          {thumbnailUrl ? (
-            <img className="media-card-yt-cover-img" src={thumbnailUrl} alt={title || 'YouTube video'} />
-          ) : (
-            <div className="media-card-yt-no-cover">
-              {placeholder || <span className="ui-text">No thumbnail</span>}
-            </div>
-          )}
-
-          {isBlocked && (
-            <div className="media-card-yt-blocked-overlay">
-              <div className="media-card-yt-spinner" />
-              <span className="media-card-yt-blocked-text">{cardActionLabel}</span>
-              {isPreparing && prepProgress > 0 && (
-                <div className="media-card-yt-prep-progress">
-                  <div className="media-card-yt-prep-progress-bar" style={{ width: `${prepProgress}%` }} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {!isBlocked && (
-            <div className="media-card-yt-hover-overlay">
-              <div className="media-card-yt-hover-title">{title || 'Untitled video'}</div>
-              {channel && <div className="media-card-yt-hover-channel">{channel}</div>}
-              {tags?.length > 0 && (
-                <div className="media-card-yt-hover-tags">
-                  {tags.filter(Boolean).map((tag) => (
-                    <span key={tag} className="media-card-yt-hover-tag">{tag}</span>
-                  ))}
-                </div>
-              )}
-              {onPlay && <span className="media-card-yt-hover-action">{cardActionLabel}</span>}
-              {progressPercent > 0 && (
-                <div className="media-card-yt-hover-progress">
-                  <div className="media-card-yt-hover-progress-bar" style={{ width: `${progressPercent}%` }} />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Audio: existing card layout (unchanged)
   return (
     <div
-      className={`preview-card listen-card media-card media-card-audio listening-media-card listening-media-card-audio${isBlocked ? ' is-preparing' : ''}`}
-      onClick={handleCardClick}
-      onKeyDown={handleKeyDown}
+      className={`media-card-yt-item${isBlocked ? ' media-card-yt-item--blocked' : ''}`}
       role="button"
       tabIndex={isBlocked ? -1 : 0}
       aria-disabled={isBlocked}
+      onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
     >
-      <div className="media-card-main">
-        <div className="media-card-thumbnail">
-          {thumbnailUrl ? (
-            <img src={thumbnailUrl} alt={title || 'Listening item'} />
-          ) : (
-            <div className="media-card-thumb-placeholder">
-              {placeholder || <span className="ui-text">No image available</span>}
-            </div>
-          )}
-        </div>
+      {onDelete && !isBlocked && (
+        <button
+          type="button"
+          className="media-card-yt-delete-btn"
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          aria-label={isYouTube ? 'Delete video' : 'Delete item'}
+        >
+          ×
+        </button>
+      )}
 
-        <div className="media-card-body">
-          <div className="listening-card-content">
-            <div className="media-card-title">{title || 'Untitled item'}</div>
-            {channel && <div className="media-card-subtitle ui-text">{channel}</div>}
+      <div className="media-card-yt-cover">
+        {thumbnailUrl ? (
+          <img className="media-card-yt-cover-img" src={thumbnailUrl} alt={title || 'Listening item'} />
+        ) : (
+          <div className="media-card-yt-no-cover">
+            {placeholder || <span className="ui-text">{fallbackLabel}</span>}
+          </div>
+        )}
 
-            {tags?.length > 0 && (
-              <div className="media-card-tags ui-text">
-                {tags.filter(Boolean).map((tag) => (
-                  <span key={tag} className="media-card-tag">
-                    {tag}
-                  </span>
-                ))}
+        {isBlocked && (
+          <div className="media-card-yt-blocked-overlay">
+            <div className="media-card-yt-spinner" />
+            <span className="media-card-yt-blocked-text">{cardActionLabel}</span>
+            {isPreparing && prepProgress > 0 && (
+              <div className="media-card-yt-prep-progress">
+                <div className="media-card-yt-prep-progress-bar" style={{ width: `${prepProgress}%` }} />
               </div>
             )}
           </div>
+        )}
 
-          <div className="listening-card-footer">
-            <div className="media-card-actions">
-              {onPlay && (
-                <button
-                  type="button"
-                  className={`button media-card-primary${isBlocked ? ' is-loading' : ''}`}
-                  disabled={isBlocked}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    if (!isBlocked) onPlay()
-                  }}
-                >
-                  {cardActionLabel}
-                </button>
-              )}
-              {onDelete && !isBlocked && (
-                <button
-                  type="button"
-                  className="media-card-delete ui-text"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onDelete()
-                  }}
-                >
-                  Delete
-                </button>
-              )}
-            </div>
+        {!isBlocked && (
+          <div className="media-card-yt-hover-overlay">
+            <div className="media-card-yt-hover-title">{title || (isYouTube ? 'Untitled video' : 'Untitled item')}</div>
+            {channel && <div className="media-card-yt-hover-channel">{channel}</div>}
+            {tags?.length > 0 && (
+              <div className="media-card-yt-hover-tags">
+                {tags.filter(Boolean).map((tag) => (
+                  <span key={tag} className="media-card-yt-hover-tag">{tag}</span>
+                ))}
+              </div>
+            )}
+            {onPlay && <span className="media-card-yt-hover-action">{cardActionLabel}</span>}
+            {progressPercent > 0 && (
+              <div className="media-card-yt-hover-progress">
+                <div className="media-card-yt-hover-progress-bar" style={{ width: `${progressPercent}%` }} />
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
-
-      {isPreparing && prepProgress > 0 ? (
-        <div className="media-card-progress media-card-progress-preparing">
-          <div className="media-card-progress-bar" style={{ width: `${prepProgress}%` }} />
-        </div>
-      ) : progressPercent > 0 ? (
-        <div className="media-card-progress">
-          <div className="media-card-progress-bar" style={{ width: `${progressPercent}%` }} />
-        </div>
-      ) : null}
     </div>
   )
 }

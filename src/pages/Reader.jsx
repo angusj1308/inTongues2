@@ -618,34 +618,39 @@ const Reader = ({ initialMode }) => {
     })
   }, [contentExpressions, language, profile?.nativeLanguage, voiceGender])
 
+  // Optimistic update, matching handleIntensiveWordStatus above: close the
+  // popup and flip the vocab entry synchronously, then persist to Firestore
+  // in the background and roll back if the write fails. Popup no longer
+  // hangs open for the full upsert round-trip.
   const handleSetWordStatus = async (status) => {
     if (!user || !language || !popup?.word) return
     if (!VOCAB_STATUSES.includes(status)) return
 
-    try {
-      await upsertVocabEntry(
-        user.uid,
-        language,
-        popup.word,
-        popup.translation,
+    const word = popup.word
+    const translation = popup.translation
+    const key = normaliseExpression(word)
+    const prevEntry = vocabEntriesRef.current[key]
+
+    setPopup(null)
+    setVocabEntries((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || { text: word, language }),
         status,
-        id
-      )
+        translation,
+      },
+    }))
 
-      const key = normaliseExpression(popup.word)
-
-      setVocabEntries((prev) => ({
-        ...prev,
-        [key]: {
-          ...(prev[key] || { text: popup.word, language }),
-          status,
-          translation: popup.translation,
-        },
-      }))
+    try {
+      await upsertVocabEntry(user.uid, language, word, translation, status, id)
     } catch (err) {
-      console.error('Failed to update vocab status', err)
-    } finally {
-      setPopup(null)
+      console.error('Failed to update vocab status, rolling back:', err)
+      setVocabEntries((prev) => {
+        const next = { ...prev }
+        if (prevEntry) next[key] = prevEntry
+        else delete next[key]
+        return next
+      })
     }
   }
 
@@ -2104,23 +2109,38 @@ const Reader = ({ initialMode }) => {
     return () => { cancelled = true }
   }, [readerMode, currentSentenceIndex, intensiveSentences, language, profile?.nativeLanguage, voiceGender])
 
+  // Optimistic update: flip local state immediately so the pill colour and
+  // word highlight update on the same frame as the click, then persist to
+  // Firestore in the background. Previously the upsertVocabEntry await
+  // blocked the state update, so every click hung for the full network
+  // round-trip (100-500ms+) before any pixel moved. Rollback snapshot read
+  // from vocabEntriesRef so this useCallback's identity stays stable —
+  // IntensiveWordRow's React.memo depends on it.
   const handleIntensiveWordStatus = useCallback(async (word, translation, newStatus) => {
     if (!user || !language) return
 
+    const key = normaliseExpression(word)
+    const prevEntry = vocabEntriesRef.current[key]
+
+    setVocabEntries((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] || { text: word, language }),
+        status: newStatus,
+        translation,
+      },
+    }))
+
     try {
       await upsertVocabEntry(user.uid, language, word, translation, newStatus, id)
-
-      const key = normaliseExpression(word)
-      setVocabEntries((prev) => ({
-        ...prev,
-        [key]: {
-          ...(prev[key] || { text: word, language }),
-          status: newStatus,
-          translation,
-        },
-      }))
     } catch (err) {
-      console.error('Failed to update word status:', err)
+      console.error('Failed to update word status, rolling back:', err)
+      setVocabEntries((prev) => {
+        const next = { ...prev }
+        if (prevEntry) next[key] = prevEntry
+        else delete next[key]
+        return next
+      })
     }
   }, [user, language, id])
 

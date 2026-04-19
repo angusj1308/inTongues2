@@ -25177,14 +25177,13 @@ body.active-pass-locked {
   display: flex;
   flex-direction: column;
   margin-top: 0.75rem;
-  background: #fff;
+  /* no background — inherit dashboard page beige (#F2EDE8) for colour continuity */
 }
 
 /* Sticky day headers row */
 .routine-day-headers {
   display: grid;
   grid-template-columns: 50px repeat(7, 1fr);
-  background: #fff;
   flex-shrink: 0;
 }
 
@@ -25269,7 +25268,7 @@ body.active-pass-locked {
 
 .routine-hour-line {
   height: 40px;
-  border-bottom: 1px solid #fafaf9;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 /* Current time indicator - spans all 7 day columns */

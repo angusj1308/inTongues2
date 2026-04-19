@@ -6176,6 +6176,262 @@ function printImportSummary({ filename, format, size, structure, chaptersDetecte
   console.log(rule + '\n')
 }
 
+// ============================================================
+// Shared EPUB import pipeline
+// ============================================================
+//
+// Used by /api/import-upload (user uploads an EPUB) and /api/import-gutenberg
+// (server downloads the EPUB from Project Gutenberg). Both callers hand us an
+// EPUB file path + metadata; we parse, classify, paragraph-preserve, save
+// chapter docs, and kick off sequential GPT-5.4 adaptation and per-chapter
+// audio generation. Downstream behaviour (Firestore shape, adaptation flow,
+// audio flow) is identical regardless of source — that's the whole point of
+// pushing Gutenberg through this pipeline.
+//
+// Returns { bookId, chapterCount, chaptersDiscarded, coverImageUrl, testMode }.
+// Throws on failure; caller decides how to surface the error in its response.
+async function processEpubImport({
+  epubPath,
+  filename,
+  fileSize,
+  userId,
+  title,
+  author,
+  originalLanguage,
+  outputLanguage,
+  translationMode,
+  level,
+  isPublicDomain,
+  voiceGender,
+  generateAudio,
+  sourceType = 'epub',
+  testMode = false,
+}) {
+  // Parse EPUB to extract both chapters and cover
+  const epub = await parseEpub(epubPath)
+  const chapters = await extractEpubWithChaptersFromParsed(epub)
+  vlog('Extracted EPUB chapters:', chapters.length)
+
+  if (testMode) {
+    const joined = chapters.map((c) => c.originalText || '').join('\n\n')
+    tmBlock(
+      'EXTRACTION — RAW OUTPUT',
+      `Total chapters: ${chapters.length}\nConcatenated originalText length: ${joined.length} chars\n\n--- FULL CONCATENATED TEXT ---\n${joined}`
+    )
+
+    tmBanner('FORMAT DIAGNOSTICS')
+    const spineCount = Array.isArray(epub?.flow) ? epub.flow.length : 'n/a'
+    const tocCount = Array.isArray(epub?.toc) ? epub.toc.length : 'n/a'
+    tmKv({
+      spine_item_count: spineCount,
+      toc_entry_count: tocCount,
+    })
+  }
+
+  // Classifier state — mutated by the CHAPTER CLASSIFIER block below
+  // (which runs on every import, not just in test mode).
+  let chaptersToSave = chapters
+  let classifierRan = false
+  let classifierExtractedCount = chapters.length
+  let classifierKeptCount = chapters.length
+  let classifierDiscardedCount = 0
+
+  // Try to extract cover from EPUB
+  let coverImageUrl = null
+  const epubCover = await extractEpubCover(epub)
+
+  if (testMode) {
+    if (epubCover) {
+      console.log(`  embedded_cover: FOUND  mimeType=${epubCover.mimeType}  bytes=${epubCover.buffer?.length || 0}`)
+    } else {
+      console.log('  embedded_cover: no embedded cover')
+    }
+  }
+
+  if (epubCover) {
+    // Generate a temporary book ID for the cover path
+    const tempBookId = `epub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    coverImageUrl = await uploadCoverToStorage(
+      epubCover.buffer,
+      epubCover.mimeType,
+      userId,
+      tempBookId
+    )
+    vlog('EPUB cover extracted and uploaded:', coverImageUrl)
+  }
+
+  // If no cover in EPUB, search Open Library
+  if (!coverImageUrl && (title || author)) {
+    vlog('No EPUB cover found, searching Open Library...')
+    coverImageUrl = await searchBookCover(title, author)
+  }
+
+  if (testMode) {
+    tmBanner('CHAPTER DETECTION — INPUT')
+    console.log('chapter detection is implicit in format (EPUB spine/TOC), no structural scan')
+
+    tmBanner('CHAPTER DETECTION — OUTPUT')
+    if (chapters.length === 0) {
+      console.log('FLAT BOOK — no chapters detected (EPUB with empty spine)')
+    } else {
+      for (const ch of chapters) {
+        const paraCount = (ch.originalText || '').split('\n\n').filter((p) => p.trim()).length
+        console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount}  paragraphs=${paraCount} ---`)
+        console.log(ch.originalText)
+      }
+      console.log(`\nSummary: ${chapters.length} chapters detected`)
+    }
+
+    tmBanner('AI CALLS DURING EXTRACTION')
+    console.log('No AI calls during extraction for this file type.')
+
+    tmBanner('COVER SEARCH')
+    if (epubCover) {
+      console.log(`source: embedded EPUB cover`)
+      console.log(`result_url: ${coverImageUrl || 'upload failed'}`)
+    } else if (title || author) {
+      console.log('source: Open Library (fallback)')
+      console.log(`query: { title: ${JSON.stringify(title || '')}, author: ${JSON.stringify(author || '')} }`)
+      console.log(`result_url: ${coverImageUrl || 'no cover found'}`)
+    } else {
+      console.log('source: (none — no title/author provided and no embedded cover)')
+      console.log('result_url: no cover found')
+    }
+  }
+
+  // CHAPTER CLASSIFIER — runs on every import (filters Gutenberg boilerplate,
+  // TOCs, translator's notes, etc. from the candidate chapter list).
+  tmBanner('CHAPTER CLASSIFIER')
+  if (chapters.length === 0) {
+    console.log('No chapters to classify — skipping.')
+  } else {
+    const classifications = await Promise.all(chapters.map((c) => classifyChapter(c)))
+    classifierRan = true
+
+    for (let i = 0; i < chapters.length; i++) {
+      const chap = chapters[i]
+      const cls = classifications[i]
+      console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
+      console.log('\n-- SYSTEM MESSAGE (verbatim) --')
+      console.log(cls.systemMessage)
+      console.log('\n-- USER MESSAGE (verbatim) --')
+      console.log(cls.userMessage)
+      console.log('\n-- RAW RESPONSE (verbatim) --')
+      console.log(cls.raw ?? '(no response — API error)')
+      if (cls.failed) {
+        console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
+        if (cls.error) console.log(cls.error.stack || cls.error.message)
+      }
+      console.log(`\nDecision: ${cls.decision}`)
+      console.log(`Reason:   ${cls.reason}`)
+    }
+
+    const kept = []
+    const discarded = []
+    for (let i = 0; i < chapters.length; i++) {
+      const chap = chapters[i]
+      const cls = classifications[i]
+      if (cls.decision === 'keep') {
+        kept.push({ chapter: chap, cls })
+      } else {
+        discarded.push({ chapter: chap, cls })
+      }
+    }
+    const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
+
+    chaptersToSave = keptReindexed
+    classifierExtractedCount = chapters.length
+    classifierKeptCount = keptReindexed.length
+    classifierDiscardedCount = discarded.length
+
+    console.log('\n-- CLASSIFIER SUMMARY --')
+    console.log(`Original chapter count: ${classifierExtractedCount}`)
+    console.log(`Kept:      ${classifierKeptCount}`)
+    console.log(`Discarded: ${classifierDiscardedCount}`)
+    for (const { chapter, cls } of discarded) {
+      console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
+    }
+    console.log('\nFinal kept chapter list (new indices):')
+    for (const k of keptReindexed) {
+      console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
+    }
+  }
+
+  const bookId = await saveImportedChapterBookToFirestore({
+    userId,
+    title,
+    author,
+    originalLanguage,
+    outputLanguage,
+    translationMode,
+    level,
+    isPublicDomain,
+    chapters: chaptersToSave,
+    voiceGender,
+    sourceType,
+    coverImageUrl,
+  })
+
+  if (testMode) {
+    tmBanner('FIRESTORE WRITE')
+    const storyPath = `users/${userId}/stories/${bookId}`
+    console.log(`Story doc path: ${storyPath}`)
+    const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
+    const storySnap = await storyRef.get()
+    console.log('\n--- STORY DOCUMENT (full contents) ---')
+    console.log(JSON.stringify(storySnap.data(), null, 2))
+
+    const chaptersSnap = await storyRef.collection('chapters').get()
+    console.log(`\nChapter sub-docs: ${chaptersSnap.size}`)
+    for (const chapDoc of chaptersSnap.docs) {
+      console.log(`\n--- CHAPTER DOC path=${storyPath}/chapters/${chapDoc.id} ---`)
+      console.log(JSON.stringify(chapDoc.data(), null, 2))
+    }
+
+    tmBanner('VERDICT')
+    if (classifierRan) {
+      console.log(`VERDICT: ${classifierKeptCount} chapters detected (${classifierExtractedCount} extracted, ${classifierDiscardedCount} discarded)`)
+    } else {
+      console.log(`VERDICT: ${chaptersToSave.length} chapters detected`)
+    }
+
+    return {
+      bookId,
+      chapterCount: chaptersToSave.length,
+      chaptersDiscarded: classifierDiscardedCount,
+      coverImageUrl,
+      testMode: true,
+    }
+  }
+
+  printImportSummary({
+    filename,
+    format: sourceType,
+    size: fileSize,
+    structure: 'chaptered',
+    chaptersDetected: chapters.length,
+    chaptersDiscarded: chapters.length - chaptersToSave.length,
+    chaptersWritten: chaptersToSave.length,
+    totalWords: chaptersToSave.reduce((sum, c) => sum + (c.wordCount || 0), 0),
+    storyDocPath: `users/${userId}/stories/${bookId}`,
+  })
+
+  // Fire-and-forget chapter adaptation (sequential, new pipeline).
+  // Audio generation triggers from inside runChapterAdaptation once the
+  // last chapter is adapted, when generateAudio is true.
+  runChapterAdaptation(userId, bookId, Boolean(generateAudio)).catch((err) =>
+    console.error(`runChapterAdaptation unhandled error (${sourceType}):`, err)
+  )
+
+  return {
+    bookId,
+    chapterCount: chaptersToSave.length,
+    chaptersDiscarded: chapters.length - chaptersToSave.length,
+    coverImageUrl,
+    testMode: false,
+  }
+}
+
 app.post('/api/import-upload', upload.single('file'), async (req, res) => {
   const testMode = req.body?.testMode === 'true'
   let failedStep = 'init'
@@ -6228,163 +6484,13 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       tmKv(metadata)
     }
 
-    // Handle EPUB with chapter-based flow
+    // Handle EPUB with chapter-based flow (shared with /api/import-gutenberg).
     if (fileType === 'epub') {
-      failedStep = 'parse-epub'
-      // Parse EPUB to extract both chapters and cover
-      const epub = await parseEpub(req.file.path)
-      failedStep = 'extract-epub'
-      const chapters = await extractEpubWithChaptersFromParsed(epub)
-      vlog('Extracted EPUB chapters:', chapters.length)
-
-      if (testMode) {
-        const joined = chapters.map((c) => c.originalText || '').join('\n\n')
-        tmBlock(
-          'EXTRACTION — RAW OUTPUT',
-          `Total chapters: ${chapters.length}\nConcatenated originalText length: ${joined.length} chars\n\n--- FULL CONCATENATED TEXT ---\n${joined}`
-        )
-
-        tmBanner('FORMAT DIAGNOSTICS')
-        const spineCount = Array.isArray(epub?.flow) ? epub.flow.length : 'n/a'
-        const tocCount = Array.isArray(epub?.toc) ? epub.toc.length : 'n/a'
-        tmKv({
-          spine_item_count: spineCount,
-          toc_entry_count: tocCount,
-        })
-      }
-
-      // Classifier state — mutated by the CHAPTER CLASSIFIER block below
-      // (which runs on every import, not just in test mode).
-      let chaptersToSave = chapters
-      let classifierRan = false
-      let classifierExtractedCount = chapters.length
-      let classifierKeptCount = chapters.length
-      let classifierDiscardedCount = 0
-
-      // Try to extract cover from EPUB
-      failedStep = 'cover-lookup'
-      let coverImageUrl = null
-      const epubCover = await extractEpubCover(epub)
-
-      if (testMode) {
-        if (epubCover) {
-          console.log(`  embedded_cover: FOUND  mimeType=${epubCover.mimeType}  bytes=${epubCover.buffer?.length || 0}`)
-        } else {
-          console.log('  embedded_cover: no embedded cover')
-        }
-      }
-
-      if (epubCover) {
-        // Generate a temporary book ID for the cover path
-        const tempBookId = `epub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        coverImageUrl = await uploadCoverToStorage(
-          epubCover.buffer,
-          epubCover.mimeType,
-          userId,
-          tempBookId
-        )
-        vlog('EPUB cover extracted and uploaded:', coverImageUrl)
-      }
-
-      // If no cover in EPUB, search Open Library
-      if (!coverImageUrl && (title || author)) {
-        vlog('No EPUB cover found, searching Open Library...')
-        coverImageUrl = await searchBookCover(title, author)
-      }
-
-      if (testMode) {
-        tmBanner('CHAPTER DETECTION — INPUT')
-        console.log('chapter detection is implicit in format (EPUB spine/TOC), no structural scan')
-
-        tmBanner('CHAPTER DETECTION — OUTPUT')
-        if (chapters.length === 0) {
-          console.log('FLAT BOOK — no chapters detected (EPUB with empty spine)')
-        } else {
-          for (const ch of chapters) {
-            const paraCount = (ch.originalText || '').split('\n\n').filter((p) => p.trim()).length
-            console.log(`\n--- CHAPTER index=${ch.index}  title="${ch.title}"  wordCount=${ch.wordCount}  paragraphs=${paraCount} ---`)
-            console.log(ch.originalText)
-          }
-          console.log(`\nSummary: ${chapters.length} chapters detected`)
-        }
-
-        tmBanner('AI CALLS DURING EXTRACTION')
-        console.log('No AI calls during extraction for this file type.')
-
-        tmBanner('COVER SEARCH')
-        if (epubCover) {
-          console.log(`source: embedded EPUB cover`)
-          console.log(`result_url: ${coverImageUrl || 'upload failed'}`)
-        } else if (title || author) {
-          console.log('source: Open Library (fallback)')
-          console.log(`query: { title: ${JSON.stringify(title || '')}, author: ${JSON.stringify(author || '')} }`)
-          console.log(`result_url: ${coverImageUrl || 'no cover found'}`)
-        } else {
-          console.log('source: (none — no title/author provided and no embedded cover)')
-          console.log('result_url: no cover found')
-        }
-      }
-
-      // CHAPTER CLASSIFIER — runs on every import (filters Gutenberg boilerplate,
-      // TOCs, translator's notes, etc. from the candidate chapter list).
-      tmBanner('CHAPTER CLASSIFIER')
-      if (chapters.length === 0) {
-        console.log('No chapters to classify — skipping.')
-      } else {
-        const classifications = await Promise.all(chapters.map((c) => classifyChapter(c)))
-        classifierRan = true
-
-        for (let i = 0; i < chapters.length; i++) {
-          const chap = chapters[i]
-          const cls = classifications[i]
-          console.log(`\n--- CLASSIFIER · CHAPTER index=${chap.index} title=${JSON.stringify(chap.title)} wordCount=${chap.wordCount} ---`)
-          console.log('\n-- SYSTEM MESSAGE (verbatim) --')
-          console.log(cls.systemMessage)
-          console.log('\n-- USER MESSAGE (verbatim) --')
-          console.log(cls.userMessage)
-          console.log('\n-- RAW RESPONSE (verbatim) --')
-          console.log(cls.raw ?? '(no response — API error)')
-          if (cls.failed) {
-            console.log('\n** CLASSIFIER FAILURE — defaulting to keep **')
-            if (cls.error) console.log(cls.error.stack || cls.error.message)
-          }
-          console.log(`\nDecision: ${cls.decision}`)
-          console.log(`Reason:   ${cls.reason}`)
-        }
-
-        const kept = []
-        const discarded = []
-        for (let i = 0; i < chapters.length; i++) {
-          const chap = chapters[i]
-          const cls = classifications[i]
-          if (cls.decision === 'keep') {
-            kept.push({ chapter: chap, cls })
-          } else {
-            discarded.push({ chapter: chap, cls })
-          }
-        }
-        const keptReindexed = kept.map(({ chapter }, newIdx) => ({ ...chapter, index: newIdx }))
-
-        chaptersToSave = keptReindexed
-        classifierExtractedCount = chapters.length
-        classifierKeptCount = keptReindexed.length
-        classifierDiscardedCount = discarded.length
-
-        console.log('\n-- CLASSIFIER SUMMARY --')
-        console.log(`Original chapter count: ${classifierExtractedCount}`)
-        console.log(`Kept:      ${classifierKeptCount}`)
-        console.log(`Discarded: ${classifierDiscardedCount}`)
-        for (const { chapter, cls } of discarded) {
-          console.log(`DISCARDED index=${chapter.index} title=${JSON.stringify(chapter.title)} reason=${JSON.stringify(cls.reason)}`)
-        }
-        console.log('\nFinal kept chapter list (new indices):')
-        for (const k of keptReindexed) {
-          console.log(`  index=${k.index} title=${JSON.stringify(k.title)}`)
-        }
-      }
-
-      failedStep = 'firestore-write'
-      const bookId = await saveImportedChapterBookToFirestore({
+      failedStep = 'epub-pipeline'
+      const result = await processEpubImport({
+        epubPath: req.file.path,
+        filename: req.file.originalname,
+        fileSize: req.file.size,
         userId,
         title,
         author,
@@ -6393,74 +6499,32 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
         translationMode,
         level,
         isPublicDomain,
-        chapters: chaptersToSave,
         voiceGender,
+        generateAudio: generateAudio === 'true',
         sourceType: 'epub',
-        coverImageUrl,
+        testMode,
       })
 
-      if (testMode) {
-        failedStep = 'readback'
-        tmBanner('FIRESTORE WRITE')
-        const storyPath = `users/${userId}/stories/${bookId}`
-        console.log(`Story doc path: ${storyPath}`)
-        const storyRef = firestore.collection('users').doc(userId).collection('stories').doc(bookId)
-        const storySnap = await storyRef.get()
-        console.log('\n--- STORY DOCUMENT (full contents) ---')
-        console.log(JSON.stringify(storySnap.data(), null, 2))
-
-        const chaptersSnap = await storyRef.collection('chapters').get()
-        console.log(`\nChapter sub-docs: ${chaptersSnap.size}`)
-        for (const chapDoc of chaptersSnap.docs) {
-          console.log(`\n--- CHAPTER DOC path=${storyPath}/chapters/${chapDoc.id} ---`)
-          console.log(JSON.stringify(chapDoc.data(), null, 2))
-        }
-
-        tmBanner('VERDICT')
-        if (classifierRan) {
-          console.log(`VERDICT: ${classifierKeptCount} chapters detected (${classifierExtractedCount} extracted, ${classifierDiscardedCount} discarded)`)
-        } else {
-          console.log(`VERDICT: ${chaptersToSave.length} chapters detected`)
-        }
-
+      if (result.testMode) {
         return res.json({
           success: true,
           testMode: true,
-          bookId,
+          bookId: result.bookId,
           sourceType: 'epub',
           isFlat: false,
-          chapterCount: chaptersToSave.length,
+          chapterCount: result.chapterCount,
           chunkCount: null,
-          coverImageUrl,
+          coverImageUrl: result.coverImageUrl,
         })
       }
-
-      printImportSummary({
-        filename: req.file.originalname,
-        format: 'epub',
-        size: req.file.size,
-        structure: 'chaptered',
-        chaptersDetected: chapters.length,
-        chaptersDiscarded: chapters.length - chaptersToSave.length,
-        chaptersWritten: chaptersToSave.length,
-        totalWords: chaptersToSave.reduce((sum, c) => sum + (c.wordCount || 0), 0),
-        storyDocPath: `users/${userId}/stories/${bookId}`,
-      })
-
-      // Fire-and-forget chapter adaptation (sequential, new pipeline).
-      // Audio generation triggers from inside runChapterAdaptation once the
-      // last chapter is adapted, when generateAudio is true.
-      runChapterAdaptation(userId, bookId, generateAudio === 'true').catch((err) =>
-        console.error('runChapterAdaptation unhandled error (EPUB):', err)
-      )
 
       return res.json({
         success: true,
         message: 'EPUB import processed successfully',
-        bookId,
-        chapterCount: chapters.length,
+        bookId: result.bookId,
+        chapterCount: result.chapterCount,
         sourceType: 'epub',
-        coverImageUrl,
+        coverImageUrl: result.coverImageUrl,
       })
     }
 
@@ -7166,6 +7230,124 @@ app.post('/api/import-upload', upload.single('file'), async (req, res) => {
       return res.status(500).json({ error: error?.message || 'Unknown error', failedStep })
     }
     return res.status(500).json({ error: 'Failed to handle import upload' })
+  }
+})
+
+// ============================================================
+// /api/import-gutenberg
+// ============================================================
+//
+// Project Gutenberg import. User picks a book + level from the Explore panel;
+// client posts { uid, gutenbergId, title, author, originalLanguage,
+// outputLanguage, level, generateAudio, voiceGender, coverUrl?, epubUrl? }.
+//
+// The server downloads the EPUB (either from the provided epubUrl returned by
+// Gutendex, or falling back to the canonical Gutenberg URL patterns), writes
+// it to a temp file, and hands it to processEpubImport — the same shared
+// pipeline /api/import-upload uses for user-uploaded EPUBs. Result is a book
+// in the user's library that is structurally identical to a manual upload.
+//
+// Gutenberg is EPUB-only by policy. No TXT, no PDF. translationMode is
+// always 'graded' (level-based adaptation). isPublicDomain is always true.
+app.post('/api/import-gutenberg', async (req, res) => {
+  let tmpEpubPath = null
+  try {
+    const {
+      uid,
+      gutenbergId,
+      title,
+      author,
+      originalLanguage,
+      outputLanguage,
+      level,
+      generateAudio,
+      voiceGender,
+      coverUrl,
+      epubUrl: clientEpubUrl,
+    } = req.body || {}
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' })
+    if (!gutenbergId) return res.status(400).json({ error: 'gutenbergId is required' })
+    if (!level) return res.status(400).json({ error: 'level is required' })
+    if (!outputLanguage) return res.status(400).json({ error: 'outputLanguage is required' })
+
+    // Candidate URLs, in order of preference.
+    const urlCandidates = []
+    if (clientEpubUrl) urlCandidates.push(clientEpubUrl)
+    urlCandidates.push(`https://www.gutenberg.org/ebooks/${gutenbergId}.epub3.images`)
+    urlCandidates.push(`https://www.gutenberg.org/ebooks/${gutenbergId}.epub.images`)
+    urlCandidates.push(`https://www.gutenberg.org/ebooks/${gutenbergId}.epub.noimages`)
+
+    let epubBuffer = null
+    let fetchedFromUrl = null
+    for (const url of urlCandidates) {
+      try {
+        const response = await fetch(url, { redirect: 'follow' })
+        if (!response.ok) {
+          console.log(`[gutenberg ${gutenbergId}] ${response.status} on ${url}`)
+          continue
+        }
+        const arrayBuffer = await response.arrayBuffer()
+        epubBuffer = Buffer.from(arrayBuffer)
+        fetchedFromUrl = url
+        break
+      } catch (fetchErr) {
+        console.log(`[gutenberg ${gutenbergId}] fetch error on ${url}:`, fetchErr?.message || fetchErr)
+      }
+    }
+
+    if (!epubBuffer || epubBuffer.length < 100) {
+      return res.status(502).json({ error: 'Failed to download EPUB from Project Gutenberg' })
+    }
+
+    console.log(`[gutenberg ${gutenbergId}] downloaded EPUB: ${epubBuffer.length} bytes from ${fetchedFromUrl}`)
+
+    // Write to a temp file — processEpubImport / parseEpub expect a file path.
+    tmpEpubPath = path.join(os.tmpdir(), `gutenberg-${gutenbergId}-${Date.now()}.epub`)
+    await fs.writeFile(tmpEpubPath, epubBuffer)
+
+    const filename = `gutenberg-${gutenbergId}.epub`
+
+    // If Gutendex gave us a direct cover URL and the EPUB lacks an embedded
+    // one, we let processEpubImport fall through to Open Library on its own.
+    // Passing coverUrl through would require touching the shared function —
+    // not worth it for a seldom-hit fallback. The embedded EPUB cover is
+    // usually present and is the best source anyway.
+    void coverUrl
+
+    const result = await processEpubImport({
+      epubPath: tmpEpubPath,
+      filename,
+      fileSize: epubBuffer.length,
+      userId: uid,
+      title: title || 'Untitled',
+      author: author || '',
+      originalLanguage: originalLanguage || 'English',
+      outputLanguage,
+      translationMode: 'graded',
+      level,
+      isPublicDomain: true,
+      voiceGender: voiceGender || 'male',
+      generateAudio: Boolean(generateAudio),
+      sourceType: 'gutenberg',
+      testMode: false,
+    })
+
+    return res.json({
+      success: true,
+      message: 'Gutenberg import processed successfully',
+      bookId: result.bookId,
+      chapterCount: result.chapterCount,
+      sourceType: 'gutenberg',
+      coverImageUrl: result.coverImageUrl,
+    })
+  } catch (err) {
+    console.error('Error handling Gutenberg import:', err)
+    return res.status(500).json({ error: err?.message || 'Failed to import from Gutenberg' })
+  } finally {
+    if (tmpEpubPath) {
+      await fs.unlink(tmpEpubPath).catch(() => {})
+    }
   }
 })
 

@@ -2431,10 +2431,36 @@ const Dashboard = () => {
           activeLanguage={activeLanguage}
           isModal
           onClose={() => setShowGutenbergModal(false)}
-          onSelectBook={(book) => {
-            // TODO: Integrate with import flow
-            console.log('Selected book:', book)
+          onSelectBook={async (book) => {
             setShowGutenbergModal(false)
+            try {
+              const response = await fetch('http://localhost:4000/api/import-gutenberg', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  uid: user?.uid || '',
+                  gutenbergId: book.id,
+                  title: book.title || 'Untitled',
+                  author: book.authorName || (book.authors?.[0]?.name || ''),
+                  originalLanguage: book.languages?.[0] === 'en' ? 'English' : 'English',
+                  outputLanguage: activeLanguage,
+                  level: book.level || 'Beginner',
+                  generateAudio: Boolean(book.generateAudio),
+                  voiceGender: book.voiceGender || 'male',
+                  epubUrl: book.epubUrl || null,
+                  coverUrl: book.coverUrl || null,
+                }),
+              })
+              if (!response.ok) {
+                const errText = await response.text().catch(() => '')
+                alert('Import from Project Gutenberg failed: ' + errText)
+                return
+              }
+              alert('Import started successfully. Your book will appear in the library.')
+            } catch (err) {
+              console.error('Failed to start Gutenberg import:', err)
+              alert('Failed to start Gutenberg import. Please try again.')
+            }
           }}
         />
       )}

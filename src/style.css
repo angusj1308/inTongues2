@@ -16967,7 +16967,9 @@ body.active-pass-locked {
 
 .import-input {
   padding: 0.65rem 0.85rem;
+  font-family: 'EB Garamond', Georgia, serif;
   font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
   border: 1px solid #d6d3d1;
   border-radius: 0;
   background: #FAF8F6;

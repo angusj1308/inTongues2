@@ -139,16 +139,18 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
           <div className="import-form-section">
             <span className="import-label-text">Activity</span>
             <div className="import-level-options">
-              {ACTIVITY_TYPES.map((type) => (
-                <button
-                  key={type.id}
-                  type="button"
-                  className={`import-level-option${activityType === type.id ? ' is-active' : ''}`}
-                  onClick={() => setActivityType(type.id)}
-                >
-                  {type.label}
-                </button>
-              ))}
+              {ACTIVITY_TYPES
+                .filter((type) => ['reading', 'listening', 'review'].includes(type.id))
+                .map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    className={`import-level-option${activityType === type.id ? ' is-active' : ''}`}
+                    onClick={() => setActivityType(type.id)}
+                  >
+                    {type.label}
+                  </button>
+                ))}
             </div>
           </div>
 

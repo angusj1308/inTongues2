@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { collection, getDocs, onSnapshot, orderBy, query, where, writeBatch, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore'
 import { computePagesWithFontLoading } from '../utils/pagination'
@@ -120,7 +121,10 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
     onClose()
   }
 
-  return (
+  // Portal to document.body so `position: fixed` on the overlay is relative
+  // to the viewport, not to whatever scrolled / transformed dashboard
+  // ancestor this component happens to be nested inside.
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="import-modal-header">
@@ -182,7 +186,8 @@ const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -3838,7 +3838,6 @@ html.reader-active body {
   color: #78716c;
   text-align: left;
   margin: 0;
-  transition: opacity 200ms ease;
 }
 
 .reader-intensive-translation.is-hidden {

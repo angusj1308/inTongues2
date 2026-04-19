@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   collection,
@@ -1781,7 +1781,11 @@ const Reader = ({ initialMode }) => {
     setReaderMode(modeId)
   }
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the translation panel is dismissed in
+  // the same paint as the new sentence appears. A plain useEffect runs after
+  // paint, producing a one-frame flash where the next sentence is visible
+  // with the previous sentence's translation + vocab panel still open.
+  useLayoutEffect(() => {
     setIsIntensiveTranslationVisible(false)
   }, [readerMode, currentIntensiveSentence])
 

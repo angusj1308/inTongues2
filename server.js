@@ -4289,7 +4289,7 @@ ${phrase}
     if (phraseForAudio && voiceId && !cachedPronunciation) {
       const phraseForAudioSafe = phraseForAudio.length > 600 ? phraseForAudio.slice(0, 600) : phraseForAudio
       try {
-        const audioBuffer = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
+        const { audioBuffer } = await requestElevenLabsTts(phraseForAudioSafe, voiceId)
         audioBase64 = audioBuffer.toString('base64')
 
         // Cache pronunciation for single words
@@ -4321,7 +4321,7 @@ ${phrase}
         } else {
           // Fetch from ElevenLabs and cache
           try {
-            const audioBuffer = await requestElevenLabsTts(pair.source, voiceId)
+            const { audioBuffer } = await requestElevenLabsTts(pair.source, voiceId)
             wordAudio = audioBuffer.toString('base64')
             // Cache in background
             savePronunciation(pair.source, normalizedSourceLang, voiceId, audioBuffer).catch((err) => {
@@ -9287,7 +9287,7 @@ async function prepareContentPronunciations(uid, contentId, contentType, targetL
         // Fetch pronunciation if missing
         if (missingPronunciationsSet.has(word)) {
           try {
-            const audioBuffer = await requestElevenLabsTts(word, finalVoiceId)
+            const { audioBuffer } = await requestElevenLabsTts(word, finalVoiceId)
             if (audioBuffer) {
               await savePronunciation(word, normalizedLang, finalVoiceId, audioBuffer)
               pronunciationsFetched++
@@ -13325,7 +13325,7 @@ app.post('/api/tutor/tts', async (req, res) => {
     }
 
     // Generate TTS audio
-    const audioBuffer = await requestElevenLabsTts(text, voiceId)
+    const { audioBuffer } = await requestElevenLabsTts(text, voiceId)
 
     // Return audio as base64
     res.json({

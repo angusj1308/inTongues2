@@ -101,41 +101,13 @@ const getTodayDayOfWeek = () => {
   return DAYS_OF_WEEK[dayMap[dayIndex]]
 }
 
-// Simple Add Activity Modal for the routine card (positioned as popover)
-const AddActivityModal = ({ isOpen, onClose, onAdd, anchorPosition }) => {
+// Add Activity Modal for the routine card. Uses the shared modal-overlay +
+// modal-container pattern so it matches the import / generate panels instead
+// of being an anchored popover with its own chrome.
+const AddActivityModal = ({ isOpen, onClose, onAdd }) => {
   const [activityType, setActivityType] = useState('reading')
   const [time, setTime] = useState('09:00')
   const [duration, setDuration] = useState(30)
-  const modalRef = useRef(null)
-  const [position, setPosition] = useState({ top: 0, left: 0 })
-
-  // Calculate position when modal opens
-  useEffect(() => {
-    if (isOpen && anchorPosition && modalRef.current) {
-      const modalRect = modalRef.current.getBoundingClientRect()
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-
-      let top = anchorPosition.y + 8
-      let left = anchorPosition.x
-
-      // Adjust if modal would go off right edge
-      if (left + modalRect.width > viewportWidth - 16) {
-        left = viewportWidth - modalRect.width - 16
-      }
-
-      // Adjust if modal would go off bottom edge
-      if (top + modalRect.height > viewportHeight - 16) {
-        top = anchorPosition.y - modalRect.height - 8
-      }
-
-      // Ensure minimum positioning
-      left = Math.max(16, left)
-      top = Math.max(16, top)
-
-      setPosition({ top, left })
-    }
-  }, [isOpen, anchorPosition])
 
   if (!isOpen) return null
 
@@ -149,47 +121,48 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, anchorPosition }) => {
   }
 
   return (
-    <div className="routine-modal-overlay" onClick={onClose}>
-      <div
-        ref={modalRef}
-        className="routine-modal"
-        onClick={(e) => e.stopPropagation()}
-        style={{ top: position.top, left: position.left }}
-      >
-        <div className="routine-modal-header">
-          <h3>Add Activity</h3>
-          <span className="routine-modal-day">{DAY_LABELS[getTodayDayOfWeek()]}</span>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="import-modal-header">
+          <h2 className="import-modal-title">Add Activity</h2>
+          <p className="import-modal-subtitle">{DAY_LABELS[getTodayDayOfWeek()]}</p>
+          <button className="modal-close-button" onClick={onClose} aria-label="Close">
+            ×
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="routine-modal-form">
-          <div className="routine-activity-type-list">
-            {ACTIVITY_TYPES.map((type) => (
-              <label key={type.id} className="routine-activity-type-option">
-                <input
-                  type="radio"
-                  name="activityType"
-                  value={type.id}
-                  checked={activityType === type.id}
-                  onChange={() => setActivityType(type.id)}
-                />
-                <span>{type.label}</span>
-              </label>
-            ))}
+        <form onSubmit={handleSubmit} className="import-form">
+          <div className="import-form-section">
+            <span className="import-label-text">Activity</span>
+            <div className="import-level-options">
+              {ACTIVITY_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`import-level-option${activityType === type.id ? ' is-active' : ''}`}
+                  onClick={() => setActivityType(type.id)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="routine-modal-row">
-            <label>
-              <span className="routine-label-text">Time</span>
+          <div className="import-form-row">
+            <label className="import-label">
+              <span className="import-label-text">Time</span>
               <input
                 type="time"
+                className="import-input"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
             </label>
-            <label>
-              <span className="routine-label-text">Duration (min)</span>
+            <label className="import-label">
+              <span className="import-label-text">Duration (min)</span>
               <input
                 type="number"
+                className="import-input"
                 min={5}
                 max={180}
                 step={5}
@@ -199,11 +172,11 @@ const AddActivityModal = ({ isOpen, onClose, onAdd, anchorPosition }) => {
             </label>
           </div>
 
-          <div className="routine-modal-actions">
-            <button type="button" className="button ghost" onClick={onClose}>
+          <div className="import-actions">
+            <button type="button" className="import-btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="button">
+            <button type="submit" className="import-btn-primary">
               Add
             </button>
           </div>
@@ -488,7 +461,7 @@ const Dashboard = () => {
   const [homeStatsLoading, setHomeStatsLoading] = useState(true)
   const [todayActivities, setTodayActivities] = useState([])
   const [selectedStat, setSelectedStat] = useState('knownWords')
-  const [addActivityModal, setAddActivityModal] = useState({ isOpen: false, position: null })
+  const [isAddActivityOpen, setIsAddActivityOpen] = useState(false)
   const [activeRoutineId, setActiveRoutineId] = useState(null)
 
   // Prefetch Gutenberg popular books when read tab is active
@@ -1617,13 +1590,7 @@ const Dashboard = () => {
                     <h3 className="home-card-title">{getCardHeader(activeLanguage, 'routine')}</h3>
                     <button
                       className="home-add-activity-btn"
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setAddActivityModal({
-                          isOpen: true,
-                          position: { x: rect.left, y: rect.bottom }
-                        })
-                      }}
+                      onClick={() => setIsAddActivityOpen(true)}
                       title="Add activity"
                     >
                       +
@@ -1660,10 +1627,9 @@ const Dashboard = () => {
                     <p className="home-today-empty">No activities scheduled for today</p>
                   )}
                   <AddActivityModal
-                    isOpen={addActivityModal.isOpen}
-                    onClose={() => setAddActivityModal({ isOpen: false, position: null })}
+                    isOpen={isAddActivityOpen}
+                    onClose={() => setIsAddActivityOpen(false)}
                     onAdd={handleAddActivity}
-                    anchorPosition={addActivityModal.position}
                   />
                 </div>
 

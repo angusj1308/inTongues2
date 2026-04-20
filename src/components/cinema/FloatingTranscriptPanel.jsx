@@ -7,11 +7,10 @@ const MAX_HEIGHT_RATIO = 0.9
 const MIN_VISIBLE_PX = 50
 const HEADER_CLEARANCE = 140 // leave room for the cinema header + a little extra
 const BOTTOM_CLEARANCE = 8
-// Right-side gap. Intentionally larger than BOTTOM_CLEARANCE because the
-// iframe + fullscreen letterboxing leaves visible black space against
-// which a 8px right margin reads smaller than a 8px bottom margin does
-// against the dark body. Tuned by eye for a consistent visual gap.
-const EDGE_PADDING = 24
+// Right-side gap. A bit larger than BOTTOM_CLEARANCE because the iframe
+// letterboxing adds apparent space at the bottom; tuned by eye so the
+// right gap reads comparable to the bottom gap.
+const EDGE_PADDING = 14
 
 // Derive default size from the viewport: tall enough to show plenty of
 // transcript but still clear of the header / viewport edge, and narrow

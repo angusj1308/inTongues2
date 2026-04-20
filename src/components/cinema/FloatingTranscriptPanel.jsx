@@ -4,9 +4,22 @@ const MIN_WIDTH = 320
 const MIN_HEIGHT = 280
 const MAX_WIDTH_RATIO = 0.9
 const MAX_HEIGHT_RATIO = 0.9
-const DEFAULT_WIDTH = 480
-const DEFAULT_HEIGHT = 520
 const MIN_VISIBLE_PX = 50
+const HEADER_CLEARANCE = 80 // cinema header reveal zone
+const BOTTOM_CLEARANCE = 40
+
+// Derive a tall default size from the viewport rather than a fixed box.
+// Taller (clear of header + bottom edge) and wider, but never smaller than
+// the MIN_* floors. Called on first open and when the user double-clicks
+// the panel header to reset layout.
+const computeDefaultBounds = () => {
+  const width = Math.max(MIN_WIDTH, Math.min(720, Math.round(window.innerWidth * 0.55)))
+  const height = Math.max(
+    MIN_HEIGHT,
+    Math.round(window.innerHeight - HEADER_CLEARANCE - BOTTOM_CLEARANCE)
+  )
+  return { width, height }
+}
 
 // Map resize direction to cursor style
 const CURSOR_MAP = {
@@ -23,11 +36,9 @@ const CURSOR_MAP = {
 const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true }) => {
   const panelRef = useRef(null)
   // Combined state to prevent micro-jitter
-  const [bounds, setBounds] = useState({
-    x: null,
-    y: null,
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
+  const [bounds, setBounds] = useState(() => {
+    const { width, height } = computeDefaultBounds()
+    return { x: null, y: null, width, height }
   })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -49,14 +60,14 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     }
   }, [])
 
-  // Initialize position on first open (bottom-right corner)
+  // Initialize position on first open (right side, flush with header clearance)
   useEffect(() => {
     if (isOpen && bounds.x === null) {
       const padding = 24
       setBounds((prev) => ({
         ...prev,
         x: window.innerWidth - prev.width - padding,
-        y: window.innerHeight - prev.height - padding - 60,
+        y: HEADER_CLEARANCE,
       }))
     }
   }, [isOpen, bounds.x])
@@ -75,13 +86,16 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     return () => window.removeEventListener('resize', handleWindowResize)
   }, [clampPosition])
 
-  // Reset position on double-click header
+  // Reset position + size on double-click header
   const handleHeaderDoubleClick = useCallback(() => {
     const padding = 24
+    const { width, height } = computeDefaultBounds()
     setBounds((prev) => ({
       ...prev,
-      x: window.innerWidth - prev.width - padding,
-      y: window.innerHeight - prev.height - padding - 60,
+      x: window.innerWidth - width - padding,
+      y: HEADER_CLEARANCE,
+      width,
+      height,
     }))
   }, [])
 

@@ -9,6 +9,7 @@ import { VOCAB_STATUSES, loadUserVocab, normaliseExpression, upsertVocabEntry } 
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
 import { cinemaViewingModes } from '../constants/cinemaViewingModes'
+import { PALETTE_ORDER, DEFAULT_PALETTE, resolvePalette } from '../constants/highlightColors'
 import ExtensiveCinemaMode from '../components/cinema/ExtensiveCinemaMode'
 import ActiveCinemaMode from '../components/cinema/ActiveCinemaMode'
 import IntensiveCinemaMode from '../components/cinema/IntensiveCinemaMode'
@@ -121,7 +122,18 @@ const generateChunks = (segments, targetDuration = 60) => {
 const IntonguesCinema = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, updateProfile } = useAuth()
+
+  const currentPaletteName = profile?.highlightPalette || DEFAULT_PALETTE
+  const currentPalette = resolvePalette(currentPaletteName)
+
+  const cyclePalette = () => {
+    const idx = PALETTE_ORDER.indexOf(currentPaletteName)
+    const next = PALETTE_ORDER[(idx === -1 ? 0 : idx + 1) % PALETTE_ORDER.length]
+    updateProfile({ highlightPalette: next }).catch((err) => {
+      console.error('Failed to update palette:', err)
+    })
+  }
   const location = useLocation()
 
   const searchParams = new URLSearchParams(location.search)
@@ -1827,6 +1839,18 @@ const normalisePagesToSegments = (pages = []) =>
               title={cinemaMode === 'active' ? 'Word status controlled by pass' : (textDisplayMode === 'off' ? 'Enable text display to use word colors' : (showWordStatus ? 'Hide word status' : 'Show word status'))}
             >
               <span className="cinema-header-icon-aa">Aa</span>
+            </button>
+            <button
+              type="button"
+              className="cinema-header-icon-btn reader-palette-trigger"
+              onClick={(e) => {
+                cyclePalette()
+                e.currentTarget.blur()
+              }}
+              aria-label={`Highlight palette: ${currentPalette.label}. Click to change.`}
+              title={`Highlight: ${currentPalette.label}`}
+            >
+              <span className="palette-circle" />
             </button>
           </div>
         </div>

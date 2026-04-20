@@ -12059,8 +12059,12 @@ body.active-pass-locked {
   color: #fff;
 }
 
+.cinema-dark .cinema-header-icon-btn .cinema-header-icon-aa {
+  color: #ffffff;
+}
+
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #0f172a;
+  color: #7A9A6E;
 }
 
 .cinema-loading-message,

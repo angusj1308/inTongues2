@@ -11960,7 +11960,9 @@ body.active-pass-locked {
 .cinema-mode-nav {
   display: flex;
   align-items: center;
-  gap: 0;
+  justify-content: center;
+  gap: 2rem;
+  min-width: 0;
 }
 
 .cinema-header-actions {

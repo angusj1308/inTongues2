@@ -1737,8 +1737,8 @@ const normalisePagesToSegments = (pages = []) =>
               </svg>
             </button>
           </div>
-          <nav className="dashboard-nav cinema-mode-nav" aria-label="Cinema mode">
-            {cinemaViewingModes.map((mode, index) => (
+          <nav className="dashboard-nav cinema-mode-nav reader-mode-nav" aria-label="Cinema mode">
+            {cinemaViewingModes.map((mode) => (
               <div
                 key={mode.id}
                 className={`dashboard-nav-item ${cinemaMode === mode.id ? 'active' : ''}`}
@@ -1753,7 +1753,6 @@ const normalisePagesToSegments = (pages = []) =>
                 >
                   {mode.label.toUpperCase()}
                 </button>
-                {index < cinemaViewingModes.length - 1 && <span className="dashboard-nav-divider">|</span>}
               </div>
             ))}
           </nav>

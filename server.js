@@ -2376,26 +2376,96 @@ app.post('/api/spotify/transcript/generate', async (req, res) => {
 // Auto-translated tracks are NEVER selected — language learners must hear and
 // read the same source language.
 
-const SRT_TIMECODE_RE =
-  /(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/
+const VTT_TIMECODE_RE =
+  /(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3})/
 
-function parseSrt(srt) {
-  if (!srt) return []
+// Inline word-timing annotation YouTube ships in auto-caption VTTs:
+// `<HH:MM:SS.mmm><c> WORD</c>`. Stripping-only version of the regex.
+const WORD_TIMING_TAG_RE =
+  /<(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3})>/g
+// Match a full `<timestamp><c>word</c>` pair. `<c[^>]*>` tolerates styled
+// variants like `<c.background_transparent>` that YouTube sometimes emits.
+const WORD_TIMING_PAIR_RE =
+  /<(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{3})><c[^>]*>([^<]*)<\/c>/g
+
+function parseVttTimecode(m, baseIdx) {
+  const h = m[baseIdx] ? +m[baseIdx] : 0
+  return h * 3600 + (+m[baseIdx + 1]) * 60 + (+m[baseIdx + 2]) + (+m[baseIdx + 3]) / 1000
+}
+
+// Extract per-word {text, start, end} entries from a single VTT cue line.
+// First word (before any timestamp marker) uses cueStart; subsequent words
+// use the inline `<HH:MM:SS.mmm>` markers; each word ends at the next
+// word's start (cueEnd for the final word). Returns [] if the line has no
+// word-level markup at all (plain text, e.g. manual captions).
+function parseVttWordTimings(line, cueStart, cueEnd) {
+  if (!line) return []
+  const firstTagIdx = line.search(WORD_TIMING_TAG_RE)
+  if (firstTagIdx === -1) return [] // no per-word markup → signal no-words
+
+  const words = []
+  const firstWord = line.slice(0, firstTagIdx).replace(/\s+/g, ' ').trim()
+  if (firstWord) words.push({ text: firstWord, start: cueStart, end: cueStart })
+
+  WORD_TIMING_PAIR_RE.lastIndex = 0
+  let m
+  while ((m = WORD_TIMING_PAIR_RE.exec(line)) !== null) {
+    const start = parseVttTimecode(m, 1)
+    const text = (m[5] || '').replace(/\s+/g, ' ').trim()
+    if (text) words.push({ text, start, end: start })
+  }
+
+  // Fill ends: each word ends at next word's start; last ends at cueEnd.
+  for (let i = 0; i < words.length; i++) {
+    words[i].end = i === words.length - 1 ? cueEnd : words[i + 1].start
+    // Guard against malformed monotonicity.
+    if (!(words[i].end > words[i].start)) {
+      words[i].end = Math.max(words[i].start + 0.01, words[i].end)
+    }
+  }
+  return words
+}
+
+// Parse a WEBVTT caption file into raw cues, each carrying its timing, its
+// text lines (rolling-format-aware), and per-line word timings extracted
+// from YouTube's `<HH:MM:SS.mmm><c>…</c>` annotations when present.
+function parseVtt(vtt) {
+  if (!vtt) return []
   const raw = []
-  const blocks = srt.replace(/\r\n/g, '\n').split(/\n\s*\n/)
+  // Split on true blank lines only (`\n\n+`). YouTube VTT cues contain an
+  // intentional " "-only line between the timecode header and the caption
+  // body; a `\n\s*\n` split would bisect every cue.
+  const blocks = vtt.replace(/\r\n/g, '\n').split(/\n{2,}/)
   for (const block of blocks) {
-    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean)
-    if (lines.length < 2) continue
-    const tcLine = /^\d+$/.test(lines[0]) ? lines[1] : lines[0]
-    const textLines = (/^\d+$/.test(lines[0]) ? lines.slice(2) : lines.slice(1))
-      .map((l) => l.replace(/\s+/g, ' ').trim())
-      .filter(Boolean)
-    const m = tcLine && tcLine.match(SRT_TIMECODE_RE)
-    if (!m || !textLines.length) continue
-    const start = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000
-    const end = (+m[5]) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8]) / 1000
+    // Skip the WEBVTT header + any STYLE / NOTE / REGION blocks.
+    if (!/\d{1,2}:\d{2}\.\d{3}\s*-->/.test(block)) continue
+    const lines = block.split('\n').map((l) => l.trimEnd()).filter((l) => l.length > 0)
+    // Optional cue identifier on first line; timecode on the next.
+    const tcLineIdx = lines.findIndex((l) => VTT_TIMECODE_RE.test(l))
+    if (tcLineIdx === -1) continue
+    const tcMatch = lines[tcLineIdx].match(VTT_TIMECODE_RE)
+    if (!tcMatch) continue
+    const start = parseVttTimecode(tcMatch, 1)
+    const end = parseVttTimecode(tcMatch, 5)
     if (end <= start) continue
-    raw.push({ start, end, lines: textLines })
+
+    // Raw lines AFTER the timecode row. Keep their inline markup intact for
+    // word-timing extraction; strip markup when computing plain text.
+    const rawLines = lines.slice(tcLineIdx + 1)
+    const lineData = rawLines
+      .map((l) => {
+        const words = parseVttWordTimings(l, start, end)
+        const plain = l
+          .replace(WORD_TIMING_PAIR_RE, ' $5')
+          .replace(WORD_TIMING_TAG_RE, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+        return { plain, words }
+      })
+      .filter((l) => l.plain)
+    if (!lineData.length) continue
+    raw.push({ start, end, lineData })
   }
   return collapseYoutubeRollingCues(raw)
 }
@@ -2405,17 +2475,16 @@ function parseSrt(srt) {
 // currently-appearing line). Between content changes YouTube also emits
 // ~10ms "freeze-frame" cues that just repeat the current single line to pin
 // the scroll animation. YouTube's own player applies the scroll animation
-// and only shows the fresh line; we just render activeSegment.text flatly,
-// so without this pre-pass every phrase appears two or three times in our
-// subtitles.
+// and only shows the fresh line; we render activeSegment.text flatly, so
+// without this pre-pass every phrase appears two or three times.
 //
 // Collapse rules:
 //  - Drop freeze-frame cues (duration < 0.05s).
-//  - For multi-line cues, emit only the last line (the new content). First
-//    line was already captured by an earlier cue.
-//  - If the input arrives as single-line cues where cue N is a prefix-
-//    extension of cue N-1's text (some SRT converters flatten the two VTT
-//    lines into one), emit only the NEW suffix.
+//  - For multi-line cues, emit only the last line (the new content). The
+//    first line was already captured by an earlier cue. Word-timing data
+//    is attached to the last line by the parser.
+//  - Handle single-line prefix-extension (older SRT-converter path) by
+//    trimming the already-emitted prefix off the new text.
 //  - Drop exact duplicates against the previous emission.
 function collapseYoutubeRollingCues(rawCues) {
   const out = []
@@ -2423,23 +2492,27 @@ function collapseYoutubeRollingCues(rawCues) {
   for (const cue of rawCues) {
     if (cue.end - cue.start < 0.05) continue
 
-    let newText = cue.lines[cue.lines.length - 1]
+    const lastLine = cue.lineData[cue.lineData.length - 1]
+    let newText = lastLine.plain
+    let words = lastLine.words
 
-    // Fallback dedup for SRT converters that joined the two VTT lines into
-    // one long line: if the single line starts with everything we just
-    // emitted, take only the suffix.
     if (
       lastEmittedText &&
-      cue.lines.length === 1 &&
+      cue.lineData.length === 1 &&
       newText.startsWith(lastEmittedText) &&
       newText.length > lastEmittedText.length
     ) {
       newText = newText.slice(lastEmittedText.length).trim()
+      // If we're trimming a prefix, the word-timing extraction above still
+      // reflects the full line; drop it rather than emit mis-aligned words.
+      if (words?.length) words = []
     }
 
     if (!newText || newText === lastEmittedText) continue
 
-    out.push({ start: cue.start, end: cue.end, text: newText })
+    const segment = { start: cue.start, end: cue.end, text: newText }
+    if (words && words.length) segment.words = words
+    out.push(segment)
     lastEmittedText = newText
   }
   return out
@@ -2576,27 +2649,31 @@ async function fetchYoutubeCaptionsViaDlp(videoId, requestedLanguage = null) {
 
     console.log(`[yt-dlp ${videoId}] pulling ${source} captions in ${chosenLang} (originalLang=${originalLang || 'unknown'}, requested=${requestedLanguage || 'none'})`)
 
-    // Step 2: download the chosen track as SRT.
+    // Step 2: download the chosen track as VTT. We deliberately do NOT
+    // `--convert-subs srt` — VTT preserves YouTube's per-word timing
+    // annotations (`<00:00:02.760><c> word</c>` markers inside each cue)
+    // which SRT strips. Our parser extracts those into a words[] array on
+    // each segment, feeding the client's karaoke-style active-word
+    // highlighting (EyeIcon toggle in KaraokeSubtitles).
     const outputTemplate = path.join(tmpDir, '%(id)s.%(ext)s')
     const dlArgs = source === 'manual'
       ? ['--write-subs', '--sub-langs', chosenLang]
       : ['--write-auto-subs', '--sub-langs', chosenLang]
     dlArgs.push(
       '--skip-download',
-      '--convert-subs', 'srt',
       '-o', outputTemplate,
       url,
     )
     await runYtDlp(dlArgs, { timeoutMs: 60000 })
 
     const files = await fs.readdir(tmpDir)
-    const srtFile = files.find((f) => f.endsWith('.srt'))
-    if (!srtFile) {
-      throw new Error('yt-dlp did not produce an SRT file')
+    const vttFile = files.find((f) => f.endsWith('.vtt'))
+    if (!vttFile) {
+      throw new Error('yt-dlp did not produce a VTT file')
     }
-    const srtContent = await fs.readFile(path.join(tmpDir, srtFile), 'utf8')
+    const vttContent = await fs.readFile(path.join(tmpDir, vttFile), 'utf8')
 
-    const cues = parseSrt(srtContent)
+    const cues = parseVtt(vttContent)
     if (!cues.length) {
       throw new Error('SRT parsed to zero segments')
     }

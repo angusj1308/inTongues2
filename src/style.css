@@ -12151,8 +12151,19 @@ body.active-pass-locked {
   appearance: none;
   background: transparent;
   border-radius: 0;
+  border: none;
   cursor: pointer;
   outline: none;
+}
+
+.cinema-extensive-mini-progress:focus,
+.cinema-extensive-mini-progress:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.cinema-extensive-mini-progress::-moz-focus-outer {
+  border: 0;
 }
 
 .cinema-extensive-mini-progress::-webkit-slider-runnable-track {

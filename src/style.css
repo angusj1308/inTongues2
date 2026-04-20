@@ -54,11 +54,11 @@
 }
 
 /* Palette toggle circle in the cinema header — no ring, uses the
-   cinema palette's mid-tone (recognised) for stronger visibility on
-   the dark header. */
+   cinema palette's new/unknown colour so it tracks the strongest
+   status tone across terracotta/sage/slate. */
 .cinema-page .reader-palette-trigger .palette-circle {
   border: none;
-  background-color: var(--hlt-recognised);
+  background-color: var(--hlt-new);
   opacity: 1;
 }
 
@@ -12047,7 +12047,7 @@ body.active-pass-locked {
 
 /* Aa toggle active — follows the palette circle's colour */
 .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: var(--hlt-recognised);
+  color: var(--hlt-new);
 }
 
 /* Dark mode cinema header */
@@ -12087,7 +12087,7 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: var(--hlt-recognised);
+  color: var(--hlt-new);
 }
 
 .cinema-loading-message,

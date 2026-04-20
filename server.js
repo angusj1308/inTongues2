@@ -2381,21 +2381,68 @@ const SRT_TIMECODE_RE =
 
 function parseSrt(srt) {
   if (!srt) return []
-  const segments = []
+  const raw = []
   const blocks = srt.replace(/\r\n/g, '\n').split(/\n\s*\n/)
   for (const block of blocks) {
     const lines = block.split('\n').map((l) => l.trim()).filter(Boolean)
     if (lines.length < 2) continue
     const tcLine = /^\d+$/.test(lines[0]) ? lines[1] : lines[0]
-    const textLines = /^\d+$/.test(lines[0]) ? lines.slice(2) : lines.slice(1)
+    const textLines = (/^\d+$/.test(lines[0]) ? lines.slice(2) : lines.slice(1))
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
     const m = tcLine && tcLine.match(SRT_TIMECODE_RE)
-    if (!m) continue
+    if (!m || !textLines.length) continue
     const start = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000
     const end = (+m[5]) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8]) / 1000
-    const text = textLines.join(' ').replace(/\s+/g, ' ').trim()
-    if (text && end > start) segments.push({ start, end, text })
+    if (end <= start) continue
+    raw.push({ start, end, lines: textLines })
   }
-  return segments
+  return collapseYoutubeRollingCues(raw)
+}
+
+// YouTube's auto-caption format is a rolling scroll: each cue carries TWO
+// lines (the previously-spoken line, kept for scroll-up animation, PLUS the
+// currently-appearing line). Between content changes YouTube also emits
+// ~10ms "freeze-frame" cues that just repeat the current single line to pin
+// the scroll animation. YouTube's own player applies the scroll animation
+// and only shows the fresh line; we just render activeSegment.text flatly,
+// so without this pre-pass every phrase appears two or three times in our
+// subtitles.
+//
+// Collapse rules:
+//  - Drop freeze-frame cues (duration < 0.05s).
+//  - For multi-line cues, emit only the last line (the new content). First
+//    line was already captured by an earlier cue.
+//  - If the input arrives as single-line cues where cue N is a prefix-
+//    extension of cue N-1's text (some SRT converters flatten the two VTT
+//    lines into one), emit only the NEW suffix.
+//  - Drop exact duplicates against the previous emission.
+function collapseYoutubeRollingCues(rawCues) {
+  const out = []
+  let lastEmittedText = ''
+  for (const cue of rawCues) {
+    if (cue.end - cue.start < 0.05) continue
+
+    let newText = cue.lines[cue.lines.length - 1]
+
+    // Fallback dedup for SRT converters that joined the two VTT lines into
+    // one long line: if the single line starts with everything we just
+    // emitted, take only the suffix.
+    if (
+      lastEmittedText &&
+      cue.lines.length === 1 &&
+      newText.startsWith(lastEmittedText) &&
+      newText.length > lastEmittedText.length
+    ) {
+      newText = newText.slice(lastEmittedText.length).trim()
+    }
+
+    if (!newText || newText === lastEmittedText) continue
+
+    out.push({ start: cue.start, end: cue.end, text: newText })
+    lastEmittedText = newText
+  }
+  return out
 }
 
 // Cap segment lengths at MAX_SEGMENT_WORDS so a comma-heavy / period-poor

@@ -12111,8 +12111,10 @@ body.active-pass-locked {
   align-items: center;
   gap: 10px;
   padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.85);
-  border-radius: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 999px;
   color: rgba(255, 255, 255, 0.9);
   font-size: 11px;
   max-width: min(420px, 45vw);
@@ -12133,7 +12135,7 @@ body.active-pass-locked {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 50%;
   transition: background 120ms ease;
 }
 
@@ -12148,7 +12150,7 @@ body.active-pass-locked {
   -webkit-appearance: none;
   appearance: none;
   background: rgba(255, 255, 255, 0.25);
-  border-radius: 0;
+  border-radius: 999px;
   cursor: pointer;
   outline: none;
 }
@@ -12158,7 +12160,7 @@ body.active-pass-locked {
   appearance: none;
   width: 10px;
   height: 10px;
-  border-radius: 0;
+  border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
   border: none;
@@ -12167,7 +12169,7 @@ body.active-pass-locked {
 .cinema-extensive-mini-progress::-moz-range-thumb {
   width: 10px;
   height: 10px;
-  border-radius: 0;
+  border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
   border: none;

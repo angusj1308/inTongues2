@@ -12045,9 +12045,9 @@ body.active-pass-locked {
   letter-spacing: -0.02em;
 }
 
-/* Word status active - muted red */
+/* Aa toggle active — follows the palette circle's colour */
 .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #0f172a;
+  color: var(--hlt-recognised);
 }
 
 /* Dark mode cinema header */
@@ -12087,7 +12087,7 @@ body.active-pass-locked {
 }
 
 .cinema-dark .cinema-header-icon-btn--active .cinema-header-icon-aa {
-  color: #7A9A6E;
+  color: var(--hlt-recognised);
 }
 
 .cinema-loading-message,

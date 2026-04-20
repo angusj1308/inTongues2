@@ -12100,6 +12100,92 @@ body.active-pass-locked {
   max-height: 100%;
 }
 
+/* Extensive mode — minimal bottom-left controls for passive viewing */
+.cinema-extensive-mini-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 24px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  max-width: min(420px, 45vw);
+  opacity: 0.6;
+  transition: opacity 150ms ease;
+}
+
+.cinema-extensive-mini-controls:hover {
+  opacity: 1;
+}
+
+.cinema-extensive-mini-play {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 120ms ease;
+}
+
+.cinema-extensive-mini-play:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.cinema-extensive-mini-progress {
+  flex: 1;
+  min-width: 120px;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+}
+
+.cinema-extensive-mini-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  border: none;
+}
+
+.cinema-extensive-mini-progress::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  border: none;
+}
+
+.cinema-extensive-mini-progress:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.cinema-extensive-mini-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
 /* Subtitle overlay on video */
 .cinema-subtitle-overlay {
   position: absolute;

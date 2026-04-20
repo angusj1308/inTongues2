@@ -1586,12 +1586,8 @@ const normalisePagesToSegments = (pages = []) =>
           currentTime={safeCurrentTime}
           duration={safeDuration}
           isPlaying={playbackStatus.isPlaying}
-          scrubSeconds={scrubSeconds}
-          playbackRate={playbackRate}
           onPlayPause={handlePlayPause}
           onSeek={handleSeek}
-          onPlaybackRateChange={handlePlaybackRateChange}
-          onScrubChange={setScrubSeconds}
           transcriptSegments={displaySegments}
           activeTranscriptIndex={activeTranscriptIndex}
           vocabEntries={vocabEntries}

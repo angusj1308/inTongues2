@@ -5,15 +5,14 @@ const MIN_HEIGHT = 280
 const MAX_WIDTH_RATIO = 0.9
 const MAX_HEIGHT_RATIO = 0.9
 const MIN_VISIBLE_PX = 50
-const HEADER_CLEARANCE = 80 // cinema header reveal zone
-const BOTTOM_CLEARANCE = 40
+const HEADER_CLEARANCE = 140 // leave room for the cinema header + a little extra
+const BOTTOM_CLEARANCE = 24
 
-// Derive a tall default size from the viewport rather than a fixed box.
-// Taller (clear of header + bottom edge) and wider, but never smaller than
-// the MIN_* floors. Called on first open and when the user double-clicks
-// the panel header to reset layout.
+// Derive default size from the viewport: tall enough to show plenty of
+// transcript but still clear of the header / viewport edge, and narrow
+// enough not to overwhelm the video.
 const computeDefaultBounds = () => {
-  const width = Math.max(MIN_WIDTH, Math.min(720, Math.round(window.innerWidth * 0.55)))
+  const width = Math.max(MIN_WIDTH, Math.min(600, Math.round(window.innerWidth * 0.38)))
   const height = Math.max(
     MIN_HEIGHT,
     Math.round(window.innerHeight - HEADER_CLEARANCE - BOTTOM_CLEARANCE)

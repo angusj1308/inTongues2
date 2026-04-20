@@ -1556,8 +1556,8 @@ const normalisePagesToSegments = (pages = []) =>
       return <p className="error">This video cannot be embedded.</p>
     }
 
-    // Hide YouTube controls in Active and Intensive modes for controlled experience
-    const showControls = cinemaMode !== 'active' && cinemaMode !== 'intensive'
+    // All cinema modes use custom inTongues controls — hide YouTube's chrome
+    const showControls = false
 
     return (
       <YouTubePlayer
@@ -1584,6 +1584,14 @@ const normalisePagesToSegments = (pages = []) =>
       return (
         <ExtensiveCinemaMode
           currentTime={safeCurrentTime}
+          duration={safeDuration}
+          isPlaying={playbackStatus.isPlaying}
+          scrubSeconds={scrubSeconds}
+          playbackRate={playbackRate}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+          onPlaybackRateChange={handlePlaybackRateChange}
+          onScrubChange={setScrubSeconds}
           transcriptSegments={displaySegments}
           activeTranscriptIndex={activeTranscriptIndex}
           vocabEntries={vocabEntries}

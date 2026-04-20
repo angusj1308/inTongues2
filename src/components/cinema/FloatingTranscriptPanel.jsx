@@ -16,7 +16,7 @@ const EDGE_PADDING = 18
 // transcript but still clear of the header / viewport edge, and narrow
 // enough not to overwhelm the video.
 const computeDefaultBounds = () => {
-  const width = Math.max(MIN_WIDTH, Math.min(600, Math.round(window.innerWidth * 0.38)))
+  const width = Math.max(MIN_WIDTH, Math.min(450, Math.round(window.innerWidth * 0.28)))
   const height = Math.max(
     MIN_HEIGHT,
     Math.round(window.innerHeight - HEADER_CLEARANCE - BOTTOM_CLEARANCE)

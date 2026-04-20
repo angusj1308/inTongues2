@@ -81,19 +81,68 @@ const ExtensiveCinemaMode = ({
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
   const clampedPosition = Math.min(Math.max(currentTime || 0, 0), safeDuration)
 
-  // Spacebar toggles play/pause (extensive mode is passive but the standard shortcut is cheap to keep)
+  const [controlsVisible, setControlsVisible] = useState(false)
+  const hideTimeoutRef = useRef(null)
+
+  const showControls = useCallback((duration = 0) => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
+    setControlsVisible(true)
+    if (duration > 0) {
+      hideTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false)
+        hideTimeoutRef.current = null
+      }, duration)
+    }
+  }, [])
+
+  const hideControlsSoon = useCallback((delay = 300) => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+    hideTimeoutRef.current = setTimeout(() => {
+      setControlsVisible(false)
+      hideTimeoutRef.current = null
+    }, delay)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+    },
+    []
+  )
+
+  // Keyboard: Space toggles play/pause, Left/Right scrub ±5s; all flash controls for 5s
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space' && e.target?.tagName !== 'INPUT' && e.target?.tagName !== 'TEXTAREA') {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+      if (e.code === 'Space') {
         e.preventDefault()
         onPlayPause?.()
+        showControls(5000)
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault()
+        onSeek?.(Math.max(0, (currentTime || 0) - 5))
+        showControls(5000)
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault()
+        const target =
+          safeDuration > 0
+            ? Math.min(safeDuration, (currentTime || 0) + 5)
+            : (currentTime || 0) + 5
+        onSeek?.(target)
+        showControls(5000)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onPlayPause])
+  }, [onPlayPause, onSeek, currentTime, safeDuration, showControls])
 
   const handleProgressChange = (event) => {
+    showControls(5000)
     onSeek?.(Number(event.target.value))
   }
 
@@ -434,31 +483,41 @@ const ExtensiveCinemaMode = ({
             </div>
           )}
 
-          {/* Minimal controls — bottom-left, unobtrusive for passive viewing */}
-          <div className="cinema-extensive-mini-controls">
-            <button
-              type="button"
-              className="cinema-extensive-mini-play"
-              onClick={onPlayPause}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-              title={isPlaying ? 'Pause' : 'Play'}
-            >
-              <PlayPauseIcon isPlaying={isPlaying} />
-            </button>
-            <input
-              className="cinema-extensive-mini-progress"
-              type="range"
-              min={0}
-              max={safeDuration || 0}
-              step="0.1"
-              value={clampedPosition}
-              onChange={handleProgressChange}
-              disabled={safeDuration === 0}
-              aria-label="Playback position"
-            />
-            <span className="cinema-extensive-mini-time">
-              {formatTime(clampedPosition)} / {formatTime(safeDuration)}
-            </span>
+          {/* Hover dock — bottom strip below subtitles that reveals minimal controls */}
+          <div
+            className="cinema-extensive-controls-dock"
+            onMouseEnter={() => showControls(0)}
+            onMouseMove={() => showControls(0)}
+            onMouseLeave={() => hideControlsSoon(300)}
+          >
+            <div className={`cinema-extensive-mini-controls ${controlsVisible ? 'is-visible' : ''}`}>
+              <button
+                type="button"
+                className="cinema-extensive-mini-play"
+                onClick={() => {
+                  showControls(5000)
+                  onPlayPause?.()
+                }}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                <PlayPauseIcon isPlaying={isPlaying} />
+              </button>
+              <input
+                className="cinema-extensive-mini-progress"
+                type="range"
+                min={0}
+                max={safeDuration || 0}
+                step="0.1"
+                value={clampedPosition}
+                onChange={handleProgressChange}
+                disabled={safeDuration === 0}
+                aria-label="Playback position"
+              />
+              <span className="cinema-extensive-mini-time">
+                {formatTime(clampedPosition)} / {formatTime(safeDuration)}
+              </span>
+            </div>
           </div>
         </div>
       </div>

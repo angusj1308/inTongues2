@@ -12100,12 +12100,24 @@ body.active-pass-locked {
   max-height: 100%;
 }
 
-/* Extensive mode — minimal controls, centred below subtitles */
-.cinema-extensive-mini-controls {
+/* Extensive mode — hover dock at bottom strip, below subtitles */
+.cinema-extensive-controls-dock {
   position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  z-index: 119;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 20px;
+  pointer-events: auto;
+}
+
+/* Minimal controls, centred below subtitles — hidden until dock hover or keyboard */
+.cinema-extensive-mini-controls {
+  position: relative;
   z-index: 120;
   display: flex;
   align-items: center;
@@ -12118,12 +12130,14 @@ body.active-pass-locked {
   color: rgba(255, 255, 255, 0.9);
   font-size: 11px;
   max-width: min(420px, 45vw);
-  opacity: 0.6;
-  transition: opacity 150ms ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
 }
 
-.cinema-extensive-mini-controls:hover {
+.cinema-extensive-mini-controls.is-visible {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .cinema-extensive-mini-play {

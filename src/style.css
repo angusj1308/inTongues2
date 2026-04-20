@@ -12103,7 +12103,7 @@ body.active-pass-locked {
 /* Extensive mode — hover dock at bottom strip, below subtitles */
 .cinema-extensive-controls-dock {
   position: absolute;
-  bottom: 0;
+  bottom: 60px;
   left: 0;
   right: 0;
   height: 60px;
@@ -12228,7 +12228,7 @@ body.active-pass-locked {
 /* Subtitle overlay on video */
 .cinema-subtitle-overlay {
   position: absolute;
-  bottom: 80px;
+  bottom: 140px;
   left: 50%;
   transform: translateX(-50%);
   width: 90%;

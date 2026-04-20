@@ -10,7 +10,7 @@ const BOTTOM_CLEARANCE = 68
 // Right-side gap. A bit larger than BOTTOM_CLEARANCE because the iframe
 // letterboxing adds apparent space at the bottom; tuned by eye so the
 // right gap reads comparable to the bottom gap.
-const EDGE_PADDING = 14
+const EDGE_PADDING = 22
 
 // Derive default size from the viewport: tall enough to show plenty of
 // transcript but still clear of the header / viewport edge, and narrow

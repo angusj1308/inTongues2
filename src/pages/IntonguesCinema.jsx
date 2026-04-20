@@ -1729,7 +1729,6 @@ const normalisePagesToSegments = (pages = []) =>
     <div
       ref={cinemaContainerRef}
       tabIndex={-1}
-      data-palette={currentPaletteName}
       className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
       {/* Hidden audio element for dubbed content */}

@@ -39,26 +39,6 @@
   --hlt-familiar: var(--hlt-familiar-dark);
 }
 
-/* Cinema-only palette overrides — saturated type-on-dark swatches.
-   Scoped to .cinema-page so the reader's palette stays unchanged. */
-.cinema-page[data-palette='terracotta'] {
-  --hlt-new: #E8652E;
-  --hlt-recognised: #E89072;
-  --hlt-familiar: #D4A78F;
-}
-
-.cinema-page[data-palette='sage'] {
-  --hlt-new: #6FA35E;
-  --hlt-recognised: #95B88A;
-  --hlt-familiar: #B8D4AA;
-}
-
-.cinema-page[data-palette='slate'] {
-  --hlt-new: #5A7590;
-  --hlt-recognised: #8A9BAC;
-  --hlt-familiar: #B8C4D2;
-}
-
 /* Dark mode - warm stone palette */
 [data-theme='dark'] {
   color-scheme: dark;

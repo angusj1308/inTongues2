@@ -886,6 +886,26 @@ const normalisePagesToSegments = (pages = []) =>
     return undefined
   }, [isSpotify, spotifyState])
 
+  // Reclaim focus from the YouTube iframe.
+  // Once the user clicks the iframe, focus moves inside YouTube's cross-
+  // origin document; keydown events then fire there and never reach our
+  // document-level listeners. Each time window blur fires we check whether
+  // the iframe now holds focus and blur it, pulling focus back to the host
+  // so our Space / Arrow shortcuts keep working.
+  useEffect(() => {
+    const reclaimFocus = () => {
+      requestAnimationFrame(() => {
+        const active = document.activeElement
+        if (active?.tagName === 'IFRAME') {
+          active.blur()
+          if (cinemaContainerRef.current) cinemaContainerRef.current.focus?.()
+        }
+      })
+    }
+    window.addEventListener('blur', reclaimFocus)
+    return () => window.removeEventListener('blur', reclaimFocus)
+  }, [])
+
   // Fullscreen API handling for extensive mode
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -1696,6 +1716,7 @@ const normalisePagesToSegments = (pages = []) =>
   return (
     <div
       ref={cinemaContainerRef}
+      tabIndex={-1}
       className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
     >
       {/* Hidden audio element for dubbed content */}

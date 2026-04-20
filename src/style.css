@@ -12146,11 +12146,11 @@ body.active-pass-locked {
 .cinema-extensive-mini-progress {
   flex: 1;
   min-width: 120px;
-  height: 3px;
+  height: 2px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 0;
   cursor: pointer;
   outline: none;
 }

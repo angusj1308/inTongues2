@@ -53,6 +53,15 @@
   --hlt-familiar: #CCDCEA;
 }
 
+/* Palette toggle circle in the cinema header — no ring, uses the
+   cinema palette's mid-tone (recognised) for stronger visibility on
+   the dark header. */
+.cinema-page .reader-palette-trigger .palette-circle {
+  border: none;
+  background-color: var(--hlt-recognised);
+  opacity: 1;
+}
+
 /* Dark mode - warm stone palette */
 [data-theme='dark'] {
   color-scheme: dark;

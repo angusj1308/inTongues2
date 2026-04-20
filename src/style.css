@@ -39,6 +39,14 @@
   --hlt-familiar: var(--hlt-familiar-dark);
 }
 
+/* Cinema-only sage override — saturated type-on-dark swatches tuned for
+   subtitles + transcript over video. Scoped so reader palette is untouched. */
+.cinema-page[data-palette='sage'] {
+  --hlt-new: #5D874A;
+  --hlt-recognised: #7FAD6A;
+  --hlt-familiar: #CDDAC4;
+}
+
 /* Dark mode - warm stone palette */
 [data-theme='dark'] {
   color-scheme: dark;

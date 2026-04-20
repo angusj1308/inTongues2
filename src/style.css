@@ -12100,11 +12100,12 @@ body.active-pass-locked {
   max-height: 100%;
 }
 
-/* Extensive mode — minimal bottom-left controls for passive viewing */
+/* Extensive mode — minimal controls, centred below subtitles */
 .cinema-extensive-mini-controls {
   position: absolute;
   bottom: 20px;
-  left: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 120;
   display: flex;
   align-items: center;

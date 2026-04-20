@@ -12446,7 +12446,7 @@ body.active-pass-locked {
 
 /* Floating Transcript Panel */
 .floating-transcript-panel {
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   position: relative;
   overflow: hidden;

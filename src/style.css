@@ -12152,7 +12152,14 @@ body.active-pass-locked {
   justify-content: center;
   cursor: pointer;
   border-radius: 50%;
+  outline: none;
   transition: background 120ms ease;
+}
+
+.cinema-extensive-mini-play:focus,
+.cinema-extensive-mini-play:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .cinema-extensive-mini-play:hover {

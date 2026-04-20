@@ -1726,11 +1726,15 @@ const normalisePagesToSegments = (pages = []) =>
         <div className="dashboard-brand-band cinema-header-band">
           <div className="cinema-header-left">
             <button
-              className="dashboard-control ui-text cinema-back-button"
+              className="reader-header-button icon-button reader-back-button cinema-back-button"
               onClick={() => navigate('/listening')}
               type="button"
+              aria-label="Back to library"
             >
-              Back to library
+              <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
             </button>
           </div>
           <nav className="dashboard-nav cinema-mode-nav" aria-label="Cinema mode">

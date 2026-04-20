@@ -12146,13 +12146,25 @@ body.active-pass-locked {
 .cinema-extensive-mini-progress {
   flex: 1;
   min-width: 120px;
-  height: 2px;
+  height: 14px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255, 255, 255, 0.35);
+  background: transparent;
   border-radius: 0;
   cursor: pointer;
   outline: none;
+}
+
+.cinema-extensive-mini-progress::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+}
+
+.cinema-extensive-mini-progress::-moz-range-track {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
 }
 
 .cinema-extensive-mini-progress::-webkit-slider-thumb {
@@ -12160,6 +12172,7 @@ body.active-pass-locked {
   appearance: none;
   width: 10px;
   height: 10px;
+  margin-top: -4.5px;
   border-radius: 50%;
   background: #ffffff;
   cursor: pointer;

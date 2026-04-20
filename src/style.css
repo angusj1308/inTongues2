@@ -47,6 +47,12 @@
   --hlt-familiar: #CDDAC4;
 }
 
+.cinema-page[data-palette='slate'] {
+  --hlt-new: #3D6A94;
+  --hlt-recognised: #7AA3C9;
+  --hlt-familiar: #CCDCEA;
+}
+
 /* Dark mode - warm stone palette */
 [data-theme='dark'] {
   color-scheme: dark;

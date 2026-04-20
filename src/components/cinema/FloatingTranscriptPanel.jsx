@@ -6,7 +6,8 @@ const MAX_WIDTH_RATIO = 0.9
 const MAX_HEIGHT_RATIO = 0.9
 const MIN_VISIBLE_PX = 50
 const HEADER_CLEARANCE = 140 // leave room for the cinema header + a little extra
-const BOTTOM_CLEARANCE = 24
+const BOTTOM_CLEARANCE = 8
+const EDGE_PADDING = 8 // right-side gap, matched to BOTTOM_CLEARANCE for symmetry
 
 // Derive default size from the viewport: tall enough to show plenty of
 // transcript but still clear of the header / viewport edge, and narrow
@@ -62,10 +63,9 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
   // Initialize position on first open (right side, flush with header clearance)
   useEffect(() => {
     if (isOpen && bounds.x === null) {
-      const padding = 24
       setBounds((prev) => ({
         ...prev,
-        x: window.innerWidth - prev.width - padding,
+        x: window.innerWidth - prev.width - EDGE_PADDING,
         y: HEADER_CLEARANCE,
       }))
     }
@@ -87,11 +87,10 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
 
   // Reset position + size on double-click header
   const handleHeaderDoubleClick = useCallback(() => {
-    const padding = 24
     const { width, height } = computeDefaultBounds()
     setBounds((prev) => ({
       ...prev,
-      x: window.innerWidth - width - padding,
+      x: window.innerWidth - width - EDGE_PADDING,
       y: HEADER_CLEARANCE,
       width,
       height,

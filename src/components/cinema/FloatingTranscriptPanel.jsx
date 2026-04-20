@@ -6,7 +6,7 @@ const MAX_WIDTH_RATIO = 0.9
 const MAX_HEIGHT_RATIO = 0.9
 const MIN_VISIBLE_PX = 50
 const HEADER_CLEARANCE = 140 // leave room for the cinema header + a little extra
-const BOTTOM_CLEARANCE = 48
+const BOTTOM_CLEARANCE = 68
 // Right-side gap. A bit larger than BOTTOM_CLEARANCE because the iframe
 // letterboxing adds apparent space at the bottom; tuned by eye so the
 // right gap reads comparable to the bottom gap.

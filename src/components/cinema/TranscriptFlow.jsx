@@ -284,35 +284,22 @@ const TranscriptFlow = ({
 
   // Karaoke-style past/active/future tracking. When enabled, every word gets
   // one of .reader-word--tp-past / --tp-active / --tp-future so CSS can dim
-  // past or future words. Repainted only when the active-word index changes,
-  // not every rAF tick.
+  // past or future words.
+  //
+  // Performance note: the naive "clear all, write all on every call" approach
+  // did thousands of classList mutations per active-word transition on long
+  // transcripts, triggering enough style-recalc work to stutter video
+  // playback. We now only touch the range of indices whose state has
+  // actually changed since the previous apply — in the steady advancing
+  // case that's two elements per transition.
+  const lastAppliedIdxRef = useRef(-1)
   const applyTrackingClasses = useCallback((activeIdx) => {
     const refs = wordRefs.current
-    // Pass 1: remove any existing tracking classes from unique elements.
-    const seen = new Set()
-    for (let i = 0; i < refs.length; i++) {
-      const el = refs[i]
-      if (!el || seen.has(el)) continue
-      seen.add(el)
-      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
-    }
-    if (activeIdx < 0) return
-    // Pass 2: write fresh state. Last-write-wins on phrase elements gives
-    // the phrase the state of its latest index, which is the natural reading
-    // order (phrase moves from future → active → past as time progresses).
-    for (let i = 0; i < refs.length; i++) {
-      const el = refs[i]
-      if (!el) continue
-      const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
-      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
-      el.classList.add(`reader-word--tp-${state}`)
-    }
-  }, [])
+    const prev = lastAppliedIdxRef.current
 
-  // Apply / clear tracking as the toggle flips and as the active word moves.
-  useEffect(() => {
-    if (!trackingEnabled) {
-      const refs = wordRefs.current
+    // Turning tracking off / no active word → wipe every applied class.
+    if (activeIdx < 0) {
+      if (prev < 0) return
       const seen = new Set()
       for (let i = 0; i < refs.length; i++) {
         const el = refs[i]
@@ -320,6 +307,44 @@ const TranscriptFlow = ({
         seen.add(el)
         el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
       }
+      lastAppliedIdxRef.current = -1
+      return
+    }
+
+    // First apply (or resuming after a wipe) → set every element once.
+    if (prev < 0) {
+      for (let i = 0; i < refs.length; i++) {
+        const el = refs[i]
+        if (!el) continue
+        const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
+        el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+        el.classList.add(`reader-word--tp-${state}`)
+      }
+      lastAppliedIdxRef.current = activeIdx
+      return
+    }
+
+    if (prev === activeIdx) return
+
+    // Incremental: only indices in [min, max] changed category. Walking in
+    // index order preserves the existing last-write-wins behaviour for
+    // phrase spans (where multiple indices point at the same element).
+    const lo = Math.min(prev, activeIdx)
+    const hi = Math.max(prev, activeIdx)
+    for (let i = lo; i <= hi; i++) {
+      const el = refs[i]
+      if (!el) continue
+      const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
+      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+      el.classList.add(`reader-word--tp-${state}`)
+    }
+    lastAppliedIdxRef.current = activeIdx
+  }, [])
+
+  // Apply / clear tracking as the toggle flips and as the active word moves.
+  useEffect(() => {
+    if (!trackingEnabled) {
+      applyTrackingClasses(-1)
       trackedActiveIdxRef.current = -1
       return
     }

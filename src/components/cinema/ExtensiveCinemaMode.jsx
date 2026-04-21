@@ -541,6 +541,8 @@ const ExtensiveCinemaMode = ({
           onResync={handleTranscriptResync}
           syncToken={syncToken}
           contentExpressions={contentExpressions}
+          flowMode
+          currentTime={currentTime}
         />
       </FloatingTranscriptPanel>
     </div>

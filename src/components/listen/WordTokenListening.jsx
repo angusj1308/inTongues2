@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import {
   HIGHLIGHT_COLOR,
   STATUS_OPACITY,
@@ -25,7 +26,7 @@ const normaliseStatus = (status) => {
   return 'new'
 }
 
-const WordTokenListening = ({
+const WordTokenListening = forwardRef(({
   text,
   status,
   listeningMode,
@@ -33,7 +34,7 @@ const WordTokenListening = ({
   onSelectionTranslate,
   enableHighlight = false,
   isWordPairMatch = false,
-}) => {
+}, ref) => {
   const normalisedStatus = normaliseStatus(status)
   const style = getHighlightStyle({
     status: normalisedStatus,
@@ -73,6 +74,7 @@ const WordTokenListening = ({
 
   return (
     <span
+      ref={ref}
       className={classNames.join(' ')}
       style={style}
       data-word-status={normalisedStatus}
@@ -82,6 +84,8 @@ const WordTokenListening = ({
       {text}
     </span>
   )
-}
+})
+
+WordTokenListening.displayName = 'WordTokenListening'
 
 export default WordTokenListening

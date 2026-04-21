@@ -53,6 +53,36 @@
   --hlt-familiar: #CCDCEA;
 }
 
+/* Cinema transcript flow mode — single flowing block of words that wraps
+   to the panel width, scrolled continuously via rAF in TranscriptFlow. */
+.transcript-flow-window .transcript-roller {
+  /* Per-frame rAF writes land immediately; built-in smooth scroll would
+     fight the interpolation. */
+  scroll-behavior: auto;
+}
+
+.transcript-flow-track {
+  padding: 8px 14px;
+  line-height: 1.8;
+  font-size: 1.05rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Soft paragraph break between sentence-terminal segments */
+.transcript-flow-track .transcript-flow-break {
+  display: block;
+  height: 0.6em;
+}
+
+/* Active word — subtle under-track so the eye finds its place without the
+   snap-to-line feel. Colour-follows current palette. */
+.cinema-page .floating-panel-content .reader-word--time-active {
+  background: color-mix(in srgb, var(--hlt-new) 22%, transparent);
+  border-radius: 3px;
+  transition: background 120ms ease;
+}
+
 /* Cinema transcript: colour highlighted words by status to match the
    subtitle palette (new/unknown → --hlt-new, recognised → --hlt-recognised,
    familiar → --hlt-familiar). Scoped to .cinema-page so the listening

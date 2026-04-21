@@ -342,16 +342,22 @@ const TranscriptFlow = ({
   }, [])
 
   // Apply / clear tracking as the toggle flips and as the active word moves.
+  // We also re-run on `showWordStatus` and vocab-driven render changes:
+  // WordTokenListening rebuilds its `className` string when those props
+  // change, which blows away the tp-past/active/future classes we apply via
+  // classList. Resetting `lastAppliedIdxRef` forces a full re-sweep so the
+  // tracking dim state survives the React re-render.
   useEffect(() => {
     if (!trackingEnabled) {
       applyTrackingClasses(-1)
       trackedActiveIdxRef.current = -1
       return
     }
+    lastAppliedIdxRef.current = -1
     const idx = findActiveWordIdx(words, currentTimeRef.current)
     trackedActiveIdxRef.current = idx
     applyTrackingClasses(idx)
-  }, [trackingEnabled, words, applyTrackingClasses])
+  }, [trackingEnabled, words, showWordStatus, vocabEntries, applyTrackingClasses])
 
   // Build a cached list of "lines" — runs of words that share the same
   // offsetTop. Each line knows its y, start time (first word), and (via

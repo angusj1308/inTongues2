@@ -381,22 +381,20 @@ const TranscriptFlow = ({
         const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
         const linearTarget = progress * maxScroll
 
-        // Drift correction. Average speech rate varies across the video,
-        // so pure linear scroll accumulates error — most visible as the
-        // active word drifting toward the bottom near the end. If the
-        // active word's natural anchor position is far from the linear
-        // target, blend a small fraction of the word-aligned target in.
-        // Dead zone keeps the feel steady during normal speech.
+        // Speed up the crawl when the active word slips below the middle
+        // fifth of the viewport (y > 60%). Every frame we measure how much
+        // extra scroll would be needed to bring the active word back to the
+        // 60% line, then blend ~10% of that shortfall into the target. The
+        // crawl visibly accelerates until the word is back in the middle
+        // third, then falls straight back to its pure-linear pace.
         const activeIdx = findActiveWordIdx(words, time)
         const activeEl = activeIdx >= 0 ? wordRefs.current[activeIdx] : null
         if (activeEl) {
-          const anchor = container.clientHeight * 0.4
-          const wordAlignedTarget = activeEl.offsetTop - anchor
-          const drift = wordAlignedTarget - linearTarget
-          const deadZone = 40
-          if (Math.abs(drift) > deadZone) {
-            const over = drift - Math.sign(drift) * deadZone
-            target = linearTarget + over * 0.15
+          const middleFifthBottom = container.clientHeight * 0.6
+          const comfortScroll = activeEl.offsetTop - middleFifthBottom
+          if (linearTarget < comfortScroll) {
+            const shortfall = comfortScroll - linearTarget
+            target = linearTarget + shortfall * 0.1
           } else {
             target = linearTarget
           }

@@ -12281,17 +12281,25 @@ body.active-pass-locked {
   letter-spacing: 0.02em;
 }
 
-/* Subtitle overlay on video */
+/* Subtitle overlay on video — slides up from the bottom edge like a drawer
+   when subtitlesEnabled flips on, and back down when it flips off. */
 .cinema-subtitle-overlay {
   position: absolute;
   bottom: 110px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(calc(100% + 160px));
+  opacity: 0;
   width: 90%;
   max-width: 900px;
   text-align: center;
   pointer-events: none;
   z-index: 10;
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease;
+}
+
+.cinema-subtitle-overlay.is-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
 }
 
 .cinema-subtitle-overlay > * {
@@ -12471,6 +12479,26 @@ body.active-pass-locked {
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(12px);
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease;
+}
+
+/* Slide-in from the right. Translates by the panel's own width plus a
+   little more so it sits fully off-screen during the entering/exiting
+   phases; the 'open' phase slides it back into its bounds position. */
+.floating-transcript-panel--entering,
+.floating-transcript-panel--exiting {
+  transform: translateX(calc(100% + 40px));
+  opacity: 0;
+}
+
+.floating-transcript-panel--open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.floating-transcript-panel.is-dragging,
+.floating-transcript-panel.is-resizing {
+  transition: none;
 }
 
 /* Dark mode (default in cinema) */

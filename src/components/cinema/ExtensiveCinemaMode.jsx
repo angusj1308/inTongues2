@@ -467,21 +467,20 @@ const ExtensiveCinemaMode = ({
         <div className="cinema-extensive-video-wrapper">
           {videoPlayer}
 
-          {/* Subtitle overlay - always rendered, visibility controlled by subtitlesEnabled */}
-          {subtitlesEnabled && (
-            <div className="cinema-subtitle-overlay">
-              <KaraokeSubtitles
-                segments={transcriptSegments}
-                currentTime={currentTime}
-                language={language}
-                vocabEntries={vocabEntries}
-                showWordStatus={showWordStatus}
-                onWordClick={handleTranscriptWordClick}
-                onWordSelect={onSubtitleWordClick}
-                contentExpressions={contentExpressions}
-              />
-            </div>
-          )}
+          {/* Subtitle overlay — always mounted so we can animate in/out from
+              the bottom edge when subtitlesEnabled toggles. */}
+          <div className={`cinema-subtitle-overlay ${subtitlesEnabled ? 'is-visible' : ''}`}>
+            <KaraokeSubtitles
+              segments={transcriptSegments}
+              currentTime={currentTime}
+              language={language}
+              vocabEntries={vocabEntries}
+              showWordStatus={showWordStatus}
+              onWordClick={handleTranscriptWordClick}
+              onWordSelect={onSubtitleWordClick}
+              contentExpressions={contentExpressions}
+            />
+          </div>
 
           {/* Hover dock — bottom strip below subtitles that reveals minimal controls */}
           <div

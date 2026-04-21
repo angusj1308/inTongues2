@@ -55,6 +55,43 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
   // clamp on viewport change.
   const hasUserCustomisedRef = useRef(false)
 
+  // Slide-in / slide-out animation. The panel stays mounted during the
+  // exit animation and unmounts after the transition completes.
+  //   'closed'   → unmounted (return null)
+  //   'entering' → mounted, off-screen right (start frame)
+  //   'open'     → mounted, in final position (slid in)
+  //   'exiting'  → mounted, animating back off-screen right
+  const [animState, setAnimState] = useState('closed')
+  const exitTimeoutRef = useRef(null)
+  useEffect(() => {
+    if (isOpen) {
+      if (exitTimeoutRef.current) {
+        clearTimeout(exitTimeoutRef.current)
+        exitTimeoutRef.current = null
+      }
+      setAnimState('entering')
+      // Two RAFs so the browser paints the off-screen frame before
+      // switching to the in-view frame — otherwise the transition
+      // doesn't play on first open.
+      const raf1 = requestAnimationFrame(() => {
+        const raf2 = requestAnimationFrame(() => setAnimState('open'))
+        exitTimeoutRef.current = raf2
+      })
+      return () => cancelAnimationFrame(raf1)
+    }
+    if (animState === 'closed') return undefined
+    setAnimState('exiting')
+    exitTimeoutRef.current = setTimeout(() => {
+      setAnimState('closed')
+      exitTimeoutRef.current = null
+    }, 320)
+    return undefined
+  }, [isOpen])
+
+  useEffect(() => () => {
+    if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current)
+  }, [])
+
   // Clamp position to keep panel visible on screen
   const clampPosition = useCallback((x, y, width, height) => {
     const maxX = window.innerWidth - MIN_VISIBLE_PX
@@ -244,7 +281,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     }
   }, [isDragging, isResizing, resizeDirection, clampPosition])
 
-  if (!isOpen) return null
+  if (animState === 'closed') return null
 
   if (isMinimized) {
     return (
@@ -275,7 +312,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
   return (
     <div
       ref={panelRef}
-      className={`floating-transcript-panel ${darkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
+      className={`floating-transcript-panel floating-transcript-panel--${animState} ${darkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
       style={{
         position: 'fixed',
         left: bounds.x,

@@ -1731,6 +1731,15 @@ const normalisePagesToSegments = (pages = []) =>
       tabIndex={-1}
       data-palette={currentPaletteName}
       className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
+      onMouseDown={(event) => {
+        // Prevent buttons from stealing focus on mouse click. Without this,
+        // clicking a button focuses it — and a subsequent Space press (used
+        // for play/pause) promotes the focus to `:focus-visible` in Chrome,
+        // making the blue focus ring linger. Tab navigation is unaffected,
+        // so keyboard users still see focus rings where they expect them.
+        const btn = event.target.closest('button')
+        if (btn && !btn.disabled) event.preventDefault()
+      }}
     >
       {/* Hidden audio element for dubbed content */}
       {isDubbed && dubbedAudioUrl && (

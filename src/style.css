@@ -96,16 +96,20 @@
   opacity: 0.7;
 }
 
+/* The per-status colour rules (.reader-word--highlighted[data-word-status=…])
+   are 5-class specificity and would otherwise drown out the active-word
+   treatment. !important here ensures the tracked active word always wins
+   regardless of word status. */
 .cinema-page .floating-panel-content .reader-word--tp-active {
-  opacity: 1;
-  color: #ffffff;
-  background: color-mix(in srgb, var(--hlt-new) 55%, transparent);
+  opacity: 1 !important;
+  color: #ffffff !important;
+  background: color-mix(in srgb, var(--hlt-new) 55%, transparent) !important;
   border-radius: 3px;
   padding: 0 3px;
 }
 
 .is-light .floating-panel-content .reader-word--tp-active {
-  color: #0f172a;
+  color: #0f172a !important;
 }
 
 /* Tracking-toggle button pinned top-right of the transcript window. */

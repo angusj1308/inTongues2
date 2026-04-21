@@ -94,16 +94,20 @@ const buildFlowEntries = (segments) => {
   return entries
 }
 
-// Find the active word index for a given time. Linear scan is fine — even
-// at hour-long transcripts we're talking a few thousand words; the rAF loop
-// eats nanoseconds. If it becomes hot we can switch to a binary search.
+// Find the active word index for a given time. Binary search — the rAF loop
+// calls this every frame and linear scan on a 2000-word transcript was the
+// largest remaining hot spot after the tracking-class fix.
 const findActiveWordIdx = (words, time) => {
   if (!words.length) return -1
   if (time < words[0].start) return -1
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i]
-    if (time >= w.start && time < w.end) return i
+  let lo = 0
+  let hi = words.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1
+    if (words[mid].start <= time) lo = mid
+    else hi = mid - 1
   }
+  if (time < words[lo].end) return lo
   return words.length - 1
 }
 
@@ -431,12 +435,15 @@ const TranscriptFlow = ({
 
       const lines = linesRef.current
       if (lines.length) {
-        // Binary-ish lookup: find the line whose startTime ≤ time < next.
-        let lineIdx = 0
-        for (let i = 0; i < lines.length; i++) {
-          if (time >= lines[i].startTime) lineIdx = i
-          else break
+        // Binary search for the line whose startTime ≤ time < next.
+        let lo = 0
+        let hi = lines.length - 1
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >>> 1
+          if (lines[mid].startTime <= time) lo = mid
+          else hi = mid - 1
         }
+        const lineIdx = lo
         const line = lines[lineIdx]
         const span = Math.max(0.001, line.nextStartTime - line.startTime)
         const progress = Math.max(0, Math.min(1, (time - line.startTime) / span))

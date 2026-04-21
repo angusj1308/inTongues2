@@ -12289,25 +12289,30 @@ body:has(.cinema-page) {
   letter-spacing: 0.02em;
 }
 
-/* Subtitle overlay on video — slides up from the bottom edge like a drawer
-   when subtitlesEnabled flips on, and back down when it flips off. */
+/* Subtitle overlay on video. The overlay wrapper keeps its original
+   centring transform; the inner KaraokeSubtitles box handles the slide
+   animation so the centred layout isn't fighting the translateY. */
 .cinema-subtitle-overlay {
   position: absolute;
   bottom: 110px;
   left: 50%;
-  transform: translateX(-50%) translateY(calc(100% + 160px));
-  opacity: 0;
+  transform: translateX(-50%);
   width: 90%;
   max-width: 900px;
   text-align: center;
   pointer-events: none;
   z-index: 10;
+}
+
+.cinema-subtitle-overlay .karaoke-subtitles {
+  opacity: 0;
+  transform: translateY(220px);
   transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease;
 }
 
-.cinema-subtitle-overlay.is-visible {
-  transform: translateX(-50%) translateY(0);
+.cinema-subtitle-overlay.is-visible .karaoke-subtitles {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .cinema-subtitle-overlay > * {

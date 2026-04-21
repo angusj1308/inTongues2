@@ -1790,8 +1790,58 @@ const normalisePagesToSegments = (pages = []) =>
                   className={`dashboard-nav-button ui-text ${cinemaMode === mode.id ? 'active' : ''}`}
                   type="button"
                   onClick={(e) => {
-                    setCinemaMode(mode.id)
                     e.currentTarget.blur()
+                    if (mode.id === cinemaMode) return
+
+                    // Anchor the new mode to where the user currently is.
+                    // Active: jump to the chunk containing current time, reset
+                    // to pass 1, and seek to chunk start so pass 1 begins
+                    // from the start of the chunk.
+                    // Intensive: jump to the sentence containing current time
+                    // and seek to its start so the user studies that sentence
+                    // from the beginning.
+                    // Extensive: no anchoring needed — it plays straight through.
+                    const now = Number.isFinite(playbackStatus.currentTime)
+                      ? playbackStatus.currentTime
+                      : 0
+
+                    if (mode.id === 'active' && chunks.length) {
+                      let idx = chunks.findIndex(
+                        (ch) => now >= ch.start && now <= ch.end,
+                      )
+                      if (idx < 0) {
+                        idx = now < chunks[0].start
+                          ? 0
+                          : chunks.length - 1
+                      }
+                      setActiveChunkIndex(idx)
+                      setActiveStep(1)
+                      handleSeek(chunks[idx].start)
+                    } else if (mode.id === 'intensive') {
+                      // Matches IntensiveCinemaMode's internal filter so the
+                      // index we set points at the same entry the component
+                      // will render.
+                      const filtered = (displaySegments || []).filter(
+                        (seg) => seg?.text?.trim() && typeof seg.start === 'number',
+                      )
+                      if (filtered.length) {
+                        let idx = filtered.findIndex((seg) => {
+                          const segEnd = Number.isFinite(seg.end)
+                            ? seg.end
+                            : seg.start + 5
+                          return now >= seg.start && now <= segEnd
+                        })
+                        if (idx < 0) {
+                          idx = now < filtered[0].start
+                            ? 0
+                            : filtered.length - 1
+                        }
+                        setIntensiveSegmentIndex(idx)
+                        handleSeek(filtered[idx].start)
+                      }
+                    }
+
+                    setCinemaMode(mode.id)
                   }}
                 >
                   {mode.label.toUpperCase()}

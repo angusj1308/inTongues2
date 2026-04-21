@@ -8,7 +8,9 @@ const EyeIcon = ({ open }) => (
     {open ? (
       <>
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <path d="M1 12 L 2.5 11.3 M1 12 L 2.5 12.7" strokeWidth="1.2" />
         <circle cx="12" cy="12" r="3" />
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
       </>
     ) : (
       <>

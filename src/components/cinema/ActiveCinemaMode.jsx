@@ -735,6 +735,7 @@ const ActiveCinemaMode = ({
                 step="0.1"
                 value={clampedPosition}
                 onChange={handleProgressChange}
+                onPointerUp={(e) => e.currentTarget.blur()}
                 aria-label="Playback position"
                 style={{ '--progress': `${chunkProgress}%` }}
               />

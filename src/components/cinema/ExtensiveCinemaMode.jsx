@@ -510,6 +510,7 @@ const ExtensiveCinemaMode = ({
                 step="0.1"
                 value={clampedPosition}
                 onChange={handleProgressChange}
+                onPointerUp={(e) => e.currentTarget.blur()}
                 disabled={safeDuration === 0}
                 aria-label="Playback position"
               />

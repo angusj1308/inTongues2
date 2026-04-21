@@ -35,6 +35,18 @@ const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayer
   const playerRef = useRef(null)
   const statusIntervalRef = useRef(null)
   const savedPositionRef = useRef(null)
+  // Prime-and-pause trick: autoplay muted so the first real frame renders
+  // (instead of YouTube's thumbnail), then pause immediately in onReady.
+  // unmute + play on the user's first real interaction. Tracks state so we
+  // only unmute once per player instance.
+  const primedRef = useRef(false)
+  const hasUnmutedRef = useRef(false)
+
+  const ensureUnmuted = () => {
+    if (hasUnmutedRef.current) return
+    playerRef.current?.unMute?.()
+    hasUnmutedRef.current = true
+  }
 
   const sendStatusUpdate = () => {
     if (!playerRef.current || !window.YT?.PlayerState) return
@@ -49,6 +61,8 @@ const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayer
 
   useEffect(() => {
     let isMounted = true
+    primedRef.current = false
+    hasUnmutedRef.current = false
 
     const createPlayer = async () => {
       try {
@@ -63,6 +77,8 @@ const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayer
             cc_load_policy: 0,
             modestbranding: 1,
             playsinline: 1,
+            autoplay: 1,
+            mute: 1,
           },
           events: {
             onReady: (event) => {
@@ -75,6 +91,17 @@ const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayer
               onPlayerReady?.(playerRef.current, event)
             },
             onStateChange: (event) => {
+              // First PLAYING event = autoplay kicked in. Pause immediately so
+              // the user lands on the first video frame (not the thumbnail).
+              // Subsequent PLAYING events are real user intent → unmute.
+              if (event?.data === window.YT?.PlayerState?.PLAYING) {
+                if (!primedRef.current) {
+                  primedRef.current = true
+                  playerRef.current?.pauseVideo?.()
+                } else {
+                  ensureUnmuted()
+                }
+              }
               sendStatusUpdate()
               onPlayerStateChange?.(event, playerRef.current)
             },
@@ -107,6 +134,7 @@ const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayer
     ref,
     () => ({
       playVideo: () => {
+        ensureUnmuted()
         playerRef.current?.playVideo?.()
       },
       pauseVideo: () => {
@@ -116,7 +144,10 @@ const YouTubePlayer = forwardRef(({ videoId, controls = true, onStatus, onPlayer
       getDuration: () => playerRef.current?.getDuration?.() ?? 0,
       seekTo: (seconds) => playerRef.current?.seekTo?.(seconds, true),
       mute: () => playerRef.current?.mute?.(),
-      unMute: () => playerRef.current?.unMute?.(),
+      unMute: () => {
+        hasUnmutedRef.current = true
+        playerRef.current?.unMute?.()
+      },
       setPlaybackRate: (rate) => playerRef.current?.setPlaybackRate?.(rate),
       getPlaybackRate: () => playerRef.current?.getPlaybackRate?.() ?? 1,
       getPlayer: () => playerRef.current,

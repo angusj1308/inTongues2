@@ -131,6 +131,40 @@ const TranscriptFlow = ({
   const clearProgrammaticTimerRef = useRef(null)
   const activeWordElRef = useRef(null)
   const currentTimeRef = useRef(currentTime)
+
+  // Cached ref setters so the callback identity stays stable across
+  // re-renders. Inline `ref={(el) => …}` creates a new function every
+  // render; React then fires the old one with null and the new one with
+  // the element — on a 2000-word transcript that's thousands of wasted
+  // invocations per re-render (e.g. when showWordStatus toggles).
+  const wordRefSettersRef = useRef(new Map())
+  const phraseRefSettersRef = useRef(new Map())
+  const getWordRefSetter = useCallback((idx) => {
+    const cache = wordRefSettersRef.current
+    let setter = cache.get(idx)
+    if (!setter) {
+      setter = (el) => {
+        if (el) wordRefs.current[idx] = el
+      }
+      cache.set(idx, setter)
+    }
+    return setter
+  }, [])
+  const getPhraseRefSetter = useCallback((startIdx, endIdx) => {
+    const cache = phraseRefSettersRef.current
+    const key = `${startIdx}-${endIdx}`
+    let setter = cache.get(key)
+    if (!setter) {
+      setter = (el) => {
+        if (!el) return
+        for (let k = startIdx; k <= endIdx; k++) {
+          wordRefs.current[k] = el
+        }
+      }
+      cache.set(key, setter)
+    }
+    return setter
+  }, [])
   const [hasTopFade, setHasTopFade] = useState(false)
   const [hasBottomFade, setHasBottomFade] = useState(false)
   const [trackingEnabled, setTrackingEnabled] = useState(false)
@@ -233,15 +267,7 @@ const TranscriptFlow = ({
             enableHighlight={showWordStatus}
             onWordClick={onWordClick}
             onSelectionTranslate={onSelectionTranslate}
-            ref={(el) => {
-              if (!el) return
-              // Point every word index covered by the phrase at this node
-              // so the rAF scroll loop always finds a DOM element even when
-              // the active time falls inside the middle of the phrase.
-              for (let k = startIdx; k <= endIdx; k++) {
-                wordRefs.current[k] = el
-              }
-            }}
+            ref={getPhraseRefSetter(startIdx, endIdx)}
           />,
         )
         nodes.push(<span key={`sp-${entryIdx}`}> </span>)
@@ -269,16 +295,14 @@ const TranscriptFlow = ({
           enableHighlight={showWordStatus}
           onWordClick={onWordClick}
           onSelectionTranslate={onSelectionTranslate}
-          ref={(el) => {
-            if (el) wordRefs.current[idx] = el
-          }}
+          ref={getWordRefSetter(idx)}
         />,
       )
       nodes.push(<span key={`sp-${entryIdx}`}> </span>)
     })
 
     return nodes
-  }, [entries, words, expressions, vocabEntries, language, showWordStatus, onWordClick, onSelectionTranslate])
+  }, [entries, words, expressions, vocabEntries, language, showWordStatus, onWordClick, onSelectionTranslate, getWordRefSetter, getPhraseRefSetter])
 
   // No passive active-word treatment. Subtitle parity: a word is only
   // visually highlighted when the tracking toggle is on (past/active/future

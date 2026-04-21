@@ -326,16 +326,16 @@ const TranscriptFlow = ({
     applyTrackingClasses(idx)
   }, [trackingEnabled, words, applyTrackingClasses])
 
-  // Drive scroll at a constant velocity across the whole transcript —
-  // "Star Wars crawl" style. The scroll holds at 0 while the active word
-  // is still naturally above the top fade zone; once it clears the fade,
-  // a linear map from that moment to the last word's end fills the
-  // remaining scroll range. The active-word highlight still tracks the
-  // audio word-by-word so the user can see where they are.
+  // Word-anchored scroll with heavy smoothing. Each frame we target the
+  // scroll position that puts the active word ~40% from the top of the
+  // viewport, then lerp the current scrollTop toward that target. Pace
+  // follows the speaker — silence holds the scroll, fast speech glides,
+  // and the active word never drifts off-centre. The lerp factor is small
+  // enough that the motion feels like a continuous river rather than a
+  // per-word snap.
   useEffect(() => {
     if (!isSynced) return undefined
     if (!words.length) return undefined
-    const lastEnd = words[words.length - 1].end
 
     let rafId = null
     const tick = () => {
@@ -357,59 +357,24 @@ const TranscriptFlow = ({
         }
       }
 
-      // Find the first word whose natural offsetTop sits below the top
-      // fade zone. Up to that point the scroll holds at 0 so the active
-      // word isn't hidden behind the fade the instant playback starts.
-      const fadeBottom = container.clientHeight * 0.18
-      let clearIdx = 0
-      for (let i = 0; i < words.length; i++) {
-        const el = wordRefs.current[i]
-        if (!el) continue
-        if (el.offsetTop >= fadeBottom) {
-          clearIdx = i
-          break
-        }
-      }
-      const tStart = words[clearIdx].start
-
-      let target
-      if (time < tStart) {
-        target = 0
-      } else {
-        const scrollSpan = Math.max(0.001, lastEnd - tStart)
-        const progress = Math.max(0, Math.min(1, (time - tStart) / scrollSpan))
+      const activeIdx = findActiveWordIdx(words, time)
+      const activeEl = activeIdx >= 0 ? wordRefs.current[activeIdx] : null
+      if (activeEl) {
+        const anchor = container.clientHeight * 0.4
+        const rawTarget = activeEl.offsetTop - anchor
         const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
-        const linearTarget = progress * maxScroll
+        const target = Math.max(0, Math.min(maxScroll, rawTarget))
+        const current = container.scrollTop
+        // Lerp — 0.08 feels smooth without lagging far behind the speaker.
+        const next = current + (target - current) * 0.08
 
-        // Speed up the crawl when the active word slips below the middle
-        // fifth of the viewport (y > 60%). Every frame we measure how much
-        // extra scroll would be needed to bring the active word back to the
-        // 60% line, then blend ~10% of that shortfall into the target. The
-        // crawl visibly accelerates until the word is back in the middle
-        // third, then falls straight back to its pure-linear pace.
-        const activeIdx = findActiveWordIdx(words, time)
-        const activeEl = activeIdx >= 0 ? wordRefs.current[activeIdx] : null
-        if (activeEl) {
-          const middleFifthBottom = container.clientHeight * 0.6
-          const comfortScroll = activeEl.offsetTop - middleFifthBottom
-          if (linearTarget < comfortScroll) {
-            const shortfall = comfortScroll - linearTarget
-            target = linearTarget + shortfall * 0.1
-          } else {
-            target = linearTarget
-          }
-        } else {
-          target = linearTarget
-        }
-        target = Math.max(0, Math.min(maxScroll, target))
+        programmaticScrollRef.current = true
+        container.scrollTop = next
+        if (clearProgrammaticTimerRef.current) clearTimeout(clearProgrammaticTimerRef.current)
+        clearProgrammaticTimerRef.current = setTimeout(() => {
+          programmaticScrollRef.current = false
+        }, 80)
       }
-
-      programmaticScrollRef.current = true
-      container.scrollTop = target
-      if (clearProgrammaticTimerRef.current) clearTimeout(clearProgrammaticTimerRef.current)
-      clearProgrammaticTimerRef.current = setTimeout(() => {
-        programmaticScrollRef.current = false
-      }, 80)
 
       rafId = requestAnimationFrame(tick)
     }

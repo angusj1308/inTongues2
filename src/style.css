@@ -11929,6 +11929,14 @@ body.active-pass-locked {
 .cinema-page {
   min-height: 100vh;
   background: #fafaf9;
+  overflow: hidden;
+}
+
+/* Prevent the transcript slide animation (fixed-position element translated
+   off-screen right) from summoning body scrollbars while in cinema. */
+html:has(.cinema-page),
+body:has(.cinema-page) {
+  overflow: hidden;
 }
 
 /* Fullscreen mode for extensive viewing */

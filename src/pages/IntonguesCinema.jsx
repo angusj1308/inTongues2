@@ -279,6 +279,14 @@ const IntonguesCinema = () => {
     'Select a language for this content to enable translation/pronunciation.'
 
   const playerRef = useRef(null)
+  // Mode changes remount the YouTube player (`videoPlayer` memo depends on
+  // `cinemaMode`, and the memoed element is rendered in a different DOM
+  // parent per mode). A seek fired inside the click handler can be lost
+  // because YouTubePlayer's cleanup reads `getCurrentTime()` BEFORE the seek
+  // has propagated through the iframe, then restores that stale position on
+  // remount. We stash the intended target in a ref and replay it from
+  // `handlePlayerReady` after the new player finishes mounting.
+  const pendingSeekRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
   const [spotifyToken, setSpotifyToken] = useState('')
   const [spotifyPlayer, setSpotifyPlayer] = useState(null)
@@ -1002,6 +1010,24 @@ const normalisePagesToSegments = (pages = []) =>
     if (isDubbed) {
       player?.mute?.()
     }
+
+    // Replay any pending seek that was requested during a mode change. See
+    // `pendingSeekRef` above for why this is needed.
+    if (pendingSeekRef.current !== null) {
+      const target = pendingSeekRef.current
+      pendingSeekRef.current = null
+      player?.seekTo?.(target, true)
+      if (isDubbed && dubbedAudioRef.current) {
+        dubbedAudioRef.current.currentTime = target
+      }
+      setPlaybackStatus({
+        currentTime: target,
+        duration: player?.getDuration?.() ?? 0,
+        isPlaying: false,
+      })
+      return
+    }
+
     setPlaybackStatus({
       currentTime: player?.getCurrentTime?.() ?? 0,
       duration: player?.getDuration?.() ?? 0,
@@ -1837,6 +1863,11 @@ const normalisePagesToSegments = (pages = []) =>
                             : filtered.length - 1
                         }
                         setIntensiveSegmentIndex(idx)
+                        // Stash the target so it survives the player remount
+                        // that the mode change causes; handlePlayerReady will
+                        // replay it. The immediate seek also fires for the
+                        // case where the player happens not to remount.
+                        pendingSeekRef.current = filtered[idx].start
                         handleSeek(filtered[idx].start)
                       }
                     }

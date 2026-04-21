@@ -326,13 +326,53 @@ const TranscriptFlow = ({
     applyTrackingClasses(idx)
   }, [trackingEnabled, words, applyTrackingClasses])
 
-  // Word-anchored scroll with time-interpolated target and smoothing.
-  // Every frame the target scroll is computed as "where the active word
-  // is" interpolated toward "where the next word will be", weighted by
-  // progress through the active word's [start, end) window. This keeps
-  // the target moving continuously even while the active word stays on
-  // the same line — so the scroll never sits still and then leaps at a
-  // line boundary. A gentle lerp on top smooths any remaining step.
+  // Build a cached list of "lines" — runs of words that share the same
+  // offsetTop. Each line knows its y, start time (first word), and (via
+  // lookup into the next line) where to scroll to next. Recomputed on
+  // mount and whenever the container resizes, since line wrapping is
+  // layout-dependent.
+  const linesRef = useRef([])
+  const recomputeLines = useCallback(() => {
+    const lines = []
+    let current = null
+    for (let i = 0; i < words.length; i++) {
+      const el = wordRefs.current[i]
+      if (!el) continue
+      const y = el.offsetTop
+      if (!current || current.y !== y) {
+        current = { y, startTime: words[i].start }
+        lines.push(current)
+      }
+    }
+    // Annotate each line with the NEXT line's y + start time so the rAF
+    // loop can interpolate over the time window between them.
+    for (let i = 0; i < lines.length; i++) {
+      const next = lines[i + 1]
+      lines[i].nextY = next ? next.y : lines[i].y
+      lines[i].nextStartTime = next ? next.startTime : lines[i].startTime + 1
+    }
+    linesRef.current = lines
+  }, [words])
+
+  useEffect(() => {
+    // Run after paint so offsetTop is populated.
+    const timer = setTimeout(recomputeLines, 50)
+    return () => clearTimeout(timer)
+  }, [recomputeLines])
+
+  useEffect(() => {
+    if (!containerRef.current || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(() => recomputeLines())
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [recomputeLines])
+
+  // Line-anchored scroll. We don't care about individual words — we
+  // interpolate scroll position over a whole line's time span, then
+  // smoothly lerp the current scrollTop toward that target. Result: the
+  // scroll moves continuously throughout a line (proportional to how
+  // much of the line's time has elapsed), and only speeds up / slows
+  // down at line boundaries — where speaker rhythm naturally changes.
   useEffect(() => {
     if (!isSynced) return undefined
     if (!words.length) return undefined
@@ -356,36 +396,25 @@ const TranscriptFlow = ({
         }
       }
 
-      const activeIdx = findActiveWordIdx(words, time)
-      const activeEl = activeIdx >= 0 ? wordRefs.current[activeIdx] : null
-      if (activeEl) {
-        const activeY = activeEl.offsetTop
-        // Look ahead a few words for the next distinct y. Same-line words
-        // share an offsetTop, so naïve "next word" interpolation would be
-        // flat — walk forward until we find a word on a different line.
-        let nextY = activeY
-        let nextStart = words[activeIdx].end
-        for (let j = activeIdx + 1; j < words.length; j++) {
-          const nEl = wordRefs.current[j]
-          if (!nEl) continue
-          if (nEl.offsetTop !== activeY) {
-            nextY = nEl.offsetTop
-            nextStart = words[j].start
-            break
-          }
+      const lines = linesRef.current
+      if (lines.length) {
+        // Binary-ish lookup: find the line whose startTime ≤ time < next.
+        let lineIdx = 0
+        for (let i = 0; i < lines.length; i++) {
+          if (time >= lines[i].startTime) lineIdx = i
+          else break
         }
-
-        const w = words[activeIdx]
-        const span = Math.max(0.001, nextStart - w.start)
-        const progress = Math.max(0, Math.min(1, (time - w.start) / span))
-        const interpY = activeY + (nextY - activeY) * progress
+        const line = lines[lineIdx]
+        const span = Math.max(0.001, line.nextStartTime - line.startTime)
+        const progress = Math.max(0, Math.min(1, (time - line.startTime) / span))
+        const interpY = line.y + (line.nextY - line.y) * progress
         const rawTarget = interpY - container.clientHeight * 0.4
         const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
         const target = Math.max(0, Math.min(maxScroll, rawTarget))
 
-        // Slow lerp — keeps scroll always moving but never snapping.
+        // Gentle lerp for extra smoothness on top of the continuous target.
         const current = container.scrollTop
-        const next = current + (target - current) * 0.06
+        const next = current + (target - current) * 0.1
 
         programmaticScrollRef.current = true
         container.scrollTop = next

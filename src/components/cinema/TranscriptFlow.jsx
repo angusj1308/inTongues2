@@ -265,11 +265,17 @@ const TranscriptFlow = ({
     activeWordElRef.current = nextEl
   }, [words])
 
-  // Drive scroll continuously while synced. Each frame: locate active word,
-  // interpolate scrollTop toward its position weighted by progress through
-  // the word's [start, end) window.
+  // Drive scroll at a constant velocity across the whole transcript —
+  // "Star Wars crawl" style. Position = (elapsed / total) * scroll range.
+  // The active-word highlight still tracks the audio word-by-word so the
+  // user can see where they are even though the scroll is steady.
   useEffect(() => {
     if (!isSynced) return undefined
+    if (!words.length) return undefined
+    const firstStart = words[0].start
+    const lastEnd = words[words.length - 1].end
+    const totalSpan = Math.max(0.001, lastEnd - firstStart)
+
     let rafId = null
     const tick = () => {
       const container = containerRef.current
@@ -281,32 +287,16 @@ const TranscriptFlow = ({
       const time = currentTimeRef.current
       updateActiveWord(time)
 
-      const idx = findActiveWordIdx(words, time)
-      const curEl = idx >= 0 ? wordRefs.current[idx] : null
-      if (curEl) {
-        const nextEl = idx + 1 < words.length ? wordRefs.current[idx + 1] : null
-        const curTop = curEl.offsetTop
-        const nextTop = nextEl ? nextEl.offsetTop : curTop
-        const w = words[idx]
-        const span = Math.max(0.001, w.end - w.start)
-        const progress = Math.max(0, Math.min(1, (time - w.start) / span))
-        const targetLine = curTop + (nextTop - curTop) * progress
+      const progress = Math.max(0, Math.min(1, (time - firstStart) / totalSpan))
+      const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
+      const target = progress * maxScroll
 
-        // Anchor ~40% down the viewport so the active word sits above centre
-        const anchor = container.clientHeight * 0.4
-        const desired = targetLine - anchor
-        const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
-        const clamped = Math.max(0, Math.min(maxScroll, desired))
-
-        programmaticScrollRef.current = true
-        container.scrollTop = clamped
-        // Release the programmatic flag a tick later so the scroll listener
-        // doesn't treat our own scrollTop write as a user scroll.
-        if (clearProgrammaticTimerRef.current) clearTimeout(clearProgrammaticTimerRef.current)
-        clearProgrammaticTimerRef.current = setTimeout(() => {
-          programmaticScrollRef.current = false
-        }, 80)
-      }
+      programmaticScrollRef.current = true
+      container.scrollTop = target
+      if (clearProgrammaticTimerRef.current) clearTimeout(clearProgrammaticTimerRef.current)
+      clearProgrammaticTimerRef.current = setTimeout(() => {
+        programmaticScrollRef.current = false
+      }, 80)
 
       rafId = requestAnimationFrame(tick)
     }

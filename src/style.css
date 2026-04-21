@@ -83,6 +83,57 @@
   transition: background 120ms ease;
 }
 
+/* Karaoke-style past/active/future tracking in the transcript flow.
+   Same affordance as the subtitle eye toggle. */
+.cinema-page .floating-panel-content .reader-word--tp-past {
+  opacity: 0.45;
+}
+
+.cinema-page .floating-panel-content .reader-word--tp-active {
+  opacity: 1;
+}
+
+.cinema-page .floating-panel-content .reader-word--tp-future {
+  opacity: 0.7;
+}
+
+/* Tracking-toggle button pinned top-right of the transcript window. */
+.transcript-flow-tracking-toggle {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.transcript-flow-tracking-toggle:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.transcript-flow-tracking-toggle.is-active {
+  color: var(--hlt-new);
+}
+
+.is-light .floating-panel-content .transcript-flow-tracking-toggle {
+  color: rgba(15, 23, 42, 0.55);
+}
+
+.is-light .floating-panel-content .transcript-flow-tracking-toggle:hover {
+  color: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.06);
+}
+
 /* Cinema transcript: colour highlighted words by status to match the
    subtitle palette (new/unknown → --hlt-new, recognised → --hlt-recognised,
    familiar → --hlt-familiar). Scoped to .cinema-page so the listening

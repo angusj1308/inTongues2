@@ -2,6 +2,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normaliseExpression } from '../../services/vocab'
 import WordTokenListening from '../listen/WordTokenListening'
 
+// Eye icon for the tracking toggle — same affordance as KaraokeSubtitles.
+const EyeIcon = ({ open }) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+    {open ? (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ) : (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    )}
+  </svg>
+)
+
 // Cinema transcript in "flow" mode: the whole transcript is one continuous
 // block of words that wraps to whatever width the panel currently is. The
 // auto-scroll is driven by word-level timing via requestAnimationFrame —
@@ -109,6 +127,8 @@ const TranscriptFlow = ({
   const currentTimeRef = useRef(currentTime)
   const [hasTopFade, setHasTopFade] = useState(false)
   const [hasBottomFade, setHasBottomFade] = useState(false)
+  const [trackingEnabled, setTrackingEnabled] = useState(false)
+  const trackedActiveIdxRef = useRef(-1)
 
   useEffect(() => {
     currentTimeRef.current = currentTime
@@ -265,6 +285,52 @@ const TranscriptFlow = ({
     activeWordElRef.current = nextEl
   }, [words])
 
+  // Karaoke-style past/active/future tracking. When enabled, every word gets
+  // one of .reader-word--tp-past / --tp-active / --tp-future so CSS can dim
+  // past or future words. Repainted only when the active-word index changes,
+  // not every rAF tick.
+  const applyTrackingClasses = useCallback((activeIdx) => {
+    const refs = wordRefs.current
+    // Pass 1: remove any existing tracking classes from unique elements.
+    const seen = new Set()
+    for (let i = 0; i < refs.length; i++) {
+      const el = refs[i]
+      if (!el || seen.has(el)) continue
+      seen.add(el)
+      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+    }
+    if (activeIdx < 0) return
+    // Pass 2: write fresh state. Last-write-wins on phrase elements gives
+    // the phrase the state of its latest index, which is the natural reading
+    // order (phrase moves from future → active → past as time progresses).
+    for (let i = 0; i < refs.length; i++) {
+      const el = refs[i]
+      if (!el) continue
+      const state = i < activeIdx ? 'past' : i === activeIdx ? 'active' : 'future'
+      el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+      el.classList.add(`reader-word--tp-${state}`)
+    }
+  }, [])
+
+  // Apply / clear tracking as the toggle flips and as the active word moves.
+  useEffect(() => {
+    if (!trackingEnabled) {
+      const refs = wordRefs.current
+      const seen = new Set()
+      for (let i = 0; i < refs.length; i++) {
+        const el = refs[i]
+        if (!el || seen.has(el)) continue
+        seen.add(el)
+        el.classList.remove('reader-word--tp-past', 'reader-word--tp-active', 'reader-word--tp-future')
+      }
+      trackedActiveIdxRef.current = -1
+      return
+    }
+    const idx = findActiveWordIdx(words, currentTimeRef.current)
+    trackedActiveIdxRef.current = idx
+    applyTrackingClasses(idx)
+  }, [trackingEnabled, words, applyTrackingClasses])
+
   // Drive scroll at a constant velocity across the whole transcript —
   // "Star Wars crawl" style. Position = (elapsed / total) * scroll range.
   // The active-word highlight still tracks the audio word-by-word so the
@@ -286,6 +352,15 @@ const TranscriptFlow = ({
       }
       const time = currentTimeRef.current
       updateActiveWord(time)
+
+      // Repaint past/active/future only when the active index crosses.
+      if (trackingEnabled) {
+        const idx = findActiveWordIdx(words, time)
+        if (idx !== trackedActiveIdxRef.current) {
+          trackedActiveIdxRef.current = idx
+          applyTrackingClasses(idx)
+        }
+      }
 
       const progress = Math.max(0, Math.min(1, (time - firstStart) / totalSpan))
       const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
@@ -315,7 +390,14 @@ const TranscriptFlow = ({
   useEffect(() => {
     if (isSynced) return
     updateActiveWord(currentTime)
-  }, [isSynced, currentTime, updateActiveWord])
+    if (trackingEnabled) {
+      const idx = findActiveWordIdx(words, currentTime)
+      if (idx !== trackedActiveIdxRef.current) {
+        trackedActiveIdxRef.current = idx
+        applyTrackingClasses(idx)
+      }
+    }
+  }, [isSynced, currentTime, updateActiveWord, trackingEnabled, words, applyTrackingClasses])
 
   // Scroll listeners: manage fade-in/out hints and detect manual scroll.
   useEffect(() => {
@@ -344,6 +426,15 @@ const TranscriptFlow = ({
         hasTopFade ? 'transcript-roller-window--has-top-fade' : ''
       } ${hasBottomFade ? 'transcript-roller-window--has-bottom-fade' : ''}`}
     >
+      <button
+        type="button"
+        className={`transcript-flow-tracking-toggle${trackingEnabled ? ' is-active' : ''}`}
+        onClick={() => setTrackingEnabled((prev) => !prev)}
+        title={trackingEnabled ? 'Disable word tracking' : 'Enable word tracking'}
+        aria-pressed={trackingEnabled}
+      >
+        <EyeIcon open={trackingEnabled} />
+      </button>
       <div className="transcript-roller" ref={containerRef}>
         <div className="transcript-flow-track" ref={trackRef}>
           {renderedFlow}

@@ -326,13 +326,13 @@ const TranscriptFlow = ({
     applyTrackingClasses(idx)
   }, [trackingEnabled, words, applyTrackingClasses])
 
-  // Word-anchored scroll with heavy smoothing. Each frame we target the
-  // scroll position that puts the active word ~40% from the top of the
-  // viewport, then lerp the current scrollTop toward that target. Pace
-  // follows the speaker — silence holds the scroll, fast speech glides,
-  // and the active word never drifts off-centre. The lerp factor is small
-  // enough that the motion feels like a continuous river rather than a
-  // per-word snap.
+  // Word-anchored scroll with time-interpolated target and smoothing.
+  // Every frame the target scroll is computed as "where the active word
+  // is" interpolated toward "where the next word will be", weighted by
+  // progress through the active word's [start, end) window. This keeps
+  // the target moving continuously even while the active word stays on
+  // the same line — so the scroll never sits still and then leaps at a
+  // line boundary. A gentle lerp on top smooths any remaining step.
   useEffect(() => {
     if (!isSynced) return undefined
     if (!words.length) return undefined
@@ -348,7 +348,6 @@ const TranscriptFlow = ({
       const time = currentTimeRef.current
       updateActiveWord(time)
 
-      // Repaint past/active/future only when the active index crosses.
       if (trackingEnabled) {
         const idx = findActiveWordIdx(words, time)
         if (idx !== trackedActiveIdxRef.current) {
@@ -360,13 +359,33 @@ const TranscriptFlow = ({
       const activeIdx = findActiveWordIdx(words, time)
       const activeEl = activeIdx >= 0 ? wordRefs.current[activeIdx] : null
       if (activeEl) {
-        const anchor = container.clientHeight * 0.4
-        const rawTarget = activeEl.offsetTop - anchor
+        const activeY = activeEl.offsetTop
+        // Look ahead a few words for the next distinct y. Same-line words
+        // share an offsetTop, so naïve "next word" interpolation would be
+        // flat — walk forward until we find a word on a different line.
+        let nextY = activeY
+        let nextStart = words[activeIdx].end
+        for (let j = activeIdx + 1; j < words.length; j++) {
+          const nEl = wordRefs.current[j]
+          if (!nEl) continue
+          if (nEl.offsetTop !== activeY) {
+            nextY = nEl.offsetTop
+            nextStart = words[j].start
+            break
+          }
+        }
+
+        const w = words[activeIdx]
+        const span = Math.max(0.001, nextStart - w.start)
+        const progress = Math.max(0, Math.min(1, (time - w.start) / span))
+        const interpY = activeY + (nextY - activeY) * progress
+        const rawTarget = interpY - container.clientHeight * 0.4
         const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
         const target = Math.max(0, Math.min(maxScroll, rawTarget))
+
+        // Slow lerp — keeps scroll always moving but never snapping.
         const current = container.scrollTop
-        // Lerp — 0.08 feels smooth without lagging far behind the speaker.
-        const next = current + (target - current) * 0.08
+        const next = current + (target - current) * 0.06
 
         programmaticScrollRef.current = true
         container.scrollTop = next

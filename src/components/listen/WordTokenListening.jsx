@@ -72,18 +72,21 @@ const WordTokenListening = forwardRef(({
   if (highlighted) classNames.push('reader-word--highlighted')
   if (isWordPairMatch) classNames.push('reader-word--word-pair-match')
 
-  return (
-    <span
-      ref={ref}
-      className={classNames.join(' ')}
-      style={style}
-      data-word-status={normalisedStatus}
-      onMouseUp={handleMouseUp}
-      onClick={handleClick}
-    >
-      {text}
-    </span>
-  )
+  // Only install handlers when callbacks are actually provided. Callers that
+  // delegate click/selection handling to an ancestor (see TranscriptFlow)
+  // pass null for both, which lets us skip attaching 2000+ React listeners
+  // to individual words.
+  const nodeProps = {
+    ref,
+    className: classNames.join(' '),
+    style,
+    'data-word-status': normalisedStatus,
+    'data-word-text': text,
+  }
+  if (onWordClick) nodeProps.onClick = handleClick
+  if (onWordClick || onSelectionTranslate) nodeProps.onMouseUp = handleMouseUp
+
+  return <span {...nodeProps}>{text}</span>
 })
 
 WordTokenListening.displayName = 'WordTokenListening'

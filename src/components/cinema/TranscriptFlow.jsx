@@ -265,8 +265,6 @@ const TranscriptFlow = ({
             language={language}
             listeningMode="extensive"
             enableHighlight={showWordStatus}
-            onWordClick={onWordClick}
-            onSelectionTranslate={onSelectionTranslate}
             ref={getPhraseRefSetter(startIdx, endIdx)}
           />,
         )
@@ -293,8 +291,6 @@ const TranscriptFlow = ({
           language={language}
           listeningMode="extensive"
           enableHighlight={showWordStatus}
-          onWordClick={onWordClick}
-          onSelectionTranslate={onSelectionTranslate}
           ref={getWordRefSetter(idx)}
         />,
       )
@@ -302,7 +298,24 @@ const TranscriptFlow = ({
     })
 
     return nodes
-  }, [entries, words, expressions, vocabEntries, language, showWordStatus, onWordClick, onSelectionTranslate, getWordRefSetter, getPhraseRefSetter])
+  }, [entries, words, expressions, vocabEntries, language, showWordStatus, getWordRefSetter, getPhraseRefSetter])
+
+  // Delegated click handler. Replaces the 2000-per-word onClick listeners
+  // with one on the track. onSelectionTranslate still flows through the
+  // existing panel-level onMouseUp (in TranscriptPanel), which is why we
+  // don't need a corresponding onMouseUp here.
+  const handleTrackClick = useCallback((event) => {
+    if (!onWordClick) return
+    const wordEl = event.target.closest('.reader-word')
+    if (!wordEl) return
+    const text = wordEl.getAttribute('data-word-text')
+    if (!text) return
+    const selection = typeof window !== 'undefined'
+      ? window.getSelection()?.toString()?.trim()
+      : ''
+    if (selection) return
+    onWordClick(text, event)
+  }, [onWordClick])
 
   // No passive active-word treatment. Subtitle parity: a word is only
   // visually highlighted when the tracking toggle is on (past/active/future
@@ -582,7 +595,7 @@ const TranscriptFlow = ({
         <EyeIcon open={trackingEnabled} />
       </button>
       <div className="transcript-roller" ref={containerRef}>
-        <div className="transcript-flow-track" ref={trackRef}>
+        <div className="transcript-flow-track" ref={trackRef} onClick={handleTrackClick}>
           {renderedFlow}
         </div>
       </div>

@@ -131,7 +131,10 @@ const TranscriptFlow = ({
     return [...new Set([...userExpressions, ...detected])].sort((a, b) => b.length - a.length)
   }, [contentExpressions, vocabEntries])
 
-  wordRefs.current = []
+  // NOTE: don't reset wordRefs.current on every render. Ref callbacks only
+  // fire on mount / unmount; if we wiped the array each render, refs would
+  // stay empty after the first commit and the rAF loop would have no DOM
+  // elements to measure. We let refs repopulate naturally as words mount.
 
   // Render the flow as inline spans with <br /> separators between
   // terminal-punctuation segment boundaries. Each word is a WordTokenListening
@@ -192,7 +195,8 @@ const TranscriptFlow = ({
         // one (skip — rendered by the phrase start).
         const phrase = phraseByStart.get(idx)
         if (!phrase) return
-        const refIdx = idx
+        const startIdx = phrase.startIdx
+        const endIdx = phrase.endIdx
         nodes.push(
           <WordTokenListening
             key={`w-${entryIdx}`}
@@ -204,7 +208,13 @@ const TranscriptFlow = ({
             onWordClick={onWordClick}
             onSelectionTranslate={onSelectionTranslate}
             ref={(el) => {
-              if (el) wordRefs.current[refIdx] = el
+              if (!el) return
+              // Point every word index covered by the phrase at this node
+              // so the rAF scroll loop always finds a DOM element even when
+              // the active time falls inside the middle of the phrase.
+              for (let k = startIdx; k <= endIdx; k++) {
+                wordRefs.current[k] = el
+              }
             }}
           />,
         )

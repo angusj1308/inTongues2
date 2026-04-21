@@ -332,15 +332,15 @@ const TranscriptFlow = ({
   }, [trackingEnabled, words, applyTrackingClasses])
 
   // Drive scroll at a constant velocity across the whole transcript —
-  // "Star Wars crawl" style. Position = (elapsed / total) * scroll range.
-  // The active-word highlight still tracks the audio word-by-word so the
-  // user can see where they are even though the scroll is steady.
+  // "Star Wars crawl" style. The scroll holds at 0 while the active word
+  // is still naturally above the top fade zone; once it clears the fade,
+  // a linear map from that moment to the last word's end fills the
+  // remaining scroll range. The active-word highlight still tracks the
+  // audio word-by-word so the user can see where they are.
   useEffect(() => {
     if (!isSynced) return undefined
     if (!words.length) return undefined
-    const firstStart = words[0].start
     const lastEnd = words[words.length - 1].end
-    const totalSpan = Math.max(0.001, lastEnd - firstStart)
 
     let rafId = null
     const tick = () => {
@@ -362,9 +362,30 @@ const TranscriptFlow = ({
         }
       }
 
-      const progress = Math.max(0, Math.min(1, (time - firstStart) / totalSpan))
-      const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
-      const target = progress * maxScroll
+      // Find the first word whose natural offsetTop sits below the top
+      // fade zone. Up to that point the scroll holds at 0 so the active
+      // word isn't hidden behind the fade the instant playback starts.
+      const fadeBottom = container.clientHeight * 0.18
+      let clearIdx = 0
+      for (let i = 0; i < words.length; i++) {
+        const el = wordRefs.current[i]
+        if (!el) continue
+        if (el.offsetTop >= fadeBottom) {
+          clearIdx = i
+          break
+        }
+      }
+      const tStart = words[clearIdx].start
+
+      let target
+      if (time < tStart) {
+        target = 0
+      } else {
+        const scrollSpan = Math.max(0.001, lastEnd - tStart)
+        const progress = Math.max(0, Math.min(1, (time - tStart) / scrollSpan))
+        const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
+        target = progress * maxScroll
+      }
 
       programmaticScrollRef.current = true
       container.scrollTop = target
@@ -383,7 +404,7 @@ const TranscriptFlow = ({
         clearProgrammaticTimerRef.current = null
       }
     }
-  }, [isSynced, words, updateActiveWord, syncToken])
+  }, [isSynced, words, updateActiveWord, syncToken, trackingEnabled, applyTrackingClasses])
 
   // When unsynced, keep the active-word highlight tracking the audio even
   // though scroll doesn't follow — user still sees where they are.

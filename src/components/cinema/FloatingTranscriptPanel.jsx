@@ -49,6 +49,11 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
   const [isMinimized, setIsMinimized] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 })
+  // Flips true once the user drags or resizes. While false the panel re-lays
+  // itself out on every viewport change so the design proportions match the
+  // current browser size. Once true, we respect the user's placement and only
+  // clamp on viewport change.
+  const hasUserCustomisedRef = useRef(false)
 
   // Clamp position to keep panel visible on screen
   const clampPosition = useCallback((x, y, width, height) => {
@@ -63,20 +68,44 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     }
   }, [])
 
-  // Initialize position on first open (right side, flush with header clearance)
+  // Compute the design-tuned default bounds from the live viewport and apply
+  // them. Used on first open, on viewport / fullscreen change (while not
+  // customised), and on double-click reset.
+  const applyDefaultBounds = useCallback(() => {
+    const { width, height } = computeDefaultBounds()
+    setBounds({
+      x: window.innerWidth - width - EDGE_PADDING,
+      y: HEADER_CLEARANCE,
+      width,
+      height,
+    })
+  }, [])
+
+  // Initialize on first open
   useEffect(() => {
     if (isOpen && bounds.x === null) {
-      setBounds((prev) => ({
-        ...prev,
-        x: window.innerWidth - prev.width - EDGE_PADDING,
-        y: HEADER_CLEARANCE,
-      }))
+      applyDefaultBounds()
     }
-  }, [isOpen, bounds.x])
+  }, [isOpen, bounds.x, applyDefaultBounds])
 
-  // Handle window resize - clamp panel to stay visible
+  // React to viewport changes (window resize + fullscreen enter/exit).
+  // Not yet customised → re-lay out to the design proportions.
+  // Customised → just clamp so the panel doesn't slip off-screen.
   useEffect(() => {
-    const handleWindowResize = () => {
+    const handleViewportChange = () => {
+      if (!hasUserCustomisedRef.current) {
+        setBounds((prev) => {
+          if (prev.x === null) return prev
+          const { width, height } = computeDefaultBounds()
+          return {
+            x: window.innerWidth - width - EDGE_PADDING,
+            y: HEADER_CLEARANCE,
+            width,
+            height,
+          }
+        })
+        return
+      }
       setBounds((prev) => {
         if (prev.x === null) return prev
         const clamped = clampPosition(prev.x, prev.y, prev.width, prev.height)
@@ -84,21 +113,19 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
       })
     }
 
-    window.addEventListener('resize', handleWindowResize)
-    return () => window.removeEventListener('resize', handleWindowResize)
+    window.addEventListener('resize', handleViewportChange)
+    document.addEventListener('fullscreenchange', handleViewportChange)
+    return () => {
+      window.removeEventListener('resize', handleViewportChange)
+      document.removeEventListener('fullscreenchange', handleViewportChange)
+    }
   }, [clampPosition])
 
   // Reset position + size on double-click header
   const handleHeaderDoubleClick = useCallback(() => {
-    const { width, height } = computeDefaultBounds()
-    setBounds((prev) => ({
-      ...prev,
-      x: window.innerWidth - width - EDGE_PADDING,
-      y: HEADER_CLEARANCE,
-      width,
-      height,
-    }))
-  }, [])
+    hasUserCustomisedRef.current = false
+    applyDefaultBounds()
+  }, [applyDefaultBounds])
 
   // Handle drag start (pointer events for mouse + touch)
   const handleDragStart = useCallback((e) => {
@@ -106,6 +133,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     if (e.target.closest('button') || e.target.closest('.floating-panel-resize-handle')) return
     e.preventDefault()
     e.target.setPointerCapture(e.pointerId)
+    hasUserCustomisedRef.current = true
     setIsDragging(true)
     setBounds((prev) => {
       dragStartRef.current = {
@@ -123,6 +151,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     e.preventDefault()
     e.stopPropagation()
     e.target.setPointerCapture(e.pointerId)
+    hasUserCustomisedRef.current = true
     setIsResizing(true)
     setResizeDirection(direction)
     setBounds((prev) => {

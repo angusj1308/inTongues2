@@ -51,12 +51,10 @@ const WordTokenListening = ({
       if (onSelectionTranslate) {
         onSelectionTranslate(event)
       }
-      return
     }
-
-    if (onWordClick) {
-      onWordClick(text, event)
-    }
+    // onWordClick is invoked by handleClick (which fires after mouseup for
+    // simple clicks). Firing here too would double-invoke and immediately
+    // toggle the popup shut.
   }
 
   const handleClick = (event) => {

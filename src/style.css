@@ -53,6 +53,26 @@
   --hlt-familiar: #CCDCEA;
 }
 
+/* Cinema transcript: colour highlighted words by status to match the
+   subtitle palette (new/unknown → --hlt-new, recognised → --hlt-recognised,
+   familiar → --hlt-familiar). Scoped to .cinema-page so the listening
+   library transcript keeps its background-tint style. */
+.cinema-page .floating-panel-content .reader-word--highlighted[data-word-status='new'],
+.cinema-page .floating-panel-content .reader-word--highlighted[data-word-status='unknown'] {
+  color: var(--hlt-new);
+  background: none;
+}
+
+.cinema-page .floating-panel-content .reader-word--highlighted[data-word-status='recognised'] {
+  color: var(--hlt-recognised);
+  background: none;
+}
+
+.cinema-page .floating-panel-content .reader-word--highlighted[data-word-status='familiar'] {
+  color: var(--hlt-familiar);
+  background: none;
+}
+
 /* Palette toggle circle in the cinema header — no ring, uses the
    cinema palette's new/unknown colour so it tracks the strongest
    status tone across terracotta/sage/slate. */

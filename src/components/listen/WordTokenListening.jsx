@@ -77,6 +77,7 @@ const WordTokenListening = ({
     <span
       className={classNames.join(' ')}
       style={style}
+      data-word-status={normalisedStatus}
       onMouseUp={handleMouseUp}
       onClick={handleClick}
     >

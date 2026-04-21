@@ -2,28 +2,21 @@ import { useMemo, memo, useState } from 'react'
 import { LIGHT_HIGHLIGHTS } from '../../constants/highlightColors'
 import { normaliseExpression } from '../../services/vocab'
 
-// Eye icon for tracking toggle. Inactive vs active is signalled via CSS
-// opacity on `currentColor`, not a separate closed/slashed variant — the eye
-// stays legibly an eye in both states.
-const EyeIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    width="18"
-    height="18"
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 12 C 6 5, 9 4, 12 4 C 15 4, 18 5, 21 12" strokeWidth="2" />
-    <path d="M3 12 C 6 17, 9 18, 12 18 C 15 18, 18 17, 21 12" strokeWidth="1.2" />
-    <path d="M3 12 L 4.6 11.3 M3 12 L 4.6 12.7" strokeWidth="1.2" />
-    <circle cx="12" cy="12" r="3.2" strokeWidth="1.5" />
-    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
-    <line x1="7" y1="4.8" x2="6" y2="2.8" strokeWidth="1.2" />
-    <line x1="10" y1="4" x2="9.6" y2="1.8" strokeWidth="1.2" />
-    <line x1="14" y1="4" x2="14.4" y2="1.8" strokeWidth="1.2" />
-    <line x1="17" y1="4.8" x2="18" y2="2.8" strokeWidth="1.2" />
+// Eye icon for tracking toggle
+const EyeIcon = ({ open }) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+    {open ? (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ) : (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    )}
   </svg>
 )
 
@@ -194,7 +187,7 @@ const KaraokeSubtitles = ({
             onClick={() => setTrackingEnabled(!trackingEnabled)}
             title={trackingEnabled ? 'Disable word tracking' : 'Enable word tracking'}
           >
-            <EyeIcon />
+            <EyeIcon open={trackingEnabled} />
           </button>
         )}
         <div className={`karaoke-line${isInGap ? ' karaoke-line--gap' : ''}`}>

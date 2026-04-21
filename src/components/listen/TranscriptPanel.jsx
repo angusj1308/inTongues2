@@ -22,14 +22,29 @@ const TranscriptPanel = ({
   flowMode = false,
   currentTime = 0,
 }) => {
-  // Track vocab version to force TranscriptRoller re-renders when status changes
+  // Bump vocabVersion (→ full remount) only when the SET of vocab keys
+  // changes — i.e. a word/phrase was added or removed. Status-only changes
+  // propagate through normal prop updates and no longer need the blunt
+  // remount, which was rebuilding the entire transcript on every click.
   const [vocabVersion, setVocabVersion] = useState(0)
   const prevEntriesRef = useRef(vocabEntries)
 
   useEffect(() => {
-    if (prevEntriesRef.current !== vocabEntries) {
+    const prev = prevEntriesRef.current
+    if (prev === vocabEntries) return
+    prevEntriesRef.current = vocabEntries
+
+    const prevKeys = Object.keys(prev)
+    const nextKeys = Object.keys(vocabEntries)
+    if (prevKeys.length !== nextKeys.length) {
       setVocabVersion(v => v + 1)
-      prevEntriesRef.current = vocabEntries
+      return
+    }
+    for (let i = 0; i < nextKeys.length; i++) {
+      if (!(nextKeys[i] in prev)) {
+        setVocabVersion(v => v + 1)
+        return
+      }
     }
   }, [vocabEntries])
 

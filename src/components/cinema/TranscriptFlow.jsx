@@ -457,7 +457,9 @@ const TranscriptFlow = ({
     }
   }, [isSynced, currentTime, updateActiveWord, trackingEnabled, words, applyTrackingClasses])
 
-  // Scroll listeners: manage fade-in/out hints and detect manual scroll.
+  // Scroll listener: manage fade-in/out hints only. User-vs-programmatic
+  // disambiguation is done in a separate effect below via input events, so
+  // this handler doesn't need to guess which kind of scroll just happened.
   useEffect(() => {
     const container = containerRef.current
     if (!container) return undefined
@@ -467,15 +469,44 @@ const TranscriptFlow = ({
       const threshold = 2
       setHasTopFade(scrollTop > threshold)
       setHasBottomFade(scrollTop + clientHeight < scrollHeight - threshold)
-
-      if (programmaticScrollRef.current) return
-      if (container.matches(':hover') && onUserScroll) onUserScroll()
     }
 
     container.addEventListener('scroll', handleScroll)
     handleScroll()
 
     return () => container.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Break sync the moment the user tries to scroll the transcript. We listen
+  // on raw input events (wheel / touch / scroll-related keys) instead of the
+  // scroll event because the auto-scroll rAF loop writes scrollTop every
+  // frame and would otherwise drown out any "was this scroll from the user?"
+  // heuristic. These input events are only fired by real users, never by the
+  // programmatic scrollTop assignments in the sync loop.
+  useEffect(() => {
+    if (!onUserScroll) return undefined
+    const container = containerRef.current
+    if (!container) return undefined
+
+    const SCROLL_KEYS = new Set([
+      'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ',
+    ])
+    const handleUserInput = () => onUserScroll()
+    const handleKey = (event) => {
+      if (SCROLL_KEYS.has(event.key)) onUserScroll()
+    }
+
+    container.addEventListener('wheel', handleUserInput, { passive: true })
+    container.addEventListener('touchstart', handleUserInput, { passive: true })
+    container.addEventListener('touchmove', handleUserInput, { passive: true })
+    container.addEventListener('keydown', handleKey)
+
+    return () => {
+      container.removeEventListener('wheel', handleUserInput)
+      container.removeEventListener('touchstart', handleUserInput)
+      container.removeEventListener('touchmove', handleUserInput)
+      container.removeEventListener('keydown', handleKey)
+    }
   }, [onUserScroll])
 
   return (

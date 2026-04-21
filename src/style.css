@@ -84,17 +84,28 @@
 }
 
 /* Karaoke-style past/active/future tracking in the transcript flow.
-   Same affordance as the subtitle eye toggle. */
+   Same affordance as the subtitle eye toggle. Opacity values match the
+   subtitle karaoke exactly (past 0.5, active 1, future 0.7); the active
+   word also gets a clear background tint + full colour so it pops in the
+   denser transcript context where the eye has more words to scan. */
 .cinema-page .floating-panel-content .reader-word--tp-past {
-  opacity: 0.45;
-}
-
-.cinema-page .floating-panel-content .reader-word--tp-active {
-  opacity: 1;
+  opacity: 0.5;
 }
 
 .cinema-page .floating-panel-content .reader-word--tp-future {
   opacity: 0.7;
+}
+
+.cinema-page .floating-panel-content .reader-word--tp-active {
+  opacity: 1;
+  color: #ffffff;
+  background: color-mix(in srgb, var(--hlt-new) 55%, transparent);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.is-light .floating-panel-content .reader-word--tp-active {
+  color: #0f172a;
 }
 
 /* Tracking-toggle button pinned top-right of the transcript window. */

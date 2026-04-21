@@ -47,6 +47,16 @@
   --hlt-familiar: #CDDAC4;
 }
 
+/* Suppress the browser's default focus ring on cinema buttons when the
+   focus came from a mouse click (tap / click leaves focus on the button,
+   then pressing Space for play/pause makes the blue outline linger). Keep
+   it for genuine keyboard focus (`:focus-visible`) so tab navigation stays
+   accessible. */
+.cinema-page button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
 .cinema-page[data-palette='slate'] {
   --hlt-new: #3D6A94;
   --hlt-recognised: #7AA3C9;

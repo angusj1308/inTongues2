@@ -379,7 +379,31 @@ const TranscriptFlow = ({
         const scrollSpan = Math.max(0.001, lastEnd - tStart)
         const progress = Math.max(0, Math.min(1, (time - tStart) / scrollSpan))
         const maxScroll = Math.max(0, track.scrollHeight - container.clientHeight)
-        target = progress * maxScroll
+        const linearTarget = progress * maxScroll
+
+        // Drift correction. Average speech rate varies across the video,
+        // so pure linear scroll accumulates error — most visible as the
+        // active word drifting toward the bottom near the end. If the
+        // active word's natural anchor position is far from the linear
+        // target, blend a small fraction of the word-aligned target in.
+        // Dead zone keeps the feel steady during normal speech.
+        const activeIdx = findActiveWordIdx(words, time)
+        const activeEl = activeIdx >= 0 ? wordRefs.current[activeIdx] : null
+        if (activeEl) {
+          const anchor = container.clientHeight * 0.4
+          const wordAlignedTarget = activeEl.offsetTop - anchor
+          const drift = wordAlignedTarget - linearTarget
+          const deadZone = 40
+          if (Math.abs(drift) > deadZone) {
+            const over = drift - Math.sign(drift) * deadZone
+            target = linearTarget + over * 0.15
+          } else {
+            target = linearTarget
+          }
+        } else {
+          target = linearTarget
+        }
+        target = Math.max(0, Math.min(maxScroll, target))
       }
 
       programmaticScrollRef.current = true

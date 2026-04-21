@@ -274,16 +274,11 @@ const TranscriptFlow = ({
     return nodes
   }, [entries, words, expressions, vocabEntries, language, showWordStatus, onWordClick, onSelectionTranslate])
 
-  // Highlight the word whose [start, end) contains currentTime. We mutate
-  // classList directly to avoid re-rendering the whole flow every frame.
-  const updateActiveWord = useCallback((time) => {
-    const idx = findActiveWordIdx(words, time)
-    const nextEl = idx >= 0 ? wordRefs.current[idx] : null
-    if (nextEl === activeWordElRef.current) return
-    if (activeWordElRef.current) activeWordElRef.current.classList.remove('reader-word--time-active')
-    if (nextEl) nextEl.classList.add('reader-word--time-active')
-    activeWordElRef.current = nextEl
-  }, [words])
+  // No passive active-word treatment. Subtitle parity: a word is only
+  // visually highlighted when the tracking toggle is on (past/active/future
+  // opacity classes). Kept as a noop placeholder so the existing call sites
+  // in the rAF loop and the unsynced effect don't need branching.
+  const updateActiveWord = useCallback(() => {}, [])
 
   // Karaoke-style past/active/future tracking. When enabled, every word gets
   // one of .reader-word--tp-past / --tp-active / --tp-future so CSS can dim

@@ -144,7 +144,7 @@ const IntonguesCinema = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [playbackStatus, setPlaybackStatus] = useState({ currentTime: 0, duration: 0, isPlaying: false })
-  const [transcript, setTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
+  const [transcript, setTranscript] = useState({ text: '', segments: [], sentenceSegments: [], intensiveSegments: [] })
   const [transcriptError, setTranscriptError] = useState('')
   const [transcriptLoading, setTranscriptLoading] = useState(false)
 
@@ -152,8 +152,8 @@ const IntonguesCinema = () => {
   const [isDubbed, setIsDubbed] = useState(false)
   const [dubbedAudioUrl, setDubbedAudioUrl] = useState('')
   const [activeSubtitleLanguage, setActiveSubtitleLanguage] = useState('target')
-  const [sourceTranscript, setSourceTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
-  const [targetTranscript, setTargetTranscript] = useState({ text: '', segments: [], sentenceSegments: [] })
+  const [sourceTranscript, setSourceTranscript] = useState({ text: '', segments: [], sentenceSegments: [], intensiveSegments: [] })
+  const [targetTranscript, setTargetTranscript] = useState({ text: '', segments: [], sentenceSegments: [], intensiveSegments: [] })
   const dubbedAudioRef = useRef(null)
   const [vocabEntries, setVocabEntries] = useState({})
   const [translations, setTranslations] = useState({})
@@ -340,6 +340,22 @@ const normaliseSegments = (segments = []) =>
     })
     .filter((segment) => segment.text)
 
+// Intensive segments are built server-side from word-level audio pauses and
+// already have a clean shape. This normaliser is just a defensive pass —
+// preserves `gapBefore` (ms) so we can inspect chunk boundaries when tuning
+// the pause threshold.
+const normaliseIntensiveSegments = (segments = []) => {
+  const base = normaliseSegments(segments)
+  if (!Array.isArray(segments)) return base
+  return base.map((seg, i) => {
+    const raw = segments[i]
+    if (Number.isFinite(raw?.gapBefore)) {
+      return { ...seg, gapBefore: Number(raw.gapBefore) }
+    }
+    return seg
+  })
+}
+
 // Merge choppy segments into complete sentences while preserving word-level timing
 const mergeSegmentsIntoSentences = (segments = []) => {
   if (!segments.length) return []
@@ -472,6 +488,25 @@ const normalisePagesToSegments = (pages = []) =>
   // Generate chunks for active mode
   const chunks = useMemo(() => generateChunks(displaySegments), [displaySegments])
 
+  // Intensive-mode segment list. Prefers the server-built pause-based chunks
+  // (written at import time from word-level audio gaps); falls back to the
+  // cue-derived `displaySegments` for transcripts that have no intensive
+  // build yet (e.g. imported before this feature shipped, or manual captions
+  // with no word-level timing).
+  const intensiveSegments = useMemo(() => {
+    const raw = Array.isArray(transcript?.intensiveSegments)
+      ? transcript.intensiveSegments
+      : null
+    if (raw && raw.length) {
+      return raw.filter(
+        (seg) => seg?.text?.trim() && Number.isFinite(seg?.start),
+      )
+    }
+    return (displaySegments || []).filter(
+      (seg) => seg?.text?.trim() && Number.isFinite(seg?.start),
+    )
+  }, [transcript, displaySegments])
+
   // Calculate active transcript index based on current time
   const activeTranscriptIndex = useMemo(() => {
     if (!displaySegments.length) return -1
@@ -556,7 +591,7 @@ const normalisePagesToSegments = (pages = []) =>
     const loadTranscript = async () => {
       setTranscriptLoading(true)
       setTranscriptError('')
-      setTranscript({ text: '', segments: [], sentenceSegments: [] })
+      setTranscript({ text: '', segments: [], sentenceSegments: [], intensiveSegments: [] })
       setTranslations({})
       try {
         const transcriptRef = doc(db, 'users', user.uid, 'youtubeVideos', id, 'transcripts', transcriptDocId)
@@ -566,7 +601,8 @@ const normalisePagesToSegments = (pages = []) =>
           const data = cached.data()
           const segments = normaliseSegments(data?.segments)
           const sentenceSegments = normaliseSegments(data?.sentenceSegments)
-          setTranscript({ text: data?.text || '', segments, sentenceSegments })
+          const intensiveSegments = normaliseIntensiveSegments(data?.intensiveSegments)
+          setTranscript({ text: data?.text || '', segments, sentenceSegments, intensiveSegments })
           if (sentenceSegments.length > 0 || segments.length > 0) return
         }
 
@@ -591,7 +627,8 @@ const normalisePagesToSegments = (pages = []) =>
         if (!isCancelled) {
           const segments = normaliseSegments(data?.segments)
           const sentenceSegments = normaliseSegments(data?.sentenceSegments)
-          setTranscript({ text: data?.text || '', segments, sentenceSegments })
+          const intensiveSegments = normaliseIntensiveSegments(data?.intensiveSegments)
+          setTranscript({ text: data?.text || '', segments, sentenceSegments, intensiveSegments })
 
           const latest = await getDoc(transcriptRef)
           if (latest.exists()) {
@@ -600,6 +637,9 @@ const normalisePagesToSegments = (pages = []) =>
               text: latestData?.text || data?.text || '',
               segments: normaliseSegments(latestData?.segments || data?.segments),
               sentenceSegments: normaliseSegments(latestData?.sentenceSegments || data?.sentenceSegments),
+              intensiveSegments: normaliseIntensiveSegments(
+                latestData?.intensiveSegments || data?.intensiveSegments,
+              ),
             })
           }
         }
@@ -639,6 +679,7 @@ const normalisePagesToSegments = (pages = []) =>
             text: data?.text || '',
             segments: normaliseSegments(data?.segments),
             sentenceSegments: normaliseSegments(data?.sentenceSegments),
+            intensiveSegments: normaliseIntensiveSegments(data?.intensiveSegments),
           })
         }
 
@@ -651,6 +692,7 @@ const normalisePagesToSegments = (pages = []) =>
             text: data?.text || '',
             segments: normaliseSegments(data?.segments),
             sentenceSegments: normaliseSegments(data?.sentenceSegments),
+            intensiveSegments: normaliseIntensiveSegments(data?.intensiveSegments),
           })
         }
       } catch (err) {
@@ -685,7 +727,12 @@ const normalisePagesToSegments = (pages = []) =>
         const snapshot = await getDocs(pagesQuery)
         if (cancelled) return
         const segments = normalisePagesToSegments(snapshot.docs.map((docSnap) => docSnap.data()))
-        setTranscript({ text: segments.map((seg) => seg.text).join(' '), segments, sentenceSegments: [] })
+        setTranscript({
+          text: segments.map((seg) => seg.text).join(' '),
+          segments,
+          sentenceSegments: [],
+          intensiveSegments: [],
+        })
       } catch (err) {
         console.error('Failed to load Spotify transcript', err)
         if (!cancelled) setTranscriptError('Unable to load subtitles right now.')
@@ -1718,6 +1765,7 @@ const normalisePagesToSegments = (pages = []) =>
         <IntensiveCinemaMode
           cinemaMode={cinemaMode}
           transcriptSegments={displaySegments}
+          intensiveSegments={intensiveSegments}
           language={transcriptLanguage}
           nativeLanguage={profile?.nativeLanguage}
           vocabEntries={vocabEntries}
@@ -1844,31 +1892,28 @@ const normalisePagesToSegments = (pages = []) =>
                       setActiveStep(1)
                       handleSeek(chunks[idx].start)
                     } else if (mode.id === 'intensive') {
-                      // Matches IntensiveCinemaMode's internal filter so the
-                      // index we set points at the same entry the component
-                      // will render.
-                      const filtered = (displaySegments || []).filter(
-                        (seg) => seg?.text?.trim() && typeof seg.start === 'number',
-                      )
-                      if (filtered.length) {
-                        let idx = filtered.findIndex((seg) => {
+                      // Uses the same `intensiveSegments` list that we pass
+                      // into IntensiveCinemaMode, so the index we set lines
+                      // up exactly with what the component renders.
+                      if (intensiveSegments.length) {
+                        let idx = intensiveSegments.findIndex((seg) => {
                           const segEnd = Number.isFinite(seg.end)
                             ? seg.end
                             : seg.start + 5
                           return now >= seg.start && now <= segEnd
                         })
                         if (idx < 0) {
-                          idx = now < filtered[0].start
+                          idx = now < intensiveSegments[0].start
                             ? 0
-                            : filtered.length - 1
+                            : intensiveSegments.length - 1
                         }
                         setIntensiveSegmentIndex(idx)
                         // Stash the target so it survives the player remount
                         // that the mode change causes; handlePlayerReady will
                         // replay it. The immediate seek also fires for the
                         // case where the player happens not to remount.
-                        pendingSeekRef.current = filtered[idx].start
-                        handleSeek(filtered[idx].start)
+                        pendingSeekRef.current = intensiveSegments[idx].start
+                        handleSeek(intensiveSegments[idx].start)
                       }
                     }
 

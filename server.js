@@ -2541,6 +2541,119 @@ function buildSentenceSegmentsFromCues(cues) {
   return out
 }
 
+// ---- Intensive-mode chunker ---------------------------------------------
+// Intensive mode needs "ear-sized" chunks — bounded by the audio pauses the
+// speaker actually produced, not by subtitle cue boundaries. We flatten the
+// segment.words[] streams across the whole transcript into one timeline and
+// start a new intensive chunk whenever the silence between two consecutive
+// words exceeds INTENSIVE_PAUSE_THRESHOLD_MS. Nothing else cuts — no
+// punctuation heuristic, no max-word cap — so the output reflects the raw
+// speech rhythm. Language-agnostic by construction.
+// -------------------------------------------------------------------------
+const INTENSIVE_SEGMENTS_VERSION = 1
+const INTENSIVE_PAUSE_THRESHOLD_MS = 300
+
+function buildIntensiveSegmentsFromWords(
+  segments,
+  thresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS,
+) {
+  const words = []
+  for (const seg of segments || []) {
+    if (!Array.isArray(seg?.words)) continue
+    for (const w of seg.words) {
+      const text = typeof w?.text === 'string' ? w.text.trim() : ''
+      if (!text) continue
+      if (!Number.isFinite(w.start) || !Number.isFinite(w.end)) continue
+      words.push({ text, start: Number(w.start), end: Number(w.end) })
+    }
+  }
+
+  if (words.length === 0) {
+    return { segments: [], stats: null }
+  }
+
+  const thresholdSec = thresholdMs / 1000
+  const chunks = []
+  const gapSamplesMs = []
+  let currentWords = []
+  let currentGapBeforeMs = 0
+
+  const flush = () => {
+    if (!currentWords.length) return
+    chunks.push({
+      text: currentWords.map((w) => w.text).join(' '),
+      words: currentWords,
+      start: currentWords[0].start,
+      end: currentWords[currentWords.length - 1].end,
+      gapBefore: Math.round(currentGapBeforeMs),
+    })
+    currentWords = []
+  }
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
+    if (i > 0) {
+      const prev = words[i - 1]
+      const gap = word.start - prev.end
+      gapSamplesMs.push(gap * 1000)
+      if (gap > thresholdSec) {
+        flush()
+        currentGapBeforeMs = gap * 1000
+      }
+    }
+    currentWords.push(word)
+  }
+  flush()
+
+  const stats = computeIntensiveGapStats(gapSamplesMs, chunks, words.length, thresholdMs)
+  return { segments: chunks, stats }
+}
+
+function computeIntensiveGapStats(gapsMs, chunks, totalWords, thresholdMs) {
+  if (!gapsMs.length) {
+    return {
+      totalWords,
+      totalChunks: chunks.length,
+      thresholdMs,
+      gapMinMs: null,
+      gapMedianMs: null,
+      gapP90Ms: null,
+      gapP99Ms: null,
+      gapMaxMs: null,
+      chunksWithGapOver1000Ms: 0,
+    }
+  }
+  const sorted = [...gapsMs].sort((a, b) => a - b)
+  const pct = (p) =>
+    sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))]
+  return {
+    totalWords,
+    totalChunks: chunks.length,
+    thresholdMs,
+    gapMinMs: Math.round(sorted[0]),
+    gapMedianMs: Math.round(pct(50)),
+    gapP90Ms: Math.round(pct(90)),
+    gapP99Ms: Math.round(pct(99)),
+    gapMaxMs: Math.round(sorted[sorted.length - 1]),
+    chunksWithGapOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
+  }
+}
+
+function logIntensiveBuild(videoId, stats) {
+  if (!stats) {
+    console.log(`[intensive ${videoId}] no word-level timing available — skipping`)
+    return
+  }
+  console.log(
+    `[intensive ${videoId}] ` +
+    `words=${stats.totalWords} chunks=${stats.totalChunks} ` +
+    `threshold=${stats.thresholdMs}ms ` +
+    `gaps(ms) min=${stats.gapMinMs} median=${stats.gapMedianMs} ` +
+    `p90=${stats.gapP90Ms} p99=${stats.gapP99Ms} max=${stats.gapMaxMs} ` +
+    `longGaps>1s=${stats.chunksWithGapOver1000Ms}`,
+  )
+}
+
 function runYtDlp(args, { timeoutMs = 60000 } = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn('yt-dlp', args)
@@ -3586,10 +3699,40 @@ app.post('/api/youtube/transcript', async (req, res) => {
             ? cachedSentenceSegments
             : buildSentenceSegmentsFromWhisper(cachedSegments)
 
+        // Pass through cached intensiveSegments if already built at a matching
+        // version. Otherwise build them now (one-shot backfill) and persist so
+        // the next fetch is a pure cache hit.
+        let cachedIntensiveSegments = Array.isArray(existingData.intensiveSegments)
+          ? existingData.intensiveSegments
+          : null
+        let cachedIntensiveVersion = existingData.intensiveSegmentsVersion || null
+        if (
+          (!cachedIntensiveSegments || cachedIntensiveVersion !== INTENSIVE_SEGMENTS_VERSION) &&
+          cachedSegments.some((s) => Array.isArray(s.words) && s.words.length)
+        ) {
+          const { segments: rebuilt, stats } =
+            buildIntensiveSegmentsFromWords(cachedSegments)
+          logIntensiveBuild(videoId, stats)
+          if (rebuilt.length) {
+            cachedIntensiveSegments = rebuilt
+            cachedIntensiveVersion = INTENSIVE_SEGMENTS_VERSION
+            await transcriptRef.set(
+              {
+                intensiveSegments: rebuilt,
+                intensiveSegmentsVersion: INTENSIVE_SEGMENTS_VERSION,
+                intensivePauseThresholdMs: INTENSIVE_PAUSE_THRESHOLD_MS,
+              },
+              { merge: true },
+            )
+          }
+        }
+
         return res.json({
           text: existingData.text || cachedSegments.map((segment) => segment.text).join(' '),
           segments: cachedSegments,
           sentenceSegments: resolvedSentenceSegments,
+          intensiveSegments: cachedIntensiveSegments || [],
+          intensiveSegmentsVersion: cachedIntensiveVersion,
         })
       }
     }
@@ -3609,6 +3752,10 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const resolvedSentenceSegments = normaliseTranscriptSegments(dlpResult.sentenceSegments)
     const transcriptText = dlpResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
+    const { segments: intensiveSegments, stats: intensiveStats } =
+      buildIntensiveSegmentsFromWords(normalisedSegments)
+    logIntensiveBuild(videoId, intensiveStats)
+
     const transcriptPayload = {
       videoId,
       language: languageCode,
@@ -3618,6 +3765,11 @@ app.post('/api/youtube/transcript', async (req, res) => {
       text: transcriptText,
       sentenceSegments: resolvedSentenceSegments,
       createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+    }
+    if (intensiveSegments.length) {
+      transcriptPayload.intensiveSegments = intensiveSegments
+      transcriptPayload.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
+      transcriptPayload.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })
@@ -3647,6 +3799,8 @@ app.post('/api/youtube/transcript', async (req, res) => {
       text: transcriptPayload.text,
       segments: transcriptPayload.segments,
       sentenceSegments: transcriptPayload.sentenceSegments,
+      intensiveSegments: transcriptPayload.intensiveSegments || [],
+      intensiveSegmentsVersion: transcriptPayload.intensiveSegmentsVersion || null,
     })
   } catch (error) {
     console.error('Failed to transcribe YouTube audio', error)
@@ -3855,6 +4009,10 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
     const resolvedSentenceSegments = normaliseTranscriptSegments(dlpResult.sentenceSegments)
     const transcriptText = dlpResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
+    const { segments: intensiveSegments, stats: intensiveStats } =
+      buildIntensiveSegmentsFromWords(normalisedSegments)
+    logIntensiveBuild(videoId, intensiveStats)
+
     const transcriptPayload = {
       videoId,
       language: languageCode.toLowerCase(),
@@ -3864,6 +4022,11 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
       text: transcriptText,
       sentenceSegments: resolvedSentenceSegments,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+    if (intensiveSegments.length) {
+      transcriptPayload.intensiveSegments = intensiveSegments
+      transcriptPayload.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
+      transcriptPayload.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })

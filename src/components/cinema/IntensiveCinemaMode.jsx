@@ -140,6 +140,7 @@ const compareTranscriptions = (userText, actualText) => {
 const IntensiveCinemaMode = ({
   cinemaMode,
   transcriptSegments = [],
+  intensiveSegments: intensiveSegmentsProp,
   language,
   nativeLanguage,
   vocabEntries,
@@ -186,14 +187,22 @@ const IntensiveCinemaMode = ({
   const missingLanguageMessage =
     'Select a language for this content to enable translation/pronunciation.'
 
-  // Filter to valid segments with text
-  const intensiveSegments = useMemo(
-    () =>
-      (transcriptSegments || []).filter(
-        (seg) => seg?.text?.trim() && typeof seg.start === 'number'
-      ),
-    [transcriptSegments]
-  )
+  // Prefer the pause-based intensive segments built server-side from the
+  // word-level audio timing. Fall back to the subtitle segments (filtered
+  // for validity) when a transcript has no intensive build yet — e.g.
+  // imported before this feature shipped, or a manual caption track that
+  // lacks word timing.
+  const intensiveSegments = useMemo(() => {
+    if (Array.isArray(intensiveSegmentsProp) && intensiveSegmentsProp.length) {
+      const valid = intensiveSegmentsProp.filter(
+        (seg) => seg?.text?.trim() && Number.isFinite(seg?.start),
+      )
+      if (valid.length) return valid
+    }
+    return (transcriptSegments || []).filter(
+      (seg) => seg?.text?.trim() && typeof seg.start === 'number',
+    )
+  }, [intensiveSegmentsProp, transcriptSegments])
 
   const currentSegment = intensiveSegments[intensiveSegmentIndex] || null
   const currentIntensiveSentence = currentSegment?.text?.trim() || ''

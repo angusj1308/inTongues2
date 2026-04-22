@@ -2557,14 +2557,16 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 10
+const INTENSIVE_SEGMENTS_VERSION = 11
 const INTENSIVE_PAUSE_THRESHOLD_MS = 300
 // Provider-agnostic cache of word-level timings used to build intensive
 // segments. Bumping this forces the server to re-fetch word timings on
 // next open (rare — only bump if the provider list or ingestion rules
 // change). `intensiveRawWordsSource` records who produced them so we can
 // tell a Deepgram build apart from a Whisper fallback in the logs.
-const INTENSIVE_RAW_WORDS_VERSION = 1
+// v2: retired the legacy `whisperWords` promotion; every cached doc is
+// re-transcribed with the current provider chain (Deepgram-first).
+const INTENSIVE_RAW_WORDS_VERSION = 2
 
 // Sanitize a word stream before chunking:
 //  - drop entries with non-finite times / empty text
@@ -2735,9 +2737,11 @@ function logIntensiveBuild(videoId, stats, source) {
   )
 }
 
-// Read cached raw word timings off a transcript doc, tolerating the legacy
-// `whisperWords` field. Returns `{ cachedRawWords, cachedRawWordsSource }`
-// (both null if nothing usable is cached).
+// Read cached raw word timings off a transcript doc. Only intensiveRawWords
+// at the current version counts — legacy `whisperWords` is deliberately
+// ignored so we always prefer a fresh Deepgram fetch over stale whisper-1
+// data. Returns `{ cachedRawWords, cachedRawWordsSource }` (both null if
+// nothing usable is cached).
 function pickCachedRawWords(existingData) {
   if (!existingData) return { cachedRawWords: null, cachedRawWordsSource: null }
   if (
@@ -2748,12 +2752,6 @@ function pickCachedRawWords(existingData) {
     return {
       cachedRawWords: existingData.intensiveRawWords,
       cachedRawWordsSource: existingData.intensiveRawWordsSource || null,
-    }
-  }
-  if (Array.isArray(existingData.whisperWords) && existingData.whisperWords.length) {
-    return {
-      cachedRawWords: existingData.whisperWords,
-      cachedRawWordsSource: 'whisper',
     }
   }
   return { cachedRawWords: null, cachedRawWordsSource: null }
@@ -4023,20 +4021,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
           ? existingData.intensiveSegments
           : null
         let cachedIntensiveVersion = existingData.intensiveSegmentsVersion || null
-        let cachedRawWords = null
-        let cachedRawWordsSource = null
-        if (
-          Array.isArray(existingData.intensiveRawWords) &&
-          existingData.intensiveRawWordsVersion === INTENSIVE_RAW_WORDS_VERSION
-        ) {
-          cachedRawWords = existingData.intensiveRawWords
-          cachedRawWordsSource = existingData.intensiveRawWordsSource
-        } else if (Array.isArray(existingData.whisperWords) && existingData.whisperWords.length) {
-          // Legacy field from the pre-Deepgram era. Promote it on first
-          // touch so retunes are free and the legacy field can die.
-          cachedRawWords = existingData.whisperWords
-          cachedRawWordsSource = 'whisper'
-        }
+        const { cachedRawWords, cachedRawWordsSource } = pickCachedRawWords(existingData)
         const hasWordTiming = cachedSegments.some(
           (s) => Array.isArray(s.words) && s.words.length,
         )

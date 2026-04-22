@@ -2557,15 +2557,17 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 17
-// Primary chunking source for Deepgram: their `utterances` output. One
-// tunable knob — `utt_split`, the silence duration (seconds) at which a
-// new utterance starts. Set larger than our old 120ms floor so we only
-// split at substantive speaker pauses.
-const INTENSIVE_UTT_SPLIT_SEC = 0.25
-// Fallback-only — used when STT didn't return utterances (Whisper path)
-// or when we fall through to YouTube cue words. Percentile + floor combo
-// from the pre-utterances design.
+const INTENSIVE_SEGMENTS_VERSION = 18
+// Intensive chunks are split at natural punctuation in the transcript:
+// commas, semicolons, colons, and terminal marks. Same chunks serve both
+// listen-and-reveal and transcription modes. Any chunk shorter than
+// `INTENSIVE_MIN_CHUNK_WORDS` fuses into a neighbour (see fuseShortChunks).
+// Falls back to the percentile+floor chunker if STT source is Whisper or
+// YouTube words (no inline punctuation available there).
+const INTENSIVE_MIN_CHUNK_WORDS = 3
+// Fallback-only — used when STT didn't return punctuated words (Whisper
+// path) or when we fall through to YouTube cue words. Percentile + floor
+// combo from the pre-Deepgram design.
 const INTENSIVE_PAUSE_PERCENTILE = 93
 const INTENSIVE_PAUSE_FLOOR_MS = 120
 // Provider-agnostic cache of word-level timings used to build intensive
@@ -2575,10 +2577,8 @@ const INTENSIVE_PAUSE_FLOOR_MS = 120
 // tell a Deepgram build apart from a Whisper fallback in the logs.
 // v2: retired the legacy `whisperWords` promotion; every cached doc is
 // re-transcribed with the current provider chain (Deepgram-first).
-// v3: Deepgram call now also requests `utterances` — need to re-fetch so
-// existing docs pick up the utterance data.
-// v4: utt_split tuned — Deepgram re-call required to get the new utterance
-// boundaries (the parameter is server-side only).
+// v3/v4: used to store utterances from Deepgram; now ignored. Word stream
+// at v4 still works for the punctuation-based chunker, so no bump needed.
 const INTENSIVE_RAW_WORDS_VERSION = 4
 
 // Sanitize a word stream before chunking:
@@ -2815,25 +2815,96 @@ function pickCachedRawWords(existingData) {
   return { cachedRawWords: null, cachedRawWordsSource: null, cachedRawUtterances: null }
 }
 
-// Map Deepgram utterances to the `intensiveSegments` shape we store on
-// Firestore. `gapBefore` is the real silence between the previous
-// utterance's end and this utterance's start (ms), used for debugging /
-// downstream heuristics.
-function utterancesToIntensiveChunks(utterances) {
+// Intensive-chunk terminators — any of these at the end of a word's
+// punctuated form is a chunk boundary. Matches trailing punctuation plus
+// an optional trailing closing quote/bracket so "Argentina.", "¿no?"" and
+// "partidos»" all split correctly.
+const INTENSIVE_CHUNK_BREAK_RE = /[,;:.!?…。！？؛،]["'»”’)\]]?\s*$/u
+
+function endsInChunkBreak(text) {
+  if (!text) return false
+  return INTENSIVE_CHUNK_BREAK_RE.test(text)
+}
+
+// Split a punctuated word stream (Deepgram output) into chunks at natural
+// punctuation points. Each chunk carries its constituent words (for
+// karaoke / tracking), a `start` and `end` derived from those words, and
+// `gapBefore` = real silence between this chunk and the previous one (ms).
+function buildChunksFromPunctuation(rawWords) {
+  const words = sanitiseWordStream(rawWords)
+  if (!words.length) return []
+
   const chunks = []
-  for (let i = 0; i < utterances.length; i++) {
-    const u = utterances[i]
-    const prev = utterances[i - 1]
-    const gapBeforeMs = prev ? Math.max(0, (u.start - prev.end) * 1000) : 0
+  let currentWords = []
+
+  const flush = () => {
+    if (!currentWords.length) return
+    const first = currentWords[0]
+    const last = currentWords[currentWords.length - 1]
+    const prevChunk = chunks[chunks.length - 1]
+    const gapBeforeMs = prevChunk
+      ? Math.max(0, (first.start - prevChunk.end) * 1000)
+      : 0
     chunks.push({
-      text: u.text,
-      words: u.words,
-      start: u.start,
-      end: u.end,
+      text: currentWords.map((w) => w.text).join(' '),
+      words: currentWords,
+      start: first.start,
+      end: last.end,
       gapBefore: Math.round(gapBeforeMs),
     })
+    currentWords = []
   }
+
+  for (const word of words) {
+    currentWords.push(word)
+    if (endsInChunkBreak(word.text)) flush()
+  }
+  flush()
+
+  fuseShortChunks(chunks, INTENSIVE_MIN_CHUNK_WORDS)
   return chunks
+}
+
+// In-place fuse chunks shorter than `minWords` into a neighbour. Direction
+// is decided by whichever side of the orphan had the shorter pause — the
+// speaker flowed more naturally toward that side, so the orphan belongs
+// grouped with it. Boundary orphans (first/last chunk) fuse to their only
+// neighbour. Iterates until no chunk remains below the floor.
+function fuseShortChunks(chunks, minWords) {
+  if (minWords <= 1 || chunks.length <= 1) return
+  let guard = chunks.length * 2
+  while (guard-- > 0) {
+    const orphanIdx = chunks.findIndex((c) => c.words.length < minWords)
+    if (orphanIdx === -1) break
+    if (chunks.length === 1) break
+
+    let mergeBackward
+    if (orphanIdx === 0) mergeBackward = false
+    else if (orphanIdx === chunks.length - 1) mergeBackward = true
+    else {
+      const pauseBefore = chunks[orphanIdx].gapBefore || 0
+      const pauseAfter = chunks[orphanIdx + 1].gapBefore || 0
+      mergeBackward = pauseBefore <= pauseAfter
+    }
+
+    const orphan = chunks[orphanIdx]
+    if (mergeBackward) {
+      const prev = chunks[orphanIdx - 1]
+      prev.words = [...prev.words, ...orphan.words]
+      prev.text = `${prev.text} ${orphan.text}`
+      prev.end = orphan.end
+      chunks.splice(orphanIdx, 1)
+    } else {
+      const next = chunks[orphanIdx + 1]
+      next.words = [...orphan.words, ...next.words]
+      next.text = `${orphan.text} ${next.text}`
+      next.start = orphan.start
+      // Pause BEFORE the fused chunk is the pause that led into the
+      // orphan, not the (shorter) pause that led from orphan to next.
+      next.gapBefore = orphan.gapBefore
+      chunks.splice(orphanIdx, 1)
+    }
+  }
 }
 
 // Produce the payload fields that get written to the transcript doc for
@@ -2898,26 +2969,28 @@ async function buildIntensiveForTranscript({
       fields.intensiveRawUtterances = rawUtterances
     }
 
-    // Deepgram path: use their utterances verbatim. Whisper path: fall
-    // back to our pause-based chunker since Whisper doesn't give us
-    // utterance boundaries.
-    if (source === 'deepgram' && Array.isArray(rawUtterances) && rawUtterances.length) {
-      const segments = utterancesToIntensiveChunks(rawUtterances)
+    // Deepgram path: split the punctuated word stream on natural
+    // punctuation boundaries (the single chunking rule across both
+    // listen and transcribe modes). Whisper/YouTube paths fall through
+    // to the pause-based chunker since those sources don't carry inline
+    // punctuation per word.
+    if (source === 'deepgram') {
+      const segments = buildChunksFromPunctuation(rawWords)
       console.log(
         `[intensive ${videoId}] source=${fromCache ? 'deepgram[cache]' : 'deepgram'} ` +
-        `via=utterances words=${rawWords.length} chunks=${segments.length} ` +
-        `utt_split=${INTENSIVE_UTT_SPLIT_SEC}s`,
+        `via=punctuation words=${rawWords.length} chunks=${segments.length} ` +
+        `minWords=${INTENSIVE_MIN_CHUNK_WORDS}`,
       )
       if (segments.length) {
         fields.intensiveSegments = segments
         fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
-        fields.intensiveUttSplitSec = INTENSIVE_UTT_SPLIT_SEC
+        fields.intensiveMinChunkWords = INTENSIVE_MIN_CHUNK_WORDS
         fields.intensiveSource = 'deepgram'
         return fields
       }
     }
 
-    // Whisper path (no utterances) — chunker fallback.
+    // Whisper path (no per-word punctuation) — chunker fallback.
     const { segments, stats } = buildIntensiveSegmentsFromWords(
       rawWords,
       null,
@@ -3556,13 +3629,11 @@ async function fetchDeepgramWordTimings(videoId, languageCode) {
       model: 'nova-3',
       smart_format: 'true',
       punctuate: 'true',
-      utterances: 'true',
-      utt_split: String(INTENSIVE_UTT_SPLIT_SEC),
     })
     if (language) params.set('language', language)
 
     console.log(
-      `[deepgram ${videoId}] transcribing ${audioPath} language=${language || 'auto-detect'} utt_split=${INTENSIVE_UTT_SPLIT_SEC}s`,
+      `[deepgram ${videoId}] transcribing ${audioPath} language=${language || 'auto-detect'}`,
     )
 
     const audioBuffer = await fs.readFile(audioPath)
@@ -3600,34 +3671,8 @@ async function fetchDeepgramWordTimings(videoId, languageCode) {
       }))
       .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
 
-    const rawUtterances = Array.isArray(data?.results?.utterances)
-      ? data.results.utterances
-      : []
-    const utterances = rawUtterances
-      .map((u) => ({
-        text: typeof u?.transcript === 'string' ? u.transcript.trim() : '',
-        start: Number(u?.start),
-        end: Number(u?.end),
-        words: Array.isArray(u?.words)
-          ? u.words
-              .map((w) => ({
-                text: typeof w?.punctuated_word === 'string'
-                  ? w.punctuated_word.trim()
-                  : typeof w?.word === 'string'
-                    ? w.word.trim()
-                    : '',
-                start: Number(w?.start),
-                end: Number(w?.end),
-              }))
-              .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
-          : [],
-      }))
-      .filter((u) => u.text && Number.isFinite(u.start) && Number.isFinite(u.end))
-
-    console.log(
-      `[deepgram ${videoId}] received ${words.length} words, ${utterances.length} utterances`,
-    )
-    return { words, utterances }
+    console.log(`[deepgram ${videoId}] received ${words.length} words`)
+    return { words, utterances: [] }
   } catch (err) {
     console.error(`[deepgram ${videoId}] failed:`, err?.message || err)
     return null

@@ -861,23 +861,34 @@ const IntensiveCinemaMode = ({
       if (movingForward && !atLastSegment) {
         if (!transcriptRevealed) return
         await autoMarkSentenceWordsAsKnown(currentIntensiveSentence)
-        setIntensiveSegmentIndex((prev) => prev + 1)
+        const nextIdx = intensiveSegmentIndex + 1
+        const nextSegment = intensiveSegments[nextIdx]
+        setIntensiveSegmentIndex(nextIdx)
+        if (nextSegment && Number.isFinite(nextSegment.start)) {
+          onSeek?.(nextSegment.start)
+        }
         return
       }
 
       if (movingBackward && !atFirstSegment) {
-        setIntensiveSegmentIndex((prev) => Math.max(prev - 1, 0))
+        const prevIdx = Math.max(intensiveSegmentIndex - 1, 0)
+        const prevSegment = intensiveSegments[prevIdx]
+        setIntensiveSegmentIndex(prevIdx)
+        if (prevSegment && Number.isFinite(prevSegment.start)) {
+          onSeek?.(prevSegment.start)
+        }
       }
     },
     [
       cinemaMode,
       currentIntensiveSentence,
       intensiveSegmentIndex,
-      intensiveSegments.length,
+      intensiveSegments,
       intensiveRevealStep,
       isTranscriptionMode,
       isTranscriptRevealed,
       setIntensiveSegmentIndex,
+      onSeek,
     ]
   )
 

@@ -2546,7 +2546,7 @@ function buildSentenceSegmentsFromCues(cues) {
 // speaker actually produced, not by subtitle cue boundaries. We flatten the
 // segment.words[] streams across the whole transcript into one timeline and
 // start a new intensive chunk whenever the gap the speaker left after a
-// word exceeds INTENSIVE_PAUSE_THRESHOLD_MS. Nothing else cuts — no
+// word exceeds the threshold. Nothing else cuts — no
 // punctuation heuristic, no max-word cap — so the output reflects the raw
 // speech rhythm. Language-agnostic by construction.
 //
@@ -2557,8 +2557,18 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 13
-const INTENSIVE_PAUSE_THRESHOLD_MS = 150
+const INTENSIVE_SEGMENTS_VERSION = 14
+// Percentile-based splitting. Instead of an absolute millisecond threshold,
+// we split at the top (100 - INTENSIVE_PAUSE_PERCENTILE)% longest gaps in
+// this particular video's IOI distribution. Adapts to speaker rate
+// automatically — a slow lecturer's "clause pause" is a long absolute
+// value but still the same percentile of their rhythm as a rapid
+// interviewer's "clause pause". Calibrated on the Argentina video:
+// 725 words @ 54 chunks ≈ p92.5–p93 equivalent, so starting at 93.
+const INTENSIVE_PAUSE_PERCENTILE = 93
+// Floor so we never split on micro-gaps if a video is truly uniform rate
+// (e.g. synthetic narration). Keeps chunks usable.
+const INTENSIVE_PAUSE_FLOOR_MS = 120
 // Provider-agnostic cache of word-level timings used to build intensive
 // segments. Bumping this forces the server to re-fetch word timings on
 // next open (rare — only bump if the provider list or ingestion rules
@@ -2616,25 +2626,60 @@ function flattenSegmentWords(segments) {
 // Build intensive segments from a word stream.
 //
 // `useRealGaps` selects the pause metric:
-//   - `true`  (for Whisper words): `gap = max(0, next.start - this.end)`.
+//   - `true`  (for Whisper/Deepgram words): `gap = max(0, next.start - this.end)`.
 //             Uses actual silence between speech boundaries — precise.
 //   - `false` (for YouTube words): `gap = next.start - this.start` (IOI).
 //             YouTube's VTT convention sets `word.end = next.start`, so
 //             real silence is invisible at the gap level; IOI captures it
 //             indirectly as "time the speaker spent on this word including
 //             any trailing pause".
+//
+// Threshold resolution:
+//   - If `percentile` is given, we compute the threshold from this video's
+//     own gap distribution — split on the top (100 - percentile)% longest
+//     gaps. Adapts to speaker rate: a slow lecturer and a fast interviewer
+//     both get chunks with the same rhythm-relative chunkiness.
+//   - Otherwise we use an absolute `thresholdMs`.
+//   - A `floorMs` never splits on gaps shorter than that, so percentile
+//     mode can't make pathologically-tiny chunks on a uniform-rate video.
 function buildIntensiveSegmentsFromWords(
   rawWords,
-  thresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS,
-  { useRealGaps = false } = {},
+  thresholdMs,
+  { useRealGaps = false, percentile = null, floorMs = 0 } = {},
 ) {
   const words = sanitiseWordStream(rawWords)
   if (words.length === 0) {
     return { segments: [], stats: null }
   }
 
-  const thresholdSec = thresholdMs / 1000
+  // First pass: collect all gap samples so we can (a) compute a
+  // percentile-based threshold and (b) report stats.
   const gapSamplesMs = []
+  for (let i = 0; i < words.length - 1; i++) {
+    const word = words[i]
+    const next = words[i + 1]
+    const metric = useRealGaps
+      ? Math.max(0, next.start - word.end)
+      : next.start - word.start
+    gapSamplesMs.push(metric * 1000)
+  }
+
+  // Resolve the actual threshold.
+  let resolvedThresholdMs
+  if (Number.isFinite(percentile) && gapSamplesMs.length) {
+    const sorted = [...gapSamplesMs].sort((a, b) => a - b)
+    const idx = Math.min(
+      sorted.length - 1,
+      Math.max(0, Math.floor((sorted.length * percentile) / 100)),
+    )
+    resolvedThresholdMs = Math.max(sorted[idx], floorMs)
+  } else {
+    resolvedThresholdMs = Number.isFinite(thresholdMs)
+      ? thresholdMs
+      : 300 // safe default if neither percentile nor thresholdMs was passed
+  }
+  const thresholdSec = resolvedThresholdMs / 1000
+
   const chunks = []
   let currentWords = []
   let currentPauseBeforeMs = 0
@@ -2655,15 +2700,12 @@ function buildIntensiveSegmentsFromWords(
   for (let i = 0; i < words.length; i++) {
     const word = words[i]
     currentWords.push(word)
-
     const next = words[i + 1]
-    let metric = 0
-    if (next) {
-      metric = useRealGaps
+    const metric = next
+      ? (useRealGaps
         ? Math.max(0, next.start - word.end)
-        : next.start - word.start
-      gapSamplesMs.push(metric * 1000)
-    }
+        : next.start - word.start)
+      : 0
 
     if (next && metric > thresholdSec) {
       // End the chunk at the LAST WORD'S real end (when speech stopped),
@@ -2683,18 +2725,20 @@ function buildIntensiveSegmentsFromWords(
     gapSamplesMs,
     chunks,
     words.length,
-    thresholdMs,
+    resolvedThresholdMs,
     useRealGaps ? 'gap' : 'ioi',
+    Number.isFinite(percentile) ? percentile : null,
   )
   return { segments: chunks, stats }
 }
 
-function computeIntensiveIoiStats(samplesMs, chunks, totalWords, thresholdMs, metricKind = 'ioi') {
+function computeIntensiveIoiStats(samplesMs, chunks, totalWords, thresholdMs, metricKind = 'ioi', percentile = null) {
   if (!samplesMs.length) {
     return {
       totalWords,
       totalChunks: chunks.length,
-      thresholdMs,
+      thresholdMs: Math.round(thresholdMs ?? 0),
+      percentile,
       metric: metricKind,
       minMs: null,
       medianMs: null,
@@ -2710,7 +2754,8 @@ function computeIntensiveIoiStats(samplesMs, chunks, totalWords, thresholdMs, me
   return {
     totalWords,
     totalChunks: chunks.length,
-    thresholdMs,
+    thresholdMs: Math.round(thresholdMs ?? 0),
+    percentile,
     metric: metricKind,
     minMs: Math.round(sorted[0]),
     medianMs: Math.round(pct(50)),
@@ -2727,10 +2772,13 @@ function logIntensiveBuild(videoId, stats, source) {
     return
   }
   const label = source ? `${source}` : stats.metric
+  const thresholdDesc = Number.isFinite(stats.percentile)
+    ? `threshold=${stats.thresholdMs}ms(p${stats.percentile})`
+    : `threshold=${stats.thresholdMs}ms`
   console.log(
     `[intensive ${videoId}] source=${label} ` +
     `words=${stats.totalWords} chunks=${stats.totalChunks} ` +
-    `threshold=${stats.thresholdMs}ms ` +
+    `${thresholdDesc} ` +
     `${stats.metric}(ms) min=${stats.minMs} median=${stats.medianMs} ` +
     `p90=${stats.p90Ms} p99=${stats.p99Ms} max=${stats.maxMs} ` +
     `longPauses>1s=${stats.chunksWithPauseOver1000Ms}`,
@@ -2807,14 +2855,19 @@ async function buildIntensiveForTranscript({
     fields.intensiveRawWordsSource = source
     const { segments, stats } = buildIntensiveSegmentsFromWords(
       rawWords,
-      INTENSIVE_PAUSE_THRESHOLD_MS,
-      { useRealGaps: true },
+      null,
+      {
+        useRealGaps: true,
+        percentile: INTENSIVE_PAUSE_PERCENTILE,
+        floorMs: INTENSIVE_PAUSE_FLOOR_MS,
+      },
     )
     logIntensiveBuild(videoId, stats, fromCache ? `${source}[cache]` : source)
     if (segments.length) {
       fields.intensiveSegments = segments
       fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
-      fields.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
+      fields.intensivePauseThresholdMs = stats.thresholdMs
+      fields.intensivePausePercentile = INTENSIVE_PAUSE_PERCENTILE
       fields.intensiveSource = source
       return fields
     }
@@ -2825,14 +2878,19 @@ async function buildIntensiveForTranscript({
   const ytWords = flattenSegmentWords(youtubeSegments)
   const { segments, stats } = buildIntensiveSegmentsFromWords(
     ytWords,
-    INTENSIVE_PAUSE_THRESHOLD_MS,
-    { useRealGaps: false },
+    null,
+    {
+      useRealGaps: false,
+      percentile: INTENSIVE_PAUSE_PERCENTILE,
+      floorMs: INTENSIVE_PAUSE_FLOOR_MS,
+    },
   )
   logIntensiveBuild(videoId, stats, 'youtube')
   if (segments.length) {
     fields.intensiveSegments = segments
     fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
-    fields.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
+    fields.intensivePauseThresholdMs = stats.thresholdMs
+    fields.intensivePausePercentile = INTENSIVE_PAUSE_PERCENTILE
     fields.intensiveSource = 'youtube'
   }
   return fields

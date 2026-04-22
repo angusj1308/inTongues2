@@ -27,40 +27,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const DEFAULT_THRESHOLD_MS = 1000
-const DEFAULT_MIN_CHUNK_WORDS = 2
-
-function fuseShortChunks(chunks, minWords) {
-  if (minWords <= 1 || chunks.length <= 1) return
-  let guard = chunks.length * 2
-  while (guard-- > 0) {
-    const orphanIdx = chunks.findIndex((c) => c.words.length < minWords)
-    if (orphanIdx === -1) break
-    if (chunks.length === 1) break
-    let mergeBackward
-    if (orphanIdx === 0) mergeBackward = false
-    else if (orphanIdx === chunks.length - 1) mergeBackward = true
-    else {
-      const pauseBefore = chunks[orphanIdx].gapBefore || 0
-      const pauseAfter = chunks[orphanIdx + 1].gapBefore || 0
-      mergeBackward = pauseBefore <= pauseAfter
-    }
-    const orphan = chunks[orphanIdx]
-    if (mergeBackward) {
-      const prev = chunks[orphanIdx - 1]
-      prev.words = [...prev.words, ...orphan.words]
-      prev.text = `${prev.text} ${orphan.text}`
-      prev.end = orphan.end
-      chunks.splice(orphanIdx, 1)
-    } else {
-      const next = chunks[orphanIdx + 1]
-      next.words = [...orphan.words, ...next.words]
-      next.text = `${orphan.text} ${next.text}`
-      next.start = orphan.start
-      next.gapBefore = orphan.gapBefore
-      chunks.splice(orphanIdx, 1)
-    }
-  }
-}
 
 function sanitiseWordStream(rawWords) {
   const out = []
@@ -133,7 +99,6 @@ function buildIntensiveSegmentsFromWords(
     }
   }
   flush()
-  fuseShortChunks(chunks, DEFAULT_MIN_CHUNK_WORDS)
 
   const stats = computeStats(
     gapSamplesMs,

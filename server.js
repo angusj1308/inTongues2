@@ -2557,8 +2557,8 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 12
-const INTENSIVE_PAUSE_THRESHOLD_MS = 200
+const INTENSIVE_SEGMENTS_VERSION = 13
+const INTENSIVE_PAUSE_THRESHOLD_MS = 150
 // Provider-agnostic cache of word-level timings used to build intensive
 // segments. Bumping this forces the server to re-fetch word timings on
 // next open (rare — only bump if the provider list or ingestion rules

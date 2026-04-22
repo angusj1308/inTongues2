@@ -2557,8 +2557,8 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 7
-const INTENSIVE_PAUSE_THRESHOLD_MS = 1000
+const INTENSIVE_SEGMENTS_VERSION = 8
+const INTENSIVE_PAUSE_THRESHOLD_MS = 300
 const WHISPER_WORDS_VERSION = 1
 
 // Sanitize a word stream before chunking:

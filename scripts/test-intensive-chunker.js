@@ -3,48 +3,59 @@
  * Test harness for the pause-based intensive chunker.
  *
  * Usage:
- *   node scripts/test-intensive-chunker.js <transcript.json> [--threshold=300] [--out=chunks.txt]
+ *   node scripts/test-intensive-chunker.js <input.json> \
+ *        [--threshold=1000] [--real-gaps] [--out=chunks.txt]
  *
- * Input JSON shape (matches what Firestore stores under
- * users/{uid}/youtubeVideos/{id}/transcripts/{lang}):
+ * Input JSON shapes accepted:
  *
- *   { "segments": [ { "start": 0.1, "end": 2.3, "text": "...",
- *                     "words": [ { "start": 0.1, "end": 0.4, "text": "Yo" }, ... ] },
- *                   ... ] }
+ *  A) YouTube-style transcript doc (the YouTube words path):
+ *     { "segments": [ { "start": ..., "end": ..., "text": "...",
+ *                       "words": [ { "text", "start", "end" }, ... ] }, ... ] }
+ *     Use the default metric (IOI: next.start - this.start).
  *
- * Either a full transcript doc or a bare segments array is accepted.
+ *  B) Whisper-style word stream (the precise path):
+ *     { "whisperWords": [ { "text", "start", "end" }, ... ] }
+ *     or a top-level array [ { "text", "start", "end" }, ... ].
+ *     Pass --real-gaps to use real silence = max(0, next.start - this.end).
  *
  * Output:
- *   - stats to stdout (same shape as server logs at import time)
- *   - one chunk per line to --out (default: chunks.txt next to the input)
- *     Each line is prefixed with the gap-before (ms) then the text.
+ *   - stats to stdout
+ *   - one chunk per line to --out (default: <input>.chunks.txt)
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
 
-const DEFAULT_THRESHOLD_MS = 500
+const DEFAULT_THRESHOLD_MS = 1000
 
-// Mirror of server.js `buildIntensiveSegmentsFromWords` so this script is
-// standalone. Keep the logic byte-for-byte identical — if you change one,
-// change the other.
-function buildIntensiveSegmentsFromWords(segments, thresholdMs = DEFAULT_THRESHOLD_MS) {
-  const words = []
-  for (const seg of segments || []) {
-    if (!Array.isArray(seg?.words)) continue
-    for (const w of seg.words) {
-      const text = typeof w?.text === 'string' ? w.text.trim() : ''
-      if (!text) continue
-      if (!Number.isFinite(w.start) || !Number.isFinite(w.end)) continue
-      words.push({ text, start: Number(w.start), end: Number(w.end) })
-    }
+function sanitiseWordStream(rawWords) {
+  const out = []
+  let lastKeptStart = -Infinity
+  for (const w of rawWords || []) {
+    const text = typeof w?.text === 'string' ? w.text.trim() : ''
+    if (!text) continue
+    const start = Number(w.start)
+    const end = Number(w.end)
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue
+    if (start <= lastKeptStart) continue
+    out.push({ text, start, end: end > start ? end : start })
+    lastKeptStart = start
   }
+  return out
+}
 
+// Byte-for-byte mirror of server.js `buildIntensiveSegmentsFromWords`.
+function buildIntensiveSegmentsFromWords(
+  rawWords,
+  thresholdMs = DEFAULT_THRESHOLD_MS,
+  { useRealGaps = false } = {},
+) {
+  const words = sanitiseWordStream(rawWords)
   if (words.length === 0) return { segments: [], stats: null }
 
   const thresholdSec = thresholdMs / 1000
+  const gapSamplesMs = []
   const chunks = []
-  const ioiSamplesMs = []
   let currentWords = []
   let currentPauseBeforeMs = 0
 
@@ -66,48 +77,59 @@ function buildIntensiveSegmentsFromWords(segments, thresholdMs = DEFAULT_THRESHO
     currentWords.push(word)
 
     const next = words[i + 1]
-    const ioi = next
-      ? next.start - word.start
-      : Math.max(0, word.end - word.start)
-    if (next) ioiSamplesMs.push(ioi * 1000)
+    let metric = 0
+    if (next) {
+      metric = useRealGaps
+        ? Math.max(0, next.start - word.end)
+        : next.start - word.start
+      gapSamplesMs.push(metric * 1000)
+    }
 
-    if (next && ioi > thresholdSec) {
+    if (next && metric > thresholdSec) {
       flush(next.start)
-      currentPauseBeforeMs = ioi * 1000
+      currentPauseBeforeMs = metric * 1000
     }
   }
   flush()
 
-  const stats = computeStats(ioiSamplesMs, chunks, words.length, thresholdMs)
+  const stats = computeStats(
+    gapSamplesMs,
+    chunks,
+    words.length,
+    thresholdMs,
+    useRealGaps ? 'gap' : 'ioi',
+  )
   return { segments: chunks, stats }
 }
 
-function computeStats(ioisMs, chunks, totalWords, thresholdMs) {
-  if (!ioisMs.length) {
+function computeStats(samplesMs, chunks, totalWords, thresholdMs, metric) {
+  if (!samplesMs.length) {
     return {
       totalWords,
       totalChunks: chunks.length,
       thresholdMs,
-      ioiMinMs: null,
-      ioiMedianMs: null,
-      ioiP90Ms: null,
-      ioiP99Ms: null,
-      ioiMaxMs: null,
+      metric,
+      minMs: null,
+      medianMs: null,
+      p90Ms: null,
+      p99Ms: null,
+      maxMs: null,
       chunksWithPauseOver1000Ms: 0,
     }
   }
-  const sorted = [...ioisMs].sort((a, b) => a - b)
+  const sorted = [...samplesMs].sort((a, b) => a - b)
   const pct = (p) =>
     sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))]
   return {
     totalWords,
     totalChunks: chunks.length,
     thresholdMs,
-    ioiMinMs: Math.round(sorted[0]),
-    ioiMedianMs: Math.round(pct(50)),
-    ioiP90Ms: Math.round(pct(90)),
-    ioiP99Ms: Math.round(pct(99)),
-    ioiMaxMs: Math.round(sorted[sorted.length - 1]),
+    metric,
+    minMs: Math.round(sorted[0]),
+    medianMs: Math.round(pct(50)),
+    p90Ms: Math.round(pct(90)),
+    p99Ms: Math.round(pct(99)),
+    maxMs: Math.round(sorted[sorted.length - 1]),
     chunksWithPauseOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
   }
 }
@@ -122,14 +144,35 @@ function parseArgs(argv) {
   return args
 }
 
+function extractWordStream(raw, preferWhisper) {
+  if (preferWhisper) {
+    if (Array.isArray(raw)) return raw
+    if (Array.isArray(raw?.whisperWords)) return raw.whisperWords
+  }
+  if (Array.isArray(raw?.segments)) {
+    const out = []
+    for (const seg of raw.segments) {
+      if (!Array.isArray(seg?.words)) continue
+      for (const w of seg.words) out.push(w)
+    }
+    return out
+  }
+  if (Array.isArray(raw)) return raw
+  if (Array.isArray(raw?.whisperWords)) return raw.whisperWords
+  return null
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2))
   const inputPath = args._[0]
   if (!inputPath) {
-    console.error('usage: test-intensive-chunker.js <transcript.json> [--threshold=300] [--out=chunks.txt]')
+    console.error(
+      'usage: test-intensive-chunker.js <input.json> [--threshold=1000] [--real-gaps] [--out=chunks.txt]',
+    )
     process.exit(1)
   }
   const thresholdMs = Number(args.threshold) || DEFAULT_THRESHOLD_MS
+  const useRealGaps = Boolean(args['real-gaps'])
   const outPath =
     args.out ||
     path.join(
@@ -138,29 +181,31 @@ function main() {
     )
 
   const raw = JSON.parse(fs.readFileSync(inputPath, 'utf8'))
-  const segments = Array.isArray(raw) ? raw : Array.isArray(raw?.segments) ? raw.segments : null
-  if (!segments) {
-    console.error('Input JSON must be an array of segments or an object with a `segments` array.')
+  const words = extractWordStream(raw, useRealGaps)
+  if (!words) {
+    console.error('Could not find a word stream in the input JSON.')
     process.exit(2)
   }
 
-  const { segments: chunks, stats } = buildIntensiveSegmentsFromWords(segments, thresholdMs)
+  const { segments: chunks, stats } = buildIntensiveSegmentsFromWords(
+    words,
+    thresholdMs,
+    { useRealGaps },
+  )
   if (!stats) {
     console.error('No word-level timing found in input. Cannot build intensive chunks.')
     process.exit(3)
   }
 
-  // stats
   console.log(
-    `[intensive test] ` +
+    `[intensive test] source=${useRealGaps ? 'whisper' : 'youtube'} ` +
     `words=${stats.totalWords} chunks=${stats.totalChunks} ` +
     `threshold=${stats.thresholdMs}ms ` +
-    `ioi(ms) min=${stats.ioiMinMs} median=${stats.ioiMedianMs} ` +
-    `p90=${stats.ioiP90Ms} p99=${stats.ioiP99Ms} max=${stats.ioiMaxMs} ` +
+    `${stats.metric}(ms) min=${stats.minMs} median=${stats.medianMs} ` +
+    `p90=${stats.p90Ms} p99=${stats.p99Ms} max=${stats.maxMs} ` +
     `longPauses>1s=${stats.chunksWithPauseOver1000Ms}`,
   )
 
-  // chunks — one per line, gap prefix
   const lines = chunks.map((c) => `[gap=${String(c.gapBefore).padStart(5)}ms] ${c.text}`)
   fs.writeFileSync(outPath, lines.join('\n') + '\n', 'utf8')
   console.log(`Wrote ${chunks.length} chunks to ${outPath}`)

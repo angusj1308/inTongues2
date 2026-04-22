@@ -2557,34 +2557,63 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 6
+const INTENSIVE_SEGMENTS_VERSION = 7
 const INTENSIVE_PAUSE_THRESHOLD_MS = 1000
+const WHISPER_WORDS_VERSION = 1
 
-function buildIntensiveSegmentsFromWords(
-  segments,
-  thresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS,
-) {
-  const words = []
+// Sanitize a word stream before chunking:
+//  - drop entries with non-finite times / empty text
+//  - enforce strict monotonicity on `start` (drops rolling-cue duplicates
+//    that YouTube's cue-dedupe heuristic leaks, which otherwise cause
+//    chunk-to-chunk overlap in the output)
+function sanitiseWordStream(rawWords) {
+  const out = []
+  let lastKeptStart = -Infinity
+  for (const w of rawWords || []) {
+    const text = typeof w?.text === 'string' ? w.text.trim() : ''
+    if (!text) continue
+    const start = Number(w.start)
+    const end = Number(w.end)
+    if (!Number.isFinite(start) || !Number.isFinite(end)) continue
+    if (start <= lastKeptStart) continue
+    out.push({ text, start, end: end > start ? end : start })
+    lastKeptStart = start
+  }
+  return out
+}
+
+// Flatten `words[]` across every segment into one stream.
+function flattenSegmentWords(segments) {
+  const raw = []
   for (const seg of segments || []) {
     if (!Array.isArray(seg?.words)) continue
-    for (const w of seg.words) {
-      const text = typeof w?.text === 'string' ? w.text.trim() : ''
-      if (!text) continue
-      if (!Number.isFinite(w.start) || !Number.isFinite(w.end)) continue
-      words.push({ text, start: Number(w.start), end: Number(w.end) })
-    }
+    for (const w of seg.words) raw.push(w)
   }
+  return raw
+}
 
+// Build intensive segments from a word stream.
+//
+// `useRealGaps` selects the pause metric:
+//   - `true`  (for Whisper words): `gap = max(0, next.start - this.end)`.
+//             Uses actual silence between speech boundaries — precise.
+//   - `false` (for YouTube words): `gap = next.start - this.start` (IOI).
+//             YouTube's VTT convention sets `word.end = next.start`, so
+//             real silence is invisible at the gap level; IOI captures it
+//             indirectly as "time the speaker spent on this word including
+//             any trailing pause".
+function buildIntensiveSegmentsFromWords(
+  rawWords,
+  thresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS,
+  { useRealGaps = false } = {},
+) {
+  const words = sanitiseWordStream(rawWords)
   if (words.length === 0) {
     return { segments: [], stats: null }
   }
 
-  // Inter-onset interval for each word except the last — the time from this
-  // word's onset to the next word's onset, which equals "spoken duration +
-  // trailing silence before the next word starts". The last word has no
-  // successor so we fall back to its own (end - start) for symmetry.
   const thresholdSec = thresholdMs / 1000
-  const ioiSamplesMs = []
+  const gapSamplesMs = []
   const chunks = []
   let currentWords = []
   let currentPauseBeforeMs = 0
@@ -2592,12 +2621,6 @@ function buildIntensiveSegmentsFromWords(
   const flush = (endTime) => {
     if (!currentWords.length) return
     const lastWord = currentWords[currentWords.length - 1]
-    // Prefer the explicit `endTime` (the next word's onset at a split point)
-    // over the last word's `.end`. At cue boundaries YouTube's rolling cues
-    // can overlap — `lastWord.end` is set to the cue's display end, which
-    // may land AFTER the next word's onset and cause playback to bleed into
-    // the next word. Using `next.start` keeps the chunk boundary precisely
-    // at "right before the next word".
     chunks.push({
       text: currentWords.map((w) => w.text).join(' '),
       words: currentWords,
@@ -2613,65 +2636,134 @@ function buildIntensiveSegmentsFromWords(
     currentWords.push(word)
 
     const next = words[i + 1]
-    const ioi = next
-      ? next.start - word.start
-      : Math.max(0, word.end - word.start)
-    if (next) ioiSamplesMs.push(ioi * 1000)
+    let metric = 0
+    if (next) {
+      metric = useRealGaps
+        ? Math.max(0, next.start - word.end)
+        : next.start - word.start
+      gapSamplesMs.push(metric * 1000)
+    }
 
-    if (next && ioi > thresholdSec) {
+    if (next && metric > thresholdSec) {
       flush(next.start)
-      currentPauseBeforeMs = ioi * 1000
+      currentPauseBeforeMs = metric * 1000
     }
   }
   flush()
 
-  const stats = computeIntensiveIoiStats(ioiSamplesMs, chunks, words.length, thresholdMs)
+  const stats = computeIntensiveIoiStats(
+    gapSamplesMs,
+    chunks,
+    words.length,
+    thresholdMs,
+    useRealGaps ? 'gap' : 'ioi',
+  )
   return { segments: chunks, stats }
 }
 
-function computeIntensiveIoiStats(ioisMs, chunks, totalWords, thresholdMs) {
-  if (!ioisMs.length) {
+function computeIntensiveIoiStats(samplesMs, chunks, totalWords, thresholdMs, metricKind = 'ioi') {
+  if (!samplesMs.length) {
     return {
       totalWords,
       totalChunks: chunks.length,
       thresholdMs,
-      ioiMinMs: null,
-      ioiMedianMs: null,
-      ioiP90Ms: null,
-      ioiP99Ms: null,
-      ioiMaxMs: null,
+      metric: metricKind,
+      minMs: null,
+      medianMs: null,
+      p90Ms: null,
+      p99Ms: null,
+      maxMs: null,
       chunksWithPauseOver1000Ms: 0,
     }
   }
-  const sorted = [...ioisMs].sort((a, b) => a - b)
+  const sorted = [...samplesMs].sort((a, b) => a - b)
   const pct = (p) =>
     sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))]
   return {
     totalWords,
     totalChunks: chunks.length,
     thresholdMs,
-    ioiMinMs: Math.round(sorted[0]),
-    ioiMedianMs: Math.round(pct(50)),
-    ioiP90Ms: Math.round(pct(90)),
-    ioiP99Ms: Math.round(pct(99)),
-    ioiMaxMs: Math.round(sorted[sorted.length - 1]),
+    metric: metricKind,
+    minMs: Math.round(sorted[0]),
+    medianMs: Math.round(pct(50)),
+    p90Ms: Math.round(pct(90)),
+    p99Ms: Math.round(pct(99)),
+    maxMs: Math.round(sorted[sorted.length - 1]),
     chunksWithPauseOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
   }
 }
 
-function logIntensiveBuild(videoId, stats) {
+function logIntensiveBuild(videoId, stats, source) {
   if (!stats) {
     console.log(`[intensive ${videoId}] no word-level timing available — skipping`)
     return
   }
+  const label = source ? `${source}` : stats.metric
   console.log(
-    `[intensive ${videoId}] ` +
+    `[intensive ${videoId}] source=${label} ` +
     `words=${stats.totalWords} chunks=${stats.totalChunks} ` +
     `threshold=${stats.thresholdMs}ms ` +
-    `ioi(ms) min=${stats.ioiMinMs} median=${stats.ioiMedianMs} ` +
-    `p90=${stats.ioiP90Ms} p99=${stats.ioiP99Ms} max=${stats.ioiMaxMs} ` +
+    `${stats.metric}(ms) min=${stats.minMs} median=${stats.medianMs} ` +
+    `p90=${stats.p90Ms} p99=${stats.p99Ms} max=${stats.maxMs} ` +
     `longPauses>1s=${stats.chunksWithPauseOver1000Ms}`,
   )
+}
+
+// Produce the payload fields that get written to the transcript doc for
+// intensive mode. Tries Whisper for precise word timings; falls back to
+// YouTube's cue-derived words (which we sanitise for rolling-cue dup leaks
+// via sanitiseWordStream inside the chunker).
+async function buildIntensiveForTranscript({
+  videoId,
+  languageCode,
+  youtubeSegments,
+  cachedWhisperWords,
+}) {
+  // Prefer cached Whisper words if we already paid for them at this version.
+  let whisperWords = Array.isArray(cachedWhisperWords) ? cachedWhisperWords : null
+  let whisperFromCache = Boolean(whisperWords && whisperWords.length)
+  if (!whisperFromCache) {
+    whisperWords = await fetchWhisperWordTimings(videoId, languageCode)
+  }
+
+  const fields = {}
+  if (whisperWords && whisperWords.length) {
+    fields.whisperWords = whisperWords
+    fields.whisperWordsVersion = WHISPER_WORDS_VERSION
+    const { segments, stats } = buildIntensiveSegmentsFromWords(
+      whisperWords,
+      INTENSIVE_PAUSE_THRESHOLD_MS,
+      { useRealGaps: true },
+    )
+    logIntensiveBuild(
+      videoId,
+      stats,
+      whisperFromCache ? 'whisper[cache]' : 'whisper',
+    )
+    if (segments.length) {
+      fields.intensiveSegments = segments
+      fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
+      fields.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
+      fields.intensiveSource = 'whisper'
+      return fields
+    }
+  }
+
+  // Whisper unavailable or returned nothing — fall back to YouTube words.
+  const ytWords = flattenSegmentWords(youtubeSegments)
+  const { segments, stats } = buildIntensiveSegmentsFromWords(
+    ytWords,
+    INTENSIVE_PAUSE_THRESHOLD_MS,
+    { useRealGaps: false },
+  )
+  logIntensiveBuild(videoId, stats, 'youtube')
+  if (segments.length) {
+    fields.intensiveSegments = segments
+    fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
+    fields.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
+    fields.intensiveSource = 'youtube'
+  }
+  return fields
 }
 
 function runYtDlp(args, { timeoutMs = 60000 } = {}) {
@@ -3193,6 +3285,53 @@ async function downloadYoutubeAudio(videoId) {
   }
 
   return downloadPath
+}
+
+// Pull Whisper word-level timings for a YouTube video. Whisper reports REAL
+// start AND end per word, so `buildIntensiveSegmentsFromWords` can use true
+// silence gaps (not the inter-onset-interval workaround we use for YouTube's
+// VTT words). Result: pause-based intensive chunking becomes reliable.
+//
+// Side effect: downloads the audio, compresses if needed, sends to Whisper,
+// cleans up the temp file. Returns null on any failure (caller falls back to
+// YouTube word timings).
+async function fetchWhisperWordTimings(videoId, languageCode) {
+  if (!client) {
+    console.warn(`[whisper ${videoId}] OPENAI_API_KEY not set — skipping`)
+    return null
+  }
+  let audioPath = null
+  try {
+    audioPath = await downloadYoutubeAudio(videoId)
+    const whisperLanguage = resolveTargetCode(languageCode)
+    console.log(
+      `[whisper ${videoId}] transcribing ${audioPath} language=${whisperLanguage || 'auto-detect'}`,
+    )
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(audioPath),
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['word'],
+      ...(whisperLanguage ? { language: whisperLanguage } : {}),
+    })
+    const rawWords = Array.isArray(transcription?.words) ? transcription.words : []
+    const words = rawWords
+      .map((w) => ({
+        text: typeof w?.word === 'string' ? w.word.trim() : '',
+        start: Number(w?.start),
+        end: Number(w?.end),
+      }))
+      .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
+    console.log(`[whisper ${videoId}] received ${words.length} words`)
+    return words
+  } catch (err) {
+    console.error(`[whisper ${videoId}] failed:`, err?.message || err)
+    return null
+  } finally {
+    if (audioPath) {
+      fs.unlink(audioPath).catch(() => {})
+    }
+  }
 }
 
 async function downloadAudioUrlToTempFile(audioUrl) {
@@ -3719,31 +3858,37 @@ app.post('/api/youtube/transcript', async (req, res) => {
             ? cachedSentenceSegments
             : buildSentenceSegmentsFromWhisper(cachedSegments)
 
-        // Pass through cached intensiveSegments if already built at a matching
-        // version. Otherwise build them now (one-shot backfill) and persist so
-        // the next fetch is a pure cache hit.
+        // Pass through cached intensiveSegments if already built at the
+        // expected version. Otherwise (re)build them now. If the transcript
+        // has cached whisperWords, re-use those for free; else call Whisper
+        // (one-shot per video, forever cached). Falls back to YouTube words
+        // if Whisper is unavailable.
         let cachedIntensiveSegments = Array.isArray(existingData.intensiveSegments)
           ? existingData.intensiveSegments
           : null
         let cachedIntensiveVersion = existingData.intensiveSegmentsVersion || null
+        const cachedWhisperWords =
+          Array.isArray(existingData.whisperWords) &&
+          existingData.whisperWordsVersion === WHISPER_WORDS_VERSION
+            ? existingData.whisperWords
+            : null
+        const hasWordTiming = cachedSegments.some(
+          (s) => Array.isArray(s.words) && s.words.length,
+        )
         if (
           (!cachedIntensiveSegments || cachedIntensiveVersion !== INTENSIVE_SEGMENTS_VERSION) &&
-          cachedSegments.some((s) => Array.isArray(s.words) && s.words.length)
+          (hasWordTiming || cachedWhisperWords)
         ) {
-          const { segments: rebuilt, stats } =
-            buildIntensiveSegmentsFromWords(cachedSegments)
-          logIntensiveBuild(videoId, stats)
-          if (rebuilt.length) {
-            cachedIntensiveSegments = rebuilt
-            cachedIntensiveVersion = INTENSIVE_SEGMENTS_VERSION
-            await transcriptRef.set(
-              {
-                intensiveSegments: rebuilt,
-                intensiveSegmentsVersion: INTENSIVE_SEGMENTS_VERSION,
-                intensivePauseThresholdMs: INTENSIVE_PAUSE_THRESHOLD_MS,
-              },
-              { merge: true },
-            )
+          const fields = await buildIntensiveForTranscript({
+            videoId,
+            languageCode,
+            youtubeSegments: cachedSegments,
+            cachedWhisperWords,
+          })
+          if (fields.intensiveSegments) {
+            cachedIntensiveSegments = fields.intensiveSegments
+            cachedIntensiveVersion = fields.intensiveSegmentsVersion
+            await transcriptRef.set(fields, { merge: true })
           }
         }
 
@@ -3772,9 +3917,16 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const resolvedSentenceSegments = normaliseTranscriptSegments(dlpResult.sentenceSegments)
     const transcriptText = dlpResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
-    const { segments: intensiveSegments, stats: intensiveStats } =
-      buildIntensiveSegmentsFromWords(normalisedSegments)
-    logIntensiveBuild(videoId, intensiveStats)
+    const intensiveFields = await buildIntensiveForTranscript({
+      videoId,
+      languageCode,
+      youtubeSegments: normalisedSegments,
+      cachedWhisperWords:
+        Array.isArray(existingData?.whisperWords) &&
+        existingData?.whisperWordsVersion === WHISPER_WORDS_VERSION
+          ? existingData.whisperWords
+          : null,
+    })
 
     const transcriptPayload = {
       videoId,
@@ -3785,11 +3937,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
       text: transcriptText,
       sentenceSegments: resolvedSentenceSegments,
       createdAt: existingData?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
-    }
-    if (intensiveSegments.length) {
-      transcriptPayload.intensiveSegments = intensiveSegments
-      transcriptPayload.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
-      transcriptPayload.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
+      ...intensiveFields,
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })
@@ -4029,9 +4177,12 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
     const resolvedSentenceSegments = normaliseTranscriptSegments(dlpResult.sentenceSegments)
     const transcriptText = dlpResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
-    const { segments: intensiveSegments, stats: intensiveStats } =
-      buildIntensiveSegmentsFromWords(normalisedSegments)
-    logIntensiveBuild(videoId, intensiveStats)
+    const intensiveFields = await buildIntensiveForTranscript({
+      videoId,
+      languageCode,
+      youtubeSegments: normalisedSegments,
+      cachedWhisperWords: null,
+    })
 
     const transcriptPayload = {
       videoId,
@@ -4042,11 +4193,7 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
       text: transcriptText,
       sentenceSegments: resolvedSentenceSegments,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    }
-    if (intensiveSegments.length) {
-      transcriptPayload.intensiveSegments = intensiveSegments
-      transcriptPayload.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
-      transcriptPayload.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
+      ...intensiveFields,
     }
 
     await transcriptRef.set(transcriptPayload, { merge: true })

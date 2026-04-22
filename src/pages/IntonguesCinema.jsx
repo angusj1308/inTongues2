@@ -397,6 +397,12 @@ const mergeSegmentsIntoSentences = (segments = []) => {
   return sentences
 }
 
+// Client-side mirror of server.js `INTENSIVE_SEGMENTS_VERSION`. When the
+// server's chunking rule is tuned (e.g. threshold changed), bump both sides
+// together. If a cached Firestore transcript has a stale version, the client
+// falls through to the server endpoint, which rebuilds and repersists.
+const EXPECTED_INTENSIVE_SEGMENTS_VERSION = 2
+
 const normalisePagesToSegments = (pages = []) =>
   (Array.isArray(pages) ? pages : [])
     .map((page, index) => {
@@ -605,14 +611,15 @@ const normalisePagesToSegments = (pages = []) =>
           setTranscript({ text: data?.text || '', segments, sentenceSegments, intensiveSegments })
 
           // Fall through to the server fetch (below) when the cache has
-          // word-level timing but no intensive build yet — the server's
-          // cache-hit path will backfill and return the new chunks, which
-          // we then fold into state. Normal cache hits short-circuit as
-          // before.
+          // word-level timing but either no intensive build or an older
+          // version — the server's cache-hit path rebuilds and repersists,
+          // and returns the fresh chunks which we fold into state.
           const hasAnyContent = sentenceSegments.length > 0 || segments.length > 0
           const hasWordTiming = segments.some((s) => Array.isArray(s.words) && s.words.length > 0)
-          const needsIntensiveBackfill = hasWordTiming && intensiveSegments.length === 0
-          if (hasAnyContent && !needsIntensiveBackfill) return
+          const cachedVersion = Number(data?.intensiveSegmentsVersion) || 0
+          const intensiveStale =
+            hasWordTiming && cachedVersion !== EXPECTED_INTENSIVE_SEGMENTS_VERSION
+          if (hasAnyContent && !intensiveStale) return
         }
 
         const response = await fetch('http://localhost:4000/api/youtube/transcript', {

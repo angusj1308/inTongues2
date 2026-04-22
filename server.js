@@ -2550,8 +2550,8 @@ function buildSentenceSegmentsFromCues(cues) {
 // punctuation heuristic, no max-word cap — so the output reflects the raw
 // speech rhythm. Language-agnostic by construction.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 1
-const INTENSIVE_PAUSE_THRESHOLD_MS = 300
+const INTENSIVE_SEGMENTS_VERSION = 2
+const INTENSIVE_PAUSE_THRESHOLD_MS = 200
 
 function buildIntensiveSegmentsFromWords(
   segments,

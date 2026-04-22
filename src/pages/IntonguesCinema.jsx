@@ -401,7 +401,7 @@ const mergeSegmentsIntoSentences = (segments = []) => {
 // server's chunking rule is tuned (e.g. threshold changed), bump both sides
 // together. If a cached Firestore transcript has a stale version, the client
 // falls through to the server endpoint, which rebuilds and repersists.
-const EXPECTED_INTENSIVE_SEGMENTS_VERSION = 2
+const EXPECTED_INTENSIVE_SEGMENTS_VERSION = 3
 
 const normalisePagesToSegments = (pages = []) =>
   (Array.isArray(pages) ? pages : [])

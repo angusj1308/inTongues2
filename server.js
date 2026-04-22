@@ -2545,13 +2545,20 @@ function buildSentenceSegmentsFromCues(cues) {
 // Intensive mode needs "ear-sized" chunks — bounded by the audio pauses the
 // speaker actually produced, not by subtitle cue boundaries. We flatten the
 // segment.words[] streams across the whole transcript into one timeline and
-// start a new intensive chunk whenever the silence between two consecutive
-// words exceeds INTENSIVE_PAUSE_THRESHOLD_MS. Nothing else cuts — no
+// start a new intensive chunk whenever the gap the speaker left after a
+// word exceeds INTENSIVE_PAUSE_THRESHOLD_MS. Nothing else cuts — no
 // punctuation heuristic, no max-word cap — so the output reflects the raw
 // speech rhythm. Language-agnostic by construction.
+//
+// IMPORTANT implementation detail: YouTube's VTT word-timing convention
+// sets each word's `.end` to the NEXT word's `.start`, so a naive
+// `word[n+1].start - word[n].end` gap is identically zero within a cue —
+// actual silence between words is absorbed into word durations. We measure
+// the inter-onset interval instead (`word[n+1].start - word[n].start`),
+// which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 2
-const INTENSIVE_PAUSE_THRESHOLD_MS = 200
+const INTENSIVE_SEGMENTS_VERSION = 3
+const INTENSIVE_PAUSE_THRESHOLD_MS = 500
 
 function buildIntensiveSegmentsFromWords(
   segments,
@@ -2572,11 +2579,15 @@ function buildIntensiveSegmentsFromWords(
     return { segments: [], stats: null }
   }
 
+  // Inter-onset interval for each word except the last — the time from this
+  // word's onset to the next word's onset, which equals "spoken duration +
+  // trailing silence before the next word starts". The last word has no
+  // successor so we fall back to its own (end - start) for symmetry.
   const thresholdSec = thresholdMs / 1000
+  const ioiSamplesMs = []
   const chunks = []
-  const gapSamplesMs = []
   let currentWords = []
-  let currentGapBeforeMs = 0
+  let currentPauseBeforeMs = 0
 
   const flush = () => {
     if (!currentWords.length) return
@@ -2585,57 +2596,59 @@ function buildIntensiveSegmentsFromWords(
       words: currentWords,
       start: currentWords[0].start,
       end: currentWords[currentWords.length - 1].end,
-      gapBefore: Math.round(currentGapBeforeMs),
+      gapBefore: Math.round(currentPauseBeforeMs),
     })
     currentWords = []
   }
 
   for (let i = 0; i < words.length; i++) {
     const word = words[i]
-    if (i > 0) {
-      const prev = words[i - 1]
-      const gap = word.start - prev.end
-      gapSamplesMs.push(gap * 1000)
-      if (gap > thresholdSec) {
-        flush()
-        currentGapBeforeMs = gap * 1000
-      }
-    }
     currentWords.push(word)
+
+    const next = words[i + 1]
+    const ioi = next
+      ? next.start - word.start
+      : Math.max(0, word.end - word.start)
+    if (next) ioiSamplesMs.push(ioi * 1000)
+
+    if (next && ioi > thresholdSec) {
+      flush()
+      currentPauseBeforeMs = ioi * 1000
+    }
   }
   flush()
 
-  const stats = computeIntensiveGapStats(gapSamplesMs, chunks, words.length, thresholdMs)
+  const stats = computeIntensiveIoiStats(ioiSamplesMs, chunks, words.length, thresholdMs)
   return { segments: chunks, stats }
 }
 
-function computeIntensiveGapStats(gapsMs, chunks, totalWords, thresholdMs) {
-  if (!gapsMs.length) {
+function computeIntensiveIoiStats(ioisMs, chunks, totalWords, thresholdMs) {
+  if (!ioisMs.length) {
     return {
       totalWords,
       totalChunks: chunks.length,
       thresholdMs,
-      gapMinMs: null,
-      gapMedianMs: null,
-      gapP90Ms: null,
-      gapP99Ms: null,
-      gapMaxMs: null,
-      chunksWithGapOver1000Ms: 0,
+      ioiMinMs: null,
+      ioiMedianMs: null,
+      ioiP90Ms: null,
+      ioiP99Ms: null,
+      ioiMaxMs: null,
+      chunksWithPauseOver1000Ms: 0,
     }
   }
-  const sorted = [...gapsMs].sort((a, b) => a - b)
+  const sorted = [...ioisMs].sort((a, b) => a - b)
   const pct = (p) =>
     sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))]
   return {
     totalWords,
     totalChunks: chunks.length,
     thresholdMs,
-    gapMinMs: Math.round(sorted[0]),
-    gapMedianMs: Math.round(pct(50)),
-    gapP90Ms: Math.round(pct(90)),
-    gapP99Ms: Math.round(pct(99)),
-    gapMaxMs: Math.round(sorted[sorted.length - 1]),
-    chunksWithGapOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
+    ioiMinMs: Math.round(sorted[0]),
+    ioiMedianMs: Math.round(pct(50)),
+    ioiP90Ms: Math.round(pct(90)),
+    ioiP99Ms: Math.round(pct(99)),
+    ioiMaxMs: Math.round(sorted[sorted.length - 1]),
+    chunksWithPauseOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
   }
 }
 
@@ -2648,9 +2661,9 @@ function logIntensiveBuild(videoId, stats) {
     `[intensive ${videoId}] ` +
     `words=${stats.totalWords} chunks=${stats.totalChunks} ` +
     `threshold=${stats.thresholdMs}ms ` +
-    `gaps(ms) min=${stats.gapMinMs} median=${stats.gapMedianMs} ` +
-    `p90=${stats.gapP90Ms} p99=${stats.gapP99Ms} max=${stats.gapMaxMs} ` +
-    `longGaps>1s=${stats.chunksWithGapOver1000Ms}`,
+    `ioi(ms) min=${stats.ioiMinMs} median=${stats.ioiMedianMs} ` +
+    `p90=${stats.ioiP90Ms} p99=${stats.ioiP99Ms} max=${stats.ioiMaxMs} ` +
+    `longPauses>1s=${stats.chunksWithPauseOver1000Ms}`,
   )
 }
 

@@ -23,7 +23,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const DEFAULT_THRESHOLD_MS = 300
+const DEFAULT_THRESHOLD_MS = 500
 
 // Mirror of server.js `buildIntensiveSegmentsFromWords` so this script is
 // standalone. Keep the logic byte-for-byte identical — if you change one,
@@ -44,9 +44,9 @@ function buildIntensiveSegmentsFromWords(segments, thresholdMs = DEFAULT_THRESHO
 
   const thresholdSec = thresholdMs / 1000
   const chunks = []
-  const gapSamplesMs = []
+  const ioiSamplesMs = []
   let currentWords = []
-  let currentGapBeforeMs = 0
+  let currentPauseBeforeMs = 0
 
   const flush = () => {
     if (!currentWords.length) return
@@ -55,57 +55,59 @@ function buildIntensiveSegmentsFromWords(segments, thresholdMs = DEFAULT_THRESHO
       words: currentWords,
       start: currentWords[0].start,
       end: currentWords[currentWords.length - 1].end,
-      gapBefore: Math.round(currentGapBeforeMs),
+      gapBefore: Math.round(currentPauseBeforeMs),
     })
     currentWords = []
   }
 
   for (let i = 0; i < words.length; i++) {
     const word = words[i]
-    if (i > 0) {
-      const prev = words[i - 1]
-      const gap = word.start - prev.end
-      gapSamplesMs.push(gap * 1000)
-      if (gap > thresholdSec) {
-        flush()
-        currentGapBeforeMs = gap * 1000
-      }
-    }
     currentWords.push(word)
+
+    const next = words[i + 1]
+    const ioi = next
+      ? next.start - word.start
+      : Math.max(0, word.end - word.start)
+    if (next) ioiSamplesMs.push(ioi * 1000)
+
+    if (next && ioi > thresholdSec) {
+      flush()
+      currentPauseBeforeMs = ioi * 1000
+    }
   }
   flush()
 
-  const stats = computeStats(gapSamplesMs, chunks, words.length, thresholdMs)
+  const stats = computeStats(ioiSamplesMs, chunks, words.length, thresholdMs)
   return { segments: chunks, stats }
 }
 
-function computeStats(gapsMs, chunks, totalWords, thresholdMs) {
-  if (!gapsMs.length) {
+function computeStats(ioisMs, chunks, totalWords, thresholdMs) {
+  if (!ioisMs.length) {
     return {
       totalWords,
       totalChunks: chunks.length,
       thresholdMs,
-      gapMinMs: null,
-      gapMedianMs: null,
-      gapP90Ms: null,
-      gapP99Ms: null,
-      gapMaxMs: null,
-      chunksWithGapOver1000Ms: 0,
+      ioiMinMs: null,
+      ioiMedianMs: null,
+      ioiP90Ms: null,
+      ioiP99Ms: null,
+      ioiMaxMs: null,
+      chunksWithPauseOver1000Ms: 0,
     }
   }
-  const sorted = [...gapsMs].sort((a, b) => a - b)
+  const sorted = [...ioisMs].sort((a, b) => a - b)
   const pct = (p) =>
     sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))]
   return {
     totalWords,
     totalChunks: chunks.length,
     thresholdMs,
-    gapMinMs: Math.round(sorted[0]),
-    gapMedianMs: Math.round(pct(50)),
-    gapP90Ms: Math.round(pct(90)),
-    gapP99Ms: Math.round(pct(99)),
-    gapMaxMs: Math.round(sorted[sorted.length - 1]),
-    chunksWithGapOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
+    ioiMinMs: Math.round(sorted[0]),
+    ioiMedianMs: Math.round(pct(50)),
+    ioiP90Ms: Math.round(pct(90)),
+    ioiP99Ms: Math.round(pct(99)),
+    ioiMaxMs: Math.round(sorted[sorted.length - 1]),
+    chunksWithPauseOver1000Ms: chunks.filter((c) => c.gapBefore > 1000).length,
   }
 }
 
@@ -152,9 +154,9 @@ function main() {
     `[intensive test] ` +
     `words=${stats.totalWords} chunks=${stats.totalChunks} ` +
     `threshold=${stats.thresholdMs}ms ` +
-    `gaps(ms) min=${stats.gapMinMs} median=${stats.gapMedianMs} ` +
-    `p90=${stats.gapP90Ms} p99=${stats.gapP99Ms} max=${stats.gapMaxMs} ` +
-    `longGaps>1s=${stats.chunksWithGapOver1000Ms}`,
+    `ioi(ms) min=${stats.ioiMinMs} median=${stats.ioiMedianMs} ` +
+    `p90=${stats.ioiP90Ms} p99=${stats.ioiP99Ms} max=${stats.ioiMaxMs} ` +
+    `longPauses>1s=${stats.chunksWithPauseOver1000Ms}`,
   )
 
   // chunks — one per line, gap prefix

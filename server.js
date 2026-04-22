@@ -2557,7 +2557,7 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 5
+const INTENSIVE_SEGMENTS_VERSION = 6
 const INTENSIVE_PAUSE_THRESHOLD_MS = 1000
 
 function buildIntensiveSegmentsFromWords(
@@ -2589,13 +2589,20 @@ function buildIntensiveSegmentsFromWords(
   let currentWords = []
   let currentPauseBeforeMs = 0
 
-  const flush = () => {
+  const flush = (endTime) => {
     if (!currentWords.length) return
+    const lastWord = currentWords[currentWords.length - 1]
+    // Prefer the explicit `endTime` (the next word's onset at a split point)
+    // over the last word's `.end`. At cue boundaries YouTube's rolling cues
+    // can overlap — `lastWord.end` is set to the cue's display end, which
+    // may land AFTER the next word's onset and cause playback to bleed into
+    // the next word. Using `next.start` keeps the chunk boundary precisely
+    // at "right before the next word".
     chunks.push({
       text: currentWords.map((w) => w.text).join(' '),
       words: currentWords,
       start: currentWords[0].start,
-      end: currentWords[currentWords.length - 1].end,
+      end: Number.isFinite(endTime) ? endTime : lastWord.end,
       gapBefore: Math.round(currentPauseBeforeMs),
     })
     currentWords = []
@@ -2612,7 +2619,7 @@ function buildIntensiveSegmentsFromWords(
     if (next) ioiSamplesMs.push(ioi * 1000)
 
     if (next && ioi > thresholdSec) {
-      flush()
+      flush(next.start)
       currentPauseBeforeMs = ioi * 1000
     }
   }

@@ -48,13 +48,14 @@ function buildIntensiveSegmentsFromWords(segments, thresholdMs = DEFAULT_THRESHO
   let currentWords = []
   let currentPauseBeforeMs = 0
 
-  const flush = () => {
+  const flush = (endTime) => {
     if (!currentWords.length) return
+    const lastWord = currentWords[currentWords.length - 1]
     chunks.push({
       text: currentWords.map((w) => w.text).join(' '),
       words: currentWords,
       start: currentWords[0].start,
-      end: currentWords[currentWords.length - 1].end,
+      end: Number.isFinite(endTime) ? endTime : lastWord.end,
       gapBefore: Math.round(currentPauseBeforeMs),
     })
     currentWords = []
@@ -71,7 +72,7 @@ function buildIntensiveSegmentsFromWords(segments, thresholdMs = DEFAULT_THRESHO
     if (next) ioiSamplesMs.push(ioi * 1000)
 
     if (next && ioi > thresholdSec) {
-      flush()
+      flush(next.start)
       currentPauseBeforeMs = ioi * 1000
     }
   }

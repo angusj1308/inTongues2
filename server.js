@@ -2557,12 +2557,12 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 16
+const INTENSIVE_SEGMENTS_VERSION = 17
 // Primary chunking source for Deepgram: their `utterances` output. One
 // tunable knob — `utt_split`, the silence duration (seconds) at which a
 // new utterance starts. Set larger than our old 120ms floor so we only
 // split at substantive speaker pauses.
-const INTENSIVE_UTT_SPLIT_SEC = 0.5
+const INTENSIVE_UTT_SPLIT_SEC = 0.25
 // Fallback-only — used when STT didn't return utterances (Whisper path)
 // or when we fall through to YouTube cue words. Percentile + floor combo
 // from the pre-utterances design.
@@ -2577,7 +2577,9 @@ const INTENSIVE_PAUSE_FLOOR_MS = 120
 // re-transcribed with the current provider chain (Deepgram-first).
 // v3: Deepgram call now also requests `utterances` — need to re-fetch so
 // existing docs pick up the utterance data.
-const INTENSIVE_RAW_WORDS_VERSION = 3
+// v4: utt_split tuned — Deepgram re-call required to get the new utterance
+// boundaries (the parameter is server-side only).
+const INTENSIVE_RAW_WORDS_VERSION = 4
 
 // Sanitize a word stream before chunking:
 //  - drop entries with non-finite times / empty text

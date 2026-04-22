@@ -2557,7 +2557,7 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 14
+const INTENSIVE_SEGMENTS_VERSION = 15
 // Percentile-based splitting. Instead of an absolute millisecond threshold,
 // we split at the top (100 - INTENSIVE_PAUSE_PERCENTILE)% longest gaps in
 // this particular video's IOI distribution. Adapts to speaker rate
@@ -2569,6 +2569,11 @@ const INTENSIVE_PAUSE_PERCENTILE = 93
 // Floor so we never split on micro-gaps if a video is truly uniform rate
 // (e.g. synthetic narration). Keeps chunks usable.
 const INTENSIVE_PAUSE_FLOOR_MS = 120
+// Minimum chunk size. Single-word chunks (standalone "Sí.", "Exacto.",
+// "¿no?") are useless for drilling — fuse them into a neighbour. Fusion
+// direction is determined by whichever side of the orphan has the shorter
+// pause, which matches how the speaker grouped the fragment themselves.
+const INTENSIVE_MIN_CHUNK_WORDS = 2
 // Provider-agnostic cache of word-level timings used to build intensive
 // segments. Bumping this forces the server to re-fetch word timings on
 // next open (rare — only bump if the provider list or ingestion rules
@@ -2721,6 +2726,8 @@ function buildIntensiveSegmentsFromWords(
   }
   flush()
 
+  fuseShortChunks(chunks, INTENSIVE_MIN_CHUNK_WORDS)
+
   const stats = computeIntensiveIoiStats(
     gapSamplesMs,
     chunks,
@@ -2730,6 +2737,52 @@ function buildIntensiveSegmentsFromWords(
     Number.isFinite(percentile) ? percentile : null,
   )
   return { segments: chunks, stats }
+}
+
+// In-place fuse chunks shorter than `minWords` into a neighbour. Direction
+// is decided by whichever side of the orphan had the shorter pause — the
+// speaker flowed more naturally toward that side, so the orphan belongs
+// grouped with it. Boundary orphans (first/last chunk) fuse to their only
+// neighbour. Iterates until no chunk remains below the floor.
+function fuseShortChunks(chunks, minWords) {
+  if (minWords <= 1 || chunks.length <= 1) return
+  let guard = chunks.length * 2
+  while (guard-- > 0) {
+    const orphanIdx = chunks.findIndex((c) => c.words.length < minWords)
+    if (orphanIdx === -1) break
+    if (chunks.length === 1) break
+
+    let mergeBackward
+    if (orphanIdx === 0) {
+      mergeBackward = false
+    } else if (orphanIdx === chunks.length - 1) {
+      mergeBackward = true
+    } else {
+      const pauseBefore = chunks[orphanIdx].gapBefore || 0
+      const pauseAfter = chunks[orphanIdx + 1].gapBefore || 0
+      mergeBackward = pauseBefore <= pauseAfter
+    }
+
+    const orphan = chunks[orphanIdx]
+    if (mergeBackward) {
+      const prev = chunks[orphanIdx - 1]
+      prev.words = [...prev.words, ...orphan.words]
+      prev.text = `${prev.text} ${orphan.text}`
+      prev.end = orphan.end
+      // prev.gapBefore stays; the boundary between prev and orphan is
+      // internal now so its pause info is discarded.
+      chunks.splice(orphanIdx, 1)
+    } else {
+      const next = chunks[orphanIdx + 1]
+      next.words = [...orphan.words, ...next.words]
+      next.text = `${orphan.text} ${next.text}`
+      next.start = orphan.start
+      // The pause before the FUSED chunk is the pause that led into the
+      // orphan, not the (shorter) pause that led from orphan to next.
+      next.gapBefore = orphan.gapBefore
+      chunks.splice(orphanIdx, 1)
+    }
+  }
 }
 
 function computeIntensiveIoiStats(samplesMs, chunks, totalWords, thresholdMs, metricKind = 'ioi', percentile = null) {

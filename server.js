@@ -2557,17 +2557,16 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 14
-// Percentile-based splitting. Instead of an absolute millisecond threshold,
-// we split at the top (100 - INTENSIVE_PAUSE_PERCENTILE)% longest gaps in
-// this particular video's IOI distribution. Adapts to speaker rate
-// automatically — a slow lecturer's "clause pause" is a long absolute
-// value but still the same percentile of their rhythm as a rapid
-// interviewer's "clause pause". Calibrated on the Argentina video:
-// 725 words @ 54 chunks ≈ p92.5–p93 equivalent, so starting at 93.
+const INTENSIVE_SEGMENTS_VERSION = 16
+// Primary chunking source for Deepgram: their `utterances` output. One
+// tunable knob — `utt_split`, the silence duration (seconds) at which a
+// new utterance starts. Set larger than our old 120ms floor so we only
+// split at substantive speaker pauses.
+const INTENSIVE_UTT_SPLIT_SEC = 0.5
+// Fallback-only — used when STT didn't return utterances (Whisper path)
+// or when we fall through to YouTube cue words. Percentile + floor combo
+// from the pre-utterances design.
 const INTENSIVE_PAUSE_PERCENTILE = 93
-// Floor so we never split on micro-gaps if a video is truly uniform rate
-// (e.g. synthetic narration). Keeps chunks usable.
 const INTENSIVE_PAUSE_FLOOR_MS = 120
 // Provider-agnostic cache of word-level timings used to build intensive
 // segments. Bumping this forces the server to re-fetch word timings on
@@ -2576,7 +2575,9 @@ const INTENSIVE_PAUSE_FLOOR_MS = 120
 // tell a Deepgram build apart from a Whisper fallback in the logs.
 // v2: retired the legacy `whisperWords` promotion; every cached doc is
 // re-transcribed with the current provider chain (Deepgram-first).
-const INTENSIVE_RAW_WORDS_VERSION = 2
+// v3: Deepgram call now also requests `utterances` — need to re-fetch so
+// existing docs pick up the utterance data.
+const INTENSIVE_RAW_WORDS_VERSION = 3
 
 // Sanitize a word stream before chunking:
 //  - drop entries with non-finite times / empty text
@@ -2791,7 +2792,11 @@ function logIntensiveBuild(videoId, stats, source) {
 // data. Returns `{ cachedRawWords, cachedRawWordsSource }` (both null if
 // nothing usable is cached).
 function pickCachedRawWords(existingData) {
-  if (!existingData) return { cachedRawWords: null, cachedRawWordsSource: null }
+  if (!existingData) return {
+    cachedRawWords: null,
+    cachedRawWordsSource: null,
+    cachedRawUtterances: null,
+  }
   if (
     Array.isArray(existingData.intensiveRawWords) &&
     existingData.intensiveRawWords.length &&
@@ -2800,30 +2805,56 @@ function pickCachedRawWords(existingData) {
     return {
       cachedRawWords: existingData.intensiveRawWords,
       cachedRawWordsSource: existingData.intensiveRawWordsSource || null,
+      cachedRawUtterances: Array.isArray(existingData.intensiveRawUtterances)
+        ? existingData.intensiveRawUtterances
+        : null,
     }
   }
-  return { cachedRawWords: null, cachedRawWordsSource: null }
+  return { cachedRawWords: null, cachedRawWordsSource: null, cachedRawUtterances: null }
+}
+
+// Map Deepgram utterances to the `intensiveSegments` shape we store on
+// Firestore. `gapBefore` is the real silence between the previous
+// utterance's end and this utterance's start (ms), used for debugging /
+// downstream heuristics.
+function utterancesToIntensiveChunks(utterances) {
+  const chunks = []
+  for (let i = 0; i < utterances.length; i++) {
+    const u = utterances[i]
+    const prev = utterances[i - 1]
+    const gapBeforeMs = prev ? Math.max(0, (u.start - prev.end) * 1000) : 0
+    chunks.push({
+      text: u.text,
+      words: u.words,
+      start: u.start,
+      end: u.end,
+      gapBefore: Math.round(gapBeforeMs),
+    })
+  }
+  return chunks
 }
 
 // Produce the payload fields that get written to the transcript doc for
 // intensive mode. Preference order:
-//   1. Cached raw word stream (Deepgram or Whisper, whichever we saved).
-//   2. Fresh Deepgram fetch — forced alignment, best word boundaries.
-//   3. Fresh Whisper fetch — fallback if Deepgram fails / key missing.
-//   4. YouTube's cue-derived words — last-ditch for videos where STT
-//      can't run at all (offline dev, no OpenAI + no Deepgram keys, etc.).
+//   1. Cached raw word stream + utterances (Deepgram path is cheapest).
+//   2. Fresh Deepgram fetch — words AND utterances (`utt_split` sec).
+//   3. Fresh Whisper fetch — words only; we run our own chunker as
+//      fallback chunking source.
+//   4. YouTube's cue-derived words — last-ditch, chunker with IOI metric.
 //
-// Whichever source wins, the words are saved under `intensiveRawWords`
-// with `intensiveRawWordsSource` recording provenance, so later retunes
-// (just changing the threshold) don't re-hit any STT API.
+// Deepgram path saves its utterances verbatim as `intensiveSegments` —
+// we trust their speech-unit segmentation. Other paths run the
+// percentile+floor chunker we had before.
 async function buildIntensiveForTranscript({
   videoId,
   languageCode,
   youtubeSegments,
   cachedRawWords,
   cachedRawWordsSource,
+  cachedRawUtterances,
 }) {
   let rawWords = null
+  let rawUtterances = null
   let source = null
   let fromCache = false
 
@@ -2833,26 +2864,58 @@ async function buildIntensiveForTranscript({
     (cachedRawWordsSource === 'deepgram' || cachedRawWordsSource === 'whisper')
   ) {
     rawWords = cachedRawWords
+    rawUtterances = cachedRawUtterances
     source = cachedRawWordsSource
     fromCache = true
   }
 
   if (!rawWords) {
-    rawWords = await fetchDeepgramWordTimings(videoId, languageCode)
-    if (rawWords && rawWords.length) source = 'deepgram'
+    const dg = await fetchDeepgramWordTimings(videoId, languageCode)
+    if (dg && Array.isArray(dg.words) && dg.words.length) {
+      rawWords = dg.words
+      rawUtterances = dg.utterances || []
+      source = 'deepgram'
+    }
   }
   if (!rawWords) {
-    rawWords = await fetchWhisperWordTimings(videoId, languageCode)
-    if (rawWords && rawWords.length) source = 'whisper'
+    const ww = await fetchWhisperWordTimings(videoId, languageCode)
+    if (ww && ww.length) {
+      rawWords = ww
+      rawUtterances = null
+      source = 'whisper'
+    }
   }
 
   const fields = {}
 
-  // STT succeeded (fresh or cached) → build with real-gap metric.
   if (rawWords && rawWords.length && (source === 'deepgram' || source === 'whisper')) {
     fields.intensiveRawWords = rawWords
     fields.intensiveRawWordsVersion = INTENSIVE_RAW_WORDS_VERSION
     fields.intensiveRawWordsSource = source
+    if (Array.isArray(rawUtterances) && rawUtterances.length) {
+      fields.intensiveRawUtterances = rawUtterances
+    }
+
+    // Deepgram path: use their utterances verbatim. Whisper path: fall
+    // back to our pause-based chunker since Whisper doesn't give us
+    // utterance boundaries.
+    if (source === 'deepgram' && Array.isArray(rawUtterances) && rawUtterances.length) {
+      const segments = utterancesToIntensiveChunks(rawUtterances)
+      console.log(
+        `[intensive ${videoId}] source=${fromCache ? 'deepgram[cache]' : 'deepgram'} ` +
+        `via=utterances words=${rawWords.length} chunks=${segments.length} ` +
+        `utt_split=${INTENSIVE_UTT_SPLIT_SEC}s`,
+      )
+      if (segments.length) {
+        fields.intensiveSegments = segments
+        fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
+        fields.intensiveUttSplitSec = INTENSIVE_UTT_SPLIT_SEC
+        fields.intensiveSource = 'deepgram'
+        return fields
+      }
+    }
+
+    // Whisper path (no utterances) — chunker fallback.
     const { segments, stats } = buildIntensiveSegmentsFromWords(
       rawWords,
       null,
@@ -3469,11 +3532,12 @@ async function fetchWhisperWordTimings(videoId, languageCode) {
   }
 }
 
-// Pull word-level timings from Deepgram. Preferred over Whisper because
-// Deepgram uses forced alignment (not post-hoc cross-attention), yielding
-// precise word boundaries without whisper-1's zero-duration artefacts.
-// Returns `[{ text, start, end }]` or null on any failure (caller falls
-// back to Whisper, then to YouTube words).
+// Pull word-level timings + utterance boundaries from Deepgram. Preferred
+// over Whisper because Deepgram's forced alignment gives precise word
+// boundaries, and its utterance segmentation (controlled by `utt_split`)
+// is our primary source of intensive chunk boundaries. Returns
+// `{ words, utterances }` or null on any failure. Caller falls back to
+// Whisper (words only, no utterances), then YouTube cue words.
 async function fetchDeepgramWordTimings(videoId, languageCode) {
   const apiKey = process.env.DEEPGRAM_API_KEY
   if (!apiKey) {
@@ -3483,8 +3547,6 @@ async function fetchDeepgramWordTimings(videoId, languageCode) {
   let audioPath = null
   try {
     // Deepgram accepts up to 2GB per request, so we never need to compress.
-    // Full-quality audio keeps onset transients crisp, which is exactly
-    // what the forced aligner uses to place word boundaries.
     audioPath = await downloadYoutubeAudio(videoId, { maxSizeBytes: 2 * 1024 * 1024 * 1024 })
     const language = resolveTargetCode(languageCode)
 
@@ -3492,11 +3554,13 @@ async function fetchDeepgramWordTimings(videoId, languageCode) {
       model: 'nova-3',
       smart_format: 'true',
       punctuate: 'true',
+      utterances: 'true',
+      utt_split: String(INTENSIVE_UTT_SPLIT_SEC),
     })
     if (language) params.set('language', language)
 
     console.log(
-      `[deepgram ${videoId}] transcribing ${audioPath} language=${language || 'auto-detect'}`,
+      `[deepgram ${videoId}] transcribing ${audioPath} language=${language || 'auto-detect'} utt_split=${INTENSIVE_UTT_SPLIT_SEC}s`,
     )
 
     const audioBuffer = await fs.readFile(audioPath)
@@ -3533,8 +3597,35 @@ async function fetchDeepgramWordTimings(videoId, languageCode) {
         end: Number(w?.end),
       }))
       .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
-    console.log(`[deepgram ${videoId}] received ${words.length} words`)
-    return words
+
+    const rawUtterances = Array.isArray(data?.results?.utterances)
+      ? data.results.utterances
+      : []
+    const utterances = rawUtterances
+      .map((u) => ({
+        text: typeof u?.transcript === 'string' ? u.transcript.trim() : '',
+        start: Number(u?.start),
+        end: Number(u?.end),
+        words: Array.isArray(u?.words)
+          ? u.words
+              .map((w) => ({
+                text: typeof w?.punctuated_word === 'string'
+                  ? w.punctuated_word.trim()
+                  : typeof w?.word === 'string'
+                    ? w.word.trim()
+                    : '',
+                start: Number(w?.start),
+                end: Number(w?.end),
+              }))
+              .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
+          : [],
+      }))
+      .filter((u) => u.text && Number.isFinite(u.start) && Number.isFinite(u.end))
+
+    console.log(
+      `[deepgram ${videoId}] received ${words.length} words, ${utterances.length} utterances`,
+    )
+    return { words, utterances }
   } catch (err) {
     console.error(`[deepgram ${videoId}] failed:`, err?.message || err)
     return null
@@ -4079,7 +4170,8 @@ app.post('/api/youtube/transcript', async (req, res) => {
           ? existingData.intensiveSegments
           : null
         let cachedIntensiveVersion = existingData.intensiveSegmentsVersion || null
-        const { cachedRawWords, cachedRawWordsSource } = pickCachedRawWords(existingData)
+        const { cachedRawWords, cachedRawWordsSource, cachedRawUtterances } =
+          pickCachedRawWords(existingData)
         const hasWordTiming = cachedSegments.some(
           (s) => Array.isArray(s.words) && s.words.length,
         )
@@ -4093,6 +4185,7 @@ app.post('/api/youtube/transcript', async (req, res) => {
             youtubeSegments: cachedSegments,
             cachedRawWords,
             cachedRawWordsSource,
+            cachedRawUtterances,
           })
           if (fields.intensiveSegments) {
             cachedIntensiveSegments = fields.intensiveSegments
@@ -4126,14 +4219,18 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const resolvedSentenceSegments = normaliseTranscriptSegments(dlpResult.sentenceSegments)
     const transcriptText = dlpResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
-    const { cachedRawWords: existingCachedRawWords, cachedRawWordsSource: existingCachedRawWordsSource } =
-      pickCachedRawWords(existingData)
+    const {
+      cachedRawWords: existingCachedRawWords,
+      cachedRawWordsSource: existingCachedRawWordsSource,
+      cachedRawUtterances: existingCachedRawUtterances,
+    } = pickCachedRawWords(existingData)
     const intensiveFields = await buildIntensiveForTranscript({
       videoId,
       languageCode,
       youtubeSegments: normalisedSegments,
       cachedRawWords: existingCachedRawWords,
       cachedRawWordsSource: existingCachedRawWordsSource,
+      cachedRawUtterances: existingCachedRawUtterances,
     })
 
     const transcriptPayload = {
@@ -4391,6 +4488,7 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
       youtubeSegments: normalisedSegments,
       cachedRawWords: null,
       cachedRawWordsSource: null,
+      cachedRawUtterances: null,
     })
 
     const transcriptPayload = {

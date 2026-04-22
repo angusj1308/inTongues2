@@ -2557,7 +2557,7 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 8
+const INTENSIVE_SEGMENTS_VERSION = 9
 const INTENSIVE_PAUSE_THRESHOLD_MS = 300
 const WHISPER_WORDS_VERSION = 1
 
@@ -2645,7 +2645,14 @@ function buildIntensiveSegmentsFromWords(
     }
 
     if (next && metric > thresholdSec) {
-      flush(next.start)
+      // End the chunk at the LAST WORD'S real end (when speech stopped),
+      // not at the next word's onset. Leaves the silence between chunks
+      // unplayed — cleaner for drilling and immune to iframe polling lag
+      // carrying us into the next word. `min(word.end, next.start)` is
+      // universal-safe: on Whisper data `word.end < next.start` (real
+      // silence); on the YouTube fallback `word.end` can overshoot at
+      // rolling-cue overlaps, so we clamp it to `next.start`.
+      flush(Math.min(word.end, next.start))
       currentPauseBeforeMs = metric * 1000
     }
   }

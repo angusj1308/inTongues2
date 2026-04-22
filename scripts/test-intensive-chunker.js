@@ -86,7 +86,7 @@ function buildIntensiveSegmentsFromWords(
     }
 
     if (next && metric > thresholdSec) {
-      flush(next.start)
+      flush(Math.min(word.end, next.start))
       currentPauseBeforeMs = metric * 1000
     }
   }

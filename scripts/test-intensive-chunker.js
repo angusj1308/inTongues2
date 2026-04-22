@@ -41,6 +41,14 @@ function sanitiseWordStream(rawWords) {
     out.push({ text, start, end: end > start ? end : start })
     lastKeptStart = start
   }
+  const MAX_ZERO_FILL_SEC = 0.3
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].end > out[i].start) continue
+    const next = out[i + 1]
+    const cap = out[i].start + MAX_ZERO_FILL_SEC
+    out[i].end = next ? Math.min(cap, next.start) : cap
+    if (out[i].end < out[i].start) out[i].end = out[i].start
+  }
   return out
 }
 

@@ -2557,15 +2557,24 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 9
+const INTENSIVE_SEGMENTS_VERSION = 10
 const INTENSIVE_PAUSE_THRESHOLD_MS = 300
-const WHISPER_WORDS_VERSION = 1
+// Provider-agnostic cache of word-level timings used to build intensive
+// segments. Bumping this forces the server to re-fetch word timings on
+// next open (rare — only bump if the provider list or ingestion rules
+// change). `intensiveRawWordsSource` records who produced them so we can
+// tell a Deepgram build apart from a Whisper fallback in the logs.
+const INTENSIVE_RAW_WORDS_VERSION = 1
 
 // Sanitize a word stream before chunking:
 //  - drop entries with non-finite times / empty text
 //  - enforce strict monotonicity on `start` (drops rolling-cue duplicates
 //    that YouTube's cue-dedupe heuristic leaks, which otherwise cause
 //    chunk-to-chunk overlap in the output)
+//  - repair zero-duration words (Whisper occasionally collapses word end
+//    to its start; this inflates the next-word gap and causes phantom
+//    splits). We extend such words up to 300ms forward, clamped to not
+//    overshoot the next word's onset.
 function sanitiseWordStream(rawWords) {
   const out = []
   let lastKeptStart = -Infinity
@@ -2578,6 +2587,16 @@ function sanitiseWordStream(rawWords) {
     if (start <= lastKeptStart) continue
     out.push({ text, start, end: end > start ? end : start })
     lastKeptStart = start
+  }
+  // Zero-duration repair pass. Uses look-ahead so it clamps against the
+  // next word's start. Leaves well-formed words alone.
+  const MAX_ZERO_FILL_SEC = 0.3
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].end > out[i].start) continue
+    const next = out[i + 1]
+    const cap = out[i].start + MAX_ZERO_FILL_SEC
+    out[i].end = next ? Math.min(cap, next.start) : cap
+    if (out[i].end < out[i].start) out[i].end = out[i].start
   }
   return out
 }
@@ -2716,47 +2735,95 @@ function logIntensiveBuild(videoId, stats, source) {
   )
 }
 
+// Read cached raw word timings off a transcript doc, tolerating the legacy
+// `whisperWords` field. Returns `{ cachedRawWords, cachedRawWordsSource }`
+// (both null if nothing usable is cached).
+function pickCachedRawWords(existingData) {
+  if (!existingData) return { cachedRawWords: null, cachedRawWordsSource: null }
+  if (
+    Array.isArray(existingData.intensiveRawWords) &&
+    existingData.intensiveRawWords.length &&
+    existingData.intensiveRawWordsVersion === INTENSIVE_RAW_WORDS_VERSION
+  ) {
+    return {
+      cachedRawWords: existingData.intensiveRawWords,
+      cachedRawWordsSource: existingData.intensiveRawWordsSource || null,
+    }
+  }
+  if (Array.isArray(existingData.whisperWords) && existingData.whisperWords.length) {
+    return {
+      cachedRawWords: existingData.whisperWords,
+      cachedRawWordsSource: 'whisper',
+    }
+  }
+  return { cachedRawWords: null, cachedRawWordsSource: null }
+}
+
 // Produce the payload fields that get written to the transcript doc for
-// intensive mode. Tries Whisper for precise word timings; falls back to
-// YouTube's cue-derived words (which we sanitise for rolling-cue dup leaks
-// via sanitiseWordStream inside the chunker).
+// intensive mode. Preference order:
+//   1. Cached raw word stream (Deepgram or Whisper, whichever we saved).
+//   2. Fresh Deepgram fetch — forced alignment, best word boundaries.
+//   3. Fresh Whisper fetch — fallback if Deepgram fails / key missing.
+//   4. YouTube's cue-derived words — last-ditch for videos where STT
+//      can't run at all (offline dev, no OpenAI + no Deepgram keys, etc.).
+//
+// Whichever source wins, the words are saved under `intensiveRawWords`
+// with `intensiveRawWordsSource` recording provenance, so later retunes
+// (just changing the threshold) don't re-hit any STT API.
 async function buildIntensiveForTranscript({
   videoId,
   languageCode,
   youtubeSegments,
-  cachedWhisperWords,
+  cachedRawWords,
+  cachedRawWordsSource,
 }) {
-  // Prefer cached Whisper words if we already paid for them at this version.
-  let whisperWords = Array.isArray(cachedWhisperWords) ? cachedWhisperWords : null
-  let whisperFromCache = Boolean(whisperWords && whisperWords.length)
-  if (!whisperFromCache) {
-    whisperWords = await fetchWhisperWordTimings(videoId, languageCode)
+  let rawWords = null
+  let source = null
+  let fromCache = false
+
+  if (
+    Array.isArray(cachedRawWords) &&
+    cachedRawWords.length &&
+    (cachedRawWordsSource === 'deepgram' || cachedRawWordsSource === 'whisper')
+  ) {
+    rawWords = cachedRawWords
+    source = cachedRawWordsSource
+    fromCache = true
+  }
+
+  if (!rawWords) {
+    rawWords = await fetchDeepgramWordTimings(videoId, languageCode)
+    if (rawWords && rawWords.length) source = 'deepgram'
+  }
+  if (!rawWords) {
+    rawWords = await fetchWhisperWordTimings(videoId, languageCode)
+    if (rawWords && rawWords.length) source = 'whisper'
   }
 
   const fields = {}
-  if (whisperWords && whisperWords.length) {
-    fields.whisperWords = whisperWords
-    fields.whisperWordsVersion = WHISPER_WORDS_VERSION
+
+  // STT succeeded (fresh or cached) → build with real-gap metric.
+  if (rawWords && rawWords.length && (source === 'deepgram' || source === 'whisper')) {
+    fields.intensiveRawWords = rawWords
+    fields.intensiveRawWordsVersion = INTENSIVE_RAW_WORDS_VERSION
+    fields.intensiveRawWordsSource = source
     const { segments, stats } = buildIntensiveSegmentsFromWords(
-      whisperWords,
+      rawWords,
       INTENSIVE_PAUSE_THRESHOLD_MS,
       { useRealGaps: true },
     )
-    logIntensiveBuild(
-      videoId,
-      stats,
-      whisperFromCache ? 'whisper[cache]' : 'whisper',
-    )
+    logIntensiveBuild(videoId, stats, fromCache ? `${source}[cache]` : source)
     if (segments.length) {
       fields.intensiveSegments = segments
       fields.intensiveSegmentsVersion = INTENSIVE_SEGMENTS_VERSION
       fields.intensivePauseThresholdMs = INTENSIVE_PAUSE_THRESHOLD_MS
-      fields.intensiveSource = 'whisper'
+      fields.intensiveSource = source
       return fields
     }
   }
 
-  // Whisper unavailable or returned nothing — fall back to YouTube words.
+  // Last-resort fallback: YouTube's cue words. Uses IOI metric because
+  // YouTube's word.end is synthetic.
   const ytWords = flattenSegmentWords(youtubeSegments)
   const { segments, stats } = buildIntensiveSegmentsFromWords(
     ytWords,
@@ -3220,7 +3287,7 @@ function parseTimestamp(ts) {
   return hours * 3600 + minutes * 60 + seconds + ms / 1000
 }
 
-async function downloadYoutubeAudio(videoId) {
+async function downloadYoutubeAudio(videoId, { maxSizeBytes = 24 * 1024 * 1024 } = {}) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`
   const tempBase = path.join(os.tmpdir(), `yt-audio-${videoId}-${Date.now()}`)
   const downloadPath = `${tempBase}.mp3`
@@ -3260,10 +3327,15 @@ async function downloadYoutubeAudio(videoId) {
   const stat = await fs.stat(downloadPath)
   console.log('Downloaded audio:', `${(stat.size / 1024 / 1024).toFixed(1)}MB`)
 
-  // Step 3: If over 24MB, compress with ffmpeg for Whisper's 25MB limit
-  const MAX_SIZE = 24 * 1024 * 1024 // 24MB
-  if (stat.size > MAX_SIZE) {
-    console.log('File too large for Whisper API, compressing...')
+  // Step 3: Compress down only when the caller's size ceiling is exceeded.
+  // Deepgram (2GB limit) and the intensive-chunker pipeline pass a huge
+  // ceiling so we never touch compression — preserving original audio
+  // quality preserves word-boundary precision. Whisper (25MB limit) keeps
+  // the 24MB ceiling.
+  if (stat.size > maxSizeBytes) {
+    console.log(
+      `File larger than ${(maxSizeBytes / 1024 / 1024).toFixed(0)}MB, compressing...`,
+    )
 
     await new Promise((resolve, reject) => {
       // Compress to 16kbps mono 16kHz - optimized for speech, ensures under 25MB
@@ -3333,6 +3405,82 @@ async function fetchWhisperWordTimings(videoId, languageCode) {
     return words
   } catch (err) {
     console.error(`[whisper ${videoId}] failed:`, err?.message || err)
+    return null
+  } finally {
+    if (audioPath) {
+      fs.unlink(audioPath).catch(() => {})
+    }
+  }
+}
+
+// Pull word-level timings from Deepgram. Preferred over Whisper because
+// Deepgram uses forced alignment (not post-hoc cross-attention), yielding
+// precise word boundaries without whisper-1's zero-duration artefacts.
+// Returns `[{ text, start, end }]` or null on any failure (caller falls
+// back to Whisper, then to YouTube words).
+async function fetchDeepgramWordTimings(videoId, languageCode) {
+  const apiKey = process.env.DEEPGRAM_API_KEY
+  if (!apiKey) {
+    console.warn(`[deepgram ${videoId}] DEEPGRAM_API_KEY not set — skipping`)
+    return null
+  }
+  let audioPath = null
+  try {
+    // Deepgram accepts up to 2GB per request, so we never need to compress.
+    // Full-quality audio keeps onset transients crisp, which is exactly
+    // what the forced aligner uses to place word boundaries.
+    audioPath = await downloadYoutubeAudio(videoId, { maxSizeBytes: 2 * 1024 * 1024 * 1024 })
+    const language = resolveTargetCode(languageCode)
+
+    const params = new URLSearchParams({
+      model: 'nova-3',
+      smart_format: 'true',
+      punctuate: 'true',
+    })
+    if (language) params.set('language', language)
+
+    console.log(
+      `[deepgram ${videoId}] transcribing ${audioPath} language=${language || 'auto-detect'}`,
+    )
+
+    const audioBuffer = await fs.readFile(audioPath)
+    const response = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        'Content-Type': 'audio/mpeg',
+      },
+      body: audioBuffer,
+    })
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      console.error(
+        `[deepgram ${videoId}] HTTP ${response.status}: ${body.slice(0, 500)}`,
+      )
+      return null
+    }
+
+    const data = await response.json()
+    const rawWords =
+      data?.results?.channels?.[0]?.alternatives?.[0]?.words || []
+    const words = rawWords
+      .map((w) => ({
+        // `punctuated_word` keeps capitalisation + attached punctuation
+        // (e.g. "Argentina," or "¿no?"); fall back to `word` if absent.
+        text: typeof w?.punctuated_word === 'string'
+          ? w.punctuated_word.trim()
+          : typeof w?.word === 'string'
+            ? w.word.trim()
+            : '',
+        start: Number(w?.start),
+        end: Number(w?.end),
+      }))
+      .filter((w) => w.text && Number.isFinite(w.start) && Number.isFinite(w.end))
+    console.log(`[deepgram ${videoId}] received ${words.length} words`)
+    return words
+  } catch (err) {
+    console.error(`[deepgram ${videoId}] failed:`, err?.message || err)
     return null
   } finally {
     if (audioPath) {
@@ -3867,30 +4015,41 @@ app.post('/api/youtube/transcript', async (req, res) => {
 
         // Pass through cached intensiveSegments if already built at the
         // expected version. Otherwise (re)build them now. If the transcript
-        // has cached whisperWords, re-use those for free; else call Whisper
-        // (one-shot per video, forever cached). Falls back to YouTube words
-        // if Whisper is unavailable.
+        // has cached raw word timings (from Deepgram or a prior Whisper
+        // run), re-use those for free; else call the STT provider chain
+        // (Deepgram → Whisper). Falls back to YouTube words if no STT is
+        // available.
         let cachedIntensiveSegments = Array.isArray(existingData.intensiveSegments)
           ? existingData.intensiveSegments
           : null
         let cachedIntensiveVersion = existingData.intensiveSegmentsVersion || null
-        const cachedWhisperWords =
-          Array.isArray(existingData.whisperWords) &&
-          existingData.whisperWordsVersion === WHISPER_WORDS_VERSION
-            ? existingData.whisperWords
-            : null
+        let cachedRawWords = null
+        let cachedRawWordsSource = null
+        if (
+          Array.isArray(existingData.intensiveRawWords) &&
+          existingData.intensiveRawWordsVersion === INTENSIVE_RAW_WORDS_VERSION
+        ) {
+          cachedRawWords = existingData.intensiveRawWords
+          cachedRawWordsSource = existingData.intensiveRawWordsSource
+        } else if (Array.isArray(existingData.whisperWords) && existingData.whisperWords.length) {
+          // Legacy field from the pre-Deepgram era. Promote it on first
+          // touch so retunes are free and the legacy field can die.
+          cachedRawWords = existingData.whisperWords
+          cachedRawWordsSource = 'whisper'
+        }
         const hasWordTiming = cachedSegments.some(
           (s) => Array.isArray(s.words) && s.words.length,
         )
         if (
           (!cachedIntensiveSegments || cachedIntensiveVersion !== INTENSIVE_SEGMENTS_VERSION) &&
-          (hasWordTiming || cachedWhisperWords)
+          (hasWordTiming || cachedRawWords)
         ) {
           const fields = await buildIntensiveForTranscript({
             videoId,
             languageCode,
             youtubeSegments: cachedSegments,
-            cachedWhisperWords,
+            cachedRawWords,
+            cachedRawWordsSource,
           })
           if (fields.intensiveSegments) {
             cachedIntensiveSegments = fields.intensiveSegments
@@ -3924,15 +4083,14 @@ app.post('/api/youtube/transcript', async (req, res) => {
     const resolvedSentenceSegments = normaliseTranscriptSegments(dlpResult.sentenceSegments)
     const transcriptText = dlpResult.text || normalisedSegments.map((segment) => segment.text).join(' ')
 
+    const { cachedRawWords: existingCachedRawWords, cachedRawWordsSource: existingCachedRawWordsSource } =
+      pickCachedRawWords(existingData)
     const intensiveFields = await buildIntensiveForTranscript({
       videoId,
       languageCode,
       youtubeSegments: normalisedSegments,
-      cachedWhisperWords:
-        Array.isArray(existingData?.whisperWords) &&
-        existingData?.whisperWordsVersion === WHISPER_WORDS_VERSION
-          ? existingData.whisperWords
-          : null,
+      cachedRawWords: existingCachedRawWords,
+      cachedRawWordsSource: existingCachedRawWordsSource,
     })
 
     const transcriptPayload = {
@@ -4188,7 +4346,8 @@ async function processYouTubeTranscript(uid, videoDocId, videoId, languageCode =
       videoId,
       languageCode,
       youtubeSegments: normalisedSegments,
-      cachedWhisperWords: null,
+      cachedRawWords: null,
+      cachedRawWordsSource: null,
     })
 
     const transcriptPayload = {

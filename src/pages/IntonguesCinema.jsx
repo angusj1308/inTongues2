@@ -603,7 +603,16 @@ const normalisePagesToSegments = (pages = []) =>
           const sentenceSegments = normaliseSegments(data?.sentenceSegments)
           const intensiveSegments = normaliseIntensiveSegments(data?.intensiveSegments)
           setTranscript({ text: data?.text || '', segments, sentenceSegments, intensiveSegments })
-          if (sentenceSegments.length > 0 || segments.length > 0) return
+
+          // Fall through to the server fetch (below) when the cache has
+          // word-level timing but no intensive build yet — the server's
+          // cache-hit path will backfill and return the new chunks, which
+          // we then fold into state. Normal cache hits short-circuit as
+          // before.
+          const hasAnyContent = sentenceSegments.length > 0 || segments.length > 0
+          const hasWordTiming = segments.some((s) => Array.isArray(s.words) && s.words.length > 0)
+          const needsIntensiveBackfill = hasWordTiming && intensiveSegments.length === 0
+          if (hasAnyContent && !needsIntensiveBackfill) return
         }
 
         const response = await fetch('http://localhost:4000/api/youtube/transcript', {

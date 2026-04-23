@@ -1974,7 +1974,7 @@ const normalisePagesToSegments = (pages = []) =>
               aria-label="Open AI tutor"
               title="AI tutor"
             >
-              <span className="material-symbols-outlined">school</span>
+              <span className="material-symbols-outlined">question_mark</span>
             </button>
             {/* Subtitle language toggle - dubbed content only */}
             {isDubbed && (

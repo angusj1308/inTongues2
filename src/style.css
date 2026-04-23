@@ -7042,6 +7042,32 @@ html.reader-active body {
   color: #fff;
 }
 
+/* Force font inheritance onto native form/button elements so Atkinson
+   carries through. Browsers don't inherit font on <input>/<button> by
+   default. */
+.tutor-panel--cinema .tutor-panel-title,
+.tutor-panel--cinema .tutor-panel-empty,
+.tutor-panel--cinema .tutor-msg,
+.tutor-panel--cinema .tutor-panel-input,
+.tutor-panel--cinema .tutor-panel-btn,
+.tutor-panel--cinema .tutor-panel-send {
+  font-family: inherit;
+}
+
+.tutor-panel--cinema .tutor-msg {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.tutor-panel--cinema .tutor-panel-empty {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9375rem;
+}
+
+.tutor-panel--cinema .tutor-panel-input {
+  font-size: 0.9375rem;
+}
+
 .reader-themed .dashboard-header {
   background: #F5F5F2;
   color: #0f172a;

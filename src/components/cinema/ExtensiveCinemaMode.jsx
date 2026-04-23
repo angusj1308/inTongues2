@@ -17,7 +17,7 @@ const getPopupPosition = (rect, positionAbove = false) => {
   let y
   if (positionAbove) {
     // Position above the word with enough room for the popup
-    y = Math.max(rect.top - popupHeight - 12, padding)
+    y = Math.max(rect.top - popupHeight - 24, padding)
   } else {
     // Position below the word
     y = Math.min(rect.y + rect.height + 12, viewportHeight - padding)

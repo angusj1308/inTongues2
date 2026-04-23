@@ -13,7 +13,7 @@ const getPopupPosition = (rect) => {
   const x = Math.min(Math.max(rect.x + rect.width / 2, padding), viewportWidth - padding)
 
   // Always position above the word
-  const y = Math.max(rect.top - popupHeight - 12, padding)
+  const y = Math.max(rect.top - popupHeight - 24, padding)
 
   return { x, y }
 }

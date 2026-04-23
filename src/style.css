@@ -12605,18 +12605,15 @@ body:has(.cinema-page) {
 }
 
 /* Transcript line styles */
-.is-dark .floating-panel-content .transcript-line {
-  color: rgba(255, 255, 255, 0.6);
+/* Cinema uses flowMode (TranscriptFlow), a single scrolling block of words —
+   there are no .transcript-line rows. Font lives on the flow track so every
+   .reader-word inherits it. Tracking state (tp-past/tp-active/tp-future) is
+   opacity only, no weight change. */
+.is-dark .floating-panel-content .transcript-flow-track {
   font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.25rem;
   font-weight: 500;
   line-height: 1.7;
-}
-
-.is-dark .floating-panel-content .transcript-line.active {
-  color: #fff;
-  font-weight: 550;
-  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Dark mode footer with gradient fade */

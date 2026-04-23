@@ -12966,7 +12966,7 @@ body:has(.cinema-page) {
 .cinema-word-popup {
   position: absolute;
   z-index: 1001;
-  border-radius: 10px;
+  border-radius: 0;
   padding: 10px 12px;
   min-width: 180px;
   max-width: 280px;
@@ -13009,7 +13009,7 @@ body:has(.cinema-page) {
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -13071,7 +13071,7 @@ body:has(.cinema-page) {
 /* Status selector row */
 .cinema-word-popup-status {
   display: flex;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 3px;
   gap: 2px;
 }
@@ -13088,7 +13088,7 @@ body:has(.cinema-page) {
   flex: 1;
   padding: 6px 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;

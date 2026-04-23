@@ -1,8 +1,19 @@
 import { useCallback, useRef } from 'react'
-import { HIGHLIGHT_COLOR, STATUS_OPACITY } from '../../constants/highlightColors'
 
 const STATUS_LEVELS = ['new', 'unknown', 'recognised', 'familiar', 'known']
 const STATUS_ABBREV = ['N', 'U', 'R', 'F', 'K']
+
+// Per-status colors. N/U share the 'new' palette color; R/F pull from the
+// palette's recognised/familiar stops; K is a mastered-green constant.
+// The palette vars (--hlt-*) are set by AuthProvider based on user's
+// highlightPalette (terracotta / sage / slate) and theme.
+const STATUS_COLORS = {
+  new: 'var(--hlt-new)',
+  unknown: 'var(--hlt-new)',
+  recognised: 'var(--hlt-recognised)',
+  familiar: 'var(--hlt-familiar)',
+  known: '#4CAF50',
+}
 
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
@@ -10,46 +21,21 @@ const PlayIcon = () => (
   </svg>
 )
 
-// Get background style for a status button when active
-// Light mode: mix with white, Dark mode: mix with black
+// Inactive pill: status color muted against the popup bg so the row reads as
+// a scale preview. Active pill: tinted fill + raw status color as text.
 const getStatusStyle = (statusLevel, isActive, darkMode) => {
-  if (!isActive) return {}
-
+  const color = STATUS_COLORS[statusLevel]
   const mixBase = darkMode ? 'black' : 'white'
-  const textHighlight = darkMode ? '#C86070' : '#5C1A22'
-  const textMuted = darkMode ? '#94a3b8' : '#64748b'
 
-  switch (statusLevel) {
-    case 'new':
-      return {
-        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.new * 100}%, ${mixBase})`,
-        color: textHighlight,
-      }
-    case 'unknown':
-      return {
-        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.unknown * 100}%, ${mixBase})`,
-        color: textHighlight,
-      }
-    case 'recognised':
-      return {
-        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.recognised * 100}%, ${mixBase})`,
-        color: textHighlight,
-      }
-    case 'familiar':
-      return {
-        background: `color-mix(in srgb, ${HIGHLIGHT_COLOR} ${STATUS_OPACITY.familiar * 100}%, ${mixBase})`,
-        color: textMuted,
-      }
-    case 'known':
-      // Soft green - "mastered" indicator
-      return {
-        background: darkMode
-          ? 'color-mix(in srgb, #22c55e 40%, black)'
-          : 'color-mix(in srgb, #22c55e 40%, white)',
-        color: darkMode ? '#86efac' : '#166534',
-      }
-    default:
-      return {}
+  if (isActive) {
+    return {
+      background: `color-mix(in srgb, ${color} 45%, ${mixBase})`,
+      color,
+    }
+  }
+
+  return {
+    color: `color-mix(in srgb, ${color} 55%, ${mixBase})`,
   }
 }
 

@@ -10789,7 +10789,9 @@ body.active-pass-locked {
 /* Overlay control bar */
 .cinema-overlay-controls {
   position: absolute;
-  bottom: 0;
+  bottom: 56px; /* Clear the YouTube iframe's bottom chrome ('More videos',
+                   logo, suggested-video overlay) so timestamps aren't sliced
+                   by it and the cinema's own fade gradient can sit above it. */
   left: 0;
   right: 0;
   z-index: 110;

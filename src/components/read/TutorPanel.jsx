@@ -315,7 +315,7 @@ const TutorPanel = ({
   return (
     <div
       ref={panelRef}
-      className={`tutor-panel tutor-panel--${variant} ${animClass}`}
+      className={`tutor-panel ${variant === 'cinema-left' ? 'tutor-panel--cinema' : 'tutor-panel--reader'} ${animClass}`}
       style={{
         position: 'fixed',
         left: position.x,

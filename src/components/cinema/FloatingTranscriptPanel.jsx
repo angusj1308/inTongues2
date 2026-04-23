@@ -46,7 +46,6 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [resizeDirection, setResizeDirection] = useState(null)
-  const [isMinimized, setIsMinimized] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 })
   // Flips true once the user drags or resizes. While false the panel re-lays
@@ -283,29 +282,6 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
 
   if (animState === 'closed') return null
 
-  if (isMinimized) {
-    return (
-      <div
-        className="floating-panel-minimized is-dark"
-        style={{
-          position: 'fixed',
-          right: 20,
-          bottom: 20,
-          zIndex: 1000,
-        }}
-      >
-        <button
-          type="button"
-          className="floating-panel-restore-btn"
-          onClick={() => setIsMinimized(false)}
-          title="Restore transcript"
-        >
-          <span className="material-symbols-outlined">description</span>
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div
       ref={panelRef}
@@ -328,14 +304,6 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
       >
         <div className="floating-panel-drag-area" />
         <div className="floating-panel-controls">
-          <button
-            type="button"
-            className="floating-panel-btn"
-            onClick={() => setIsMinimized(true)}
-            title="Minimize"
-          >
-            <span className="material-symbols-outlined">minimize</span>
-          </button>
           <button
             type="button"
             className="floating-panel-btn"

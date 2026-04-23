@@ -21,20 +21,12 @@ const PlayIcon = () => (
   </svg>
 )
 
-// Inactive pill: status color muted against the popup bg so the row reads as
-// a scale preview. Active pill: tinted fill + raw status color as text.
+// Letters stay white; only the active pill gets a tinted square so the
+// selected status is the one visual signal.
 const getStatusStyle = (statusLevel, isActive) => {
-  const color = STATUS_COLORS[statusLevel]
-
-  if (isActive) {
-    return {
-      background: `color-mix(in srgb, ${color} 45%, black)`,
-      color,
-    }
-  }
-
+  if (!isActive) return {}
   return {
-    color: `color-mix(in srgb, ${color} 55%, black)`,
+    background: `color-mix(in srgb, ${STATUS_COLORS[statusLevel]} 45%, black)`,
   }
 }
 

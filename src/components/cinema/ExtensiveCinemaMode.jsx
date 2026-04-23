@@ -69,7 +69,6 @@ const ExtensiveCinemaMode = ({
   onToggleWordStatus,
   transcriptPanelOpen = false,
   onCloseTranscript,
-  darkMode = true,
   translations = {},
   pronunciations = {},
   contentExpressions = [],
@@ -526,7 +525,6 @@ const ExtensiveCinemaMode = ({
       <FloatingTranscriptPanel
         isOpen={transcriptPanelOpen}
         onClose={onCloseTranscript}
-        darkMode={darkMode}
       >
         <TranscriptPanel
           segments={transcriptSegments}

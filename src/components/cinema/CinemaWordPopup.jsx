@@ -23,19 +23,18 @@ const PlayIcon = () => (
 
 // Inactive pill: status color muted against the popup bg so the row reads as
 // a scale preview. Active pill: tinted fill + raw status color as text.
-const getStatusStyle = (statusLevel, isActive, darkMode) => {
+const getStatusStyle = (statusLevel, isActive) => {
   const color = STATUS_COLORS[statusLevel]
-  const mixBase = darkMode ? 'black' : 'white'
 
   if (isActive) {
     return {
-      background: `color-mix(in srgb, ${color} 45%, ${mixBase})`,
+      background: `color-mix(in srgb, ${color} 45%, black)`,
       color,
     }
   }
 
   return {
-    color: `color-mix(in srgb, ${color} 55%, ${mixBase})`,
+    color: `color-mix(in srgb, ${color} 55%, black)`,
   }
 }
 
@@ -45,7 +44,6 @@ const CinemaWordPopup = ({
   status = 'new',
   audioBase64,
   audioUrl,
-  darkMode = true,
   isClosing = false,
   onStatusChange,
   onClose,
@@ -79,7 +77,7 @@ const CinemaWordPopup = ({
 
   return (
     <div
-      className={`cinema-word-popup ${darkMode ? 'is-dark' : 'is-light'}${isClosing ? ' is-closing' : ''}`}
+      className={`cinema-word-popup is-dark${isClosing ? ' is-closing' : ''}`}
       style={style}
       onClick={(e) => e.stopPropagation()}
     >
@@ -102,7 +100,7 @@ const CinemaWordPopup = ({
       <div className="cinema-word-popup-status">
         {STATUS_ABBREV.map((abbrev, i) => {
           const isActive = i === validStatusIndex
-          const statusStyle = getStatusStyle(STATUS_LEVELS[i], isActive, darkMode)
+          const statusStyle = getStatusStyle(STATUS_LEVELS[i], isActive)
 
           return (
             <button

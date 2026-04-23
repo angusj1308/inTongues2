@@ -174,7 +174,6 @@ const IntonguesCinema = () => {
   const [showWordStatus, setShowWordStatus] = useState(true)
   const [headerVisible, setHeaderVisible] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [cinemaDarkMode, setCinemaDarkMode] = useState(true) // Default dark for cinema
 
   const cinemaContainerRef = useRef(null)
 
@@ -1724,7 +1723,6 @@ const normalisePagesToSegments = (pages = []) =>
           onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
           transcriptPanelOpen={transcriptPanelOpen}
           onCloseTranscript={handleCloseTranscript}
-          darkMode={cinemaDarkMode}
           translations={translations}
           pronunciations={pronunciations}
           contentExpressions={contentExpressions}
@@ -1820,7 +1818,7 @@ const normalisePagesToSegments = (pages = []) =>
       ref={cinemaContainerRef}
       tabIndex={-1}
       data-palette={currentPaletteName}
-      className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} ${cinemaDarkMode ? 'cinema-dark' : 'cinema-light'}`}
+      className={`cinema-page cinema-mode-${cinemaMode} ${isFullscreenMode ? 'cinema-fullscreen-mode' : ''} cinema-dark`}
       onMouseDown={(event) => {
         // Prevent buttons from stealing focus on mouse click. Without this,
         // clicking a button focuses it — and a subsequent Space press (used
@@ -1955,18 +1953,6 @@ const normalisePagesToSegments = (pages = []) =>
                 <span className="material-symbols-outlined">translate</span>
               </button>
             )}
-            {/* Dark mode toggle - always visible */}
-            <button
-              type="button"
-              className="cinema-header-icon-btn"
-              onClick={() => setCinemaDarkMode((prev) => !prev)}
-              aria-label={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={cinemaDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              <span className="material-symbols-outlined">
-                {cinemaDarkMode ? 'dark_mode' : 'light_mode'}
-              </span>
-            </button>
             {/* Text display mode button - cycles through Off/Subtitles/Transcript */}
             {/* In extensive mode: fully functional. In active mode: visible but locked */}
             <button
@@ -2030,7 +2016,6 @@ const normalisePagesToSegments = (pages = []) =>
           audioBase64={popup.audioBase64}
           audioUrl={popup.audioUrl}
           language={transcriptLanguage}
-          darkMode={cinemaDarkMode}
           isClosing={popupClosing}
           onStatusChange={(word, status) => handleSetWordStatus(status)}
           onClose={closePopupAnimated}

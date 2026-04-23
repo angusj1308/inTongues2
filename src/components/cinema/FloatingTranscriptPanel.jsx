@@ -1,4 +1,4 @@
-import { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 const MIN_WIDTH = 320
 const MIN_HEIGHT = 280
@@ -36,7 +36,7 @@ const CURSOR_MAP = {
   se: 'nwse-resize',
 }
 
-const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true }) => {
+const FloatingTranscriptPanel = ({ children, isOpen, onClose }) => {
   const panelRef = useRef(null)
   // Combined state to prevent micro-jitter
   const [bounds, setBounds] = useState(() => {
@@ -286,7 +286,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
   if (isMinimized) {
     return (
       <div
-        className={`floating-panel-minimized ${darkMode ? 'is-dark' : 'is-light'}`}
+        className="floating-panel-minimized is-dark"
         style={{
           position: 'fixed',
           right: 20,
@@ -306,13 +306,10 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
     )
   }
 
-  // Clone children to pass darkMode prop
-  const childrenWithProps = cloneElement(children, { darkMode })
-
   return (
     <div
       ref={panelRef}
-      className={`floating-transcript-panel floating-transcript-panel--${animState} ${darkMode ? 'is-dark' : 'is-light'} ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
+      className={`floating-transcript-panel floating-transcript-panel--${animState} is-dark ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
       style={{
         position: 'fixed',
         left: bounds.x,
@@ -352,7 +349,7 @@ const FloatingTranscriptPanel = ({ children, isOpen, onClose, darkMode = true })
 
       {/* Content */}
       <div className="floating-panel-content">
-        {childrenWithProps}
+        {children}
       </div>
 
       {/* Resize handles - larger hit areas */}

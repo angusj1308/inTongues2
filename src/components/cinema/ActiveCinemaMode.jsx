@@ -51,7 +51,9 @@ const formatRate = (rate) => {
 const ScrubIcon = ({ direction = 'back', seconds }) => {
   const isBack = direction === 'back'
   const mirrorBack = isBack ? 'translate(36 0) scale(-1 1)' : undefined
-  const arrowHeadPath = 'M 22 6 L 16 4 L 16 8 Z'
+  // Apex unchanged at (22, 6); base widened from y 4–8 to y 2–10 so the
+  // arrowhead reads more distinctly at small sizes in the overlay row.
+  const arrowHeadPath = 'M 22 6 L 16 2 L 16 10 Z'
 
   return (
     <svg

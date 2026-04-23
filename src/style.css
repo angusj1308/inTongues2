@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Crimson+Pro:wght@300;400;500&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Libre+Franklin:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400&family=Atkinson+Hyperlegible+Next:wght@400..700&family=Crimson+Pro:wght@300;400;500&family=EB+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Libre+Franklin:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
@@ -12364,10 +12364,11 @@ body:has(.cinema-page) {
   background: rgba(0, 0, 0, 0.85);
   padding: 16px 28px;
   border-radius: 0;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1.6;
+  font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(1.5rem, 2vw, 2.125rem);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
   max-width: 85%;
   text-align: center;
   color: #ffffff;
@@ -12606,12 +12607,15 @@ body:has(.cinema-page) {
 /* Transcript line styles */
 .is-dark .floating-panel-content .transcript-line {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 1.05rem;
+  font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.1875rem;
+  font-weight: 400;
   line-height: 1.7;
 }
 
 .is-dark .floating-panel-content .transcript-line.active {
   color: #fff;
+  font-weight: 550;
   background-color: rgba(255, 255, 255, 0.06);
 }
 

@@ -2557,7 +2557,7 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 19
+const INTENSIVE_SEGMENTS_VERSION = 20
 // Intensive chunks are split at sentence endings only — `.` `!` `?` (and
 // their non-Latin variants `。` `！` `？`, plus trailing `…`). Commas and
 // clause-internal marks are NOT breaks: this keeps a complete thought in
@@ -2568,6 +2568,12 @@ const INTENSIVE_SEGMENTS_VERSION = 19
 // transcription modes. Falls back to the percentile+floor chunker if the
 // STT source is Whisper or YouTube words (no inline punctuation there).
 const INTENSIVE_MIN_CHUNK_WORDS = 3
+// Secondary rule: any chunk that exceeds this duration (seconds) gets
+// sub-split at the COMMA closest to its midpoint. Keeps working-memory
+// units reasonable even when a speaker builds a long run-on sentence. If
+// no suitable comma exists inside the search window, we leave the chunk
+// long rather than invent a bad split.
+const INTENSIVE_MAX_CHUNK_DURATION_SEC = 15
 // Fallback-only — used when STT didn't return punctuated words (Whisper
 // path) or when we fall through to YouTube cue words. Percentile + floor
 // combo from the pre-Deepgram design.
@@ -2823,6 +2829,8 @@ function pickCachedRawWords(existingData) {
 // an optional trailing closing quote/bracket so "Argentina.", "¿no?"" and
 // "partidos»" all split correctly.
 const INTENSIVE_CHUNK_BREAK_RE = /[.!?…。！？]["'»”’)\]]?\s*$/u
+// Commas (Latin + CJK) — used for secondary sub-splits inside long chunks.
+const INTENSIVE_COMMA_RE = /[,，、]["'»”’)\]]?\s*$/u
 
 function endsInChunkBreak(text) {
   if (!text) return false
@@ -2865,7 +2873,91 @@ function buildChunksFromPunctuation(rawWords) {
   flush()
 
   fuseShortChunks(chunks, INTENSIVE_MIN_CHUNK_WORDS)
+  splitLongChunks(chunks, INTENSIVE_MAX_CHUNK_DURATION_SEC)
   return chunks
+}
+
+// Sub-split any chunk whose duration exceeds `maxDurationSec` at the comma
+// closest to its midpoint. First pass looks in the middle 50% of the
+// chunk's time window; if no suitable comma there, falls back to middle
+// 70%. If neither finds a candidate we leave the chunk long — inventing
+// an arbitrary split is worse than accepting a long but complete thought.
+// Never creates sub-chunks smaller than `INTENSIVE_MIN_CHUNK_WORDS`.
+function splitLongChunks(chunks, maxDurationSec) {
+  let i = 0
+  let guard = chunks.length * 4
+  while (i < chunks.length && guard-- > 0) {
+    const chunk = chunks[i]
+    const duration = chunk.end - chunk.start
+    if (!Number.isFinite(duration) || duration <= maxDurationSec) { i++; continue }
+
+    const splitIdx =
+      findCommaSplitIdx(chunk, 0.5) ?? findCommaSplitIdx(chunk, 0.7)
+    if (splitIdx === null) { i++; continue }
+
+    // Refuse splits that would create a sub-chunk below the word-floor.
+    const leftWordCount = splitIdx + 1
+    const rightWordCount = chunk.words.length - leftWordCount
+    if (leftWordCount < INTENSIVE_MIN_CHUNK_WORDS || rightWordCount < INTENSIVE_MIN_CHUNK_WORDS) {
+      i++
+      continue
+    }
+
+    const leftWords = chunk.words.slice(0, leftWordCount)
+    const rightWords = chunk.words.slice(leftWordCount)
+    const rightGapBeforeMs = Math.max(
+      0,
+      (rightWords[0].start - leftWords[leftWords.length - 1].end) * 1000,
+    )
+
+    const leftChunk = {
+      text: leftWords.map((w) => w.text).join(' '),
+      words: leftWords,
+      start: leftWords[0].start,
+      end: leftWords[leftWords.length - 1].end,
+      gapBefore: chunk.gapBefore,
+    }
+    if (Number.isFinite(chunk.speaker)) leftChunk.speaker = chunk.speaker
+
+    const rightChunk = {
+      text: rightWords.map((w) => w.text).join(' '),
+      words: rightWords,
+      start: rightWords[0].start,
+      end: rightWords[rightWords.length - 1].end,
+      gapBefore: Math.round(rightGapBeforeMs),
+    }
+    if (Number.isFinite(chunk.speaker)) rightChunk.speaker = chunk.speaker
+
+    chunks.splice(i, 1, leftChunk, rightChunk)
+    // Stay at `i` — the left sub-chunk might still exceed the max if
+    // the original was very long (e.g. 45s → 23s + 22s); re-check and
+    // split again on next iteration.
+  }
+}
+
+function findCommaSplitIdx(chunk, windowFraction) {
+  const duration = chunk.end - chunk.start
+  if (!Number.isFinite(duration) || duration <= 0) return null
+  const midpoint = (chunk.start + chunk.end) / 2
+  const halfWindow = (duration * windowFraction) / 2
+  const lowerTime = midpoint - halfWindow
+  const upperTime = midpoint + halfWindow
+
+  let bestIdx = null
+  let bestDist = Infinity
+  // Can't split on the last word — needs a right-side sub-chunk.
+  for (let i = 0; i < chunk.words.length - 1; i++) {
+    const word = chunk.words[i]
+    if (!word || !INTENSIVE_COMMA_RE.test(word.text)) continue
+    if (!Number.isFinite(word.end)) continue
+    if (word.end < lowerTime || word.end > upperTime) continue
+    const dist = Math.abs(word.end - midpoint)
+    if (dist < bestDist) {
+      bestDist = dist
+      bestIdx = i
+    }
+  }
+  return bestIdx
 }
 
 // In-place fuse chunks shorter than `minWords` into a neighbour. Direction

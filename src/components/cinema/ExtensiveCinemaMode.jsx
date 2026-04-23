@@ -174,22 +174,11 @@ const ExtensiveCinemaMode = ({
       const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
       if (parts.length > 1) return
 
-      const selectionObj = window.getSelection()
-      let rangeRect = null
-
-      if (selectionObj?.rangeCount) {
-        try {
-          const candidate = selectionObj.getRangeAt(0).getBoundingClientRect()
-          if (candidate?.width > 0 && candidate?.height > 0) {
-            rangeRect = candidate
-          }
-        } catch (err) {
-          /* ignore range errors */
-        }
-      }
-
+      // Always anchor to the clicked word's rect. A prior text selection can
+      // leave window.getSelection() populated even after a fresh click, so
+      // deriving position from the selection pins the popup to stale coords.
       const elementRect = event?.currentTarget?.getBoundingClientRect?.()
-      let targetRect = rangeRect && rangeRect.width && rangeRect.height ? rangeRect : elementRect || null
+      let targetRect = elementRect || null
 
       if (!targetRect || (!targetRect.width && !targetRect.height)) {
         const viewportWidth = window.innerWidth || 0

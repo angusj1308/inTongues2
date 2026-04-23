@@ -496,16 +496,15 @@ const IntensiveCinemaMode = ({
 
     if (parts.length > 1) return
 
+    // Always anchor to the clicked word's rect. A lingering text selection
+    // from a previous click can otherwise pin the popup to stale coords.
+    const wordRect = event?.currentTarget?.getBoundingClientRect?.()
+    if (!wordRect) return
+    const { x, y } = getPopupPosition(wordRect)
+
     const ttsLanguage = normalizeLanguageCode(language)
 
     if (!ttsLanguage) {
-      const selectionObj = window.getSelection()
-      if (!selectionObj || selectionObj.rangeCount === 0) return
-
-      const range = selectionObj.getRangeAt(0)
-      const rect = range.getBoundingClientRect()
-      const { x, y } = getPopupPosition(rect)
-
       setPopup({
         x,
         y,
@@ -533,13 +532,6 @@ const IntensiveCinemaMode = ({
     )
 
     if (detectedExpr?.meaning || preloadedTranslation || preloadedPronunciation) {
-      const selectionObj = window.getSelection()
-      if (!selectionObj || selectionObj.rangeCount === 0) return
-
-      const range = selectionObj.getRangeAt(0)
-      const rect = range.getBoundingClientRect()
-      const { x, y } = getPopupPosition(rect)
-
       setPopup({
         x,
         y,
@@ -576,13 +568,6 @@ const IntensiveCinemaMode = ({
     } catch (err) {
       console.error('Translation lookup failed', err)
     }
-
-    const selectionObj = window.getSelection()
-    if (!selectionObj || selectionObj.rangeCount === 0) return
-
-    const range = selectionObj.getRangeAt(0)
-    const rect = range.getBoundingClientRect()
-    const { x, y } = getPopupPosition(rect)
 
     setPopup({
       x,

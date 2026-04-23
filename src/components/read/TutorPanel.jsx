@@ -11,11 +11,28 @@ const TutorPanel = ({
   anchorPos,
   variant = 'reader',
 }) => {
+  // Drawer geometry for the cinema variant. Matches
+  // FloatingTranscriptPanel's HEADER_CLEARANCE / BOTTOM_CLEARANCE so the
+  // tutor and the transcript line up vertically when both are open.
+  const CINEMA_TOP = 118
+  const CINEMA_BOTTOM = 68
+  const CINEMA_LEFT = 18
+  const cinemaHeight = () => Math.max(320, (typeof window !== 'undefined' ? window.innerHeight : 900) - CINEMA_TOP - CINEMA_BOTTOM)
+
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [size, setSize] = useState({ width: 340, height: null })
+  // Lazy init so the cinema panel mounts at its final resting position —
+  // the slide-in then only animates the translateX transform rather than
+  // also snapping top/left on the first open.
+  const [position, setPosition] = useState(() =>
+    variant === 'cinema-left' ? { x: CINEMA_LEFT, y: CINEMA_TOP } : { x: 0, y: 0 }
+  )
+  const [size, setSize] = useState(() =>
+    variant === 'cinema-left'
+      ? { width: 340, height: cinemaHeight() }
+      : { width: 340, height: null }
+  )
   const [animClass, setAnimClass] = useState('is-closed')
   const [transformOrigin, setTransformOrigin] = useState('bottom left')
 
@@ -52,14 +69,12 @@ const TutorPanel = ({
         hasPositionedRef.current = true
 
         if (variant === 'cinema-left') {
-          // Cinema variant: slide-in from the left edge, fixed resting
-          // position. No reader DOM dependency, no FAB-origin animation.
+          // Cinema variant: resting drawer position along the left edge,
+          // top matched to FloatingTranscriptPanel so the two panels align
+          // when both are open. No reader DOM dependency, no FAB origin.
           const panelW = size.width || 340
-          const topGap = 80
-          const bottomGap = 80
-          const panelH = Math.max(320, window.innerHeight - topGap - bottomGap)
-          setPosition({ x: 24, y: topGap })
-          setSize((s) => ({ ...s, width: panelW, height: panelH }))
+          setPosition({ x: CINEMA_LEFT, y: CINEMA_TOP })
+          setSize((s) => ({ ...s, width: panelW, height: cinemaHeight() }))
           setTransformOrigin('left center')
         } else {
           const panelW = size.width || 340

@@ -2557,13 +2557,16 @@ function buildSentenceSegmentsFromCues(cues) {
 // the inter-onset interval instead (`word[n+1].start - word[n].start`),
 // which spans cue boundaries cleanly and captures all speaker pauses.
 // -------------------------------------------------------------------------
-const INTENSIVE_SEGMENTS_VERSION = 18
-// Intensive chunks are split at natural punctuation in the transcript:
-// commas, semicolons, colons, and terminal marks. Same chunks serve both
-// listen-and-reveal and transcription modes. Any chunk shorter than
-// `INTENSIVE_MIN_CHUNK_WORDS` fuses into a neighbour (see fuseShortChunks).
-// Falls back to the percentile+floor chunker if STT source is Whisper or
-// YouTube words (no inline punctuation available there).
+const INTENSIVE_SEGMENTS_VERSION = 19
+// Intensive chunks are split at sentence endings only — `.` `!` `?` (and
+// their non-Latin variants `。` `！` `？`, plus trailing `…`). Commas and
+// clause-internal marks are NOT breaks: this keeps a complete thought in
+// one chunk and survives cross-talk (a brief interjection from the other
+// speaker stays inside the main sentence instead of fragmenting it). Any
+// chunk shorter than `INTENSIVE_MIN_CHUNK_WORDS` fuses into a neighbour
+// (see `fuseShortChunks`). Same chunks serve both listen-and-reveal and
+// transcription modes. Falls back to the percentile+floor chunker if the
+// STT source is Whisper or YouTube words (no inline punctuation there).
 const INTENSIVE_MIN_CHUNK_WORDS = 3
 // Fallback-only — used when STT didn't return punctuated words (Whisper
 // path) or when we fall through to YouTube cue words. Percentile + floor
@@ -2819,7 +2822,7 @@ function pickCachedRawWords(existingData) {
 // punctuated form is a chunk boundary. Matches trailing punctuation plus
 // an optional trailing closing quote/bracket so "Argentina.", "¿no?"" and
 // "partidos»" all split correctly.
-const INTENSIVE_CHUNK_BREAK_RE = /[,;:.!?…。！？؛،]["'»”’)\]]?\s*$/u
+const INTENSIVE_CHUNK_BREAK_RE = /[.!?…。！？]["'»”’)\]]?\s*$/u
 
 function endsInChunkBreak(text) {
   if (!text) return false

@@ -304,6 +304,10 @@ const TranscriptFlow = ({
   // with one on the track. onSelectionTranslate still flows through the
   // existing panel-level onMouseUp (in TranscriptPanel), which is why we
   // don't need a corresponding onMouseUp here.
+  //
+  // The third arg is the clicked word's rect. Downstream handlers position
+  // the word popup from it; event.currentTarget here is the track, not the
+  // word, so handlers can't derive the rect from the event alone.
   const handleTrackClick = useCallback((event) => {
     if (!onWordClick) return
     const wordEl = event.target.closest('.reader-word')
@@ -314,7 +318,7 @@ const TranscriptFlow = ({
       ? window.getSelection()?.toString()?.trim()
       : ''
     if (selection) return
-    onWordClick(text, event)
+    onWordClick(text, event, wordEl.getBoundingClientRect())
   }, [onWordClick])
 
   // No passive active-word treatment. Subtitle parity: a word is only

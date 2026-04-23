@@ -490,15 +490,15 @@ const IntensiveCinemaMode = ({
     )
   }, [intensiveSegments.length, cinemaMode, setIntensiveSegmentIndex])
 
-  const handleSingleWordClick = async (text, event) => {
+  const handleSingleWordClick = async (text, event, clickRect) => {
     const selection = window.getSelection()?.toString().trim()
     const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
 
     if (parts.length > 1) return
 
-    // Always anchor to the clicked word's rect. A lingering text selection
-    // from a previous click can otherwise pin the popup to stale coords.
-    const wordRect = event?.currentTarget?.getBoundingClientRect?.()
+    // Prefer the rect the caller passed — TranscriptFlow's delegated click
+    // handler sits on the track, so event.currentTarget isn't the word.
+    const wordRect = clickRect || event?.currentTarget?.getBoundingClientRect?.()
     if (!wordRect) return
     const { x, y } = getPopupPosition(wordRect)
 

@@ -158,7 +158,7 @@ const ExtensiveCinemaMode = ({
   }, [])
 
   const handleTranscriptWordClick = useCallback(
-    async (text, event) => {
+    async (text, event, clickRect) => {
       if (!setPopup) return
 
       // Clean the word for comparison
@@ -174,10 +174,11 @@ const ExtensiveCinemaMode = ({
       const parts = selection ? selection.split(/\s+/).filter(Boolean) : []
       if (parts.length > 1) return
 
-      // Always anchor to the clicked word's rect. A prior text selection can
-      // leave window.getSelection() populated even after a fresh click, so
-      // deriving position from the selection pins the popup to stale coords.
-      const elementRect = event?.currentTarget?.getBoundingClientRect?.()
+      // Prefer the rect the caller gives us (TranscriptFlow passes the word
+      // element's rect since its delegated handler's currentTarget is the
+      // track, not the word). Fall back to currentTarget for per-span
+      // handlers like WordTokenListening.
+      const elementRect = clickRect || event?.currentTarget?.getBoundingClientRect?.()
       let targetRect = elementRect || null
 
       if (!targetRect || (!targetRect.width && !targetRect.height)) {

@@ -39,6 +39,7 @@ const CinemaWordPopup = ({
   isClosing = false,
   onStatusChange,
   onClose,
+  onAskTutor,
   style = {},
 }) => {
   const audioRef = useRef(null)
@@ -109,6 +110,16 @@ const CinemaWordPopup = ({
           )
         })}
       </div>
+
+      {onAskTutor && (
+        <button
+          type="button"
+          className="cinema-word-popup-tutor-btn"
+          onClick={onAskTutor}
+        >
+          Ask tutor
+        </button>
+      )}
     </div>
   )
 }

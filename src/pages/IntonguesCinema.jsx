@@ -15,6 +15,7 @@ import ActiveCinemaMode from '../components/cinema/ActiveCinemaMode'
 import IntensiveCinemaMode from '../components/cinema/IntensiveCinemaMode'
 import CinemaErrorBoundary from '../components/cinema/CinemaErrorBoundary'
 import CinemaWordPopup from '../components/cinema/CinemaWordPopup'
+import TutorPanel from '../components/read/TutorPanel'
 
 const extractVideoId = (video) => {
   if (!video) return ''
@@ -174,6 +175,8 @@ const IntonguesCinema = () => {
   const [showWordStatus, setShowWordStatus] = useState(true)
   const [headerVisible, setHeaderVisible] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [tutorOpen, setTutorOpen] = useState(false)
+  const [tutorInitialMessage, setTutorInitialMessage] = useState(null)
 
   const cinemaContainerRef = useRef(null)
 
@@ -492,6 +495,25 @@ const normalisePagesToSegments = (pages = []) =>
 
   // Generate chunks for active mode
   const chunks = useMemo(() => generateChunks(displaySegments), [displaySegments])
+
+  // Full transcript text for the AI tutor. Same role that chapter text plays
+  // in the reader — supplies the story-wide context for tutor responses.
+  const fullTranscriptText = useMemo(
+    () => (displaySegments || []).map((s) => s.text || '').filter(Boolean).join(' '),
+    [displaySegments]
+  )
+
+  // Find the transcript segment containing a clicked word so "Ask tutor"
+  // from the popup can give the model a one-sentence context like the reader
+  // does. Returns the word itself as a safe fallback.
+  const findContainingSentence = useCallback((word) => {
+    if (!word) return ''
+    const target = word.toLowerCase()
+    const match = (displaySegments || []).find((seg) =>
+      (seg.text || '').toLowerCase().includes(target)
+    )
+    return match?.text?.trim() || word
+  }, [displaySegments])
 
   // Intensive-mode segment list. Prefers the server-built pause-based chunks
   // (written at import time from word-level audio gaps); falls back to the
@@ -1941,6 +1963,19 @@ const normalisePagesToSegments = (pages = []) =>
           </nav>
           {/* Toggle controls on the right */}
           <div className="cinema-header-actions">
+            {/* AI Tutor — opens the slide-in chat panel */}
+            <button
+              type="button"
+              className={`cinema-header-icon-btn ${tutorOpen ? 'cinema-header-icon-btn--active' : ''}`}
+              onClick={() => {
+                setTutorInitialMessage(null)
+                setTutorOpen((prev) => !prev)
+              }}
+              aria-label="Open AI tutor"
+              title="AI tutor"
+            >
+              <span className="material-symbols-outlined">school</span>
+            </button>
             {/* Subtitle language toggle - dubbed content only */}
             {isDubbed && (
               <button
@@ -2019,12 +2054,36 @@ const normalisePagesToSegments = (pages = []) =>
           isClosing={popupClosing}
           onStatusChange={(word, status) => handleSetWordStatus(status)}
           onClose={closePopupAnimated}
+          onAskTutor={() => {
+            const word = popup.displayText || popup.word
+            const sentence = findContainingSentence(word)
+            const msg = sentence && sentence !== word
+              ? `Explain "${word}" in this sentence: ${sentence}`
+              : `Explain "${word}"`
+            setTutorInitialMessage(msg)
+            setTutorOpen(true)
+            setPopup(null)
+          }}
           style={{
             top: popup.y,
             left: popup.x,
           }}
         />
       )}
+
+      <TutorPanel
+        variant="cinema-left"
+        isOpen={tutorOpen}
+        onClose={() => {
+          setTutorOpen(false)
+          setTutorInitialMessage(null)
+        }}
+        language={transcriptLanguage}
+        nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage)}
+        storyText={fullTranscriptText}
+        initialMessage={tutorInitialMessage}
+        storyId={id}
+      />
 
     </div>
   )

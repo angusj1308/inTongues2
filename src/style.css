@@ -6975,6 +6975,73 @@ html.reader-active body {
   }
 }
 
+/* =========================================================================
+   Cinema tutor variant — always dark, slides in from the left edge.
+   The reader variant uses scale-from-FAB; cinema replaces that with a
+   translateX so the panel enters off the left side of the screen and
+   rests at x=24.
+   ========================================================================= */
+.tutor-panel--cinema {
+  background: rgba(0, 0, 0, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fafaf9;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease;
+  z-index: 1100;
+}
+
+/* Entrance animation: slide in from the left. Overrides the reader's
+   scale(0) in .is-closed. */
+.tutor-panel--cinema.is-closed {
+  transform: translateX(calc(-100% - 40px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tutor-panel--cinema.is-open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.tutor-panel--cinema .tutor-panel-titlebar {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.tutor-panel--cinema .tutor-panel-input-row {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.tutor-panel--cinema .tutor-panel-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.tutor-panel--cinema .tutor-msg--user {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tutor-panel--cinema .tutor-panel-input {
+  color: #fafaf9;
+}
+
+.tutor-panel--cinema .tutor-panel-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tutor-panel--cinema .tutor-panel-empty {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.tutor-panel--cinema .tutor-panel-btn {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.tutor-panel--cinema .tutor-panel-btn:hover {
+  color: #fff;
+}
+
 .reader-themed .dashboard-header {
   background: #F5F5F2;
   color: #0f172a;
@@ -12832,6 +12899,26 @@ body:has(.cinema-page) {
 
 .cinema-word-popup-status-btn:hover:not(.is-active) {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.cinema-word-popup-tutor-btn {
+  width: 100%;
+  padding: 7px 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+  font-family: inherit;
+}
+
+.cinema-word-popup-tutor-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* ============================== */

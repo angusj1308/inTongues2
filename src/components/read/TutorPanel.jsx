@@ -9,6 +9,7 @@ const TutorPanel = ({
   initialMessage,
   storyId,
   anchorPos,
+  variant = 'reader',
 }) => {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -50,49 +51,60 @@ const TutorPanel = ({
       if (!hasPositionedRef.current) {
         hasPositionedRef.current = true
 
-        const panelW = size.width || 340
-        const panelH = 400
-        const gap = 16
-
-        // Find the text edges — use first word token for accurate position
-        const firstWord = document.querySelector('.reader-content-column .reader-word')
-        const col = document.querySelector('.reader-content-column')
-        const colRect = firstWord?.getBoundingClientRect() || col?.getBoundingClientRect()
-
-        // Determine fab center
-        const fabX = anchorPos?.x != null ? anchorPos.x + 20 : 44
-        const fabY = anchorPos?.y != null ? anchorPos.y + 20 : window.innerHeight - 44
-
-        let x, y
-
-        if (colRect) {
-          if (fabX > window.innerWidth / 2) {
-            // Tab on right — centre panel in right margin
-            const marginStart = colRect.right
-            const marginWidth = window.innerWidth - marginStart
-            x = marginStart + (marginWidth - panelW) / 2
-          } else {
-            // Tab on left — centre panel in left margin
-            const marginWidth = colRect.left
-            x = (marginWidth - panelW) / 2
-            if (x < 8) x = 8
-          }
+        if (variant === 'cinema-left') {
+          // Cinema variant: slide-in from the left edge, fixed resting
+          // position. No reader DOM dependency, no FAB-origin animation.
+          const panelW = size.width || 340
+          const topGap = 80
+          const bottomGap = 80
+          const panelH = Math.max(320, window.innerHeight - topGap - bottomGap)
+          setPosition({ x: 24, y: topGap })
+          setSize((s) => ({ ...s, width: panelW, height: panelH }))
+          setTransformOrigin('left center')
         } else {
-          // No column found — fallback
-          x = fabX > window.innerWidth / 2
-            ? Math.max(8, window.innerWidth - panelW - 8)
-            : 8
+          const panelW = size.width || 340
+          const panelH = 400
+
+          // Find the text edges — use first word token for accurate position
+          const firstWord = document.querySelector('.reader-content-column .reader-word')
+          const col = document.querySelector('.reader-content-column')
+          const colRect = firstWord?.getBoundingClientRect() || col?.getBoundingClientRect()
+
+          // Determine fab center
+          const fabX = anchorPos?.x != null ? anchorPos.x + 20 : 44
+          const fabY = anchorPos?.y != null ? anchorPos.y + 20 : window.innerHeight - 44
+
+          let x, y
+
+          if (colRect) {
+            if (fabX > window.innerWidth / 2) {
+              // Tab on right — centre panel in right margin
+              const marginStart = colRect.right
+              const marginWidth = window.innerWidth - marginStart
+              x = marginStart + (marginWidth - panelW) / 2
+            } else {
+              // Tab on left — centre panel in left margin
+              const marginWidth = colRect.left
+              x = (marginWidth - panelW) / 2
+              if (x < 8) x = 8
+            }
+          } else {
+            // No column found — fallback
+            x = fabX > window.innerWidth / 2
+              ? Math.max(8, window.innerWidth - panelW - 8)
+              : 8
+          }
+
+          // Vertical: align with fab, clamped to viewport
+          y = Math.max(8, Math.min(fabY - panelH / 2, window.innerHeight - panelH - 8))
+
+          // Transform origin relative to panel
+          const originX = fabX - x
+          const originY = fabY - y
+          setTransformOrigin(`${originX}px ${originY}px`)
+
+          setPosition({ x, y })
         }
-
-        // Vertical: align with fab, clamped to viewport
-        y = Math.max(8, Math.min(fabY - panelH / 2, window.innerHeight - panelH - 8))
-
-        // Transform origin relative to panel
-        const originX = fabX - x
-        const originY = fabY - y
-        setTransformOrigin(`${originX}px ${originY}px`)
-
-        setPosition({ x, y })
       }
 
       // Trigger open animation on next frame
@@ -103,7 +115,7 @@ const TutorPanel = ({
       setAnimClass('is-closed')
       hasPositionedRef.current = false
     }
-  }, [isOpen, anchorPos, size.width])
+  }, [isOpen, anchorPos, size.width, variant])
 
   const sendMessage = useCallback(async (content) => {
     if (!content.trim() || isLoading) return
@@ -288,7 +300,7 @@ const TutorPanel = ({
   return (
     <div
       ref={panelRef}
-      className={`tutor-panel ${animClass}`}
+      className={`tutor-panel tutor-panel--${variant} ${animClass}`}
       style={{
         position: 'fixed',
         left: position.x,

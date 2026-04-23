@@ -12608,8 +12608,8 @@ body:has(.cinema-page) {
 .is-dark .floating-panel-content .transcript-line {
   color: rgba(255, 255, 255, 0.6);
   font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 1.1875rem;
-  font-weight: 400;
+  font-size: 1.25rem;
+  font-weight: 500;
   line-height: 1.7;
 }
 

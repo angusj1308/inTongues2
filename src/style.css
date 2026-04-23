@@ -12769,7 +12769,7 @@ body:has(.cinema-page) {
 }
 
 .cinema-word-popup {
-  position: absolute;
+  position: fixed;
   z-index: 1001;
   border-radius: 0;
   padding: 10px 12px;

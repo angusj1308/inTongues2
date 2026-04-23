@@ -10994,7 +10994,11 @@ body.active-pass-locked {
   stroke: currentColor;
   stroke-width: 2.5;
   fill: none;
-  stroke-dasharray: 50 100;
+  /* Circle circumference is 2π·12 ≈ 75.398. 56.549 visible leaves the arc
+     ending exactly at the top of the circle (270° clockwise from east),
+     where the arrowhead base sits — so the line meets the arrowhead tip
+     tangentially instead of stopping short. */
+  stroke-dasharray: 56.549 18.849;
   stroke-linecap: round;
 }
 

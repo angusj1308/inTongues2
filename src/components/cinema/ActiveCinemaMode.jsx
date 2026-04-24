@@ -718,8 +718,12 @@ const ActiveCinemaMode = ({
           </div>
         )}
 
-        {/* Chunk complete prompt - shown after pass 4 finishes the chunk */}
-        {activeStep === 4 && completedChunks.has(safeChunkIndex) && !isPlaying && !showPassIntro && (
+        {/* Chunk complete prompt - shown when the video has reached the end
+            of the chunk and is paused. Covers passes 1, 2, 4 (pass 3 has no
+            video). Pass 4 offers 'Next chunk'; 1 and 2 offer 'Next pass'. */}
+        {(activeStep === 1 || activeStep === 2 || activeStep === 4) &&
+          !isPlaying && !showPassIntro && hasValidChunkBounds &&
+          clampedPosition >= chunkEnd - 0.3 && (
           <div className="cinema-chunk-complete">
             <button
               type="button"
@@ -734,15 +738,25 @@ const ActiveCinemaMode = ({
                 <path d="M8 5v14l11-7z" />
               </svg>
             </button>
-            {canMoveToNextChunk && (
-              <button
-                type="button"
-                className="cinema-chunk-complete-next"
-                onClick={onAdvanceChunk}
-              >
-                Next chunk
-              </button>
-            )}
+            {activeStep === 4
+              ? canMoveToNextChunk && (
+                <button
+                  type="button"
+                  className="cinema-chunk-complete-next"
+                  onClick={onAdvanceChunk}
+                >
+                  Next chunk
+                </button>
+              )
+              : canAdvanceToNextStep && (
+                <button
+                  type="button"
+                  className="cinema-chunk-complete-next"
+                  onClick={handleNextPass}
+                >
+                  Next pass
+                </button>
+              )}
           </div>
         )}
 

@@ -708,22 +708,14 @@ const ActiveCinemaMode = ({
           )}
         </div>
 
-        {/* Pass intro overlay - shows pass label/title until user plays.
-            Click anywhere on the overlay to start playback; the isPlaying
-            effect above then dismisses it. */}
+        {/* Pass intro overlay - shows pass label/title until user plays */}
         {showPassIntro && (
-          <button
-            type="button"
-            className="cinema-pass-intro cinema-pass-intro--clickable"
-            onClick={() => onPlayPause?.()}
-            aria-label="Start playback"
-          >
+          <div className="cinema-pass-intro">
             <div className="cinema-pass-intro-content">
               <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
               <span className="cinema-pass-intro-title">{heroTitle}</span>
-              <span className="cinema-pass-intro-hint">Click to play</span>
             </div>
-          </button>
+          </div>
         )}
 
         {/* Hover detection zone - positioned below subtitles to avoid interference */}

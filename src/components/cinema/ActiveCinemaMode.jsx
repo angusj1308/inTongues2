@@ -215,9 +215,14 @@ const ActiveCinemaMode = ({
     return () => clearTimeout(timer)
   }, [activeStep, showPassIntro])
 
-  // Show pass intro when entering a new pass
+  // Show pass intro when entering a new pass. Also pause any in-flight
+  // playback so the intro isn't auto-dismissed by the isPlaying effect
+  // below — if the user was already watching in the previous pass the
+  // new intro would flash on and off instantly.
   useEffect(() => {
     setShowPassIntro(true)
+    if (isPlaying) onPlayPause?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep])
 
   // Hide pass intro when playback starts (only for video passes, not Pass 3)
@@ -703,14 +708,22 @@ const ActiveCinemaMode = ({
           )}
         </div>
 
-        {/* Pass intro overlay - shows pass label/title until user plays */}
+        {/* Pass intro overlay - shows pass label/title until user plays.
+            Click anywhere on the overlay to start playback; the isPlaying
+            effect above then dismisses it. */}
         {showPassIntro && (
-          <div className="cinema-pass-intro">
+          <button
+            type="button"
+            className="cinema-pass-intro cinema-pass-intro--clickable"
+            onClick={() => onPlayPause?.()}
+            aria-label="Start playback"
+          >
             <div className="cinema-pass-intro-content">
               <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
               <span className="cinema-pass-intro-title">{heroTitle}</span>
+              <span className="cinema-pass-intro-hint">Click to play</span>
             </div>
-          </div>
+          </button>
         )}
 
         {/* Hover detection zone - positioned below subtitles to avoid interference */}

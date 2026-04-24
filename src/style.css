@@ -10481,12 +10481,42 @@ body.active-pass-locked {
   pointer-events: none;
 }
 
+/* Clickable intro variant (passes 1/2/4). Rendered as a <button>, so strip
+   the UA chrome and re-enable pointer events — the whole screen is the
+   play affordance. */
+.cinema-pass-intro--clickable {
+  pointer-events: auto;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+}
+
 .cinema-pass-intro-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   pointer-events: auto; /* Re-enable clicks for content/buttons */
+}
+
+.cinema-pass-intro-hint {
+  font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 16px;
+  transition: color 200ms ease;
+}
+
+.cinema-pass-intro--clickable:hover .cinema-pass-intro-hint {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .cinema-pass-intro-label {

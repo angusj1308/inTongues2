@@ -718,6 +718,34 @@ const ActiveCinemaMode = ({
           </div>
         )}
 
+        {/* Chunk complete prompt - shown after pass 4 finishes the chunk */}
+        {activeStep === 4 && completedChunks.has(safeChunkIndex) && !isPlaying && !showPassIntro && (
+          <div className="cinema-chunk-complete">
+            <button
+              type="button"
+              className="cinema-chunk-complete-replay"
+              onClick={() => {
+                handleStart()
+                if (!isPlaying) onPlayPause?.()
+              }}
+              aria-label="Replay this chunk"
+            >
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+            {canMoveToNextChunk && (
+              <button
+                type="button"
+                className="cinema-chunk-complete-next"
+                onClick={onAdvanceChunk}
+              >
+                Next chunk
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Hover detection zone - positioned below subtitles to avoid interference */}
         <div
           className="cinema-overlay-hover-zone"

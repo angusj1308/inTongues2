@@ -25,6 +25,22 @@ import ListeningMediaCard from './ListeningMediaCard'
 import SpotifyCollectionCard from './SpotifyCollectionCard'
 import { getYouTubeThumbnailUrl } from '../../utils/youtube'
 
+const SPOTIFY_SEARCH_TYPES = [
+  { value: 'track', label: 'Tracks' },
+  { value: 'playlist', label: 'Playlists' },
+  { value: 'artist', label: 'Artists' },
+  { value: 'album', label: 'Albums' },
+  { value: 'show', label: 'Podcasts' },
+]
+
+const SPOTIFY_RESULT_GROUPS = [
+  { key: 'tracks', label: 'Tracks' },
+  { key: 'playlists', label: 'Playlists' },
+  { key: 'artists', label: 'Artists' },
+  { key: 'albums', label: 'Albums' },
+  { key: 'shows', label: 'Podcasts' },
+]
+
 const ListeningHub = ({ embedded = false, showBackButton = true }) => {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
@@ -745,190 +761,183 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
         )}
 
         {showSpotifyPanel && (
-          <div className="modal-backdrop">
-            <div className="modal-card">
-              <div className="section-header" style={{ alignItems: 'flex-start' }}>
-                <div>
-                  <h3>Spotify Search</h3>
-                  <p className="muted small">
-                    Search tracks, playlists, artists, albums, and podcast shows to add them to your inTongues library.
+          <div className="modal-overlay" onClick={() => setShowSpotifyPanel(false)}>
+            <div className="modal-container generate-story-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="page-header">
+                <div className="page-header-title">
+                  <h3 className="text-center generate-modal-title">Spotify</h3>
+                  <p className="text-center ui-text">
+                    Search tracks, playlists, artists, albums, and podcast shows to add them to your library.
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  {spotifyConnected && !spotifyLoading && (
-                    <button className="button ghost" onClick={handleSignOutSpotify}>
-                      Sign out of Spotify
-                    </button>
-                  )}
-                  <button className="button ghost" type="button" onClick={() => setShowSpotifyPanel(false)}>
-                    Close
-                  </button>
-                </div>
+                <button className="modal-close-button" onClick={() => setShowSpotifyPanel(false)} aria-label="Close">
+                  ×
+                </button>
               </div>
 
-              {spotifyError && <p className="error">{spotifyError}</p>}
+              {spotifyError && <p className="error small ui-text">{spotifyError}</p>}
 
-              {!spotifyConnected ? (
-                <div>
-                  <p className="muted">Connect Spotify to search the full catalogue.</p>
-                  <button className="button primary" onClick={handleConnectSpotify} disabled={!user}>
-                    Connect Spotify
-                  </button>
-                </div>
-              ) : spotifyLoading ? (
-                <p className="muted">Checking your Spotify connection…</p>
-              ) : (
-                <div>
-                  <form
-                    className="pill-row"
-                    style={{ gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
-                    onSubmit={handleSpotifySearch}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Search Spotify"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ flex: 1, minWidth: '16rem' }}
-                    />
-                    <select
-                      value={searchType}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={{ minWidth: '10rem' }}
-                    >
-                      <option value="track">Tracks</option>
-                      <option value="playlist">Playlists</option>
-                      <option value="artist">Artists</option>
-                      <option value="album">Albums</option>
-                      <option value="show">Podcast Shows</option>
-                    </select>
-                    <button className="button primary" type="submit" disabled={spotifySearchLoading}>
-                      {spotifySearchLoading ? 'Searching…' : 'Search Spotify'}
+              {spotifyLoading ? (
+                <p className="muted ui-text text-center">Checking your Spotify connection…</p>
+              ) : !spotifyConnected ? (
+                <div className="form">
+                  <p className="muted ui-text text-center">
+                    Connect your Spotify account to search the full catalogue.
+                  </p>
+                  <div className="action-row">
+                    <button className="button primary" onClick={handleConnectSpotify} disabled={!user}>
+                      Connect Spotify
                     </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <form className="form" onSubmit={handleSpotifySearch}>
+                    <label className="ui-text">
+                      Search
+                      <input
+                        type="text"
+                        placeholder="Tracks, playlists, artists…"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </label>
+
+                    <label className="ui-text">
+                      Type
+                      <div className="import-level-options" style={{ marginTop: '0.5rem' }}>
+                        {SPOTIFY_SEARCH_TYPES.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={`import-level-option${searchType === opt.value ? ' is-active' : ''}`}
+                            onClick={() => setSearchType(opt.value)}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </label>
+
+                    {spotifySearchError && <p className="error small ui-text">{spotifySearchError}</p>}
+
+                    <div className="action-row">
+                      <button className="button ghost" type="button" onClick={handleSignOutSpotify}>
+                        Sign out
+                      </button>
+                      <button className="button primary" type="submit" disabled={spotifySearchLoading}>
+                        {spotifySearchLoading ? 'Searching…' : 'Search'}
+                      </button>
+                    </div>
                   </form>
 
-                  {spotifySearchError && <p className="error">{spotifySearchError}</p>}
-
-                  <div className="pill-column" style={{ marginTop: '1rem', gap: '1rem' }}>
-                    {['tracks', 'playlists', 'artists', 'albums', 'shows'].map((key) => {
+                  <div className="spotify-results-list">
+                    {SPOTIFY_RESULT_GROUPS.map(({ key, label }) => {
                       const itemsForType = searchResults[key] || []
                       if (!itemsForType.length) return null
 
-                      const labels = {
-                        tracks: 'Tracks',
-                        playlists: 'Playlists',
-                        artists: 'Artists',
-                        albums: 'Albums',
-                        shows: 'Podcast Shows',
-                      }
-
                       return (
-                        <div key={key} className="preview-card">
-                          <div className="section-header">
-                            <h3>{labels[key]}</h3>
-                            <span className="pill">{itemsForType.length} results</span>
-                          </div>
-                          <div className="pill-column">
+                        <section key={key} className="spotify-results-group">
+                          <header className="spotify-results-heading">
+                            <h4 className="ui-text">{label}</h4>
+                            <span className="muted small">{itemsForType.length}</span>
+                          </header>
+                          <ul className="spotify-results-items">
                             {itemsForType.map((item) => (
-                              <div
-                                key={item.spotifyId}
-                                className="pill-row"
-                                style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                  {item.imageUrl && (
-                                    <img
-                                      src={item.imageUrl}
-                                      alt="Cover art"
-                                      style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
-                                    />
-                                  )}
-                                  <div>
-                                    <div className="small" style={{ fontWeight: 600 }}>
-                                      {item.title}
-                                    </div>
+                              <li key={item.spotifyId} className="spotify-results-item">
+                                {item.imageUrl ? (
+                                  <img src={item.imageUrl} alt="" className="spotify-results-thumb" />
+                                ) : (
+                                  <div className="spotify-results-thumb spotify-results-thumb--empty" />
+                                )}
+                                <div className="spotify-results-meta">
+                                  <div className="spotify-results-title">{item.title}</div>
+                                  {item.subtitle && (
                                     <div className="muted small">{item.subtitle}</div>
-                                    <div className="muted small" style={{ textTransform: 'capitalize' }}>
-                                      {item.type}
-                                    </div>
-                                  </div>
+                                  )}
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <div className="spotify-results-actions">
                                   {item.type === 'show' && (
-                                    <button className="button ghost" onClick={() => handleViewEpisodes(item)}>
-                                      View Episodes →
+                                    <button
+                                      className="button ghost small"
+                                      type="button"
+                                      onClick={() => handleViewEpisodes(item)}
+                                    >
+                                      Episodes
                                     </button>
                                   )}
-                                  <button className="button ghost" onClick={() => handleAddSpotifyItem(item)}>
-                                    Add to Library
+                                  <button
+                                    className="button ghost small"
+                                    type="button"
+                                    onClick={() => handleAddSpotifyItem(item)}
+                                  >
+                                    Add
                                   </button>
                                 </div>
-                              </div>
+                              </li>
                             ))}
-                          </div>
-                        </div>
+                          </ul>
+                        </section>
                       )
                     })}
 
                     {!spotifySearchLoading &&
                       Object.values(searchResults).every((list) => (list || []).length === 0) && (
-                        <p className="muted" style={{ marginTop: '0.5rem' }}>
+                        <p className="muted ui-text text-center">
                           Start a search to see results from Spotify.
                         </p>
                       )}
                   </div>
 
                   {episodePanel.show && (
-                    <div className="preview-card" style={{ marginTop: '1rem' }}>
-                      <div className="section-header">
+                    <section className="spotify-results-group">
+                      <header className="spotify-results-heading">
                         <div>
-                          <h3>Episodes — {episodePanel.show.title}</h3>
-                          <p className="muted small">Browse episodes and add them individually to your library.</p>
+                          <h4 className="ui-text">Episodes — {episodePanel.show.title}</h4>
+                          <p className="muted small">Add episodes individually to your library.</p>
                         </div>
-                        <button className="button ghost" onClick={handleCloseEpisodes}>
+                        <button className="button ghost small" type="button" onClick={handleCloseEpisodes}>
                           Close
                         </button>
-                      </div>
+                      </header>
 
                       {episodePanel.loading ? (
-                        <p className="muted">Loading episodes…</p>
+                        <p className="muted ui-text">Loading episodes…</p>
                       ) : episodePanel.error ? (
-                        <p className="error">{episodePanel.error}</p>
+                        <p className="error small ui-text">{episodePanel.error}</p>
                       ) : episodePanel.episodes.length === 0 ? (
-                        <p className="muted">No episodes found for this show.</p>
+                        <p className="muted ui-text">No episodes found for this show.</p>
                       ) : (
-                        <div className="pill-column">
+                        <ul className="spotify-results-items">
                           {episodePanel.episodes.map((episode) => (
-                            <div
-                              key={episode.spotifyId}
-                              className="pill-row"
-                              style={{ justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}
-                            >
-                              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                {episode.imageUrl && (
-                                  <img
-                                    src={episode.imageUrl}
-                                    alt="Episode art"
-                                    style={{ width: 48, height: 48, borderRadius: '0.25rem', flexShrink: 0 }}
-                                  />
-                                )}
-                                <div>
-                                  <div className="small" style={{ fontWeight: 600 }}>
-                                    {episode.title}
-                                  </div>
+                            <li key={episode.spotifyId} className="spotify-results-item">
+                              {episode.imageUrl ? (
+                                <img src={episode.imageUrl} alt="" className="spotify-results-thumb" />
+                              ) : (
+                                <div className="spotify-results-thumb spotify-results-thumb--empty" />
+                              )}
+                              <div className="spotify-results-meta">
+                                <div className="spotify-results-title">{episode.title}</div>
+                                {episode.subtitle && (
                                   <div className="muted small">{episode.subtitle}</div>
-                                </div>
+                                )}
                               </div>
-                              <button className="button ghost" onClick={() => handleAddSpotifyItem(episode)}>
-                                Add to Library
-                              </button>
-                            </div>
+                              <div className="spotify-results-actions">
+                                <button
+                                  className="button ghost small"
+                                  type="button"
+                                  onClick={() => handleAddSpotifyItem(episode)}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       )}
-                    </div>
+                    </section>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>

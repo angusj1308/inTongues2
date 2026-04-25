@@ -2079,7 +2079,7 @@ app.get('/api/spotify/search', async (req, res) => {
     const params = new URLSearchParams({
       q: queryText,
       type: types.join(','),
-      limit: '20',
+      limit: '10',
     })
 
     const response = await fetch(`https://api.spotify.com/v1/search?${params.toString()}`, {

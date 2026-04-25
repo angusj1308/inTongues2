@@ -780,12 +780,32 @@ const ActiveCinemaMode = ({
           {/* Gradient fade background */}
           <div className="cinema-overlay-gradient" />
 
-          <div className="cinema-overlay-inner">
-            {/* Progress bar */}
-            <div className="cinema-overlay-progress">
-              <span className="cinema-overlay-time">{formatTime(clampedPosition)}</span>
+          <div className="cinema-active-mini-bar">
+            {/* Chunk navigation — opens the chunk drawer */}
+            <button
+              type="button"
+              className="cinema-active-mini-icon-btn"
+              onClick={handleChunkToggle}
+              disabled={!hasChunks}
+              aria-label="Chunks"
+              title="Chunks"
+            >
+              <Icon name="list" />
+            </button>
+
+            {/* Mini-controls — replicated from extensive mode */}
+            <div className="cinema-extensive-mini-controls is-visible">
+              <button
+                type="button"
+                className="cinema-extensive-mini-play"
+                onClick={onPlayPause}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                <PlayPauseIcon isPlaying={isPlaying} />
+              </button>
               <input
-                className="cinema-overlay-slider"
+                className="cinema-extensive-mini-progress"
                 type="range"
                 min={chunkStart}
                 max={chunkEnd}
@@ -794,185 +814,35 @@ const ActiveCinemaMode = ({
                 onChange={handleProgressChange}
                 onPointerUp={(e) => e.currentTarget.blur()}
                 aria-label="Playback position"
-                style={{ '--progress': `${chunkProgress}%` }}
               />
-              <span className="cinema-overlay-time">{formatTime(chunkEnd)}</span>
+              <span className="cinema-extensive-mini-time">
+                {formatTime(clampedPosition - chunkStart)} / {formatTime(chunkDuration)}
+              </span>
             </div>
 
-            {/* Transport row */}
-            <div className="cinema-overlay-transport">
-              {/* Left: Secondary controls */}
-              <div className="cinema-overlay-left">
-                <button
-                  type="button"
-                  className="cinema-overlay-btn"
-                  onClick={handleChunkToggle}
-                  disabled={!hasChunks}
-                  aria-label="Chunks"
-                  title="Chunks"
-                >
-                  <Icon name="list" />
-                </button>
-                <div className="cinema-overlay-btn-wrap">
-                  <button
-                    ref={speedButtonRef}
-                    type="button"
-                    className={`cinema-overlay-btn ${playbackRate && playbackRate !== 1 ? 'active' : ''}`}
-                    onClick={() => setSpeedMenuOpen((prev) => !prev)}
-                    aria-label={`Speed ${playbackRate || 1}x`}
-                    title="Playback speed"
-                  >
-                    <span className="cinema-overlay-speed">x{formatRate(playbackRate || 1)}</span>
-                  </button>
-                  {speedMenuOpen && (
-                    <div ref={speedMenuRef} className="cinema-overlay-popover" role="dialog" aria-label="Playback speed">
-                      {speedPresets.map((rate) => (
-                        <button
-                          key={rate}
-                          type="button"
-                          className={`cinema-overlay-popover-option ${rate === playbackRate ? 'active' : ''}`}
-                          onClick={() => handlePlaybackRateChange(rate)}
-                        >
-                          x{formatRate(rate)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Center: Main transport controls */}
-              <div className="cinema-overlay-center">
-                <button
-                  type="button"
-                  className="cinema-overlay-btn"
-                  onClick={handleStart}
-                  aria-label="Restart chunk"
-                  title="Restart chunk"
-                >
-                  <Icon name="skip_previous" />
-                </button>
-                <div className="cinema-overlay-btn-wrap">
-                  <button
-                    ref={rewindButtonRef}
-                    type="button"
-                    className="cinema-overlay-btn"
-                    onClick={handleRewindClick}
-                    onContextMenu={handleRewindContextMenu}
-                    onPointerDown={handleRewindPressStart}
-                    onPointerUp={handleRewindPressEnd}
-                    onPointerLeave={handleRewindPressEnd}
-                    aria-label={`Rewind ${scrubSeconds} seconds`}
-                    title="Long-press to change interval"
-                  >
-                    <ScrubIcon direction="back" seconds={scrubSeconds} />
-                  </button>
-                  {scrubMenuOpen && (
-                    <div ref={scrubMenuRef} className="cinema-overlay-popover" role="dialog" aria-label="Rewind interval">
-                      {[5, 10, 15, 30].map((seconds) => (
-                        <button
-                          key={seconds}
-                          type="button"
-                          className={`cinema-overlay-popover-option ${seconds === scrubSeconds ? 'active' : ''}`}
-                          onClick={() => {
-                            onScrubChange?.(seconds)
-                            setScrubMenuOpen(false)
-                          }}
-                        >
-                          {seconds}s
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className={`cinema-overlay-btn cinema-overlay-play ${isPlaying ? 'is-playing' : ''}`}
-                  onClick={onPlayPause}
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                  title={isPlaying ? 'Pause' : 'Play'}
-                >
-                  <PlayPauseIcon isPlaying={isPlaying} />
-                </button>
-                <button
-                  type="button"
-                  className="cinema-overlay-btn"
-                  onClick={handleForward}
-                  aria-label={`Forward ${scrubSeconds} seconds`}
-                  title={`Forward ${scrubSeconds} seconds`}
-                >
-                  <ScrubIcon direction="forward" seconds={scrubSeconds} />
-                </button>
-                <button
-                  type="button"
-                  className="cinema-overlay-btn"
-                  onClick={handleSkipToEnd}
-                  aria-label="Skip to end"
-                  title="Skip to end"
-                >
-                  <Icon name="skip_next" />
-                </button>
-              </div>
-
-              {/* Right: Spacer for balance */}
-              <div className="cinema-overlay-right" />
-            </div>
-
-            {/* Pass navigation - centered at bottom */}
-            <div className="cinema-overlay-pass-row">
+            {/* Compact pass nav: ‹ Pass 1 of 4 › */}
+            <div className="cinema-active-pass-compact">
               <button
                 type="button"
-                className="cinema-overlay-pass-arrow"
+                className="cinema-active-pass-compact-arrow"
                 onClick={handlePreviousPass}
                 disabled={activeStep === 1}
                 aria-label="Previous pass"
               >
                 <Icon name="chevron_left" />
               </button>
-              <div className="cinema-overlay-pass-nav">
-                {[1, 2, 3, 4].map((step) => {
-                  const isCurrent = step === activeStep
-                  const isCompleted = completedPasses.has(step)
-                  const isNext = step === activeStep + 1
-                  const isBeyondNext = step > activeStep + 1
-                  const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
-                  return (
-                    <button
-                      key={step}
-                      type="button"
-                      className={`cinema-overlay-pass-btn ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${isDisabled ? 'is-disabled' : ''}`}
-                      onClick={() => handleSelectStep(step)}
-                      disabled={isDisabled}
-                      aria-label={`Pass ${step}`}
-                    >
-                      {step}
-                    </button>
-                  )
-                })}
-              </div>
-              {activeStep === 4 && completedChunks.has(safeChunkIndex) ? (
-                <button
-                  type="button"
-                  className={`cinema-overlay-pass-arrow cinema-overlay-pass-arrow--complete ${canMoveToNextChunk ? 'is-ready' : ''}`}
-                  onClick={onAdvanceChunk}
-                  disabled={!canMoveToNextChunk}
-                  aria-label="Next chunk"
-                >
-                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 8.5L6.5 12L13 4" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="cinema-overlay-pass-arrow"
-                  onClick={handleNextPass}
-                  disabled={activeStep === 4 || !canAdvanceToNextStep}
-                  aria-label="Next pass"
-                >
-                  <Icon name="chevron_right" />
-                </button>
-              )}
+              <span className="cinema-active-pass-compact-label">
+                Pass {activeStep} of 4
+              </span>
+              <button
+                type="button"
+                className="cinema-active-pass-compact-arrow"
+                onClick={handleNextPass}
+                disabled={activeStep === 4 || !canAdvanceToNextStep}
+                aria-label="Next pass"
+              >
+                <Icon name="chevron_right" />
+              </button>
             </div>
           </div>
         </div>

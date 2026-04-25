@@ -20,23 +20,6 @@ import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
 import { PALETTE_ORDER, DEFAULT_PALETTE, resolvePalette } from '../constants/highlightColors'
 
-const themeOptions = [
-  {
-    id: 'soft-white',
-    label: 'Pure White',
-    background: '#F5F5F2',
-    text: '#1A1A1A',
-    tone: 'light',
-  },
-  {
-    id: 'pure-black',
-    label: 'Pure Black',
-    background: '#1C1A17',
-    text: '#E8E0D4',
-    tone: 'dark',
-  },
-]
-
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
 const LISTENING_MODES = ['extensive', 'active', 'intensive']
@@ -113,7 +96,15 @@ const AudioPlayer = () => {
   const [listeningMode, setListeningMode] = useState('extensive')
   const [tutorOpen, setTutorOpen] = useState(false)
   const [tutorInitialMessage, setTutorInitialMessage] = useState(null)
-  const [readerTheme, setReaderTheme] = useState(profile?.readerTheme || 'soft-white')
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof document === 'undefined') return false
+    return document.documentElement.getAttribute('data-theme') === 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    try { localStorage.setItem('darkMode', JSON.stringify(darkMode)) } catch {}
+  }, [darkMode])
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
   const [scrubSeconds, setScrubSeconds] = useState(5)
   const [activePageIndex, setActivePageIndex] = useState(0)
@@ -212,17 +203,6 @@ const AudioPlayer = () => {
     () => transcriptSegments.map((seg) => seg?.text || '').filter(Boolean).join(' '),
     [transcriptSegments],
   )
-
-  const activeTheme = useMemo(
-    () => themeOptions.find((option) => option.id === readerTheme) || themeOptions[0],
-    [readerTheme],
-  )
-
-  const cycleTheme = () => {
-    const idx = themeOptions.findIndex((option) => option.id === readerTheme)
-    const next = idx === -1 ? 0 : (idx + 1) % themeOptions.length
-    setReaderTheme(themeOptions[next].id)
-  }
 
   const currentPaletteName = profile?.highlightPalette || DEFAULT_PALETTE
   const currentPalette = resolvePalette(currentPaletteName)
@@ -1907,12 +1887,6 @@ const AudioPlayer = () => {
       className={`listening-lab-page listening-mode-${listeningMode} ${
         listeningMode === 'intensive' ? 'reader-intensive-active' : ''
       }`}
-      style={{
-        '--reader-bg': activeTheme.background,
-        '--reader-text': activeTheme.text,
-      }}
-      data-reader-tone={activeTheme.tone}
-      data-reader-theme={activeTheme.id}
     >
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
@@ -1959,13 +1933,13 @@ const AudioPlayer = () => {
                 <button
                   className="reader-header-button icon-button reader-theme-trigger"
                   type="button"
-                  aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                   onClick={(e) => {
-                    cycleTheme()
+                    setDarkMode((prev) => !prev)
                     e.currentTarget.blur()
                   }}
                 >
-                  {activeTheme.tone === 'dark' ? (
+                  {darkMode ? (
                     <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                     </svg>

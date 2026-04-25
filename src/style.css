@@ -7472,105 +7472,105 @@ pre {
   color: #0f172a;
 }
 
-.listening-lab-page[data-reader-tone='dark'] {
+[data-theme='dark'] .listening-lab-page {
   background: var(--reader-bg, #1c1a17);
   color: var(--reader-text, #e8e0d4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .reader-hover-header,
-.listening-lab-page[data-reader-tone='dark'] .reader-hover-header .dashboard-brand-band {
+[data-theme='dark'] .listening-lab-page .reader-hover-header,
+[data-theme='dark'] .listening-lab-page .reader-hover-header .dashboard-brand-band {
   background: rgba(28, 26, 23, 0.9);
   color: var(--reader-text, #e8e0d4);
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .reader-header-button {
+[data-theme='dark'] .listening-lab-page .reader-header-button {
   color: var(--reader-text, #e8e0d4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button {
+[data-theme='dark'] .listening-lab-page .reader-mode-nav .dashboard-nav-button {
   color: rgba(232, 224, 212, 0.7);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button.active,
-.listening-lab-page[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button:hover {
+[data-theme='dark'] .listening-lab-page .reader-mode-nav .dashboard-nav-button.active,
+[data-theme='dark'] .listening-lab-page .reader-mode-nav .dashboard-nav-button:hover {
   color: var(--reader-text, #e8e0d4);
 }
 
 /* Player surfaces in dark mode — outer card, inner controls card, cover */
-.listening-lab-page[data-reader-tone='dark'] .player-stack {
+[data-theme='dark'] .listening-lab-page .player-stack {
   background: #2a2724;
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .player-surface {
+[data-theme='dark'] .listening-lab-page .player-surface {
   background: #232020;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .player-cover {
+[data-theme='dark'] .listening-lab-page .player-cover {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
 }
 
-.listening-lab-page[data-reader-tone='dark'] .player-cover-art {
+[data-theme='dark'] .listening-lab-page .player-cover-art {
   color: #e8e0d4;
   background: radial-gradient(circle at 20% 20%, #3a4458, #1f2a3d);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .player-title {
+[data-theme='dark'] .listening-lab-page .player-title {
   color: var(--reader-text, #e8e0d4);
 }
 
 /* Transport buttons (skip ±5s, prev/next) */
-.listening-lab-page[data-reader-tone='dark'] .transport-btn {
+[data-theme='dark'] .listening-lab-page .transport-btn {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.18);
   color: var(--reader-text, #e8e0d4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .transport-btn:hover:not(:disabled) {
+[data-theme='dark'] .listening-lab-page .transport-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);
 }
 
 /* Primary play button — inverted (light on dark surface) */
-.listening-lab-page[data-reader-tone='dark'] .transport-btn-primary {
+[data-theme='dark'] .listening-lab-page .transport-btn-primary {
   background: var(--reader-text, #e8e0d4);
   color: #1c1a17;
   border-color: var(--reader-text, #e8e0d4);
 }
 
 /* Progress bar — flip foreground/track */
-.listening-lab-page[data-reader-tone='dark'] .audible-progress::-webkit-slider-runnable-track,
-.listening-lab-page[data-reader-tone='dark'] .audible-progress::-moz-range-track {
+[data-theme='dark'] .listening-lab-page .audible-progress::-webkit-slider-runnable-track,
+[data-theme='dark'] .listening-lab-page .audible-progress::-moz-range-track {
   background: linear-gradient(to right, var(--reader-text, #e8e0d4) var(--progress), rgba(255, 255, 255, 0.18) var(--progress));
 }
 
-.listening-lab-page[data-reader-tone='dark'] .audible-progress::-webkit-slider-thumb {
+[data-theme='dark'] .listening-lab-page .audible-progress::-webkit-slider-thumb {
   background: var(--reader-text, #e8e0d4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .audible-progress::-moz-range-thumb {
+[data-theme='dark'] .listening-lab-page .audible-progress::-moz-range-thumb {
   background: var(--reader-text, #e8e0d4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .audible-progress-shell,
-.listening-lab-page[data-reader-tone='dark'] .progress-shell {
+[data-theme='dark'] .listening-lab-page .audible-progress-shell,
+[data-theme='dark'] .listening-lab-page .progress-shell {
   color: rgba(232, 224, 212, 0.7);
 }
 
 /* Secondary button row (Timer / Speed / Transcript) */
-.listening-lab-page[data-reader-tone='dark'] .secondary-btn,
-.listening-lab-page[data-reader-tone='dark'] .secondary-btn.active {
+[data-theme='dark'] .listening-lab-page .secondary-btn,
+[data-theme='dark'] .listening-lab-page .secondary-btn.active {
   color: var(--reader-text, #e8e0d4);
 }
 
-.listening-lab-page[data-reader-tone='dark'] .secondary-btn:hover {
+[data-theme='dark'] .listening-lab-page .secondary-btn:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
 /* Speed popover (light by default) — flip to dark */
-.listening-lab-page[data-reader-tone='dark'] .speed-popover {
+[data-theme='dark'] .listening-lab-page .speed-popover {
   background: #2a2724;
   color: var(--reader-text, #e8e0d4);
   border-color: rgba(255, 255, 255, 0.1);

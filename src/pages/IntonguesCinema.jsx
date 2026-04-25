@@ -289,6 +289,11 @@ const IntonguesCinema = () => {
   // remount. We stash the intended target in a ref and replay it from
   // `handlePlayerReady` after the new player finishes mounting.
   const pendingSeekRef = useRef(null)
+  // Flips true once loadVideo has applied the restored bookmark. Save effects
+  // refuse to write until this is set, otherwise React's strict-mode double-
+  // fire of effects can clobber the saved bookmark with default values
+  // before loadVideo runs.
+  const bookmarkRestoredRef = useRef(false)
   const pronunciationAudioRef = useRef(null)
   const [spotifyToken, setSpotifyToken] = useState('')
   const [spotifyPlayer, setSpotifyPlayer] = useState(null)
@@ -620,6 +625,9 @@ const normalisePagesToSegments = (pages = []) =>
         if (Number.isFinite(last) && last > 2 && (!Number.isFinite(dur) || last < dur - 5)) {
           pendingSeekRef.current = last
         }
+
+        // Restore complete — save effects can now write.
+        bookmarkRestoredRef.current = true
 
         setError('')
       } catch (err) {
@@ -1218,15 +1226,12 @@ const normalisePagesToSegments = (pages = []) =>
   // user who exits within a couple of seconds still gets the latest values
   // persisted. Skip the first render so we don't write defaults before the
   // restore from videoData has settled.
-  const stateBookmarkInitRef = useRef(false)
   useEffect(() => {
     if (!id || !user?.uid) return
-    if (!stateBookmarkInitRef.current) {
-      stateBookmarkInitRef.current = true
-      return
-    }
-    // localStorage is synchronous + immediate — the source of truth for the
-    // bookmark. Firestore stays in sync as a cross-device backup.
+    // Only write once loadVideo has applied the restore. Otherwise the
+    // initial render (still on default values) would overwrite the
+    // bookmark before we'd had a chance to read it.
+    if (!bookmarkRestoredRef.current) return
     try {
       const key = `cinema-bookmark:${user.uid}:${id}`
       const existing = JSON.parse(localStorage.getItem(key) || '{}')
@@ -1263,6 +1268,7 @@ const normalisePagesToSegments = (pages = []) =>
     const writePlayhead = (force = false) => {
       const { currentTime, duration } = playheadStateRef.current
       if (!duration || duration <= 0) return
+      if (!bookmarkRestoredRef.current) return // Don't clobber the saved bookmark before restore
       if (!force && Math.abs(currentTime - lastPlayheadSavedRef.current) < 0.5) return
       lastPlayheadSavedRef.current = currentTime
 

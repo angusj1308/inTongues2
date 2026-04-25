@@ -10580,15 +10580,15 @@ body.active-pass-locked {
   z-index: 115; /* Above transport (110) so the controls don't leak through */
   background: rgba(0, 0, 0, 0.85);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 24px;
 }
 
-.cinema-chunk-complete-replay {
-  width: 88px;
-  height: 88px;
+.cinema-chunk-complete-btn {
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -10597,30 +10597,13 @@ body.active-pass-locked {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
+  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease;
 }
 
-.cinema-chunk-complete-replay:hover {
+.cinema-chunk-complete-btn:hover {
   background: rgba(255, 255, 255, 0.22);
-  transform: scale(1.04);
-}
-
-.cinema-chunk-complete-next {
-  padding: 10px 24px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
-  font-family: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease;
-}
-
-.cinema-chunk-complete-next:hover {
-  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
 }
 
 .cinema-pass-intro-label {

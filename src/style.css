@@ -10489,29 +10489,18 @@ body.active-pass-locked {
   pointer-events: auto; /* Re-enable clicks for content/buttons */
 }
 
-/* Active-mode bottom controls. Each element is independently anchored so
-   the audio mini-controls render at exactly their extensive-mode size,
-   uninfluenced by neighbouring elements. */
+/* Active-mode bottom controls. Chunk and pass nav sit tight against the
+   audio mini-controls so they stop colliding with the YouTube logo /
+   tutor button. Group is centred. */
 .cinema-active-mini-anchor {
   position: absolute;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
-}
-
-.cinema-active-chunk-anchor {
-  position: absolute;
-  bottom: 22px;
-  left: 24px;
-  z-index: 1;
-}
-
-.cinema-active-pass-anchor {
-  position: absolute;
-  bottom: 22px;
-  right: 24px;
-  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .cinema-active-mini-icon-btn {

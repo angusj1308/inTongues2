@@ -1954,7 +1954,7 @@ app.get('/api/spotify/callback', async (req, res) => {
       { merge: true },
     )
 
-    return res.redirect(`${FRONTEND_BASE_URL}/listening-library?spotify=connected`)
+    return res.redirect(`${FRONTEND_BASE_URL}/listening?spotify=connected`)
   } catch (err) {
     console.error('Spotify callback error', err)
     return res.status(500).send('Spotify authentication failed')

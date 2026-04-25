@@ -484,9 +484,12 @@ const IntensiveCinemaMode = ({
   // Clamp segment index
   useEffect(() => {
     if (cinemaMode !== 'intensive') return
+    // Don't clamp while segments are still loading — would force a
+    // restored bookmark index back down to 0.
+    if (intensiveSegments.length === 0) return
 
     setIntensiveSegmentIndex((prev) =>
-      Math.min(prev, Math.max(intensiveSegments.length - 1, 0))
+      Math.min(prev, intensiveSegments.length - 1)
     )
   }, [intensiveSegments.length, cinemaMode, setIntensiveSegmentIndex])
 

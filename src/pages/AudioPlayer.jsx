@@ -15,8 +15,27 @@ import {
 import IntensiveListeningMode from '../components/listen/IntensiveListeningMode'
 import ExtensiveMode from '../components/listen/ExtensiveMode'
 import ActiveMode from '../components/listen/ActiveMode'
+import TutorPanel from '../components/read/TutorPanel'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { normalizeLanguageCode } from '../utils/language'
+import { PALETTE_ORDER, DEFAULT_PALETTE, resolvePalette } from '../constants/highlightColors'
+
+const themeOptions = [
+  {
+    id: 'soft-white',
+    label: 'Pure White',
+    background: '#F5F5F2',
+    text: '#1A1A1A',
+    tone: 'light',
+  },
+  {
+    id: 'pure-black',
+    label: 'Pure Black',
+    background: '#1C1A17',
+    text: '#E8E0D4',
+    tone: 'dark',
+  },
+]
 
 const getDisplayText = (page) => page?.adaptedText || page?.originalText || page?.text || ''
 
@@ -42,7 +61,7 @@ const normaliseTranscriptSegments = (segments = []) =>
 const AudioPlayer = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, updateProfile } = useAuth()
   const location = useLocation()
   const audioRef = useRef(null)
   const pronunciationAudioRef = useRef(null)
@@ -92,6 +111,9 @@ const AudioPlayer = () => {
   const [vocabEntries, setVocabEntries] = useState({})
   const [isPlaying, setIsPlaying] = useState(false)
   const [listeningMode, setListeningMode] = useState('extensive')
+  const [tutorOpen, setTutorOpen] = useState(false)
+  const [tutorInitialMessage, setTutorInitialMessage] = useState(null)
+  const [readerTheme, setReaderTheme] = useState(profile?.readerTheme || 'soft-white')
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false)
   const [scrubSeconds, setScrubSeconds] = useState(5)
   const [activePageIndex, setActivePageIndex] = useState(0)
@@ -185,6 +207,33 @@ const AudioPlayer = () => {
     () => resolveSupportedLanguageLabel(storyMeta.language, ''),
     [storyMeta.language],
   )
+
+  const fullTranscriptText = useMemo(
+    () => transcriptSegments.map((seg) => seg?.text || '').filter(Boolean).join(' '),
+    [transcriptSegments],
+  )
+
+  const activeTheme = useMemo(
+    () => themeOptions.find((option) => option.id === readerTheme) || themeOptions[0],
+    [readerTheme],
+  )
+
+  const cycleTheme = () => {
+    const idx = themeOptions.findIndex((option) => option.id === readerTheme)
+    const next = idx === -1 ? 0 : (idx + 1) % themeOptions.length
+    setReaderTheme(themeOptions[next].id)
+  }
+
+  const currentPaletteName = profile?.highlightPalette || DEFAULT_PALETTE
+  const currentPalette = resolvePalette(currentPaletteName)
+
+  const cyclePalette = () => {
+    const idx = PALETTE_ORDER.indexOf(currentPaletteName)
+    const next = PALETTE_ORDER[(idx === -1 ? 0 : idx + 1) % PALETTE_ORDER.length]
+    updateProfile?.({ highlightPalette: next }).catch?.((err) => {
+      console.error('Failed to update palette:', err)
+    })
+  }
 
   const chunkLengthSeconds = 60
   const chunkTargetSeconds = 60
@@ -1858,6 +1907,12 @@ const AudioPlayer = () => {
       className={`listening-lab-page listening-mode-${listeningMode} ${
         listeningMode === 'intensive' ? 'reader-intensive-active' : ''
       }`}
+      style={{
+        '--reader-bg': activeTheme.background,
+        '--reader-text': activeTheme.text,
+      }}
+      data-reader-tone={activeTheme.tone}
+      data-reader-theme={activeTheme.id}
     >
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
@@ -1866,11 +1921,15 @@ const AudioPlayer = () => {
             <div className="dashboard-brand-band reader-header-band listening-brand-band">
               <div className="listening-header-left">
                 <button
-                  className="dashboard-control ui-text reader-back-button"
+                  className="reader-header-button icon-button reader-back-button"
                   onClick={() => navigate('/listening')}
                   type="button"
+                  aria-label="Back to library"
                 >
-                  Back to library
+                  <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                  </svg>
                 </button>
               </div>
               <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
@@ -1897,7 +1956,59 @@ const AudioPlayer = () => {
                   ),
                 )}
               </nav>
-              <div className="listening-header-actions" />
+              <div className="listening-header-actions reader-header-actions">
+                <button
+                  className="reader-header-button icon-button reader-theme-trigger"
+                  type="button"
+                  aria-label={activeTheme.tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  onClick={(e) => {
+                    cycleTheme()
+                    e.currentTarget.blur()
+                  }}
+                >
+                  {activeTheme.tone === 'dark' ? (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                  ) : (
+                    <svg className="reader-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  className="reader-header-button icon-button reader-palette-trigger"
+                  type="button"
+                  aria-label={`Highlight palette: ${currentPalette.label}. Click to change.`}
+                  title={`Highlight: ${currentPalette.label}`}
+                  onClick={(e) => {
+                    cyclePalette()
+                    e.currentTarget.blur()
+                  }}
+                >
+                  <span className="palette-circle" />
+                </button>
+                <button
+                  type="button"
+                  className={`reader-header-button icon-button ${tutorOpen ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setTutorInitialMessage(null)
+                    setTutorOpen((prev) => !prev)
+                  }}
+                  aria-label="Open AI tutor"
+                  title="AI tutor"
+                >
+                  <span className="material-symbols-outlined">question_mark</span>
+                </button>
+              </div>
             </div>
           </header>
         </div>
@@ -2245,6 +2356,20 @@ const AudioPlayer = () => {
           </div>
         </div>
       )}
+
+      <TutorPanel
+        variant="cinema-left"
+        isOpen={tutorOpen}
+        onClose={() => {
+          setTutorOpen(false)
+          setTutorInitialMessage(null)
+        }}
+        language={storyLanguage}
+        nativeLanguage={resolveSupportedLanguageLabel(profile?.nativeLanguage)}
+        storyText={fullTranscriptText}
+        initialMessage={tutorInitialMessage}
+        storyId={id}
+      />
     </div>
   )
 }

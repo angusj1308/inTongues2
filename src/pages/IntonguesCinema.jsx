@@ -583,6 +583,25 @@ const normalisePagesToSegments = (pages = []) =>
           setIsDubbed(true)
           setDubbedAudioUrl(videoData.dubbedAudioUrl || '')
         }
+
+        // Restore bookmark — mode, chunk, pass, playhead. Skip the playhead
+        // if it's near the end (user finished). pendingSeekRef is consumed
+        // by handlePlayerReady once the YouTube player mounts.
+        if (['extensive', 'active', 'intensive'].includes(videoData.lastCinemaMode)) {
+          setCinemaMode(videoData.lastCinemaMode)
+        }
+        if (Number.isInteger(videoData.lastActiveChunkIndex) && videoData.lastActiveChunkIndex >= 0) {
+          setActiveChunkIndex(videoData.lastActiveChunkIndex)
+        }
+        if (Number.isInteger(videoData.lastActiveStep) && videoData.lastActiveStep >= 1 && videoData.lastActiveStep <= 4) {
+          setActiveStep(videoData.lastActiveStep)
+        }
+        const last = Number(videoData.lastPosition)
+        const dur = Number(videoData.duration)
+        if (Number.isFinite(last) && last > 2 && (!Number.isFinite(dur) || last < dur - 5)) {
+          pendingSeekRef.current = last
+        }
+
         setError('')
       } catch (err) {
         console.error('Failed to load YouTube video', err)
@@ -1169,7 +1188,8 @@ const normalisePagesToSegments = (pages = []) =>
     return () => clearInterval(interval)
   }, [playbackStatus.isPlaying, isSpotify, isDubbed])
 
-  // Save progress to Firestore for stats tracking (debounced)
+  // Save progress + bookmark (mode/chunk/pass/playhead) to Firestore.
+  // Debounced 3s so we're not hammering on every tick.
   useEffect(() => {
     const { currentTime, duration } = playbackStatus
     if (!id || !user?.uid || !duration || duration <= 0) return undefined
@@ -1178,15 +1198,22 @@ const normalisePagesToSegments = (pages = []) =>
       try {
         const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
         const progress = Math.min(100, Math.round((currentTime / duration) * 100))
-        await updateDoc(videoRef, { progress, duration })
+        await updateDoc(videoRef, {
+          progress,
+          duration,
+          lastPosition: currentTime,
+          lastCinemaMode: cinemaMode,
+          lastActiveChunkIndex: activeChunkIndex,
+          lastActiveStep: activeStep,
+        })
       } catch (err) {
         // Silently fail - this is non-critical
         console.debug('Failed to save video progress:', err)
       }
-    }, 3000) // Debounce 3 seconds
+    }, 3000)
 
     return () => clearTimeout(timeoutId)
-  }, [id, playbackStatus, user?.uid])
+  }, [id, playbackStatus, user?.uid, cinemaMode, activeChunkIndex, activeStep])
 
   const handlePlayPause = useCallback(() => {
     if (isSpotify) {

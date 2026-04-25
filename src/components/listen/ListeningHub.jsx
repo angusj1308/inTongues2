@@ -548,7 +548,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           {/* Card 2: Browse (Spotify) */}
           <button
             className="home-card reading-action-card"
-            onClick={() => { handleConnectSpotify(); setShowSpotifyPanel(true) }}
+            onClick={() => setShowSpotifyPanel(true)}
           >
             <img src={spotifyIcon} alt="" className="reading-card-icon" />
             <h3 className="home-card-title">Music</h3>

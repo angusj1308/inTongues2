@@ -1063,9 +1063,16 @@ const normalisePagesToSegments = (pages = []) =>
     }
   }, [cinemaMode])
 
-  // Reset active mode state when changing modes or chunks
+  // Reset active mode state when changing modes or chunks. Skip the very
+  // first run so a bookmark-restored activeStep / chunk doesn't get
+  // clobbered when cinemaMode is restored to 'active' on mount.
+  const activeResetSkippedRef = useRef(false)
   useEffect(() => {
     if (cinemaMode !== 'active') return
+    if (!activeResetSkippedRef.current) {
+      activeResetSkippedRef.current = true
+      return
+    }
     setActiveStep(1)
     setCompletedPasses(new Set())
   }, [activeChunkIndex, cinemaMode])

@@ -7497,6 +7497,86 @@ pre {
   color: var(--reader-text, #e8e0d4);
 }
 
+/* Player surfaces in dark mode — outer card, inner controls card, cover */
+.listening-lab-page[data-reader-tone='dark'] .player-stack {
+  background: #2a2724;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .player-surface {
+  background: #232020;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .player-cover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+}
+
+.listening-lab-page[data-reader-tone='dark'] .player-cover-art {
+  color: #e8e0d4;
+  background: radial-gradient(circle at 20% 20%, #3a4458, #1f2a3d);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .player-title {
+  color: var(--reader-text, #e8e0d4);
+}
+
+/* Transport buttons (skip ±5s, prev/next) */
+.listening-lab-page[data-reader-tone='dark'] .transport-btn {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--reader-text, #e8e0d4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .transport-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Primary play button — inverted (light on dark surface) */
+.listening-lab-page[data-reader-tone='dark'] .transport-btn-primary {
+  background: var(--reader-text, #e8e0d4);
+  color: #1c1a17;
+  border-color: var(--reader-text, #e8e0d4);
+}
+
+/* Progress bar — flip foreground/track */
+.listening-lab-page[data-reader-tone='dark'] .audible-progress::-webkit-slider-runnable-track,
+.listening-lab-page[data-reader-tone='dark'] .audible-progress::-moz-range-track {
+  background: linear-gradient(to right, var(--reader-text, #e8e0d4) var(--progress), rgba(255, 255, 255, 0.18) var(--progress));
+}
+
+.listening-lab-page[data-reader-tone='dark'] .audible-progress::-webkit-slider-thumb {
+  background: var(--reader-text, #e8e0d4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .audible-progress::-moz-range-thumb {
+  background: var(--reader-text, #e8e0d4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .audible-progress-shell,
+.listening-lab-page[data-reader-tone='dark'] .progress-shell {
+  color: rgba(232, 224, 212, 0.7);
+}
+
+/* Secondary button row (Timer / Speed / Transcript) */
+.listening-lab-page[data-reader-tone='dark'] .secondary-btn,
+.listening-lab-page[data-reader-tone='dark'] .secondary-btn.active {
+  color: var(--reader-text, #e8e0d4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Speed popover (light by default) — flip to dark */
+.listening-lab-page[data-reader-tone='dark'] .speed-popover {
+  background: #2a2724;
+  color: var(--reader-text, #e8e0d4);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
 /* Prevent browser back/forward gesture on horizontal swipe in intensive mode */
 .listening-lab-page.listening-mode-intensive {
   overscroll-behavior-x: none;

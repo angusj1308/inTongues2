@@ -194,12 +194,20 @@ const ActiveCinemaMode = ({
         showOverlay()
         setShowPassIntro(false)
         onPlayPause?.()
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault()
+        showOverlay()
+        handleSeek(clampedPosition - 5)
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault()
+        showOverlay()
+        handleSeek(clampedPosition + 5)
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [activeStep, showOverlay, onPlayPause])
+  }, [activeStep, showOverlay, onPlayPause, clampedPosition, handleSeek])
 
   // Clear overlay timeout on unmount
   useEffect(() => () => clearOverlayTimeout(), [clearOverlayTimeout])

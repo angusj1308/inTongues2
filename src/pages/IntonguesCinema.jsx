@@ -595,6 +595,14 @@ const normalisePagesToSegments = (pages = []) =>
         }
         if (Number.isInteger(videoData.lastActiveStep) && videoData.lastActiveStep >= 1 && videoData.lastActiveStep <= 4) {
           setActiveStep(videoData.lastActiveStep)
+          // Restoring to pass N implies passes 1..N-1 were completed.
+          // Seed completedPasses so the next-pass affordance shows up
+          // (it gates on completedPasses.has(activeStep)).
+          if (videoData.lastActiveStep > 1) {
+            const seeded = new Set()
+            for (let i = 1; i < videoData.lastActiveStep; i += 1) seeded.add(i)
+            setCompletedPasses(seeded)
+          }
         }
         const last = Number(videoData.lastPosition)
         const dur = Number(videoData.duration)

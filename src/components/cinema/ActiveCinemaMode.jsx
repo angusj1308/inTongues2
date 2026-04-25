@@ -203,15 +203,16 @@ const ActiveCinemaMode = ({
   // Clear overlay timeout on unmount
   useEffect(() => () => clearOverlayTimeout(), [clearOverlayTimeout])
 
-  // Show overlay initially when entering any pass
+  // Show overlay briefly when entering a pass — but not while the intro
+  // screen is up. The intro has its own central play button; transport
+  // should stay hidden until the user hovers the bottom hover zone.
   useEffect(() => {
+    if (showPassIntro) {
+      setOverlayVisible(false)
+      return undefined
+    }
     setOverlayVisible(true)
-    // Auto-hide after initial display (only if pass intro is not showing)
-    const timer = setTimeout(() => {
-      if (!showPassIntro) {
-        setOverlayVisible(false)
-      }
-    }, 3000)
+    const timer = setTimeout(() => setOverlayVisible(false), 3000)
     return () => clearTimeout(timer)
   }, [activeStep, showPassIntro])
 
@@ -708,12 +709,22 @@ const ActiveCinemaMode = ({
           )}
         </div>
 
-        {/* Pass intro overlay - shows pass label/title until user plays */}
+        {/* Pass intro overlay - shows pass label/title + central play button */}
         {showPassIntro && (
           <div className="cinema-pass-intro">
             <div className="cinema-pass-intro-content">
               <span className="cinema-pass-intro-label">PASS {activeStep} of 4</span>
               <span className="cinema-pass-intro-title">{heroTitle}</span>
+              <button
+                type="button"
+                className="cinema-pass-intro-play"
+                onClick={() => onPlayPause?.()}
+                aria-label="Start playback"
+              >
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
             </div>
           </div>
         )}

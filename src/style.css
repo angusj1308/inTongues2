@@ -10562,10 +10562,12 @@ body.active-pass-locked {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
   border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-top: 16px;
   transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
 }
 

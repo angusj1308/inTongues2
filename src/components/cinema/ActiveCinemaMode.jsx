@@ -767,7 +767,8 @@ const ActiveCinemaMode = ({
                 title={activeStep === 4 ? 'Next chunk' : 'Next pass'}
               >
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="9 6 15 12 9 18" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <polyline points="14 6 20 12 14 18" />
                 </svg>
               </button>
             )}

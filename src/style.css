@@ -12524,6 +12524,7 @@ body:has(.cinema-page) {
   height: 14px;
   -webkit-appearance: none;
   appearance: none;
+  accent-color: transparent;
   background: transparent;
   border-radius: 0;
   border: none;

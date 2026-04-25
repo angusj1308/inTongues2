@@ -1917,7 +1917,7 @@ const AudioPlayer = () => {
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
           <div className="reader-hover-hitbox" />
-          <header className="dashboard-header reader-hover-header listening-hover-header">
+          <header className="dashboard-header reader-hover-header">
             <div className="dashboard-brand-band reader-header-band listening-brand-band">
               <div className="listening-header-left">
                 <button
@@ -1932,9 +1932,9 @@ const AudioPlayer = () => {
                   </svg>
                 </button>
               </div>
-              <nav className="dashboard-nav listening-mode-nav" aria-label="Listening mode">
+              <nav className="dashboard-nav listening-mode-nav reader-mode-nav" aria-label="Listening mode">
                 {[{ id: 'extensive', label: 'Extensive' }, { id: 'active', label: 'Active' }, { id: 'intensive', label: 'Intensive' }].map(
-                  (mode, index) => (
+                  (mode) => (
                     <div
                       key={mode.id}
                       className={`dashboard-nav-item ${listeningMode === mode.id ? 'active' : ''}`}
@@ -1951,7 +1951,6 @@ const AudioPlayer = () => {
                       >
                         {mode.label.toUpperCase()}
                       </button>
-                      {index < 2 && <span className="dashboard-nav-divider">|</span>}
                     </div>
                   ),
                 )}

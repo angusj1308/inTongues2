@@ -7472,6 +7472,31 @@ pre {
   color: #0f172a;
 }
 
+.listening-lab-page[data-reader-tone='dark'] {
+  background: var(--reader-bg, #1c1a17);
+  color: var(--reader-text, #e8e0d4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .reader-hover-header,
+.listening-lab-page[data-reader-tone='dark'] .reader-hover-header .dashboard-brand-band {
+  background: rgba(28, 26, 23, 0.9);
+  color: var(--reader-text, #e8e0d4);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .reader-header-button {
+  color: var(--reader-text, #e8e0d4);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button {
+  color: rgba(232, 224, 212, 0.7);
+}
+
+.listening-lab-page[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button.active,
+.listening-lab-page[data-reader-tone='dark'] .reader-mode-nav .dashboard-nav-button:hover {
+  color: var(--reader-text, #e8e0d4);
+}
+
 /* Prevent browser back/forward gesture on horizontal swipe in intensive mode */
 .listening-lab-page.listening-mode-intensive {
   overscroll-behavior-x: none;

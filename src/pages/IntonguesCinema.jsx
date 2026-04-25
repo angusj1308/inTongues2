@@ -602,6 +602,7 @@ const normalisePagesToSegments = (pages = []) =>
           cinemaMode: videoData.lastCinemaMode,
           activeChunkIndex: videoData.lastActiveChunkIndex,
           activeStep: videoData.lastActiveStep,
+          intensiveSegmentIndex: videoData.lastIntensiveSegmentIndex,
           lastPosition: videoData.lastPosition,
         }
         const merged = { ...fsBookmark, ...bookmark } // localStorage wins on conflict
@@ -619,6 +620,9 @@ const normalisePagesToSegments = (pages = []) =>
             for (let i = 1; i < merged.activeStep; i += 1) seeded.add(i)
             setCompletedPasses(seeded)
           }
+        }
+        if (Number.isInteger(merged.intensiveSegmentIndex) && merged.intensiveSegmentIndex >= 0) {
+          setIntensiveSegmentIndex(merged.intensiveSegmentIndex)
         }
         const last = Number(merged.lastPosition)
         const dur = Number(videoData.duration)
@@ -1240,6 +1244,7 @@ const normalisePagesToSegments = (pages = []) =>
         cinemaMode,
         activeChunkIndex,
         activeStep,
+        intensiveSegmentIndex,
         savedAt: Date.now(),
       }))
     } catch {/* localStorage unavailable — non-fatal */}
@@ -1249,8 +1254,9 @@ const normalisePagesToSegments = (pages = []) =>
       lastCinemaMode: cinemaMode,
       lastActiveChunkIndex: activeChunkIndex,
       lastActiveStep: activeStep,
+      lastIntensiveSegmentIndex: intensiveSegmentIndex,
     }).catch((err) => console.debug('Failed to save cinema bookmark:', err))
-  }, [id, user?.uid, cinemaMode, activeChunkIndex, activeStep])
+  }, [id, user?.uid, cinemaMode, activeChunkIndex, activeStep, intensiveSegmentIndex])
 
   // Save playhead + progress to Firestore. Throttled to every ~1s while
   // the position changes, plus one final save on unmount so a user who

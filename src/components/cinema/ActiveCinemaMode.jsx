@@ -192,6 +192,7 @@ const ActiveCinemaMode = ({
       if (e.code === 'Space') {
         e.preventDefault()
         showOverlay()
+        setShowPassIntro(false)
         onPlayPause?.()
       }
     }
@@ -225,13 +226,6 @@ const ActiveCinemaMode = ({
     if (isPlaying) onPlayPause?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep])
-
-  // Hide pass intro when playback starts (only for video passes, not Pass 3)
-  useEffect(() => {
-    if (activeStep !== 3 && isPlaying && showPassIntro) {
-      setShowPassIntro(false)
-    }
-  }, [activeStep, isPlaying, showPassIntro])
 
   // Reset transcript sync on pass/chunk change
   useEffect(() => {
@@ -718,7 +712,10 @@ const ActiveCinemaMode = ({
               <button
                 type="button"
                 className="cinema-pass-intro-play"
-                onClick={() => onPlayPause?.()}
+                onClick={() => {
+                  setShowPassIntro(false)
+                  onPlayPause?.()
+                }}
                 aria-label="Start playback"
               >
                 <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor" aria-hidden="true">

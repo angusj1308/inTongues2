@@ -184,6 +184,11 @@ const ActiveCinemaMode = ({
     }, 3000)
   }, [clearOverlayTimeout])
 
+  // Latest seek closure — populated below once handleSeek / clampedPosition
+  // are declared. Refs avoid listing those in the keydown effect's deps,
+  // which would TDZ-error since the effect runs at the top of the component.
+  const arrowSeekRef = useRef(null)
+
   // Show overlay on spacebar for Passes 1, 2, 4 (fullscreen video passes)
   useEffect(() => {
     if (activeStep === 3) return // Pass 3 is different (word editing)
@@ -197,17 +202,17 @@ const ActiveCinemaMode = ({
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault()
         showOverlay()
-        handleSeek(clampedPosition - 5)
+        arrowSeekRef.current?.(-5)
       } else if (e.code === 'ArrowRight') {
         e.preventDefault()
         showOverlay()
-        handleSeek(clampedPosition + 5)
+        arrowSeekRef.current?.(5)
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [activeStep, showOverlay, onPlayPause, clampedPosition, handleSeek])
+  }, [activeStep, showOverlay, onPlayPause])
 
   // Clear overlay timeout on unmount
   useEffect(() => () => clearOverlayTimeout(), [clearOverlayTimeout])
@@ -378,6 +383,10 @@ const ActiveCinemaMode = ({
     const boundedTime = Math.min(chunkEnd, Math.max(chunkStart, nextTime))
     onSeek(boundedTime)
   }
+
+  // Keep arrowSeekRef pointing at the latest closure so the keydown
+  // handler picks up current chunk bounds and position without re-binding.
+  arrowSeekRef.current = (delta) => handleSeek(clampedPosition + delta)
 
   const handleStart = () => {
     if (onRestartChunk) {

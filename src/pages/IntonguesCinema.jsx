@@ -1662,7 +1662,7 @@ const normalisePagesToSegments = (pages = []) =>
   // Calculate if can advance to next step
   const canAdvanceToNextStep = useMemo(() => {
     if (activeStep >= 4) return false
-    return completedPasses.has(activeStep) || true // Allow step navigation for now
+    return completedPasses.has(activeStep)
   }, [activeStep, completedPasses])
 
   const canMoveToNextChunk = useMemo(() => {

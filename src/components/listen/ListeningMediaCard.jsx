@@ -5,13 +5,9 @@ const normaliseProgress = (value) => {
   return Math.min(value, 100)
 }
 
-// Unified thumbnail-as-card layout — same visual pattern the reading library
-// uses for book tiles and the YouTube listening row already uses. The old
-// side-by-side .preview-card layout has been retired so audio stories /
-// audiobooks / YouTube videos all render at identical size and style in the
-// listening hub. The underlying .media-card-yt-* CSS class names are legacy
-// (coined when only the YouTube branch used this pattern); kept as-is to
-// avoid a ripple of CSS renames.
+// Audiobook cards mirror the reader library's portrait book-tile look exactly
+// (`.reading-shelf-*`). YouTube/Spotify cards keep the landscape 16:9
+// `.media-card-yt-*` layout, which fits video thumbnails better.
 const ListeningMediaCard = ({
   type = 'audio',
   title,
@@ -28,6 +24,7 @@ const ListeningMediaCard = ({
   preparationProgress = 0,
 }) => {
   const isYouTube = type === 'youtube'
+  const isAudiobook = type === 'audio'
   const progressPercent = normaliseProgress(progress)
   const prepProgress = normaliseProgress(preparationProgress)
 
@@ -59,6 +56,65 @@ const ListeningMediaCard = ({
   }
 
   const fallbackLabel = isYouTube ? 'No thumbnail' : 'No cover'
+
+  if (isAudiobook) {
+    const metaLines = [channel, ...(tags || []).filter(Boolean)].filter(Boolean)
+    return (
+      <div className={`reading-shelf-item${isBlocked ? ' reading-shelf-item--generating' : ''}`}>
+        {onDelete && !isBlocked && (
+          <button
+            type="button"
+            className="book-delete-btn"
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            aria-label="Delete audiobook"
+          >
+            ×
+          </button>
+        )}
+        <button
+          type="button"
+          className="reading-shelf-item-content"
+          onClick={handleCardClick}
+          onKeyDown={handleKeyDown}
+          disabled={isBlocked}
+        >
+          <div className="reading-shelf-cover">
+            {thumbnailUrl ? (
+              <img className="reading-shelf-cover-img" src={thumbnailUrl} alt={title || 'Audiobook'} />
+            ) : (
+              <div className="reading-shelf-no-cover">
+                <span>{title || fallbackLabel}</span>
+              </div>
+            )}
+
+            {isBlocked ? (
+              <div className="reading-shelf-generating-overlay">
+                <div className="reading-shelf-spinner" />
+                <span className="reading-shelf-generating-text">{cardActionLabel}</span>
+                {isPreparing && prepProgress > 0 && (
+                  <div className="reading-shelf-hover-progress" style={{ width: '60%' }}>
+                    <div className="reading-shelf-hover-progress-bar" style={{ width: `${prepProgress}%` }} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="reading-shelf-hover-overlay">
+                <div className="reading-shelf-hover-title">{title || 'Untitled audiobook'}</div>
+                {metaLines.map((line, i) => (
+                  <div key={i} className="reading-shelf-hover-meta">{line}</div>
+                ))}
+                {progressPercent > 0 && (
+                  <div className="reading-shelf-hover-progress">
+                    <div className="reading-shelf-hover-progress-bar" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div

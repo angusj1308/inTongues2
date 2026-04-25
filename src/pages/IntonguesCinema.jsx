@@ -1195,8 +1195,27 @@ const normalisePagesToSegments = (pages = []) =>
     return () => clearInterval(interval)
   }, [playbackStatus.isPlaying, isSpotify, isDubbed])
 
-  // Save progress + bookmark (mode/chunk/pass/playhead) to Firestore.
-  // Debounced 3s so we're not hammering on every tick.
+  // Save bookmark state (mode / chunk / pass) immediately on change so a
+  // user who exits within a couple of seconds still gets the latest values
+  // persisted. Skip the first render so we don't write defaults before the
+  // restore from videoData has settled.
+  const stateBookmarkInitRef = useRef(false)
+  useEffect(() => {
+    if (!id || !user?.uid) return
+    if (!stateBookmarkInitRef.current) {
+      stateBookmarkInitRef.current = true
+      return
+    }
+    const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
+    updateDoc(videoRef, {
+      lastCinemaMode: cinemaMode,
+      lastActiveChunkIndex: activeChunkIndex,
+      lastActiveStep: activeStep,
+    }).catch((err) => console.debug('Failed to save cinema bookmark:', err))
+  }, [id, user?.uid, cinemaMode, activeChunkIndex, activeStep])
+
+  // Save playhead + progress to Firestore. Debounced 3s so we're not
+  // hammering on every tick.
   useEffect(() => {
     const { currentTime, duration } = playbackStatus
     if (!id || !user?.uid || !duration || duration <= 0) return undefined
@@ -1209,9 +1228,6 @@ const normalisePagesToSegments = (pages = []) =>
           progress,
           duration,
           lastPosition: currentTime,
-          lastCinemaMode: cinemaMode,
-          lastActiveChunkIndex: activeChunkIndex,
-          lastActiveStep: activeStep,
         })
       } catch (err) {
         // Silently fail - this is non-critical
@@ -1220,7 +1236,7 @@ const normalisePagesToSegments = (pages = []) =>
     }, 3000)
 
     return () => clearTimeout(timeoutId)
-  }, [id, playbackStatus, user?.uid, cinemaMode, activeChunkIndex, activeStep])
+  }, [id, playbackStatus, user?.uid])
 
   const handlePlayPause = useCallback(() => {
     if (isSpotify) {

@@ -604,7 +604,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           ) : items.length === 0 ? (
             <p className="muted">No audiobooks yet. Import a video or story to get started.</p>
           ) : (
-            <div className="listen-shelf">
+            <div className="reading-shelf-scroll">
               {items.map((item) => {
                 const isGeneratedStory = Boolean(
                   item.source === 'generated' ||

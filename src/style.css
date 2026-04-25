@@ -10578,7 +10578,7 @@ body.active-pass-locked {
   position: absolute;
   inset: 0;
   z-index: 115; /* Above transport (110) so the controls don't leak through */
-  background: rgba(0, 0, 0, 0.85);
+  background: #000;
   display: flex;
   flex-direction: row;
   align-items: center;

@@ -1833,7 +1833,7 @@ const normalisePagesToSegments = (pages = []) =>
   const isExtensive = cinemaMode === 'extensive'
   const isIntensive = cinemaMode === 'intensive'
   const isFullscreenMode = isExtensive || isIntensive
-  const isHeaderHideable = isExtensive || isIntensive
+  const isHeaderHideable = isExtensive || isIntensive || cinemaMode === 'active'
 
   return (
     <div

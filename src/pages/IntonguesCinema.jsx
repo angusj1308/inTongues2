@@ -1222,29 +1222,36 @@ const normalisePagesToSegments = (pages = []) =>
     }).catch((err) => console.debug('Failed to save cinema bookmark:', err))
   }, [id, user?.uid, cinemaMode, activeChunkIndex, activeStep])
 
-  // Save playhead + progress to Firestore. Debounced 3s so we're not
-  // hammering on every tick.
+  // Save playhead + progress to Firestore. Throttled to every ~1s while
+  // the position changes, plus one final save on unmount so a user who
+  // navigates away fast still gets their playhead persisted.
+  const lastPlayheadSavedRef = useRef(-1)
+  const playheadStateRef = useRef({ currentTime: 0, duration: 0 })
+  playheadStateRef.current = {
+    currentTime: playbackStatus.currentTime,
+    duration: playbackStatus.duration,
+  }
+
   useEffect(() => {
-    const { currentTime, duration } = playbackStatus
-    if (!id || !user?.uid || !duration || duration <= 0) return undefined
+    if (!id || !user?.uid) return undefined
 
-    const timeoutId = setTimeout(async () => {
-      try {
-        const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
-        const progress = Math.min(100, Math.round((currentTime / duration) * 100))
-        await updateDoc(videoRef, {
-          progress,
-          duration,
-          lastPosition: currentTime,
-        })
-      } catch (err) {
-        // Silently fail - this is non-critical
-        console.debug('Failed to save video progress:', err)
-      }
-    }, 3000)
+    const writePlayhead = (force = false) => {
+      const { currentTime, duration } = playheadStateRef.current
+      if (!duration || duration <= 0) return
+      if (!force && Math.abs(currentTime - lastPlayheadSavedRef.current) < 0.5) return
+      lastPlayheadSavedRef.current = currentTime
+      const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
+      const progress = Math.min(100, Math.round((currentTime / duration) * 100))
+      updateDoc(videoRef, { progress, duration, lastPosition: currentTime })
+        .catch((err) => console.debug('Failed to save video progress:', err))
+    }
 
-    return () => clearTimeout(timeoutId)
-  }, [id, playbackStatus, user?.uid])
+    const interval = setInterval(() => writePlayhead(false), 1000)
+    return () => {
+      clearInterval(interval)
+      writePlayhead(true) // Final save on unmount
+    }
+  }, [id, user?.uid])
 
   const handlePlayPause = useCallback(() => {
     if (isSpotify) {

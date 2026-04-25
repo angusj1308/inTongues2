@@ -127,7 +127,7 @@ const ActiveCinemaMode = ({
   const [syncToken, setSyncToken] = useState(0)
   const [showPassThreeWarning, setShowPassThreeWarning] = useState(false)
   const [passThreeWarningAcknowledged, setPassThreeWarningAcknowledged] = useState(false)
-  const [overlayVisible, setOverlayVisible] = useState(true) // For Pass 1 overlay controls
+  const [overlayVisible, setOverlayVisible] = useState(false) // Hover-triggered only
   const [showPassIntro, setShowPassIntro] = useState(true) // Show pass intro until user plays
 
   const hasChunks = Array.isArray(chunks) && chunks.length > 0
@@ -217,17 +217,10 @@ const ActiveCinemaMode = ({
   // Clear overlay timeout on unmount
   useEffect(() => () => clearOverlayTimeout(), [clearOverlayTimeout])
 
-  // Show overlay briefly when entering a pass — but not while the intro
-  // screen is up. The intro has its own central play button; transport
-  // should stay hidden until the user hovers the bottom hover zone.
+  // Force overlay hidden whenever the pass intro is showing. Otherwise
+  // visibility is hover-driven only (handled by handleOverlayInteraction).
   useEffect(() => {
-    if (showPassIntro) {
-      setOverlayVisible(false)
-      return undefined
-    }
-    setOverlayVisible(true)
-    const timer = setTimeout(() => setOverlayVisible(false), 3000)
-    return () => clearTimeout(timer)
+    if (showPassIntro) setOverlayVisible(false)
   }, [activeStep, showPassIntro])
 
   // Show pass intro when entering a new pass. Also pause any in-flight

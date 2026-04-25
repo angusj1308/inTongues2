@@ -584,27 +584,38 @@ const normalisePagesToSegments = (pages = []) =>
           setDubbedAudioUrl(videoData.dubbedAudioUrl || '')
         }
 
-        // Restore bookmark — mode, chunk, pass, playhead. Skip the playhead
-        // if it's near the end (user finished). pendingSeekRef is consumed
-        // by handlePlayerReady once the YouTube player mounts.
-        if (['extensive', 'active', 'intensive'].includes(videoData.lastCinemaMode)) {
-          setCinemaMode(videoData.lastCinemaMode)
+        // Restore bookmark. localStorage is the primary source (sync,
+        // unmount-proof); Firestore videoData is the fallback for
+        // cross-device. Whichever has the most recent savedAt wins.
+        let bookmark = {}
+        try {
+          const key = `cinema-bookmark:${user.uid}:${id}`
+          bookmark = JSON.parse(localStorage.getItem(key) || '{}')
+        } catch {/* localStorage unavailable — fall back to Firestore */}
+
+        const fsBookmark = {
+          cinemaMode: videoData.lastCinemaMode,
+          activeChunkIndex: videoData.lastActiveChunkIndex,
+          activeStep: videoData.lastActiveStep,
+          lastPosition: videoData.lastPosition,
         }
-        if (Number.isInteger(videoData.lastActiveChunkIndex) && videoData.lastActiveChunkIndex >= 0) {
-          setActiveChunkIndex(videoData.lastActiveChunkIndex)
+        const merged = { ...fsBookmark, ...bookmark } // localStorage wins on conflict
+
+        if (['extensive', 'active', 'intensive'].includes(merged.cinemaMode)) {
+          setCinemaMode(merged.cinemaMode)
         }
-        if (Number.isInteger(videoData.lastActiveStep) && videoData.lastActiveStep >= 1 && videoData.lastActiveStep <= 4) {
-          setActiveStep(videoData.lastActiveStep)
-          // Restoring to pass N implies passes 1..N-1 were completed.
-          // Seed completedPasses so the next-pass affordance shows up
-          // (it gates on completedPasses.has(activeStep)).
-          if (videoData.lastActiveStep > 1) {
+        if (Number.isInteger(merged.activeChunkIndex) && merged.activeChunkIndex >= 0) {
+          setActiveChunkIndex(merged.activeChunkIndex)
+        }
+        if (Number.isInteger(merged.activeStep) && merged.activeStep >= 1 && merged.activeStep <= 4) {
+          setActiveStep(merged.activeStep)
+          if (merged.activeStep > 1) {
             const seeded = new Set()
-            for (let i = 1; i < videoData.lastActiveStep; i += 1) seeded.add(i)
+            for (let i = 1; i < merged.activeStep; i += 1) seeded.add(i)
             setCompletedPasses(seeded)
           }
         }
-        const last = Number(videoData.lastPosition)
+        const last = Number(merged.lastPosition)
         const dur = Number(videoData.duration)
         if (Number.isFinite(last) && last > 2 && (!Number.isFinite(dur) || last < dur - 5)) {
           pendingSeekRef.current = last
@@ -1214,6 +1225,20 @@ const normalisePagesToSegments = (pages = []) =>
       stateBookmarkInitRef.current = true
       return
     }
+    // localStorage is synchronous + immediate — the source of truth for the
+    // bookmark. Firestore stays in sync as a cross-device backup.
+    try {
+      const key = `cinema-bookmark:${user.uid}:${id}`
+      const existing = JSON.parse(localStorage.getItem(key) || '{}')
+      localStorage.setItem(key, JSON.stringify({
+        ...existing,
+        cinemaMode,
+        activeChunkIndex,
+        activeStep,
+        savedAt: Date.now(),
+      }))
+    } catch {/* localStorage unavailable — non-fatal */}
+
     const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
     updateDoc(videoRef, {
       lastCinemaMode: cinemaMode,
@@ -1240,6 +1265,19 @@ const normalisePagesToSegments = (pages = []) =>
       if (!duration || duration <= 0) return
       if (!force && Math.abs(currentTime - lastPlayheadSavedRef.current) < 0.5) return
       lastPlayheadSavedRef.current = currentTime
+
+      // Sync playhead into localStorage too — sync, immediate, survives
+      // unmount races.
+      try {
+        const key = `cinema-bookmark:${user.uid}:${id}`
+        const existing = JSON.parse(localStorage.getItem(key) || '{}')
+        localStorage.setItem(key, JSON.stringify({
+          ...existing,
+          lastPosition: currentTime,
+          savedAt: Date.now(),
+        }))
+      } catch {/* localStorage unavailable — non-fatal */}
+
       const videoRef = doc(db, 'users', user.uid, 'youtubeVideos', id)
       const progress = Math.min(100, Math.round((currentTime / duration) * 100))
       updateDoc(videoRef, { progress, duration, lastPosition: currentTime })

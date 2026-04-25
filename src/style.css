@@ -10489,18 +10489,29 @@ body.active-pass-locked {
   pointer-events: auto; /* Re-enable clicks for content/buttons */
 }
 
-/* Active-mode mini bar — replaces the legacy transport panel. Mirrors the
-   simple mini-controls from extensive mode, flanked by chunk and pass nav. */
-.cinema-active-mini-bar {
-  position: relative;
+/* Active-mode bottom controls. Each element is independently anchored so
+   the audio mini-controls render at exactly their extensive-mode size,
+   uninfluenced by neighbouring elements. */
+.cinema-active-mini-anchor {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 16px 24px 24px;
-  max-width: 720px;
-  margin: 0 auto;
+}
+
+.cinema-active-chunk-anchor {
+  position: absolute;
+  bottom: 22px;
+  left: 24px;
+  z-index: 1;
+}
+
+.cinema-active-pass-anchor {
+  position: absolute;
+  bottom: 22px;
+  right: 24px;
+  z-index: 1;
 }
 
 .cinema-active-mini-icon-btn {
@@ -10510,8 +10521,8 @@ body.active-pass-locked {
   border: none;
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.9);
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;

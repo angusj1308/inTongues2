@@ -780,20 +780,20 @@ const ActiveCinemaMode = ({
           {/* Gradient fade background */}
           <div className="cinema-overlay-gradient" />
 
-          <div className="cinema-active-mini-bar">
-            {/* Chunk navigation — opens the chunk drawer */}
-            <button
-              type="button"
-              className="cinema-active-mini-icon-btn"
-              onClick={handleChunkToggle}
-              disabled={!hasChunks}
-              aria-label="Chunks"
-              title="Chunks"
-            >
-              <Icon name="list" />
-            </button>
+          {/* Chunk drawer trigger — bottom-left */}
+          <button
+            type="button"
+            className="cinema-active-mini-icon-btn cinema-active-chunk-anchor"
+            onClick={handleChunkToggle}
+            disabled={!hasChunks}
+            aria-label="Chunks"
+            title="Chunks"
+          >
+            <Icon name="list" />
+          </button>
 
-            {/* Mini-controls — replicated from extensive mode */}
+          {/* Audio mini-controls — exact extensive layout, alone in centre */}
+          <div className="cinema-active-mini-anchor">
             <div className="cinema-extensive-mini-controls is-visible">
               <button
                 type="button"
@@ -819,31 +819,31 @@ const ActiveCinemaMode = ({
                 {formatTime(clampedPosition - chunkStart)} / {formatTime(chunkDuration)}
               </span>
             </div>
+          </div>
 
-            {/* Compact pass nav: ‹ Pass 1 of 4 › */}
-            <div className="cinema-active-pass-compact">
-              <button
-                type="button"
-                className="cinema-active-pass-compact-arrow"
-                onClick={handlePreviousPass}
-                disabled={activeStep === 1}
-                aria-label="Previous pass"
-              >
-                <Icon name="chevron_left" />
-              </button>
-              <span className="cinema-active-pass-compact-label">
-                Pass {activeStep} of 4
-              </span>
-              <button
-                type="button"
-                className="cinema-active-pass-compact-arrow"
-                onClick={handleNextPass}
-                disabled={activeStep === 4 || !canAdvanceToNextStep}
-                aria-label="Next pass"
-              >
-                <Icon name="chevron_right" />
-              </button>
-            </div>
+          {/* Compact pass nav — bottom-right */}
+          <div className="cinema-active-pass-compact cinema-active-pass-anchor">
+            <button
+              type="button"
+              className="cinema-active-pass-compact-arrow"
+              onClick={handlePreviousPass}
+              disabled={activeStep === 1}
+              aria-label="Previous pass"
+            >
+              <Icon name="chevron_left" />
+            </button>
+            <span className="cinema-active-pass-compact-label">
+              Pass {activeStep} of 4
+            </span>
+            <button
+              type="button"
+              className="cinema-active-pass-compact-arrow"
+              onClick={handleNextPass}
+              disabled={activeStep === 4 || !canAdvanceToNextStep}
+              aria-label="Next pass"
+            >
+              <Icon name="chevron_right" />
+            </button>
           </div>
         </div>
 

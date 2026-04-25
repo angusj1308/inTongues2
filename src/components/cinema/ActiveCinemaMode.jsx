@@ -753,10 +753,9 @@ const ActiveCinemaMode = ({
               aria-label="Replay this chunk"
               title="Replay this chunk"
             >
-              {/* Replay icon: circular arrow with a play wedge inside */}
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 12a9 9 0 1 0 3-6.7" />
-                <polyline points="3 4 3 10 9 10" />
+              {/* Material 'replay' glyph */}
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
               </svg>
             </button>
             {(activeStep === 4 ? canMoveToNextChunk : canAdvanceToNextStep) && (

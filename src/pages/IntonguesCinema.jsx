@@ -1234,7 +1234,12 @@ const normalisePagesToSegments = (pages = []) =>
       playerRef.current?.pauseVideo?.()
       handleSeek(chunk.end)
 
-      // If on pass 4 and chunk completes, mark as completed
+      // Mark the current pass as complete so the next-pass / next-chunk
+      // affordance becomes available.
+      if (activeStep === 1 || activeStep === 2) {
+        setCompletedPasses((prev) => prev.has(activeStep) ? prev : new Set([...prev, activeStep]))
+      }
+      // Pass 4 also completes the whole chunk
       if (activeStep === 4 && !pass4CompletedRef.current.has(activeChunkIndex)) {
         pass4CompletedRef.current.add(activeChunkIndex)
         setCompletedChunks((prev) => new Set([...prev, activeChunkIndex]))

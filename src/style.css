@@ -7547,13 +7547,12 @@ pre {
 
 .listening-lab-page .extensive-shell .player-surface {
   margin-top: auto;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 22px;
-  padding: clamp(14px, 2.4vw, 18px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Title sits on the white-veiled blur; controls sit on the frosted white

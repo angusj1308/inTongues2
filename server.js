@@ -19,7 +19,7 @@ import { spawn } from 'child_process'
 import { createRequire } from 'module'
 import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
@@ -6676,6 +6676,12 @@ async function saveImportedBookToFirestore({
 
   await batch.commit()
 
+  if (coverImageUrl) {
+    ensureSquareCoverForStory(userId, storyRef.id).catch((err) => {
+      console.error('Square cover generation failed (imported book):', err)
+    })
+  }
+
   return storyRef.id
 }
 
@@ -6758,6 +6764,12 @@ async function saveImportedFlatBookToFirestore({
     description: `Imported: ${title || 'Untitled book'}`,
     coverImageUrl,
   })
+
+  if (coverImageUrl) {
+    ensureSquareCoverForStory(userId, storyRef.id).catch((err) => {
+      console.error('Square cover generation failed (imported flat book):', err)
+    })
+  }
 
   return storyRef.id
 }
@@ -6844,6 +6856,12 @@ async function saveImportedChapterBookToFirestore({
       adaptedText: '', // Will be built up during adaptation
       wordCount: chapter.wordCount,
       status: 'pending',
+    })
+  }
+
+  if (coverImageUrl) {
+    ensureSquareCoverForStory(userId, storyRef.id).catch((err) => {
+      console.error('Square cover generation failed (imported chapter book):', err)
     })
   }
 
@@ -9538,6 +9556,76 @@ async function generateCoverImage(prompt) {
   return Buffer.from(b64, 'base64')
 }
 
+// Square cover (1:1) for the listening UI. Generated from the existing
+// portrait cover via OpenAI image edit, so the artwork stays consistent
+// with the canonical portrait. One call per book — cached by checking
+// `coverImageUrlSquare` on the story doc before regenerating.
+const SQUARE_COVER_PROMPT = 'create a square aspect ratio version of this cover for audiobook.'
+
+async function generateSquareCoverFromPortrait(portraitBuffer) {
+  if (!client) throw new Error('OpenAI client not configured')
+  if (!portraitBuffer || !portraitBuffer.length) throw new Error('Empty portrait buffer')
+
+  const fileLike = await toFile(portraitBuffer, 'cover.png', { type: 'image/png' })
+  const result = await client.images.edit({
+    model: 'gpt-image-1',
+    image: fileLike,
+    prompt: SQUARE_COVER_PROMPT,
+    size: '1024x1024',
+    quality: 'high',
+    n: 1,
+  })
+  const b64 = result.data?.[0]?.b64_json
+  if (!b64) throw new Error('No image data returned from gpt-image-1 edit')
+  return Buffer.from(b64, 'base64')
+}
+
+async function uploadSquareCoverToStorage(imageBuffer, userId, bookId) {
+  if (!bucket || !imageBuffer) return null
+  const storagePath = `covers/${userId}/${bookId}_square.png`
+  const file = bucket.file(storagePath)
+  await file.save(imageBuffer, {
+    contentType: 'image/png',
+    metadata: { cacheControl: 'public, max-age=31536000' },
+  })
+  await file.makePublic()
+  return `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+}
+
+async function fetchPortraitBuffer(coverImageUrl) {
+  if (!coverImageUrl) return null
+  const response = await fetch(coverImageUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch portrait cover: ${response.status} ${response.statusText}`)
+  }
+  const arrayBuf = await response.arrayBuffer()
+  return Buffer.from(arrayBuf)
+}
+
+// Idempotent end-to-end. Skips if the story already has a square cover.
+// Returns the square URL, or null if there's no portrait to start from.
+async function ensureSquareCoverForStory(uid, storyId, { force = false } = {}) {
+  if (!firestore || !uid || !storyId) return null
+  const storyRef = firestore.doc(`users/${uid}/stories/${storyId}`)
+  const snap = await storyRef.get()
+  if (!snap.exists) return null
+  const data = snap.data() || {}
+
+  if (!force && data.coverImageUrlSquare) return data.coverImageUrlSquare
+
+  const portraitUrl = data.coverImageUrl || data.coverUrl
+  if (!portraitUrl) return null
+
+  const portraitBuffer = await fetchPortraitBuffer(portraitUrl)
+  const squareBuffer = await generateSquareCoverFromPortrait(portraitBuffer)
+  const squareUrl = await uploadSquareCoverToStorage(squareBuffer, uid, storyId)
+  if (!squareUrl) throw new Error('Failed to upload square cover to Firebase Storage')
+
+  await storyRef.update({ coverImageUrlSquare: squareUrl })
+  vlog('Square cover ready:', squareUrl)
+  return squareUrl
+}
+
 app.post('/api/generate-cover', async (req, res) => {
   let storyRef
   try {
@@ -9612,6 +9700,13 @@ app.post('/api/generate-cover', async (req, res) => {
     })
     console.log('Cover ready:', coverUrl, '\n')
 
+    // Fire-and-forget: square version for the listening UI. Not awaited so
+    // we don't delay the cover-ready response or fail the request if the
+    // listening variant errors.
+    ensureSquareCoverForStory(uid, storyId).catch((err) => {
+      console.error('Square cover generation failed (post-portrait):', err)
+    })
+
     return res.json({ success: true, coverUrl, coverScene: sceneDescription })
   } catch (err) {
     console.error('Cover generation failed:', err)
@@ -9626,6 +9721,25 @@ app.post('/api/generate-cover', async (req, res) => {
       }
     }
     return res.status(500).json({ error: 'Cover generation failed', details: err?.message })
+  }
+})
+
+// Square (1:1) cover for the listening UI. Idempotent — returns the existing
+// `coverImageUrlSquare` if already generated unless { force: true }.
+app.post('/api/generate-square-cover', async (req, res) => {
+  try {
+    const { uid, storyId, force } = req.body || {}
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+    const squareUrl = await ensureSquareCoverForStory(uid, storyId, { force: Boolean(force) })
+    if (!squareUrl) {
+      return res.status(404).json({ error: 'Story has no portrait cover to square-ify' })
+    }
+    return res.json({ success: true, coverImageUrlSquare: squareUrl })
+  } catch (err) {
+    console.error('Square cover generation failed:', err)
+    return res.status(500).json({ error: 'Square cover generation failed', details: err?.message })
   }
 })
 

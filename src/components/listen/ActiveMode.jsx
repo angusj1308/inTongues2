@@ -687,7 +687,15 @@ const ActiveMode = ({
                     <div className="active-pass-header">
                       <div className="active-pass-context">
                         <div className="active-pass-cover" aria-hidden>
-                          <div className="active-pass-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                          {storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl ? (
+                            <img
+                              className="active-pass-cover-img"
+                              src={storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl}
+                              alt=""
+                            />
+                          ) : (
+                            <div className="active-pass-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                          )}
                         </div>
                         <div className="active-pass-title">
                           <span className="active-story-title">{storyTitle}</span>

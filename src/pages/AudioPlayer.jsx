@@ -441,6 +441,8 @@ const AudioPlayer = () => {
           type: data.type || '',
           mediaType: 'audio',
           voiceId: data.voiceId || '',
+          coverImageUrl: data.coverImageUrl || data.coverUrl || '',
+          coverImageUrlSquare: data.coverImageUrlSquare || '',
         })
         setVoiceGender(data.voiceGender || 'male')
       } catch (err) {

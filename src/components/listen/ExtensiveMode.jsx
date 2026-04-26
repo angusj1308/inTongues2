@@ -678,7 +678,15 @@ const ExtensiveMode = ({
             <div className="player-stack">
               <div className="player-visual-stage">
                 <div className="player-cover" aria-hidden>
-                  <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                  {storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl ? (
+                    <img
+                      className="player-cover-img"
+                      src={storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl}
+                      alt=""
+                    />
+                  ) : (
+                    <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
+                  )}
                 </div>
               </div>
               <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>

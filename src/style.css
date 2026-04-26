@@ -9335,6 +9335,15 @@ body.active-pass-locked {
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
+.player-cover-img,
+.active-pass-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
 .player-cover-art {
   width: 100%;
   height: 100%;

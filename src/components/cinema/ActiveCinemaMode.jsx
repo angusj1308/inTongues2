@@ -932,44 +932,26 @@ const ActiveCinemaMode = ({
         onMouseMove={handleOverlayInteraction}
       />
 
-      {/* Pass navigation overlay at bottom */}
+      {/* Pass navigation overlay at bottom — hover-revealed, only UI here in pass 3 */}
       <div className={`cinema-overlay-controls cinema-pass-three-nav ${overlayVisible ? 'is-visible' : ''}`}>
         <div className="cinema-overlay-gradient" />
-        <div className="cinema-overlay-inner">
-          <div className="cinema-overlay-pass-row">
+        <div className="cinema-active-mini-anchor">
+          <div className="cinema-active-pass-compact">
             <button
               type="button"
-              className="cinema-overlay-pass-arrow"
+              className="cinema-active-pass-compact-arrow"
               onClick={handlePreviousPass}
               disabled={activeStep === 1}
               aria-label="Previous pass"
             >
               <Icon name="chevron_left" />
             </button>
-            <div className="cinema-overlay-pass-nav">
-              {[1, 2, 3, 4].map((step) => {
-                const isCurrent = step === activeStep
-                const isCompleted = completedPasses.has(step)
-                const isNext = step === activeStep + 1
-                const isBeyondNext = step > activeStep + 1
-                const isDisabled = isBeyondNext || (isNext && !canAdvanceToNextStep)
-                return (
-                  <button
-                    key={step}
-                    type="button"
-                    className={`cinema-overlay-pass-btn ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''} ${isDisabled ? 'is-disabled' : ''}`}
-                    onClick={() => handleSelectStep(step)}
-                    disabled={isDisabled}
-                    aria-label={`Pass ${step}`}
-                  >
-                    {step}
-                  </button>
-                )
-              })}
-            </div>
+            <span className="cinema-active-pass-compact-label">
+              Pass {activeStep} of 4
+            </span>
             <button
               type="button"
-              className="cinema-overlay-pass-arrow"
+              className="cinema-active-pass-compact-arrow"
               onClick={handleNextPass}
               disabled={!canAdvanceToNextStep}
               aria-label="Next pass"

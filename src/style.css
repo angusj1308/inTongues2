@@ -7568,14 +7568,40 @@ pre {
   color: #0f172a;
 }
 
-/* Progress bar — lighter, more subtle. Played portion is a soft slate, the
-   unplayed track is near-white. Thumb keeps its dark colour for affordance. */
+/* Progress bar — match cinema-extensive's minimal look: 1px line + always
+   visible round knob. No gradient fill — position is communicated by the
+   knob alone. */
 .listening-lab-page .extensive-shell .audible-progress::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, #94a3b8 var(--progress), #e2e8f0 var(--progress));
+  height: 1px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
 }
 
 .listening-lab-page .extensive-shell .audible-progress::-moz-range-track {
-  background: linear-gradient(to right, #94a3b8 var(--progress), #e2e8f0 var(--progress));
+  height: 1px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+}
+
+.listening-lab-page .extensive-shell .audible-progress::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #000;
+  border: none;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.listening-lab-page .extensive-shell .audible-progress::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #000;
+  border: none;
+  box-shadow: none;
+  opacity: 1;
 }
 
 [data-theme='dark'] .listening-lab-page .player-cover {

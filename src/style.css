@@ -9233,9 +9233,7 @@ body.active-pass-locked {
 }
 
 .extensive-shell--split .extensive-shell-inner {
-  /* Player gets just enough room for the cover + controls; transcript
-     takes the rest of the screen. */
-  grid-template-columns: minmax(320px, 26%) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   justify-items: stretch;
   --split-pane-height: calc(100dvh - 168px);

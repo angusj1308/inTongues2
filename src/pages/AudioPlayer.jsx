@@ -1883,6 +1883,8 @@ const AudioPlayer = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [listeningMode, togglePlay])
 
+  const ambientCoverUrl = storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl || ''
+
   return (
     <div
       ref={listeningShellRef}
@@ -1890,6 +1892,12 @@ const AudioPlayer = () => {
         listeningMode === 'intensive' ? 'reader-intensive-active' : ''
       }`}
     >
+      <div
+        className="listening-lab-bg"
+        aria-hidden
+        style={ambientCoverUrl ? { backgroundImage: `url("${ambientCoverUrl}")` } : undefined}
+      />
+      <div className="listening-lab-bg-veil" aria-hidden />
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
           <div className="reader-hover-hitbox" />

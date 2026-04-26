@@ -7470,6 +7470,31 @@ pre {
   background: radial-gradient(circle at 10% 20%, #f5f5f4, transparent 30%),
     radial-gradient(circle at 90% 0%, #eef2ff, transparent 25%), #fff;
   color: #0f172a;
+  isolation: isolate;
+}
+
+/* Audible-style ambient background layers — sit behind page content via
+   negative z-index inside the page's isolated stacking context. */
+.listening-lab-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-color: #faf6ef; /* ivory fallback while square cover is missing */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(60px);
+  transform: scale(1.2);
+  pointer-events: none;
+  transition: background-image 0.3s ease;
+}
+
+.listening-lab-bg-veil {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
 }
 
 [data-theme='dark'] .listening-lab-page {
@@ -7509,8 +7534,9 @@ pre {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
-/* Extensive listening: drop the iPod-style pill so cover + controls float
-   directly on the page bg, and push the controls toward the bottom. */
+/* Extensive listening: outer container is transparent so the cover floats
+   on the ambient blurred background. The controls cluster below uses a
+   single frosted-glass card (Audible-style). */
 .listening-lab-page .extensive-shell .player-stack {
   background: transparent;
   border: none;
@@ -7520,11 +7546,21 @@ pre {
 }
 
 .listening-lab-page .extensive-shell .player-surface {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
   margin-top: auto;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 22px;
+  padding: clamp(14px, 2.4vw, 18px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* Title sits on the white-veiled blur; controls sit on the frosted white
+   card. Both want dark text regardless of global theme. */
+.listening-lab-page .extensive-shell .player-title,
+.listening-lab-page .extensive-shell .player-surface {
+  color: #0f172a;
 }
 
 [data-theme='dark'] .listening-lab-page .player-cover {
@@ -7536,59 +7572,57 @@ pre {
   background: radial-gradient(circle at 20% 20%, #3a4458, #1f2a3d);
 }
 
-[data-theme='dark'] .listening-lab-page .player-title {
+/* Title + control overrides scoped to active mode only — extensive's
+   controls always sit in the frosted white card and stay dark for legibility
+   regardless of theme. */
+[data-theme='dark'] .listening-lab-page .active-flow .player-title {
   color: var(--reader-text, #e8e0d4);
 }
 
-/* Transport buttons (skip ±5s, prev/next) */
-[data-theme='dark'] .listening-lab-page .transport-btn {
+[data-theme='dark'] .listening-lab-page .active-flow .transport-btn {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.18);
   color: var(--reader-text, #e8e0d4);
 }
 
-[data-theme='dark'] .listening-lab-page .transport-btn:hover:not(:disabled) {
+[data-theme='dark'] .listening-lab-page .active-flow .transport-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* Primary play button — inverted (light on dark surface) */
-[data-theme='dark'] .listening-lab-page .transport-btn-primary {
+[data-theme='dark'] .listening-lab-page .active-flow .transport-btn-primary {
   background: var(--reader-text, #e8e0d4);
   color: #1c1a17;
   border-color: var(--reader-text, #e8e0d4);
 }
 
-/* Progress bar — flip foreground/track */
-[data-theme='dark'] .listening-lab-page .audible-progress::-webkit-slider-runnable-track,
-[data-theme='dark'] .listening-lab-page .audible-progress::-moz-range-track {
+[data-theme='dark'] .listening-lab-page .active-flow .audible-progress::-webkit-slider-runnable-track,
+[data-theme='dark'] .listening-lab-page .active-flow .audible-progress::-moz-range-track {
   background: linear-gradient(to right, var(--reader-text, #e8e0d4) var(--progress), rgba(255, 255, 255, 0.18) var(--progress));
 }
 
-[data-theme='dark'] .listening-lab-page .audible-progress::-webkit-slider-thumb {
+[data-theme='dark'] .listening-lab-page .active-flow .audible-progress::-webkit-slider-thumb {
   background: var(--reader-text, #e8e0d4);
 }
 
-[data-theme='dark'] .listening-lab-page .audible-progress::-moz-range-thumb {
+[data-theme='dark'] .listening-lab-page .active-flow .audible-progress::-moz-range-thumb {
   background: var(--reader-text, #e8e0d4);
 }
 
-[data-theme='dark'] .listening-lab-page .audible-progress-shell,
-[data-theme='dark'] .listening-lab-page .progress-shell {
+[data-theme='dark'] .listening-lab-page .active-flow .audible-progress-shell,
+[data-theme='dark'] .listening-lab-page .active-flow .progress-shell {
   color: rgba(232, 224, 212, 0.7);
 }
 
-/* Secondary button row (Timer / Speed / Transcript) */
-[data-theme='dark'] .listening-lab-page .secondary-btn,
-[data-theme='dark'] .listening-lab-page .secondary-btn.active {
+[data-theme='dark'] .listening-lab-page .active-flow .secondary-btn,
+[data-theme='dark'] .listening-lab-page .active-flow .secondary-btn.active {
   color: var(--reader-text, #e8e0d4);
 }
 
-[data-theme='dark'] .listening-lab-page .secondary-btn:hover {
+[data-theme='dark'] .listening-lab-page .active-flow .secondary-btn:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Speed popover (light by default) — flip to dark */
-[data-theme='dark'] .listening-lab-page .speed-popover {
+[data-theme='dark'] .listening-lab-page .active-flow .speed-popover {
   background: #2a2724;
   color: var(--reader-text, #e8e0d4);
   border-color: rgba(255, 255, 255, 0.1);
@@ -9350,6 +9384,7 @@ body.active-pass-locked {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 

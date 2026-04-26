@@ -7535,7 +7535,7 @@ pre {
   border: none;
   box-shadow: none;
   padding: 0;
-  min-height: calc(100dvh - 140px);
+  min-height: calc(100dvh - 168px);
 }
 
 .listening-lab-page .extensive-shell .player-surface {
@@ -7669,7 +7669,7 @@ pre {
 }
 
 .listening-lab-main {
-  padding: 24px 1.5rem 1rem;
+  padding: 88px 1.5rem 8px;
   width: 100%;
 }
 

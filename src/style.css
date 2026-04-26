@@ -7498,15 +7498,33 @@ pre {
 }
 
 /* Player surfaces in dark mode — outer card, inner controls card, cover */
-[data-theme='dark'] .listening-lab-page .player-stack {
+[data-theme='dark'] .listening-lab-page .active-flow .player-stack {
   background: #2a2724;
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-[data-theme='dark'] .listening-lab-page .player-surface {
+[data-theme='dark'] .listening-lab-page .active-flow .player-surface {
   background: #232020;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Extensive listening: drop the iPod-style pill so cover + controls float
+   directly on the page bg, and push the controls toward the bottom. */
+.listening-lab-page .extensive-shell .player-stack {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: calc(100dvh - 140px);
+}
+
+.listening-lab-page .extensive-shell .player-surface {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin-top: auto;
 }
 
 [data-theme='dark'] .listening-lab-page .player-cover {

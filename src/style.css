@@ -7464,41 +7464,25 @@ pre {
   box-shadow: 0 0 0 1px #000 inset;
 }
 
+/* Audible-style synthetic background — a 135° gradient from the cover's
+   extracted signature colour into white (light) or near-black (dark).
+   Falls back to a soft grey when --cover-color isn't set yet (e.g. extraction
+   pending for a freshly-imported book). */
 .listening-lab-page {
   position: relative;
   min-height: 100vh;
-  background: radial-gradient(circle at 10% 20%, #f5f5f4, transparent 30%),
-    radial-gradient(circle at 90% 0%, #eef2ff, transparent 25%), #fff;
+  background: linear-gradient(135deg, var(--cover-color, #e7e5e4) 0%, #ffffff 70%);
   color: #0f172a;
   isolation: isolate;
-}
-
-/* Audible-style ambient background layers — sit behind page content via
-   negative z-index inside the page's isolated stacking context. */
-.listening-lab-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background-color: #faf6ef; /* ivory fallback while square cover is missing */
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(60px);
-  transform: scale(1.2);
-  pointer-events: none;
-  transition: background-image 0.3s ease;
-}
-
-.listening-lab-bg-veil {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: rgba(255, 255, 255, 0.4);
-  pointer-events: none;
+  transition: background 0.3s ease;
 }
 
 [data-theme='dark'] .listening-lab-page {
-  background: var(--reader-bg, #1c1a17);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--cover-color, #2a2724), #000 40%) 0%,
+    #1a1a1a 70%
+  );
   color: var(--reader-text, #e8e0d4);
 }
 

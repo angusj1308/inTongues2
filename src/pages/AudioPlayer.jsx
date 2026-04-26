@@ -443,6 +443,7 @@ const AudioPlayer = () => {
           voiceId: data.voiceId || '',
           coverImageUrl: data.coverImageUrl || data.coverUrl || '',
           coverImageUrlSquare: data.coverImageUrlSquare || '',
+          coverColor: data.coverColor || '',
         })
         setVoiceGender(data.voiceGender || 'male')
       } catch (err) {
@@ -1883,7 +1884,7 @@ const AudioPlayer = () => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [listeningMode, togglePlay])
 
-  const ambientCoverUrl = storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl || ''
+  const ambientColor = storyMeta.coverColor || ''
 
   return (
     <div
@@ -1891,13 +1892,8 @@ const AudioPlayer = () => {
       className={`listening-lab-page listening-mode-${listeningMode} ${
         listeningMode === 'intensive' ? 'reader-intensive-active' : ''
       }`}
+      style={ambientColor ? { '--cover-color': ambientColor } : undefined}
     >
-      <div
-        className="listening-lab-bg"
-        aria-hidden
-        style={ambientCoverUrl ? { backgroundImage: `url("${ambientCoverUrl}")` } : undefined}
-      />
-      <div className="listening-lab-bg-veil" aria-hidden />
       <div className="reader-main-shell">
         <div className="reader-hover-shell">
           <div className="reader-hover-hitbox" />

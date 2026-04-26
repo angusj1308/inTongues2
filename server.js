@@ -20,6 +20,7 @@ import { createRequire } from 'module'
 import ytdl from '@distube/ytdl-core'
 import { existsSync } from 'fs'
 import OpenAI, { toFile } from 'openai'
+import { Vibrant } from 'node-vibrant/node'
 import Anthropic from '@anthropic-ai/sdk'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
@@ -9602,8 +9603,31 @@ async function fetchPortraitBuffer(coverImageUrl) {
   return Buffer.from(arrayBuf)
 }
 
-// Idempotent end-to-end. Skips if the story already has a square cover.
-// Returns the square URL, or null if there's no portrait to start from.
+// Pull a single signature colour out of a square cover. Prefers the
+// "Vibrant" swatch (saturated, characterising) and falls back through
+// LightVibrant → Muted → DarkVibrant → DarkMuted so we always return
+// something for any palette. Returns a hex string or null if extraction
+// produces nothing usable.
+async function extractCoverColorFromBuffer(imageBuffer) {
+  if (!imageBuffer || !imageBuffer.length) return null
+  try {
+    const palette = await Vibrant.from(imageBuffer).getPalette()
+    const order = ['Vibrant', 'LightVibrant', 'Muted', 'DarkVibrant', 'DarkMuted', 'LightMuted']
+    for (const key of order) {
+      const swatch = palette?.[key]
+      if (swatch?.hex) return swatch.hex
+    }
+    return null
+  } catch (err) {
+    console.error('Cover colour extraction failed:', err?.message || err)
+    return null
+  }
+}
+
+// Idempotent end-to-end. Ensures both the square cover and the extracted
+// signature colour are present on the story doc. Safe to call repeatedly —
+// skips work that's already done. Returns the square URL, or null if there's
+// no portrait to start from.
 async function ensureSquareCoverForStory(uid, storyId, { force = false } = {}) {
   if (!firestore || !uid || !storyId) return null
   const storyRef = firestore.doc(`users/${uid}/stories/${storyId}`)
@@ -9611,18 +9635,35 @@ async function ensureSquareCoverForStory(uid, storyId, { force = false } = {}) {
   if (!snap.exists) return null
   const data = snap.data() || {}
 
-  if (!force && data.coverImageUrlSquare) return data.coverImageUrlSquare
+  if (!force && data.coverImageUrlSquare && data.coverColor) {
+    return data.coverImageUrlSquare
+  }
 
   const portraitUrl = data.coverImageUrl || data.coverUrl
   if (!portraitUrl) return null
 
-  const portraitBuffer = await fetchPortraitBuffer(portraitUrl)
-  const squareBuffer = await generateSquareCoverFromPortrait(portraitBuffer)
-  const squareUrl = await uploadSquareCoverToStorage(squareBuffer, uid, storyId)
-  if (!squareUrl) throw new Error('Failed to upload square cover to Firebase Storage')
+  const updates = {}
+  let squareBuffer = null
+  let squareUrl = data.coverImageUrlSquare || null
 
-  await storyRef.update({ coverImageUrlSquare: squareUrl })
-  vlog('Square cover ready:', squareUrl)
+  if (force || !squareUrl) {
+    const portraitBuffer = await fetchPortraitBuffer(portraitUrl)
+    squareBuffer = await generateSquareCoverFromPortrait(portraitBuffer)
+    squareUrl = await uploadSquareCoverToStorage(squareBuffer, uid, storyId)
+    if (!squareUrl) throw new Error('Failed to upload square cover to Firebase Storage')
+    updates.coverImageUrlSquare = squareUrl
+  }
+
+  if (force || !data.coverColor) {
+    const colorBuffer = squareBuffer || (await fetchPortraitBuffer(squareUrl))
+    const color = await extractCoverColorFromBuffer(colorBuffer)
+    if (color) updates.coverColor = color
+  }
+
+  if (Object.keys(updates).length) {
+    await storyRef.update(updates)
+    vlog('Cover assets updated:', updates)
+  }
   return squareUrl
 }
 

@@ -45,14 +45,17 @@ async function main() {
   const snap = await firestore.collectionGroup('stories').get()
   const all = snap.docs
 
-  // Filter: has a portrait cover, missing the square one.
+  // Filter: has a portrait cover, but is missing either the square cover
+  // or the extracted signature colour. The endpoint is idempotent and will
+  // fill in whichever piece is missing.
   const todo = all.filter((doc) => {
     const data = doc.data() || {}
     const portrait = data.coverImageUrl || data.coverUrl
-    return Boolean(portrait) && !data.coverImageUrlSquare
+    if (!portrait) return false
+    return !data.coverImageUrlSquare || !data.coverColor
   })
 
-  console.log(`Found ${all.length} stories total — ${todo.length} need a square cover.`)
+  console.log(`Found ${all.length} stories total — ${todo.length} need square cover or colour extraction.`)
 
   const slice = LIMIT ? todo.slice(0, LIMIT) : todo
   let ok = 0
@@ -87,7 +90,7 @@ async function main() {
         continue
       }
       const json = await res.json().catch(() => ({}))
-      console.log(`${tag}   ✓ ${json.coverImageUrlSquare || ''}`)
+      console.log(`${tag}   ✓ ${json.coverImageUrlSquare || '(updated)'}`)
       ok += 1
     } catch (err) {
       console.error(`${tag}   ✗ ${err?.message || err}`)

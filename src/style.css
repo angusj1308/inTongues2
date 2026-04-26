@@ -7545,6 +7545,8 @@ pre {
   padding: 0;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  transform: scale(0.5);
+  transform-origin: bottom center;
 }
 
 /* Title sits on the white-veiled blur; controls sit on the frosted white

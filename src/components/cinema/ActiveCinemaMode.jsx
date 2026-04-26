@@ -875,7 +875,6 @@ const ActiveCinemaMode = ({
   return (
     <div
       className={`cinema-active-flow cinema-active-step-${activeStep} cinema-pass-three-fullscreen`}
-      onMouseMove={handleOverlayInteraction}
     >
       {/* Pass intro overlay - shows until user clicks Okay */}
       {showPassIntro && (

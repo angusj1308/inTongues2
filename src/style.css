@@ -7502,11 +7502,19 @@ pre {
   color: var(--reader-text, #e8e0d4);
 }
 
+/* Header in the audiobook player is transparent so the ambient blurred
+   cover background shows through. */
+.listening-lab-page .reader-hover-header,
+.listening-lab-page .reader-hover-header .dashboard-brand-band {
+  background: transparent;
+  border-bottom: none;
+}
+
 [data-theme='dark'] .listening-lab-page .reader-hover-header,
 [data-theme='dark'] .listening-lab-page .reader-hover-header .dashboard-brand-band {
-  background: rgba(28, 26, 23, 0.9);
+  background: transparent;
   color: var(--reader-text, #e8e0d4);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-bottom: none;
 }
 
 [data-theme='dark'] .listening-lab-page .reader-header-button {

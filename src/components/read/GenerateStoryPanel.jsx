@@ -236,6 +236,20 @@ const GenerateStoryPanel = ({
         }
       }
 
+      // Trigger synopsis generation (fire-and-forget). The cover endpoint
+      // self-heals if the synopsis isn't on the doc yet, so this firing is
+      // about making the synopsis available to other consumers (hover
+      // previews, search, recommendations) as soon as possible.
+      try {
+        fetch('http://localhost:4000/api/generate-synopsis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: user.uid, storyId: storyDocRef.id }),
+        }).catch((synErr) => console.error('Synopsis trigger failed:', synErr))
+      } catch (synErr) {
+        console.error('Synopsis trigger failed:', synErr)
+      }
+
       // Trigger cover generation (fire-and-forget)
       try {
         fetch('http://localhost:4000/api/generate-cover', {

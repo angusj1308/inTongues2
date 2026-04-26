@@ -671,12 +671,12 @@ const ExtensiveMode = ({
   }
 
   return (
-    <div className="extensive-shell">
+    <div className={`extensive-shell ${subtitlesEnabled ? 'extensive-shell--split' : ''}`}>
       <div className="extensive-shell-inner">
         <div className="extensive-pane extensive-pane-left">
           <div className="extensive-player-shell">
             <div className="player-stack">
-              <div className={`player-visual-stage ${subtitlesEnabled ? 'player-visual-stage--transcript' : ''}`}>
+              <div className="player-visual-stage">
                 <div className="player-cover" aria-hidden>
                   {storyMeta.coverImageUrlSquare || storyMeta.coverImageUrl ? (
                     <img
@@ -688,27 +688,6 @@ const ExtensiveMode = ({
                     <div className="player-cover-art">{storyMeta.title?.slice(0, 1) || 'A'}</div>
                   )}
                 </div>
-                {subtitlesEnabled && (
-                  <div className="player-transcript-stage">
-                    <TranscriptPanel
-                      segments={transcriptSegments}
-                      activeIndex={activeTranscriptIndex}
-                      vocabEntries={vocabEntries}
-                      language={language}
-                      onWordClick={handleTranscriptWordClick}
-                      onSelectionTranslate={handleTranscriptSelection}
-                      showWordStatus={showWordStatus}
-                      onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
-                      isSynced={isTranscriptSynced}
-                      onUserScroll={handleTranscriptUnsync}
-                      onResync={handleTranscriptResync}
-                      syncToken={syncToken}
-                      contentExpressions={contentExpressions}
-                      flowMode
-                      currentTime={playbackPositionSeconds}
-                    />
-                  </div>
-                )}
               </div>
               <h2 className="player-title">{storyMeta.title || 'Audiobook'}</h2>
               <div className="player-surface">
@@ -776,6 +755,27 @@ const ExtensiveMode = ({
               </div>
             </div>
           </div>
+        </div>
+        <div className="extensive-pane extensive-pane-right" aria-hidden={!subtitlesEnabled}>
+          {subtitlesEnabled ? (
+            <TranscriptPanel
+              segments={transcriptSegments}
+              activeIndex={activeTranscriptIndex}
+              vocabEntries={vocabEntries}
+              language={language}
+              onWordClick={handleTranscriptWordClick}
+              onSelectionTranslate={handleTranscriptSelection}
+              showWordStatus={showWordStatus}
+              onToggleWordStatus={() => setShowWordStatus((prev) => !prev)}
+              isSynced={isTranscriptSynced}
+              onUserScroll={handleTranscriptUnsync}
+              onResync={handleTranscriptResync}
+              syncToken={syncToken}
+              contentExpressions={contentExpressions}
+              flowMode
+              currentTime={playbackPositionSeconds}
+            />
+          ) : null}
         </div>
       </div>
     </div>

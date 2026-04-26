@@ -7562,6 +7562,22 @@ pre {
   color: #0f172a;
 }
 
+/* Time labels (current/duration) under the progress bar — black like the
+   transport buttons, overriding the .muted grey applied in the JSX. */
+.listening-lab-page .extensive-shell .progress-times .muted {
+  color: #0f172a;
+}
+
+/* Progress bar — lighter, more subtle. Played portion is a soft slate, the
+   unplayed track is near-white. Thumb keeps its dark colour for affordance. */
+.listening-lab-page .extensive-shell .audible-progress::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #94a3b8 var(--progress), #e2e8f0 var(--progress));
+}
+
+.listening-lab-page .extensive-shell .audible-progress::-moz-range-track {
+  background: linear-gradient(to right, #94a3b8 var(--progress), #e2e8f0 var(--progress));
+}
+
 [data-theme='dark'] .listening-lab-page .player-cover {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
 }

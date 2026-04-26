@@ -9341,7 +9341,7 @@ body.active-pass-locked {
 }
 
 .player-cover {
-  width: clamp(296px, 80vw, 736px);
+  width: clamp(207px, 56vw, 515px);
   aspect-ratio: 1 / 1;
   height: auto;
   border-radius: 16px;

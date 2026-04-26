@@ -9667,6 +9667,125 @@ async function ensureSquareCoverForStory(uid, storyId, { force = false } = {}) {
   return squareUrl
 }
 
+// ── Genre → painter mapping ──
+// Source of truth: Firestore doc `config/genrePainters` so the table is
+// runtime-editable. If the doc is missing or unreadable, fall back to the
+// JSON file bundled in the repo. Each entry is { name, description } —
+// the `description` is a one-line note about the painter's style that
+// gets fed into the cover-generation prompt as the role.
+const GENRE_PAINTERS_JSON_PATH = path.join(process.cwd(), 'config', 'genre-painters.json')
+let _genrePaintersJsonCache = null
+
+async function loadGenrePaintersFromJson() {
+  if (_genrePaintersJsonCache) return _genrePaintersJsonCache
+  const raw = await fs.readFile(GENRE_PAINTERS_JSON_PATH, 'utf8')
+  _genrePaintersJsonCache = JSON.parse(raw)
+  return _genrePaintersJsonCache
+}
+
+async function loadGenrePainters() {
+  try {
+    const snap = await firestore.collection('config').doc('genrePainters').get()
+    if (snap.exists) {
+      const data = snap.data()
+      if (data && Object.keys(data).length) return data
+    }
+  } catch (err) {
+    console.warn('[genrePainters] Firestore lookup failed, using JSON fallback:', err.message)
+  }
+  return loadGenrePaintersFromJson()
+}
+
+async function getPainterForGenre(genre) {
+  const map = await loadGenrePainters()
+  const entry = (genre && map[genre]) || map['Literary']
+  if (!entry || !entry.name) {
+    throw new Error('No painter mapping available (Literary fallback missing)')
+  }
+  return entry
+}
+
+// ── Synopsis generation ──
+// 3–5 sentence back-cover blurb generated from the full story text.
+// Persisted on the story doc as `synopsis`. Read by the cover pipeline
+// and downstream consumers (hover previews, search, recommendations).
+async function generateBookSynopsis(storyText) {
+  if (!client) throw new Error('OpenAI client not configured')
+  if (!storyText || !storyText.trim()) throw new Error('Story has no text')
+
+  const developerMessage = `You write back-cover blurbs for literary fiction. Read the story and write a synopsis suitable for a book jacket. 3 to 5 sentences. Capture the premise, the central character, and the tonal register. Do not spoil the ending. Do not name the author. Do not name the title. Write continuous prose with no headers, no lists, no preamble, no "Synopsis:" label.`
+
+  const response = await client.responses.create({
+    model: 'gpt-5.4',
+    instructions: developerMessage,
+    input: [{ role: 'user', content: storyText }],
+    reasoning: { effort: 'medium' },
+    text: { format: { type: 'text' } },
+  })
+
+  const text = response.output_text
+    || response.output?.[0]?.content?.find((b) => b?.type === 'output_text')?.text
+    || ''
+  const trimmed = text.trim()
+  if (!trimmed) throw new Error('Empty synopsis returned from gpt-5.4')
+  return trimmed
+}
+
+app.post('/api/generate-synopsis', async (req, res) => {
+  try {
+    const { uid, storyId, force } = req.body || {}
+    if (!uid || !storyId) {
+      return res.status(400).json({ error: 'uid and storyId are required' })
+    }
+
+    const storyRef = firestore.collection('users').doc(uid).collection('stories').doc(storyId)
+    const snap = await storyRef.get()
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'Story not found' })
+    }
+
+    const data = snap.data() || {}
+    if (data.synopsis && !force) {
+      return res.json({ success: true, synopsis: data.synopsis, skipped: true })
+    }
+
+    const storyText = data.adaptedTextBlob || ''
+    if (!storyText.trim()) {
+      return res.status(400).json({ error: 'Story has no text' })
+    }
+
+    console.log(`\nSynopsis generation for story ${storyId}`)
+    const synopsis = await generateBookSynopsis(storyText)
+    await storyRef.update({ synopsis })
+    console.log('Synopsis ready:', synopsis.slice(0, 120) + (synopsis.length > 120 ? '…' : ''))
+
+    return res.json({ success: true, synopsis })
+  } catch (err) {
+    console.error('Synopsis generation failed:', err)
+    return res.status(500).json({ error: 'Synopsis generation failed', details: err?.message })
+  }
+})
+
+// Build the cover-generation prompt as a JSON-shaped string. The image
+// model receives the JSON literal as plain text — image models accept
+// structured-looking prompts and the explicit field labelling helps
+// the painter role land.
+function buildCoverPrompt({ painter, title, language, synopsis }) {
+  const promptObject = {
+    role: `${painter.name} - ${painter.description}`,
+    task: 'Design a portrait (2:3) book cover for the novel below in your idiom',
+    book: {
+      title,
+      language,
+      synopsis,
+    },
+    constraints: {
+      render_only_text: 'the title',
+    },
+  }
+  return JSON.stringify(promptObject, null, 2)
+}
+
 app.post('/api/generate-cover', async (req, res) => {
   let storyRef
   try {
@@ -9688,67 +9807,60 @@ app.post('/api/generate-cover', async (req, res) => {
       return res.json({ success: true, coverUrl: data.coverUrl, skipped: true })
     }
 
-    const storyText = data.adaptedTextBlob || ''
-    if (!storyText.trim()) {
-      return res.status(400).json({ error: 'Story has no text' })
-    }
-
     await storyRef.update({ coverStatus: 'processing' })
 
     console.log(`\nCover generation for story ${storyId}`)
-    console.log('Step 1: Picking scene with Haiku...')
-    const sceneDescription = await pickCoverScene(storyText)
-    console.log('Scene:', sceneDescription)
 
-    const imagePrompt = `Impressionist oil painting. ${sceneDescription}. Loose, textured brushstrokes.`
-    console.log('Step 2: Generating image...')
-    const imageBuffer = await generateCoverImage(imagePrompt)
-
-    console.log('Step 3: Compositing cover...')
-    await ensureCoverFonts()
-
-    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
-    const tempComposed = path.join(os.tmpdir(), `cover-composed-${tempId}.png`)
-
-    let coverBuffer
-    try {
-      await fs.writeFile(tempPainting, imageBuffer)
-
-      const title = data.storyTitle || data.title || 'Untitled'
-      // Map Native → Advanced for correct CEFR labelling on the cover.
-      // Frontend continues to display "Native" — this mapping is cover-only.
-      const storedLevel = data.level || 'Intermediate'
-      const coverLevel = storedLevel === 'Native' ? 'Advanced' : storedLevel
-      const levelLine = `${coverLevel} ${data.language || ''}`.trim()
-
-      await runCoverCompositor(tempPainting, title, levelLine, tempComposed)
-      coverBuffer = await fs.readFile(tempComposed)
-    } finally {
-      await fs.unlink(tempPainting).catch(() => {})
-      await fs.unlink(tempComposed).catch(() => {})
+    // Synopsis: read from doc, generate inline if missing. The cover prompt
+    // is built from the synopsis — without it we cannot proceed.
+    let synopsis = data.synopsis
+    if (!synopsis) {
+      const storyText = data.adaptedTextBlob || ''
+      if (!storyText.trim()) {
+        return res.status(400).json({ error: 'Story has no text' })
+      }
+      console.log('Step 1: Generating synopsis (gpt-5.4 medium)...')
+      synopsis = await generateBookSynopsis(storyText)
+      await storyRef.update({ synopsis })
+      console.log('Synopsis:', synopsis.slice(0, 120) + (synopsis.length > 120 ? '…' : ''))
+    } else {
+      console.log('Step 1: Synopsis already on doc — reusing.')
     }
 
+    const title = data.storyTitle || data.title || 'Untitled'
+    const language = data.language || ''
+    const genre = data.genre || 'Literary'
+    const painter = await getPainterForGenre(genre)
+    console.log(`Step 2: Painter for "${genre}" → ${painter.name}`)
+
+    const imagePrompt = buildCoverPrompt({ painter, title, language, synopsis })
+    console.log('Step 3: Generating image (gpt-image-1)...')
+    const imageBuffer = await generateCoverImage(imagePrompt)
+
     console.log('Step 4: Uploading to Firebase Storage...')
-    const coverUrl = await uploadCoverToStorage(coverBuffer, 'image/png', uid, storyId)
-    if (!coverUrl) throw new Error('Failed to upload cover to Firebase Storage')
+    const baseUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
+    if (!baseUrl) throw new Error('Failed to upload cover to Firebase Storage')
+
+    // Versioned URL so any cached copy of the previous cover at the same
+    // canonical Storage path gets re-fetched by clients/CDNs.
+    const coverUrl = `${baseUrl}?v=${Date.now()}`
 
     await storyRef.update({
       coverUrl,
       coverImageUrl: coverUrl,
       coverStatus: 'ready',
-      coverScene: sceneDescription,
+      painterUsed: painter.name,
     })
     console.log('Cover ready:', coverUrl, '\n')
 
-    // Fire-and-forget: square version for the listening UI. Not awaited so
-    // we don't delay the cover-ready response or fail the request if the
-    // listening variant errors.
-    ensureSquareCoverForStory(uid, storyId).catch((err) => {
+    // Fire-and-forget: square version for the listening UI. Pass force when
+    // the caller forced regeneration so the square cover and extracted
+    // colour are refreshed off the new portrait.
+    ensureSquareCoverForStory(uid, storyId, { force: Boolean(force) }).catch((err) => {
       console.error('Square cover generation failed (post-portrait):', err)
     })
 
-    return res.json({ success: true, coverUrl, coverScene: sceneDescription })
+    return res.json({ success: true, coverUrl, painterUsed: painter.name })
   } catch (err) {
     console.error('Cover generation failed:', err)
     if (storyRef) {

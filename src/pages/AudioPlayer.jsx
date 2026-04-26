@@ -605,7 +605,42 @@ const AudioPlayer = () => {
         const pagesQuery = query(baseCollection, orderBy('index', 'asc'))
         const snapshot = await getDocs(pagesQuery)
         const nextPages = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-        setPages(nextPages)
+        if (nextPages.length) {
+          setPages(nextPages)
+        } else if (!isSpotify) {
+          // Fallback for imported books that store text outside the pages
+          // subcollection (chapter-book imports → `chapters`, flat-book
+          // imports → adaptedTextBlob/originalText on the story doc).
+          // Mirrors the reader's loading logic so the transcript surfaces
+          // the same text the reader does.
+          const chaptersRef = collection(db, 'users', user.uid, 'stories', id, 'chapters')
+          const chaptersSnap = await getDocs(query(chaptersRef, orderBy('index', 'asc')))
+          if (!chaptersSnap.empty) {
+            setPages(
+              chaptersSnap.docs.map((docSnap, idx) => {
+                const data = docSnap.data() || {}
+                return {
+                  id: docSnap.id,
+                  index: data.index ?? idx,
+                  text: data.adaptedText || data.originalText || data.text || '',
+                  originalText: data.originalText || '',
+                  adaptedText: data.adaptedText || '',
+                }
+              }),
+            )
+          } else {
+            const storySnap = await getDoc(doc(db, 'users', user.uid, 'stories', id))
+            const storyData = storySnap.exists() ? storySnap.data() || {} : {}
+            const blobText = storyData.adaptedTextBlob || storyData.originalText || ''
+            setPages(
+              blobText
+                ? [{ id: 'flat', index: 0, text: blobText, originalText: blobText, adaptedText: storyData.adaptedTextBlob || '' }]
+                : [],
+            )
+          }
+        } else {
+          setPages([])
+        }
         setError('')
       } catch (loadError) {
         console.error('Failed to load transcript pages', loadError)

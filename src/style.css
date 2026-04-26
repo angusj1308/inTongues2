@@ -7470,7 +7470,8 @@ pre {
    pending for a freshly-imported book). */
 .listening-lab-page {
   position: relative;
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: linear-gradient(135deg, var(--cover-color, #e7e5e4) 0%, #ffffff 70%);
   color: #0f172a;
   isolation: isolate;
@@ -7545,8 +7546,6 @@ pre {
   padding: 0;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  transform: scale(0.5);
-  transform-origin: bottom center;
 }
 
 /* Title sits on the white-veiled blur; controls sit on the frosted white
@@ -7670,7 +7669,7 @@ pre {
 }
 
 .listening-lab-main {
-  padding: 96px 1.5rem 2.5rem;
+  padding: 24px 1.5rem 1rem;
   width: 100%;
 }
 

@@ -217,10 +217,11 @@ const ActiveCinemaMode = ({
   // Clear overlay timeout on unmount
   useEffect(() => () => clearOverlayTimeout(), [clearOverlayTimeout])
 
-  // Force overlay hidden whenever the pass intro is showing. Otherwise
-  // visibility is hover-driven only (handled by handleOverlayInteraction).
+  // Always hide the overlay on a pass change — visibility is hover-driven
+  // only. Without this, leftover state from the prior pass leaks into the
+  // new one and the controls appear before any user interaction.
   useEffect(() => {
-    if (showPassIntro) setOverlayVisible(false)
+    setOverlayVisible(false)
   }, [activeStep, showPassIntro])
 
   // Show pass intro when entering a new pass. Also pause any in-flight

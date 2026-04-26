@@ -9568,7 +9568,7 @@ async function generateSquareCoverFromPortrait(portraitBuffer) {
 
   const fileLike = await toFile(portraitBuffer, 'cover.png', { type: 'image/png' })
   const result = await client.images.edit({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     image: fileLike,
     prompt: SQUARE_COVER_PROMPT,
     size: '1024x1024',
@@ -9576,7 +9576,7 @@ async function generateSquareCoverFromPortrait(portraitBuffer) {
     n: 1,
   })
   const b64 = result.data?.[0]?.b64_json
-  if (!b64) throw new Error('No image data returned from gpt-image-1 edit')
+  if (!b64) throw new Error('No image data returned from gpt-image-2 edit')
   return Buffer.from(b64, 'base64')
 }
 

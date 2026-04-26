@@ -9777,7 +9777,14 @@ app.post('/api/generate-square-cover', async (req, res) => {
     if (!squareUrl) {
       return res.status(404).json({ error: 'Story has no portrait cover to square-ify' })
     }
-    return res.json({ success: true, coverImageUrlSquare: squareUrl })
+    // Re-read so callers can hydrate immediately without an extra round trip.
+    const snap = await firestore.doc(`users/${uid}/stories/${storyId}`).get()
+    const data = snap.exists ? snap.data() : {}
+    return res.json({
+      success: true,
+      coverImageUrlSquare: squareUrl,
+      coverColor: data?.coverColor || null,
+    })
   } catch (err) {
     console.error('Square cover generation failed:', err)
     return res.status(500).json({ error: 'Square cover generation failed', details: err?.message })

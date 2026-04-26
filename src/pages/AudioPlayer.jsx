@@ -455,6 +455,33 @@ const AudioPlayer = () => {
     loadStoryMeta()
   }, [id, isSpotify, user])
 
+  // Lazy backfill for older books — if the story doc loaded without a square
+  // cover or extracted colour, hit the idempotent endpoint so the gradient
+  // shows up the first time someone opens it. Endpoint short-circuits if both
+  // fields are already set.
+  useEffect(() => {
+    if (!user || !id || isSpotify) return
+    if (storyMeta.coverImageUrlSquare && storyMeta.coverColor) return
+    if (!storyMeta.coverImageUrl) return // need a portrait to start from
+    let cancelled = false
+    fetch('http://localhost:4000/api/generate-square-cover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: user.uid, storyId: id }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (cancelled || !json) return
+        setStoryMeta((prev) => ({
+          ...prev,
+          coverImageUrlSquare: json.coverImageUrlSquare || prev.coverImageUrlSquare,
+          coverColor: json.coverColor || prev.coverColor,
+        }))
+      })
+      .catch((err) => console.warn('Lazy cover backfill failed:', err))
+    return () => { cancelled = true }
+  }, [id, isSpotify, user, storyMeta.coverImageUrl, storyMeta.coverImageUrlSquare, storyMeta.coverColor])
+
   // Preload cached translations and pronunciations for this content
   useEffect(() => {
     if (!user || !id || !storyMeta.language || !storyMeta.voiceId) return

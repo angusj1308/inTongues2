@@ -9715,6 +9715,20 @@ async function generateBookSynopsis(storyText) {
 
   const developerMessage = `You write back-cover blurbs for literary fiction. Read the story and write a synopsis suitable for a book jacket. 3 to 5 sentences. Capture the premise, the central character, and the tonal register. Do not spoil the ending. Do not name the author. Do not name the title. Write continuous prose with no headers, no lists, no preamble, no "Synopsis:" label.`
 
+  console.log('───────────────────────────────────────────────────────')
+  console.log('SYNOPSIS — gpt-5.4 medium reasoning')
+  console.log('───────────────────────────────────────────────────────')
+  console.log('DEVELOPER MESSAGE:')
+  console.log(developerMessage)
+  console.log('───────────────────────────────────────────────────────')
+  console.log(`STORY INPUT (${storyText.length} chars):`)
+  if (storyText.length > 800) {
+    console.log(storyText.slice(0, 400) + `\n…[+${storyText.length - 800} chars]…\n` + storyText.slice(-400))
+  } else {
+    console.log(storyText)
+  }
+  console.log('───────────────────────────────────────────────────────')
+
   const response = await client.responses.create({
     model: 'gpt-5.4',
     instructions: developerMessage,
@@ -9728,6 +9742,11 @@ async function generateBookSynopsis(storyText) {
     || ''
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Empty synopsis returned from gpt-5.4')
+
+  console.log('SYNOPSIS OUTPUT:')
+  console.log(trimmed)
+  console.log('───────────────────────────────────────────────────────\n')
+
   return trimmed
 }
 
@@ -9754,10 +9773,15 @@ app.post('/api/generate-synopsis', async (req, res) => {
       return res.status(400).json({ error: 'Story has no text' })
     }
 
-    console.log(`\nSynopsis generation for story ${storyId}`)
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log(`SYNOPSIS GENERATION — story ${storyId}`)
+    console.log(`uid: ${uid}    force: ${Boolean(force)}`)
+    console.log(`title: ${data.storyTitle || data.title || '(untitled)'}    genre: ${data.genre || '(none)'}    language: ${data.language || '(none)'}`)
+    console.log('═══════════════════════════════════════════════════════')
     const synopsis = await generateBookSynopsis(storyText)
     await storyRef.update({ synopsis })
-    console.log('Synopsis ready:', synopsis.slice(0, 120) + (synopsis.length > 120 ? '…' : ''))
+    console.log('SYNOPSIS PERSISTED to story doc.')
+    console.log('═══════════════════════════════════════════════════════\n')
 
     return res.json({ success: true, synopsis })
   } catch (err) {
@@ -9809,7 +9833,10 @@ app.post('/api/generate-cover', async (req, res) => {
 
     await storyRef.update({ coverStatus: 'processing' })
 
-    console.log(`\nCover generation for story ${storyId}`)
+    console.log('\n═══════════════════════════════════════════════════════')
+    console.log(`COVER GENERATION — story ${storyId}`)
+    console.log(`uid: ${uid}    force: ${Boolean(force)}`)
+    console.log('═══════════════════════════════════════════════════════')
 
     // Synopsis: read from doc, generate inline if missing. The cover prompt
     // is built from the synopsis — without it we cannot proceed.
@@ -9819,25 +9846,38 @@ app.post('/api/generate-cover', async (req, res) => {
       if (!storyText.trim()) {
         return res.status(400).json({ error: 'Story has no text' })
       }
-      console.log('Step 1: Generating synopsis (gpt-5.4 medium)...')
+      console.log('Step 1: Synopsis missing on doc — generating inline.')
       synopsis = await generateBookSynopsis(storyText)
       await storyRef.update({ synopsis })
-      console.log('Synopsis:', synopsis.slice(0, 120) + (synopsis.length > 120 ? '…' : ''))
     } else {
       console.log('Step 1: Synopsis already on doc — reusing.')
+      console.log('───────────────────────────────────────────────────────')
+      console.log('SYNOPSIS (reused):')
+      console.log(synopsis)
+      console.log('───────────────────────────────────────────────────────')
     }
 
     const title = data.storyTitle || data.title || 'Untitled'
     const language = data.language || ''
     const genre = data.genre || 'Literary'
     const painter = await getPainterForGenre(genre)
-    console.log(`Step 2: Painter for "${genre}" → ${painter.name}`)
+    console.log(`Step 2: Book metadata`)
+    console.log(`  title:    ${title}`)
+    console.log(`  language: ${language}`)
+    console.log(`  genre:    ${genre}`)
+    console.log(`  painter:  ${painter.name}`)
 
     const imagePrompt = buildCoverPrompt({ painter, title, language, synopsis })
-    console.log('Step 3: Generating image (gpt-image-1)...')
+    console.log('───────────────────────────────────────────────────────')
+    console.log('COVER PROMPT — gpt-image-1, 1024x1536')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(imagePrompt)
+    console.log('───────────────────────────────────────────────────────')
+    console.log('Step 3: Generating image…')
     const imageBuffer = await generateCoverImage(imagePrompt)
+    console.log(`Image generated: ${imageBuffer.length.toLocaleString()} bytes`)
 
-    console.log('Step 4: Uploading to Firebase Storage...')
+    console.log('Step 4: Uploading to Firebase Storage…')
     const baseUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
     if (!baseUrl) throw new Error('Failed to upload cover to Firebase Storage')
 
@@ -9851,7 +9891,10 @@ app.post('/api/generate-cover', async (req, res) => {
       coverStatus: 'ready',
       painterUsed: painter.name,
     })
-    console.log('Cover ready:', coverUrl, '\n')
+    console.log('───────────────────────────────────────────────────────')
+    console.log(`COVER READY  painter: ${painter.name}`)
+    console.log(`URL: ${coverUrl}`)
+    console.log('═══════════════════════════════════════════════════════\n')
 
     // Fire-and-forget: square version for the listening UI. Pass force when
     // the caller forced regeneration so the square cover and extracted

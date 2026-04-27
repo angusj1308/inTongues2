@@ -182,8 +182,25 @@ const AudioPlayer = () => {
     )
     if (pageSegments.length) return pageSegments
 
-    return transcriptSentences.map((text) => ({ text }))
-  }, [isSpotify, pages, spotifyTranscriptSegments, transcriptDoc, transcriptSentences])
+    // No real timing data — synthesise it. Distribute the total audio
+    // duration across the sentences proportional to their character count
+    // (a decent proxy for narration time), so the karaoke flow advances
+    // at roughly the speed of the narration.
+    if (!transcriptSentences.length) return []
+    const totalChars = transcriptSentences.reduce((sum, s) => sum + (s?.length || 0), 0)
+    const total = Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0
+    if (!total || !totalChars) {
+      return transcriptSentences.map((text) => ({ text }))
+    }
+    let cursor = 0
+    return transcriptSentences.map((text) => {
+      const share = (text.length / totalChars) * total
+      const start = cursor
+      const end = Math.min(total, cursor + share)
+      cursor = end
+      return { text, start, end }
+    })
+  }, [isSpotify, pages, spotifyTranscriptSegments, transcriptDoc, transcriptSentences, durationSeconds])
 
   const intensiveSentences = useMemo(() => {
     const segmentSentences = transcriptSegments

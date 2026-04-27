@@ -41,6 +41,52 @@ const normaliseTranscriptSegments = (segments = []) =>
       }
     })
 
+// Walk the source text token-by-token, pairing each word-bearing token with
+// the next ElevenLabs word timestamp in order. Paragraphs (split on blank
+// lines) become segments; the segment's `words[]` carries each token in its
+// original form (including trailing punctuation), with timing pulled from
+// the timestamp it pairs with. The result feeds TranscriptFlow with the same
+// punctuation + paragraph breaks the reader shows, while keeping the actual
+// audio sync from the TTS alignment.
+const WORD_REGEX = /[\p{L}\p{N}][\p{L}\p{N}'‘’′ʼ-]*/u
+const alignSourceToWordTimestamps = (sourceText, wordTimestamps) => {
+  if (!sourceText || !wordTimestamps?.length) return []
+  const paragraphs = sourceText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
+  const segments = []
+  let cursor = 0
+  for (const para of paragraphs) {
+    const tokens = para.split(/\s+/).filter(Boolean)
+    const segWords = []
+    for (const token of tokens) {
+      if (!WORD_REGEX.test(token)) {
+        // Pure punctuation token — append to the previous word so it renders
+        // attached, matching the reader's typography.
+        if (segWords.length) {
+          segWords[segWords.length - 1].text += ` ${token}`
+        }
+        continue
+      }
+      const wt = wordTimestamps[cursor]
+      if (!wt) break
+      cursor += 1
+      const start = Number(wt.start)
+      const end = Number(wt.end)
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue
+      segWords.push({ text: token, start, end })
+    }
+    if (segWords.length) {
+      segments.push({
+        start: segWords[0].start,
+        end: segWords[segWords.length - 1].end,
+        text: para,
+        words: segWords,
+      })
+    }
+    if (cursor >= wordTimestamps.length) break
+  }
+  return segments
+}
+
 const AudioPlayer = () => {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -158,6 +204,15 @@ const AudioPlayer = () => {
 
   const transcriptText = useMemo(() => pages.map((page) => getDisplayText(page)).join(' '), [pages])
 
+  // Same source the reader renders, with paragraph breaks preserved between
+  // pages/chapters. Used to align word-level ElevenLabs timestamps back to
+  // the original punctuation + paragraphs so the audiobook transcript reads
+  // exactly like the reader does.
+  const sourceParagraphText = useMemo(
+    () => pages.map((page) => getDisplayText(page)).filter(Boolean).join('\n\n'),
+    [pages],
+  )
+
   const transcriptSentences = useMemo(() => {
     if (!transcriptText) return []
     return transcriptText
@@ -171,13 +226,19 @@ const AudioPlayer = () => {
       return spotifyTranscriptSegments
     }
 
-    // Real word-level timing from ElevenLabs (preferred). Flat list of
-    // {text, start, end} — chunk into sentence-sized segments so the
-    // cinema flow gets natural paragraph breaks at terminal punctuation.
+    // Real word-level timing from ElevenLabs. Prefer alignment to the same
+    // source text the reader renders so we keep paragraph breaks and the
+    // original punctuation; only fall back to a sentence-chunked view of
+    // the bare timestamps when the source text isn't available.
     const wordTimestamps = Array.isArray(transcriptDoc?.wordTimestamps)
       ? transcriptDoc.wordTimestamps
       : []
     if (wordTimestamps.length) {
+      if (sourceParagraphText) {
+        const aligned = alignSourceToWordTimestamps(sourceParagraphText, wordTimestamps)
+        if (aligned.length) return aligned
+      }
+
       const segments = []
       let bucket = []
       for (const w of wordTimestamps) {
@@ -236,7 +297,7 @@ const AudioPlayer = () => {
       cursor = end
       return { text, start, end }
     })
-  }, [isSpotify, pages, spotifyTranscriptSegments, transcriptDoc, transcriptSentences, durationSeconds])
+  }, [isSpotify, pages, sourceParagraphText, spotifyTranscriptSegments, transcriptDoc, transcriptSentences, durationSeconds])
 
   const intensiveSentences = useMemo(() => {
     const segmentSentences = transcriptSegments

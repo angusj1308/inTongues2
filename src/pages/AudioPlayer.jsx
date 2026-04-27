@@ -85,7 +85,7 @@ const AudioPlayer = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [voiceGender, setVoiceGender] = useState('male')
-  const [transcriptDoc, setTranscriptDoc] = useState({ sentenceSegments: [], segments: [] })
+  const [transcriptDoc, setTranscriptDoc] = useState({ wordTimestamps: [], sentenceSegments: [], segments: [] })
   const [spotifyTranscriptSegments, setSpotifyTranscriptSegments] = useState([])
   const [popup, setPopup] = useState(null)
   const [popupPosition, setPopupPosition] = useState({ top: null, left: null })
@@ -169,6 +169,42 @@ const AudioPlayer = () => {
   const transcriptSegments = useMemo(() => {
     if (isSpotify && spotifyTranscriptSegments.length) {
       return spotifyTranscriptSegments
+    }
+
+    // Real word-level timing from ElevenLabs (preferred). Flat list of
+    // {text, start, end} — chunk into sentence-sized segments so the
+    // cinema flow gets natural paragraph breaks at terminal punctuation.
+    const wordTimestamps = Array.isArray(transcriptDoc?.wordTimestamps)
+      ? transcriptDoc.wordTimestamps
+      : []
+    if (wordTimestamps.length) {
+      const segments = []
+      let bucket = []
+      for (const w of wordTimestamps) {
+        const start = Number(w?.start)
+        const end = Number(w?.end)
+        const text = (w?.text || '').toString()
+        if (!text || !Number.isFinite(start) || !Number.isFinite(end)) continue
+        bucket.push({ text, start, end })
+        if (/[.!?…。！？]\s*$/.test(text)) {
+          segments.push({
+            start: bucket[0].start,
+            end: bucket[bucket.length - 1].end,
+            text: bucket.map((wd) => wd.text).join(' '),
+            words: bucket,
+          })
+          bucket = []
+        }
+      }
+      if (bucket.length) {
+        segments.push({
+          start: bucket[0].start,
+          end: bucket[bucket.length - 1].end,
+          text: bucket.map((wd) => wd.text).join(' '),
+          words: bucket,
+        })
+      }
+      if (segments.length) return segments
     }
 
     const sentenceSegments = normaliseTranscriptSegments(transcriptDoc?.sentenceSegments)
@@ -672,7 +708,7 @@ const AudioPlayer = () => {
 
   useEffect(() => {
     if (!user || !id || isSpotify) {
-      setTranscriptDoc({ sentenceSegments: [], segments: [] })
+      setTranscriptDoc({ wordTimestamps: [], sentenceSegments: [], segments: [] })
       return undefined
     }
 
@@ -686,7 +722,7 @@ const AudioPlayer = () => {
         if (!isActive) return
 
         if (!transcriptSnap.exists()) {
-          setTranscriptDoc({ sentenceSegments: [], segments: [] })
+          setTranscriptDoc({ wordTimestamps: [], sentenceSegments: [], segments: [] })
           return
         }
 
@@ -694,11 +730,32 @@ const AudioPlayer = () => {
         const sentenceSegments = Array.isArray(data.sentenceSegments) ? data.sentenceSegments : []
         const segments = Array.isArray(data.segments) ? data.segments : []
 
-        setTranscriptDoc({ sentenceSegments, segments })
+        // ElevenLabs word-level timing — primary source for audiobook flow
+        // sync. May be sharded across `intensive`, `intensive_1`, … docs
+        // when the story is long enough to bust the 1MB doc limit.
+        let wordTimestamps = []
+        if (Array.isArray(data.wordTimestamps) && data.wordTimestamps.length) {
+          wordTimestamps = [...data.wordTimestamps]
+          const chunkCount = Number(data.chunkCount) || 1
+          for (let c = 1; c < chunkCount; c++) {
+            const chunkRef = doc(db, 'users', user.uid, 'stories', id, 'transcripts', `intensive_${c}`)
+            // eslint-disable-next-line no-await-in-loop
+            const chunkSnap = await getDoc(chunkRef)
+            if (!isActive) return
+            if (chunkSnap.exists()) {
+              const chunkData = chunkSnap.data() || {}
+              if (Array.isArray(chunkData.wordTimestamps)) {
+                wordTimestamps.push(...chunkData.wordTimestamps)
+              }
+            }
+          }
+        }
+
+        setTranscriptDoc({ wordTimestamps, sentenceSegments, segments })
       } catch (err) {
         console.error('Failed to load transcript document', err)
         if (isActive) {
-          setTranscriptDoc({ sentenceSegments: [], segments: [] })
+          setTranscriptDoc({ wordTimestamps: [], sentenceSegments: [], segments: [] })
         }
       }
     }

@@ -9470,7 +9470,7 @@ async function generateAudioForPage(bookId, pageIndex, text, voiceId, languageLa
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cover painting generation — picks a scene with Haiku, paints with gpt-image-1
+// Cover painting generation — picks a scene with Haiku, paints with gpt-image-2
 // ─────────────────────────────────────────────────────────────────────────────
 const COVER_FONTS_DIR = path.join(process.cwd(), 'scripts', 'fonts')
 const COVER_FONT_URLS = {
@@ -9546,14 +9546,14 @@ async function generateCoverImage(prompt) {
   if (!client) throw new Error('OpenAI client not configured')
 
   const result = await client.images.generate({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     prompt,
     size: '1024x1536',
     quality: 'high',
     n: 1,
   })
   const b64 = result.data?.[0]?.b64_json
-  if (!b64) throw new Error('No image data returned from gpt-image-1')
+  if (!b64) throw new Error('No image data returned from gpt-image-2')
   return Buffer.from(b64, 'base64')
 }
 
@@ -9869,7 +9869,7 @@ app.post('/api/generate-cover', async (req, res) => {
 
     const imagePrompt = buildCoverPrompt({ painter, title, language, synopsis })
     console.log('───────────────────────────────────────────────────────')
-    console.log('COVER PROMPT — gpt-image-1, 1024x1536')
+    console.log('COVER PROMPT — gpt-image-2, 1024x1536')
     console.log('───────────────────────────────────────────────────────')
     console.log(imagePrompt)
     console.log('───────────────────────────────────────────────────────')

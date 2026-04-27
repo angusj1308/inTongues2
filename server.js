@@ -9498,6 +9498,65 @@ async function ensureCoverFonts() {
   }
 }
 
+// ── Wordmark font (EB Garamond) ──
+// Downloaded once and cached in scripts/fonts/. The wordmark compositor
+// hard-fails if the file is missing or unreadable — we never want to
+// silently substitute another font on a finished cover.
+const WORDMARK_FONT_FILE = 'EBGaramond-Variable.ttf'
+const WORDMARK_FONT_URL = 'https://github.com/google/fonts/raw/main/ofl/ebgaramond/EBGaramond%5Bwght%5D.ttf'
+const WORDMARK_FONT_PATH = path.join(COVER_FONTS_DIR, WORDMARK_FONT_FILE)
+
+async function ensureWordmarkFont() {
+  await fs.mkdir(COVER_FONTS_DIR, { recursive: true })
+  try {
+    await fs.access(WORDMARK_FONT_PATH)
+    return WORDMARK_FONT_PATH
+  } catch {}
+  console.log(`Downloading wordmark font: ${WORDMARK_FONT_FILE}`)
+  const response = await fetch(WORDMARK_FONT_URL)
+  if (!response.ok) {
+    throw new Error(`Failed to download wordmark font ${WORDMARK_FONT_FILE}: HTTP ${response.status}`)
+  }
+  const buf = Buffer.from(await response.arrayBuffer())
+  await fs.writeFile(WORDMARK_FONT_PATH, buf)
+  return WORDMARK_FONT_PATH
+}
+
+// Spawn the wordmark compositor and parse its single WORDMARK_RESULT line.
+// Returns { luminance, color, sample_ok, threshold, canvas, font_size, sample_box }.
+function runWordmarkCompositor(paintingPath, fontPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'wordmark_compose.py')
+    const proc = spawn('python3', [
+      scriptPath,
+      '--painting', paintingPath,
+      '--font', fontPath,
+      '--output', outputPath,
+    ])
+    let stdout = ''
+    let stderr = ''
+    proc.stdout.on('data', (chunk) => { stdout += chunk.toString() })
+    proc.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+    proc.on('error', (err) => reject(new Error(`Failed to spawn python3: ${err.message}`)))
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`wordmark_compose.py exited with code ${code}: ${stderr.trim()}`))
+        return
+      }
+      const line = stdout.split('\n').find((l) => l.startsWith('WORDMARK_RESULT '))
+      if (!line) {
+        reject(new Error('wordmark_compose.py did not emit WORDMARK_RESULT line'))
+        return
+      }
+      try {
+        resolve(JSON.parse(line.slice('WORDMARK_RESULT '.length)))
+      } catch (parseErr) {
+        reject(new Error(`Failed to parse WORDMARK_RESULT: ${parseErr.message}`))
+      }
+    })
+  })
+}
+
 function runCoverCompositor(paintingPath, title, level, outputPath) {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(process.cwd(), 'scripts', 'compose_cover.py')
@@ -9875,10 +9934,30 @@ app.post('/api/generate-cover', async (req, res) => {
     console.log(imagePrompt)
     console.log('───────────────────────────────────────────────────────')
     console.log('Step 3: Generating image…')
-    const imageBuffer = await generateCoverImage(imagePrompt)
-    console.log(`Image generated: ${imageBuffer.length.toLocaleString()} bytes`)
+    const paintingBuffer = await generateCoverImage(imagePrompt)
+    console.log(`Image generated: ${paintingBuffer.length.toLocaleString()} bytes`)
 
-    console.log('Step 4: Uploading to Firebase Storage…')
+    console.log('Step 4: Compositing inTongues wordmark…')
+    const fontPath = await ensureWordmarkFont()
+    const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const tempPainting = path.join(os.tmpdir(), `cover-painting-${tempId}.png`)
+    const tempComposed = path.join(os.tmpdir(), `cover-wordmark-${tempId}.png`)
+    let imageBuffer
+    try {
+      await fs.writeFile(tempPainting, paintingBuffer)
+      const wordmarkInfo = await runWordmarkCompositor(tempPainting, fontPath, tempComposed)
+      console.log(
+        `  luminance=${wordmarkInfo.luminance}  threshold=${wordmarkInfo.threshold}  ` +
+        `color=${wordmarkInfo.color}  font_size=${wordmarkInfo.font_size}px  ` +
+        `sample_ok=${wordmarkInfo.sample_ok}  canvas=${wordmarkInfo.canvas?.join('x')}`
+      )
+      imageBuffer = await fs.readFile(tempComposed)
+    } finally {
+      await fs.unlink(tempPainting).catch(() => {})
+      await fs.unlink(tempComposed).catch(() => {})
+    }
+
+    console.log('Step 5: Uploading to Firebase Storage…')
     const baseUrl = await uploadCoverToStorage(imageBuffer, 'image/png', uid, storyId)
     if (!baseUrl) throw new Error('Failed to upload cover to Firebase Storage')
 

@@ -9289,6 +9289,13 @@ body.active-pass-locked {
   padding: 8px 0 0;
 }
 
+/* No top/bottom fade overlay — the cover-coloured gradient bg behind the
+   transcript makes the white veil read as a wash instead of a fade. */
+.extensive-shell--split .extensive-pane-right .transcript-roller-window::before,
+.extensive-shell--split .extensive-pane-right .transcript-roller-window::after {
+  display: none;
+}
+
 .extensive-pane-left,
 .extensive-pane-right {
   display: flex;

@@ -9674,13 +9674,14 @@ async function ensureSquareCoverForStory(uid, storyId, { force = false } = {}) {
 // the `description` is a one-line note about the painter's style that
 // gets fed into the cover-generation prompt as the role.
 const GENRE_PAINTERS_JSON_PATH = path.join(process.cwd(), 'config', 'genre-painters.json')
-let _genrePaintersJsonCache = null
 
+// Read fresh each call so edits to the JSON file go live without a restart.
+// The file is ~1 KB and only read during cover generation, so the cost is
+// negligible. Preserves the "config table editable without code changes"
+// intent of the runtime-editable design.
 async function loadGenrePaintersFromJson() {
-  if (_genrePaintersJsonCache) return _genrePaintersJsonCache
   const raw = await fs.readFile(GENRE_PAINTERS_JSON_PATH, 'utf8')
-  _genrePaintersJsonCache = JSON.parse(raw)
-  return _genrePaintersJsonCache
+  return JSON.parse(raw)
 }
 
 async function loadGenrePainters() {

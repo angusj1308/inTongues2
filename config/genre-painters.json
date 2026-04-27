@@ -1,42 +1,42 @@
 {
   "Thriller": {
     "name": "Paul Bacon",
-    "description": "American book-jacket designer (1923–2015) — bold sans-serif typography over a flat coloured ground with a single emblematic icon or motif. Stark, graphic, type-driven. Examples: Catch-22, Jaws, Rosemary's Baby, Compulsion."
+    "description": "Paul Bacon — designer of the Jaws, Catch-22, The Other, and Rosemary's Baby covers."
   },
   "Science Fiction": {
     "name": "Chesley Bonestell",
-    "description": "American astronomical illustrator (1888–1986) — photoreal painted vistas of planets, lunar landscapes, and rocket-age space scenes. Smooth airbrushed atmospheric perspective, dramatic celestial light, hard shadow."
+    "description": "Chesley Bonestell — painter of the Astounding Science Fiction covers and The Conquest of Space."
   },
   "Mystery": {
     "name": "Tom Adams",
-    "description": "British surrealist illustrator (b. 1926) of Agatha Christie covers — hyperreal still lifes of fragmented objects (broken china, spilled tea, dolls' limbs) staged on plain backgrounds. Symbolic crime imagery without depicted violence."
+    "description": "Tom Adams — painter of the Agatha Christie Fontana paperback covers of the 1960s–70s."
   },
   "Adventure": {
     "name": "N.C. Wyeth",
-    "description": "American Golden Age book illustrator (1882–1945) — heroic figures in dramatic action, painterly oil with rich saturated colour and chiaroscuro. Treasure Island, Robin Hood, The Last of the Mohicans."
+    "description": "N.C. Wyeth — painter of the Scribner's Classics covers (Treasure Island, Kidnapped, The Last of the Mohicans)."
   },
   "Comedy": {
     "name": "Edward Gorey",
-    "description": "American author-illustrator (1925–2000) — meticulous crosshatched pen-and-ink drawings, monochrome or muted palette, Edwardian dress and oppressive interiors, deadpan macabre humour. Compositionally still."
+    "description": "Edward Gorey — designer of the Anchor Books and Doubleday paperback covers."
   },
   "Horror": {
     "name": "Don Brautigam",
-    "description": "American paperback illustrator (1946–2007) — atmospheric oil painting of empty interiors and exteriors at night, a single uncanny detail (a hand, a door ajar, a watching eye). Implied dread, no overt monster. Definitive Stephen King covers."
+    "description": "Don Brautigam — painter of the Stephen King covers of the 1980s (The Stand, It, Misery)."
   },
   "Fantasy": {
     "name": "Michael Whelan",
-    "description": "American fantasy and sci-fi cover artist (b. 1950) — lush photoreal oil painting, dramatic lighting, mythic figures and creatures rendered with documentary precision. Tolkien, Anne McCaffrey, Stephen King's Dark Tower."
+    "description": "Michael Whelan — painter of the Thomas Covenant, Pern, and Tad Williams covers."
   },
   "Literary": {
     "name": "Andrew Wyeth",
-    "description": "American realist painter (1917–2009) — restrained tempera and watercolour, muted earth palette, cold pale light, lone figure or empty rural interior. Christina's World, Helga series. Psychological interiority through landscape."
+    "description": "Andrew Wyeth — painter (Christina's World, the Helga pictures)."
   },
   "Historical Fiction": {
     "name": "Ilya Repin",
-    "description": "Russian realist painter (1844–1930) — monumental historical and social tableaux, period dress and earthy palette, theatrical figuration with documentary weight. Barge Haulers on the Volga, Reply of the Zaporozhian Cossacks."
+    "description": "Ilya Repin — Russian Realist painter (Ivan the Terrible and His Son Ivan, Reply of the Zaporozhian Cossacks)."
   },
   "Myth & Folk Tale": {
     "name": "Arthur Rackham",
-    "description": "British Golden Age illustrator (1867–1939) of fairy tales and Norse myth — sinuous Art Nouveau line, sepia and watercolour washes, gnarled trees and elvish figures, dream-logic landscapes."
+    "description": "Arthur Rackham — illustrator of Grimm's Fairy Tales, Andersen, and Wagner's Ring."
   }
 }

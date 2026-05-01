@@ -154,13 +154,28 @@ export const addEpisodeToPlaylist = async (uid, playlistId, episodeId) => {
   await updateDoc(ref, { episodeIds: [...current, episodeId] })
 }
 
-// Backend-stubbed endpoints — wired later. Returns empty results so UI renders
-// gracefully until the backend lands.
-export const searchPodcasts = async ({ query: q, language, limit: max = 25 } = {}) => {
+const API_BASE = 'http://localhost:4000'
+
+// Mixed-type search backed by Podcast Index. Returns an array of results
+// where each entry is either { type: 'show', ... } or { type: 'episode', ... }.
+// Throws on network/server failure so callers can render the error state.
+export const searchPodcasts = async ({ query: q, language } = {}) => {
   if (!q?.trim()) return []
+  const params = new URLSearchParams({ q })
+  if (language) params.set('lang', language)
+  const res = await fetch(`${API_BASE}/api/podcasts/search?${params.toString()}`)
+  if (!res.ok) throw new Error(`Search failed (${res.status})`)
+  const data = await res.json()
+  return Array.isArray(data?.results) ? data.results : []
+}
+
+export const fetchCategoryShows = async ({ category, language, limit: max = 25 } = {}) => {
+  if (!category) return []
   try {
+    const params = new URLSearchParams({ limit: String(max) })
+    if (language) params.set('lang', language)
     const res = await fetch(
-      `/api/podcasts/search?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(language || '')}&limit=${max}`,
+      `${API_BASE}/api/podcasts/category/${encodeURIComponent(category)}?${params.toString()}`,
     )
     if (!res.ok) return []
     const data = await res.json()
@@ -170,41 +185,65 @@ export const searchPodcasts = async ({ query: q, language, limit: max = 25 } = {
   }
 }
 
-export const fetchCategoryShows = async ({ category, language, limit: max = 25 } = {}) => {
-  if (!category) return []
-  try {
-    const res = await fetch(
-      `/api/podcasts/category/${encodeURIComponent(category)}?lang=${encodeURIComponent(language || '')}&limit=${max}`,
-    )
-    if (!res.ok) return []
-    const data = await res.json()
-    return data?.shows || []
-  } catch {
-    return []
+// Adapt the Podcast Index sanitised show shape to the props the show page
+// component expects (id/title/host/coverUrl/...).
+const adaptShow = (raw) => {
+  if (!raw) return null
+  return {
+    id: String(raw.feedId ?? raw.id ?? ''),
+    title: raw.title || '',
+    host: raw.author || raw.host || '',
+    description: raw.description || '',
+    coverUrl: raw.coverArtUrl || raw.coverUrl || '',
+    language: raw.language || '',
+    category: Array.isArray(raw.categories) ? raw.categories[0] || '' : raw.category || '',
+    episodeCount: raw.episodeCount,
+  }
+}
+
+const adaptEpisode = (raw) => {
+  if (!raw) return null
+  const publishedAt = raw.publishDate
+    ? new Date(raw.publishDate * 1000).toISOString()
+    : raw.publishedAt || null
+  const durationMs = typeof raw.duration === 'number' ? raw.duration * 1000 : raw.durationMs || 0
+  return {
+    id: String(raw.episodeId ?? raw.id ?? ''),
+    feedId: raw.feedId ? String(raw.feedId) : '',
+    title: raw.title || '',
+    description: raw.description || '',
+    coverUrl: raw.coverArtUrl || raw.coverUrl || '',
+    audioUrl: raw.audioUrl || '',
+    publishedAt,
+    durationMs,
+    showName: raw.showTitle || raw.showName || '',
   }
 }
 
 export const fetchShow = async (showId) => {
   if (!showId) return null
   try {
-    const res = await fetch(`/api/podcasts/show/${encodeURIComponent(showId)}`)
+    const res = await fetch(`${API_BASE}/api/podcasts/show/${encodeURIComponent(showId)}`)
     if (!res.ok) return null
-    return await res.json()
+    return adaptShow(await res.json())
   } catch {
     return null
   }
 }
 
-export const fetchShowEpisodes = async (showId, { cursor, sort = 'newest', limit: max = 20 } = {}) => {
+export const fetchShowEpisodes = async (showId, { cursor, sort = 'newest', limit: max = 50 } = {}) => {
   if (!showId) return { episodes: [], nextCursor: null }
   try {
     const params = new URLSearchParams({ sort, limit: String(max) })
     if (cursor) params.set('cursor', cursor)
     const res = await fetch(
-      `/api/podcasts/show/${encodeURIComponent(showId)}/episodes?${params.toString()}`,
+      `${API_BASE}/api/podcasts/show/${encodeURIComponent(showId)}/episodes?${params.toString()}`,
     )
     if (!res.ok) return { episodes: [], nextCursor: null }
-    return await res.json()
+    const data = await res.json()
+    const episodes = Array.isArray(data?.episodes) ? data.episodes.map(adaptEpisode) : []
+    if (sort === 'oldest') episodes.reverse()
+    return { episodes, nextCursor: data?.nextCursor || null }
   } catch {
     return { episodes: [], nextCursor: null }
   }

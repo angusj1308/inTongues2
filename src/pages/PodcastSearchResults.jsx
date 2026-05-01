@@ -1,100 +1,218 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
 import { searchPodcasts } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
-import ShowResultsList from '../components/podcast/ShowResultsList'
+import SearchResultRow, {
+  SearchResultRowSkeleton,
+} from '../components/podcast/SearchResultRow'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const PAGE_SIZE = 25
 
+const SkeletonList = ({ count = 6 }) => (
+  <div className="media-results-list" aria-busy="true" aria-label="Searching…">
+    {Array.from({ length: count }).map((_, i) => (
+      <SearchResultRowSkeleton key={i} />
+    ))}
+  </div>
+)
+
 const PodcastSearchResultsPage = () => {
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const { profile } = useAuth()
   const { followedIds, pinnedRefs, follow, unfollow } = usePodcastSubscriptions()
-  const query = params.get('q') || ''
+
+  const submittedQuery = params.get('q') || ''
+  const [inputValue, setInputValue] = useState(submittedQuery)
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState(1)
+  const [error, setError] = useState(null)
   const [exhausted, setExhausted] = useState(false)
 
   const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
 
+  // Keep the field synced with the URL when the user re-submits or back-navigates.
   useEffect(() => {
-    let cancelled = false
-    if (!query.trim()) {
+    setInputValue(submittedQuery)
+  }, [submittedQuery])
+
+  const runSearch = useCallback(async () => {
+    if (!submittedQuery.trim()) {
       setResults([])
       setExhausted(true)
+      setError(null)
       return
     }
     setLoading(true)
-    setPage(1)
-    setExhausted(false)
-    searchPodcasts({ query, language, limit: PAGE_SIZE }).then((shows) => {
-      if (cancelled) return
-      setResults(shows || [])
-      setExhausted((shows || []).length < PAGE_SIZE)
+    setError(null)
+    try {
+      const next = await searchPodcasts({ query: submittedQuery, language })
+      setResults(next)
+      setExhausted(next.length < PAGE_SIZE)
+    } catch (err) {
+      console.error('Search failed', err)
+      setError(err)
+      setResults([])
+    } finally {
       setLoading(false)
-    })
-    return () => {
-      cancelled = true
     }
-  }, [query, language])
+  }, [submittedQuery, language])
+
+  useEffect(() => {
+    runSearch()
+  }, [runSearch])
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    const trimmed = inputValue.trim()
+    if (!trimmed) return
+    setParams({ q: trimmed })
+  }
 
   const handleLoadMore = async () => {
     if (loading || exhausted) return
     setLoading(true)
-    const next = page + 1
-    const more = await searchPodcasts({
-      query,
-      language,
-      limit: PAGE_SIZE,
-      offset: results.length,
-    })
-    setResults((prev) => [...prev, ...(more || [])])
-    setPage(next)
-    if ((more || []).length < PAGE_SIZE) setExhausted(true)
-    setLoading(false)
+    try {
+      const more = await searchPodcasts({
+        query: submittedQuery,
+        language,
+        offset: results.length,
+      })
+      // Podcast Index doesn't paginate by offset — second page returns the
+      // same set, so de-dupe against what we already have.
+      const seen = new Set(
+        results.map((r) => (r.type === 'show' ? `s:${r.feedId}` : `e:${r.episodeId}`)),
+      )
+      const novel = more.filter(
+        (r) => !seen.has(r.type === 'show' ? `s:${r.feedId}` : `e:${r.episodeId}`),
+      )
+      if (novel.length === 0) {
+        setExhausted(true)
+      } else {
+        setResults((prev) => [...prev, ...novel])
+      }
+    } catch (err) {
+      console.error('Load more failed', err)
+      setError(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleFollow = (show) => follow(show)
-  const handleUnfollow = (show) => unfollow(show.id)
+  const handleFollow = (result) => {
+    follow({
+      id: String(result.feedId),
+      title: result.title,
+      host: result.author || '',
+      coverUrl: result.coverArtUrl || '',
+      language: result.language || '',
+      category: Array.isArray(result.categories) ? result.categories[0] || '' : '',
+    })
+  }
+
+  const handleUnfollow = (result) => {
+    unfollow(String(result.feedId))
+  }
+
+  const handlePlayEpisode = (episode) => {
+    // Audio player wiring is a separate task — log for now per brief.
+    // eslint-disable-next-line no-console
+    console.log('[podcast] play episode', {
+      episodeId: episode.episodeId,
+      audioUrl: episode.audioUrl,
+    })
+  }
+
+  const totalCount = results.length
 
   return (
     <PodcastShell>
       <Link to="/podcasts/discover" className="media-back-link ui-text">
         ← Discover
       </Link>
-      <header className="media-results-header">
-        <h1 className="media-results-header-title">
-          Results for <em>"{query}"</em>
-        </h1>
-        <p className="media-results-header-count">
-          {loading && results.length === 0
-            ? 'Searching…'
-            : `${results.length} result${results.length === 1 ? '' : 's'}`}
+
+      <form
+        className="media-search-form media-search-page-form"
+        onSubmit={handleSubmit}
+        role="search"
+      >
+        <input
+          type="search"
+          className="media-search-input"
+          placeholder="Search shows or topics."
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          aria-label="Search podcasts"
+        />
+        <button type="submit" className="media-secondary-button ui-text">
+          Search
+        </button>
+      </form>
+
+      {submittedQuery && (
+        <p className="media-search-caption">
+          Showing results for <em>"{submittedQuery}"</em>
         </p>
-      </header>
+      )}
 
-      <ShowResultsList
-        shows={results}
-        followedShowIds={followedIds}
-        pinnedRefIds={pinnedRefs}
-        onFollow={handleFollow}
-        onUnfollow={handleUnfollow}
-      />
+      {loading && results.length === 0 ? (
+        <SkeletonList />
+      ) : error ? (
+        <>
+          <p className="media-search-error">Something went wrong. Try again.</p>
+          <div className="media-search-error-actions">
+            <button
+              type="button"
+              className="media-secondary-button ui-text"
+              onClick={runSearch}
+            >
+              Retry
+            </button>
+          </div>
+        </>
+      ) : results.length === 0 && submittedQuery ? (
+        <p className="media-search-empty">
+          No results for "{submittedQuery}". Try a different search.
+        </p>
+      ) : (
+        <div className="media-results-list">
+          {results.map((result) => {
+            const isShow = result.type === 'show'
+            const id = isShow ? String(result.feedId) : String(result.episodeId)
+            return (
+              <SearchResultRow
+                key={`${result.type}:${id}`}
+                result={result}
+                isFollowed={isShow && followedIds.has(id)}
+                isPinned={isShow && pinnedRefs.has(id)}
+                onFollow={handleFollow}
+                onUnfollow={handleUnfollow}
+                onPlay={handlePlayEpisode}
+              />
+            )
+          })}
+        </div>
+      )}
 
-      {!exhausted && results.length > 0 && (
+      {!loading && !error && totalCount > 0 && !exhausted && (
         <div className="media-load-more">
           <button
             type="button"
             className="media-secondary-button ui-text"
             onClick={handleLoadMore}
-            disabled={loading}
           >
-            {loading ? 'Loading…' : 'Load more'}
+            Load more results
           </button>
+        </div>
+      )}
+
+      {loading && results.length > 0 && (
+        <div className="media-results-list" aria-busy="true">
+          <SearchResultRowSkeleton />
+          <SearchResultRowSkeleton />
         </div>
       )}
     </PodcastShell>

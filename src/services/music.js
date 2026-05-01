@@ -220,10 +220,10 @@ export const addTrackToPlaylist = async (uid, playlistId, trackId) => {
 
 // Stubbed external endpoints — returns empty results until backend lands.
 
-export const searchMusic = async ({ query: q, language, limit: max = 25, offset } = {}) => {
-  if (!q?.trim()) return { artists: [], albums: [], tracks: [] }
+export const searchMusic = async ({ query: q, language, limit: max = 10, offset, uid } = {}) => {
+  if (!q?.trim() || !uid) return { artists: [], albums: [], tracks: [] }
   try {
-    const params = new URLSearchParams({ q, lang: language || '', limit: String(max) })
+    const params = new URLSearchParams({ q, uid, lang: language || '', limit: String(max) })
     if (offset != null) params.set('offset', String(offset))
     const res = await fetch(`/api/music/search?${params.toString()}`)
     if (!res.ok) return { artists: [], albums: [], tracks: [] }

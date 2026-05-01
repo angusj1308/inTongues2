@@ -1482,6 +1482,38 @@ const mapSearchAlbum = (album) => ({
   imageUrl: getSpotifyImage(album?.images),
 })
 
+// Music surface mappers — shapes match what src/components/music/MusicResults.jsx consumes.
+const mapMusicArtist = (artist) => ({
+  id: artist?.id,
+  name: artist?.name || '',
+  coverUrl: getSpotifyImage(artist?.images),
+  genres: Array.isArray(artist?.genres) ? artist.genres : [],
+})
+
+const mapMusicAlbum = (album) => {
+  const releaseYear = album?.release_date ? Number(String(album.release_date).slice(0, 4)) || null : null
+  return {
+    id: album?.id,
+    title: album?.name || '',
+    artistName: (album?.artists || []).map((a) => a.name).join(', '),
+    artistId: album?.artists?.[0]?.id || '',
+    year: releaseYear,
+    coverUrl: getSpotifyImage(album?.images),
+    trackCount: album?.total_tracks || 0,
+  }
+}
+
+const mapMusicTrack = (track) => ({
+  id: track?.id,
+  title: track?.name || '',
+  artistName: (track?.artists || []).map((a) => a.name).join(', '),
+  artistId: track?.artists?.[0]?.id || '',
+  albumName: track?.album?.name || '',
+  albumId: track?.album?.id || '',
+  coverUrl: getSpotifyImage(track?.album?.images),
+  durationMs: track?.duration_ms || 0,
+})
+
 async function fetchSpotifyTrackIsrc(userId, spotifyId) {
   if (!userId || !spotifyId) return null
 
@@ -2170,6 +2202,52 @@ app.get('/api/spotify/show/:id/episodes', async (req, res) => {
   } catch (err) {
     console.error('Spotify episodes failure', err)
     res.status(500).json({ error: 'Unable to fetch show episodes' })
+  }
+})
+
+app.get('/api/music/search', async (req, res) => {
+  const userId = req.query.uid
+  const q = String(req.query.q || '').trim()
+  const limitRaw = parseInt(req.query.limit, 10)
+  // Clamp at 10 — Spotify Development Mode rejects larger limits with 400 "Invalid limit".
+  const limit = Math.max(1, Math.min(Number.isFinite(limitRaw) ? limitRaw : 10, 10))
+  const offsetRaw = parseInt(req.query.offset, 10)
+  const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0
+
+  if (!userId) return res.status(400).json({ error: 'uid is required' })
+  if (!q) return res.json({ artists: [], albums: [], tracks: [] })
+
+  try {
+    const token = await ensureSpotifyAccessToken(userId)
+    if (!token) return res.status(401).json({ error: 'Not connected to Spotify' })
+
+    const params = new URLSearchParams({
+      q,
+      type: 'track,album,artist',
+      market: 'from_token',
+      limit: String(limit),
+      offset: String(offset),
+    })
+
+    const response = await fetch(`https://api.spotify.com/v1/search?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      console.error('Music search error', response.status, await response.text())
+      return res.status(502).json({ error: 'Music search failed' })
+    }
+
+    const json = await response.json()
+
+    res.json({
+      artists: (json?.artists?.items || []).map(mapMusicArtist).filter((item) => item.id),
+      albums: (json?.albums?.items || []).map(mapMusicAlbum).filter((item) => item.id),
+      tracks: (json?.tracks?.items || []).map(mapMusicTrack).filter((item) => item.id),
+    })
+  } catch (err) {
+    console.error('Music search failure', err)
+    res.status(500).json({ error: 'Music search failed' })
   }
 })
 

@@ -18,6 +18,7 @@ import ImportAudioVideo from './pages/ImportAudioVideo'
 import IntonguesCinema from './pages/IntonguesCinema'
 import SpotifyCollectionPage from './pages/SpotifyCollectionPage'
 import { PodcastsLibraryPage, PodcastsDiscoverPage } from './pages/Podcasts'
+import PodcastShowPage from './pages/PodcastShow'
 import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
@@ -195,6 +196,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <PodcastsDiscoverPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/podcasts/show/:id"
+        element={
+          <ProtectedRoute>
+            <PodcastShowPage />
           </ProtectedRoute>
         }
       />

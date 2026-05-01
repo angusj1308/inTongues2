@@ -25,7 +25,14 @@ import Anthropic from '@anthropic-ai/sdk'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import { generateStory, callClaude, executePhase1, executePhase2, executePhase3, executePhase4Chapter } from './novelGenerator.js'
 import { rollSkeleton } from './storyBlueprints.js'
-import { podcastIndexFetch, cached, cacheKey } from './podcastIndex.js'
+import {
+  searchSpotifyPodcasts,
+  fetchSpotifyShow,
+  resolveRssFeed,
+  parseRssFeed,
+  cached,
+  cacheKey,
+} from './podcastsBackend.js'
 import { WebSocketServer } from 'ws'
 import http from 'http'
 
@@ -2299,7 +2306,7 @@ app.post('/api/spotify/library/add', async (req, res) => {
   }
 })
 
-// --- Podcast Index API ----------------------------------------------------
+// --- Podcast search (Spotify + iTunes RSS resolution) ---------------------
 
 const LANGUAGE_LABEL_TO_CODE = {
   english: 'en',
@@ -2308,20 +2315,6 @@ const LANGUAGE_LABEL_TO_CODE = {
   italian: 'it',
   german: 'de',
   portuguese: 'pt',
-  japanese: 'ja',
-  chinese: 'zh',
-  korean: 'ko',
-  russian: 'ru',
-  arabic: 'ar',
-  dutch: 'nl',
-  swedish: 'sv',
-  norwegian: 'no',
-  danish: 'da',
-  polish: 'pl',
-  turkish: 'tr',
-  greek: 'el',
-  hebrew: 'he',
-  hindi: 'hi',
 }
 
 const normalizeLanguage = (input) => {
@@ -2331,133 +2324,105 @@ const normalizeLanguage = (input) => {
   return LANGUAGE_LABEL_TO_CODE[raw] || ''
 }
 
-const flattenCategories = (categories) => {
-  if (!categories) return []
-  if (Array.isArray(categories)) return categories.filter(Boolean)
-  return Object.values(categories).filter(Boolean)
-}
-
-const sanitizeShow = (feed) => ({
-  feedId: feed.id,
-  title: feed.title || '',
-  author: feed.author || feed.ownerName || '',
-  description: feed.description || '',
-  coverArtUrl: feed.image || feed.artwork || '',
-  categories: flattenCategories(feed.categories),
-  episodeCount: feed.episodeCount || 0,
-  language: (feed.language || '').toLowerCase().slice(0, 2),
-  type: 'show',
-})
-
-const sanitizeEpisode = (item) => ({
-  episodeId: item.id,
-  feedId: item.feedId,
-  title: item.title || '',
-  showTitle: item.feedTitle || '',
-  description: item.description || '',
-  coverArtUrl: item.image || item.feedImage || '',
-  publishDate: item.datePublished || null,
-  duration: item.duration || 0,
-  audioUrl: item.enclosureUrl || '',
-  language: (item.feedLanguage || '').toLowerCase().slice(0, 2),
-  type: 'episode',
-})
-
 app.get('/api/podcasts/search', async (req, res) => {
   const queryTerm = String(req.query.q || '').trim()
   if (!queryTerm) return res.json({ results: [] })
 
   const language = normalizeLanguage(req.query.lang)
-  const cacheTag = cacheKey(['search', queryTerm.toLowerCase(), language])
-
+  const cacheTag = cacheKey(['podcast-search', queryTerm.toLowerCase(), language])
   try {
     const data = await cached(cacheTag, 60 * 60, async () => {
-      const showParams = { q: queryTerm }
-      const episodeParams = { q: queryTerm }
-      // Podcast Index supports comma-separated language filter on byterm
-      if (language) {
-        showParams.lang = language
-        episodeParams.lang = language
-      }
-
-      const [showsResp, episodesResp] = await Promise.all([
-        podcastIndexFetch('/search/byterm', showParams).catch((err) => {
-          console.warn('Podcast Index search/byterm failed', err.message)
-          return { feeds: [] }
-        }),
-        podcastIndexFetch('/search/episodes/byperson', episodeParams).catch((err) => {
-          console.warn('Podcast Index search/episodes/byperson failed', err.message)
-          return { items: [] }
-        }),
-      ])
-
-      const showFeeds = Array.isArray(showsResp?.feeds) ? showsResp.feeds : []
-      const episodeItems = Array.isArray(episodesResp?.items) ? episodesResp.items : []
-
-      const filteredShows = language
-        ? showFeeds.filter((f) => (f.language || '').toLowerCase().startsWith(language))
-        : showFeeds
-      const filteredEpisodes = language
-        ? episodeItems.filter((i) => (i.feedLanguage || '').toLowerCase().startsWith(language))
-        : episodeItems
-
-      // Podcast Index returns relevance-sorted; preserve order via index-based score.
-      const showResults = filteredShows.map((feed, index) => ({
-        ...sanitizeShow(feed),
-        relevance: filteredShows.length - index,
-      }))
-      const episodeResults = filteredEpisodes.map((item, index) => ({
-        ...sanitizeEpisode(item),
-        relevance: filteredEpisodes.length - index,
-      }))
-
-      const merged = [...showResults, ...episodeResults]
-      merged.sort((a, b) => (b.relevance || 0) - (a.relevance || 0))
-      // Strip relevance from response shape
-      return { results: merged.map(({ relevance, ...rest }) => rest) }
+      const results = await searchSpotifyPodcasts({ query: queryTerm, language })
+      return { results }
     })
     res.json(data)
   } catch (err) {
-    console.error('Podcast Index search error', err)
+    console.error('Podcast search error', err)
     res.status(502).json({ error: 'Podcast search failed', results: [] })
   }
 })
 
-app.get('/api/podcasts/show/:feedId', async (req, res) => {
-  const feedId = String(req.params.feedId || '').trim()
-  if (!feedId) return res.status(400).json({ error: 'feedId required' })
+app.get('/api/podcasts/show/:spotifyShowId', async (req, res) => {
+  const spotifyShowId = String(req.params.spotifyShowId || '').trim()
+  if (!spotifyShowId) return res.status(400).json({ error: 'spotifyShowId required' })
 
-  const cacheTag = cacheKey(['show', feedId])
   try {
-    const data = await cached(cacheTag, 6 * 60 * 60, async () => {
-      const resp = await podcastIndexFetch('/podcasts/byfeedid', { id: feedId })
-      const feed = resp?.feed
-      if (!feed) return null
-      return sanitizeShow(feed)
+    const show = await cached(cacheKey(['podcast-show', spotifyShowId]), 6 * 60 * 60, () =>
+      fetchSpotifyShow(spotifyShowId),
+    )
+    if (!show) return res.status(404).json({ error: 'Show not found' })
+
+    const resolved = await resolveRssFeed({
+      spotifyShowId,
+      title: show.title,
+      publisher: show.author,
     })
-    if (!data) return res.status(404).json({ error: 'Show not found' })
-    res.json(data)
+
+    if (!resolved?.feedUrl) {
+      return res.json({
+        ...show,
+        feedUrl: null,
+        itunesId: null,
+        available: false,
+        unavailableReason: 'spotify_exclusive',
+      })
+    }
+
+    res.json({
+      ...show,
+      feedUrl: resolved.feedUrl,
+      itunesId: resolved.itunesId,
+      available: true,
+    })
   } catch (err) {
-    console.error('Podcast Index show fetch error', err)
+    console.error('Podcast show fetch error', err)
     res.status(502).json({ error: 'Show fetch failed' })
   }
 })
 
-app.get('/api/podcasts/show/:feedId/episodes', async (req, res) => {
-  const feedId = String(req.params.feedId || '').trim()
-  if (!feedId) return res.status(400).json({ error: 'feedId required' })
+app.get('/api/podcasts/show/:spotifyShowId/episodes', async (req, res) => {
+  const spotifyShowId = String(req.params.spotifyShowId || '').trim()
+  if (!spotifyShowId) return res.status(400).json({ error: 'spotifyShowId required' })
 
-  const cacheTag = cacheKey(['episodes', feedId])
   try {
-    const data = await cached(cacheTag, 30 * 60, async () => {
-      const resp = await podcastIndexFetch('/episodes/byfeedid', { id: feedId, max: 50 })
-      const items = Array.isArray(resp?.items) ? resp.items : []
-      return { episodes: items.map(sanitizeEpisode), nextCursor: null }
-    })
+    const data = await cached(
+      cacheKey(['podcast-episodes', spotifyShowId]),
+      30 * 60,
+      async () => {
+        const show = await fetchSpotifyShow(spotifyShowId)
+        if (!show) return null
+        const resolved = await resolveRssFeed({
+          spotifyShowId,
+          title: show.title,
+          publisher: show.author,
+        })
+        if (!resolved?.feedUrl) {
+          return {
+            available: false,
+            unavailableReason: 'spotify_exclusive',
+            episodes: [],
+            nextCursor: null,
+          }
+        }
+        const parsed = await parseRssFeed(resolved.feedUrl, { max: 50 })
+        if (parsed.parseError) {
+          return {
+            available: false,
+            unavailableReason: 'feed_unreachable',
+            episodes: [],
+            nextCursor: null,
+          }
+        }
+        return { available: true, episodes: parsed.episodes, nextCursor: null }
+      },
+    )
+    if (!data) return res.status(404).json({ error: 'Show not found' })
     res.json(data)
   } catch (err) {
-    console.error('Podcast Index episodes fetch error', err)
-    res.status(502).json({ error: 'Episodes fetch failed', episodes: [], nextCursor: null })
+    console.error('Podcast episodes fetch error', err)
+    res
+      .status(502)
+      .json({ error: 'Episodes fetch failed', episodes: [], nextCursor: null, available: false })
   }
 })
 

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchShow, fetchShowEpisodes } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
 import AddToPlaylistMenu from '../components/podcast/AddToPlaylistMenu'
+import UnavailableShowMessage from '../components/podcast/UnavailableShowMessage'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const SORT_OPTIONS = [
@@ -15,6 +16,7 @@ const SORT_OPTIONS = [
 
 const PodcastShowPage = () => {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user, episodeStates, playlists, isFollowed, isPinned, follow, unfollow } =
     usePodcastSubscriptions()
   const [show, setShow] = useState(null)
@@ -24,6 +26,7 @@ const PodcastShowPage = () => {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [addMenuFor, setAddMenuFor] = useState(null) // episodeId
+  const [unavailable, setUnavailable] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -33,6 +36,7 @@ const PodcastShowPage = () => {
       setShow(showData)
       setEpisodes(eps?.episodes || [])
       setNextCursor(eps?.nextCursor || null)
+      setUnavailable(showData?.available === false || eps?.available === false)
       setLoading(false)
     })
     return () => {
@@ -136,69 +140,78 @@ const PodcastShowPage = () => {
               </div>
             </header>
 
-            <section className="media-section">
-              <div className="media-section-row">
-                <h2 className="media-section-header">Episodes</h2>
-                <label className="media-sort-label ui-text">
-                  Sort
-                  <select
-                    className="media-sort-select"
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                  >
-                    {SORT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+            {unavailable ? (
+              <section className="media-section">
+                <UnavailableShowMessage
+                  title={show.title}
+                  onBack={() => navigate('/podcasts/discover')}
+                />
+              </section>
+            ) : (
+              <section className="media-section">
+                <div className="media-section-row">
+                  <h2 className="media-section-header">Episodes</h2>
+                  <label className="media-sort-label ui-text">
+                    Sort
+                    <select
+                      className="media-sort-select"
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value)}
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
-              {episodes.length === 0 ? (
-                <p className="media-empty-line">No episodes available.</p>
-              ) : (
-                <div className="media-episode-detail-list">
-                  {episodes.map((ep) => {
-                    const state = stateById.get(ep.id)
-                    return (
-                      <div key={ep.id} className="media-episode-detail-wrapper">
-                        <EpisodeRow
-                          episode={{
-                            ...ep,
-                            coverUrl: ep.coverUrl || show.coverUrl,
-                            progressMs: state?.progressMs || 0,
-                          }}
-                          variant="detail"
-                          onAddToPlaylist={() => setAddMenuFor(ep.id)}
-                        />
-                        {addMenuFor === ep.id && (
-                          <AddToPlaylistMenu
-                            uid={user?.uid}
-                            episode={ep}
-                            playlists={playlists}
-                            onClose={() => setAddMenuFor(null)}
+                {episodes.length === 0 ? (
+                  <p className="media-empty-line">No episodes available.</p>
+                ) : (
+                  <div className="media-episode-detail-list">
+                    {episodes.map((ep) => {
+                      const state = stateById.get(ep.id)
+                      return (
+                        <div key={ep.id} className="media-episode-detail-wrapper">
+                          <EpisodeRow
+                            episode={{
+                              ...ep,
+                              coverUrl: ep.coverUrl || show.coverUrl,
+                              progressMs: state?.progressMs || 0,
+                            }}
+                            variant="detail"
+                            onAddToPlaylist={() => setAddMenuFor(ep.id)}
                           />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                          {addMenuFor === ep.id && (
+                            <AddToPlaylistMenu
+                              uid={user?.uid}
+                              episode={ep}
+                              playlists={playlists}
+                              onClose={() => setAddMenuFor(null)}
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
 
-              {nextCursor && (
-                <div className="media-load-more">
-                  <button
-                    type="button"
-                    className="media-secondary-button ui-text"
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? 'Loading…' : 'Load older episodes'}
-                  </button>
-                </div>
-              )}
-            </section>
+                {nextCursor && (
+                  <div className="media-load-more">
+                    <button
+                      type="button"
+                      className="media-secondary-button ui-text"
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? 'Loading…' : 'Load older episodes'}
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>

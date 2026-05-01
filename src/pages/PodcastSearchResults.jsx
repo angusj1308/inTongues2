@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import { searchPodcasts } from '../services/podcast'
+import { searchPodcasts, fetchShow } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
 import SearchResultRow, {
   SearchResultRowSkeleton,
 } from '../components/podcast/SearchResultRow'
+import UnavailableShowMessage from '../components/podcast/UnavailableShowMessage'
 import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const PAGE_SIZE = 25
@@ -31,6 +32,7 @@ const PodcastSearchResultsPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [exhausted, setExhausted] = useState(false)
+  const [unavailableEpisode, setUnavailableEpisode] = useState(null)
 
   const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
 
@@ -81,14 +83,14 @@ const PodcastSearchResultsPage = () => {
         language,
         offset: results.length,
       })
-      // Podcast Index doesn't paginate by offset — second page returns the
+      // Backend search returns a single ranked page; second page typically returns the
       // same set, so de-dupe against what we already have.
-      const seen = new Set(
-        results.map((r) => (r.type === 'show' ? `s:${r.feedId}` : `e:${r.episodeId}`)),
-      )
-      const novel = more.filter(
-        (r) => !seen.has(r.type === 'show' ? `s:${r.feedId}` : `e:${r.episodeId}`),
-      )
+      const idOf = (r) =>
+        r.type === 'show'
+          ? `s:${r.spotifyShowId ?? r.feedId ?? ''}`
+          : `e:${r.spotifyEpisodeId ?? r.episodeId ?? ''}`
+      const seen = new Set(results.map(idOf))
+      const novel = more.filter((r) => !seen.has(idOf(r)))
       if (novel.length === 0) {
         setExhausted(true)
       } else {
@@ -102,9 +104,12 @@ const PodcastSearchResultsPage = () => {
     }
   }
 
+  const showIdOf = (r) => String(r.spotifyShowId ?? r.feedId ?? '')
+  const episodeIdOf = (r) => String(r.spotifyEpisodeId ?? r.episodeId ?? '')
+
   const handleFollow = (result) => {
     follow({
-      id: String(result.feedId),
+      id: showIdOf(result),
       title: result.title,
       host: result.author || '',
       coverUrl: result.coverArtUrl || '',
@@ -114,15 +119,25 @@ const PodcastSearchResultsPage = () => {
   }
 
   const handleUnfollow = (result) => {
-    unfollow(String(result.feedId))
+    unfollow(showIdOf(result))
   }
 
-  const handlePlayEpisode = (episode) => {
+  const handlePlayEpisode = async (episode) => {
+    const parentShowId = String(episode.spotifyShowId || '')
+    if (parentShowId) {
+      const parent = await fetchShow(parentShowId)
+      if (parent && parent.available === false) {
+        setUnavailableEpisode({
+          showTitle: episode.showTitle || parent.title || '',
+        })
+        return
+      }
+    }
     // Audio player wiring is a separate task — log for now per brief.
     // eslint-disable-next-line no-console
     console.log('[podcast] play episode', {
-      episodeId: episode.episodeId,
-      audioUrl: episode.audioUrl,
+      episodeId: episodeIdOf(episode),
+      spotifyShowId: parentShowId,
     })
   }
 
@@ -181,7 +196,7 @@ const PodcastSearchResultsPage = () => {
         <div className="media-results-list">
           {results.map((result) => {
             const isShow = result.type === 'show'
-            const id = isShow ? String(result.feedId) : String(result.episodeId)
+            const id = isShow ? showIdOf(result) : episodeIdOf(result)
             return (
               <SearchResultRow
                 key={`${result.type}:${id}`}
@@ -194,6 +209,24 @@ const PodcastSearchResultsPage = () => {
               />
             )
           })}
+        </div>
+      )}
+
+      {unavailableEpisode && (
+        <div
+          className="media-modal-backdrop"
+          onClick={() => setUnavailableEpisode(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Episode unavailable"
+        >
+          <div className="media-modal" onClick={(e) => e.stopPropagation()}>
+            <UnavailableShowMessage
+              title={unavailableEpisode.showTitle}
+              onBack={() => setUnavailableEpisode(null)}
+              layout="dialog"
+            />
+          </div>
         </div>
       )}
 

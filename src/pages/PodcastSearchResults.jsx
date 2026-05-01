@@ -1,42 +1,25 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import {
-  searchPodcasts,
-  followShow,
-  unfollowShow,
-  unpinByRef,
-  subscribeFollowedShows,
-  subscribePins,
-} from '../services/podcast'
+import { searchPodcasts } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
 import ShowResultsList from '../components/podcast/ShowResultsList'
+import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const PAGE_SIZE = 25
 
 const PodcastSearchResultsPage = () => {
   const [params] = useSearchParams()
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
+  const { followedIds, pinnedRefs, follow, unfollow } = usePodcastSubscriptions()
   const query = params.get('q') || ''
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [exhausted, setExhausted] = useState(false)
-  const [followedShows, setFollowedShows] = useState([])
-  const [pins, setPins] = useState([])
 
   const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
-
-  useEffect(() => {
-    if (!user?.uid) return undefined
-    const u1 = subscribeFollowedShows(user.uid, setFollowedShows)
-    const u2 = subscribePins(user.uid, setPins)
-    return () => {
-      u1()
-      u2()
-    }
-  }, [user?.uid])
 
   useEffect(() => {
     let cancelled = false
@@ -59,13 +42,6 @@ const PodcastSearchResultsPage = () => {
     }
   }, [query, language])
 
-  const followedIds = useMemo(
-    () => new Set(followedShows.map((s) => s.id)),
-    [followedShows],
-  )
-
-  const pinnedRefs = useMemo(() => new Set(pins.map((p) => p.refId)), [pins])
-
   const handleLoadMore = async () => {
     if (loading || exhausted) return
     setLoading(true)
@@ -82,16 +58,8 @@ const PodcastSearchResultsPage = () => {
     setLoading(false)
   }
 
-  const handleFollow = async (show) => {
-    if (!user?.uid) return
-    await followShow(user.uid, show)
-  }
-
-  const handleUnfollow = async (show) => {
-    if (!user?.uid) return
-    await unfollowShow(user.uid, show.id)
-    if (pinnedRefs.has(show.id)) await unpinByRef(user.uid, show.id)
-  }
+  const handleFollow = (show) => follow(show)
+  const handleUnfollow = (show) => unfollow(show.id)
 
   return (
     <PodcastShell>

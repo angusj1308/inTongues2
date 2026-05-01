@@ -1,44 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import useAuth from '../context/AuthContext'
 import { resolveSupportedLanguageLabel } from '../constants/languages'
-import {
-  fetchCategoryShows,
-  followShow,
-  unfollowShow,
-  unpinByRef,
-  subscribeFollowedShows,
-  subscribePins,
-} from '../services/podcast'
+import { fetchCategoryShows } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
 import ShowResultsList from '../components/podcast/ShowResultsList'
 import { localizeCategory } from '../components/podcast/categories'
+import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const PAGE_SIZE = 25
 
 const PodcastCategoryResultsPage = () => {
   const { category: categoryParam } = useParams()
   const category = decodeURIComponent(categoryParam || '')
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
+  const { followedIds, pinnedRefs, follow, unfollow } = usePodcastSubscriptions()
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [exhausted, setExhausted] = useState(false)
-  const [followedShows, setFollowedShows] = useState([])
-  const [pins, setPins] = useState([])
 
   const language = resolveSupportedLanguageLabel(profile?.lastUsedLanguage, '')
   const nativeLanguage = resolveSupportedLanguageLabel(profile?.nativeLanguage, 'English') || 'English'
   const localizedTitle = localizeCategory(category, nativeLanguage)
-
-  useEffect(() => {
-    if (!user?.uid) return undefined
-    const u1 = subscribeFollowedShows(user.uid, setFollowedShows)
-    const u2 = subscribePins(user.uid, setPins)
-    return () => {
-      u1()
-      u2()
-    }
-  }, [user?.uid])
 
   useEffect(() => {
     let cancelled = false
@@ -55,12 +38,6 @@ const PodcastCategoryResultsPage = () => {
     }
   }, [category, language])
 
-  const followedIds = useMemo(
-    () => new Set(followedShows.map((s) => s.id)),
-    [followedShows],
-  )
-  const pinnedRefs = useMemo(() => new Set(pins.map((p) => p.refId)), [pins])
-
   const handleLoadMore = async () => {
     if (loading || exhausted) return
     setLoading(true)
@@ -75,16 +52,8 @@ const PodcastCategoryResultsPage = () => {
     setLoading(false)
   }
 
-  const handleFollow = async (show) => {
-    if (!user?.uid) return
-    await followShow(user.uid, show)
-  }
-
-  const handleUnfollow = async (show) => {
-    if (!user?.uid) return
-    await unfollowShow(user.uid, show.id)
-    if (pinnedRefs.has(show.id)) await unpinByRef(user.uid, show.id)
-  }
+  const handleFollow = (show) => follow(show)
+  const handleUnfollow = (show) => unfollow(show.id)
 
   return (
     <PodcastShell>

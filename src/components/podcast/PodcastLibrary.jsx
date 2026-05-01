@@ -1,14 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import useAuth from '../../context/AuthContext'
-import {
-  subscribeFollowedShows,
-  subscribePins,
-  subscribeEpisodeStates,
-  subscribePlaylists,
-  pinItem,
-  unpinByRef,
-} from '../../services/podcast'
+import { pinItem, unpinByRef } from '../../services/podcast'
 import CoverArt from './CoverArt'
 import ShowTile from './ShowTile'
 import PinButton from './PinButton'
@@ -16,33 +8,22 @@ import ContinueListening from './ContinueListening'
 import PinnedSection from './PinnedSection'
 import NewEpisodes from './NewEpisodes'
 import RecentShelf from './RecentShelf'
+import usePodcastSubscriptions from './usePodcastSubscriptions'
 
 const MAX_PINS = 4
 
 const PodcastLibrary = () => {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const [followedShows, setFollowedShows] = useState([])
-  const [pins, setPins] = useState([])
-  const [episodeStates, setEpisodeStates] = useState([])
-  const [playlists, setPlaylists] = useState([])
+  const {
+    user,
+    followedShows,
+    pins,
+    episodeStates,
+    playlists,
+    pinnedRefs: pinnedRefIds,
+  } = usePodcastSubscriptions()
   const [pinError, setPinError] = useState('')
 
-  useEffect(() => {
-    if (!user?.uid) return undefined
-    const unsubFollows = subscribeFollowedShows(user.uid, setFollowedShows)
-    const unsubPins = subscribePins(user.uid, setPins)
-    const unsubStates = subscribeEpisodeStates(user.uid, setEpisodeStates)
-    const unsubPlaylists = subscribePlaylists(user.uid, setPlaylists)
-    return () => {
-      unsubFollows()
-      unsubPins()
-      unsubStates()
-      unsubPlaylists()
-    }
-  }, [user?.uid])
-
-  const pinnedRefIds = useMemo(() => new Set(pins.map((p) => p.refId)), [pins])
   const maxPinOrder = useMemo(
     () => pins.reduce((acc, p) => Math.max(acc, p.order || 0), 0),
     [pins],

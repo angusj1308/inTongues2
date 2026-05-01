@@ -1,20 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import useAuth from '../context/AuthContext'
-import {
-  fetchShow,
-  fetchShowEpisodes,
-  followShow,
-  unfollowShow,
-  unpinByRef,
-  subscribeFollowedShows,
-  subscribePins,
-  subscribeEpisodeStates,
-} from '../services/podcast'
+import { fetchShow, fetchShowEpisodes } from '../services/podcast'
 import PodcastShell from '../components/podcast/PodcastShell'
 import CoverArt from '../components/podcast/CoverArt'
 import EpisodeRow from '../components/podcast/EpisodeRow'
 import FollowButton from '../components/podcast/FollowButton'
+import usePodcastSubscriptions from '../components/podcast/usePodcastSubscriptions'
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
@@ -23,28 +14,13 @@ const SORT_OPTIONS = [
 
 const PodcastShowPage = () => {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { episodeStates, isFollowed, isPinned, follow, unfollow } = usePodcastSubscriptions()
   const [show, setShow] = useState(null)
   const [episodes, setEpisodes] = useState([])
   const [nextCursor, setNextCursor] = useState(null)
   const [sort, setSort] = useState('newest')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [followedShows, setFollowedShows] = useState([])
-  const [pins, setPins] = useState([])
-  const [episodeStates, setEpisodeStates] = useState([])
-
-  useEffect(() => {
-    if (!user?.uid) return undefined
-    const unsubFollows = subscribeFollowedShows(user.uid, setFollowedShows)
-    const unsubPins = subscribePins(user.uid, setPins)
-    const unsubStates = subscribeEpisodeStates(user.uid, setEpisodeStates)
-    return () => {
-      unsubFollows()
-      unsubPins()
-      unsubStates()
-    }
-  }, [user?.uid])
 
   useEffect(() => {
     let cancelled = false
@@ -61,12 +37,8 @@ const PodcastShowPage = () => {
     }
   }, [id, sort])
 
-  const isFollowed = useMemo(
-    () => followedShows.some((s) => s.id === id),
-    [followedShows, id],
-  )
-
-  const isPinned = useMemo(() => pins.some((p) => p.refId === id), [pins, id])
+  const followed = isFollowed(id)
+  const pinned = isPinned(id)
 
   const stateById = useMemo(() => {
     const map = new Map()
@@ -75,8 +47,8 @@ const PodcastShowPage = () => {
   }, [episodeStates])
 
   const handleFollow = async () => {
-    if (!user?.uid || !show) return
-    await followShow(user.uid, {
+    if (!show) return
+    await follow({
       id,
       title: show.title,
       host: show.host,
@@ -87,9 +59,7 @@ const PodcastShowPage = () => {
   }
 
   const handleUnfollow = async () => {
-    if (!user?.uid) return
-    await unfollowShow(user.uid, id)
-    if (isPinned) await unpinByRef(user.uid, id)
+    await unfollow(id)
   }
 
   const handleLoadMore = async () => {
@@ -125,8 +95,8 @@ const PodcastShowPage = () => {
                 )}
                 <div className="podcast-show-actions">
                   <FollowButton
-                    isFollowed={isFollowed}
-                    isPinned={isPinned}
+                    isFollowed={followed}
+                    isPinned={pinned}
                     onFollow={handleFollow}
                     onUnfollow={handleUnfollow}
                   />

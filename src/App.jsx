@@ -25,6 +25,7 @@ import { MusicLibraryPage, MusicDiscoverPage } from './pages/Music'
 import MusicSearchResultsPage from './pages/MusicSearchResults'
 import MusicGenreResultsPage from './pages/MusicGenreResults'
 import MusicArtistPage from './pages/MusicArtist'
+import MusicAlbumPage from './pages/MusicAlbum'
 import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
@@ -266,6 +267,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <MusicArtistPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/music/album/:id"
+        element={
+          <ProtectedRoute>
+            <MusicAlbumPage />
           </ProtectedRoute>
         }
       />

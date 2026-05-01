@@ -1737,3 +1737,30 @@
   background: rgba(250, 250, 249, 0.04);
 }
 
+
+/* Music results — multi-block (Artists / Albums / Tracks) */
+.media-music-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.media-results-block .media-section-header {
+  margin-bottom: 0.75rem;
+}
+
+.media-track-row-wrapper {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 0.5px solid #d6d3c8;
+}
+
+.media-track-row-wrapper > .media-episode-list-row {
+  border-bottom: none;
+}
+
+[data-theme='dark'] .media-track-row-wrapper {
+  border-color: #3a3633;
+}

@@ -22,6 +22,8 @@ import PodcastShowPage from './pages/PodcastShow'
 import PodcastSearchResultsPage from './pages/PodcastSearchResults'
 import PodcastCategoryResultsPage from './pages/PodcastCategoryResults'
 import { MusicLibraryPage, MusicDiscoverPage } from './pages/Music'
+import MusicSearchResultsPage from './pages/MusicSearchResults'
+import MusicGenreResultsPage from './pages/MusicGenreResults'
 import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
@@ -239,6 +241,22 @@ const App = () => {
         element={
           <ProtectedRoute>
             <MusicDiscoverPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/music/search"
+        element={
+          <ProtectedRoute>
+            <MusicSearchResultsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/music/discover/:genre"
+        element={
+          <ProtectedRoute>
+            <MusicGenreResultsPage />
           </ProtectedRoute>
         }
       />

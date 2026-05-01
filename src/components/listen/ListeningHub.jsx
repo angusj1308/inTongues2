@@ -576,15 +576,15 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           {/* Divider */}
           <div className="home-grid-divider" />
 
-          {/* Card 3: Stream (Netflix/Chrome Extension) */}
+          {/* Card 3: Podcast */}
           <button
             className="home-card reading-action-card"
             onClick={() => window.open('https://chrome.google.com/webstore', '_blank')}
           >
             <img src={netflixIcon} alt="" className="reading-card-icon" />
-            <h3 className="home-card-title">Film & TV</h3>
+            <h3 className="home-card-title">Podcast</h3>
             <p className="reading-card-description">
-              Install our Chrome extension to learn while streaming Netflix and other platforms.
+              Search and stream podcasts to study transcripts in your target language.
             </p>
           </button>
         </div>

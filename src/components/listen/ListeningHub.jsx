@@ -579,7 +579,7 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           {/* Card 3: Podcast */}
           <button
             className="home-card reading-action-card"
-            onClick={() => window.open('https://chrome.google.com/webstore', '_blank')}
+            onClick={() => navigate('/podcasts')}
           >
             <img src={netflixIcon} alt="" className="reading-card-icon" />
             <h3 className="home-card-title">Podcast</h3>

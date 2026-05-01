@@ -24,6 +24,7 @@ import PodcastCategoryResultsPage from './pages/PodcastCategoryResults'
 import { MusicLibraryPage, MusicDiscoverPage } from './pages/Music'
 import MusicSearchResultsPage from './pages/MusicSearchResults'
 import MusicGenreResultsPage from './pages/MusicGenreResults'
+import MusicArtistPage from './pages/MusicArtist'
 import JuanComprehension from './pages/JuanComprehension'
 import WritingEditor from './pages/WritingEditor'
 import PracticeLesson from './pages/PracticeLesson'
@@ -257,6 +258,14 @@ const App = () => {
         element={
           <ProtectedRoute>
             <MusicGenreResultsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/music/artist/:id"
+        element={
+          <ProtectedRoute>
+            <MusicArtistPage />
           </ProtectedRoute>
         }
       />

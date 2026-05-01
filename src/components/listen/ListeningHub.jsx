@@ -561,10 +561,10 @@ const ListeningHub = ({ embedded = false, showBackButton = true }) => {
           {/* Divider */}
           <div className="home-grid-divider" />
 
-          {/* Card 2: Browse (Spotify) */}
+          {/* Card 2: Music */}
           <button
             className="home-card reading-action-card"
-            onClick={() => setShowSpotifyPanel(true)}
+            onClick={() => navigate('/music')}
           >
             <img src={spotifyIcon} alt="" className="reading-card-icon" />
             <h3 className="home-card-title">Music</h3>

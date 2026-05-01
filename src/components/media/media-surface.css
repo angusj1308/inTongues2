@@ -1534,3 +1534,206 @@
 [data-theme='dark'] .media-hover-nav:hover .media-back-button {
   color: #fafaf9;
 }
+
+
+/* ---- Music surface additions ---- */
+
+/* Circular covers (used for artist tiles) */
+.media-cover-circular {
+  border-radius: 50% !important;
+}
+
+/* Album scroll tile (Saved Albums, More by [Artist]) */
+.media-album-tile {
+  flex: 0 0 180px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.media-album-tile-title {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: #1c2230;
+  margin: 0.1rem 0 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.media-album-tile-caption {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.7rem;
+  color: #78716c;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* Artist grid (5 columns, circular tiles, centred caption) */
+.media-artist-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 1100px) {
+  .media-artist-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .media-artist-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.media-artist-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.media-artist-tile-cover {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+  display: block;
+}
+
+.media-artist-tile-cover .media-cover {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+
+.media-artist-tile-name {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 1rem;
+  color: #1c2230;
+  margin: 0.7rem 0 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.media-artist-tile-pin {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  background: rgba(243, 240, 230, 0.85);
+  border-radius: 50%;
+  backdrop-filter: blur(2px);
+}
+
+/* Playlist grid (4 columns for music; 5 for podcasts via .media-show-grid) */
+.media-playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .media-playlist-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .media-playlist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+[data-theme='dark'] .media-album-tile-title,
+[data-theme='dark'] .media-artist-tile-name {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .media-album-tile-caption {
+  color: #a8a29e;
+}
+
+[data-theme='dark'] .media-artist-tile-pin {
+  background: rgba(28, 25, 23, 0.85);
+}
+
+/* Tracklist on album page: numbered rows */
+.media-tracklist {
+  border-top: 0.5px solid #d6d3c8;
+}
+
+.media-tracklist-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-bottom: 0.5px solid #d6d3c8;
+  cursor: pointer;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.media-tracklist-row:hover {
+  background: rgba(28, 34, 48, 0.04);
+}
+
+.media-tracklist-number {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.78rem;
+  color: #78716c;
+}
+
+.media-tracklist-title {
+  font-family: 'Crimson Pro', 'Georgia', serif;
+  font-style: italic;
+  font-size: 1.05rem;
+  color: #1c2230;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-tracklist-duration {
+  font-family: 'Source Sans 3', 'Libre Franklin', -apple-system, sans-serif;
+  font-size: 0.78rem;
+  color: #78716c;
+}
+
+[data-theme='dark'] .media-tracklist,
+[data-theme='dark'] .media-tracklist-row {
+  border-color: #3a3633;
+}
+
+[data-theme='dark'] .media-tracklist-title {
+  color: #fafaf9;
+}
+
+[data-theme='dark'] .media-tracklist-row:hover {
+  background: rgba(250, 250, 249, 0.04);
+}
+

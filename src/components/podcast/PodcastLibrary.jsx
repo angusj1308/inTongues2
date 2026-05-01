@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { pinItem, unpinByRef } from '../../services/podcast'
-import CoverArt from './CoverArt'
 import ShowTile from './ShowTile'
-import PinButton from './PinButton'
+import PlaylistTile from './PlaylistTile'
 import ContinueListening from './ContinueListening'
 import PinnedSection from './PinnedSection'
 import NewEpisodes from './NewEpisodes'
@@ -200,31 +199,13 @@ const PodcastLibrary = () => {
         ) : (
           <div className="podcast-show-grid">
             {playlists.map((playlist) => (
-              <div key={playlist.id} className="podcast-show-tile">
-                <button
-                  type="button"
-                  className="podcast-show-tile-cover"
-                  onClick={() => {}}
-                  aria-label={`Open ${playlist.name}`}
-                >
-                  <CoverArt src={playlist.coverUrl} title={playlist.name} size={180} />
-                </button>
-                <div className="podcast-show-tile-meta">
-                  <p className="podcast-show-tile-title">{playlist.name}</p>
-                  {playlist.episodeIds?.length != null && (
-                    <p className="podcast-show-tile-host">
-                      {playlist.episodeIds.length} episode{playlist.episodeIds.length === 1 ? '' : 's'}
-                    </p>
-                  )}
-                </div>
-                <div className="podcast-show-tile-pin">
-                  <PinButton
-                    isPinned={pinnedRefIds.has(playlist.id)}
-                    disabled={!pinnedRefIds.has(playlist.id) && pins.length >= MAX_PINS}
-                    onClick={() => handleTogglePinPlaylist(playlist)}
-                  />
-                </div>
-              </div>
+              <PlaylistTile
+                key={playlist.id}
+                playlist={playlist}
+                isPinned={pinnedRefIds.has(playlist.id)}
+                onTogglePin={handleTogglePinPlaylist}
+                pinDisabled={!pinnedRefIds.has(playlist.id) && pins.length >= MAX_PINS}
+              />
             ))}
           </div>
         )}

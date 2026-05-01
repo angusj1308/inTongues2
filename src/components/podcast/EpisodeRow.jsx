@@ -1,5 +1,18 @@
 import CoverArt from './CoverArt'
 
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+)
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+)
+
 // Variants: 'list' (New Episodes / search results), 'detail' (show page row), 'tile' (Recent strip), 'pinned-tile' (140px square in Pinned strip)
 const formatDate = (input) => {
   if (!input) return ''
@@ -106,7 +119,7 @@ const EpisodeRow = ({
               aria-label="Add to playlist"
               onClick={() => onAddToPlaylist(episode)}
             >
-              +
+              <PlusIcon />
             </button>
           )}
         </div>
@@ -133,7 +146,7 @@ const EpisodeRow = ({
           aria-label="Play episode"
           onClick={() => onPlay?.(episode)}
         >
-          ▶
+          <PlayIcon />
         </button>
         {onAddToPlaylist && (
           <button
@@ -142,7 +155,7 @@ const EpisodeRow = ({
             aria-label="Add to playlist"
             onClick={() => onAddToPlaylist(episode)}
           >
-            +
+            <PlusIcon />
           </button>
         )}
       </div>

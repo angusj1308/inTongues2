@@ -14,8 +14,6 @@
 import crypto from 'crypto'
 import Parser from 'rss-parser'
 
-const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET
 const DEFAULT_MARKET = 'MX' // Spanish-speaking market with broad Latin American + EU Spanish coverage.
 
 // --- Tiny TTL cache --------------------------------------------------------
@@ -54,10 +52,14 @@ const getSpotifyAppToken = async () => {
   if (appTokenCache.token && appTokenCache.expiresAt - 60_000 > now) {
     return appTokenCache.token
   }
-  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+  // Read env at call time: this module is imported before dotenv.config()
+  // runs in server.js, so capturing these at module scope yields undefined.
+  const clientId = process.env.SPOTIFY_CLIENT_ID
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
+  if (!clientId || !clientSecret) {
     throw new Error('Spotify credentials not configured.')
   }
-  const auth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
